@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Writing Task 1: Map Master</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans for a modern, premium look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Config for Custom Colors/Fonts -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: { 50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a', 950: '#172554', },
+                        surface: '#f8fafc',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                        'float': '0 10px 30px -5px rgba(0, 0, 0, 0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Custom Animations & Styles */
+        body { background-color: #f1f5f9; }
+        @keyframes fadeUp { 
+            from { opacity: 0; transform: translateY(15px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        .animate-fade-up { animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-scale-in { animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Glassmorphism utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Tooltip refinement */
+        .tooltip-content {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(5px) scale(0.95);
+            opacity: 0;
+            visibility: hidden;
+        }
+        .group:hover .tooltip-content {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const IconCheckCircle = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+        const IconXCircle = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>;
+        const IconBookOpen = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>;
+        const IconListOrdered = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="10" y1="6" x2="21" y2="6"></line><line x1="10" y1="12" x2="21" y2="12"></line><line x1="10" y1="18" x2="21" y2="18"></line><path d="M4 6h1v4"></path><path d="M4 10h2"></path><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path></svg>;
+        const IconAlignLeft = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="21" y1="6" x2="3" y2="6"></line><line x1="15" y1="12" x2="3" y2="12"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>;
+        const IconAward = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>;
+        const IconInfo = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
+        const IconMap = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>;
+        const IconCompass = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>;
+        const IconSparkles = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>;
+        const IconMoveRight = ({ size = 24, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 8L22 12L18 16"/><path d="M2 12H22"/></svg>;
+
+        const MAP_DATA = {
+            title: "The maps show the center of a small town called Islip in 2010 and 2015",
+            // Using lh3.googleusercontent.com to bypass standard Drive restrictions
+            image: "https://lh3.googleusercontent.com/d/1IDBrn0_Iw_LqOxLvy1IF9f3k-_Lwfyog", 
+            
+            vocabulary: [
+                { word: "To the north/south/east/west of...", type: "location", meaning: "Nằm về phía Bắc/Nam/Đông/Tây của..." },
+                { word: "In the center / Centrally located", type: "location", meaning: "Nằm ở khu vực trung tâm" },
+                { word: "Along the main road", type: "location", meaning: "Nằm dọc theo con đường chính" },
+                { word: "Adjacent to / Next to", type: "location", meaning: "Kế bên, sát vách với" },
+                { word: "On the opposite side of...", type: "location", meaning: "Ở phía đối diện của..." },
+                
+                { word: "To be constructed / built / erected", type: "change", meaning: "Được xây dựng mới" },
+                { word: "To be demolished / knocked down", type: "change", meaning: "Bị phá dỡ, đập bỏ (thường dùng cho tòa nhà/shops)" },
+                { word: "To make way for / to be replaced by", type: "change", meaning: "Bị phá đi để nhường chỗ cho / Bị thay thế bởi (rất hay dùng)" },
+                { word: "To remain unchanged / to remain intact", type: "change", meaning: "Giữ nguyên không thay đổi" },
+                { word: "To be reduced in size", type: "change", meaning: "Bị thu hẹp kích thước (ví dụ: công viên bị nhỏ lại)" },
+                { word: "To encircle / to form a ring road", type: "change", meaning: "Bao quanh / tạo thành đường vòng đai (dành cho đường mới)" }
+            ],
+            
+            overviewQuestions: [
+                { question: "Nhìn chung, thị trấn Islip đã thay đổi theo hướng nào?", options: ["Trở nên công nghiệp hóa với nhiều nhà máy", "Trở nên hiện đại hóa và phát triển hơn với nhiều tiện ích mới", "Trở về trạng thái nông thôn, bớt dân cư hơn"], answer: "Trở nên hiện đại hóa và phát triển hơn với nhiều tiện ích mới" },
+                { question: "Sự thay đổi lớn nhất về cấu trúc giao thông là gì?", options: ["Đường chính bị phá bỏ hoàn toàn", "Một đường vòng đai đôi (dual carriageway) được xây dựng bao quanh trung tâm", "Chỉ xây dựng thêm trạm xe buýt"], answer: "Một đường vòng đai đôi (dual carriageway) được xây dựng bao quanh trung tâm" }
+            ],
+            
+            overviewSort: {
+                vietnamese: "Nhìn chung, rõ ràng là trung tâm thị trấn Islip đã trải qua sự hiện đại hóa đáng kể, đặc trưng bởi việc xây dựng một đường vòng đai và sự xuất hiện của các cơ sở thương mại mới thay thế cho khu vực cửa hàng cũ.",
+                chunks: [
+                    { id: 'o1', text: "Overall, it is clear that" },
+                    { id: 'o2', text: "the town center of Islip" },
+                    { id: 'o3', text: "underwent significant modernization," },
+                    { id: 'o4', text: "characterized by" },
+                    { id: 'o5', text: "the construction of a ring road" },
+                    { id: 'o6', text: "and the introduction of new commercial facilities" },
+                    { id: 'o7', text: "replacing former shop areas." }
+                ],
+                correctOrder: ['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7']
+            },
+
+            grammarQuiz: [
+                {
+                    question: "Do hai bản đồ đều nằm trong quá khứ (2010 và 2015), chúng ta ưu tiên sử dụng thì và thể nào để miêu tả sự thay đổi?",
+                    options: [
+                        "Thì hiện tại đơn - Thể chủ động (builds, demolishes)",
+                        "Thì quá khứ đơn - Thể bị động (was built, were demolished)",
+                        "Thì tương lai đơn - Thể bị động (will be built)"
+                    ],
+                    answer: "Thì quá khứ đơn - Thể bị động (was built, were demolished)",
+                    explanation: "Chính xác! Các thay đổi đã diễn ra và kết thúc trong quá khứ. Dùng thể Bị động vì chúng ta không quan tâm ai là người xây dựng/phá dỡ, mà quan tâm đến công trình đó bị tác động như thế nào."
+                },
+                {
+                    question: "Chiến thuật chia 2 đoạn Body (Thân bài) hợp lý nhất cho bài Map này là gì?",
+                    options: [
+                        "Body 1: Miêu tả năm 2010. Body 2: Miêu tả năm 2015.",
+                        "Body 1: Miêu tả đường sá và khu vực phía Bắc (North). Body 2: Miêu tả khu vực phía Nam (South).",
+                        "Chỉ viết 1 đoạn Body thật dài miêu tả từ trái sang phải."
+                    ],
+                    answer: "Body 1: Miêu tả đường sá và khu vực phía Bắc (North). Body 2: Miêu tả khu vực phía Nam (South).",
+                    explanation: "Tuyệt vời! Nhóm theo Vị trí Địa lý (Bắc-Nam) là cách logic và mạch lạc nhất cho bài Map. Hạn chế chia theo năm vì sẽ khó viết các mẫu câu so sánh sự thay đổi."
+                }
+            ],
+
+            body1Sentences: [
+                {
+                    id: "s1",
+                    vietnamese: "Câu 1 (Đường sá): Về cơ sở hạ tầng giao thông, con đường chính ban đầu cắt ngang thị trấn vẫn được giữ lại, nhưng một đường đôi (dual carriageway) mới đã được xây dựng để tạo thành một đường vòng đai bao quanh trung tâm.",
+                    chunks: [
+                        { id: 'c1', text: "Regarding the transport infrastructure," },
+                        { id: 'c2', text: "the original main road intersecting the town remained," },
+                        { id: 'c3', text: "but a new dual carriageway was constructed" },
+                        { id: 'c4', text: "to form a ring road encircling the center." }
+                    ],
+                    correctOrder: ['c1', 'c2', 'c3', 'c4']
+                },
+                {
+                    id: "s2",
+                    vietnamese: "Câu 2 (Khu phía Bắc): Ở khu vực phía Bắc của đường chính, toàn bộ dãy cửa hàng cũ đã bị phá bỏ để nhường chỗ cho một bến xe buýt, trung tâm mua sắm, bãi đậu xe và khu nhà ở mới.",
+                    chunks: [
+                        { id: 'c1', text: "In the area north of the main road," },
+                        { id: 'c2', text: "the entire row of old shops was demolished" },
+                        { id: 'c3', text: "to make way for" },
+                        { id: 'c4', text: "a bus station, a shopping center," },
+                        { id: 'c5', text: "a car park, and new housing." }
+                    ],
+                    correctOrder: ['c1', 'c2', 'c3', 'c4', 'c5']
+                }
+            ],
+
+            body2Sentences: [
+                {
+                    id: "s1",
+                    vietnamese: "Câu 1 (Khu phía Nam - Cửa hàng): Ngược lại, dãy cửa hàng nằm ở phía Nam của đường chính không trải qua sự thay đổi nào.",
+                    chunks: [
+                        { id: 'c1', text: "Conversely," },
+                        { id: 'c2', text: "the row of shops located on the south side" },
+                        { id: 'c3', text: "of the main road" },
+                        { id: 'c4', text: "experienced no changes." }
+                    ],
+                    correctOrder: ['c1', 'c2', 'c3', 'c4']
+                },
+                {
+                    id: "s2",
+                    vietnamese: "Câu 2 (Trường học & Nhà ở Nam): Tương tự, ngôi trường ở phía Tây Nam và khu dân cư gần đó không bị ảnh hưởng.",
+                    chunks: [
+                        { id: 'c1', text: "Similarly," },
+                        { id: 'c2', text: "the school in the southwest" },
+                        { id: 'c3', text: "and the housing area nearby" },
+                        { id: 'c4', text: "were unaffected." }
+                    ],
+                    correctOrder: ['c1', 'c2', 'c3', 'c4']
+                },
+                {
+                    id: "s3",
+                    vietnamese: "Câu 3 (Công viên): Trái ngược lại, công viên ở góc Đông Nam đã bị thu hẹp đáng kể về kích thước nhằm lấy không gian xây thêm các ngôi nhà mới.",
+                    chunks: [
+                        { id: 'c1', text: "By contrast," },
+                        { id: 'c2', text: "the park in the southeast" },
+                        { id: 'c3', text: "was significantly reduced in size" },
+                        { id: 'c4', text: "in order to accommodate additional new housing." }
+                    ],
+                    correctOrder: ['c1', 'c2', 'c3', 'c4']
+                }
+            ],
+
+            sampleEssay: `The provided maps illustrate the developmental changes that took place in the center of a small town named Islip between the years 2010 and 2015.
+
+<span class="inline-block relative group cursor-help"><span class="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-blue-200">Overall, it is clear that</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Cụm từ nối để bắt đầu đoạn Overview rất tự nhiên và học thuật.</span></span> the town center <span class="inline-block relative group cursor-help"><span class="bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-emerald-200">underwent significant modernization</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Từ vựng Paraphrase: trải qua sự hiện đại hóa đáng kể.</span></span> over the five-year period. The most noticeable changes involved the expansion of the road network and the replacement of former shop areas with new public and commercial facilities.
+
+<span class="inline-block relative group cursor-help"><span class="bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-purple-200">Regarding the transport infrastructure</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Cụm từ nối chuyển ý vào Body 1, tạo tính mạch lạc.</span></span>, the original main road running from east to west <span class="inline-block relative group cursor-help"><span class="bg-rose-100 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-rose-200">remained intact</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Giữ nguyên không đổi (từ đồng nghĩa cực hay cho 'remained unchanged').</span></span>. However, a new dual carriageway <span class="inline-block relative group cursor-help"><span class="bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-amber-200">was constructed</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Câu bị động quá khứ đơn (Past Simple Passive).</span></span>, forming a ring road that encircles the town center. <span class="inline-block relative group cursor-help"><span class="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-blue-200">To the north of the main road</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Giới từ chỉ nơi chốn (Preposition of place) - Bắt buộc phải có trong bài Map.</span></span>, the entire row of shops <span class="inline-block relative group cursor-help"><span class="bg-emerald-100 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-emerald-200">was demolished to make way for</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Cấu trúc ăn điểm Band 7+: Bị phá hủy để nhường chỗ cho...</span></span> several new developments. These include a bus station, a shopping center, a car park, and a new housing area located on the eastern side.
+
+<span class="inline-block relative group cursor-help"><span class="bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-purple-200">Turning to the southern section</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Cụm từ nối chuyển tiếp sang khu vực phía Nam (Body 2).</span></span>, the existing shops situated along the main road experienced no changes. <span class="inline-block relative group cursor-help"><span class="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-blue-200">Similarly</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Từ nối thể hiện sự tương đồng.</span></span>, the school in the southwest and the housing area nearby were unaffected. <span class="inline-block relative group cursor-help"><span class="bg-blue-100 text-blue-800 border border-blue-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-blue-200">By contrast</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Từ nối thể hiện sự tương phản rõ rệt.</span></span>, the park in the southeast <span class="inline-block relative group cursor-help"><span class="bg-rose-100 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded-md font-medium transition-colors hover:bg-rose-200">was significantly reduced in size</span><span class="tooltip-content absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-2.5 rounded-lg z-20">Collocation ăn điểm: Bị thu hẹp kích thước đáng kể.</span></span> in order to accommodate additional new housing.`
+        };
+
+        const GuideCard = ({ title, children, type = "info" }) => {
+            const styles = {
+                info: "bg-blue-50/80 border-blue-200 text-blue-900",
+                success: "bg-emerald-50/80 border-emerald-200 text-emerald-900",
+                warning: "bg-amber-50/80 border-amber-200 text-amber-900",
+                purple: "bg-purple-50/80 border-purple-200 text-purple-900",
+            };
+            const iconColors = {
+                info: "text-blue-500", success: "text-emerald-500", warning: "text-amber-500", purple: "text-purple-500"
+            };
+            
+            return (
+                <div className={`${styles[type]} border rounded-2xl p-5 mb-6 shadow-sm`}>
+                    <h4 className={`font-bold flex items-center mb-2.5 ${iconColors[type]}`}>
+                        <IconSparkles className="mr-2" size={20} /> <span className="text-slate-800">{title}</span>
+                    </h4>
+                    <div className="text-sm space-y-2 text-slate-700 leading-relaxed">
+                        {children}
+                    </div>
+                </div>
+            );
+        };
+
+        const SectionHeader = ({ title, icon: Icon, color = "text-primary-600" }) => (
+            <div className="flex items-center mb-6 border-b border-slate-100 pb-4">
+                <div className={`p-2 rounded-xl bg-slate-50 border border-slate-100 mr-3 ${color} shadow-sm`}>
+                    <Icon size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800">{title}</h3>
+            </div>
+        );
+
+        const InteractiveSortBuilder = ({ data, onComplete }) => {
+            const [selectedChunks, setSelectedChunks] = useState([]);
+            const [isCorrect, setIsCorrect] = useState(null);
+            const [shuffledChunks, setShuffledChunks] = useState([]);
+            const [shakeError, setShakeError] = useState(false);
+
+            useEffect(() => {
+                const array = [...data.chunks];
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                setShuffledChunks(array);
+                setSelectedChunks([]);
+                setIsCorrect(null);
+            }, [data]);
+
+            const handleSelectChunk = (chunk) => {
+                if (!selectedChunks.find(c => c.id === chunk.id)) {
+                    const newSelection = [...selectedChunks, chunk];
+                    setSelectedChunks(newSelection);
+                    
+                    if (newSelection.length === data.chunks.length) {
+                        const isOrderCorrect = newSelection.every((c, idx) => c.id === data.correctOrder[idx]);
+                        setIsCorrect(isOrderCorrect);
+                        if (isOrderCorrect) {
+                            if(onComplete) onComplete();
+                        } else {
+                            setShakeError(true);
+                            setTimeout(() => setShakeError(false), 500);
+                        }
+                    } else {
+                        setIsCorrect(null);
+                    }
+                }
+            };
+
+            const handleRemoveChunk = (chunk) => {
+                setSelectedChunks(selectedChunks.filter(c => c.id !== chunk.id));
+                setIsCorrect(null);
+            };
+
+            return (
+                <div className="mt-4 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm animate-scale-in">
+                    <div className="flex items-start bg-slate-50 border border-slate-100 p-3.5 rounded-xl text-sm mb-5 text-slate-700">
+                        <span className="bg-slate-200 text-slate-700 text-xs font-bold px-2 py-1 rounded-md mr-3 whitespace-nowrap">Dịch ý</span>
+                        <span className="font-medium">"{data.vietnamese}"</span>
+                    </div>
+
+                    <div className={`min-h-[80px] bg-slate-50/50 border-2 border-dashed ${isCorrect === false ? 'border-red-300 bg-red-50/30' : isCorrect === true ? 'border-emerald-400 bg-emerald-50/30' : 'border-slate-300'} rounded-xl p-3 flex flex-wrap gap-2 items-center mb-5 transition-all duration-300 ${shakeError ? 'animate-shake' : ''}`}>
+                        {selectedChunks.length === 0 && <span className="text-slate-400 font-medium text-sm flex w-full justify-center">👉 Click vào các cụm từ bên dưới để sắp xếp...</span>}
+                        {selectedChunks.map((chunk, idx) => (
+                            <span 
+                                key={chunk.id} 
+                                onClick={() => handleRemoveChunk(chunk)}
+                                className={`
+                                    px-4 py-2 rounded-lg shadow-sm cursor-pointer transition-all flex items-center text-sm font-medium
+                                    ${isCorrect === true 
+                                        ? 'bg-emerald-500 text-white shadow-emerald-500/20' 
+                                        : 'bg-primary-600 text-white shadow-primary-500/20 hover:bg-rose-500 hover:shadow-rose-500/20'}
+                                `}
+                                title={isCorrect ? "" : "Click để tháo ra"}
+                            >
+                                {chunk.text}
+                            </span>
+                        ))}
+                    </div>
+
+                    {isCorrect === true && (
+                        <div className="p-3.5 bg-emerald-50 text-emerald-800 rounded-xl mb-5 flex items-center text-sm font-bold border border-emerald-200 animate-scale-in">
+                            <IconCheckCircle className="mr-2 text-emerald-500" size={20} /> Excellent! Cấu trúc câu rất chuẩn xác.
+                        </div>
+                    )}
+                    {isCorrect === false && (
+                        <div className="p-3.5 bg-rose-50 text-rose-800 rounded-xl mb-5 flex items-center text-sm font-bold border border-rose-200 animate-scale-in">
+                            <IconXCircle className="mr-2 text-rose-500" size={20} /> Thứ tự chưa đúng logic. Hãy click vào cụm từ bên trên để tháo ra xếp lại.
+                        </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2.5">
+                        {shuffledChunks.filter(c => !selectedChunks.find(sc => sc.id === c.id)).map(chunk => (
+                            <button
+                                key={chunk.id}
+                                onClick={() => handleSelectChunk(chunk)}
+                                disabled={isCorrect}
+                                className={`
+                                    bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-lg shadow-sm text-sm font-medium
+                                    transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-primary-300 hover:text-primary-700
+                                    ${isCorrect ? 'opacity-0 scale-95 pointer-events-none' : ''}
+                                `}
+                            >
+                                {chunk.text}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const VocabularySection = () => (
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-soft border border-slate-100 mb-8 animate-fade-up" style={{animationDelay: '0.1s'}}>
+                <SectionHeader title="1. Map Vocabulary Master" icon={IconCompass} color="text-amber-500" />
+                
+                <GuideCard title="Đặc sản của bài Map: Giới từ & Động từ" type="info">
+                    Khác với biểu đồ Line hay Bar, bài Map yêu cầu bạn phải miêu tả được chính xác <strong>Vị trí (Location)</strong> và <strong>Sự thay đổi (Changes)</strong>. Dưới đây là các cụm từ "ăn điểm". <br/><span className="inline-block mt-2 font-medium text-blue-700 bg-blue-100/50 px-2 py-1 rounded">✨ Tips: Di chuột vào thẻ từ vựng để xem nghĩa!</span>
+                </GuideCard>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                        <h4 className="font-bold text-slate-800 mb-4 flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-2"><IconMap size={16} /></div>
+                            Phương Hướng & Vị Trí
+                        </h4>
+                        <ul className="space-y-2.5">
+                            {MAP_DATA.vocabulary.filter(v => v.type === 'location').map((v, idx) => (
+                                <li key={idx} className="group relative bg-white p-3 rounded-xl cursor-help border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 text-sm">
+                                    <span className="font-semibold text-slate-700 block group-hover:text-blue-700 transition-colors">{v.word}</span>
+                                    <div className="tooltip-content absolute bottom-full left-0 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-3 rounded-lg z-10 font-medium">
+                                        {v.meaning}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                        <h4 className="font-bold text-slate-800 mb-4 flex items-center">
+                            <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mr-2"><IconMoveRight size={16} /></div>
+                            Động từ Sự Thay Đổi
+                        </h4>
+                        <ul className="space-y-2.5">
+                            {MAP_DATA.vocabulary.filter(v => v.type === 'change').map((v, idx) => (
+                                <li key={idx} className="group relative bg-white p-3 rounded-xl cursor-help border border-slate-200 hover:border-purple-300 hover:shadow-md transition-all duration-200 text-sm">
+                                    <span className="font-semibold text-slate-700 block group-hover:text-purple-700 transition-colors">{v.word}</span>
+                                    <div className="tooltip-content absolute bottom-full left-0 mb-2 w-max max-w-xs bg-slate-800 text-white text-xs p-3 rounded-lg z-10 font-medium">
+                                        {v.meaning}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        );
+
+        const OverviewSection = () => {
+            const [quizAnswers, setQuizAnswers] = useState({});
+            const [showQuizResult, setShowQuizResult] = useState(false);
+            
+            const handleQuizChange = (qIndex, option) => setQuizAnswers({...quizAnswers, [qIndex]: option});
+            const checkQuiz = () => setShowQuizResult(true);
+
+            const isQuizPerfect = Object.keys(quizAnswers).length === MAP_DATA.overviewQuestions.length && 
+                MAP_DATA.overviewQuestions.every((q, idx) => quizAnswers[idx] === q.answer);
+
+            return (
+                <div className="bg-white p-6 md:p-8 rounded-3xl shadow-soft border border-slate-100 mb-8 animate-fade-up" style={{animationDelay: '0.2s'}}>
+                    <SectionHeader title="2. Master the Overview" icon={IconListOrdered} color="text-purple-500" />
+                    
+                    <GuideCard title="Chiến thuật viết Overview" type="purple">
+                        <ul className="list-disc pl-5 space-y-1">
+                            <li><strong>Gom nhóm sự thay đổi:</strong> Nhìn chung thị trấn được đô thị hóa hay nhiều cây xanh hơn? (Đô thị hóa/Hiện đại hóa).</li>
+                            <li><strong>Nhấn mạnh thay đổi lớn nhất:</strong> Chỉ ra sự xuất hiện của đường xá mới hoặc các cơ sở hạ tầng lớn thay thế cái cũ.</li>
+                        </ul>
+                    </GuideCard>
+
+                    <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h4 className="font-bold text-slate-800 mb-2 text-lg">Bước 1: Phân tích xu hướng chung</h4>
+                        <p className="text-sm text-slate-500 mb-6 font-medium">Trả lời 2 câu hỏi sau để nhặt ra ý chính cho phần Overview.</p>
+                        
+                        {MAP_DATA.overviewQuestions.map((q, qIndex) => (
+                            <div key={qIndex} className="mb-6 last:mb-0">
+                                <p className="font-bold text-slate-800 mb-3">{qIndex + 1}. {q.question}</p>
+                                <div className="flex flex-col space-y-2.5">
+                                    {q.options.map((opt, oIndex) => {
+                                        const isSelected = quizAnswers[qIndex] === opt;
+                                        const isCorrectAns = q.answer === opt;
+                                        let btnClass = "text-left px-5 py-3 rounded-xl border-2 transition-all font-medium text-sm ";
+                                        
+                                        if (showQuizResult) {
+                                            if (isSelected && isCorrectAns) btnClass += "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-sm";
+                                            else if (isSelected && !isCorrectAns) btnClass += "bg-rose-50 border-rose-400 text-rose-800";
+                                            else if (!isSelected && isCorrectAns) btnClass += "bg-white border-emerald-200 text-emerald-600";
+                                            else btnClass += "bg-white border-slate-100 text-slate-400 opacity-60";
+                                        } else {
+                                            btnClass += isSelected ? "bg-primary-50 border-primary-500 text-primary-800 shadow-sm" : "bg-white border-slate-200 hover:border-primary-300 text-slate-600 hover:bg-slate-50";
+                                        }
+
+                                        return (
+                                            <button key={oIndex} onClick={() => handleQuizChange(qIndex, opt)} disabled={showQuizResult} className={btnClass}>
+                                                {opt}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                        {!showQuizResult && (
+                            <div className="mt-6 pt-4 border-t border-slate-200">
+                                <button onClick={checkQuiz} disabled={Object.keys(quizAnswers).length < 2} className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Xác nhận phân tích
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {showQuizResult && isQuizPerfect && (
+                        <div className="bg-primary-50/50 p-6 rounded-2xl border border-primary-100 animate-fade-up">
+                            <h4 className="font-bold text-primary-900 mb-2 text-lg">Bước 2: Xếp câu Overview hoàn chỉnh</h4>
+                            <p className="text-sm text-primary-700/80 mb-4 font-medium">Bây giờ hãy chuyển hóa phân tích trên thành tiếng Anh.</p>
+                            <InteractiveSortBuilder data={MAP_DATA.overviewSort} />
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const BodySection = () => {
+            const [grammarAnswers, setGrammarAnswers] = useState({});
+            const [showGrammarResult, setShowGrammarResult] = useState(false);
+            const [activeSentenceIndex1, setActiveSentenceIndex1] = useState(0);
+            const [activeSentenceIndex2, setActiveSentenceIndex2] = useState(0);
+
+            const handleGrammarChange = (qIndex, option) => setGrammarAnswers({...grammarAnswers, [qIndex]: option});
+            const checkGrammar = () => setShowGrammarResult(true);
+
+            const isGrammarPerfect = Object.keys(grammarAnswers).length === MAP_DATA.grammarQuiz.length && 
+                MAP_DATA.grammarQuiz.every((q, idx) => grammarAnswers[idx] === q.answer);
+
+            return (
+                <div className="bg-white p-6 md:p-8 rounded-3xl shadow-soft border border-slate-100 mb-8 animate-fade-up" style={{animationDelay: '0.3s'}}>
+                    <SectionHeader title="3. Writing Body Paragraphs" icon={IconAlignLeft} color="text-emerald-500" />
+
+                    <div className="mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                        <h4 className="font-bold text-slate-800 mb-2 text-lg">Khởi động: Logic chia đoạn & Ngữ pháp</h4>
+                        <p className="text-sm text-slate-500 mb-6 font-medium">Làm đúng 2 câu này để "mở khóa" phần thực hành viết.</p>
+                        
+                        {MAP_DATA.grammarQuiz.map((q, qIndex) => (
+                            <div key={qIndex} className="mb-6 last:mb-0">
+                                <p className="font-bold text-slate-800 mb-3">{qIndex + 1}. {q.question}</p>
+                                <div className="flex flex-col space-y-2.5">
+                                    {q.options.map((opt, oIndex) => {
+                                        const isSelected = grammarAnswers[qIndex] === opt;
+                                        const isCorrectAns = q.answer === opt;
+                                        let btnClass = "text-left px-5 py-3 rounded-xl border-2 transition-all font-medium text-sm ";
+                                        
+                                        if (showGrammarResult) {
+                                            if (isSelected && isCorrectAns) btnClass += "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-sm";
+                                            else if (isSelected && !isCorrectAns) btnClass += "bg-rose-50 border-rose-400 text-rose-800";
+                                            else if (!isSelected && isCorrectAns) btnClass += "bg-white border-emerald-200 text-emerald-600";
+                                            else btnClass += "bg-white border-slate-100 text-slate-400 opacity-60";
+                                        } else {
+                                            btnClass += isSelected ? "bg-emerald-50 border-emerald-500 text-emerald-800 shadow-sm" : "bg-white border-slate-200 hover:border-emerald-300 text-slate-600 hover:bg-slate-50";
+                                        }
+
+                                        return (
+                                            <button key={oIndex} onClick={() => handleGrammarChange(qIndex, opt)} disabled={showGrammarResult} className={btnClass}>
+                                                {opt}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {showGrammarResult && grammarAnswers[qIndex] === q.answer && (
+                                    <div className="mt-3 text-sm text-emerald-800 bg-emerald-100/50 p-4 rounded-xl border border-emerald-200 flex items-start animate-scale-in">
+                                        <IconSparkles size={20} className="mr-2 flex-shrink-0 text-emerald-500"/>
+                                        <p className="font-medium">{q.explanation}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                        {!showGrammarResult && (
+                            <div className="mt-6 pt-4 border-t border-slate-200">
+                                <button onClick={checkGrammar} disabled={Object.keys(grammarAnswers).length < 2} className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                                    Chốt phương pháp
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {showGrammarResult && isGrammarPerfect && (
+                        <div className="space-y-6 animate-fade-up mt-8 border-t border-slate-100 pt-8">
+                            <h4 className="font-extrabold text-2xl text-slate-800 mb-6">Thực hành Viết Body từng câu</h4>
+                            
+                            {/* Body 1 */}
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"></div>
+                                <h5 className="font-bold text-blue-900 mb-1 text-lg">Body 1: Giao thông & Khu vực phía Bắc</h5>
+                                <p className="text-sm text-slate-500 mb-5 font-medium">Hoàn thành câu 1 để mở khóa câu tiếp theo.</p>
+                                
+                                {MAP_DATA.body1Sentences.map((sentence, idx) => (
+                                    <div key={idx} className={`transition-all duration-700 ${idx <= activeSentenceIndex1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 absolute pointer-events-none'}`}>
+                                        <InteractiveSortBuilder 
+                                            data={sentence} 
+                                            onComplete={() => { if (idx === activeSentenceIndex1 && idx < MAP_DATA.body1Sentences.length - 1) setActiveSentenceIndex1(idx + 1); }} 
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Body 2 */}
+                            {activeSentenceIndex1 === MAP_DATA.body1Sentences.length - 1 && (
+                               <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 animate-fade-up relative overflow-hidden mt-6">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500"></div>
+                                    <h5 className="font-bold text-purple-900 mb-1 text-lg">Body 2: Khu vực phía Nam & Công viên</h5>
+                                    <p className="text-sm text-slate-500 mb-5 font-medium">Tương tự, hoàn thành đoạn cuối cùng để xem Full Sample.</p>
+                                    
+                                    {MAP_DATA.body2Sentences.map((sentence, idx) => (
+                                        <div key={idx} className={`transition-all duration-700 ${idx <= activeSentenceIndex2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 absolute pointer-events-none'}`}>
+                                            <InteractiveSortBuilder 
+                                                data={sentence} 
+                                                onComplete={() => { if (idx === activeSentenceIndex2 && idx < MAP_DATA.body2Sentences.length - 1) setActiveSentenceIndex2(idx + 1); }} 
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const SampleEssay = () => (
+            <div className="bg-white p-6 md:p-8 rounded-3xl shadow-soft border border-slate-100 mb-12 animate-fade-up" style={{animationDelay: '0.4s'}}>
+                <SectionHeader title="4. Full Sample Essay (Band 8.0+)" icon={IconAward} color="text-amber-500" />
+                
+                <p className="text-slate-600 mb-6 text-sm bg-amber-50/80 p-4 rounded-xl border border-amber-100 font-medium">
+                    <IconInfo size={18} className="inline mr-2 text-amber-500 -mt-0.5" />
+                    Đọc bài mẫu hoàn chỉnh. <strong>Hãy di chuột (hover) qua các phần được highlight màu</strong> để xem bí kíp từ vựng và cấu trúc ngữ pháp ăn điểm.
+                </p>
+                
+                <div className="bg-slate-50 p-6 md:p-8 rounded-2xl border border-slate-200 text-slate-800 leading-[2.2] text-lg font-medium whitespace-pre-wrap" 
+                     dangerouslySetInnerHTML={{__html: MAP_DATA.sampleEssay}}>
+                </div>
+                
+                <div className="mt-8 flex flex-wrap gap-4 text-sm text-slate-600 justify-center bg-slate-50 py-3 rounded-xl border border-slate-100">
+                    <span className="flex items-center font-semibold"><span className="w-3 h-3 bg-amber-400 inline-block mr-2 rounded-full"></span> Ngữ pháp ăn điểm</span>
+                    <span className="flex items-center font-semibold"><span className="w-3 h-3 bg-emerald-400 inline-block mr-2 rounded-full"></span> Paraphrase hay</span>
+                    <span className="flex items-center font-semibold"><span className="w-3 h-3 bg-blue-400 inline-block mr-2 rounded-full"></span> Từ nối / Giới từ</span>
+                    <span className="flex items-center font-semibold"><span className="w-3 h-3 bg-purple-400 inline-block mr-2 rounded-full"></span> Động từ thay đổi</span>
+                </div>
+            </div>
+        );
+
+        const App = () => {
+            return (
+                <div className="min-h-screen flex flex-col">
+                    {/* Header: Glassmorphism style */}
+                    <header className="glass sticky top-0 z-50 py-4 shadow-sm">
+                        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center">
+                                <div className="w-10 h-10 bg-primary-600 text-white rounded-xl flex items-center justify-center mr-4 shadow-md shadow-primary-500/20">
+                                    <IconMap size={24} />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-extrabold tracking-tight text-slate-900">Map Master</h1>
+                                    <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">IELTS Writing Task 1 Interactive</p>
+                                </div>
+                            </div>
+                            <div className="flex">
+                                <span className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-md">
+                                    Target Band 7.0+
+                                </span>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8 pb-12">
+                        
+                        {/* Left Column: Image Reference (Sticky) */}
+                        <div className="lg:col-span-5 relative">
+                            <div className="bg-white p-6 rounded-3xl shadow-soft border border-slate-100 lg:sticky lg:top-28 animate-fade-up">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="font-extrabold text-slate-800 text-lg flex items-center">
+                                        <IconBookOpen size={20} className="mr-2 text-primary-500"/> Reference Map
+                                    </h2>
+                                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">2010 vs 2015</span>
+                                </div>
+                                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                                    <img 
+                                        src={MAP_DATA.image} 
+                                        alt="Map of Islip town 2010 and 2015" 
+                                        className="w-full h-auto rounded-xl shadow-sm mix-blend-multiply"
+                                        onError={(e) => {
+                                            e.target.onerror = null; 
+                                            e.target.src = "https://placehold.co/800x500/f8fafc/64748b?text=Image+Loading+Failed\\nCheck+Drive+Permissions";
+                                        }}
+                                    />
+                                </div>
+                                <div className="mt-5 bg-blue-50/80 border border-blue-100 p-4 rounded-xl text-sm text-blue-900 font-medium">
+                                    <span className="flex items-center mb-1"><IconCompass size={16} className="mr-1.5"/> <strong>Mẹo nhỏ:</strong></span>
+                                    Luôn quan sát biểu tượng La bàn (N-S-E-W) trên bản đồ để xác định đúng phương hướng khi viết bài.
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Column: Interactive Exercises */}
+                        <div className="lg:col-span-7">
+                            <VocabularySection />
+                            <OverviewSection />
+                            <BodySection />
+                            <SampleEssay />
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
