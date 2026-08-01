@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Writing Task 1: Dynamic Charts Master</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'], },
+                    colors: {
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', },
+                        accent: { 500: '#8b5cf6', 600: '#7c3aed' },
+                        success: { 100: '#dcfce7', 500: '#22c55e', 700: '#15803d' },
+                        danger: { 100: '#fee2e2', 500: '#ef4444', 700: '#b91c1c' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { background-color: #f8fafc; color: #334155; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .input-correct { border-color: #22c55e !important; background-color: #f0fdf4 !important; color: #15803d !important; }
+        .input-incorrect { border-color: #ef4444 !important; background-color: #fef2f2 !important; color: #b91c1c !important; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- SVGs ---
+        const IconCheck = ({className}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+        const IconX = ({className}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const IconTrendingUp = ({className}) => <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>;
+        const IconInfo = ({className}) => <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>;
+
+        // --- Dữ liệu Bài tập ---
+        const DATA = {
+            vocab: [
+                { cat: "Xu hướng Tăng/Giảm", items: [
+                    { word: "Rise | Increase", meaning: "Tăng", example: "Income of Global Growth rose by $120 million." },
+                    { word: "Decline | Decrease | Drop | Fall", meaning: "Giảm", example: "Income of Global Growth declined to $12 million." },
+                    { word: "Go up / Go down", meaning: "Tăng / Giảm", example: "Income went up to $120 million." },
+                    { word: "Slowly | Slightly", meaning: "Chậm, Nhẹ, Yếu", example: "Income slowly went up to $120 million." },
+                    { word: "Considerably | Significantly", meaning: "Đáng kể, Vừa", example: "Income significantly rose to $120 million." },
+                    { word: "Rapidly | Steeply", meaning: "Mạnh, Lớn, Đột ngột", example: "Income steeply rose to $150 million." }
+                ]},
+                { cat: "Dao động & Đỉnh/Đáy", items: [
+                    { word: "Fluctuate (v)", meaning: "Dao động", example: "Income fluctuated between $120m and $170m." },
+                    { word: "Fluctuation (n)", meaning: "Sự dao động", example: "There was a fluctuation around $140m." },
+                    { word: "Peak (v/n)", meaning: "Đạt đỉnh", example: "Income peaked at $190 million." },
+                    { word: "Bottom (v)", meaning: "Đạt đáy", example: "Income bottomed at $40 million." },
+                    { word: "Reach a high of", meaning: "Đạt điểm cao nhất", example: "Income reached a high of $120 million." },
+                    { word: "Hit a low of", meaning: "Đạt điểm thấp nhất", example: "Income hit a low of $80 million." }
+                ]},
+                { cat: "Sự Ổn định", items: [
+                    { word: "Remain unchanged / stable / constant at", meaning: "Giữ nguyên", example: "The number remained stable at 1,000." },
+                    { word: "Stabilize / Stabilise at", meaning: "Bình ổn", example: "The number stabilized at 1,000." },
+                    { word: "Witness/see (no change / a stability)", meaning: "Không có sự thay đổi", example: "The number witnessed a stability." }
+                ]}
+            ],
+            ex1: [
+                { prefix: "1. The stock market d", suffix: "sed significantly from three billion dollars to one billion dollars throughout the day.", answer: "ecrea", hint: "_ _ _ _ _" },
+                { prefix: "2. The i", suffix: "in oil prices was caused by increased demand.", answer: "ncrease", hint: "_ _ _ _ _ _ _" },
+                { prefix: "3. The number of COVID cases continues to fl", suffix: "t", suffix2: "in some areas.", answer1: "uc", answer2: "uate", hint1: "_ _", hint2: "_ _ _ _" },
+                { prefix: "4. The temperature is expected to d", suffix: "tonight.", answer: "rop", hint: "_ _ _" },
+                { prefix: "5. The price of housing has f", suffix: "en by 20% in the last year.", answer: "all", hint: "_ _ _" },
+                { prefix: "6. The population of the city has ra", suffix: "in", suffix2: "d over the last decade.", answer1: "pidly", answer2: "crease", hint1: "_ _ _ _ _", hint2: "_ _ _ _ _ _" },
+                { prefix: "7. The interest rate d", suffix: "sli", suffix2: "from 5% to 3%.", answer1: "ecreased", answer2: "ghtly", hint1: "_ _ _ _ _ _ _ _", hint2: "_ _ _ _ _" },
+                { prefix: "8. The number of tourists de", suffix: "sig", suffix2: "ly during the pandemic.", answer1: "creased", answer2: "nificant", hint1: "_ _ _ _ _ _ _", hint2: "_ _ _ _ _ _ _ _" }
+            ],
+            ex2: [
+                { sentence: "1. The stock market dropped rapidly during the pandemic, causing panic among investors.", translation: "Thị trường chứng khoán dropped rapidly trong thời kỳ đại dịch, gây ra hoảng loạn cho các nhà đầu tư.", target: "dropped rapidly", isCorrect: true, correction: "" },
+                { sentence: "2. The temperature decreased significantly throughout the day, so we had a very hot evening.", translation: "Nhiệt độ decreased significantly suốt cả ngày, vì vậy chúng ta trải qua một buổi tối nóng bức.", target: "decreased significantly", isCorrect: false, correction: "increased significantly" },
+                { sentence: "3. The company's profits increased significantly after they introduced their new amazing product line.", translation: "Lợi nhuận của công ty increased significantly sau khi họ giới thiệu dòng sản phẩm mới tuyệt vời.", target: "increased significantly", isCorrect: true, correction: "" },
+                { sentence: "4. The price of oil has decreased steeply in recent months, causing concern for low-budget consumers.", translation: "Giá dầu decreased steeply trong những tháng gần đây, gây lo ngại cho người tiêu dùng có ngân sách thấp.", target: "decreased steeply", isCorrect: false, correction: "increased steeply" },
+                { sentence: "5. The value of the dollar has fluctuated in the foreign exchange market.", translation: "Giá trị của đồng đô la fluctuated trên thị trường ngoại hối.", target: "fluctuated", isCorrect: true, correction: "" },
+                { sentence: "6. The fluctuation in the housing market has made it easy for first-time buyers to enter the market.", translation: "Sự fluctuation trên thị trường nhà ở đã giúp những người có ý định mua căn nhà đầu tiên cho mình dễ tham gia vào thị trường hơn.", target: "fluctuation", isCorrect: false, correction: "stability" },
+                { sentence: "7. The number of COVID-19 cases has reached its bottom, leading to stricter measures to limit the spread.", translation: "Số ca COVID-19 reached its bottom, dẫn đến việc áp dụng các biện pháp nghiêm ngặt để hạn chế lây lan.", target: "reached its bottom", isCorrect: false, correction: "peaked / reached a high" }
+            ]
+        };
+
+
+        // Module 1: Từ vựng
+        const VocabSection = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            return (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 fade-in">
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center mb-4">
+                        <IconTrendingUp className="text-primary-500 mr-2"/> Essential Vocabulary
+                    </h2>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {DATA.vocab.map((cat, idx) => (
+                            <button key={idx} onClick={() => setActiveTab(idx)} 
+                                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${activeTab === idx ? 'bg-primary-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                {cat.cat}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {DATA.vocab[activeTab].items.map((item, idx) => (
+                            <div key={idx} className="group p-4 bg-slate-50 rounded-xl border border-slate-100 hover:border-primary-300 hover:shadow-md transition-all cursor-pointer relative overflow-hidden">
+                                <div className="font-bold text-slate-800 text-lg group-hover:text-primary-600 transition-colors">{item.word}</div>
+                                <div className="text-sm font-medium text-accent-600 mt-1">{item.meaning}</div>
+                                <div className="mt-3 text-sm text-slate-600 italic border-t border-slate-200 pt-2 opacity-75 group-hover:opacity-100 transition-opacity">
+                                    " {item.example} "
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )
+        };
+
+        // Module 2: Bài tập 1 (Điền từ)
+        const Ex1Section = () => {
+            const [answers, setAnswers] = useState({});
+            
+            const handleInput = (e, index, part, correctAnswer) => {
+                const val = e.target.value.toLowerCase().trim();
+                setAnswers(prev => ({ ...prev, [`${index}-${part}`]: { val, isCorrect: val === correctAnswer.toLowerCase() } }));
+            };
+
+            const handleKeyDown = (e, index, part, correctAnswer) => {
+                if (e.key === 'Enter') handleInput(e, index, part, correctAnswer);
+            };
+
+            return (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 fade-in" style={{animationDelay: '0.1s'}}>
+                    <h2 className="text-xl font-bold text-slate-800 mb-2">Exercise 1: Fill in the gaps</h2>
+                    <p className="text-sm text-slate-500 mb-6 bg-blue-50 p-3 rounded-lg flex items-start">
+                        <IconInfo className="text-blue-500 mr-2 flex-shrink-0 mt-0.5"/> 
+                        Gõ từ vào ô trống và <strong>nhấn Enter</strong> để kiểm tra đáp án. Hệ thống sẽ báo xanh nếu đúng, đỏ nếu sai.
+                    </p>
+                    <div className="space-y-4">
+                        {DATA.ex1.map((q, idx) => (
+                            <div key={idx} className="flex flex-wrap items-baseline text-slate-700 text-[15px] leading-8">
+                                <span>{q.prefix}</span>
+                                
+                                {/* Ô input 1 */}
+                                <input type="text" placeholder={q.hint}
+                                    className={`mx-1 px-2 py-1 w-24 text-center border-b-2 border-slate-300 focus:outline-none focus:border-primary-500 transition-colors font-semibold
+                                        ${answers[`${idx}-1`] && answers[`${idx}-1`].isCorrect === true ? 'input-correct' : answers[`${idx}-1`] && answers[`${idx}-1`].isCorrect === false ? 'input-incorrect' : 'bg-slate-50'}`}
+                                    onBlur={(e) => handleInput(e, idx, 1, q.answer || q.answer1)}
+                                    onKeyDown={(e) => handleKeyDown(e, idx, 1, q.answer || q.answer1)}
+                                />
+                                
+                                <span>{q.suffix}</span>
+                                
+                                {/* Ô input 2 (nếu có) */}
+                                {q.answer2 && (
+                                    <>
+                                        <input type="text" placeholder={q.hint2}
+                                            className={`mx-1 px-2 py-1 w-28 text-center border-b-2 border-slate-300 focus:outline-none focus:border-primary-500 transition-colors font-semibold
+                                                ${answers[`${idx}-2`] && answers[`${idx}-2`].isCorrect === true ? 'input-correct' : answers[`${idx}-2`] && answers[`${idx}-2`].isCorrect === false ? 'input-incorrect' : 'bg-slate-50'}`}
+                                            onBlur={(e) => handleInput(e, idx, 2, q.answer2)}
+                                            onKeyDown={(e) => handleKeyDown(e, idx, 2, q.answer2)}
+                                        />
+                                        <span>{q.suffix2}</span>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )
+        };
+
+        // Module 3: Bài tập 2 (Đúng/Sai & Sửa lỗi)
+        const Ex2Section = () => {
+            const [status, setStatus] = useState({}); // { id: 'suitable' | 'unsuitable' }
+            const [corrections, setCorrections] = useState({});
+
+            const handleCorrection = (e, idx, correctWord) => {
+                const val = e.target.value.toLowerCase().trim();
+                const isMatch = correctWord.split(' / ').map(w => w.toLowerCase().trim()).includes(val);
+                setCorrections(prev => ({...prev, [idx]: {val, isCorrect: isMatch}}));
+            }
+
+            return (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 fade-in" style={{animationDelay: '0.2s'}}>
+                    <h2 className="text-xl font-bold text-slate-800 mb-2">Exercise 2: Evaluate Suitability</h2>
+                    <p className="text-sm text-slate-500 mb-6 bg-blue-50 p-3 rounded-lg flex items-start">
+                        <IconInfo className="text-blue-500 mr-2 flex-shrink-0 mt-0.5"/> 
+                        Đọc câu và bản dịch. Chữ in đậm dùng đúng (Suitable) hay sai (Unsuitable)? Nếu sai, hãy gõ từ sửa lại và <strong>nhấn Enter</strong>.
+                    </p>
+                    <div className="space-y-4">
+                        {DATA.ex2.map((q, idx) => (
+                            <div key={idx} className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                <p className="text-slate-800 font-medium mb-1" dangerouslySetInnerHTML={{__html: q.sentence.replace(q.target, `<strong class="text-primary-700 bg-primary-50 px-1 rounded">${q.target}</strong>`)}}></p>
+                                <p className="text-sm text-slate-500 italic mb-3">Dịch: {q.translation}</p>
+                                
+                                <div className="flex flex-wrap gap-3 items-center">
+                                    <button onClick={() => setStatus({...status, [idx]: 'suitable'})}
+                                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors flex items-center
+                                        ${status[idx] === 'suitable' ? (q.isCorrect ? 'bg-success-100 border-success-500 text-success-700' : 'bg-danger-100 border-danger-500 text-danger-700') : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'}`}>
+                                        {status[idx] === 'suitable' && q.isCorrect && <IconCheck className="mr-1 w-4 h-4"/>}
+                                        {status[idx] === 'suitable' && !q.isCorrect && <IconX className="mr-1 w-4 h-4"/>}
+                                        Suitable
+                                    </button>
+                                    
+                                    <button onClick={() => setStatus({...status, [idx]: 'unsuitable'})}
+                                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border transition-colors flex items-center
+                                        ${status[idx] === 'unsuitable' ? (!q.isCorrect ? 'bg-success-100 border-success-500 text-success-700' : 'bg-danger-100 border-danger-500 text-danger-700') : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-100'}`}>
+                                        {status[idx] === 'unsuitable' && !q.isCorrect && <IconCheck className="mr-1 w-4 h-4"/>}
+                                        {status[idx] === 'unsuitable' && q.isCorrect && <IconX className="mr-1 w-4 h-4"/>}
+                                        Unsuitable
+                                    </button>
+
+                                    {/* Hiển thị ô sửa lỗi nếu người dùng chọn Unsuitable và câu đó thực sự sai */}
+                                    {status[idx] === 'unsuitable' && !q.isCorrect && (
+                                        <div className="flex items-center ml-auto animate-fade-in">
+                                            <span className="text-sm text-slate-500 mr-2">Correction:</span>
+                                            <input type="text" placeholder="Gõ từ đúng..."
+                                                className={`px-3 py-1.5 rounded-lg border-2 focus:outline-none transition-colors text-sm font-semibold
+                                                ${corrections[idx] && corrections[idx].isCorrect === true ? 'border-success-500 bg-success-50 text-success-700' : corrections[idx] && corrections[idx].isCorrect === false ? 'border-danger-500 bg-danger-50 text-danger-700' : 'border-slate-300 focus:border-primary-500'}`}
+                                                onBlur={(e) => handleCorrection(e, idx, q.correction)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') handleCorrection(e, idx, q.correction) }}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )
+        };
+
+
+        // Module 4 & 5: Giới từ (Lý thuyết & Bài tập 3-4)
+        const PrepositionSection = () => {
+            const ex3Data = [
+                { id: 1, text: "The income of A rose _____ $60 million _____ $180 million.", ans1: "from", ans2: "to" },
+                { id: 2, text: "The income of B reduced _____ $140 million _____ $40 million.", ans1: "from", ans2: "to" },
+                { id: 3, text: "The income of A rose _____ $120 million (from $60m to $180m).", ans1: "by" },
+                { id: 4, text: "The income of C recorded a reduction _____ $200 million _____ $100 million.", ans1: "from", ans2: "to" }, // Assuming based on context, though 'of' could fit if referring to amount. Let's stick to from...to for 2 blanks
+                { id: 5, text: "The income of D remained unchanged _____ $80 million.", ans1: "at" },
+                { id: 6, text: "The income of E fluctuated _____ $120 million _____ $170 million.", ans1: "between", ans2: "and" },
+                { id: 7, text: "The income of E bottomed _____ $40 million.", ans1: "at" },
+                { id: 8, text: "The income of F peaked _____ $190 million.", ans1: "at" },
+                { id: 9, text: "The income of F hit a low _____ $80 million.", ans1: "of" },
+                { id: 10, text: "The income of G reached a high _____ $120 million.", ans1: "of" }
+            ];
+
+            const ex4Data = {
+                text1: "The average amount of money on cell phone services increased ",
+                blank1: "from",
+                text2: " $200 ",
+                blank2: "to",
+                text3: " around $500 per year ",
+                blank3: "between",
+                text4: " 2001 ",
+                blank4: "and",
+                text5: " 2006. After that, this figure continued to increase. It rose ",
+                blank5: "to",
+                text6: " nearly $800 in 2010. In contrast, the average expenditures on residential phone decreased significantly ",
+                blank6: "from",
+                text7: " $650 in 2001 ",
+                blank7: "to",
+                text8: " only $400 in 2010."
+            };
+
+            const [ex3Ans, setEx3Ans] = useState({});
+            const [ex4Ans, setEx4Ans] = useState({});
+
+            const options = ["", "from", "to", "by", "of", "at", "between", "and", "around"];
+
+            const SelectBox = ({ val, correctVal, onChange }) => {
+                const isCorrect = val === correctVal;
+                const isWrong = val !== "" && val !== correctVal;
+                return (
+                    <select value={val || ""} onChange={onChange}
+                        className={`mx-1 px-1 py-1 rounded-md border-2 font-bold cursor-pointer outline-none appearance-none text-center bg-slate-50
+                        ${isCorrect ? 'border-success-500 text-success-700 bg-success-50' : isWrong ? 'border-danger-500 text-danger-700 bg-danger-50' : 'border-slate-300 focus:border-primary-500 text-primary-700'}`}>
+                        {options.map(opt => <option key={opt} value={opt}>{opt || "???"}</option>)}
+                    </select>
+                )
+            };
+
+            return (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 mb-6 fade-in" style={{animationDelay: '0.3s'}}>
+                    <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+                        <IconTrendingUp className="text-accent-500 mr-2"/> Prepositions in Task 1
+                    </h2>
+                    
+                    {/* Lý thuyết nhanh */}
+                    <div className="grid grid-cols-2 gap-4 mb-8 text-sm">
+                        <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
+                            <h3 className="font-bold text-orange-800 mb-2">Increase/Decrease (Tăng/giảm)</h3>
+                            <ul className="space-y-1 text-orange-900/80 font-medium">
+                                <li>• <strong className="text-orange-700">From ... To ...</strong> : Từ (điểm đầu) tới (điểm cuối).</li>
+                                <li>• <strong className="text-orange-700">By / Of</strong> : Thêm bao nhiêu (mức chênh lệch).</li>
+                            </ul>
+                        </div>
+                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                            <h3 className="font-bold text-emerald-800 mb-2">Others (Dao động, Đỉnh, Đáy)</h3>
+                            <ul className="space-y-1 text-emerald-900/80 font-medium">
+                                <li>• <strong className="text-emerald-700">Between ... And ...</strong> : Dao động trong khoảng.</li>
+                                <li>• <strong className="text-emerald-700">Around</strong> : Dao động xung quanh (1 mức).</li>
+                                <li>• <strong className="text-emerald-700">At</strong> : Giữ nguyên tại (Remain at) / Đạt đỉnh, đáy tại (Peak/bottom at).</li>
+                                <li>• <strong className="text-emerald-700">Of</strong> : Đạt điểm cao/thấp (a high/low of).</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <h3 className="font-bold text-lg text-slate-800 mb-3">Ex 3: Fill in the Preposition</h3>
+                    <div className="space-y-3 mb-8 bg-slate-50 p-5 rounded-xl border border-slate-100">
+                        {ex3Data.map((q) => {
+                            const parts = q.text.split("_____");
+                            return (
+                                <div key={q.id} className="text-slate-700 font-medium">
+                                    {parts[0]}
+                                    <SelectBox val={ex3Ans[`${q.id}-1`]} correctVal={q.ans1} onChange={(e) => setEx3Ans({...ex3Ans, [`${q.id}-1`]: e.target.value})} />
+                                    {parts[1]}
+                                    {q.ans2 && (
+                                        <>
+                                            <SelectBox val={ex3Ans[`${q.id}-2`]} correctVal={q.ans2} onChange={(e) => setEx3Ans({...ex3Ans, [`${q.id}-2`]: e.target.value})} />
+                                            {parts[2]}
+                                        </>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+
+                    <h3 className="font-bold text-lg text-slate-800 mb-3">Ex 4: Paragraph Completion</h3>
+                    <div className="bg-yellow-50 p-6 rounded-xl border border-yellow-200 text-slate-800 font-medium leading-loose shadow-inner">
+                        {ex4Data.text1}
+                        <SelectBox val={ex4Ans.b1} correctVal={ex4Data.blank1} onChange={e => setEx4Ans({...ex4Ans, b1: e.target.value})} />
+                        {ex4Data.text2}
+                        <SelectBox val={ex4Ans.b2} correctVal={ex4Data.blank2} onChange={e => setEx4Ans({...ex4Ans, b2: e.target.value})} />
+                        {ex4Data.text3}
+                        <SelectBox val={ex4Ans.b3} correctVal={ex4Data.blank3} onChange={e => setEx4Ans({...ex4Ans, b3: e.target.value})} />
+                        {ex4Data.text4}
+                        <SelectBox val={ex4Ans.b4} correctVal={ex4Data.blank4} onChange={e => setEx4Ans({...ex4Ans, b4: e.target.value})} />
+                        {ex4Data.text5}
+                        <SelectBox val={ex4Ans.b5} correctVal={ex4Data.blank5} onChange={e => setEx4Ans({...ex4Ans, b5: e.target.value})} />
+                        {ex4Data.text6}
+                        <SelectBox val={ex4Ans.b6} correctVal={ex4Data.blank6} onChange={e => setEx4Ans({...ex4Ans, b6: e.target.value})} />
+                        {ex4Data.text7}
+                        <SelectBox val={ex4Ans.b7} correctVal={ex4Data.blank7} onChange={e => setEx4Ans({...ex4Ans, b7: e.target.value})} />
+                        {ex4Data.text8}
+                    </div>
+                </div>
+            )
+        };
+
+        const App = () => {
+            return (
+                <div className="min-h-screen pb-12">
+                    {/* Header */}
+                    <header className="bg-white sticky top-0 z-50 border-b border-slate-200 shadow-sm">
+                        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+                            <div>
+                                <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">IELTS Dynamic Charts Master</h1>
+                                <p className="text-primary-600 font-medium text-sm">Vocabulary & Prepositions Interactive Workbook</p>
+                            </div>
+                            <span className="bg-slate-900 text-white px-4 py-1.5 rounded-full text-sm font-bold shadow-md">Band 7.0+</span>
+                        </div>
+                    </header>
+
+                    {/* Main Content */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* Cột trái: Khung chứa Biểu đồ (Cố định khi cuộn) */}
+                        <div className="lg:col-span-5 relative">
+                            <div className="sticky top-28 space-y-6 fade-in">
+                                
+                                {/* -----------------------------------------------------------
+                                    HƯỚNG DẪN CHÈN ẢNH CHO NGƯỜI DÙNG:
+                                    Thay thế link "https://placehold.co/..." bên dưới bằng 
+                                    link Google Drive trực tiếp của bạn. 
+                                    (Nhớ đổi URL thành dạng lh3.googleusercontent.com/d/[ID])
+                                ------------------------------------------------------------- */}
+
+                                {/* Khung Biểu đồ 1 */}
+                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center">
+                                        <span className="w-6 h-6 rounded bg-primary-100 text-primary-700 flex items-center justify-center mr-2 text-sm">1</span> 
+                                        Reference Chart (For Prepositions)
+                                    </h3>
+                                    <div className="bg-slate-100 rounded-xl aspect-[4/3] flex items-center justify-center overflow-hidden border border-slate-200 border-dashed">
+                                        <img 
+                                            src="https://lh3.googleusercontent.com/d/1LKpLM5zy5kuD_UMe5jzW3Tzpn-uHEh9I" 
+                                            alt="Chart 1" 
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Khung Biểu đồ 2 */}
+                                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                                    <h3 className="font-bold text-slate-800 mb-3 flex items-center">
+                                        <span className="w-6 h-6 rounded bg-accent-100 text-accent-700 flex items-center justify-center mr-2 text-sm">2</span> 
+                                        Reference Chart (For Exercise 4)
+                                    </h3>
+                                    <div className="bg-slate-100 rounded-xl aspect-[4/3] flex items-center justify-center overflow-hidden border border-slate-200 border-dashed">
+                                        <img 
+                                            src="https://lh3.googleusercontent.com/d/14lf9YFENJ93Qpv01k7UbX_ahWdypTygY" 
+                                            alt="Chart 2" 
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        {/* Cột phải: Khung Bài tập tương tác */}
+                        <div className="lg:col-span-7">
+                            <VocabSection />
+                            <Ex1Section />
+                            <Ex2Section />
+                            <PrepositionSection />
+                        </div>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
