@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Speaking - Hometown & Accommodation</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        vocab: '#fef08a',
+                        vocabText: '#854d0e',
+                        vocabBack: '#8b5cf6',
+                    },
+                    boxShadow: {
+                        floating: '0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 10px 20px -10px rgba(0, 0, 0, 0.02)',
+                        premium: '0 10px 30px -10px rgba(139, 92, 246, 0.3)',
+                    },
+                    animation: {
+                        'expand': 'expand 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        expand: {
+                            '0%': { opacity: '0', transform: 'translateX(-10px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-x-180 { transform: rotateX(180deg); }
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-purple-200 selection:text-purple-900 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        const InteractiveVocab = ({ en, vi }) => {
+            const [flipped, setFlipped] = useState(false);
+            return (
+                <span 
+                    className="relative inline-grid perspective-1000 cursor-pointer mx-1 align-middle" 
+                    onClick={() => setFlipped(!flipped)}
+                >
+                    <span className={`grid transition-transform duration-500 transform-style-3d ${flipped ? 'rotate-x-180' : ''}`}>
+                        <span style={{ gridArea: '1 / 1 / 2 / 2' }} className="backface-hidden bg-vocab text-vocabText rounded px-2.5 py-0.5 flex items-center justify-center font-bold text-[15px] shadow-sm border border-yellow-300 whitespace-nowrap">
+                            {en}
+                        </span>
+                        <span style={{ gridArea: '1 / 1 / 2 / 2' }} className="backface-hidden bg-vocabBack text-white rounded px-2.5 py-0.5 flex items-center justify-center font-bold text-[15px] rotate-x-180 shadow-sm whitespace-nowrap">
+                            {vi}
+                        </span>
+                    </span>
+                </span>
+            );
+        };
+
+        const MiniAudioPlayer = ({ fileName }) => {
+            const audioRef = useRef(null);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [hasError, setHasError] = useState(false);
+            const [isExpanded, setIsExpanded] = useState(false);
+            const [speed, setSpeed] = useState(1);
+            
+            const speeds = [0.75, 1, 1.25, 1.5];
+
+            const baseUrl = "https://raw.githubusercontent.com/luyennoiieltswithnight/night-ielts-land/main/homework/audio/";
+            const audioUrl = baseUrl + encodeURIComponent(fileName);
+
+            const togglePlay = () => {
+                if (hasError) return;
+                setIsExpanded(true);
+                if (isPlaying) {
+                    audioRef.current.pause();
+                } else {
+                    document.querySelectorAll('audio').forEach(el => {
+                        if(el !== audioRef.current) {
+                            el.pause();
+                        }
+                    });
+                    audioRef.current.play();
+                }
+                setIsPlaying(!isPlaying);
+            };
+
+            const skip = (amount) => {
+                if (audioRef.current) {
+                    audioRef.current.currentTime += amount;
+                }
+            };
+
+            const toggleSpeed = () => {
+                const nextIndex = (speeds.indexOf(speed) + 1) % speeds.length;
+                const newSpeed = speeds[nextIndex];
+                setSpeed(newSpeed);
+                if (audioRef.current) {
+                    audioRef.current.playbackRate = newSpeed;
+                }
+            };
+
+            useEffect(() => {
+                const audio = audioRef.current;
+                const handlePause = () => setIsPlaying(false);
+                const handlePlay = () => setIsPlaying(true);
+                audio.addEventListener('pause', handlePause);
+                audio.addEventListener('play', handlePlay);
+                return () => {
+                    audio.removeEventListener('pause', handlePause);
+                    audio.removeEventListener('play', handlePlay);
+                };
+            }, []);
+
+            return (
+                <div className="flex items-center bg-white/90 p-1.5 rounded-full border border-slate-200/60 shadow-sm backdrop-blur-md">
+                    <audio 
+                        ref={audioRef} 
+                        src={audioUrl} 
+                        onError={() => setHasError(true)}
+                        onEnded={() => setIsPlaying(false)}
+                    />
+                    <button 
+                        onClick={togglePlay} 
+                        className={`w-9 h-9 flex items-center justify-center rounded-full transition-transform hover:scale-105 shadow-sm text-white ${hasError ? 'bg-red-400' : isPlaying ? 'bg-amber-500' : 'bg-violet-500'}`}
+                        title={hasError ? "Lỗi Audio" : "Play/Pause"}
+                    >
+                        <i className={`fas text-sm ${hasError ? 'fa-exclamation' : isPlaying ? 'fa-pause' : 'fa-play pl-0.5'}`}></i>
+                    </button>
+                    
+                    {!isExpanded && !hasError && (
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider mx-3 cursor-pointer" onClick={togglePlay}>Listen</span>
+                    )}
+
+                    {isExpanded && !hasError && (
+                        <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-slate-200 animate-expand">
+                            <button onClick={() => skip(-5)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Lùi 5s">
+                                <span className="text-[9px] font-bold">-5s</span>
+                            </button>
+                            <button onClick={() => skip(5)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition" title="Tiến 5s">
+                                <span className="text-[9px] font-bold">+5s</span>
+                            </button>
+                            <button onClick={toggleSpeed} className="px-2 h-8 flex items-center justify-center rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition min-w-[3rem]" title="Tốc độ đọc">
+                                {speed}x
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const SpeakingCard = ({ num, question, answer, vocabList, audioFile, color = "violet" }) => {
+            const [showScript, setShowScript] = useState(false);
+            
+            const colors = {
+                violet: "from-violet-50 to-fuchsia-50 border-violet-200 text-violet-800 marker:text-violet-500",
+                rose: "from-rose-50 to-orange-50 border-rose-200 text-rose-800 marker:text-rose-500",
+                emerald: "from-emerald-50 to-teal-50 border-emerald-200 text-emerald-800 marker:text-emerald-500",
+                blue: "from-blue-50 to-cyan-50 border-blue-200 text-blue-800 marker:text-blue-500",
+            };
+            
+            return (
+                <div className={`bg-gradient-to-br ${colors[color]} p-6 md:p-8 rounded-3xl border shadow-sm mb-6 relative transition-all hover:shadow-md`}>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 border-b border-black/5 pb-5">
+                        <h4 className="font-black text-xl flex-1 flex items-start">
+                            <span className="bg-white/60 px-2 py-1 rounded-lg shadow-sm mr-3 text-sm mt-0.5 border border-black/5 shrink-0">{num}</span>
+                            <span dangerouslySetInnerHTML={{__html: question}}></span>
+                        </h4>
+                        {audioFile && <div className="shrink-0"><MiniAudioPlayer fileName={audioFile} /></div>}
+                    </div>
+                    
+                    <div className="relative mb-6">
+                        <div className={`text-[17px] text-slate-700 leading-relaxed font-medium transition-all duration-300 ${showScript ? '' : 'blur-[6px] select-none opacity-50'}`} dangerouslySetInnerHTML={{__html: answer}}></div>
+                        
+                        {!showScript && (
+                            <div className="absolute inset-0 flex items-center justify-center z-10">
+                                <button onClick={() => setShowScript(true)} className="bg-slate-800 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition flex items-center hover:scale-105 transform">
+                                    <i className="fas fa-eye mr-2 text-amber-400"></i> Hiển thị Transcript
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="bg-white/60 rounded-2xl p-4 border border-black/5 backdrop-blur-sm mt-4">
+                        <h5 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center">
+                            <i className="fas fa-star text-amber-400 mr-2"></i> Useful Expressions
+                        </h5>
+                        <div className="flex flex-wrap gap-2">
+                            {vocabList.map((v, i) => (
+                                <InteractiveVocab key={i} en={v.en} vi={v.vi} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const SectionHeader = ({ title, icon, gradient }) => (
+            <div className={`bg-gradient-to-r ${gradient} p-8 rounded-3xl shadow-lg mb-8 text-white relative overflow-hidden`}>
+                <div className="absolute right-0 top-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                <div className="absolute left-10 bottom-0 w-24 h-24 bg-black/10 rounded-full blur-xl -mb-10"></div>
+                <h2 className="text-3xl font-black uppercase tracking-tight flex items-center relative z-10">
+                    <i className={`fas ${icon} mr-4 text-4xl opacity-90`}></i> {title}
+                </h2>
+            </div>
+        );
+
+        const App = () => {
+            return (
+                <div className="min-h-screen pb-20">
+                    <div className="bg-slate-900 pt-20 pb-24 relative overflow-hidden">
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+                        <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-600/30 rounded-full blur-3xl mix-blend-screen"></div>
+                        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-rose-600/30 rounded-full blur-3xl mix-blend-screen"></div>
+                        
+                        <div className="max-w-5xl mx-auto px-4 text-center relative z-10">
+                            <div className="inline-block px-5 py-2 bg-white/10 text-white font-bold rounded-full text-sm mb-6 tracking-wider uppercase border border-white/20 backdrop-blur-md">
+                                IELTS SPEAKING PRACTICE
+                            </div>
+                            <h1 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight leading-tight">
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-rose-400">Home Town</span> & <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-violet-400">Accommodation</span>
+                            </h1>
+                            <p className="text-slate-300 text-lg max-w-2xl mx-auto font-medium">Luyện Dictation với chức năng ẩn Transcript. Bấm Play để hiện thanh chỉnh tốc độ!</p>
+                        </div>
+                    </div>
+
+                    <main className="max-w-5xl mx-auto px-4 -mt-10 relative z-20 space-y-16">
+                        
+                        {/* PART 1 */}
+                        <section className="glass rounded-3xl p-4 md:p-8 shadow-xl">
+                            <SectionHeader title="Your Home Town" icon="fa-map-marked-alt" gradient="from-violet-500 to-fuchsia-600" />
+                            
+                            <SpeakingCard 
+                                num="1" color="violet"
+                                question="Where do you come from?"
+                                audioFile="2.1. Where do you come from?.wav"
+                                answer="I come from Quang Nam Province, which is in central Vietnam. It’s not a huge or bustling place, but that’s exactly what I like about it. Life there is much slower, people are incredibly down-to-earth, and there’s a real sense of community that you don’t always find in bigger cities."
+                                vocabList={[
+                                    {en: "a bustling place", vi: "một nơi nhộn nhịp"},
+                                    {en: "down-to-earth", vi: "thực tế, chân thành"},
+                                    {en: "a sense of community", vi: "tình làng nghĩa xóm"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="2" color="violet"
+                                question="What is the weather like in your hometown?"
+                                audioFile="1.2. What is the weather like in your hometown?.wav"
+                                answer="It’s typically hot and sunny for most of the year, although we do get a pretty intense rainy season towards the end of the year. Sometimes the weather can be a bit unpredictable, but overall it’s a great place if you enjoy warm temperatures."
+                                vocabList={[
+                                    {en: "pretty intense", vi: "khá dữ dội"},
+                                    {en: "towards the end of the year", vi: "về cuối năm"},
+                                    {en: "unpredictable", vi: "khó đoán"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="3" color="violet"
+                                question="When is the best time of year to visit your hometown?"
+                                audioFile="1.3When is the best time of year to visit your hometown?.wav"
+                                answer="I’d say spring is probably the best time because the weather is much more pleasant. It’s not too hot or too rainy, so it’s perfect for getting around, trying local food, and exploring the surrounding countryside."
+                                vocabList={[
+                                    {en: "pleasant weather", vi: "thời tiết dễ chịu"},
+                                    {en: "get around", vi: "đi lại, di chuyển"},
+                                    {en: "surrounding countryside", vi: "vùng nông thôn xung quanh"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="4" color="violet"
+                                question="Why do you like your hometown?"
+                                audioFile="1.4Why do you like your hometown?.wav"
+                                answer="What I appreciate most is the peaceful atmosphere. Whenever I go back, I feel like I can completely switch off from work and recharge my batteries. It’s the kind of place where life isn’t rushed, and that’s something I really value."
+                                vocabList={[
+                                    {en: "peaceful atmosphere", vi: "không khí yên bình"},
+                                    {en: "switch off from work", vi: "tạm gác lại công việc"},
+                                    {en: "recharge my batteries", vi: "nạp lại năng lượng"},
+                                    {en: "life isn’t rushed", vi: "nhịp sống không vội vã"}
+                                ]}
+                            />
+                        </section>
+
+                        {/* PART 2 */}
+                        <section className="glass rounded-3xl p-4 md:p-8 shadow-xl">
+                            <SectionHeader title="Your Accommodation" icon="fa-building" gradient="from-rose-500 to-orange-500" />
+                            
+                            <SpeakingCard 
+                                num="1" color="rose"
+                                question="Where are you living now?"
+                                audioFile="1.1. Where are you living now?.wav"
+                                answer="At the moment, I’m living in Ho Chi Minh City because of my job. I rent a small apartment that’s close to where I work, so it’s really convenient and saves me a lot of commuting time."
+                                vocabList={[
+                                    {en: "at the moment", vi: "hiện tại"},
+                                    {en: "rent an apartment", vi: "thuê một căn hộ"},
+                                    {en: "commuting time", vi: "thời gian đi lại"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="2" color="rose"
+                                question="Who else do you live with?"
+                                audioFile="3.2. Who else do you live with?.wav"
+                                answer="Right now I live on my own. At first, it felt a bit lonely, but I’ve gradually got used to it. In fact, I quite enjoy having my own space because it helps me focus on work and unwind after a busy day."
+                                vocabList={[
+                                    {en: "live on my own", vi: "sống một mình"},
+                                    {en: "get used to", vi: "quen với"},
+                                    {en: "unwind", vi: "thư giãn"},
+                                    {en: "have my own space", vi: "có không gian riêng"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="3" color="rose"
+                                question="What’s your favourite room in your home?"
+                                audioFile="2.3. What's your favourite room in your home?.wav"
+                                answer="Definitely my bedroom. That’s where I spend most of my free time reading, preparing lessons, or simply watching YouTube before going to bed. It’s probably the most comfortable and relaxing part of my apartment."
+                                vocabList={[
+                                    {en: "definitely", vi: "chắc chắn rồi"},
+                                    {en: "spend my free time", vi: "dành thời gian rảnh"},
+                                    {en: "prepare lessons", vi: "chuẩn bị bài giảng"},
+                                    {en: "relaxing part of…", vi: "phần thư giãn nhất của..."}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="4" color="rose"
+                                question="Why do you like the place where you live?"
+                                audioFile="2.4. Why do you like the place where you live?.wav"
+                                answer="The biggest advantage is the location. Everything I need is within walking distance, like cafés, supermarkets, and restaurants. Although it’s sometimes noisy, I think the convenience more than makes up for it."
+                                vocabList={[
+                                    {en: "within walking distance", vi: "có thể đi bộ đến"},
+                                    {en: "make up for", vi: "bù đắp cho"},
+                                    {en: "the biggest advantage", vi: "lợi thế lớn nhất"}
+                                ]}
+                            />
+                        </section>
+
+                        {/* PART 3 */}
+                        <section className="glass rounded-3xl p-4 md:p-8 shadow-xl">
+                            <SectionHeader title="Further Questions" icon="fa-comments" gradient="from-emerald-500 to-teal-500" />
+                            
+                            <SpeakingCard 
+                                num="1" color="emerald"
+                                question="Would you recommend your house/apartment to another person?"
+                                audioFile="3.1. Would you recommend your house:apartment to another person?.wav"
+                                answer="I would, especially if they were looking for somewhere affordable and convenient. It’s not particularly spacious or luxurious, but it has everything I need, and it’s within walking distance of cafés, supermarkets, and my workplace. So overall, I think it’s a pretty practical place to live."
+                                vocabList={[
+                                    {en: "somewhere affordable", vi: "nơi nào đó giá cả phải chăng"},
+                                    {en: "a practical place to live", vi: "một nơi thiết thực để sống"},
+                                    {en: "have everything I need", vi: "có mọi thứ tôi cần"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="2" color="emerald"
+                                question="Would you move house if you had the chance?"
+                                audioFile="2.2. Would you move house if you had the chance?.wav"
+                                answer="Yes, I probably would. I’d love to move into a bigger apartment with more natural light and a quieter neighbourhood. I work from home quite often, so having a peaceful environment would definitely help me stay focused and be more productive."
+                                vocabList={[
+                                    {en: "natural light", vi: "ánh sáng tự nhiên"},
+                                    {en: "quieter neighbourhood", vi: "khu dân cư yên tĩnh hơn"},
+                                    {en: "stay focused", vi: "giữ tập trung"},
+                                    {en: "be more productive", vi: "làm việc năng suất hơn"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="3" color="emerald"
+                                question="Would you like to buy a house in your hometown one day?"
+                                audioFile="3.3. Would you like to buy a house in your hometown one day?.wav"
+                                answer="Absolutely. Even though I’m living in a different city now, I’d still like to have a house in my hometown someday. It would give me a place to come back to whenever I need a break from city life, and I’d probably spend more time with my family as well."
+                                vocabList={[
+                                    {en: "someday", vi: "một ngày nào đó"},
+                                    {en: "come back to", vi: "trở về"},
+                                    {en: "take a break from…", vi: "nghỉ ngơi khỏi..."},
+                                    {en: "city life", vi: "cuộc sống thành thị"}
+                                ]}
+                            />
+                            <SpeakingCard 
+                                num="4" color="emerald"
+                                question="Would you like to live by yourself or with family/friends?"
+                                audioFile="3.4. Would you like to live by yourself or with family:friends?.wav"
+                                answer="At this stage of my life, I’d rather live on my own. I really enjoy having my own space because I can work, relax, and manage my daily routine without disturbing anyone. That said, I still enjoy spending time with my family whenever I get the chance."
+                                vocabList={[
+                                    {en: "at this stage of my life", vi: "ở giai đoạn này của cuộc đời"},
+                                    {en: "I’d rather…", vi: "tôi thà... / thích... hơn"},
+                                    {en: "manage my daily routine", vi: "quản lý thói quen hàng ngày"},
+                                    {en: "whenever I get the chance", vi: "bất cứ khi nào có cơ hội"}
+                                ]}
+                            />
+                        </section>
+
+                        {/* FULL PRACTICE SECTION (KÈM SCRIPT) */}
+                        <section className="glass rounded-3xl p-4 md:p-8 shadow-xl mb-12 border-4 border-indigo-100">
+                            <SectionHeader title="Nghe Toàn Bộ Bài (Full Practice)" icon="fa-headphones" gradient="from-slate-700 to-slate-900" />
+                            <p className="text-slate-600 font-medium text-lg mb-8 text-center max-w-3xl mx-auto">Luyện nghe và chép chính tả (Dictation) toàn bộ đoạn hội thoại. Nhớ sử dụng thanh điều khiển tốc độ nếu đọc quá nhanh nhé!</p>
+                            
+                            <div className="grid lg:grid-cols-2 gap-6">
+                                <SpeakingCard 
+                                    num="A" color="blue"
+                                    question="YOUR HOME TOWN <span class='text-sm font-normal text-slate-500 block mt-1'>Full Audio (Questions 1-4)</span>"
+                                    audioFile="YOUR HOME TOWN.wav"
+                                    answer="
+                                        <strong>Q: Do you live in the city or the countryside?</strong><br/>
+                                        A: I grew up in the countryside, but I’m currently living in Ho Chi Minh City for work. They’re completely different in terms of lifestyle. The countryside is much quieter and more peaceful, while the city is far more vibrant and offers better career opportunities.<br/><br/>
+                                        <strong>Q: Do you live near the sea?</strong><br/>
+                                        A: Yes, my hometown is only a short drive from the coast. I don’t go to the beach very often these days, but whenever I go back home, I try to spend some time there because it’s such a relaxing place to unwind.<br/><br/>
+                                        <strong>Q: Is there anything special that people do in your hometown?</strong><br/>
+                                        A: One thing I really like is that people are incredibly close-knit. They often help one another, especially during local festivals or community events. I think that’s something that’s becoming less common in big cities.<br/><br/>
+                                        <strong>Q: Are there any interesting places to visit in your hometown?</strong><br/>
+                                        A: Definitely. There are plenty of beautiful beaches, traditional markets, and historical sites nearby. Visitors can also try some amazing local dishes, so it’s a great place if you want to experience authentic Vietnamese culture.
+                                    "
+                                    vocabList={[
+                                        {en: "grow up in…", vi: "lớn lên ở..."},
+                                        {en: "in terms of…", vi: "xét về mặt..."},
+                                        {en: "vibrant", vi: "sôi động"},
+                                        {en: "career opportunities", vi: "cơ hội nghề nghiệp"},
+                                        {en: "close-knit", vi: "gắn bó khăng khít"}
+                                    ]}
+                                />
+                                <SpeakingCard 
+                                    num="B" color="blue"
+                                    question="YOUR ACCOMMODATION <span class='text-sm font-normal text-slate-500 block mt-1'>Full Audio (Questions 5-8)</span>"
+                                    audioFile="YOUR ACCOMMODATION.wav"
+                                    answer="
+                                        <strong>Q: Do you live in a house or an apartment?</strong><br/>
+                                        A: At the moment, I live in a rented apartment. It’s not very big, but it’s clean, comfortable, and close to my workplace, which makes my daily commute much easier.<br/><br/>
+                                        <strong>Q: Is your house in the city or the countryside?</strong><br/>
+                                        A: The apartment I’m renting is in the city, but my family home is in the countryside. I enjoy living in the city because it’s much more convenient, although I still miss the peaceful atmosphere back home.<br/><br/>
+                                        <strong>Q: Do other people live with you?</strong><br/>
+                                        A: No, I live by myself. I enjoy the independence because I can organise my schedule however I like. Having said that, it can feel a little lonely from time to time.<br/><br/>
+                                        <strong>Q: Is there anything you don’t like about where you live?</strong><br/>
+                                        A: Yes, one downside is the noise. Since I live in a busy area, there’s always traffic outside, especially during rush hour. It can be a bit distracting when I’m trying to work or get some rest.
+                                    "
+                                    vocabList={[
+                                        {en: "rented apartment", vi: "căn hộ thuê"},
+                                        {en: "daily commute", vi: "việc đi lại hàng ngày"},
+                                        {en: "independence", vi: "sự độc lập"},
+                                        {en: "one downside is…", vi: "một điểm trừ là..."},
+                                        {en: "distracting", vi: "gây xao nhãng"}
+                                    ]}
+                                />
+                            </div>
+                        </section>
+
+                        {/* DISCOURSE MARKERS & IDEA PATTERNS */}
+                        <div className="grid lg:grid-cols-2 gap-8 mb-12">
+                            {/* DISCOURSE MARKERS */}
+                            <section className="bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 rounded-3xl p-8 shadow-2xl text-white relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-10 opacity-10"><i className="fas fa-quote-right text-9xl"></i></div>
+                                <h3 className="text-2xl font-black mb-4 text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-rose-300">
+                                    💡 Bí kíp nói tự nhiên (Discourse Markers)
+                                </h3>
+                                <p className="text-base text-slate-300 mb-6 leading-relaxed relative z-10">
+                                    Nhiều sách IELTS thường hướng dẫn trả lời thẳng tuột: <span className="text-rose-400 line-through">"Yes, I would because..."</span><br/>
+                                    Người bản xứ lại hay <strong>đánh giá trước, rồi mới giải thích</strong>. Điều này làm câu trả lời mượt mà hơn!
+                                </p>
+                                <div className="grid grid-cols-2 gap-3 relative z-10">
+                                    <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 text-center"><span className="font-bold text-amber-300">I would, especially if…</span></div>
+                                    <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 text-center"><span className="font-bold text-amber-300">I probably would.</span></div>
+                                    <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 text-center"><span className="font-bold text-amber-300">Absolutely.</span></div>
+                                    <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 text-center"><span className="font-bold text-rose-300">To be honest, probably not.</span></div>
+                                    <div className="bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/20 text-center col-span-2"><span className="font-bold text-cyan-300">It depends, but…</span></div>
+                                </div>
+                            </section>
+
+                            {/* IDEA PATTERNS */}
+                            <section className="bg-gradient-to-br from-cyan-600 to-blue-700 rounded-3xl p-8 shadow-2xl text-white relative overflow-hidden">
+                                <h3 className="text-2xl font-black mb-4 text-cyan-100"><i className="fas fa-project-diagram mr-2"></i> Idea Patterns</h3>
+                                <p className="text-base text-cyan-50 mb-6">Không cần học thuộc nguyên câu, hãy học cách phát triển ý theo 3 công thức:</p>
+                                <div className="space-y-4">
+                                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex gap-4 items-center">
+                                        <div className="bg-white text-blue-700 w-10 h-10 rounded-full flex items-center justify-center font-black shrink-0">1</div>
+                                        <div>
+                                            <h4 className="font-bold text-cyan-200 text-sm uppercase">Answer &rarr; Contrast &rarr; Reason</h4>
+                                            <p className="text-sm italic text-white">"I grew up in the countryside, but now I live in the city. They’re completely different because…"</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex gap-4 items-center">
+                                        <div className="bg-white text-blue-700 w-10 h-10 rounded-full flex items-center justify-center font-black shrink-0">2</div>
+                                        <div>
+                                            <h4 className="font-bold text-cyan-200 text-sm uppercase">Answer &rarr; Description &rarr; Personal Exp</h4>
+                                            <p className="text-sm italic text-white">"Yes, I do. It’s only a short drive from the coast, and whenever I go back home…"</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex gap-4 items-center">
+                                        <div className="bg-white text-blue-700 w-10 h-10 rounded-full flex items-center justify-center font-black shrink-0">3</div>
+                                        <div>
+                                            <h4 className="font-bold text-cyan-200 text-sm uppercase">Answer &rarr; One drawback &rarr; Example</h4>
+                                            <p className="text-sm italic text-white">"Yes. One downside is the noise. During rush hour…"</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
