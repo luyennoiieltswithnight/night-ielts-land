@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Reading - Hearst Castle</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'], },
+                    colors: {
+                        primary: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', },
+                        vocab: { bg: '#fef08a', text: '#854d0e', activeBg: '#dcfce7', activeText: '#166534' }
+                    },
+                    boxShadow: { 
+                        'premium': '0 4px 20px -2px rgba(0, 0, 0, 0.05)', 
+                        'floating': '0 20px 40px -5px rgba(14, 165, 233, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { background-color: #f8fafc; color: #334155; -webkit-font-smoothing: antialiased; }
+        
+        /* Hiệu ứng lật thẻ 3D */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-x-180 { transform: rotateX(180deg); }
+        .flip-card-inner { transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Custom thanh trượt Audio */
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 16px; border-radius: 50%; background: #0ea5e9; cursor: pointer; margin-top: -6px; box-shadow: 0 2px 6px rgba(14, 165, 233, 0.4); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: #cbd5e1; border-radius: 99px; }
+        input[type=range]:focus { outline: none; }
+        
+        /* Thanh cuộn đẹp */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const Icons = {
+            Play: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
+            Pause: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>,
+            Headphones: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"></path><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path></svg>,
+            BookOpen: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>,
+            Layers: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 12 12 17 22 12"></polyline><polyline points="2 17 12 22 22 17"></polyline></svg>
+        };
+
+        // Dữ liệu cả 2 bài học
+        const LESSONS = [
+            {
+                id: 1,
+                title: "THE AMBANI RESIDENCE",
+                subtitle: "Interactive Reading - Bài 1",
+                audioSrc: "https://www.dropbox.com/scl/fi/98nqsodr7qfhv6ctpp8fl/Generated-Audio-August-02-2026-10_17AM.wav?rlkey=9abnul3ntmy4j8e66ftygabrp&st=7c53v20p&dl=1",
+                image: "https://images.unsplash.com/photo-1577717903315-1691ae25ab3f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
+                imageCaption: "Antilia - Modern Skyscraper",
+                data: [
+                    {
+                        id: 'A',
+                        text: "Mukesh Ambani is one of the richest men in the world, and the first man to own a private residence costing more than one billion dollars to build. The home is on Altamout Road in Mumbai, one of the most expensive addresses in the world. Named after the mythical island Antilia, the property has 27 floors.",
+                        hintsPosition: 'left',
+                        vocab: [
+                            { vn: "sở hữu một dinh thự riêng tư", en: "own a private residence" },
+                            { vn: "có giá trị (v)", en: "costing" },
+                            { vn: "đặt tên theo", en: "Named after" },
+                            { vn: "bất động sản", en: "property" }
+                        ]
+                    },
+                    {
+                        id: 'B',
+                        text: "The interior of the home is very glamorous and each floor is made from different materials to give an individual look. Marble floors, rare wood and fine rugs are just some of the design features used to create this extravagant home. The lotus flower and the sun are common symbols used throughout. Many of the rooms have floor-to-ceiling glass windows, offering spectacular views of Mumbai and the Arabian Sea.",
+                        hintsPosition: 'left',
+                        vocab: [
+                            { vn: "nội thất", en: "interior" },
+                            { vn: "tráng lệ", en: "glamorous" },
+                            { vn: "làm từ vật liệu khác nhau", en: "made from different materials" },
+                            { vn: "tạo ra vẻ ngoài riêng biệt", en: "give an individual look" },
+                            { vn: "gỗ hiếm", en: "rare wood" },
+                            { vn: "thảm quý", en: "fine rugs" },
+                            { vn: "đắt đỏ/xa xỉ", en: "extravagant" },
+                            { vn: "biểu tượng", en: "symbols" },
+                            { vn: "cửa kính từ sàn đến trần nhà", en: "floor-to-ceiling glass windows" },
+                            { vn: "mang lại view đẹp", en: "offering spectacular views" }
+                        ]
+                    },
+                    {
+                        id: 'C',
+                        text: "The skyscraper has a multi-storey garage with space for 168 cars. Alternatively, there are also three helipads on the roof of the building. The lobby has numerous reception areas and nine lifts. There are also several floors for dining, vast libraries and a health spa, including a gym, several swimming pools and yoga facilities. There is even an 'ice-room' which creates man-made snow, a Hindu prayer room and several floors of gardens.",
+                        hintsPosition: 'left',
+                        vocab: [
+                            { vn: "toà nhà chọc trời", en: "skyscraper" },
+                            { vn: "nhiều tầng", en: "multi-storey" },
+                            { vn: "thay vào đó,", en: "Alternatively," },
+                            { vn: "sân bay (bãi đỗ trực thăng)", en: "helipads" },
+                            { vn: "sảnh", en: "lobby" },
+                            { vn: "khu vực tiếp khách", en: "reception areas" },
+                            { vn: "9 thang máy", en: "nine lifts" },
+                            { vn: "cơ sở vật chất", en: "facilities" },
+                            { vn: "phòng cầu nguyện", en: "prayer room" }
+                        ]
+                    },
+                    {
+                        id: 'D',
+                        text: "The Ambani residence is clearly designed to entertain guests. It has a theatre which seats 50, several guest bedrooms and a grand ballroom filled with chandeliers.",
+                        hintsPosition: 'right',
+                        vocab: [
+                            { vn: "được thiết kế để", en: "designed to" },
+                            { vn: "đèn chùm", en: "chandeliers" }
+                        ]
+                    },
+                    {
+                        id: 'E',
+                        text: "The living quarters are on the top floors, because the family wanted as much sunlight as possible. The 400,000 ft² residence requires 600 staff, but all three Ambani children are required to clean their own rooms when they are at home.",
+                        hintsPosition: 'right',
+                        vocab: [
+                            { vn: "phòng khách / khu sinh hoạt", en: "living quarters" },
+                            { vn: "nhiều ánh sáng nhất có thể", en: "as much sunlight as possible" },
+                            { vn: "dinh thự", en: "residence" }
+                        ]
+                    },
+                    {
+                        id: 'F',
+                        text: "Several experts have criticised the architecture of this very expensive home, comparing it to an 'unstable pile of books'. Mrs Ambani, however, describes her home as 'an elevated house on top of a garden' and 'a modern home with an Indian heart'.",
+                        hintsPosition: 'right',
+                        vocab: [
+                            { vn: "chỉ trích", en: "criticised" },
+                            { vn: "kiến trúc", en: "architecture" },
+                            { vn: "chồng sách không ổn định", en: "unstable pile of books" }
+                        ]
+                    }
+                ]
+            },
+            {
+                id: 2,
+                title: "HEARST CASTLE",
+                subtitle: "Interactive Reading - Bài 2",
+                audioSrc: "https://www.dropbox.com/scl/fi/jh6d2twdp727jfytvuzg1/Generated-Audio-August-02-2026-10_40AM.wav?rlkey=5mldqcwbs4iafnw66e3osxhk5&st=xvnwj42s&dl=1",
+                image: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Hearst_Castle_Casa_Grande_1.jpg/1200px-Hearst_Castle_Casa_Grande_1.jpg",
+                imageCaption: "La Cuesta Encantada (Casa Grande)",
+                data: [
+                    {
+                        id: 'A',
+                        text: "William Randolph Hearst was a successful American newspaper publisher who received over 1,000 km² of land when his mother died in 1919. Initially, he had planned to build just a small bungalow, so he hired Julia Morgan, the first female architect in California. Together, however, they designed a magnificent castle which cost 10 million dollars and took 28 years to build. The property, named La Cuesta Encantada (The Enchanted Mountain), has 56 bedrooms, 61 bathrooms, 19 sitting rooms and about 52,000 m² of garden.",
+                        hintsPosition: 'left',
+                        vocab: [
+                            { vn: "nhà xuất bản báo thành công", en: "successful American newspaper publisher" },
+                            { vn: "xây một căn bungalow nhỏ", en: "build just a small bungalow" },
+                            { vn: "kiến trúc sư nữ", en: "female architect" },
+                            { vn: "lâu đài tráng lệ", en: "magnificent castle" }
+                        ]
+                    },
+                    {
+                        id: 'B',
+                        text: "Hearst loved travelling to Europe when he was a child and we can see this in the overall design of the house. He even included cathedral ceilings and Roman columns in his home. Hearst was also a keen art collector and, during his lifetime, spent $3.5 million on his collection, which is displayed in the rooms at Hearst Castle. Today, his collection is worth much more, with one piece alone valued at $10 million.",
+                        hintsPosition: 'right',
+                        vocab: [
+                            { vn: "thiết kế tổng thể", en: "overall design" },
+                            { vn: "trần nhà thờ lớn", en: "cathedral ceilings" },
+                            { vn: "cột La Mã", en: "Roman columns" },
+                            { vn: "nhà sưu tập đam mê", en: "keen art collector" },
+                            { vn: "được trưng bày", en: "is displayed" }
+                        ]
+                    },
+                    {
+                        id: 'C',
+                        text: "One of the highlights of the estate is the Neptune Pool. It took 15 years to build and includes the front of an ancient Roman temple. It is on top of a hill and has wonderful views of the mountains, ocean and main house. The pool was rebuilt three times until he was satisfied.",
+                        hintsPosition: 'left',
+                        inlineImage: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/ca/Hearst_Castle_Neptune_Pool.jpg/1024px-Hearst_Castle_Neptune_Pool.jpg",
+                        inlineImageCaption: "The spectacular Neptune Pool at Hearst Castle",
+                        vocab: [
+                            { vn: "điểm nhấn của dinh thự", en: "highlights of the estate" },
+                            { vn: "ngôi đền La Mã cổ", en: "ancient Roman temple" },
+                            { vn: "trên đỉnh đồi", en: "on top of a hill" },
+                            { vn: "được xây dựng lại 3 lần", en: "rebuilt three times" }
+                        ]
+                    },
+                    {
+                        id: 'D',
+                        text: "Although the inside of the house is very European, the outside is very Californian, with palm trees and water. Hearst loved trees and 70,000 were planted on the property during his lifetime. The castle was also home to the world’s largest private zoo, holding animals from every continent. Although the zoo is now closed, zebras can still be seen on the hillside.",
+                        hintsPosition: 'right',
+                        vocab: [
+                            { vn: "sở thú tư nhân lớn nhất", en: "largest private zoo" },
+                            { vn: "từ mọi lục địa", en: "from every continent" },
+                            { vn: "trên sườn đồi", en: "on the hillside" }
+                        ]
+                    },
+                    {
+                        id: 'E',
+                        text: "As well as the Casa Grande (the main house), there are also three guest houses on the property: Casa Del Monte, Casa Del Sol and Casa Del Mar. Hearst entertained a great number of Hollywood stars and political leaders at the castle and many used his private airfield. Guests had to attend formal dinners every evening, but were free to do what they liked during the day. They were invited to stay as long as they wanted, but the longer they stayed, the further away they sat from Hearst at the dinner table.",
+                        hintsPosition: 'left',
+                        vocab: [
+                            { vn: "nhà dành cho khách", en: "guest houses" },
+                            { vn: "chiêu đãi một lượng lớn", en: "entertained a great number of" },
+                            { vn: "sân bay tư nhân", en: "private airfield" },
+                            { vn: "bữa tối trang trọng", en: "formal dinners" },
+                            { vn: "tự do làm những gì họ thích", en: "free to do what they liked" }
+                        ]
+                    },
+                    {
+                        id: 'F',
+                        text: "When Hearst died in 1951, his family learnt how expensive maintenance would be, and the mansion was donated to the State of California. Since then, it has been open for public tours and the site attracts millions of tourists every year. However, the Hearst family is still allowed to use it when they wish. The castle was never completed and remains unfinished.",
+                        hintsPosition: 'right',
+                        vocab: [
+                            { vn: "phí bảo trì đắt đỏ", en: "expensive maintenance" },
+                            { vn: "dinh thự được hiến tặng", en: "mansion was donated" },
+                            { vn: "mở cửa cho các chuyến tham quan", en: "open for public tours" },
+                            { vn: "thu hút hàng triệu du khách", en: "attracts millions of tourists" },
+                            { vn: "vẫn còn dang dở", en: "remains unfinished" }
+                        ]
+                    }
+                ]
+            }
+        ];
+
+        const FloatingAudioPlayer = ({ src }) => {
+            const audioRef = useRef(null);
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [progress, setProgress] = useState(0);
+            const [duration, setDuration] = useState(0);
+            const [speed, setSpeed] = useState(1);
+            const [hasError, setHasError] = useState(false);
+
+            const togglePlay = () => {
+                if (isPlaying) { 
+                    audioRef.current.pause(); 
+                    setIsPlaying(false);
+                } else { 
+                    const playPromise = audioRef.current.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(() => {
+                            setIsPlaying(true);
+                            setHasError(false);
+                        }).catch(error => {
+                            console.error("Lỗi phát audio:", error);
+                            setHasError(true);
+                            setIsPlaying(false);
+                        });
+                    }
+                }
+            };
+
+            const handleTimeUpdate = () => setProgress(audioRef.current.currentTime);
+            const handleLoadedMetadata = () => setDuration(audioRef.current.duration);
+            const handleSeek = (e) => {
+                const newTime = Number(e.target.value);
+                audioRef.current.currentTime = newTime;
+                setProgress(newTime);
+            };
+
+            const skip = (seconds) => {
+                let newTime = audioRef.current.currentTime + seconds;
+                if (newTime < 0) newTime = 0;
+                if (newTime > duration) newTime = duration;
+                audioRef.current.currentTime = newTime;
+            };
+
+            const handleSpeedChange = (e) => {
+                const newSpeed = parseFloat(e.target.value);
+                audioRef.current.playbackRate = newSpeed;
+                setSpeed(newSpeed);
+            };
+
+            const formatTime = (time) => {
+                if (isNaN(time)) return "00:00";
+                const m = Math.floor(time / 60).toString().padStart(2, '0');
+                const s = Math.floor(time % 60).toString().padStart(2, '0');
+                return `${m}:${s}`;
+            };
+
+            return (
+                <div className="sticky top-24 z-40 mx-auto max-w-4xl mb-10 transition-all duration-300">
+                    <div className="bg-white/85 backdrop-blur-xl p-4 sm:p-5 rounded-3xl shadow-floating border border-white/50 flex flex-col md:flex-row items-center gap-6">
+                        <audio 
+                            ref={audioRef} src={src} 
+                            onTimeUpdate={handleTimeUpdate} onLoadedMetadata={handleLoadedMetadata} onEnded={() => setIsPlaying(false)}
+                            onError={() => setHasError(true)}
+                        />
+                        
+                        <button onClick={togglePlay} className="w-14 h-14 flex-shrink-0 bg-primary-500 hover:bg-primary-600 text-white rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95">
+                            {isPlaying ? <Icons.Pause /> : <Icons.Play />}
+                        </button>
+
+                        <div className="flex-1 w-full">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                    <Icons.Headphones /> Listen to the article
+                                </span>
+                                <span className="text-sm font-semibold text-slate-500 font-mono">
+                                    {formatTime(progress)} / {formatTime(duration)}
+                                </span>
+                            </div>
+                            
+                            {hasError ? (
+                                <div className="text-xs font-semibold text-red-500 bg-red-50 p-2 rounded-lg border border-red-200">
+                                    ⚠️ File audio không khả dụng hoặc bị chặn.
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4">
+                                    <button onClick={() => skip(-5)} className="p-2 text-slate-400 hover:text-primary-600 font-bold text-xs bg-slate-100 hover:bg-primary-50 rounded-full transition-colors">-5s</button>
+                                    <input type="range" min="0" max={duration || 100} value={progress} onChange={handleSeek} className="flex-1" />
+                                    <button onClick={() => skip(5)} className="p-2 text-slate-400 hover:text-primary-600 font-bold text-xs bg-slate-100 hover:bg-primary-50 rounded-full transition-colors">+5s</button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col items-center flex-shrink-0 bg-slate-100/50 p-2 rounded-2xl border border-slate-200/50">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Tốc độ</label>
+                            <select value={speed} onChange={handleSpeedChange} className="bg-transparent text-sm font-bold text-slate-700 outline-none cursor-pointer">
+                                <option value="0.5">0.5x</option>
+                                <option value="0.75">0.75x</option>
+                                <option value="1">1.0x Chuẩn</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const InteractiveVocab = ({ vocab }) => {
+            const [isFlipped, setIsFlipped] = useState(false);
+
+            return (
+                <div className="perspective-1000 w-full sm:w-48 md:w-56 h-auto min-h-[56px] cursor-pointer group" onClick={() => setIsFlipped(!isFlipped)}>
+                    <div className={`relative w-full h-full transform-style-3d flip-card-inner rounded-xl shadow-sm border ${isFlipped ? 'rotate-x-180' : ''}`}>
+                        
+                        <div className="absolute inset-0 w-full h-full backface-hidden flex items-center justify-center p-3 rounded-xl bg-vocab-bg border-yellow-300 group-hover:bg-yellow-400 transition-colors duration-300">
+                            <span className="text-sm font-bold text-vocab-text text-center leading-snug">{vocab.vn}</span>
+                        </div>
+
+                        <div className="absolute inset-0 w-full h-full backface-hidden flex items-center justify-center p-3 rounded-xl bg-vocab-activeBg border-green-300 rotate-x-180">
+                            <span className="text-sm font-bold text-vocab-activeText text-center leading-snug">{vocab.en}</span>
+                        </div>
+
+                    </div>
+                </div>
+            );
+        };
+
+        const ParagraphBlock = ({ data }) => {
+            const renderVocabCol = () => (
+                <div className="flex flex-col gap-3 items-center sm:items-stretch justify-center h-full w-full">
+                    {data.vocab.map((v, i) => <InteractiveVocab key={i} vocab={v} />)}
+                </div>
+            );
+
+            return (
+                <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 mb-8 flex flex-col relative overflow-hidden group hover:shadow-premium transition-shadow duration-300">
+                    <div className="absolute top-0 left-0 w-12 h-12 bg-primary-100 rounded-br-3xl flex items-center justify-center z-10">
+                        <span className="text-xl font-black text-primary-700">{data.id}</span>
+                    </div>
+
+                    <div className={`flex flex-col md:flex-row gap-8 pt-6 ${data.hintsPosition === 'right' ? 'md:flex-row-reverse' : ''}`}>
+                        <div className={`md:w-1/3 flex-shrink-0 flex items-center ${data.hintsPosition === 'left' ? 'md:border-r border-slate-100 md:pr-8' : 'md:border-l border-slate-100 md:pl-8'}`}>
+                            {renderVocabCol()}
+                        </div>
+                        
+                        <div className="md:w-2/3 flex flex-col justify-center">
+                            <p className="text-[17px] text-slate-700 leading-relaxed font-medium text-justify">
+                                {data.text}
+                            </p>
+                            
+                            {/* Render Inline Image nếu có (MỚI THÊM) */}
+                            {data.inlineImage && (
+                                <div className="mt-6 rounded-2xl overflow-hidden shadow-sm border border-slate-100">
+                                    <img src={data.inlineImage} alt="Inline Illustration" className="w-full h-48 md:h-64 object-cover" />
+                                    {data.inlineImageCaption && (
+                                        <div className="bg-slate-100 p-2 text-center text-xs font-semibold text-slate-600">
+                                            {data.inlineImageCaption}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeTabIndex, setActiveTabIndex] = useState(0);
+            const currentLesson = LESSONS[activeTabIndex];
+
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Header cố định trên cùng */}
+                    <header className="bg-white/90 sticky top-0 z-50 border-b border-slate-200 shadow-sm backdrop-blur-lg">
+                        <div className="max-w-5xl mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-primary-100 text-primary-600 rounded-xl">
+                                    <Icons.BookOpen />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{currentLesson.title}</h1>
+                                    <p className="text-primary-600 font-medium text-sm">{currentLesson.subtitle}</p>
+                                </div>
+                            </div>
+                            
+                            {/* Tab Switcher */}
+                            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                                {LESSONS.map((lesson, index) => (
+                                    <button 
+                                        key={lesson.id}
+                                        onClick={() => setActiveTabIndex(index)}
+                                        className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-300 flex items-center gap-2
+                                            ${activeTabIndex === index ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                                    >
+                                        <Icons.Layers /> Bài {index + 1}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-5xl mx-auto px-4 sm:px-6 mt-8 relative">
+                        
+                        {/* Audio Player nổi mượt mà trên nội dung */}
+                        <FloatingAudioPlayer key={currentLesson.id} src={currentLesson.audioSrc} />
+
+                        {/* Banner Ảnh Bài Học */}
+                        <div className="mb-10 rounded-3xl overflow-hidden shadow-sm border border-slate-200">
+                            <img 
+                                src={currentLesson.image} 
+                                alt={currentLesson.title} 
+                                className="w-full h-72 object-cover transition-opacity duration-500"
+                            />
+                            <div className="bg-slate-900 text-white p-3 text-center text-sm font-bold tracking-widest uppercase">
+                                {currentLesson.imageCaption}
+                            </div>
+                        </div>
+
+                        {/* Hướng dẫn */}
+                        <div className="text-sm font-semibold bg-amber-100 text-amber-800 px-4 py-3 rounded-2xl border border-amber-200 shadow-sm mb-6 flex items-center justify-center max-w-max mx-auto">
+                            💡 Tìm cụm từ trong bài đọc. Click vào các thẻ màu vàng để xem nghĩa Tiếng Anh.
+                        </div>
+
+                        {/* Các đoạn văn */}
+                        <div className="space-y-6">
+                            {currentLesson.data.map((paragraph) => (
+                                <ParagraphBlock key={paragraph.id} data={paragraph} />
+                            ))}
+                        </div>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
