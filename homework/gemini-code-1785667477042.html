@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Writing Task 1 - Interactive Lesson</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#3b82f6',
+                        primaryHover: '#2563eb',
+                        vocab: '#fef08a',
+                        vocabText: '#854d0e',
+                        vocabBack: '#3b82f6',
+                    },
+                    boxShadow: {
+                        floating: '0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 10px 20px -10px rgba(0, 0, 0, 0.02)',
+                        premium: '0 10px 30px -10px rgba(59, 130, 246, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* 3D Flip Card Styles */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-x-180 { transform: rotateX(180deg); }
+        
+        /* Glassmorphism utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-blue-200 selection:text-blue-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Thẻ lật từ vựng - Đã sửa lỗi overflow bằng CSS Grid
+        const InteractiveVocab = ({ en, vi }) => {
+            const [flipped, setFlipped] = useState(false);
+            return (
+                <span 
+                    className="relative inline-grid perspective-1000 cursor-pointer mx-1 align-middle" 
+                    onClick={() => setFlipped(!flipped)}
+                >
+                    <span className={`grid transition-transform duration-500 transform-style-3d ${flipped ? 'rotate-x-180' : ''}`}>
+                        {/* Mặt trước (EN) */}
+                        <span 
+                            style={{ gridArea: '1 / 1 / 2 / 2' }} 
+                            className="backface-hidden bg-vocab text-vocabText rounded px-2.5 py-0.5 flex items-center justify-center font-bold text-[15px] shadow-sm border border-yellow-300"
+                        >
+                            {en}
+                        </span>
+                        {/* Mặt sau (VI) */}
+                        <span 
+                            style={{ gridArea: '1 / 1 / 2 / 2' }} 
+                            className="backface-hidden bg-vocabBack text-white rounded px-2.5 py-0.5 flex items-center justify-center font-bold text-[15px] rotate-x-180 shadow-sm"
+                        >
+                            {vi}
+                        </span>
+                    </span>
+                </span>
+            );
+        };
+
+        const StructureBox = ({ children }) => (
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border-l-4 border-indigo-500 px-5 py-3 rounded-r-xl my-3 shadow-sm inline-block w-full">
+                <span className="font-sans font-bold text-indigo-900 text-[16px] tracking-wide leading-relaxed">
+                    {children}
+                </span>
+            </div>
+        );
+
+        // Component chèn ảnh - Đã đổi endpoint sang thumbnail API của Google để lách bộ lọc
+        const DriveImage = ({ driveId, alt }) => (
+            <div className="w-full my-8 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center p-4">
+                <img 
+                    src={`https://drive.google.com/thumbnail?id=${driveId}&sz=w1200`} 
+                    alt={alt} 
+                    className="w-full max-w-2xl h-auto object-contain rounded-lg"
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+                />
+                <div style={{ display: 'none' }} className="text-red-500 font-medium mt-4 text-center px-4">
+                    <i className="fas fa-exclamation-triangle text-2xl mb-2"></i><br/>
+                    Google Drive đang chặn hiển thị ảnh này.<br/>
+                    <span className="text-sm text-slate-500 font-normal">Giải pháp: Hãy up ảnh lên <b>Imgur.com</b> và thay thế bằng link trực tiếp (.png/.jpg).</span>
+                </div>
+            </div>
+        );
+
+        const ParagraphBlock = ({ title, num, children }) => (
+            <div className="mb-8 relative glass rounded-3xl p-6 md:p-8 shadow-floating">
+                {num && (
+                    <div className="absolute -left-4 -top-4 w-12 h-12 bg-white rounded-2xl shadow-floating flex items-center justify-center font-black text-xl text-primary border border-slate-100">
+                        {num}
+                    </div>
+                )}
+                {title && <h3 className="text-xl font-bold text-slate-800 mb-4">{title}</h3>}
+                <div className="space-y-4 text-slate-600 leading-relaxed text-[17px]">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const BlankInput = ({ answer }) => {
+            const [val, setVal] = useState('');
+            const isCorrect = val.toLowerCase().trim() === answer.toLowerCase();
+            
+            let stateClass = "border-slate-300 text-slate-700 bg-slate-50 focus:border-primary focus:bg-white";
+            if (val) {
+                stateClass = isCorrect 
+                    ? "border-green-500 text-green-700 bg-green-50 font-semibold" 
+                    : "border-red-400 text-red-600 bg-red-50";
+            }
+
+            return (
+                <input 
+                    type="text" 
+                    className={`inline-block border-b-2 outline-none px-2 py-0.5 text-center mx-1 transition-colors min-w-[120px] rounded-t-md ${stateClass}`} 
+                    value={val} 
+                    onChange={e => setVal(e.target.value)} 
+                    placeholder="..."
+                />
+            );
+        };
+
+        const OpenEndedQuestion = ({ question, suggestion, methodLabel }) => {
+            const [show, setShow] = useState(false);
+            return (
+                <div className="mb-6 p-5 bg-white rounded-2xl shadow-sm border border-slate-100">
+                    <p className="font-bold text-slate-700 mb-3">{question}</p>
+                    {methodLabel && <div className="text-sm font-semibold text-primary mb-2 uppercase tracking-wide">{methodLabel}</div>}
+                    <textarea 
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition resize-none" 
+                        rows="2" 
+                        placeholder="Nhập câu trả lời của bạn vào đây..."
+                    ></textarea>
+                    <button 
+                        onClick={() => setShow(!show)} 
+                        className={`text-sm px-4 py-2 rounded-lg font-semibold transition ${show ? 'bg-slate-100 text-slate-600' : 'bg-primary text-white hover:bg-primaryHover shadow-premium'}`}
+                    >
+                        <i className={`fas ${show ? 'fa-eye-slash' : 'fa-lightbulb'} mr-2`}></i>
+                        {show ? 'Ẩn Gợi ý' : 'Xem Gợi ý'}
+                    </button>
+                    {show && (
+                        <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl text-slate-700 text-base">
+                            <span className="font-bold text-primary block mb-1">Gợi ý đáp án:</span>
+                            {suggestion}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const App = () => {
+            return (
+                <div className="min-h-screen pb-20 font-sans">
+                    <div className="bg-gradient-to-b from-slate-100 to-slate-50 pt-16 pb-16">
+                        <div className="max-w-4xl mx-auto px-4 text-center">
+                            <div className="inline-block px-4 py-1.5 bg-blue-100 text-primary font-bold rounded-full text-sm mb-4 tracking-wide uppercase">IELTS WRITING TASK 1</div>
+                            <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">Structures & Data Description</h1>
+                            <p className="text-slate-500 text-lg">Học tương tác với thẻ từ vựng và tự kiểm tra đáp án.</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <main className="max-w-4xl mx-auto px-4 space-y-8 mt-4">
+                            
+                            {/* PHẦN 1 */}
+                            <ParagraphBlock num="1" title="Cấu trúc: 1 CHỦ THỂ – 2 THỜI GIAN">
+                                <p>Cấu trúc này được sử dụng để mô tả sự biến đổi hay thay đổi của một chủ thể trong hai mốc thời gian khác nhau.</p>
+                                <div className="bg-slate-50 p-5 rounded-2xl border-l-4 border-primary italic">
+                                    <strong>Ví dụ (dữ liệu trang 17):</strong> The number of Trang’s candies increased from 2 at 13:00 to 6 at 14:00.<br/>
+                                    → Ta có một chủ thể là "The number of Trang’s candies", và hai mốc thời gian là 13:00 và 14:00.
+                                </div>
+                                
+                                <DriveImage driveId="1Y_i_peg0hIsMNAFRiIKgV0skDWtqNlZA" alt="BIỂU ĐỒ 1 – Percentage of total sales by methods" />
+
+                                <div className="grid md:grid-cols-2 gap-4 mt-6">
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                        <div className="text-primary font-bold mb-1 uppercase text-sm tracking-wider">Cấu trúc 1</div>
+                                        <div className="text-slate-500 text-sm mb-2">Verb + Adverb</div>
+                                        <StructureBox>S + V + ADV + from [data] to [data] + (time)</StructureBox>
+                                        <p className="mt-3">Ví dụ: Music streams <InteractiveVocab en="grew significantly" vi="tăng đáng kể" /> from 5% in 2011 to 40% in 2018.</p>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                        <div className="text-primary font-bold mb-1 uppercase text-sm tracking-wider">Cấu trúc 2</div>
+                                        <div className="text-slate-500 text-sm mb-2">Adjective + Noun</div>
+                                        <StructureBox>There + be + a/an + ADJ + N + to [data] + in S + (time)</StructureBox>
+                                        <p className="mt-3">Ví dụ: There was a <InteractiveVocab en="significant growth" vi="sự tăng đáng kể" /> to 40% in music streams between 2011 and 2018.</p>
+                                    </div>
+                                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
+                                        <div className="text-primary font-bold mb-2 uppercase text-sm tracking-wider">Cấu trúc 3</div>
+                                        <StructureBox>S + witnessed / experienced / saw + a/an + ADJ + N + to [data] + (time)</StructureBox>
+                                        <p className="mt-3">Ví dụ: Music streams <InteractiveVocab en="witnessed" vi="chứng kiến" /> a significant growth to 40% in 2018.</p>
+                                    </div>
+                                </div>
+                                <div className="mt-6 p-5 bg-red-50 text-red-800 rounded-2xl border border-red-100 flex gap-4 items-start">
+                                    <i className="fas fa-exclamation-circle text-2xl text-red-500 mt-1"></i>
+                                    <div>
+                                        <strong className="text-lg">Lưu ý quan trọng:</strong> <br/>
+                                        Ở Cấu trúc 1, động từ (Verb) đi với trạng từ (Adverb).<br/>
+                                        Ở Cấu trúc 2 và 3, tính từ (Adjective) đi với danh từ (Noun).<br/><br/>
+                                        <span className="line-through text-red-400">❌ There was a significantly grow…</span><br/>
+                                        <span className="font-bold text-green-700">✅ There was a significant growth…</span>
+                                    </div>
+                                </div>
+                            </ParagraphBlock>
+
+                            {/* PHẦN 2 */}
+                            <ParagraphBlock num="2" title="Cấu trúc: 2 CHỦ THỂ – 1 THỜI GIAN">
+                                <p>Dùng để so sánh hai đối tượng khác nhau tại cùng một thời điểm.</p>
+                                <div className="bg-slate-50 p-5 rounded-2xl border-l-4 border-primary italic">
+                                    <strong>Ví dụ:</strong> The number of Trang’s candies <InteractiveVocab en="stood at" vi="đứng ở mức" /> 6, three times as many as Viet’s candies at 2 p.m.<br/>
+                                    (Chủ thể 1: Trang | Chủ thể 2: Việt | Thời gian: 2 p.m.)
+                                </div>
+                                
+                                <DriveImage driveId="1S6NScuO1qolir7bDw_q3dfZZeyaX_yyU" alt="BIỂU ĐỒ 2 – Proportions of students’ qualifications" />
+
+                                <div className="space-y-4 mt-6">
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200">
+                                        <strong className="text-primary block mb-2 uppercase text-sm tracking-wider">Cấu trúc 1</strong>
+                                        <StructureBox>S1 + stood at + [data], + số lần + as much as that of S2</StructureBox>
+                                        <p className="text-slate-600 mt-2">The percentage of students with very good qualifications stood at 75%, about <InteractiveVocab en="three times as much as" vi="gấp ba lần" /> that of students with excellent qualifications.</p>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200">
+                                        <strong className="text-primary block mb-2 uppercase text-sm tracking-wider">Cấu trúc 2</strong>
+                                        <StructureBox>S1 + stood at + [data] + as opposed to / in comparison with / compared to + [data] + S2</StructureBox>
+                                        <p className="text-slate-600 mt-2">...stood at 75%, <InteractiveVocab en="as opposed to" vi="trái ngược với" /> only 22% of students...</p>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200">
+                                        <strong className="text-primary block mb-2 uppercase text-sm tracking-wider">Cấu trúc 3</strong>
+                                        <StructureBox>At [data], S + V + số lần + as much as that of + S2</StructureBox>
+                                        <p className="text-slate-600 mt-2">At 75%, the figure for students with very good qualifications was about three times as much as that of students with excellent qualifications.</p>
+                                    </div>
+                                    <div className="bg-white p-5 rounded-2xl border border-slate-200">
+                                        <strong className="text-primary block mb-2 uppercase text-sm tracking-wider">Cấu trúc 4</strong>
+                                        <StructureBox>S1 + stood at + [data], + chênh lệch + higher than S2</StructureBox>
+                                        <p className="text-slate-600 mt-2">...stood at over 75%, 53% higher than that of students...</p>
+                                    </div>
+                                </div>
+                            </ParagraphBlock>
+
+                            {/* COMPREHENSIVE PRACTICE I */}
+                            <ParagraphBlock num="3" title="Comprehensive Practice: Fill in the gaps">
+                                <p className="mb-4 text-slate-500">Điền từ thích hợp vào chỗ trống (Hệ thống sẽ tự chấm điểm: Xanh = Đúng). Chú ý đuôi từ được gợi ý.</p>
+                                
+                                <DriveImage driveId="1nXBOUUzUKGQ-TpxaTpGPmZxbtxwagzqK" alt="BIỂU ĐỒ 3 - Average annual expenditures" />
+
+                                <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm leading-[3rem] text-[18px]">
+                                    Over the past year, sales of the company have been 
+                                    <BlankInput answer="fluctuating" /> (fl_______ting) and unst____le. 
+                                    At the start of the year, sales began to 
+                                    <BlankInput answer="grow" /> (g___w), reaching a high of $100,000 in April. 
+                                    However, sales began to 
+                                    <BlankInput answer="decline" /> (decl___) 
+                                    <BlankInput answer="significantly" /> (signi________) after that, and by August, sales had 
+                                    <BlankInput answer="dropped" /> (d____ped) to $60,000. 
+                                    Sales continued to 
+                                    <BlankInput answer="decrease" /> (decr______) throughout the rest of the year before 
+                                    <BlankInput answer="peaking" /> (p___king) at $100,000 again in December. 
+                                    The figures 
+                                    <BlankInput answer="remained" /> (re_____ed) 
+                                    <BlankInput answer="stable" /> (st___le) for the rest of the period.
+                                </div>
+                            </ParagraphBlock>
+
+                            {/* COMPREHENSIVE PRACTICE II */}
+                            <ParagraphBlock num="4" title="Comprehensive Practice: Use correct forms">
+                                <div className="space-y-4">
+                                    {[
+                                        { q: "The stock market has (fluctuate) ______ over the past few months.", a: "fluctuated" },
+                                        { q: "The temperature is expected to (rise – significant) ______ as we move into summer.", a: "rise significantly" },
+                                        { q: "The number of applicants for the job has (drop – slight) ______ in the last week.", a: "dropped slightly" },
+                                        { q: "Sales have (drop – steep) ______ by 10% since last year.", a: "dropped steeply" },
+                                        { q: "Housing prices have (increase – considerable) ______ in recent years.", a: "increased considerably" },
+                                        { q: "The population of the city has (fluctuate – slight) ______ over the last decade.", a: "fluctuated slightly" },
+                                        { q: "The value of the company’s stock (increase – rapid) ______ after the announcement of the new product.", a: "increased rapidly" },
+                                        { q: "The price of the item (peak) ______ at $300 yesterday.", a: "peaked" },
+                                        { q: "There was a significant (fluctuate) ______ in the price of oil last year.", a: "fluctuation" },
+                                        { q: "The temperature (drop – slow) ______ during the night.", a: "dropped slowly" }
+                                    ].map((item, idx) => (
+                                        <div key={idx} className="flex flex-col md:flex-row md:items-center gap-3 bg-white border border-slate-100 p-4 rounded-xl shadow-sm hover:border-blue-200 transition">
+                                            <span className="font-bold text-primary w-6 bg-blue-50 text-center rounded-full px-2 py-0.5">{idx + 1}</span>
+                                            <span className="flex-1 text-[17px]" dangerouslySetInnerHTML={{__html: item.q.replace('______', '')}}></span>
+                                            <BlankInput answer={item.a} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </ParagraphBlock>
+
+                            {/* COMPREHENSIVE PRACTICE III */}
+                            <ParagraphBlock num="5" title="Comprehensive Practice: Rewrite Sentences">
+                                <p className="mb-4 text-slate-500">Viết lại câu sử dụng danh từ/động từ thay thế. Nhấn "Xem Gợi ý" để kiểm tra cấu trúc.</p>
+                                <div className="space-y-6">
+                                    <OpenEndedQuestion 
+                                        question="1. Rice exports from Asia fluctuated significantly over the period. -> There were..." 
+                                        suggestion="There were significant fluctuations in rice exports from Asia over the period." />
+                                    <OpenEndedQuestion 
+                                        question="2. The number of COVID cases has risen considerably. -> There..." 
+                                        suggestion="There has been a considerable rise in the number of COVID cases." />
+                                    <OpenEndedQuestion 
+                                        question="3. There has been a slight decline in the amount of money spent on research development. -> The amount..." 
+                                        suggestion="The amount of money spent on research development has declined slightly." />
+                                    <OpenEndedQuestion 
+                                        question="4. Online tickets dropped rapidly last month. -> There..." 
+                                        suggestion="There was a rapid drop in online tickets last month." />
+                                    <OpenEndedQuestion 
+                                        question="5. There was a small increase in the sales of oranges from 2012 to 2013. -> The..." 
+                                        suggestion="The sales of oranges saw/witnessed a small increase from 2012 to 2013. (Hoặc: The sales of oranges increased slightly...)" />
+                                    <OpenEndedQuestion 
+                                        question="6. The number of train passengers remained unchanged during the period. -> There..." 
+                                        suggestion="There was no change in the number of train passengers during the period. (Hoặc: There remained unchanged in...)" />
+                                </div>
+                            </ParagraphBlock>
+
+                            {/* COMPREHENSIVE PRACTICE IV */}
+                            <ParagraphBlock num="6" title="Describe Chart: Wildlife Population">
+                                <DriveImage driveId="1V5eFHYZ-Gr4XZUiM-on7nee-73XXalKF" alt="BIỂU ĐỒ 4 - Wildlife Population" />
+                                
+                                <OpenEndedQuestion 
+                                    question="1. Describe the figures for Dolphins from 2017 to 2018 in two methods."
+                                    suggestion={
+                                        <ul className="list-disc ml-5 space-y-2">
+                                            <li><strong>Method 1:</strong> The number of dolphins in the wild declined significantly from 150 million in 2017 to 80 million in 2018.</li>
+                                            <li><strong>Method 2:</strong> There was a significant decline in the number of dolphins, from 150 million in 2017 to 80 million in 2018.</li>
+                                        </ul>
+                                    } />
+                                <OpenEndedQuestion 
+                                    question="2. Describe the figures for Whales from 2019 to 2022 in two methods."
+                                    suggestion={
+                                        <ul className="list-disc ml-5 space-y-2">
+                                            <li><strong>Method 1:</strong> The number of whales in the wild decreased slightly from 100 million in 2019 to about 70 million in 2022.</li>
+                                            <li><strong>Method 2:</strong> There was a slight decrease in the whale population, from 100 million in 2019 to approximately 70 million in 2022.</li>
+                                        </ul>
+                                    } />
+                                <OpenEndedQuestion 
+                                    question="3. Describe the figures for Dolphins from 2021 to 2022 in two methods."
+                                    suggestion={
+                                        <ul className="list-disc ml-5 space-y-2">
+                                            <li><strong>Method 1:</strong> The number of dolphins in the wild fell slightly from 10 million in 2021 to almost zero in 2022.</li>
+                                            <li><strong>Method 2:</strong> There was a slight decline in the number of dolphins, from 10 million in 2021 to nearly zero in 2022.</li>
+                                        </ul>
+                                    } />
+                            </ParagraphBlock>
+
+                            {/* COMPREHENSIVE PRACTICE V */}
+                            <ParagraphBlock num="7" title="Describe Chart: Expenditure">
+                                <DriveImage driveId="15nrLhcoCuH3sdELbMurUm3SgTkA0blBk" alt="BIỂU ĐỒ 5 - Expenditure on five consumer goods" />
+                                
+                                <OpenEndedQuestion 
+                                    question="1. Compare the figures for Technology in Spain and the US."
+                                    suggestion={
+                                        <ul className="list-disc ml-5 space-y-2">
+                                            <li><strong>Method 1:</strong> The expenditure on technology in Spain stood at $350,000, compared with $300,000 in the US.</li>
+                                            <li><strong>Method 2:</strong> There was $300,000 spent on technology in the US, while the figure for Spain was $350,000.</li>
+                                        </ul>
+                                    } />
+                                <OpenEndedQuestion 
+                                    question="2. Compare the figures for Books in Spain and the US."
+                                    suggestion={
+                                        <ul className="list-disc ml-5 space-y-2">
+                                            <li><strong>Method 1:</strong> The amount of money spent on books in Spain stood at $150,000, compared with $300,000 in the US.</li>
+                                            <li><strong>Method 2:</strong> There was $300,000 spent on books in the US, whereas the figure for Spain was only $150,000.</li>
+                                        </ul>
+                                    } />
+                                <OpenEndedQuestion 
+                                    question="3. Compare the figures for Clothes in Spain and the US."
+                                    suggestion={
+                                        <ul className="list-disc ml-5 space-y-2">
+                                            <li><strong>Method 1:</strong> The expenditure on clothes in Spain stood at $350,000, compared with approximately $180,000 in the US.</li>
+                                            <li><strong>Method 2:</strong> There was around $180,000 spent on clothes in the US, while the figure for Spain reached $350,000.</li>
+                                        </ul>
+                                    } />
+                            </ParagraphBlock>
+
+                            {/* COMPREHENSIVE PRACTICE VI */}
+                            <ParagraphBlock num="8" title="Read the Following Essay and Answer the Questions">
+                                <DriveImage driveId="1V5eFHYZ-Gr4XZUiM-on7nee-73XXalKF" alt="BIỂU ĐỒ 6 - Wildlife Population (Repeated)" />
+                                
+                                <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm mb-6 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-2 h-full bg-primary"></div>
+                                    <h4 className="font-bold text-xl mb-4 text-slate-800">Sample Essay</h4>
+                                    <div className="space-y-4 text-slate-700 leading-relaxed text-[17px]">
+                                        <p>The line graph compares the number of bears, dolphins, and whales in the wild.</p>
+                                        <p>Overall, bear populations <InteractiveVocab en="witnessed an upward trend" vi="chứng kiến xu hướng tăng" />, while the number of dolphins declined. Whales, on the other hand, remained relatively stable. It is also evident that the number of bears was the highest from 2020 to 2022.</p>
+                                        <p>In 2017, the number of dolphins was highest, at 150 million in the wild. This figure declined significantly to only 80 million one year later. From 2018 to 2019, there was another fall to more than 30 million in dolphin populations. In the following two years, this figure decreased significantly to only 1 million in 2022.</p>
+                                        <p>In contrast, bear populations rose significantly. The number of bears in the wild stood at only 10 million (the lowest figure in the chart). This figure, however, increased substantially to 120 million, and reached a high of 180 million in 2022.</p>
+                                        <p>Finally, whale populations witnessed a significant <InteractiveVocab en="fluctuation" vi="sự biến động" /> from 80 million to 100 million throughout the period.</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <OpenEndedQuestion 
+                                        question="1. How many paragraphs are there in this essay?" 
+                                        suggestion="There are 4 paragraphs." />
+                                    <OpenEndedQuestion 
+                                        question="2. In the second paragraph, what does 'witnessed an upward trend' mean?" 
+                                        suggestion="It means increased over time (showed a rising trend)." />
+                                    <OpenEndedQuestion 
+                                        question="3. In the third and fourth paragraphs, how many '1 subject – 2 time points' structures are included? List them." 
+                                        suggestion={
+                                            <div>
+                                                <p>There are 4 "1 subject – 2 time points" structures. They are:</p>
+                                                <ul className="list-disc ml-5 mt-2 space-y-1 text-[16px]">
+                                                    <li>This figure declined significantly to only 80 million one year later.</li>
+                                                    <li>There was another fall to more than 30 million in dolphin populations.</li>
+                                                    <li>This figure increased substantially to 120 million.</li>
+                                                    <li>...reached a high of 180 million in 2022.</li>
+                                                </ul>
+                                            </div>
+                                        } />
+                                    <OpenEndedQuestion 
+                                        question="4. What are the sentences that follow the '1 subject – 2 time points' structures?" 
+                                        suggestion={
+                                            <div>
+                                                <p>The sentences following those structures are:</p>
+                                                <ul className="list-disc ml-5 mt-2 space-y-1 text-[16px]">
+                                                    <li>In the following two years, this figure decreased significantly to only 1 million in 2022.</li>
+                                                    <li>The number of bears in the wild stood at only 10 million (the lowest figure in the chart).</li>
+                                                    <li>Finally, whale populations witnessed a significant fluctuation from 80 million to 100 million throughout the period.</li>
+                                                </ul>
+                                            </div>
+                                        } />
+                                </div>
+                            </ParagraphBlock>
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
