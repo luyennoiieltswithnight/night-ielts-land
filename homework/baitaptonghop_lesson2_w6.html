@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Practice - Lesson 02</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#3b82f6',
+                        primaryHover: '#2563eb',
+                        vocab: '#fef08a',
+                        vocabText: '#854d0e',
+                        vocabBack: '#3b82f6',
+                    },
+                    boxShadow: {
+                        floating: '0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 10px 20px -10px rgba(0, 0, 0, 0.02)',
+                        premium: '0 10px 30px -10px rgba(59, 130, 246, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* Glassmorphism utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-blue-200 selection:text-blue-900 font-sans">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // ==========================================
+        // COMPONENTS
+        // ==========================================
+
+        const DriveImage = ({ driveId, alt, title }) => (
+            <div className="w-full my-8 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center p-6 relative">
+                {title && <div className="absolute top-0 left-0 bg-primary text-white text-xs font-bold px-3 py-1 rounded-br-lg z-10">{title}</div>}
+                <div className="mt-2 w-full flex flex-col items-center">
+                    <img 
+                        src={`https://lh3.googleusercontent.com/d/${driveId}`} 
+                        alt={alt} 
+                        className="w-full max-w-2xl h-auto object-contain rounded-lg shadow-sm border border-slate-100"
+                        onError={(e) => { 
+                            if (!e.target.dataset.retried) {
+                                e.target.dataset.retried = "true";
+                                e.target.src = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1200`;
+                            } else {
+                                e.target.style.display = 'none'; 
+                                e.target.nextSibling.style.display = 'block'; 
+                            }
+                        }}
+                    />
+                    <div style={{ display: 'none' }} className="text-red-500 font-medium mt-4 text-center px-4 bg-red-50 p-4 rounded-xl border border-red-100">
+                        <i className="fas fa-image text-4xl mb-2 text-red-300"></i><br/>
+                        Không thể tải ảnh. Hãy kiểm tra lại file đã bật "Bất kỳ ai có liên kết" chưa.
+                    </div>
+                </div>
+            </div>
+        );
+
+        const ParagraphBlock = ({ title, num, icon, children }) => (
+            <div className="mb-10 relative glass rounded-3xl p-6 md:p-10 shadow-floating">
+                {num && (
+                    <div className="absolute -left-5 -top-5 w-14 h-14 bg-white rounded-2xl shadow-floating flex items-center justify-center font-black text-2xl text-primary border border-slate-100">
+                        {num}
+                    </div>
+                )}
+                {icon && !num && (
+                    <div className="absolute -left-5 -top-5 w-14 h-14 bg-gradient-to-br from-primary to-blue-600 rounded-2xl shadow-floating flex items-center justify-center text-white border border-blue-400">
+                        <i className={`fas ${icon} text-xl`}></i>
+                    </div>
+                )}
+                {title && <h3 className="text-2xl font-black text-slate-800 mb-6 tracking-tight uppercase">{title}</h3>}
+                <div className="space-y-4 text-slate-700 leading-relaxed text-[17px]">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const BlankInput = ({ answer }) => {
+            const [val, setVal] = useState('');
+            const isCorrect = val.toLowerCase().trim() === answer.toLowerCase();
+            
+            let stateClass = "border-slate-300 text-slate-700 bg-slate-50 focus:border-primary focus:bg-white";
+            if (val) {
+                stateClass = isCorrect 
+                    ? "border-green-500 text-green-700 bg-green-50 font-bold" 
+                    : "border-red-400 text-red-600 bg-red-50 font-medium";
+            }
+
+            return (
+                <input 
+                    type="text" 
+                    className={`inline-block border-b-2 outline-none px-3 py-0.5 text-center mx-1 transition-colors min-w-[140px] rounded-t-md ${stateClass}`} 
+                    value={val} 
+                    onChange={e => setVal(e.target.value)} 
+                    placeholder="nhập từ..."
+                />
+            );
+        };
+
+        const OpenEndedQuestion = ({ question, suggestion, rows = 2 }) => {
+            const [show, setShow] = useState(false);
+            return (
+                <div className="mb-6 p-5 bg-white rounded-2xl shadow-sm border border-slate-100 transition-all hover:border-blue-200">
+                    <p className="font-bold text-slate-700 mb-3 text-[17px]" dangerouslySetInnerHTML={{__html: question}}></p>
+                    <textarea 
+                        className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl mb-3 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition resize-none font-sans text-[16px] text-slate-700" 
+                        rows={rows} 
+                        placeholder="Viết câu trả lời của bạn vào đây..."
+                    ></textarea>
+                    <button 
+                        onClick={() => setShow(!show)} 
+                        className={`text-sm px-5 py-2.5 rounded-xl font-bold transition ${show ? 'bg-slate-100 text-slate-600' : 'bg-primary text-white hover:bg-primaryHover shadow-premium'}`}
+                    >
+                        <i className={`fas ${show ? 'fa-eye-slash' : 'fa-lightbulb text-yellow-300'} mr-2`}></i>
+                        {show ? 'Ẩn Gợi ý' : 'Xem Gợi ý / Đáp án'}
+                    </button>
+                    {show && (
+                        <div className="mt-4 p-5 bg-blue-50 border border-blue-100 rounded-xl text-slate-700 text-[16px] leading-relaxed font-medium">
+                            <span className="font-black text-primary block mb-2 uppercase tracking-wide text-sm">Gợi ý đáp án:</span>
+                            {suggestion}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const Badge = ({ children }) => (
+            <span className="inline-block px-4 py-1.5 rounded-full text-sm font-bold bg-white border border-slate-200 text-slate-600 m-1.5 shadow-sm hover:border-primary hover:text-primary transition cursor-default">
+                {children}
+            </span>
+        );
+
+        // ==========================================
+        // MAIN APP
+        // ==========================================
+
+        const App = () => {
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Header */}
+                    <div className="bg-gradient-to-b from-indigo-50 to-slate-50 pt-20 pb-16">
+                        <div className="max-w-4xl mx-auto px-4 text-center">
+                            <div className="inline-block px-5 py-2 bg-indigo-100 text-indigo-700 font-bold rounded-full text-sm mb-4 tracking-wider uppercase shadow-sm">LESSON 02</div>
+                            <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">COMPREHENSIVE PRACTICE</h1>
+                            <p className="text-slate-500 text-lg max-w-2xl mx-auto">Dynamic Charts (Line) - Bài tập củng cố ngữ pháp, từ vựng và kỹ năng viết.</p>
+                        </div>
+                    </div>
+
+                    <main className="max-w-4xl mx-auto px-4 mt-8 space-y-12">
+                        
+                        {/* SECTION I */}
+                        <ParagraphBlock num="I" title="Paraphrase these sentences">
+                            <p className="mb-4 text-slate-500 font-medium">Viết lại câu sử dụng từ được cho trong ngoặc. Nhấn "Xem Gợi ý" để đối chiếu đáp án.</p>
+                            <div className="space-y-6">
+                                <OpenEndedQuestion 
+                                    question="1. The amount of money spent on music annually stood at $7 billion.<br/><span class='text-primary text-sm uppercase tracking-wide mt-1 block'>(expenditure)</span>"
+                                    suggestion="The annual expenditure on music stood at $7 billion." 
+                                />
+                                <OpenEndedQuestion 
+                                    question="2. The figure for global population growth is expected to reach 9 billion by 2050.<br/><span class='text-primary text-sm uppercase tracking-wide mt-1 block'>(be projected to – stand at)</span>"
+                                    suggestion="The figure for global population growth is projected to stand at 9 billion by 2050." 
+                                />
+                                <OpenEndedQuestion 
+                                    question="3. The expenditure on education has increased over the past decade.<br/><span class='text-primary text-sm uppercase tracking-wide mt-1 block'>(expense on)</span>"
+                                    suggestion="The expense on education has increased over the past decade." 
+                                />
+                                <OpenEndedQuestion 
+                                    question="4. The number of people attending the festival last year was just under 50,000.<br/><span class='text-primary text-sm uppercase tracking-wide mt-1 block'>(nearly)</span>"
+                                    suggestion="The number of people attending the festival last year was nearly 50,000." 
+                                />
+                                <OpenEndedQuestion 
+                                    question="5. The amount of money spent on healthcare has doubled in the last 10 years.<br/><span class='text-primary text-sm uppercase tracking-wide mt-1 block'>(the figure for)</span>"
+                                    suggestion="The figure for healthcare expenditure has doubled in the last 10 years." 
+                                />
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* SECTION II */}
+                        <ParagraphBlock num="II" title="Fill in the gaps">
+                            <p className="mb-4 text-slate-500 font-medium">Điền từ thích hợp vào chỗ trống từ danh sách bên dưới (Hệ thống tự động chấm điểm màu xanh/đỏ).</p>
+                            
+                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-inner mb-8 text-center">
+                                <h4 className="font-bold text-slate-400 uppercase tracking-widest text-xs mb-4">Word List</h4>
+                                <div className="flex flex-wrap justify-center">
+                                    {["a downward trend", "a shift", "compared to", "stood at", "illustrates", "expenditure", "figure", "expense", "amount", "approximately", "in comparison with"].map((w, i) => <Badge key={i}>{w}</Badge>)}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {[
+                                    { q: "The trend for cell phone services showed ______ between 2001 and 2010.", h: "the opposite of “an upward trend”", a: "a downward trend" },
+                                    { q: "According to the graph, there was ______ in spending on entertainment between 2015 and 2020.", h: "another way to say “change”", a: "a shift" },
+                                    { q: "In 2018, the ______ for new car sales was 17 million units.", h: "another way to say “number”", a: "figure" },
+                                    { q: "According to the report, the number of tourists visiting the city increased by 10% ______ last year.", h: "another way to say “in comparison with”", a: "in comparison with" },
+                                    { q: "The ______ on healthcare in the US was $3.6 trillion in 2018.", h: "another way to say “amount of money spent”", a: "expenditure" },
+                                    { q: "______ the previous year, sales of laptops have decreased by 15%.", h: "another way to say “compared to”", a: "compared to" },
+                                    { q: "The number of people who attended the concert ______ 5,000.", h: "another way to say “was”", a: "stood at" },
+                                    { q: "The graph ______ that there has been an upward trend in the number of people using social media platforms.", h: "another way to say “shows”", a: "illustrates" },
+                                    { q: "According to the report, the ______ on advertising has increased by 20% compared to last year.", h: "another way to say “amount of money spent”", a: "expense" },
+                                    { q: "______ on research and development reached $10 billion in the last fiscal year.", h: "another way to say “amount of money spent”", a: "Expenditure" },
+                                    { q: "The ______ of money spent on luxury goods varies depending on the region.", h: "another way to say “amount of money spent”", a: "amount" },
+                                    { q: "The revenue of the company stood at ______ $500 million last year.", h: "another way to say “roughly”", a: "approximately" }
+                                ].map((item, idx) => (
+                                    <div key={idx} className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:border-blue-300 transition flex flex-col md:flex-row gap-4">
+                                        <div className="font-black text-slate-300 text-2xl w-8 text-right">{idx + 1}.</div>
+                                        <div className="flex-1">
+                                            <p className="text-[17px] text-slate-700 leading-loose">
+                                                {item.q.split('______')[0]}
+                                                <BlankInput answer={item.a} />
+                                                {item.q.split('______')[1]}
+                                            </p>
+                                            <div className="mt-2 text-sm text-slate-400 italic">
+                                                <i className="fas fa-info-circle mr-1"></i> Hint: {item.h}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* SECTION III */}
+                        <ParagraphBlock num="III" title="Complete the following essay">
+                            <DriveImage driveId="1sDau3mBvi3RI_UPt4XDODE4_eO10dJIu" title="BIỂU ĐỒ 1" alt="Average annual expenditures on cell phone and residential phone services, 2001-2010" />
+                            
+                            <div className="space-y-8 mt-8">
+                                <OpenEndedQuestion 
+                                    rows={4}
+                                    question="1. Write an <strong>introduction</strong> and <strong>overview</strong> for this graph."
+                                    suggestion={
+                                        <div>
+                                            <p><strong>Introduction:</strong> The line graph illustrates the average annual expenditure on cell phone services and residential phone services between 2001 and 2010.</p>
+                                            <p className="mt-2"><strong>Overview:</strong> Overall, expenditure on cell phone services witnessed a significant upward trend, whereas the opposite was true for residential phone services. It is also noticeable that spending on cell phone services eventually became the highest figure by the end of the period.</p>
+                                        </div>
+                                    } 
+                                />
+
+                                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h4 className="font-bold text-slate-700 mb-4 flex items-center"><i className="fas fa-list-ul mr-2 text-primary"></i> 2. Based on the outlines below, write the two bodies.</h4>
+                                    
+                                    <div className="mb-4 bg-white rounded-xl overflow-hidden border border-slate-200">
+                                        <div className="bg-blue-50 font-bold text-blue-800 px-4 py-2 border-b border-slate-200">Outline: Cell phone services</div>
+                                        <div className="overflow-x-auto p-4">
+                                            <table className="w-full text-left text-sm text-slate-600">
+                                                <thead><tr><th className="pb-2">Time</th><th className="pb-2">Trend</th><th className="pb-2">Data</th><th className="pb-2">Highlight</th></tr></thead>
+                                                <tbody>
+                                                    <tr><td className="py-1 font-bold">2001</td><td>—</td><td>~ $200</td><td className="text-primary">lowest figure</td></tr>
+                                                    <tr><td className="py-1 font-bold">2001–2006</td><td className="text-green-500 font-bold">increased</td><td>$200 → ~ $550</td><td>higher than residential</td></tr>
+                                                    <tr><td className="py-1 font-bold">2006–2010</td><td className="text-green-500 font-bold">increased</td><td>$550 → ~ $800</td><td className="text-primary">highest figure</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <OpenEndedQuestion 
+                                        rows={4}
+                                        question="Write <strong>Body 1 (Cell phone services)</strong>:"
+                                        suggestion="In 2001, annual expenditure on cell phone services stood at approximately $200, which was the lowest figure in the chart. Between 2001 and 2006, this figure increased steadily to around $550, overtaking residential phone services. From 2006 to 2010, spending continued to rise, reaching approximately $800, the highest figure shown in the graph." 
+                                    />
+
+                                    <div className="mb-4 mt-8 bg-white rounded-xl overflow-hidden border border-slate-200">
+                                        <div className="bg-orange-50 font-bold text-orange-800 px-4 py-2 border-b border-slate-200">Outline: Residential phone services</div>
+                                        <div className="overflow-x-auto p-4">
+                                            <table className="w-full text-left text-sm text-slate-600">
+                                                <thead><tr><th className="pb-2">Time</th><th className="pb-2">Trend</th><th className="pb-2">Data</th><th className="pb-2">Highlight</th></tr></thead>
+                                                <tbody>
+                                                    <tr><td className="py-1 font-bold">2001</td><td>—</td><td>~ $700</td><td className="text-primary">significantly higher</td></tr>
+                                                    <tr><td className="py-1 font-bold">2001–2006</td><td className="text-red-500 font-bold">decreased</td><td>$700 → ~ $550</td><td>—</td></tr>
+                                                    <tr><td className="py-1 font-bold">2006–2010</td><td className="text-red-500 font-bold">decreased</td><td>$550 → ~ $350</td><td>about half of cell phone</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <OpenEndedQuestion 
+                                        rows={4}
+                                        question="Write <strong>Body 2 (Residential phone services)</strong>:"
+                                        suggestion="By contrast, expenditure on residential phone services stood at roughly $700 in 2001, significantly higher than that for cell phone services. However, this figure declined gradually to around $550 in 2006. Over the following four years, spending continued to decrease, falling to approximately $350 in 2010, which was about half of the figure for cell phone services." 
+                                    />
+                                </div>
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* SECTION IV */}
+                        <ParagraphBlock num="IV" title="Read Essay & Answer Questions (Chart)">
+                            <DriveImage driveId="1wIv57X0_A3K02TFcfkWXO8xDTjjtFsnC" title="BIỂU ĐỒ 2" alt="Percentage of tourists to Scotland who visited different attractions" />
+                            
+                            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-premium relative overflow-hidden my-8">
+                                <div className="absolute top-0 left-0 w-2 h-full bg-primary"></div>
+                                <h4 className="font-bold text-xl mb-4 text-slate-800">Sample Essay</h4>
+                                
+                                <div className="space-y-4 text-slate-700 leading-relaxed text-[17px]">
+                                    <p>The line chart illustrates the percentage of visitors to four places in Scotland, including Aquarium, Castle, Zoo and Festival over a period of 30 years.</p>
+                                    <p>It is clear that while the percentage of tourists visiting Castle and Zoo increased, the opposite was true for Aquarium and Festival over the period. It is also notable that Castle was the most popular tourist attraction in Scotland for most of the period.</p>
+                                    <p>In 1980, the percentage of tourists who chose to visit Castle was nearly 25%. Over the following 20 years, <span className="bg-yellow-100 font-bold px-1 rounded">(1) the percentage of Castle visitors increased dramatically to about 45% in 1995.</span> <span className="bg-yellow-100 font-bold px-1 rounded">(2) After that, it witnessed a considerable drop to just under 40% in 2010.</span> <span className="bg-yellow-100 font-bold px-1 rounded">(3) The figure for Zoo also increased to 20% in 2010</span>, despite some minor fluctuations around 10% to 15% between 1980 and 2000.</p>
+                                    <p>Looking at the other attractions, the proportion of visitors to Aquarium stood at 20% in 1980. <span className="bg-yellow-100 font-bold px-1 rounded">(4) Over the next 5 years, the percentage of travellers paying a visit to Aquarium reached a peak of nearly 35%.</span> <span className="bg-yellow-100 font-bold px-1 rounded">(5) However, since then, this figure continued to fall significantly to just under 10% in 2010.</span> <span className="bg-yellow-100 font-bold px-1 rounded">(6) The figure for Festival visitors also decreased throughout the period.</span> <span className="bg-yellow-100 font-bold px-1 rounded">(7) It stood at 30% in 1980 (the highest figure that year), but then experienced a gradual decrease to only 18% at the end of the period.</span></p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <OpenEndedQuestion 
+                                    question="1. What information is included in the overview?"
+                                    suggestion={<ul className="list-disc ml-5"><li><strong>Xu hướng chung:</strong> Castle và Zoo tăng, Aquarium và Festival giảm.</li><li><strong>Đặc điểm nổi bật:</strong> Castle là địa điểm thu hút nhất trong hầu hết khoảng thời gian.</li></ul>} 
+                                />
+                                <OpenEndedQuestion 
+                                    question="2. Group the sentences (1) to (7) based on their similar structures (there are 3 different structures used)."
+                                    suggestion={
+                                        <div>
+                                            <p><strong>Nhóm 1 (S + V + Adv):</strong> (1), (3), (5), (6). VD: <i>percentage increased dramatically, figure continued to fall.</i></p>
+                                            <p className="mt-2"><strong>Nhóm 2 (S + witnessed/experienced + Adj + Noun):</strong> (2), (7). VD: <i>it witnessed a considerable drop, experienced a gradual decrease.</i></p>
+                                            <p className="mt-2"><strong>Nhóm 3 (Cấu trúc đạt đỉnh):</strong> (4). VD: <i>reached a peak of nearly 35%.</i></p>
+                                        </div>
+                                    } 
+                                />
+                                <OpenEndedQuestion 
+                                    question="3. What are the linking words used in this essay?"
+                                    suggestion="It is clear that, while, over the period, In 1980, Over the following 20 years, After that, Looking at the other attractions, Over the next 5 years, However, since then." 
+                                />
+                                <OpenEndedQuestion 
+                                    rows={4}
+                                    question="4. Try to make an outline for this essay."
+                                    suggestion={
+                                        <div>
+                                            <p><strong>Body 1 (Castle & Zoo - Xu hướng Tăng):</strong><br/>- Castle: Bắt đầu ~25% (1980) → Tăng mạnh lên 45% (1995) → Giảm nhẹ xuống dưới 40% (2010).<br/>- Zoo: Dao động nhẹ 10-15% (1980-2000) → Tăng lên 20% (2010).</p>
+                                            <p className="mt-2"><strong>Body 2 (Aquarium & Festival - Xu hướng Giảm):</strong><br/>- Aquarium: Đứng ở 20% (1980) → Đạt đỉnh gần 35% (sau 5 năm) → Giảm mạnh xuống dưới 10% (2010).<br/>- Festival: Cao nhất 30% (1980) → Giảm dần xuống 18% (2010).</p>
+                                        </div>
+                                    } 
+                                />
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* SECTION V */}
+                        <ParagraphBlock num="V" title="Read Essay & Answer Questions (Table)">
+                            
+                            {/* Render Table thay vì dùng Ảnh */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden my-8">
+                                <div className="bg-indigo-600 text-white font-bold p-4 text-center">Percentage of mobile phone owners using various mobile phone features</div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="bg-slate-50 text-slate-700 font-bold border-b-2 border-slate-200">
+                                            <tr>
+                                                <th className="p-4 border-r border-slate-100">Feature</th>
+                                                <th className="p-4 border-r border-slate-100 text-center">2006</th>
+                                                <th className="p-4 border-r border-slate-100 text-center">2008</th>
+                                                <th className="p-4 text-center">2010</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="text-slate-600 text-[15px]">
+                                            <tr className="border-b border-slate-100 hover:bg-slate-50 transition"><td className="p-4 font-semibold border-r border-slate-100">Make calls</td><td className="p-4 text-center border-r border-slate-100">100</td><td className="p-4 text-center border-r border-slate-100">100</td><td className="p-4 text-center">99</td></tr>
+                                            <tr className="border-b border-slate-100 hover:bg-slate-50 transition"><td className="p-4 font-semibold border-r border-slate-100">Take photos</td><td className="p-4 text-center border-r border-slate-100">66</td><td className="p-4 text-center border-r border-slate-100">71</td><td className="p-4 text-center">76</td></tr>
+                                            <tr className="border-b border-slate-100 hover:bg-slate-50 transition"><td className="p-4 font-semibold border-r border-slate-100">Send & receive text messages</td><td className="p-4 text-center border-r border-slate-100">73</td><td className="p-4 text-center border-r border-slate-100">75</td><td className="p-4 text-center">79</td></tr>
+                                            <tr className="border-b border-slate-100 hover:bg-slate-50 transition"><td className="p-4 font-semibold border-r border-slate-100">Play games</td><td className="p-4 text-center border-r border-slate-100">17</td><td className="p-4 text-center border-r border-slate-100">42</td><td className="p-4 text-center">41</td></tr>
+                                            <tr className="border-b border-slate-100 hover:bg-slate-50 transition bg-slate-50/50"><td className="p-4 font-semibold border-r border-slate-100">Search the Internet</td><td className="p-4 text-center border-r border-slate-100 italic text-slate-400">No data</td><td className="p-4 text-center border-r border-slate-100">41</td><td className="p-4 text-center">73</td></tr>
+                                            <tr className="border-b border-slate-100 hover:bg-slate-50 transition"><td className="p-4 font-semibold border-r border-slate-100">Play music</td><td className="p-4 text-center border-r border-slate-100">12</td><td className="p-4 text-center border-r border-slate-100">18</td><td className="p-4 text-center">26</td></tr>
+                                            <tr className="hover:bg-slate-50 transition bg-slate-50/50"><td className="p-4 font-semibold border-r border-slate-100">Record video</td><td className="p-4 text-center border-r border-slate-100 italic text-slate-400">No data</td><td className="p-4 text-center border-r border-slate-100">9</td><td className="p-4 text-center">35</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-premium relative overflow-hidden mb-8">
+                                <div className="absolute top-0 left-0 w-2 h-full bg-primary"></div>
+                                <h4 className="font-bold text-xl mb-4 text-slate-800">Sample Essay</h4>
+                                <div className="space-y-4 text-slate-700 leading-relaxed text-[17px]">
+                                    <p>The table compares the proportions of individuals using various functions of their mobile phones between 2006 and 2010.</p>
+                                    <p>Overall, a significant increase can be seen in the popularity of almost all the examined features. Additionally, the primary purpose of mobile phone usage was making calls.</p>
+                                    <p>In 2006, 100% of mobile phone owners used their phones to make calls, and this figure declined slightly by only 1% in 2010. Text messaging (73%) and taking photos (66%) were the next most popular functions. The figures for these also rose to 79% and 76%, respectively, over the surveyed period. Similarly, in the first year, less than 20% of owners played games or listened to music on their phones. These figures doubled and tripled to 41% and 26% in 2010.</p>
+                                    <p>No data was available for users engaging in Internet searches or recording videos in 2006. However, the percentage of people using their phones to access the Internet experienced a significant increase to 41% in 2008 and 73% in 2010. There was also a substantial rise in the figure for recording videos, reaching 35% in 2010.</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                <OpenEndedQuestion 
+                                    question="1. What information is included in the overview?"
+                                    suggestion={<ul className="list-disc ml-5"><li><strong>Xu hướng chung:</strong> Sự gia tăng đáng kể ở hầu hết các tính năng.</li><li><strong>Đặc điểm nổi bật:</strong> Mục đích sử dụng chính luôn là gọi điện (making calls).</li></ul>} 
+                                />
+                                <OpenEndedQuestion 
+                                    question="2. In the first body paragraph, what information is included?"
+                                    suggestion="Đoạn Body 1 nhóm các tính năng <strong>đã có sẵn dữ liệu từ năm 2006</strong> (Make calls, Text messaging, Taking photos, Playing games, Listening to music) và miêu tả sự thay đổi của chúng đến năm 2010." 
+                                />
+                                <OpenEndedQuestion 
+                                    question="3. In the second body paragraph, what information is included?"
+                                    suggestion="Đoạn Body 2 nhóm các tính năng <strong>không có dữ liệu (No data) ở năm 2006</strong> (Internet searches, Recording videos) và miêu tả sự gia tăng của chúng từ năm 2008 đến 2010." 
+                                />
+                                <OpenEndedQuestion 
+                                    question="4. What are the linking words used in this essay?"
+                                    suggestion="Overall, Additionally, In 2006, Similarly, However, There was also." 
+                                />
+                                <OpenEndedQuestion 
+                                    rows={4}
+                                    question="5. Try to make an outline for this essay."
+                                    suggestion={
+                                        <div>
+                                            <p><strong>Body 1 (Các tính năng có dữ liệu năm 2006):</strong><br/>- Make calls: 100% (2006) → giảm nhẹ 1% (2010).<br/>- Text & Photo: Phổ biến thứ hai (73% & 66%) → tăng lên 79% & 76%.<br/>- Games & Music: Dưới 20% (năm đầu) → tăng gấp đôi/gấp ba lên 41% & 26%.</p>
+                                            <p className="mt-2"><strong>Body 2 (Các tính năng Không có dữ liệu năm 2006):</strong><br/>- Internet: No data (2006) → Tăng mạnh lên 41% (2008) và 73% (2010).<br/>- Video: No data (2006) → Tăng đáng kể lên 35% (2010).</p>
+                                        </div>
+                                    } 
+                                />
+                            </div>
+                        </ParagraphBlock>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
