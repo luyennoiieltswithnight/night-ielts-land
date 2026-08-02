@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Writing Task 1 - Lesson 02: Line Charts</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#3b82f6',
+                        primaryHover: '#2563eb',
+                        vocab: '#fef08a',
+                        vocabText: '#854d0e',
+                        vocabBack: '#3b82f6',
+                    },
+                    boxShadow: {
+                        floating: '0 20px 40px -15px rgba(0, 0, 0, 0.05), 0 10px 20px -10px rgba(0, 0, 0, 0.02)',
+                        premium: '0 10px 30px -10px rgba(59, 130, 246, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        /* 3D Flip Card Styles */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-x-180 { transform: rotateX(180deg); }
+        
+        /* Glassmorphism utilities */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-blue-200 selection:text-blue-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // ==========================================
+        // COMPONENTS
+        // ==========================================
+
+        const InteractiveVocab = ({ en, vi }) => {
+            const [flipped, setFlipped] = useState(false);
+            return (
+                <span 
+                    className="relative inline-grid perspective-1000 cursor-pointer mx-1 align-middle" 
+                    onClick={() => setFlipped(!flipped)}
+                >
+                    <span className={`grid transition-transform duration-500 transform-style-3d ${flipped ? 'rotate-x-180' : ''}`}>
+                        <span style={{ gridArea: '1 / 1 / 2 / 2' }} className="backface-hidden bg-vocab text-vocabText rounded px-2.5 py-0.5 flex items-center justify-center font-bold text-[15px] shadow-sm border border-yellow-300 whitespace-nowrap">
+                            {en}
+                        </span>
+                        <span style={{ gridArea: '1 / 1 / 2 / 2' }} className="backface-hidden bg-vocabBack text-white rounded px-2.5 py-0.5 flex items-center justify-center font-bold text-[15px] rotate-x-180 shadow-sm whitespace-nowrap">
+                            {vi}
+                        </span>
+                    </span>
+                </span>
+            );
+        };
+
+        // Component hiển thị Công thức - Dùng font sans-serif tinh tế, loại bỏ hoàn toàn font code cứng nhắc
+        const StructureBox = ({ children, variant = "indigo" }) => {
+            const themes = {
+                indigo: "bg-gradient-to-r from-indigo-50 to-blue-50 border-indigo-500 text-indigo-900",
+                pink: "bg-gradient-to-r from-pink-50 to-rose-50 border-pink-400 text-pink-700"
+            };
+            const activeTheme = themes[variant];
+
+            return (
+                <div className={`${activeTheme} border-l-4 px-5 py-4 rounded-r-xl my-4 shadow-sm inline-block w-full`}>
+                    <span className="font-sans font-bold text-[16px] tracking-wide leading-relaxed block">
+                        {children}
+                    </span>
+                </div>
+            );
+        };
+
+        // Component chèn ảnh dùng kỹ thuật Bypass CORS của Google
+        const DriveImage = ({ driveId, alt, title }) => (
+            <div className="w-full my-8 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col items-center p-6 relative">
+                <div className="absolute top-0 left-0 bg-primary text-white text-xs font-bold px-3 py-1 rounded-br-lg z-10">{title}</div>
+                <div className="mt-4 w-full flex flex-col items-center">
+                    <img 
+                        src={`https://lh3.googleusercontent.com/d/${driveId}`} 
+                        alt={alt} 
+                        className="w-full max-w-2xl h-auto object-contain rounded-lg shadow-sm border border-slate-100"
+                        onError={(e) => { 
+                            // Nếu lh3 lỗi, fallback về chế độ thumbnail
+                            if (!e.target.dataset.retried) {
+                                e.target.dataset.retried = "true";
+                                e.target.src = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1200`;
+                            } else {
+                                e.target.style.display = 'none'; 
+                                e.target.nextSibling.style.display = 'block'; 
+                            }
+                        }}
+                    />
+                    <div style={{ display: 'none' }} className="text-red-500 font-medium mt-4 text-center px-4">
+                        <i className="fas fa-exclamation-triangle text-2xl mb-2"></i><br/>
+                        Không thể tải ảnh. Hãy kiểm tra lại file đã bật "Bất kỳ ai có liên kết" chưa.
+                    </div>
+                </div>
+            </div>
+        );
+
+        const ParagraphBlock = ({ title, num, icon, children }) => (
+            <div className="mb-10 relative glass rounded-3xl p-6 md:p-10 shadow-floating">
+                {num && (
+                    <div className="absolute -left-5 -top-5 w-14 h-14 bg-white rounded-2xl shadow-floating flex items-center justify-center font-black text-2xl text-primary border border-slate-100">
+                        {num}
+                    </div>
+                )}
+                {icon && !num && (
+                    <div className="absolute -left-5 -top-5 w-14 h-14 bg-gradient-to-br from-primary to-blue-600 rounded-2xl shadow-floating flex items-center justify-center text-white border border-blue-400">
+                        <i className={`fas ${icon} text-xl`}></i>
+                    </div>
+                )}
+                {title && <h3 className="text-2xl font-black text-slate-800 mb-6 tracking-tight uppercase">{title}</h3>}
+                <div className="space-y-4 text-slate-700 leading-relaxed text-[17px]">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Badge = ({ children, color = "blue" }) => {
+            const colors = {
+                blue: "bg-blue-100 text-blue-700 border-blue-200",
+                green: "bg-green-100 text-green-700 border-green-200",
+                purple: "bg-purple-100 text-purple-700 border-purple-200",
+                orange: "bg-orange-100 text-orange-700 border-orange-200",
+            };
+            return (
+                <span className={`inline-block px-3 py-1 rounded-lg text-sm font-bold border ${colors[color]} m-1 shadow-sm`}>
+                    {children}
+                </span>
+            );
+        };
+
+        // ==========================================
+        // MAIN APP
+        // ==========================================
+
+        const App = () => {
+            return (
+                <div className="min-h-screen pb-20 font-sans">
+                    {/* Header */}
+                    <div className="bg-gradient-to-b from-slate-100 to-slate-50 pt-20 pb-16">
+                        <div className="max-w-5xl mx-auto px-4 text-center">
+                            <div className="inline-block px-4 py-1.5 bg-blue-100 text-primary font-bold rounded-full text-sm mb-4 tracking-wide uppercase">LESSON 02</div>
+                            <h1 className="text-4xl md:text-5xl font-black text-slate-800 mb-4 tracking-tight">TASK 1 – DYNAMIC CHARTS (LINE)</h1>
+                            <p className="text-slate-500 text-lg max-w-2xl mx-auto">Phân tích chuyên sâu Biểu đồ đường, cách lập dàn ý và cấu trúc viết bài báo cáo hoàn chỉnh.</p>
+                        </div>
+                    </div>
+
+                    <main className="max-w-5xl mx-auto px-4 mt-8 space-y-12">
+                        
+                        {/* 1. TỔNG QUAN & CẤU TRÚC */}
+                        <ParagraphBlock icon="fa-layer-group" title="Tổng Quan & Cấu Trúc">
+                            <p><strong>Biểu đồ động (Dynamic Charts)</strong> là các loại biểu đồ cho thấy sự thay đổi hoặc xu hướng của các số liệu trong một khoảng thời gian. Bài học này tập trung đặc biệt vào <strong>Biểu đồ đường (Line charts)</strong>.</p>
+                            
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm mt-6 flex flex-col md:flex-row gap-6">
+                                <div className="flex-1">
+                                    <h4 className="text-primary font-bold mb-3 uppercase tracking-wider text-sm"><i className="fas fa-bullseye mr-2"></i>Mục tiêu bài học</h4>
+                                    <ul className="list-disc ml-5 space-y-2 text-slate-600">
+                                        <li>Viết mở bài và phần tổng quan hiệu quả.</li>
+                                        <li>Sắp xếp thông tin hợp lý và viết thân bài.</li>
+                                        <li>Áp dụng cấu trúc câu 1 chủ thể – 2 thời gian và 2 chủ thể – 1 thời gian.</li>
+                                        <li>Hiểu cách thức lập dàn ý (outline).</li>
+                                    </ul>
+                                </div>
+                                <div className="w-px bg-slate-200 hidden md:block"></div>
+                                <div className="flex-1">
+                                    <h4 className="text-primary font-bold mb-3 uppercase tracking-wider text-sm"><i className="fas fa-sitemap mr-2"></i>Cấu trúc bài viết chuẩn</h4>
+                                    <div className="space-y-2">
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between"><span className="font-bold">1. Mở bài (Introduction)</span><span className="text-sm bg-white px-2 py-1 rounded shadow-sm text-slate-500 font-medium">1–2 câu</span></div>
+                                        <div className="flex justify-center text-slate-300"><i className="fas fa-arrow-down"></i></div>
+                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex items-center justify-between"><span className="font-bold">2. Tổng quan (Overview)</span><span className="text-sm bg-white px-2 py-1 rounded shadow-sm text-slate-500 font-medium">2 câu (Xu hướng & Nổi bật)</span></div>
+                                        <div className="flex justify-center text-slate-300"><i className="fas fa-arrow-down"></i></div>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-100 text-center"><span className="font-bold block">3. Thân bài 1</span><span className="text-sm text-slate-500 font-medium">3–4 câu</span></div>
+                                            <div className="flex-1 bg-slate-50 p-3 rounded-lg border border-slate-100 text-center"><span className="font-bold block">4. Thân bài 2</span><span className="text-sm text-slate-500 font-medium">3–4 câu</span></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-8">
+                                <h4 className="font-bold text-lg mb-2 text-slate-800">Một số dạng biểu đồ đường thường gặp:</h4>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <DriveImage driveId="1WfFHLTjJvoGQFMfjMMKsNVjMgusw0lxV" title="BIỂU ĐỒ 1" alt="Percentage of tourists to Scotland who visited different attractions (1980–2010)" />
+                                    <DriveImage driveId="1buyLEdewl_AQXCcLcnrqAuMSXy0dsdma" title="BIỂU ĐỒ 2" alt="Percentage of total music sales by methods" />
+                                </div>
+                                <DriveImage driveId="1JG60izgyBA2gec0W5jTuJAQ5KU4GGLN4" title="BIỂU ĐỒ 3 (Đề bài phân tích)" alt="Average annual expenditures on books, technology and clothes in Someland (2011–2020)" />
+                                <div className="bg-blue-50 p-5 rounded-xl text-blue-900 border border-blue-100 mt-2 text-sm italic font-medium shadow-sm">
+                                    <strong>Đề bài phân tích:</strong> The graph shows consumers’ average annual expenditures on books, technology and clothes in Someland between 2011 and 2020. Summarize the information by selecting and reporting the main features and make comparisons where relevant. Write at least 150 words.
+                                </div>
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* 2. CÁCH VIẾT MỞ BÀI */}
+                        <ParagraphBlock num="I" title="Cách viết Mở bài (Introduction Formula)">
+                            <p>Mở bài thường giới thiệu tên của biểu đồ và thông tin trong biểu đồ. Thực hiện qua 2 bước:</p>
+                            
+                            <h4 className="font-bold text-primary mt-6 mb-2 uppercase text-sm tracking-widest flex items-center"><span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center mr-2 text-xs">1</span>BƯỚC 1: Phân tích đề & Paraphrase</h4>
+                            <div className="overflow-x-auto shadow-sm rounded-xl">
+                                <table className="w-full text-left border-collapse bg-white border border-slate-200">
+                                    <thead className="bg-slate-50 text-slate-600">
+                                        <tr>
+                                            <th className="p-4 border-b border-slate-200 font-bold uppercase text-xs tracking-wider">Thành phần</th>
+                                            <th className="p-4 border-b border-slate-200 font-bold uppercase text-xs tracking-wider">Đề bài (Gốc)</th>
+                                            <th className="p-4 border-b border-slate-200 font-bold uppercase text-xs tracking-wider">Paraphrase (Viết lại)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="text-[15px]">
+                                        <tr><td className="p-4 border-b border-slate-100 font-bold text-slate-500 bg-slate-50">Graph name</td><td className="p-4 border-b border-slate-100 text-slate-700">The line graph</td><td className="p-4 border-b border-slate-100 text-primary font-bold">The line graph</td></tr>
+                                        <tr><td className="p-4 border-b border-slate-100 font-bold text-slate-500 bg-slate-50">Verb</td><td className="p-4 border-b border-slate-100 text-slate-700">shows</td><td className="p-4 border-b border-slate-100 text-primary font-bold">illustrates / compares</td></tr>
+                                        <tr><td className="p-4 border-b border-slate-100 font-bold text-slate-500 bg-slate-50">What</td><td className="p-4 border-b border-slate-100 text-slate-700">consumers’ average annual expenditure on books, technology and clothes</td><td className="p-4 border-b border-slate-100 text-primary font-bold">the average yearly amount of money spent on books, technology and clothes</td></tr>
+                                        <tr><td className="p-4 border-b border-slate-100 font-bold text-slate-500 bg-slate-50">Where</td><td className="p-4 border-b border-slate-100 text-slate-700">in Someland</td><td className="p-4 border-b border-slate-100 text-primary font-bold">in Someland</td></tr>
+                                        <tr><td className="p-4 border-b border-slate-100 font-bold text-slate-500 bg-slate-50">When</td><td className="p-4 border-b border-slate-100 text-slate-700">between 2011 and 2020</td><td className="p-4 border-b border-slate-100 text-primary font-bold">over a period of 10 years starting from 2011</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <h4 className="font-bold text-primary mt-8 mb-2 uppercase text-sm tracking-widest flex items-center"><span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center mr-2 text-xs">2</span>BƯỚC 2: Ráp công thức</h4>
+                            <StructureBox>Graph name + Verb (Present Simple) + What + Where + When</StructureBox>
+                            
+                            <div className="bg-green-50 p-6 rounded-2xl border border-green-200 text-green-900 mt-4 relative shadow-sm">
+                                <i className="fas fa-check-circle absolute top-6 right-6 text-green-500 text-2xl"></i>
+                                <span className="font-bold uppercase tracking-wider text-green-600 block mb-2 text-sm">Câu Mở Bài Hoàn Chỉnh</span>
+                                <p className="font-medium text-lg pr-8">The line graph illustrates the average yearly amount of money spent on books, technology and clothes in Someland over a period of 10 years starting from 2011.</p>
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* 3. CÁCH VIẾT TỔNG QUAN */}
+                        <ParagraphBlock num="II" title="Cách viết Tổng quan (Overview Formula)">
+                            <p>Tóm tắt xu hướng của toàn bộ biểu đồ và nêu những đặc điểm nổi bật. <strong className="text-red-500">Không đưa số liệu cụ thể vào phần này.</strong></p>
+
+                            <div className="grid md:grid-cols-2 gap-6 mt-6">
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <h4 className="text-primary font-bold mb-3 uppercase tracking-wider text-sm flex items-center"><i className="fas fa-chart-line mr-2"></i>Câu 1: Xu hướng</h4>
+                                        <ul className="list-none mb-4 text-sm space-y-2 text-slate-600">
+                                            <li className="flex items-center"><i className="fas fa-arrow-up text-green-500 mr-2 w-4"></i> Cuối &gt; Đầu: Tăng</li>
+                                            <li className="flex items-center"><i className="fas fa-arrow-down text-red-500 mr-2 w-4"></i> Cuối &lt; Đầu: Giảm</li>
+                                            <li className="flex items-center"><i className="fas fa-arrow-right text-orange-500 mr-2 w-4"></i> Cuối = Đầu: Ổn định</li>
+                                        </ul>
+                                    </div>
+                                    <StructureBox variant="indigo">Overall, it is clear that + [subject] witnessed an upward trend, while the opposite was true for [subject].</StructureBox>
+                                </div>
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <h4 className="text-primary font-bold mb-3 uppercase tracking-wider text-sm flex items-center"><i className="fas fa-star mr-2 text-yellow-500"></i>Câu 2: Nổi bật</h4>
+                                        <ul className="list-disc ml-5 mb-4 text-sm space-y-1 text-slate-600">
+                                            <li>Giá trị cao nhất / thấp nhất</li>
+                                            <li>Biến động mạnh nhất / Giữ nguyên</li>
+                                        </ul>
+                                    </div>
+                                    <StructureBox variant="indigo">[Highlight] + was seen / recorded in + [category].</StructureBox>
+                                </div>
+                            </div>
+                            
+                            <DriveImage driveId="1kM3LNQT-WrhVNfTi2v0D0YikbccZ7gEo" title="BIỂU ĐỒ 4" alt="Quantity of Candies" />
+
+                            <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 mt-6 shadow-sm">
+                                <h4 className="font-bold text-slate-800 mb-4 flex items-center text-lg"><i className="fas fa-pen-nib mr-2 text-primary"></i>Áp dụng vào Đề bài (Biểu đồ 3):</h4>
+                                <ul className="mb-6 text-slate-700 list-none space-y-2">
+                                    <li><i className="fas fa-check text-green-500 mr-2"></i> <strong>Xu hướng:</strong> Books tăng, Technology giảm.</li>
+                                    <li><i className="fas fa-check text-green-500 mr-2"></i> <strong>Nổi bật:</strong> Clothes ở vị trí thấp nhất trong gần như toàn bộ khoảng thời gian.</li>
+                                </ul>
+                                <div className="bg-green-50 p-6 rounded-2xl border border-green-200 text-green-900 shadow-sm">
+                                    <span className="font-bold uppercase tracking-wider text-green-600 block mb-2 text-sm">Đoạn Overview Hoàn Chỉnh</span>
+                                    <p className="font-medium text-lg">Overall, while the yearly spending on books witnessed an upward trend, the opposite was true for technology’s expenditure. Additionally, during most of the period, the lowest figure can be seen in clothes’ yearly spending.</p>
+                                </div>
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* 4. CÁCH VIẾT THÂN BÀI & DÀN Ý */}
+                        <ParagraphBlock num="III" title="Thân bài & Lập Dàn Ý (Body & Outline)">
+                            <h4 className="font-bold text-primary mt-2 mb-3 uppercase text-sm tracking-widest flex items-center"><i className="fas fa-layer-group mr-2"></i>1. Sắp xếp số liệu (Nhóm thông tin)</h4>
+                            <p>Chia số liệu thành 2 phần chính mang tính logic (Ví dụ: Body 1 nhóm các đối tượng giảm, Body 2 nhóm các đối tượng tăng/ổn định). Đừng quên dùng <strong>Từ Nối (Linking words)</strong>.</p>
+                            
+                            <DriveImage driveId="1-GzQb9EgtaOB8N41KX1K8edIkI0WL9oh" title="BIỂU ĐỒ 5" alt="Quantity of Candies" />
+
+                            <h4 className="font-bold text-primary mt-12 mb-4 uppercase text-sm tracking-widest flex items-center"><i className="fas fa-magic mr-2"></i>2. Công thức miêu tả số liệu</h4>
+                            
+                            {/* Khối công thức dùng Font Text đẹp thay vì code */}
+                            <div className="grid md:grid-cols-3 gap-6 mb-10">
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-pink-300 transition-colors">
+                                    <div className="text-pink-400 font-bold mb-3 uppercase text-xs tracking-wider">Công thức 1</div>
+                                    <div className="font-sans font-bold text-pink-700 bg-pink-50 px-4 py-3 rounded-xl border border-pink-100 text-[15px] leading-relaxed">
+                                        S + V(trend) + ADV + from [data] to [data] + (time)
+                                    </div>
+                                </div>
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-pink-300 transition-colors">
+                                    <div className="text-pink-400 font-bold mb-3 uppercase text-xs tracking-wider">Công thức 2</div>
+                                    <div className="font-sans font-bold text-pink-700 bg-pink-50 px-4 py-3 rounded-xl border border-pink-100 text-[15px] leading-relaxed">
+                                        There + be + a/an + ADJ + N(trend) + in + S
+                                    </div>
+                                </div>
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-pink-300 transition-colors">
+                                    <div className="text-pink-400 font-bold mb-3 uppercase text-xs tracking-wider">Công thức 3</div>
+                                    <div className="font-sans font-bold text-pink-700 bg-pink-50 px-4 py-3 rounded-xl border border-pink-100 text-[15px] leading-relaxed">
+                                        S + witnessed / experienced + a/an + ADJ + N(trend)
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h4 className="font-bold text-primary mt-8 mb-4 uppercase text-sm tracking-widest flex items-center"><i className="fas fa-table mr-2"></i>3. Bảng Dàn ý (Outline) cho Biểu đồ 3</h4>
+                            
+                            {/* Bảng Dàn ý: Technology */}
+                            <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                                <h5 className="font-bold bg-blue-50 text-blue-800 px-6 py-4 uppercase tracking-wider text-sm border-b border-slate-200"><i className="fas fa-arrow-down mr-2 text-blue-500"></i>Body 1: Technology (Xu hướng Giảm)</h5>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse bg-white text-[15px]">
+                                        <thead className="bg-slate-50/50 text-slate-500 text-sm">
+                                            <tr><th className="p-4 border-b font-medium">Thời gian</th><th className="p-4 border-b font-medium">Xu hướng</th><th className="p-4 border-b font-medium">Số liệu</th><th className="p-4 border-b font-medium">Thông tin nổi bật</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr className="hover:bg-slate-50 transition"><td className="p-4 border-b border-slate-100 font-bold text-slate-700">2011</td><td className="p-4 border-b border-slate-100 text-slate-300">—</td><td className="p-4 border-b border-slate-100">~ $350</td><td className="p-4 border-b border-slate-100 text-primary font-semibold">Cao nhất</td></tr>
+                                            <tr className="hover:bg-slate-50 transition"><td className="p-4 border-b border-slate-100 font-bold text-slate-700">2011–2016</td><td className="p-4 border-b border-slate-100 text-red-500 font-bold bg-red-50 rounded px-2 inline-block mt-3">fell</td><td className="p-4 border-b border-slate-100">$350 → ~ $250</td><td className="p-4 border-b border-slate-100 text-slate-300">—</td></tr>
+                                            <tr className="hover:bg-slate-50 transition"><td className="p-4 font-bold text-slate-700">2016–2020</td><td className="p-4 text-red-500 font-bold bg-red-50 rounded px-2 inline-block mt-3">declined</td><td className="p-4">~ $250 → ~ $200</td><td className="p-4 text-primary font-semibold">Thấp hơn đáng kể so với bắt đầu</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Bảng Dàn ý: Books & Clothes */}
+                            <div className="mb-4 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                                <h5 className="font-bold bg-green-50 text-green-800 px-6 py-4 uppercase tracking-wider text-sm border-b border-slate-200"><i className="fas fa-arrow-up mr-2 text-green-500"></i>Body 2: Books (Tăng) & Clothes (Ổn định)</h5>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse bg-white text-[15px]">
+                                        <thead className="bg-slate-50/50 text-slate-500 text-sm">
+                                            <tr><th className="p-4 border-b font-medium">Hạng mục</th><th className="p-4 border-b font-medium">Thời gian</th><th className="p-4 border-b font-medium">Xu hướng</th><th className="p-4 border-b font-medium">Số liệu</th><th className="p-4 border-b font-medium">Thông tin nổi bật</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr className="hover:bg-slate-50 transition"><td className="p-4 border-b border-slate-100 font-black text-slate-700 text-lg" rowSpan="3">Books</td><td className="p-4 border-b border-slate-100 font-bold text-slate-700">2011</td><td className="p-4 border-b border-slate-100 text-slate-300">—</td><td className="p-4 border-b border-slate-100">~ $100</td><td className="p-4 border-b border-slate-100 text-primary font-semibold">Thấp nhất</td></tr>
+                                            <tr className="hover:bg-slate-50 transition"><td className="p-4 border-b border-slate-100 font-bold text-slate-700">2011–2016</td><td className="p-4 border-b border-slate-100"><span className="text-green-600 font-bold bg-green-50 rounded px-2 py-1 inline-block">tripled</span></td><td className="p-4 border-b border-slate-100">$100 → ~ $250</td><td className="p-4 border-b border-slate-100 text-slate-300">—</td></tr>
+                                            <tr className="hover:bg-slate-50 transition"><td className="p-4 border-b border-slate-200 font-bold text-slate-700">2016–2020</td><td className="p-4 border-b border-slate-200"><span className="text-green-600 font-bold bg-green-50 rounded px-2 py-1 inline-block">increased</span></td><td className="p-4 border-b border-slate-200">~ $250 → ~ $380</td><td className="p-4 border-b border-slate-200 text-primary font-semibold">Cao nhất trong biểu đồ</td></tr>
+                                            <tr className="bg-slate-50/50 hover:bg-slate-50 transition"><td className="p-4 font-black text-slate-700 text-lg">Clothes</td><td className="p-4 font-bold text-slate-700">2011–2020</td><td className="p-4"><span className="text-orange-500 font-bold bg-orange-50 rounded px-2 py-1 inline-block">remained stable</span></td><td className="p-4">~ $150</td><td className="p-4 text-slate-300">—</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* 5. TỪ VỰNG & TỪ NỐI */}
+                        <ParagraphBlock num="IV" title="Glossary: Vocabulary & Linking Words">
+                            <div className="grid md:grid-cols-2 gap-8">
+                                <div>
+                                    <h4 className="text-primary font-bold mb-4 uppercase tracking-wider text-sm flex items-center"><i className="fas fa-link mr-2"></i>Từ nối (Linking Words)</h4>
+                                    <div className="flex flex-wrap gap-3">
+                                        <Badge color="purple">Overall</Badge>
+                                        <Badge color="purple">Additionally</Badge>
+                                        <Badge color="blue">In 2011</Badge>
+                                        <Badge color="blue">Between 2011 and 2016</Badge>
+                                        <Badge color="blue">Over the next four years</Badge>
+                                        <Badge color="green">In the first examined year</Badge>
+                                        <Badge color="green">From 2011 to 2016</Badge>
+                                        <Badge color="green">From the year 2016 onwards</Badge>
+                                        <Badge color="orange">During the same period</Badge>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h4 className="text-primary font-bold mb-2 uppercase tracking-wider text-sm flex items-center"><i className="fas fa-book-open mr-2"></i>Cụm từ ghi điểm</h4>
+                                    <p className="text-sm text-slate-500 mb-4 italic">Thử click lật các thẻ bên dưới trong bài Model Essay để xem nghĩa tiếng Việt.</p>
+                                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                        <ul className="grid grid-cols-2 gap-y-3 gap-x-4 text-[15px] text-slate-700 font-medium">
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> witness an upward trend</li>
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> the opposite was true for</li>
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> during most of the period</li>
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> stood at</li>
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> fell by</li>
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> significantly lower than</li>
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> nearly tripled</li>
+                                            <li className="flex items-center"><span className="w-1.5 h-1.5 rounded-full bg-primary mr-2"></span> remained stable</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </ParagraphBlock>
+
+                        {/* 6. SAMPLE ESSAY */}
+                        <ParagraphBlock num="V" title="Bài mẫu (Model Essay)">
+                            <DriveImage driveId="1zahCrxb-zNdfEUTS2OjwcpJuZwuY86lJ" title="BIỂU ĐỒ 6" alt="Average annual expenditures in Someland (Repeated for Essay)" />
+                            
+                            <div className="bg-white p-8 md:p-12 rounded-3xl border border-slate-200 shadow-premium relative overflow-hidden mt-8">
+                                <div className="absolute top-0 left-0 w-3 h-full bg-primary"></div>
+                                <h4 className="font-black text-2xl mb-8 text-slate-800 text-center uppercase tracking-widest flex items-center justify-center">
+                                    <i className="fas fa-file-alt mr-3 text-slate-300"></i> Sample Answer
+                                </h4>
+                                
+                                <div className="space-y-6 text-slate-700 leading-loose text-[18px]">
+                                    <p>
+                                        The line graph <InteractiveVocab en="illustrates" vi="minh họa" /> the <InteractiveVocab en="average yearly amount of money spent" vi="số tiền TB chi tiêu hằng năm" /> on books, technology and clothes in Someland over a period of 10 years starting from 2011.
+                                    </p>
+                                    <p>
+                                        <strong className="text-purple-600">Overall,</strong> while the <InteractiveVocab en="annual spending" vi="chi tiêu hàng năm" /> on books <InteractiveVocab en="witnessed an upward trend" vi="chứng kiến xu hướng tăng" />, <InteractiveVocab en="the opposite was true for" vi="điều ngược lại cũng đúng với" /> that of technology. <strong className="text-purple-600">Additionally,</strong> <InteractiveVocab en="during most of the period" vi="trong hầu hết giai đoạn" />, the lowest figure can be seen in clothes’ spending.
+                                    </p>
+                                    <p>
+                                        <strong className="text-blue-600">In 2011,</strong> the yearly <InteractiveVocab en="expenditure" vi="sự chi tiêu" /> on technology <InteractiveVocab en="stood at" vi="đứng ở mức" /> <InteractiveVocab en="around" vi="khoảng" /> $350, the highest figure that year. <strong className="text-blue-600">Between 2011 and 2016,</strong> the average amount spent on technology <InteractiveVocab en="fell by" vi="giảm khoảng" /> <InteractiveVocab en="approximately" vi="xấp xỉ" /> $100. <strong className="text-blue-600">Over the next four years,</strong> this figure <InteractiveVocab en="declined to" vi="giảm xuống còn" /> only $200, <InteractiveVocab en="significantly lower than" vi="thấp hơn đáng kể so với" /> the <InteractiveVocab en="starting point" vi="điểm xuất phát" />.
+                                    </p>
+                                    <p>
+                                        <strong className="text-green-600">In the first examined year,</strong> the amount of money spent on books stood at just over $100, which was the <InteractiveVocab en="smallest figure" vi="con số nhỏ nhất" /> that year. <strong className="text-green-600">From 2011 to 2016,</strong> this figure <InteractiveVocab en="nearly tripled" vi="tăng gần gấp ba" /> to around $250. <strong className="text-green-600">From the year 2016 onwards,</strong> yearly spending on books <InteractiveVocab en="witnessed another increase" vi="chứng kiến một đợt tăng khác" /> to nearly $380, the <InteractiveVocab en="highest figure in the chart" vi="con số cao nhất biểu đồ" />. <strong className="text-orange-500">During the same period,</strong> <InteractiveVocab en="there were no changes in" vi="không có sự thay đổi về" /> the expenditure on clothes. This figure started at $125, and <InteractiveVocab en="remained stable" vi="duy trì ổn định" /> at around $150 from 2012 to 2020.
+                                    </p>
+                                </div>
+                            </div>
+                        </ParagraphBlock>
+
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
