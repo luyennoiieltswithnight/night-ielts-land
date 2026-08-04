@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Listening Missions</title>
+    
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: { brand: { 50: '#eff6ff', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' } }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+        .mission-card { background: rgba(255,255,255,0.95); color: #0f172a; border-radius: 24px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.3); }
+        .glass-header { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
+    </style>
+</head>
+<body class="font-sans antialiased pb-20">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- SVG ICONS ---
+        const Icons = {
+            Check: () => <svg className="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>,
+            Target: () => <svg className="w-6 h-6 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+        };
+
+        // --- REUSABLE GAME ENGINES ---
+
+        // 1. MATCHING ENGINE (Click Left -> Click Right)
+        const MatchEngine = ({ pairs }) => {
+            const [matches, setMatches] = useState([]);
+            const [selectedLeft, setSelectedLeft] = useState(null);
+            
+            // Randomize lists once
+            const [leftList] = useState(() => [...pairs].map(p => ({id: p.id, text: p.left})));
+            const [rightList] = useState(() => [...pairs].sort(() => Math.random() - 0.5).map(p => ({id: p.id, text: p.right})));
+
+            const handleRightClick = (id) => {
+                if (!selectedLeft) return;
+                if (selectedLeft === id) {
+                    setMatches([...matches, id]);
+                    setSelectedLeft(null);
+                } else {
+                    setSelectedLeft(null); // Incorrect -> reset
+                }
+            };
+
+            return (
+                <div className="grid grid-cols-2 gap-4 my-4">
+                    <div className="flex flex-col gap-2">
+                        {leftList.map(item => {
+                            const isMatched = matches.includes(item.id);
+                            return (
+                                <button key={'L'+item.id} disabled={isMatched} onClick={() => setSelectedLeft(item.id)}
+                                    className={`p-3 text-sm font-bold rounded-xl border-2 text-left transition-all
+                                    ${isMatched ? 'bg-slate-100 text-slate-400 border-slate-200' : 
+                                      selectedLeft === item.id ? 'bg-brand-500 text-white border-brand-500 shadow-md' : 'bg-white border-slate-200 hover:border-brand-300'}`}>
+                                    {item.text}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                        {rightList.map(item => {
+                            const isMatched = matches.includes(item.id);
+                            return (
+                                <button key={'R'+item.id} disabled={isMatched} onClick={() => handleRightClick(item.id)}
+                                    className={`p-3 text-sm font-bold rounded-xl border-2 text-center transition-all
+                                    ${isMatched ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+                                    {item.text}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        };
+
+        // 2. SORTING/BUCKET ENGINE (Click Item -> Click Bucket)
+        const SortEngine = ({ items, categories }) => {
+            const [placed, setPlaced] = useState({}); 
+            const [activeItem, setActiveItem] = useState(null);
+
+            const handleBucketClick = (catId) => {
+                if(!activeItem) return;
+                const itemData = items.find(i => i.id === activeItem);
+                if(itemData.cat === catId) {
+                    setPlaced(prev => ({...prev, [activeItem]: catId}));
+                    setActiveItem(null);
+                } else {
+                    setActiveItem(null); 
+                }
+            };
+
+            const remainingItems = items.filter(i => !placed[i.id]);
+
+            return (
+                <div className="my-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div className="flex flex-wrap gap-2 mb-6 min-h-[40px] justify-center">
+                        {remainingItems.map(item => (
+                            <button key={item.id} onClick={() => setActiveItem(item.id)}
+                                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all border-2 
+                                ${activeItem === item.id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-300 hover:border-slate-400'}`}>
+                                {item.text}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        {categories.map(cat => (
+                            <div key={cat.id} onClick={() => handleBucketClick(cat.id)}
+                                className="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-white hover:border-brand-400 cursor-pointer flex flex-col items-center min-h-[120px]">
+                                <h4 className="font-extrabold text-slate-400 uppercase tracking-wider text-xs mb-3">{cat.title}</h4>
+                                <div className="flex flex-wrap gap-2 justify-center">
+                                    {items.filter(i => placed[i.id] === cat.id).map(i => (
+                                        <span key={i.id} className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-md">{i.text}</span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // 3. PREDICTION ENGINE (Checkboxes -> Verify)
+        const PredictEngine = ({ options, correctIds }) => {
+            const [checked, setChecked] = useState({});
+            const [verified, setVerified] = useState(false);
+
+            const toggle = (id) => { if(!verified) setChecked(prev => ({...prev, [id]: !prev[id]})); };
+
+            return (
+                <div className="my-4">
+                    <div className="space-y-2 mb-4">
+                        {options.map(opt => {
+                            const isCorrect = correctIds.includes(opt.id);
+                            const isChecked = !!checked[opt.id];
+                            
+                            let bgClass = "bg-white border-slate-200";
+                            if (verified) {
+                                if (isCorrect && isChecked) bgClass = "bg-emerald-50 border-emerald-500 text-emerald-800";
+                                else if (!isCorrect && isChecked) bgClass = "bg-red-50 border-red-400 text-red-500 opacity-60";
+                                else if (isCorrect && !isChecked) bgClass = "bg-white border-emerald-500 text-emerald-600 border-dashed";
+                            } else if (isChecked) {
+                                bgClass = "bg-brand-50 border-brand-400";
+                            }
+
+                            return (
+                                <div key={opt.id} onClick={() => toggle(opt.id)}
+                                    className={`p-3 rounded-xl border-2 flex items-center gap-3 cursor-pointer transition-all ${bgClass}`}>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center border-2 ${isChecked ? 'bg-brand-500 border-brand-500' : 'border-slate-300'}`}>
+                                        {isChecked && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                    </div>
+                                    <span className="font-semibold text-sm">{opt.text}</span>
+                                    {verified && isCorrect && <span className="ml-auto"><Icons.Check /></span>}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {!verified && (
+                        <button onClick={() => setVerified(true)} className="w-full py-3 rounded-xl bg-slate-800 text-white font-bold hover:bg-slate-700 transition-colors">
+                            Lock Predictions (Check answers)
+                        </button>
+                    )}
+                </div>
+            );
+        };
+
+        // --- MISSION COMPONENTS ---
+
+        const PartHeader = ({ title }) => <h3 className="font-extrabold text-lg text-slate-800 border-b-2 border-slate-100 pb-2 mb-4">{title}</h3>;
+
+        const Mission1 = () => (
+            <div className="mission-card p-6 md:p-8">
+                <div className="mb-6"><span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">Tape 30</span><h2 className="text-3xl font-black mt-2">Mission 1: Transport Crisis</h2></div>
+                
+                <PartHeader title="Part A: Vocabulary Sort" />
+                <MatchEngine pairs={[
+                    {id:1, left:'motorway', right:'đường cao tốc'}, {id:2, left:'delayed', right:'bị trễ'},
+                    {id:3, left:'reliable', right:'đáng tin cậy'}, {id:4, left:'crowded', right:'đông đúc'},
+                    {id:5, left:'bus service', right:'dịch vụ xe buýt'}, {id:6, left:'accident', right:'tai nạn'},
+                    {id:7, left:'passenger', right:'hành khách'}, {id:8, left:'station', right:'nhà ga'}
+                ]} />
+
+                <PartHeader title="Part B: Good or Bad?" />
+                <SortEngine categories={[{id:'pos', title:'Positive'}, {id:'neg', title:'Negative'}]} items={[
+                    {id:1, text:'Reliable', cat:'pos'}, {id:2, text:'Delayed', cat:'neg'},
+                    {id:3, text:'Efficient', cat:'pos'}, {id:4, text:'Crowded', cat:'neg'},
+                    {id:5, text:'Safe', cat:'pos'}, {id:6, text:'Accident', cat:'neg'},
+                    {id:7, text:'Cheap', cat:'pos'}, {id:8, text:'Traffic jam', cat:'neg'}
+                ]} />
+
+                <PartHeader title="Part C: Match the Situation" />
+                <MatchEngine pairs={[
+                    {id:1, left:"The train hasn't arrived yet.", right:"Complain / Ask for info"},
+                    {id:2, left:"You should take the bike.", right:"Suggest / Advise"},
+                    {id:3, left:"Why is the bus service so bad?", right:"Inquire / Complain"}
+                ]} />
+
+                <PartHeader title="Part D: Predict the Tape" />
+                <PredictEngine correctIds={[1,3,5]} options={[
+                    {id:1, text:"Someone complains about buses."}, {id:2, text:"Someone misses a flight."},
+                    {id:3, text:"Someone suggests taking a train."}, {id:4, text:"Someone buys a bicycle."},
+                    {id:5, text:"Someone talks about traffic."}
+                ]} />
+            </div>
+        );
+
+        const Mission2 = () => (
+            <div className="mission-card p-6 md:p-8">
+                <div className="mb-6"><span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">Tape 31</span><h2 className="text-3xl font-black mt-2">Mission 2: Solve Traffic Problem</h2></div>
+                
+                <PartHeader title="Part A: Classify Problems" />
+                <SortEngine categories={[{id:'traf', title:'Traffic Issues'}, {id:'pub', title:'Public Transport'}]} items={[
+                    {id:1, text:'Traffic jam', cat:'traf'}, {id:2, text:'Crowded buses', cat:'pub'},
+                    {id:3, text:'Heavy lorries', cat:'traf'}, {id:4, text:'Few bus routes', cat:'pub'},
+                    {id:5, text:'Congestion', cat:'traf'}, {id:6, text:'Late buses', cat:'pub'}
+                ]} />
+
+                <PartHeader title="Part B: Prediction" />
+                <PredictEngine correctIds={[1,2]} options={[
+                    {id:1, text:"They will talk about buses."}, {id:2, text:"They will talk about pollution/traffic."},
+                    {id:3, text:"They will talk about shopping."}, {id:4, text:"They will mention tourism."}
+                ]} />
+            </div>
+        );
+
+        const Mission3 = () => (
+            <div className="mission-card p-6 md:p-8">
+                <div className="mb-6"><span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">Tape 32</span><h2 className="text-3xl font-black mt-2">Mission 3: Find the Hotspots</h2></div>
+                
+                <PartHeader title="Part A: Cause & Location Match" />
+                <MatchEngine pairs={[
+                    {id:1, left:"Heavy lorries", right:"Industrial estate"},
+                    {id:2, left:"Morning commuters", right:"Town hall"},
+                    {id:3, left:"Bus routes crossing", right:"Main roundabout"},
+                    {id:4, left:"Shopping traffic", right:"Shopping centre"}
+                ]} />
+
+                <PartHeader title="Part B: Pre-listening Vote" />
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <p className="font-bold text-slate-700 mb-3">Where do you think traffic will be worst?</p>
+                    <div className="flex gap-2">
+                        {["Junction", "Town Hall", "Arts Centre", "Central Park"].map(p => (
+                            <button key={p} className="flex-1 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold hover:bg-brand-50">{p}</button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+
+        const Mission4 = () => (
+            <div className="mission-card p-6 md:p-8">
+                <div className="mb-6"><span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">Tape 33-34</span><h2 className="text-3xl font-black mt-2">Mission 4: City Planner</h2></div>
+                
+                <PartHeader title="Part A: Benefits or Drawbacks" />
+                <SortEngine categories={[{id:'ben', title:'Benefits'}, {id:'draw', title:'Drawbacks'}]} items={[
+                    {id:1, text:'Faster buses', cat:'ben'}, {id:2, text:'Takes up land', cat:'draw'},
+                    {id:3, text:'Less traffic in center', cat:'ben'}, {id:4, text:'Less street parking', cat:'draw'},
+                    {id:5, text:'Safer for pedestrians', cat:'ben'}, {id:6, text:'High cost', cat:'draw'}
+                ]} />
+
+                <PartHeader title="Part B: Cost Prediction" />
+                <MatchEngine pairs={[
+                    {id:1, left:"Tram System", right:"Most Expensive (Predict)"},
+                    {id:2, left:"Park & Ride", right:"Medium Cost (Predict)"},
+                    {id:3, left:"Bus Lanes", right:"Cheapest (Predict)"}
+                ]} />
+            </div>
+        );
+
+        const Mission5 = () => (
+            <div className="mission-card p-6 md:p-8">
+                <div className="mb-6"><span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">Tape 34</span><h2 className="text-3xl font-black mt-2">Mission 5: Spend the Budget</h2></div>
+                
+                <PartHeader title="Part A: Guess the Cost" />
+                <MatchEngine pairs={[
+                    {id:1, left:"Tram system", right:"£25m - £30m"},
+                    {id:2, left:"Park and ride", right:"£15m - £20m"},
+                    {id:3, left:"Bus and cycle lanes", right:"£8m - £12m"}
+                ]} />
+                
+                <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                    <p className="font-bold text-amber-800 text-sm">💡 Mental Check: Keep these figures in mind to verify when listening to Tape 34!</p>
+                </div>
+            </div>
+        );
+
+        const Mission6 = () => (
+            <div className="mission-card p-6 md:p-8">
+                <div className="mb-6"><span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">Tape 35-36</span><h2 className="text-3xl font-black mt-2">Mission 6: Better Town Challenge</h2></div>
+                
+                <PartHeader title="Part A: Function Match" />
+                <MatchEngine pairs={[
+                    {id:1, left:"I agree with you.", right:"Approving"},
+                    {id:2, left:"I'm not sure about that.", right:"Expressing reservation"},
+                    {id:3, left:"You should definitely consider...", right:"Persuading"},
+                    {id:4, left:"I don't think that works.", right:"Disagreeing"}
+                ]} />
+                
+                <PartHeader title="Part B: Impact Sorting" />
+                <SortEngine categories={[{id:'pro', title:'Pros'}, {id:'con', title:'Cons'}]} items={[
+                    {id:1, text:'Less pollution', cat:'pro'}, {id:2, text:'More expensive', cat:'con'},
+                    {id:3, text:'Safer roads', cat:'pro'}, {id:4, text:'Higher maintenance', cat:'con'},
+                    {id:5, text:'More visitors', cat:'pro'}, {id:6, text:'Long construction', cat:'con'}
+                ]} />
+            </div>
+        );
+
+        const Mission7 = () => (
+            <div className="mission-card p-6 md:p-8">
+                <div className="mb-6"><span className="px-3 py-1 bg-brand-100 text-brand-700 text-xs font-bold rounded-full">Tape 37</span><h2 className="text-3xl font-black mt-2">Mission 7: Ashtown Then & Now</h2></div>
+                
+                <PartHeader title="Part A: Sector Match" />
+                <MatchEngine pairs={[
+                    {id:1, left:"Manufacturing", right:"Factory jobs"},
+                    {id:2, left:"Services", right:"Office jobs / IT"},
+                    {id:3, left:"Retail", right:"Supermarkets / Markets"},
+                    {id:4, left:"Education", right:"College / Library"}
+                ]} />
+
+                <PartHeader title="Part B: Changes Prediction" />
+                <PredictEngine correctIds={[1,3,4,5]} options={[
+                    {id:1, text:"Fewer buses"}, {id:2, text:"Fewer cycle paths"},
+                    {id:3, text:"Bigger railway station"}, {id:4, text:"Closed indoor market"},
+                    {id:5, text:"More supermarkets"}
+                ]} />
+            </div>
+        );
+
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeMission, setActiveMission] = useState(1);
+            
+            const missions = [
+                {id: 1, label: 'M1: Transport Crisis'}, {id: 2, label: 'M2: Solve Traffic'},
+                {id: 3, label: 'M3: Find Hotspots'}, {id: 4, label: 'M4: City Planner'},
+                {id: 5, label: 'M5: Budget'}, {id: 6, label: 'M6: Better Town'}, {id: 7, label: 'M7: Ashtown Now'}
+            ];
+
+            const renderMission = () => {
+                switch(activeMission) {
+                    case 1: return <Mission1 />; case 2: return <Mission2 />; case 3: return <Mission3 />;
+                    case 4: return <Mission4 />; case 5: return <Mission5 />; case 6: return <Mission6 />;
+                    case 7: return <Mission7 />; default: return <Mission1 />;
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col">
+                    <header className="glass-header sticky top-0 z-50 py-4 px-6 md:px-10 flex items-center justify-between shadow-lg">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-brand-500 to-indigo-600 rounded-xl flex items-center justify-center text-white"><Icons.Target /></div>
+                            <div>
+                                <h1 className="text-xl font-black tracking-tight leading-tight">VocaFlow</h1>
+                                <p className="text-[10px] font-bold tracking-widest text-brand-300 uppercase">Listening Missions</p>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 flex flex-col md:flex-row gap-8">
+                        {/* Sidebar Navigation */}
+                        <aside className="w-full md:w-64 flex-shrink-0">
+                            <div className="bg-slate-800/50 backdrop-blur rounded-2xl p-4 border border-slate-700/50 sticky top-24">
+                                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 px-2">Select Mission</h3>
+                                <div className="flex flex-col gap-2">
+                                    {missions.map(m => (
+                                        <button key={m.id} onClick={() => setActiveMission(m.id)}
+                                            className={`text-left px-4 py-3 rounded-xl font-bold text-sm transition-all ${activeMission === m.id ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/30' : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}`}>
+                                            {m.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </aside>
+
+                        {/* Mission Content Area */}
+                        <div className="flex-1">
+                            {renderMission()}
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
