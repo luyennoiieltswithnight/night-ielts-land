@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noun Phrase Master | EdTech Interactive Learning</title>
+
+    <!-- Google Fonts: Strictly Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind & Custom CSS Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        // Ép buộc toàn bộ hệ thống chỉ dùng 1 font này
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"Plus Jakarta Sans"', 'sans-serif'], 
+                    },
+                    colors: {
+                        primary: '#6366F1', // Indigo 500
+                        primaryLight: '#EEF2FF',
+                        secondary: '#10B981', // Emerald 500
+                        vocab: '#FEF3C7', // Amber 50
+                        vocabText: '#92400E',
+                        accent: '#F43F5E', // Rose 500
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                        'premium': '0 20px 40px -20px rgba(99, 102, 241, 0.15)',
+                        'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.04)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            background-color: #F8FAFC; 
+            font-family: 'Plus Jakarta Sans', sans-serif; /* Đảm bảo 100% dùng font này */
+        }
+        
+        /* 3D Flip Card Utilities */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-primary selection:text-white pb-20">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- COMPONENTS ---
+
+        // 1. Section Card (Glassmorphism & Soft UI)
+        const Card = ({ children, className = "", title, icon }) => (
+            <div className={`glass rounded-3xl p-6 md:p-8 shadow-floating mb-8 ${className}`}>
+                {title && (
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-primaryLight text-primary flex items-center justify-center text-xl shadow-inner-soft">
+                            <i className={`fas ${icon}`}></i>
+                        </div>
+                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{title}</h2>
+                    </div>
+                )}
+                {children}
+            </div>
+        );
+
+        // 2. Interactive Flip Card (Thẻ lật 3D)
+        const FlipCard = ({ front, back, frontColor = "bg-vocab text-vocabText", backColor = "bg-primary text-white" }) => {
+            const [isFlipped, setIsFlipped] = useState(false);
+            return (
+                <div 
+                    className="perspective-1000 w-full h-32 md:h-40 group cursor-pointer"
+                    onClick={() => setIsFlipped(!isFlipped)}
+                >
+                    <div className={`relative w-full h-full duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                        {/* Front */}
+                        <div className={`absolute inset-0 backface-hidden rounded-2xl flex flex-col items-center justify-center p-4 text-center border border-slate-200 shadow-sm transition-shadow group-hover:shadow-md ${frontColor}`}>
+                            <span className="font-semibold text-lg md:text-xl">{front}</span>
+                            <span className="text-xs opacity-70 mt-2"><i className="fas fa-hand-pointer mr-1"></i> Bấm để lật</span>
+                        </div>
+                        {/* Back */}
+                        <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-2xl flex items-center justify-center p-4 text-center shadow-md ${backColor}`}>
+                            <span className="font-medium text-sm md:text-base">{back}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // 3. Highlight Text (Badge)
+        const Highlight = ({ children, color = "primary" }) => {
+            const colors = {
+                primary: "bg-indigo-100 text-indigo-700",
+                secondary: "bg-emerald-100 text-emerald-700",
+                accent: "bg-rose-100 text-rose-700",
+                warning: "bg-amber-100 text-amber-700"
+            };
+            return <span className={`inline-block px-2 py-1 rounded-md text-sm font-bold ${colors[color]} mx-1`}>{children}</span>;
+        }
+
+        // 4. Interactive Quiz Component (Bài tập tương tác)
+        const InteractiveQuiz = () => {
+            const questions = [
+                { id: 1, text: "The old wooden bridge across the river", noun: "bridge" },
+                { id: 2, text: "Several talented young musicians", noun: "musicians" },
+                { id: 3, text: "The decision to study abroad", noun: "decision" },
+                { id: 4, text: "The first person to answer the question", noun: "person" }
+            ];
+
+            const [answers, setAnswers] = useState({});
+            const [submitted, setSubmitted] = useState(false);
+
+            const handleWordClick = (qId, word) => {
+                if(submitted) return;
+                const cleanWord = word.replace(/[^a-zA-Z]/g, "");
+                setAnswers({...answers, [qId]: cleanWord});
+            };
+
+            const checkAnswers = () => setSubmitted(true);
+            const reset = () => { setAnswers({}); setSubmitted(false); };
+
+            const calculateScore = () => {
+                let score = 0;
+                questions.forEach(q => { if(answers[q.id] && answers[q.id].toLowerCase() === q.noun.toLowerCase()) score++; });
+                return score;
+            };
+
+            return (
+                <div className="bg-slate-50 rounded-2xl p-6 border border-slate-200">
+                    <p className="mb-4 text-slate-600">Luật chơi: Bấm vào <b>một từ duy nhất</b> trong câu mà bạn cho là Danh từ trung tâm (Vị vua). Sau đó bấm "Kiểm tra".</p>
+                    <div className="space-y-4">
+                        {questions.map((q, index) => (
+                            <div key={q.id} className="p-4 bg-white rounded-xl shadow-sm border border-slate-100">
+                                <span className="font-bold text-slate-400 mr-3">{index + 1}.</span>
+                                {q.text.split(" ").map((word, wIdx) => {
+                                    const cleanWord = word.replace(/[^a-zA-Z]/g, "");
+                                    const isSelected = answers[q.id] === cleanWord;
+                                    const isCorrectNoun = cleanWord.toLowerCase() === q.noun.toLowerCase();
+                                    
+                                    let btnClass = "text-lg px-1 rounded transition-colors duration-200 hover:bg-slate-100 cursor-pointer ";
+                                    
+                                    if (isSelected && !submitted) btnClass += "bg-primaryLight text-primary font-bold shadow-sm ";
+                                    else if (submitted && isSelected && isCorrectNoun) btnClass += "bg-emerald-100 text-emerald-700 font-bold ";
+                                    else if (submitted && isSelected && !isCorrectNoun) btnClass += "bg-rose-100 text-rose-700 font-bold line-through ";
+                                    else if (submitted && !isSelected && isCorrectNoun) btnClass += "bg-emerald-100 text-emerald-700 font-bold border border-emerald-500 ";
+
+                                    return (
+                                        <span key={wIdx} className={btnClass} onClick={() => handleWordClick(q.id, word)}>
+                                            {word}{" "}
+                                        </span>
+                                    );
+                                })}
+                                {submitted && answers[q.id] && answers[q.id].toLowerCase() !== q.noun.toLowerCase() && (
+                                    <p className="text-sm text-rose-500 mt-2"><i className="fas fa-times-circle"></i> Sai rồi, danh từ chính là <b>{q.noun}</b></p>
+                                )}
+                                {submitted && answers[q.id] && answers[q.id].toLowerCase() === q.noun.toLowerCase() && (
+                                    <p className="text-sm text-emerald-500 mt-2"><i className="fas fa-check-circle"></i> Chính xác!</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="mt-6 flex items-center justify-between">
+                        {!submitted ? (
+                            <button onClick={checkAnswers} disabled={Object.keys(answers).length !== questions.length} className="px-6 py-3 bg-primary hover:bg-indigo-600 text-white rounded-xl font-bold shadow-premium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i className="fas fa-clipboard-check mr-2"></i> Kiểm tra đáp án
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-4 w-full">
+                                <div className="text-lg font-bold text-slate-800">
+                                    Điểm: <span className={calculateScore() === questions.length ? "text-emerald-600" : "text-amber-500"}>{calculateScore()}/{questions.length}</span>
+                                </div>
+                                <button onClick={reset} className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all ml-auto">
+                                    <i className="fas fa-redo mr-2"></i> Làm lại
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            return (
+                <div className="max-w-4xl mx-auto pt-10 px-4 sm:px-6">
+                    
+                    {/* Hero Section */}
+                    <header className="text-center mb-12">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-4 rounded-full bg-indigo-50 border border-indigo-100 text-primary text-sm font-semibold tracking-wide uppercase shadow-sm">
+                            <i className="fas fa-star text-amber-400 mr-2"></i> Lõi của mọi câu tiếng Anh
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4 leading-tight">
+                            Làm chủ <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-emerald-400">Cụm Danh Từ</span>
+                        </h1>
+                        <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+                            Đa số sách chỉ dạy "Adjective + Noun" rồi hết. Thực tế, Noun Phrase mới là trái tim của ngữ pháp. Khám phá bí quyết IELTS ngay bên dưới.
+                        </p>
+                    </header>
+
+                    {/* Vị vua & Vệ sĩ Visualizer */}
+                    <Card title="Công thức Tổng quát" icon="fa-chess-king">
+                        <p className="text-slate-600 mb-6">Danh từ giống như một <b>Vị Vua</b>, rất hiếm khi đứng một mình. Luôn có các vệ sĩ bảo vệ trước và sau.</p>
+                        
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                            {/* Pre-modifier */}
+                            <div className="flex-1 w-full text-center p-4 bg-amber-50 border-2 border-amber-200 rounded-xl shadow-sm">
+                                <div className="text-amber-600 font-bold mb-1">Vệ sĩ đi trước</div>
+                                <div className="text-sm text-slate-500 mb-2">Tiền bổ nghĩa (Pre-modifiers)</div>
+                                <div className="font-semibold tracking-wide bg-white px-2 py-1 rounded text-amber-700 shadow-inner">The beautiful old</div>
+                            </div>
+                            
+                            <i className="fas fa-plus text-slate-300 text-xl hidden md:block"></i>
+                            
+                            {/* Central Noun */}
+                            <div className="flex-1 w-full text-center p-5 bg-indigo-50 border-2 border-primary rounded-xl shadow-premium transform scale-105 z-10">
+                                <div className="text-primary font-bold text-lg mb-1"><i className="fas fa-crown text-amber-400 mr-1"></i> VỊ VUA</div>
+                                <div className="text-sm text-slate-500 mb-2">Danh từ trung tâm (Noun)</div>
+                                <div className="font-bold tracking-wide bg-white px-3 py-2 rounded text-xl text-primary shadow-inner">wooden table</div>
+                            </div>
+
+                            <i className="fas fa-plus text-slate-300 text-xl hidden md:block"></i>
+
+                            {/* Post-modifier */}
+                            <div className="flex-1 w-full text-center p-4 bg-emerald-50 border-2 border-emerald-200 rounded-xl shadow-sm">
+                                <div className="text-emerald-600 font-bold mb-1">Vệ sĩ đi sau</div>
+                                <div className="text-sm text-slate-500 mb-2">Hậu bổ nghĩa (Post-modifiers)</div>
+                                <div className="font-semibold tracking-wide bg-white px-2 py-1 rounded text-emerald-700 shadow-inner">in the kitchen</div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* Tiền bổ nghĩa - 3D Cards */}
+                    <Card title="Thành phần 1: Tiền Bổ Nghĩa" icon="fa-shield-halved">
+                        <p className="text-slate-600 mb-6">Những từ đứng TRƯỚC danh từ để giới hạn, định lượng hoặc miêu tả. Lật thẻ để xem ví dụ.</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <FlipCard front="1. Determiners (Từ hạn định)" back="the, a, an, this, that, my, your, some, any..." />
+                            <FlipCard front="2. Numbers (Số đếm)" back="One, two, hundreds of, thousands of..." />
+                            <FlipCard front="3. Quantifiers (Lượng từ)" back="Many, much, a lot of, several, few..." />
+                            <FlipCard front="4. Noun as Adjective" back="coffee cup, school bus, chicken soup..." />
+                        </div>
+                        
+                        <div className="mt-8 bg-primaryLight p-6 rounded-2xl border border-indigo-100">
+                            <h3 className="font-bold text-primary mb-3 flex items-center"><i className="fas fa-sort-alpha-down mr-2"></i> Thứ tự Tính từ (OSASCOMP)</h3>
+                            <p className="text-sm text-slate-600 mb-4">Trong tiếng Anh, tính từ có thứ tự, không đặt lung tung: <span className="line-through text-red-400">A wooden beautiful table</span> ➔ <b>A beautiful wooden table</b>.</p>
+                            
+                            <div className="flex flex-wrap gap-2">
+                                <Highlight color="accent">Opinion (lovely)</Highlight> ➔ 
+                                <Highlight color="secondary">Size (small)</Highlight> ➔ 
+                                <Highlight color="warning">Age (old)</Highlight> ➔ 
+                                <Highlight color="primary">Shape (round)</Highlight> ➔ 
+                                <Highlight color="accent">Color (black)</Highlight> ➔ 
+                                <Highlight color="secondary">Origin (Italian)</Highlight> ➔ 
+                                <Highlight color="warning">Material (wooden)</Highlight> ➔ 
+                                <Highlight color="primary">Purpose (dining)</Highlight>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* Hậu bổ nghĩa */}
+                    <Card title="Thành phần 3: Hậu Bổ Nghĩa" icon="fa-user-ninja">
+                        <p className="text-slate-600 mb-6">Phần người học hay bỏ qua nhất! Đứng SAU danh từ để giải thích rõ hơn.</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold flex-shrink-0">1</div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800">Giới từ (Prepositional Phrase)</h4>
+                                    <p className="text-sm text-slate-500 mt-1">The man <Highlight color="secondary">in the room</Highlight></p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold flex-shrink-0">2</div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800">To-infinitive (Chỉ mục đích)</h4>
+                                    <p className="text-sm text-slate-500 mt-1">The first person <Highlight color="secondary">to arrive</Highlight></p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold flex-shrink-0">3</div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800">V-ing (MĐ Quan hệ rút gọn chủ động)</h4>
+                                    <p className="text-sm text-slate-500 mt-1">The girl <Highlight color="secondary">standing outside</Highlight></p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow">
+                                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold flex-shrink-0">4</div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800">V-ed (MĐ Quan hệ rút gọn bị động)</h4>
+                                    <p className="text-sm text-slate-500 mt-1">The house <Highlight color="secondary">built in 1990</Highlight></p>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    {/* Reading Strategy (IELTS Trick) */}
+                    <Card title="Mẹo IELTS: Bóc Tách Câu Dài" icon="fa-eye">
+                        <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-floating relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-10 bg-gradient-to-bl from-primary opacity-20 w-32 h-32 rounded-bl-full"></div>
+                            
+                            <p className="text-slate-300 text-sm mb-2 font-medium uppercase tracking-wider">Đừng đọc từ trái sang phải!</p>
+                            <h3 className="text-xl font-bold mb-4">Hãy tìm "Vị Vua" trước</h3>
+                            
+                            <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700 font-medium tracking-wide text-sm leading-loose mb-4">
+                                <span className="opacity-50">The rapid</span> <span className="text-amber-400 font-bold border-b-2 border-amber-400 pb-1">increase</span> <span className="opacity-50">in the number of international students studying abroad over the last decade</span>
+                            </div>
+
+                            <ul className="space-y-2 text-sm text-slate-300">
+                                <li><i className="fas fa-arrow-right text-amber-400 mr-2"></i> Danh từ chính: <b>Increase</b> (Sự tăng lên)</li>
+                                <li><i className="fas fa-arrow-right text-amber-400 mr-2"></i> Tăng cái gì? ➔ in the number...</li>
+                                <li><i className="fas fa-arrow-right text-amber-400 mr-2"></i> Number của ai? ➔ of international students</li>
+                            </ul>
+                        </div>
+                    </Card>
+
+                    {/* Interactive Exercises */}
+                    <Card title="Thực Hành: Tìm Vị Vua" icon="fa-gamepad">
+                        <InteractiveQuiz />
+                    </Card>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
