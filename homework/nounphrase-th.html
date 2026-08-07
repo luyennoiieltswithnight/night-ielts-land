@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Grammar Knowledge Graph - The Final Masterpiece</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 900: '#0c4a6e' },
+                        pastel: { blue: '#eff6ff', rose: '#fff1f2', green: '#f0fdf4', amber: '#fffbeb', purple: '#faf5ff', teal: '#f0fdfa' }
+                    },
+                    boxShadow: {
+                        'node': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        'drawer': '-15px 0 35px rgba(0, 0, 0, 0.15)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f8fafc; }
+        .bg-grid { background-size: 40px 40px; background-image: radial-gradient(circle, #cbd5e1 1px, rgba(0, 0, 0, 0) 1px); }
+        #canvas-container { cursor: grab; user-select: none; }
+        #canvas-container:active { cursor: grabbing; }
+        .tree-node { position: relative; display: flex; align-items: center; }
+        .children-container { position: relative; padding-left: 60px; display: flex; flex-direction: column; gap: 16px; margin-left: 16px; }
+        .children-container::before { content: ''; position: absolute; top: 20px; bottom: 20px; left: 20px; width: 2px; background: #94a3b8; border-radius: 4px; }
+        .child-wrapper { position: relative; }
+        .child-wrapper::before { content: ''; position: absolute; top: 50%; left: -40px; width: 40px; height: 2px; background: #94a3b8; transform: translateY(-50%); }
+        .child-wrapper:last-child::after { content: ''; position: absolute; top: 50%; bottom: -20px; left: -40px; width: 4px; background: #f8fafc; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .lesson-content * { user-select: text; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased w-screen h-screen">
+    <div id="root" class="w-full h-full"></div>
+
+    <script type="text/babel">
+        const { useState, useRef, useEffect } = React;
+
+        // ==========================================
+        // 0. BẢO VỆ CHỐNG SẬP TRANG TOÀN CỤC
+        // ==========================================
+        class GlobalErrorBoundary extends React.Component {
+            constructor(props) {
+                super(props);
+                this.state = { hasError: false, error: null };
+            }
+            static getDerivedStateFromError(error) { return { hasError: true, error: error.message }; }
+            render() {
+                if (this.state.hasError) {
+                    return (
+                        <div className="p-10 text-center">
+                            <h1 className="text-2xl font-bold text-red-600 mb-4">Lỗi hiển thị nội dung!</h1>
+                            <p className="text-slate-700 bg-red-50 p-4 rounded-xl border border-red-200 inline-block font-mono text-sm">{this.state.error}</p>
+                            <button className="block mx-auto mt-4 px-4 py-2 bg-slate-800 text-white rounded-lg" onClick={() => window.location.reload()}>Tải lại trang</button>
+                        </div>
+                    );
+                }
+                return this.props.children;
+            }
+        }
+
+        // ==========================================
+        // 1. DATA CẤU TRÚC KNOWLEDGE GRAPH
+        // ==========================================
+        const graphData = {
+            "noun-phrase": { id: "noun-phrase", title: "Cụm Danh Từ (Noun Phrase)", subtitle: "Lõi của câu", children: ["np-forms", "pre-modifier", "head-noun", "post-modifier"], hasLesson: true, lessonId: "np-intro" },
+            "np-forms": { id: "np-forms", title: "Dạng khác: V-ing / To-V", subtitle: "Gerund & Infinitive", children: [], hasLesson: true, lessonId: "np-forms-lesson" },
+            "head-noun": { id: "head-noun", title: "Danh từ trung tâm (Head Noun)", children: ["simple-noun", "compound-noun"], hasLesson: true, lessonId: "head-noun-lesson" },
+            "simple-noun": { id: "simple-noun", title: "Danh từ đơn (Simple Noun)", children: ["countable", "uncountable"], hasLesson: false },
+            "compound-noun": { id: "compound-noun", title: "Danh từ ghép", subtitle: "Cách nhớ & Phân loại", children: [], hasLesson: true, lessonId: "compound-lesson" },
+            "countable": { id: "countable", title: "Đếm được (Countable - C)", children: ["singular", "plural"], hasLesson: false },
+            "uncountable": { id: "uncountable", title: "Không đếm được (Uncountable - U)", children: [], hasLesson: true, lessonId: "uncountable-lesson" },
+            "singular": { id: "singular", title: "Số ít (Singular)", subtitle: "Phễu mạo từ & Quy tắc The", children: [], hasLesson: true, lessonId: "singular-lesson" },
+            "plural": { id: "plural", title: "Số nhiều (Plural)", subtitle: "Quy tắc s/es & Bất quy tắc", children: [], hasLesson: true, lessonId: "plural-lesson" },
+            "pre-modifier": { id: "pre-modifier", title: "Tiền bổ nghĩa (Pre-modifier)", children: ["determiners", "quantifiers", "adjectives"], hasLesson: false },
+            "determiners": { id: "determiners", title: "Định từ (Determiners)", subtitle: "6 Loại Định Từ Cốt Lõi", children: [], hasLesson: true, lessonId: "determiners-lesson" },
+            "quantifiers": { id: "quantifiers", title: "Lượng từ", subtitle: "Phân biệt chi tiết", children: [], hasLesson: true, lessonId: "quantifiers-lesson" },
+            "adjectives": { id: "adjectives", title: "Tính từ", subtitle: "Tuyệt chiêu OSASCOMP", children: [], hasLesson: true, lessonId: "adjectives-lesson" },
+            "post-modifier": { id: "post-modifier", title: "Hậu bổ nghĩa (Post-modifier)", children: ["prep-phrases", "relative-clauses"], hasLesson: false },
+            "prep-phrases": { id: "prep-phrases", title: "Cụm giới từ", subtitle: "in, on, at, by...", children: [], hasLesson: true, lessonId: "prep-lesson" },
+            "relative-clauses": { id: "relative-clauses", title: "Mệnh đề quan hệ (MĐQH)", subtitle: "Bản chất & Rút gọn", children: ["noun-clauses"], hasLesson: true, lessonId: "relative-clauses-lesson" },
+            "noun-clauses": { id: "noun-clauses", title: "Mệnh đề danh từ (Noun Clause)", subtitle: "that/wh-/if", children: ["reported-speech"], hasLesson: true, lessonId: "noun-clauses-lesson" },
+            "reported-speech": { id: "reported-speech", title: "Câu tường thuật", subtitle: "Quy tắc Lùi thì", children: [], hasLesson: true, lessonId: "reported-speech-lesson" },
+        };
+
+        // ==========================================
+        // 2. EXERCISE DATA ENGINE (BỘ BÀI TẬP)
+        // ==========================================
+        const quizData = {
+            "np-forms-lesson": {
+                ex1: [
+                    { q: "Điền vào chỗ trống: '______ early in the morning is a good habit.'", o: ["To waking up", "Waking up", "Wake up"], a: "Waking up", e: "Khi muốn diễn tả một thói quen, một sự thật hiển nhiên làm Chủ ngữ, ta ưu tiên dùng V-ing (Danh động từ)." },
+                    { q: "Xác định vai trò của cụm trong ngoặc: 'My main goal is [to pass the IELTS exam].'", o: ["Chủ ngữ (Subject)", "Bổ ngữ (Complement)", "Tân ngữ (Object)"], a: "Bổ ngữ (Complement)", e: "Cụm 'to pass...' đứng sau to-be 'is' để giải thích cho Chủ ngữ (my main goal). Nó là Bổ ngữ cho Chủ ngữ." },
+                    { q: "Câu nào SAI ngữ pháp?", o: ["I enjoy reading books.", "I enjoy to read books."], a: "I enjoy to read books.", e: "Động từ 'enjoy' (thích thú một trải nghiệm) bắt buộc phải đi với V-ing phía sau." }
+                ],
+                ex2: [
+                    { q: "Điền vào chỗ trống: '______ this machine, you need a password.'", o: ["Operating", "To operate", "Operate"], a: "To operate", e: "Cụm từ đứng đầu câu mang ý nghĩa 'ĐỂ LÀM GÌ ĐÓ' (chỉ mục đích). Phải dùng To-V." },
+                    { q: "Điền vào chỗ trống: 'Alex gave up ______ junk food.'", o: ["to eat", "eating", "eat"], a: "eating", e: "Sau giới từ 'up' (trong phrasal verb give up), động từ BẮT BUỘC phải ở dạng V-ing." }
+                ]
+            },
+            "head-noun-lesson": {
+                ex1: [
+                    { q: "Tìm Head Noun trong cụm sau: 'The beautiful development of the city.'", o: ["beautiful", "development", "city"], a: "development", e: "Mẹo: Tìm từ nằm NGAY TRƯỚC giới từ đầu tiên ('of'). Đó chính là 'development'." },
+                    { q: "Tìm Head Noun: 'A list of important rules for students.'", o: ["list", "rules", "students"], a: "list", e: "Từ nằm ngay trước giới từ 'of' là 'list'. Cả cụm này nói về 'một danh sách'." },
+                    { q: "Chia động từ dựa vào Head Noun: 'The results of the test ______ very surprising.'", o: ["was", "were", "is"], a: "were", e: "Head Noun là 'results' (Số nhiều), do đó động từ phải là 'were'." }
+                ],
+                ex2: [
+                    { q: "Tìm Head Noun: 'The people standing in the corner.'", o: ["people", "standing", "corner"], a: "people", e: "Đây là dạng rút gọn của MĐQH (who are standing). 'People' là danh từ trung tâm." },
+                    { q: "Chia động từ: 'The box of chocolates ______ on the table.'", o: ["is", "are"], a: "is", e: "Head Noun là 'box' (số ít). 'of chocolates' chỉ là phần bổ nghĩa. Vì vậy dùng 'is'." }
+                ]
+            },
+            "singular-lesson": {
+                ex1: [
+                    { q: "Từ nào ĐÚNG khi bạn muốn nói chung chung về một nghề nghiệp?", o: ["David is teacher.", "David is a teacher.", "David is the teacher."], a: "David is a teacher.", e: "Nghề nghiệp là danh từ đếm được số ít, mang nghĩa chung nên phải dùng 'a/an'." },
+                    { q: "Khi nhắc đến 'Mặt trời', ta dùng mạo từ nào?", o: ["a sun", "an sun", "the sun"], a: "the sun", e: "Mặt trời là thực thể duy nhất trong vũ trụ của chúng ta, luôn luôn dùng 'the'." },
+                    { q: "Tìm lỗi sai: 'I bought new car yesterday.'", o: ["Thiếu 'a' trước new car", "Sai thì quá khứ", "Dùng sai 'yesterday'"], a: "Thiếu 'a' trước new car", e: "Car là đếm được số ít. Nhắc lần đầu tiên (chung chung) bắt buộc phải có mạo từ 'a' đi kèm tính từ." }
+                ],
+                ex2: [
+                    { q: "Mạo từ nào đúng: 'She is ______ honest person.'", o: ["a", "an", "the"], a: "an", e: "Chữ 'h' trong 'honest' là âm câm, bắt đầu bằng âm nguyên âm /ɒ/ nên phải dùng 'an'." },
+                    { q: "Câu nào đúng khi nhắc lại một vật thể đã biết?", o: ["I saw a dog. A dog was barking.", "I saw a dog. The dog was barking."], a: "I saw a dog. The dog was barking.", e: "Lần đầu nhắc đến dùng 'a' (chưa xác định). Lần hai nhắc lại dùng 'the' (đã xác định)." }
+                ]
+            },
+            "plural-lesson": {
+                ex1: [
+                    { q: "Đuôi '-s' được phát âm là /iz/ trong trường hợp nào?", o: ["books, cats", "watches, boxes"], a: "watches, boxes", e: "Từ kết thúc bằng ch, sh, s, x, z thêm -es và đọc là /iz/." },
+                    { q: "Danh từ số nhiều của 'leaf' (chiếc lá) là:", o: ["leafs", "leaves", "leavs"], a: "leaves", e: "Tận cùng là f/fe, ta đổi thành -ves (wife->wives, leaf->leaves)." },
+                    { q: "Câu nào ĐÚNG khi nói chung về sở thích?", o: ["I love an apple.", "I love apples.", "I love the apple."], a: "I love apples.", e: "Khi muốn diễn đạt một sở thích CHUNG CHUNG, ta bắt buộc dùng danh từ đếm được ở dạng SỐ NHIỀU, không mạo từ." }
+                ],
+                ex2: [
+                    { q: "Danh từ số nhiều của 'child' là:", o: ["childs", "children", "childrens"], a: "children", e: "Children bản thân nó đã là số nhiều, tuyệt đối không thêm -s thành childrens." },
+                    { q: "Tìm từ CÓ dạng số ít và số nhiều GIỐNG NHAU:", o: ["foot", "sheep", "person"], a: "sheep", e: "Một số loài vật (sheep, deer, fish) có số ít và số nhiều y hệt nhau." }
+                ]
+            },
+            "uncountable-lesson": {
+                ex1: [
+                    { q: "Làm thế nào để đếm từ 'bread' (bánh mì)?", o: ["a bread", "a loaf of bread", "a piece of breads"], a: "a loaf of bread", e: "Bread không đếm được. Để chỉ 1 ổ bánh mì, ta dùng lượng từ 'a loaf of'." },
+                    { q: "Muốn đếm 'rice' (gạo), ta dùng cụm từ nào?", o: ["a grain of rice", "a drop of rice", "a slice of rice"], a: "a grain of rice", e: "Rice là hạt. Đơn vị đếm hạt là 'grain' (một hạt gạo)." },
+                    { q: "Từ 'money' (tiền) là đếm được hay không đếm được?", o: ["Đếm được", "Không đếm được"], a: "Không đếm được", e: "Bản thân chữ 'money' là khái niệm trừu tượng (U). Ta chỉ đếm được ĐƠN VỊ TIỀN TỆ (1 dollar, 2 VND)." }
+                ],
+                ex2: [
+                    { q: "Câu nào ĐÚNG ngữ pháp?", o: ["Alex gave me a good advice.", "Alex gave me a piece of good advice."], a: "Alex gave me a piece of good advice.", e: "Advice (lời khuyên) không đếm được. Không dùng 'a' hay thêm '-s'. Phải dùng 'a piece of'." },
+                    { q: "Tìm lỗi sai: 'I need to buy some equipments.'", o: ["Sai chữ 'some'", "Sai chữ 'equipments'"], a: "Sai chữ 'equipments'", e: "Equipment (trang thiết bị) là danh từ không đếm được, tuyệt đối không thêm '-s'." }
+                ]
+            },
+            "compound-lesson": {
+                ex1: [
+                    { q: "Từ nào viết ĐÚNG danh từ số nhiều của 'bus stop'?", o: ["buses stop", "bus stops", "buses stops"], a: "bus stops", e: "Trong danh từ ghép, từ cuối cùng (stop) là Head Noun, do đó ta chỉ thêm -s vào từ cuối cùng." },
+                    { q: "Sự khác biệt giữa 'a dark room' và 'a darkroom' là gì?", o: ["Không có khác biệt", "'darkroom' là phòng rửa ảnh."], a: "'darkroom' là phòng rửa ảnh.", e: "'Darkroom' là một Compound Noun mang một ý nghĩa mới hoàn toàn (phòng rửa ảnh của thợ chụp hình)." }
+                ]
+            },
+            "prep-lesson": {
+                ex1: [
+                    { q: "Giới từ nào đứng sau noun để chỉ 'người tác giả / người tạo ra'?", o: ["in", "by", "for"], a: "by", e: "Ví dụ: 'A novel by Shakespeare' (Quyển tiểu thuyết do Shakespeare viết)." },
+                    { q: "Cụm nào chỉ 'Cô gái mặc váy đỏ'?", o: ["The girl on red dress", "The girl in the red dress"], a: "The girl in the red dress", e: "Để chỉ việc MẶC một màu sắc hoặc trang phục, ta dùng giới từ 'in'." },
+                    { q: "Cụm nào chỉ 'Chàng trai đeo kính'?", o: ["The boy with glasses", "The boy in glasses"], a: "The boy with glasses", e: "'With' mang nghĩa sở hữu/có mang theo vật thể trên người (đeo kính, cầm dù)." }
+                ],
+                ex2: [
+                    { q: "Giới từ chỉ 'Mục đích/dành cho ai': 'The present ______ my mother.'", o: ["to", "for", "by"], a: "for", e: "'For' mang nghĩa dành cho, hướng tới lợi ích của ai đó." },
+                    { q: "Chọn giới từ: 'The door ______ the right.'", o: ["in", "on", "at"], a: "on", e: "Chỉ phương hướng (bên trái, bên phải) luôn dùng 'on'." }
+                ]
+            },
+            "adjectives-lesson": {
+                ex1: [
+                    { q: "Sắp xếp đúng: 'A / table / wooden / beautiful / old / Vietnamese'", o: ["A beautiful old Vietnamese wooden table", "A beautiful wooden old Vietnamese table"], a: "A beautiful old Vietnamese wooden table", e: "Ông (Opinion: beautiful) Sáu Ăn (Age: old) Súp Cua Ông (Origin: Vietnamese) Mập (Material: wooden)." },
+                    { q: "Chữ 'O' đầu tiên trong OSASCOMP là gì?", o: ["Origin", "Opinion", "Old"], a: "Opinion", e: "Opinion (Quan điểm cá nhân: đẹp, xấu, tốt...) luôn được ưu tiên đứng đầu tiên." }
+                ],
+                ex2: [
+                    { q: "Xếp đúng: 'A / leather / black / jacket'", o: ["A black leather jacket", "A leather black jacket"], a: "A black leather jacket", e: "Color (black) đứng trước Material (leather)." },
+                    { q: "Tìm lỗi sai trật tự trong câu: 'I bought a wooden nice chair.'", o: ["wooden nice", "a wooden"], a: "wooden nice", e: "Opinion (nice) phải đứng trước Material (wooden). Đổi thành 'a nice wooden chair'." }
+                ]
+            },
+            "relative-clauses-lesson": {
+                ex1: [
+                    { q: "Trong câu 'Quán nước có bảng hiệu màu xanh là Phúc Long', phần nào làm chủ ngữ?", o: ["Quán nước", "Quán nước có bảng hiệu màu xanh", "Phúc Long"], a: "Quán nước có bảng hiệu màu xanh", e: "Chủ ngữ là cả một cụm Noun Phrase hoàn chỉnh, chứa cả Head Noun và Mệnh đề quan hệ bổ nghĩa cho nó." },
+                    { q: "Rút gọn câu: 'The boy who is playing guitar is David.'", o: ["The boy playing guitar...", "The boy played guitar..."], a: "The boy playing guitar...", e: "Hành động mang nghĩa CHỦ ĐỘNG, rút gọn bằng V-ing." },
+                    { q: "Rút gọn câu: 'The books which were written by Alex are famous.'", o: ["The books writing by Alex...", "The books written by Alex..."], a: "The books written by Alex...", e: "Sách BỊ viết (BỊ ĐỘNG), nên phải rút gọn về V-ed/V3 (written)." }
+                ],
+                ex2: [
+                    { q: "Điền từ: 'This is the city ______ is famous for its food.'", o: ["where", "which"], a: "which", e: "Phía sau là động từ 'is', tức là thiếu CHỦ NGỮ. Trạng từ (where) KHÔNG THỂ làm chủ ngữ. Phải dùng đại từ 'which'." },
+                    { q: "Công thức biến đổi trạng từ nơi chốn:", o: ["where = in/on/at + which", "where = which + in/on/at"], a: "where = in/on/at + which", e: "The house where I live = The house in which I live." }
+                ]
+            },
+            "quantifiers-lesson": {
+                ex1: [
+                    { q: "Câu nào SAI ngữ pháp?", o: ["Sarah spent a large number of time on this.", "Sarah spent a lot of time on this."], a: "Sarah spent a large number of time on this.", e: "'Time' là danh từ Không đếm được. 'A large number of' chỉ dùng cho đếm được số nhiều." },
+                    { q: "Điền từ: 'He is very optimistic. He has ______ worries.'", o: ["a few", "few", "a little"], a: "few", e: "Lạc quan nên có RẤT ÍT nỗi lo (nghĩa tiêu cực với nỗi lo) -> dùng 'few'." }
+                ],
+                ex2: [
+                    { q: "Chọn lượng từ: 'There is ______ water left in the bottle. We can't drink enough.'", o: ["a little", "little", "few"], a: "little", e: "Nước không đếm được. Vì 'không thể uống đủ' (nghĩa tiêu cực, quá ít) nên dùng 'little'." }
+                ]
+            },
+            "determiners-lesson": {
+                ex1: [
+                    { q: "Từ nào KHÔNG PHẢI là định từ (Determiner)?", o: ["This", "My", "Beautiful"], a: "Beautiful", e: "Beautiful là Tính từ (Adjective), không phải Định từ." },
+                    { q: "Tìm lỗi sai: 'I love the my new car.'", o: ["Sai chữ love", "Thừa chữ the"], a: "Thừa chữ the", e: "Luật thép: Không được dùng 2 định từ (the và my) đi liền nhau trước một danh từ." }
+                ]
+            },
+            "noun-clauses-lesson": {
+                ex1: [
+                    { q: "Xác định loại mệnh đề trong ngoặc: 'I believe [that Emma will win].'", o: ["Mệnh đề quan hệ", "Mệnh đề danh từ"], a: "Mệnh đề danh từ", e: "Nó đứng sau động từ 'believe' để làm Tân ngữ. Thử mẹo: 'I believe IT' (Hoàn toàn hợp lý)." },
+                    { q: "Xác định loại mệnh đề: 'The book [that Emma is reading] is great.'", o: ["Mệnh đề quan hệ", "Mệnh đề danh từ"], a: "Mệnh đề quan hệ", e: "Nó đứng sau danh từ 'The book' để miêu tả. Thử mẹo: 'The book IT is great' (Vô nghĩa). Do đó nó là MĐ Quan Hệ." }
+                ]
+            },
+            "reported-speech-lesson": {
+                ex1: [
+                    { q: "Đổi câu sau sang gián tiếp: 'Are you using the app?' she asked me.", o: ["She asked me if I was using the app.", "She asked me if was I using the app."], a: "She asked me if I was using the app.", e: "Với Yes/No question, mượn 'if'. Lùi thì Hiện tại tiếp diễn thành Quá khứ tiếp diễn. TUYỆT ĐỐI KHÔNG đảo ngữ." }
+                ]
+            }
+        };
+
+        const getQuiz = (lessonId, exName) => {
+            return (quizData[lessonId] && quizData[lessonId][exName]) ? quizData[lessonId][exName] : [];
+        };
+
+        // ==========================================
+        // 3. UI COMPONENTS 
+        // ==========================================
+        const Highlight = ({ children, color = "brand" }) => <span className={`font-bold text-${color}-600 bg-${color}-50 px-1 rounded`}>{children}</span>;
+
+        const Example = ({ eng, vie }) => (
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm my-3 relative overflow-hidden group">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-500 group-hover:w-2 transition-all"></div>
+                <p className="font-bold text-slate-800 text-[15px] pl-3">{eng}</p>
+                <p className="text-slate-500 mt-1 pl-3 text-sm">{vie}</p>
+            </div>
+        );
+
+        const UIBox = ({ title, children, color = "blue" }) => {
+            const colorMap = {
+                blue: "bg-pastel-blue border-blue-200 text-blue-900",
+                rose: "bg-pastel-rose border-rose-200 text-rose-900",
+                green: "bg-pastel-green border-green-200 text-green-900",
+                amber: "bg-pastel-amber border-amber-200 text-amber-900",
+                purple: "bg-pastel-purple border-purple-200 text-purple-900",
+                teal: "bg-pastel-teal border-teal-200 text-teal-900"
+            };
+            return (
+                <div className={`p-5 rounded-2xl border shadow-sm mb-6 ${colorMap[color] || colorMap.blue}`}>
+                    {title && <h3 className="font-extrabold mb-3 text-lg opacity-90">{title}</h3>}
+                    <div className="text-sm leading-relaxed">{children}</div>
+                </div>
+            );
+        };
+
+        const MultiQuiz = ({ questions }) => {
+            const [answers, setAnswers] = useState({});
+            
+            if (!questions || !Array.isArray(questions) || questions.length === 0) {
+                return null;
+            }
+            
+            const handleSelect = (qIndex, option) => {
+                if (answers[qIndex]) return; 
+                setAnswers({...answers, [qIndex]: option});
+            };
+
+            return (
+                <div className="space-y-6 mt-8">
+                    <h3 className="font-extrabold text-xl text-slate-800 border-b-2 border-brand-200 pb-2 flex items-center gap-2">
+                        <span className="bg-brand-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">✍️</span> 
+                        Luyện tập vận dụng
+                    </h3>
+                    {questions.map((q, qIndex) => {
+                        const selected = answers[qIndex];
+                        const isCorrect = selected === q.a;
+                        return (
+                            <div key={qIndex} className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                <p className="font-bold text-slate-800 mb-4">Câu {qIndex + 1}: {q.q}</p>
+                                <div className="space-y-2">
+                                    {q.o.map((opt, idx) => {
+                                        let btnClass = "w-full text-left px-4 py-3 rounded-xl border-2 transition-all font-medium text-sm ";
+                                        if (!selected) btnClass += "border-slate-200 bg-white hover:border-brand-300 hover:shadow-md";
+                                        else if (opt === q.a) btnClass += "border-green-500 bg-green-50 text-green-700";
+                                        else if (selected === opt) btnClass += "border-red-400 bg-red-50 text-red-700 line-through";
+                                        else btnClass += "opacity-40 border-slate-200 bg-white";
+                                        
+                                        return (
+                                            <button key={idx} disabled={!!selected} onClick={() => handleSelect(qIndex, opt)} className={btnClass}>
+                                                {opt}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {selected && (
+                                    <div className={`mt-4 p-4 rounded-xl text-sm leading-relaxed ${isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        <strong>{isCorrect ? '🎉 Chính xác!' : '❌ Sai rồi!'}</strong> <br/>{q.e}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 4. PANELS NỘI DUNG (KIẾN THỨC)
+        // ==========================================
+
+        const LessonNPIntro = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Cụm Danh Từ (Noun Phrase)</h2>
+                <div className="inline-block bg-brand-100 text-brand-800 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-6">Lõi của mọi câu</div>
+                <UIBox color="blue">
+                    Trong tiếng Anh, danh từ hiếm khi đứng "trần truồng". Chúng thường kết hợp với các "vệ sĩ" bảo vệ phía trước và phía sau để tạo thành Cụm Danh Từ.
+                </UIBox>
+                <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm text-center mb-6 font-bold text-lg text-slate-800 flex flex-wrap justify-center items-center gap-2">
+                    <span className="text-brand-600 bg-brand-50 px-2 py-1 rounded">[Tiền bổ nghĩa]</span> 
+                    <span>+</span> 
+                    <span className="text-rose-600 border-b-2 border-rose-500 mx-2 text-2xl">DANH TỪ TRUNG TÂM</span> 
+                    <span>+</span> 
+                    <span className="text-teal-600 bg-teal-50 px-2 py-1 rounded">[Hậu bổ nghĩa]</span>
+                </div>
+                <Example eng="The beautiful old wooden table in the kitchen" vie="Chiếc bàn gỗ cũ kỹ xinh đẹp ở trong bếp." />
+            </div>
+        );
+
+        const LessonNPForms = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">V-ing & To-V làm Danh Từ</h2>
+                <UIBox color="purple" title="Gerund & Infinitive Phrases">
+                    Không phải lúc nào cụm danh từ cũng bắt đầu bằng một đồ vật/sự việc. Đôi khi ta phải ép một <strong>HÀNH ĐỘNG</strong> đứng ra làm Chủ ngữ hoặc Tân ngữ. Khi đó, động từ không được để nguyên mẫu mà phải hóa trang thành <strong>V-ing</strong> (Danh động từ) hoặc <strong>To-V</strong>.
+                </UIBox>
+                
+                <h3 className="text-xl font-bold text-slate-800 mt-8 mb-3">1. Khi nào dùng V-ing?</h3>
+                <div className="bg-white p-4 rounded-xl border-l-4 border-l-brand-500 shadow-sm mb-4">
+                    <p className="text-sm text-slate-700">Dùng V-ing khi bạn muốn nói về một <strong>sự thật hiển nhiên</strong>, một <strong>thói quen</strong>, hoặc một <strong>trải nghiệm</strong> bạn đã trải qua.</p>
+                    <Example eng="[Learning English] is very important." vie="[Việc học tiếng Anh] thì rất quan trọng. (Sự thật chung)" />
+                    <Example eng="Alex enjoys [swimming in the morning]." vie="Alex thích [việc bơi lội vào buổi sáng]. (Trải nghiệm/Sở thích)" />
+                </div>
+
+                <h3 className="text-xl font-bold text-slate-800 mt-8 mb-3">2. Khi nào dùng To-V?</h3>
+                <div className="bg-white p-4 rounded-xl border-l-4 border-l-rose-500 shadow-sm mb-4">
+                    <p className="text-sm text-slate-700">Dùng To-V khi bạn muốn nhấn mạnh vào <strong>mục đích</strong>, một <strong>sự lựa chọn</strong>, hoặc một <strong>dự định trong tương lai</strong> (chưa xảy ra).</p>
+                    <Example eng="[To pass the IELTS exam] is his main goal." vie="[ĐỂ vượt qua kỳ thi IELTS] là mục tiêu chính của anh ấy. (Mục đích)" />
+                    <Example eng="Sarah decided [to buy a new car]." vie="Sarah quyết định [sẽ mua một chiếc xe mới]. (Sự lựa chọn/Dự định)" />
+                </div>
+
+                <MultiQuiz questions={getQuiz("np-forms-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("np-forms-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonHeadNoun = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Danh Từ Trung Tâm (Head Noun)</h2>
+                
+                <UIBox color="amber" title="Trái tim của cụm từ">
+                    <p className="mb-3">Head Noun là "linh hồn" của Cụm danh từ. Dù cụm từ có dài đến 2 dòng, thì bản chất của nó vẫn chỉ quay quanh đúng 1 chữ duy nhất: Head Noun.</p>
+                    <p className="font-bold text-red-600 bg-white p-3 rounded shadow-sm">
+                        Nếu xác định sai Head Noun, bạn sẽ chia động từ sai toàn bộ!
+                    </p>
+                </UIBox>
+
+                <h3 className="text-xl font-bold text-slate-800 mt-8 mb-3">Làm sao để tìm Head Noun cực chuẩn?</h3>
+                <div className="space-y-4">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p className="font-bold text-brand-700 mb-1">Mẹo 1: Chặn trước Giới Từ</p>
+                        <p className="text-sm text-slate-600 mb-2">Hãy dò từ trái sang phải. Tìm từ nằm <strong>NGAY TRƯỚC</strong> giới từ đầu tiên (of, in, on, at, with...).</p>
+                        <Example eng="The successful [development] of the new learning apps..." vie="[Sự phát triển] thành công của các ứng dụng học tập mới... (Từ 'development' đứng ngay trước 'of')." />
+                    </div>
+                    
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <p className="font-bold text-rose-700 mb-1">Mẹo 2: Chặn trước Mệnh Đề Quan Hệ</p>
+                        <p className="text-sm text-slate-600 mb-2">Tìm từ nằm <strong>NGAY TRƯỚC</strong> các đại từ quan hệ (who, which, that).</p>
+                        <Example eng="The young [people] who are standing there..." vie="Những [người] trẻ tuổi đang đứng đằng kia... (Từ 'people' đứng trước 'who')." />
+                    </div>
+                </div>
+
+                <MultiQuiz questions={getQuiz("head-noun-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("head-noun-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonCompound = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Danh Từ Ghép (Compound)</h2>
+                <UIBox color="blue" title="Cấu trúc Noun + Noun">
+                    Cách tạo từ mới dễ nhất trong tiếng Anh. <strong>Luật vàng:</strong> Từ đứng CUỐI CÙNG là từ mang ý nghĩa chính (Head Noun). Từ đứng TRƯỚC chỉ tính chất, mục đích cho từ đó.
+                </UIBox>
+                <Example eng="A water bottle" vie="Chai (bottle) dùng để đựng nước (water). => Chai nước." />
+                <UIBox color="rose" title="Mẹo nhỏ khi chia Số nhiều">
+                    Vì từ cuối cùng là Head Noun, nên khi chia số nhiều, ta <strong>chỉ thêm s/es vào từ cuối cùng</strong>.
+                    <br/>Vd: bus stop ➔ bus stop<strong>s</strong>.
+                </UIBox>
+                <MultiQuiz questions={getQuiz("compound-lesson", "ex1")} />
+            </div>
+        );
+
+        const LessonUncountable = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Danh Từ Không Đếm Được</h2>
+                <UIBox color="purple" title="Nhận diện U-Nouns">
+                    Chất lỏng, hạt nhỏ, chất khí, khái niệm trừu tượng (advice, knowledge).
+                    <p className="mt-2 text-red-600 font-bold">⚠️ Quy tắc 2 Không: Không dùng a/an phía trước & Không thêm s/es.</p>
+                </UIBox>
+                <h3 className="font-bold text-slate-800 mt-6 mb-3 text-xl">Tuyệt chiêu đếm U-Nouns</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <ul className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-sm space-y-3">
+                        <li>🌾 Rice ➔ <Highlight>A grain of</Highlight> rice (Một hạt gạo)</li>
+                        <li>🍞 Bread ➔ <Highlight>A loaf of</Highlight> bread (Một ổ bánh mì)</li>
+                        <li>💦 Water ➔ <Highlight>A glass of</Highlight> water (Một ly nước)</li>
+                    </ul>
+                    <ul className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm text-sm space-y-3">
+                        <li>💡 Advice ➔ <Highlight>A piece of</Highlight> advice (Một lời khuyên)</li>
+                        <li>📰 News ➔ <Highlight>An item of</Highlight> news (Một mẩu tin tức)</li>
+                    </ul>
+                </div>
+                <UIBox color="amber" title="Ngoại lệ đáng chú ý: Tiền (Money)">
+                    Bản thân chữ <strong>"Money"</strong> là Không đếm được (U). Tuy nhiên, các ĐƠN VỊ TIỀN TỆ (như Dollar, Pound, VND) thì hoàn toàn LÀ ĐẾM ĐƯỢC (C). 
+                </UIBox>
+                <MultiQuiz questions={getQuiz("uncountable-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("uncountable-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonSingular = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Phễu Mạo Từ & Số Ít</h2>
+                <UIBox color="rose" title="Quy tắc Bất di bất dịch">
+                    Một danh từ đếm được số ít (Singular Countable) <strong className="text-red-600">KHÔNG BAO GIỜ</strong> đứng trơ trọi. Nó luôn cần 1 Mạo từ hoặc Định từ bảo vệ.
+                </UIBox>
+                <div className="bg-slate-800 text-white p-6 rounded-2xl mb-6 shadow-lg">
+                    <h3 className="font-bold text-brand-300 mb-4 text-xl">Phễu Tư Duy Khi Viết:</h3>
+                    <ul className="space-y-4">
+                        <li className="flex items-center"><span className="bg-brand-500 w-6 h-6 rounded-full flex justify-center items-center mr-3 font-bold">1</span> Có đếm được không? ➔ Có.</li>
+                        <li className="flex items-center"><span className="bg-brand-500 w-6 h-6 rounded-full flex justify-center items-center mr-3 font-bold">2</span> Nghĩa là 1? ➔ Đúng (Phải có mạo từ).</li>
+                        <li className="flex items-center"><span className="bg-brand-500 w-6 h-6 rounded-full flex justify-center items-center mr-3 font-bold">3</span> Chung chung (dùng A/An) hay Cụ thể (dùng The)?</li>
+                    </ul>
+                </div>
+                <UIBox color="teal" title="Đặc quyền của 'The'">
+                    <ul className="list-disc pl-5 space-y-2">
+                        <li><strong>Duy nhất:</strong> The sun, the moon.</li>
+                        <li><strong>Địa điểm công cộng:</strong> The cinema, the bank.</li>
+                        <li><strong>Nhắc lại lần 2:</strong> I saw a dog. <Highlight>The dog</Highlight> was cute.</li>
+                    </ul>
+                </UIBox>
+                <MultiQuiz questions={getQuiz("singular-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("singular-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonPlural = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Danh Từ Số Nhiều</h2>
+                <UIBox color="blue" title="Sức mạnh của Số nhiều">
+                    Khi diễn đạt sở thích/sự thật <strong>CHUNG CHUNG</strong> về loài vật/sự vật đếm được, BẮT BUỘC dùng số nhiều không mạo từ. <br/>
+                    <Example eng="Sarah likes dogs." vie="(Không nói: likes a dog)." />
+                </UIBox>
+                <UIBox color="amber" title="Quy tắc thêm s/es">
+                    <ul className="space-y-2">
+                        <li>👉 <strong>Tận cùng o, s, x, z, ch, sh:</strong> Thêm <strong>-es</strong> (tomato ➔ tomatoes).</li>
+                        <li>👉 <strong>Tận cùng Phụ âm + y:</strong> Đổi y thành i rồi thêm <strong>-es</strong> (baby ➔ babies).</li>
+                        <li>👉 <strong>Tận cùng f, fe:</strong> Đổi thành <strong>-ves</strong> (leaf ➔ leaves).</li>
+                    </ul>
+                </UIBox>
+                <UIBox color="rose" title="Bất quy tắc (Irregular)">
+                    <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                        <div>man ➔ men</div><div>woman ➔ women</div><div>child ➔ children</div>
+                        <div>foot ➔ feet</div><div>tooth ➔ teeth</div><div>mouse ➔ mice</div>
+                    </div>
+                </UIBox>
+                <MultiQuiz questions={getQuiz("plural-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("plural-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonDeterminers = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">6 Loại Định Từ</h2>
+                <UIBox color="purple">
+                    Mạo từ chỉ là 1 trong 6 loại Định từ. Định từ luôn đứng đầu Cụm danh từ để "chốt" đối tượng.
+                </UIBox>
+                <div className="space-y-3 mb-6 text-sm">
+                    <div className="bg-white p-3 rounded-xl border border-slate-200"><Highlight>1. Mạo từ:</Highlight> a, an, the</div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200"><Highlight>2. Chỉ định:</Highlight> this, that, these, those</div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200"><Highlight>3. Sở hữu:</Highlight> my, your, his, her</div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200"><Highlight>4. Lượng từ:</Highlight> some, any, many</div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200"><Highlight>5. Số từ:</Highlight> one, ten, first</div>
+                    <div className="bg-white p-3 rounded-xl border border-slate-200"><Highlight>6. Nghi vấn:</Highlight> which, what, whose</div>
+                </div>
+                <MultiQuiz questions={getQuiz("determiners-lesson", "ex1")} />
+            </div>
+        );
+
+        const LessonQuantifiers = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Lượng Từ (Quantifiers)</h2>
+                <table className="w-full text-left bg-white text-sm rounded-xl overflow-hidden shadow-sm border border-slate-200 mb-6">
+                    <thead className="bg-slate-800 text-white">
+                        <tr><th className="p-3">Đếm Được (C)</th><th className="p-3">Không Đếm Được (U)</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        <tr><td className="p-3">many</td><td className="p-3">much</td></tr>
+                        <tr><td className="p-3">a few (đủ dùng)</td><td className="p-3">a little (đủ dùng)</td></tr>
+                        <tr><td className="p-3 font-bold text-red-600">few (quá ít)</td><td className="p-3 font-bold text-red-600">little (quá ít)</td></tr>
+                    </tbody>
+                </table>
+                <MultiQuiz questions={getQuiz("quantifiers-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("quantifiers-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonPrep = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Cụm Giới Từ</h2>
+                <UIBox color="teal" title="Vũ khí Hậu bổ nghĩa">
+                    Đứng ngay SAU danh từ để bổ sung thông tin vị trí, hình dáng, sở hữu.
+                </UIBox>
+                <div className="grid grid-cols-2 gap-4 text-sm mb-6">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"><Highlight color="rose">in / on / at</Highlight><br/>Chỉ vị trí.</div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"><Highlight color="blue">with / without</Highlight><br/>Mang theo, mặc.</div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"><Highlight color="amber">by</Highlight><br/>Tạo ra bởi ai.</div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200"><Highlight color="green">of</Highlight><br/>Thuộc về.</div>
+                </div>
+                <MultiQuiz questions={getQuiz("prep-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("prep-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonAdjectives = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Trật Tự Tính Từ OSASCOMP</h2>
+                <div className="bg-brand-50 border-2 border-brand-300 p-6 rounded-3xl text-center mb-8 shadow-sm">
+                    <p className="font-black text-2xl text-brand-700 mb-2">Ông Sáu Ăn Súp Cua Ông Mập Phì</p>
+                    <p className="text-sm text-slate-600 font-bold tracking-widest">O - S - A - S - C - O - M - P</p>
+                </div>
+                <UIBox color="purple">
+                    <ul className="space-y-2 text-sm">
+                        <li><strong className="text-purple-700">O (Ông) = Opinion:</strong> Quan điểm (beautiful). <em>*Đứng đầu tiên!</em></li>
+                        <li><strong className="text-purple-700">S (Sáu) = Size:</strong> Kích thước (big).</li>
+                        <li><strong className="text-purple-700">A (Ăn) = Age:</strong> Tuổi (old).</li>
+                        <li><strong className="text-purple-700">S (Súp) = Shape:</strong> Hình dáng (round).</li>
+                        <li><strong className="text-purple-700">C (Cua) = Color:</strong> Màu (red).</li>
+                        <li><strong className="text-purple-700">O (Ông) = Origin:</strong> Nguồn gốc (Vietnamese).</li>
+                        <li><strong className="text-purple-700">M (Mập) = Material:</strong> Chất liệu (wooden).</li>
+                        <li><strong className="text-purple-700">P (Phì) = Purpose:</strong> Mục đích (swimming).</li>
+                    </ul>
+                </UIBox>
+                <MultiQuiz questions={getQuiz("adjectives-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("adjectives-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonRelativeClause = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Mệnh Đề Quan Hệ (MĐQH)</h2>
+                
+                <UIBox color="amber" title="1. Phân tích bản chất sâu sắc">
+                    <p className="mb-4">Hãy quan sát cách câu tiếng Việt hoạt động để hiểu bản chất MĐQH.</p>
+                    <div className="bg-white border-2 border-dashed border-amber-300 p-4 rounded-xl text-center mb-4">
+                        <span className="font-bold">"<Highlight color="amber">Quán nước có bảng hiệu màu xanh</Highlight> là Phúc Long."</span>
+                    </div>
+                    <ul className="space-y-2 text-sm">
+                        <li>👉 <strong>Động từ chính:</strong> Từ "là".</li>
+                        <li>👉 <strong>Chủ ngữ:</strong> Cả cụm <em>"Quán nước có bảng hiệu màu xanh"</em>.</li>
+                        <li>👉 <strong>Head Noun:</strong> Từ <em>"Quán nước"</em>.</li>
+                        <li>👉 <strong>Hậu bổ nghĩa:</strong> Phần <em>"có bảng hiệu màu xanh"</em> tự thân nó là một mệnh đề (có động từ 'có'). Nó đứng đó làm nhiệm vụ như một <strong>Tính Từ</strong> miêu tả cho quán nước. ➔ Gọi là <strong>Mệnh đề tính ngữ</strong>.</li>
+                    </ul>
+                </UIBox>
+
+                <UIBox color="blue" title="2. Đại Từ vs Trạng Từ Quan Hệ">
+                    <div className="space-y-4 text-sm">
+                        <div><strong className="text-blue-700">A. Đại từ (Who, Which, That, Whose):</strong> Làm S hoặc O trong mệnh đề. Phía sau nó có thể thiếu S hoặc thiếu O.</div>
+                        <div><strong className="text-green-700">B. Trạng từ (Where, When, Why):</strong> Phía sau nó <strong className="text-red-500">BẮT BUỘC</strong> phải là mệnh đề đủ (đã có S + V).</div>
+                        <div className="bg-green-50 p-2 rounded text-center font-bold">Mẹo: Where = In/On/At + Which</div>
+                    </div>
+                </UIBox>
+
+                <UIBox color="rose" title="3. Rút gọn MĐQH">
+                    - <strong>Chủ động:</strong> Đưa về <strong>V-ing</strong>. <em>(The boy standing there)</em>
+                    <br/>- <strong>Bị động:</strong> Đưa về <strong>V3/ed</strong>. <em>(The car made in Japan)</em>
+                </UIBox>
+
+                <MultiQuiz questions={getQuiz("relative-clauses-lesson", "ex1")} />
+                <MultiQuiz questions={getQuiz("relative-clauses-lesson", "ex2")} />
+            </div>
+        );
+
+        const LessonNounClause = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Mệnh Đề Danh Từ</h2>
+                <UIBox color="teal" title="Khái niệm & Tuyệt chiêu nhận diện">
+                    <p className="mb-2">Mệnh đề danh từ là một câu hoàn chỉnh bị "bắt cóc" để làm danh từ.</p>
+                    <div className="bg-teal-100 p-2 rounded-lg text-teal-900 text-center font-bold">Mẹo thử nghiệm "IT"</div>
+                    <p className="text-sm mt-2">Thay toàn bộ mệnh đề bằng chữ <strong>IT</strong>. Nếu câu có nghĩa, đó là Noun Clause. <br/>Vd: I don't know [where he lives] ➔ I don't know IT.</p>
+                </UIBox>
+                <div className="space-y-4 mb-6">
+                    <div className="bg-white p-4 rounded-xl border-l-4 border-l-rose-500 shadow-sm">
+                        <p className="font-bold text-rose-700 mb-1">1. That + S + V</p>
+                        <Example eng="David believes [that the team will win]." vie="David tin [rằng đội bóng sẽ thắng]." />
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border-l-4 border-l-orange-500 shadow-sm">
+                        <p className="font-bold text-orange-700 mb-1">2. Wh-word + S + V</p>
+                        <Example eng="He doesn't know [where she went]." vie="Tuyệt đối không đảo ngữ." />
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border-l-4 border-l-green-500 shadow-sm">
+                        <p className="font-bold text-green-700 mb-1">3. If / Whether + S + V (Dùng cho Yes/No)</p>
+                        <Example eng="I wonder [if it will rain]." vie="Tôi tự hỏi [liệu trời có mưa không]." />
+                    </div>
+                </div>
+                <MultiQuiz questions={getQuiz("noun-clauses-lesson", "ex1")} />
+            </div>
+        );
+
+        const LessonReportedSpeech = () => (
+            <div className="lesson-content animate-fade-in pb-10">
+                <h2 className="text-3xl font-extrabold text-slate-800 mb-2">Câu Tường Thuật</h2>
+                <UIBox color="blue" title="Bản chất">
+                    Ứng dụng lớn nhất của Mệnh đề danh từ. Khi tường thuật, ta áp dụng luật <strong className="text-red-600">LÙI THÌ</strong> và đổi đại từ.
+                </UIBox>
+                <div className="space-y-4 mb-6">
+                    <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-l-blue-500">
+                        <p className="font-bold text-slate-800">1. Lùi Thì</p>
+                        <Example eng="He said, 'I am tired.'" vie="➔ He said (that) he was tired." />
+                    </div>
+                    <div className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-l-amber-500">
+                        <p className="font-bold text-slate-800">2. Đổi thời gian</p>
+                        <Example eng="Alex said, 'I will do it tomorrow.'" vie="➔ Alex said (that) he would do it the next day." />
+                    </div>
+                </div>
+                <MultiQuiz questions={getQuiz("reported-speech-lesson", "ex1")} />
+            </div>
+        );
+
+        // ==========================================
+        // 5. CẤU TRÚC VẼ SƠ ĐỒ (TREENODE ĐÃ ĐƯỢC PHỤC HỒI)
+        // ==========================================
+
+        const TreeNode = ({ nodeId, expandedNodes, toggleNode, openLesson }) => {
+            const node = graphData[nodeId];
+            if(!node) return null;
+            
+            const isExpanded = expandedNodes.has(nodeId);
+            const hasChildren = node.children && node.children.length > 0;
+
+            return (
+                <div className="tree-node group/node">
+                    <div className="relative z-10 flex items-center gap-3 bg-white/95 backdrop-blur px-5 py-4 rounded-2xl shadow-node border border-slate-200 hover:border-brand-400 hover:shadow-node-hover transition-all duration-300 min-w-[280px]">
+                        
+                        {hasChildren ? (
+                            <button onClick={() => toggleNode(nodeId)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-brand-500 hover:text-white font-bold transition-colors shrink-0">
+                                {isExpanded ? '−' : '+'}
+                            </button>
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-100 shrink-0"></div>
+                        )}
+                        
+                        <div className="flex-1 cursor-default">
+                            {node.subtitle && <span className="text-[10px] font-bold text-brand-500 uppercase tracking-widest block mb-1">{node.subtitle}</span>}
+                            <h3 className="text-sm font-bold text-slate-800 leading-tight">{node.title}</h3>
+                        </div>
+
+                        {node.hasLesson && (
+                            <button onClick={() => openLesson(node.lessonId)} className="ml-2 px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-xl hover:bg-brand-600 transition-colors shadow-sm shrink-0">
+                                Học
+                            </button>
+                        )}
+                    </div>
+
+                    {isExpanded && hasChildren && (
+                        <div className="children-container">
+                            {node.children.map(childId => (
+                                <div key={childId} className="child-wrapper">
+                                    <TreeNode nodeId={childId} expandedNodes={expandedNodes} toggleNode={toggleNode} openLesson={openLesson} />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 6. MAIN APP CỦA CHÚNG TA ĐÂY
+        // ==========================================
+
+        const App = () => {
+            const [expandedNodes, setExpandedNodes] = useState(new Set(["noun-phrase", "head-noun", "pre-modifier", "post-modifier", "simple-noun", "relative-clauses", "noun-clauses"]));
+            const [activeLesson, setActiveLesson] = useState(null);
+            
+            const canvasRef = useRef(null);
+            const [isDragging, setIsDragging] = useState(false);
+            const [pos, setPos] = useState({ top: 0, left: 0, x: 0, y: 0 });
+
+            useEffect(() => {
+                if(canvasRef.current) {
+                    canvasRef.current.scrollTop = 250;
+                    canvasRef.current.scrollLeft = 50;
+                }
+            }, []);
+
+            const toggleNode = (nodeId) => {
+                setExpandedNodes(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(nodeId)) newSet.delete(nodeId);
+                    else newSet.add(nodeId);
+                    return newSet;
+                });
+            };
+
+            const onMouseDown = (e) => {
+                if(e.target.closest('button') || e.target.closest('a') || e.target.closest('.lesson-content')) return; 
+                setIsDragging(true);
+                setPos({ left: canvasRef.current.scrollLeft, top: canvasRef.current.scrollTop, x: e.clientX, y: e.clientY });
+            };
+            const onMouseMove = (e) => {
+                if (!isDragging) return;
+                canvasRef.current.scrollTop = pos.top - (e.clientY - pos.y);
+                canvasRef.current.scrollLeft = pos.left - (e.clientX - pos.x);
+            };
+            const onMouseUp = () => setIsDragging(false);
+
+            const renderLessonContent = () => {
+                switch(activeLesson) {
+                    case "np-intro": return <LessonNPIntro />;
+                    case "np-forms-lesson": return <LessonNPForms />;
+                    case "head-noun-lesson": return <LessonHeadNoun />;
+                    case "compound-lesson": return <LessonCompound />;
+                    case "uncountable-lesson": return <LessonUncountable />;
+                    case "singular-lesson": return <LessonSingular />;
+                    case "plural-lesson": return <LessonPlural />;
+                    case "determiners-lesson": return <LessonDeterminers />;
+                    case "quantifiers-lesson": return <LessonQuantifiers />;
+                    case "adjectives-lesson": return <LessonAdjectives />;
+                    case "prep-lesson": return <LessonPrep />;
+                    case "relative-clauses-lesson": return <LessonRelativeClause />;
+                    case "noun-clauses-lesson": return <LessonNounClause />;
+                    case "reported-speech-lesson": return <LessonReportedSpeech />;
+                    default: return <div className="mt-10 text-center text-slate-500 font-medium">Đang tải kiến thức...</div>;
+                }
+            };
+
+            return (
+                <div className="w-full h-full relative overflow-hidden bg-grid">
+                    
+                    <div className="absolute top-6 left-6 z-40 bg-white/90 backdrop-blur-md p-5 rounded-3xl shadow-sm border border-slate-200/60 pointer-events-none">
+                        <h1 className="text-3xl font-black text-slate-800 tracking-tight flex flex-col">
+                            <span>Grammar</span>
+                            <span className="text-brand-600">Knowledge Graph</span>
+                        </h1>
+                        <p className="text-sm text-slate-500 mt-2 font-medium">Kéo thả để di chuyển. Bấm Học để xem chi tiết.</p>
+                    </div>
+
+                    <div 
+                        id="canvas-container"
+                        ref={canvasRef}
+                        className="w-full h-full overflow-auto pt-[150px] pl-[40px] pb-[800px] pr-[800px]"
+                        onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}
+                    >
+                        <div className="inline-block min-w-max">
+                            <TreeNode nodeId="noun-phrase" expandedNodes={expandedNodes} toggleNode={toggleNode} openLesson={setActiveLesson} />
+                        </div>
+                    </div>
+
+                    <div className={`absolute top-0 right-0 h-full w-full md:w-[700px] bg-white/95 backdrop-blur-xl shadow-drawer border-l border-slate-200 flex flex-col z-50 transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${activeLesson ? 'translate-x-0' : 'translate-x-full'}`}>
+                        <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-white/50 shrink-0">
+                            <div className="flex items-center gap-3">
+                                <span className="w-3 h-3 rounded-full bg-brand-500 animate-pulse"></span>
+                                <span className="font-bold text-slate-800 tracking-wide uppercase text-sm">Trạm Kiến Thức Chuyên Sâu</span>
+                            </div>
+                            <button onClick={() => setActiveLesson(null)} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 font-bold transition-all">✕</button>
+                        </div>
+                        
+                        {activeLesson && (
+                            <div className="flex-1 overflow-y-auto p-8 scrollbar-hide flex flex-col">
+                                <div className="flex-1">
+                                    <GlobalErrorBoundary>
+                                        {renderLessonContent()}
+                                    </GlobalErrorBoundary>
+                                </div>
+                                <div className="mt-10 pt-6 border-t border-slate-200 shrink-0">
+                                    <a 
+                                        href={`lesson-${activeLesson}.html`} 
+                                        target="_blank"
+                                        className="block w-full text-center py-4 rounded-xl bg-slate-900 text-white font-bold text-lg hover:bg-brand-600 shadow-lg transform transition hover:-translate-y-1 cursor-pointer"
+                                    >
+                                        Học Sâu & Làm Thêm Bài Tập 🚀
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(
+            <GlobalErrorBoundary>
+                <App />
+            </GlobalErrorBoundary>
+        );
+    </script>
+</body>
+</html>
