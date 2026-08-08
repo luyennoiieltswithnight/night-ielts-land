@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Grammar: 6 Types of Determiners</title>
+
+    <!-- Google Fonts: Strictly Plus Jakarta Sans ONLY -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind & Custom CSS Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"Plus Jakarta Sans"', 'sans-serif'], 
+                    },
+                    colors: {
+                        primary: '#6366F1', // Indigo 500
+                        secondary: '#10B981', // Emerald 500
+                        warning: '#F59E0B', // Amber 500
+                        info: '#3B82F6', // Blue 500
+                        accent: '#F43F5E', // Rose 500
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 40px -10px rgba(0,0,0,0.1)',
+                        'premium': '0 20px 40px -20px rgba(99, 102, 241, 0.25)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 50%, #fdf2f8 100%);
+            color: #1e293b; 
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+        }
+        .glass-detail {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 10px 30px -10px rgba(0,0,0,0.05);
+        }
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="antialiased selection:bg-primary selection:text-white pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- UI COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-100 text-indigo-700 border-indigo-200",
+                secondary: "bg-emerald-100 text-emerald-700 border-emerald-200",
+                warning: "bg-amber-100 text-amber-700 border-amber-200",
+                accent: "bg-rose-100 text-rose-700 border-rose-200",
+                info: "bg-blue-100 text-blue-700 border-blue-200"
+            };
+            return <span className={`inline-block px-1.5 py-0.5 rounded font-bold border mx-1 ${styles[color]}`}>{children}</span>;
+        };
+
+        const Card = ({ children, className = "", title, icon, color = "primary" }) => {
+            const colors = {
+                primary: "bg-indigo-100 text-indigo-600",
+                secondary: "bg-emerald-100 text-emerald-600",
+                warning: "bg-amber-100 text-amber-600",
+                info: "bg-blue-100 text-blue-600",
+                accent: "bg-rose-100 text-rose-600"
+            };
+            return (
+                <div className={`glass rounded-3xl p-6 md:p-8 shadow-floating mb-10 ${className}`}>
+                    {title && (
+                        <div className="flex items-center gap-4 mb-6 border-b border-slate-200 pb-4">
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${colors[color]}`}>
+                                <i className={`fas ${icon}`}></i>
+                            </div>
+                            <h2 className="text-2xl font-extrabold text-slate-800 tracking-tight">{title}</h2>
+                        </div>
+                    )}
+                    {children}
+                </div>
+            );
+        };
+
+        const FlipCard = ({ front, back, question, frontColor, backColor }) => {
+            const [isFlipped, setIsFlipped] = useState(false);
+            return (
+                <div className="perspective-1000 w-full h-36 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
+                    <div className={`relative w-full h-full duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                        <div className={`absolute inset-0 backface-hidden rounded-2xl flex flex-col items-center justify-center p-4 text-center shadow-sm border border-white/50 ${frontColor}`}>
+                            <span className="font-extrabold text-lg md:text-xl">{front}</span>
+                            <span className="text-xs opacity-70 mt-2 font-medium"><i className="fas fa-hand-pointer mr-1"></i> Lật thẻ</span>
+                        </div>
+                        <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-2xl flex flex-col items-center justify-center p-4 text-center shadow-lg border border-transparent ${backColor}`}>
+                            <span className="text-xs font-bold uppercase tracking-wider opacity-80 mb-1">{question}</span>
+                            <span className="font-bold text-sm md:text-base">{back}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- EXERCISE COMPONENTS (Instant Feedback) ---
+
+        // Dạng 1: Nhận diện
+        const ExIdentify = () => {
+            const questions = [
+                { s: ["The", "student", "is", "waiting."], ans: "The" },
+                { s: ["My", "brother", "is", "a", "doctor."], ans: "My" }, 
+                { s: ["Those", "houses", "are", "expensive."], ans: "Those" },
+                { s: ["Several", "students", "were", "absent."], ans: "Several" },
+                { s: ["Three", "people", "called", "me."], ans: "Three" },
+                { s: ["Which", "book", "do", "you", "want?"], ans: "Which" },
+                { s: ["Whose", "phone", "is", "this?"], ans: "Whose" },
+                { s: ["Some", "information", "was", "missing."], ans: "Some" },
+                { s: ["Huy", "needs", "an", "apple."], ans: "an" },
+                { s: ["Any", "student", "can", "join", "the", "club."], ans: "Any" }
+            ];
+
+            const [status, setStatus] = useState({}); 
+            const handleSelect = (qIdx, word, ans) => {
+                if (status[qIdx]) return; // Đã trả lời thì khóa
+                setStatus(prev => ({ ...prev, [qIdx]: { selected: word, correct: word === ans } }));
+            };
+            const score = Object.values(status).filter(s => s.correct).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-white/50 p-4 rounded-xl border border-white mb-4">
+                        <p className="font-bold text-slate-700"><i className="fas fa-search text-primary mr-2"></i>Click vào Định từ (Determiner) trong câu.</p>
+                        <span className="font-black text-xl text-primary bg-white px-3 py-1 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q, i) => (
+                        <div key={i} className="p-4 bg-white rounded-xl border border-slate-100 flex flex-wrap gap-x-2 gap-y-2 items-center text-lg shadow-sm">
+                            <span className="text-slate-400 font-bold mr-2 text-base">{i+1}.</span>
+                            {q.s.map((word, wIdx) => {
+                                const cleanWord = word.replace(/[^a-zA-Z]/g, "");
+                                const st = status[i];
+                                
+                                let style = "cursor-pointer px-2 py-1 rounded-lg transition-colors font-medium ";
+                                if (!st) style += "hover:bg-slate-100 text-slate-700";
+                                else {
+                                    if (st.selected === cleanWord && st.correct) style += "bg-emerald-100 text-emerald-700 font-bold";
+                                    else if (st.selected === cleanWord && !st.correct) style += "bg-rose-100 text-rose-700 font-bold line-through";
+                                    else if (cleanWord === q.ans) style += "bg-emerald-50 text-emerald-600 border border-dashed border-emerald-400 font-bold";
+                                    else style += "text-slate-400";
+                                }
+                                return <span key={wIdx} onClick={() => handleSelect(i, cleanWord, q.ans)} className={style}>{word}</span>;
+                            })}
+                            {status[i] && (
+                                <span className="ml-auto text-sm font-bold">
+                                    {status[i].correct ? <span className="text-emerald-500"><i className="fas fa-check-circle"></i></span> : <span className="text-rose-500"><i className="fas fa-times-circle"></i></span>}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 2: Chọn từ
+        const ExMultipleChoice = () => {
+            const questions = [
+                { q: "Kim Phụng needs ________ umbrella because it's raining.", opts: ["a", "an", "the"], ans: "an" },
+                { q: "________ students in my class are very hardworking.", opts: ["Much", "Many", "A little"], ans: "Many" },
+                { q: "________ information provided by the guide is useful.", opts: ["These", "Some", "Many"], ans: "Some" },
+                { q: "________ book do you want to read first?", opts: ["Which", "Much", "These"], ans: "Which" },
+                { q: "Michael doesn't have ________ money left.", opts: ["many", "much", "few"], ans: "much" },
+                { q: "He has ________ friends in this new city.", opts: ["a little", "a few", "much"], ans: "a few" },
+                { q: "Look at ________ beautiful birds in the sky!", opts: ["this", "that", "those"], ans: "those" },
+                { q: "Gia Hưng is ________ honest person.", opts: ["a", "an", "the"], ans: "an" },
+                { q: "________ car is parked outside our house?", opts: ["Who", "Whose", "Which's"], ans: "Whose" },
+                { q: "I read ________ first chapter of the book.", opts: ["a", "an", "the"], ans: "the" }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qIdx, opt, ans) => {
+                if (status[qIdx]) return;
+                setStatus(prev => ({ ...prev, [qIdx]: { selected: opt, correct: opt === ans } }));
+            };
+            const score = Object.values(status).filter(s => s.correct).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-white/50 p-4 rounded-xl border border-white mb-4">
+                        <p className="font-bold text-slate-700"><i className="fas fa-mouse-pointer text-info mr-2"></i>Chọn Định từ phù hợp điền vào chỗ trống.</p>
+                        <span className="font-black text-xl text-info bg-white px-3 py-1 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q, i) => (
+                        <div key={i} className="p-4 bg-white rounded-xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+                            <span className="font-medium text-slate-800 text-lg"><span className="text-slate-400 font-bold mr-2">{i+1}.</span> {q.q}</span>
+                            <div className="flex gap-2 flex-shrink-0">
+                                {q.opts.map(opt => {
+                                    const st = status[i];
+                                    let style = "px-4 py-2 rounded-lg text-sm font-bold transition-all border-2 ";
+                                    if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-info hover:text-info";
+                                    else {
+                                        if (st.selected === opt && st.correct) style += "bg-emerald-100 border-emerald-500 text-emerald-700";
+                                        else if (st.selected === opt && !st.correct) style += "bg-rose-100 border-rose-500 text-rose-700";
+                                        else if (opt === q.ans) style += "bg-emerald-50 border-emerald-300 text-emerald-600 border-dashed";
+                                        else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                    }
+                                    return <button key={opt} onClick={() => handleSelect(i, opt, q.ans)} className={style}>{opt}</button>;
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 3: Tìm lỗi sai
+        const ExFindMistake = () => {
+            const questions = [
+                { s: ["I", "love", "the", "my", "new", "car."], errIdx: 2 }, // 2 or 3 is fine, we check 2
+                { s: ["This", "books", "are", "very", "expensive."], errIdx: 0 },
+                { s: ["These", "book", "belongs", "to", "Peter."], errIdx: 0 },
+                { s: ["I", "don’t", "have", "many", "money", "left."], errIdx: 3 },
+                { s: ["Much", "students", "like", "playing", "football."], errIdx: 0 },
+                { s: ["She", "always", "eats", "a", "apple", "every day."], errIdx: 3 },
+                { s: ["That", "people", "are", "waiting", "for", "the", "bus."], errIdx: 0 },
+                { s: ["Give", "me", "some", "informations", "about", "it."], errIdx: 3 },
+                { s: ["A", "hour", "has", "passed", "since", "you", "left."], errIdx: 0 },
+                { s: ["Those", "pen", "on", "the", "table", "is", "mine."], errIdx: 0 }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qIdx, wIdx, errIdx) => {
+                if (status[qIdx]) return;
+                const isCorrect = (wIdx === errIdx) || (qIdx === 0 && wIdx === 3); // exception for "the my"
+                setStatus(prev => ({ ...prev, [qIdx]: { selected: wIdx, correct: isCorrect } }));
+            };
+            const score = Object.values(status).filter(s => s.correct).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-white/50 p-4 rounded-xl border border-white mb-4">
+                        <p className="font-bold text-slate-700"><i className="fas fa-times-circle text-accent mr-2"></i>Click vào <b>1 từ</b> làm sai cấu trúc Ngữ pháp.</p>
+                        <span className="font-black text-xl text-accent bg-white px-3 py-1 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q, i) => (
+                        <div key={i} className="p-4 bg-white rounded-xl border border-slate-100 flex flex-wrap gap-x-1.5 gap-y-2 items-center text-lg shadow-sm">
+                            <span className="text-slate-400 font-bold mr-2 text-base">{i+1}.</span>
+                            {q.s.map((word, wIdx) => {
+                                const st = status[i];
+                                const isActualError = wIdx === q.errIdx || (i === 0 && wIdx === 3);
+                                
+                                let style = "cursor-pointer px-2 py-1 rounded-lg transition-colors font-medium ";
+                                if (!st) style += "hover:bg-slate-100 text-slate-700";
+                                else {
+                                    if (st.selected === wIdx && st.correct) style += "bg-emerald-100 text-emerald-700 font-bold";
+                                    else if (st.selected === wIdx && !st.correct) style += "bg-rose-100 text-rose-700 font-bold line-through";
+                                    else if (isActualError) style += "bg-emerald-50 text-emerald-600 border border-dashed border-emerald-400 font-bold";
+                                    else style += "text-slate-400";
+                                }
+                                return <span key={wIdx} onClick={() => handleSelect(i, wIdx, q.errIdx)} className={style}>{word}</span>;
+                            })}
+                            {status[i] && (
+                                <span className="ml-auto text-sm font-bold">
+                                    {status[i].correct ? <span className="text-emerald-500"><i className="fas fa-check-circle"></i></span> : <span className="text-rose-500"><i className="fas fa-times-circle"></i></span>}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 4: Determiner hay Pronoun?
+        const ExDetVsPro = () => {
+            const questions = [
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">This</u> is my car.</React.Fragment>, ans: "P" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">This</u> car is mine.</React.Fragment>, ans: "D" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">Which</u> do you want to eat?</React.Fragment>, ans: "P" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">Which</u> shirt do you like?</React.Fragment>, ans: "D" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">Some</u> people arrived early.</React.Fragment>, ans: "D" },
+                { s: <React.Fragment>I was hungry, so I ate <u className="font-bold text-warning border-b-2 border-warning">some</u>.</React.Fragment>, ans: "P" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">Whose</u> are these shoes?</React.Fragment>, ans: "P" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">Whose</u> bag is that on the table?</React.Fragment>, ans: "D" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">Many</u> are called, but few are chosen.</React.Fragment>, ans: "P" },
+                { s: <React.Fragment><u className="font-bold text-warning border-b-2 border-warning">Many</u> applicants were rejected.</React.Fragment>, ans: "D" }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qIdx, opt, ans) => {
+                if (status[qIdx]) return;
+                setStatus(prev => ({ ...prev, [qIdx]: { selected: opt, correct: opt === ans } }));
+            };
+            const score = Object.values(status).filter(s => s.correct).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-white/50 p-4 rounded-xl border border-white mb-4">
+                        <p className="font-bold text-slate-700"><i className="fas fa-code-branch text-warning mr-2"></i>Từ được gạch chân là Định từ (D) hay Đại từ (P)?</p>
+                        <span className="font-black text-xl text-warning bg-white px-3 py-1 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {questions.map((q, i) => (
+                            <div key={i} className="p-5 bg-white rounded-xl border border-slate-100 flex flex-col justify-between gap-4 shadow-sm">
+                                <span className="font-medium text-slate-800 text-lg"><span className="text-slate-400 font-bold mr-2">{i+1}.</span> {q.s}</span>
+                                <div className="flex gap-2 mt-auto">
+                                    {['D', 'P'].map(opt => {
+                                        const st = status[i];
+                                        let style = "flex-1 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-warning";
+                                        else {
+                                            if (st.selected === opt && st.correct) style += "bg-emerald-100 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.correct) style += "bg-rose-100 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-emerald-50 border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(i, opt, q.ans)} className={style}>{opt === 'D' ? 'Determiner' : 'Pronoun'}</button>;
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Dạng 5: Tìm Head Noun
+        const ExHeadNoun = () => {
+            const questions = [
+                { s: ["those", "three", "beautiful", "old", "houses", "near", "my", "school"], ans: "houses" },
+                { s: ["my", "two", "new", "English", "books"], ans: "books" },
+                { s: ["the", "increasing", "number", "of", "international", "students"], ans: "number" },
+                { s: ["an", "extremely", "difficult", "math", "test"], ans: "test" },
+                { s: ["all", "the", "young", "people", "in", "this", "country"], ans: "people" },
+                { s: ["some", "very", "expensive", "sports", "cars"], ans: "cars" },
+                { s: ["his", "highly", "successful", "business", "model"], ans: "model" },
+                { s: ["the", "first", "few", "days", "of", "the", "month"], ans: "days" },
+                { s: ["a", "very", "cute", "little", "dog"], ans: "dog" },
+                { s: ["several", "major", "environmental", "problems"], ans: "problems" }
+            ];
+
+            const [status, setStatus] = useState({}); 
+            const handleSelect = (qIdx, word, ans) => {
+                if (status[qIdx]) return; 
+                setStatus(prev => ({ ...prev, [qIdx]: { selected: word, correct: word === ans } }));
+            };
+            const score = Object.values(status).filter(s => s.correct).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-white/50 p-4 rounded-xl border border-white mb-4">
+                        <p className="font-bold text-slate-700"><i className="fas fa-crown text-secondary mr-2"></i>Click vào <b>Danh từ trung tâm (Head Noun)</b> trong cụm.</p>
+                        <span className="font-black text-xl text-secondary bg-white px-3 py-1 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q, i) => (
+                        <div key={i} className="p-4 bg-white rounded-xl border border-slate-100 flex flex-wrap gap-x-2 gap-y-2 items-center text-lg shadow-sm">
+                            <span className="text-slate-400 font-bold mr-2 text-base">{i+1}.</span>
+                            {q.s.map((word, wIdx) => {
+                                const cleanWord = word.replace(/[^a-zA-Z]/g, "");
+                                const st = status[i];
+                                
+                                let style = "cursor-pointer px-2 py-1 rounded-lg transition-colors font-medium ";
+                                if (!st) style += "hover:bg-slate-100 text-slate-700";
+                                else {
+                                    if (st.selected === cleanWord && st.correct) style += "bg-emerald-100 text-emerald-700 font-bold";
+                                    else if (st.selected === cleanWord && !st.correct) style += "bg-rose-100 text-rose-700 font-bold line-through";
+                                    else if (cleanWord === q.ans) style += "bg-emerald-50 text-emerald-600 border border-dashed border-emerald-400 font-bold";
+                                    else style += "text-slate-400";
+                                }
+                                return <span key={wIdx} onClick={() => handleSelect(i, cleanWord, q.ans)} className={style}>{word}</span>;
+                            })}
+                            {status[i] && (
+                                <span className="ml-auto text-sm font-bold">
+                                    {status[i].correct ? <span className="text-emerald-500"><i className="fas fa-check-circle"></i></span> : <span className="text-rose-500"><i className="fas fa-times-circle"></i></span>}
+                                </span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            const tabs = [
+                { id: 0, title: "Nhận diện", icon: "fa-search", color: "bg-primary" },
+                { id: 1, title: "Chọn từ", icon: "fa-mouse-pointer", color: "bg-info" },
+                { id: 2, title: "Tìm lỗi sai", icon: "fa-times-circle", color: "bg-accent" },
+                { id: 3, title: "Phân loại", icon: "fa-code-branch", color: "bg-warning" },
+                { id: 4, title: "Tìm Head Noun", icon: "fa-crown", color: "bg-secondary" }
+            ];
+
+            return (
+                <div className="max-w-5xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    {/* Hero Section */}
+                    <header className="text-center mb-16 relative">
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/20 rounded-full blur-3xl -z-10"></div>
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-5 rounded-full bg-white border border-slate-200 text-slate-600 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            <i className="fas fa-door-open text-primary mr-2"></i> VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-5 leading-tight">
+                            Làm chủ <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-info to-secondary">6 Loại Định Từ</span>
+                        </h1>
+                        <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            Định từ (Determiner) chính là "cánh cửa" mở vào cụm danh từ. Hiểu bản chất, xác định vị trí để không bao giờ bị rối khi phân tích Noun Phrase dài!
+                        </p>
+                    </header>
+
+                    {/* NEW: SECTION 0 - Bản chất & Vị trí (Khôi phục) */}
+                    <Card title="Khởi động: Bản chất của Định Từ" icon="fa-seedling" color="secondary">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div>
+                                <h3 className="font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">1. Định từ là gì?</h3>
+                                <p className="text-slate-600 text-sm mb-3">Hãy nhìn hai câu này:</p>
+                                <div className="bg-rose-50 text-rose-700 p-2 rounded-lg text-sm mb-2 font-bold line-through border border-rose-100">I bought book.</div>
+                                <div className="bg-emerald-50 text-emerald-700 p-2 rounded-lg text-sm mb-4 font-bold border border-emerald-100">I bought <u className="decoration-emerald-500">a</u> book.</div>
+                                <p className="text-slate-600 text-sm mb-4">Câu đầu tiên sai vì "book" là danh từ đếm được số ít, nhưng người nghe chưa biết: <i>Cuốn nào? Một cuốn bất kỳ? Của ai?</i></p>
+                                <p className="text-slate-600 text-sm"><Highlight color="secondary">a</Highlight> ở câu dưới chính là <b>Determiner</b>, giúp xác định danh từ phía sau.</p>
+                            </div>
+                            
+                            <div>
+                                <h3 className="font-bold text-slate-800 mb-3 border-b border-slate-200 pb-2">2. Hãy hình dung nó như "Cánh cửa"</h3>
+                                <ul className="space-y-2 text-sm font-bold text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                    <li><Highlight color="primary">a</Highlight> car <i className="fas fa-arrow-right mx-2 text-slate-400"></i> một chiếc bất kỳ</li>
+                                    <li><Highlight color="info">the</Highlight> car <i className="fas fa-arrow-right mx-2 text-slate-400"></i> chiếc cụ thể đó</li>
+                                    <li><Highlight color="accent">my</Highlight> car <i className="fas fa-arrow-right mx-2 text-slate-400"></i> xe của tôi</li>
+                                    <li><Highlight color="warning">this</Highlight> car <i className="fas fa-arrow-right mx-2 text-slate-400"></i> chiếc xe này</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div className="mt-8 bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                            <h3 className="font-bold text-blue-800 mb-3"><i className="fas fa-sitemap mr-2"></i>3. Vị trí: Đừng hiểu nhầm "Luôn đứng sát Danh từ"</h3>
+                            <p className="text-slate-700 text-sm mb-3">Quy tắc vàng: <b>Determiner → Adjective(s) → Noun</b></p>
+                            <div className="bg-white p-3 rounded-lg border border-blue-200 font-mono text-sm mb-3">
+                                <span className="text-blue-600 font-bold">the</span> <span className="text-slate-400 mx-1">+</span> <span className="text-amber-500">beautiful old</span> <span className="text-slate-400 mx-1">+</span> <span className="text-emerald-600 font-bold">house</span>
+                            </div>
+                            <p className="text-xs text-slate-500"><i className="fas fa-exclamation-triangle text-amber-500 mr-1"></i> Bẫy nguy hiểm: Không được dùng <span className="line-through text-rose-500 font-bold mx-1">the my new car</span>. Mạo từ và Sở hữu từ tranh giành cùng một vị trí "Cánh cửa", không được đứng cạnh nhau!</p>
+                        </div>
+                    </Card>
+
+                    {/* Section 1: Flip Cards (Overview) */}
+                    <Card title="Hệ thống 6 Nhóm Định Từ" icon="fa-layer-group" color="primary">
+                        <p className="text-slate-600 font-medium mb-6">Đừng học thuộc lòng, hãy ghi nhớ thông qua <b>Câu hỏi</b> mà nó giải quyết. Lật thẻ để xem tóm tắt, sau đó kéo xuống để xem giải thích chuyên sâu bên dưới.</p>
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                            <FlipCard front="1. Mạo từ (Articles)" question="Xác định hay không?" back="a, an, the" frontColor="bg-white text-indigo-700" backColor="bg-indigo-600 text-white" />
+                            <FlipCard front="2. Chỉ định (Demonstratives)" question="Cái nào? Gần/Xa?" back="this, that, these, those" frontColor="bg-white text-emerald-700" backColor="bg-emerald-500 text-white" />
+                            <FlipCard front="3. Sở hữu (Possessives)" question="Của ai?" back="my, your, his, her, their..." frontColor="bg-white text-rose-700" backColor="bg-rose-500 text-white" />
+                            <FlipCard front="4. Lượng từ (Quantifiers)" question="Bao nhiêu?" back="some, any, much, many, few..." frontColor="bg-white text-amber-700" backColor="bg-amber-500 text-white" />
+                            <FlipCard front="5. Số từ (Numerals)" question="Số lượng / Thứ tự?" back="one, two, first, second..." frontColor="bg-white text-blue-700" backColor="bg-blue-500 text-white" />
+                            <FlipCard front="6. Nghi vấn (Interrogatives)" question="Đang hỏi thông tin gì?" back="which, what, whose" frontColor="bg-white text-purple-700" backColor="bg-purple-500 text-white" />
+                        </div>
+                    </Card>
+
+                    {/* Section 2: Deep Dive Article Blocks */}
+                    <div className="mb-16">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* Deep Dive 1: Articles */}
+                            <div className="glass-detail p-6 rounded-3xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full"></div>
+                                <h3 className="text-xl font-bold text-indigo-700 mb-4 border-b border-indigo-100 pb-2">1. Mạo Từ (Articles)</h3>
+                                <p className="text-slate-600 text-sm mb-4">Trả lời: Danh từ đã được <b>xác định cụ thể chưa?</b></p>
+                                <ul className="space-y-3 text-sm font-medium text-slate-700">
+                                    <li><Highlight color="primary">A / An</Highlight> Chưa xác định. Dùng <b>An</b> dựa vào <u className="decoration-indigo-400">âm thanh</u>, không phải mặt chữ. <br/><span className="text-indigo-600 block mt-1"><i className="fas fa-check mr-1"></i> a university (âm /j/) | <i className="fas fa-check mr-1"></i> an hour (âm /aʊ/)</span></li>
+                                    <li className="pt-2 border-t border-indigo-50"><Highlight color="primary">The</Highlight> Dùng khi người nghe đã biết đối tượng đó là cái nào.</li>
+                                </ul>
+                            </div>
+
+                            {/* Deep Dive 2: Demonstratives */}
+                            <div className="glass-detail p-6 rounded-3xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full"></div>
+                                <h3 className="text-xl font-bold text-emerald-700 mb-4 border-b border-emerald-100 pb-2">2. Chỉ Định (Demonstratives)</h3>
+                                <p className="text-slate-600 text-sm mb-4">Trả lời: Vật này nằm ở <b>Gần hay Xa</b>, <b>Ít hay Nhiều</b>?</p>
+                                <div className="grid grid-cols-2 gap-2 text-center text-sm font-bold mb-4">
+                                    <div className="bg-emerald-50 p-2 rounded text-emerald-700 border border-emerald-100">Gần: This (ít), These (nhiều)</div>
+                                    <div className="bg-slate-50 p-2 rounded text-slate-600 border border-slate-200">Xa: That (ít), Those (nhiều)</div>
+                                </div>
+                                <div className="bg-amber-50 text-amber-800 p-3 rounded-lg border border-amber-200 text-sm font-medium">
+                                    <p className="font-bold mb-1"><i className="fas fa-exclamation-triangle mr-1"></i> Phân biệt Determiner vs Pronoun</p>
+                                    <p>• <b>Determiner:</b> <Highlight color="secondary">This</Highlight> book is interesting. <i>(+ Noun)</i></p>
+                                    <p>• <b>Pronoun:</b> This is interesting. <i>(Đứng một mình)</i></p>
+                                </div>
+                            </div>
+
+                            {/* Deep Dive 3: Possessives */}
+                            <div className="glass-detail p-6 rounded-3xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-bl-full"></div>
+                                <h3 className="text-xl font-bold text-rose-700 mb-4 border-b border-rose-100 pb-2">3. Sở Hữu (Possessives)</h3>
+                                <p className="text-slate-600 text-sm mb-4">Trả lời: Đồ vật này <b>thuộc về ai?</b></p>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <Highlight color="accent">my</Highlight> <Highlight color="accent">your</Highlight> <Highlight color="accent">his</Highlight> <Highlight color="accent">her</Highlight> <Highlight color="accent">its</Highlight> <Highlight color="accent">our</Highlight> <Highlight color="accent">their</Highlight>
+                                </div>
+                                <div className="bg-slate-50 text-slate-700 p-3 rounded-lg border border-slate-200 text-sm font-medium">
+                                    <p className="font-bold text-rose-600 mb-1"><i className="fas fa-bolt mr-1"></i> Sở hữu Định từ ≠ Sở hữu Đại từ</p>
+                                    <p>• <Highlight color="accent">My</Highlight> car <i>(Định từ - Bắt buộc có Noun đi sau)</i></p>
+                                    <p>• This car is <b>mine</b> <i>(Đại từ - Đứng 1 mình)</i></p>
+                                </div>
+                            </div>
+
+                            {/* Deep Dive 4: Quantifiers */}
+                            <div className="glass-detail p-6 rounded-3xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-bl-full"></div>
+                                <h3 className="text-xl font-bold text-amber-700 mb-4 border-b border-amber-100 pb-2">4. Lượng Từ (Quantifiers)</h3>
+                                <p className="text-slate-600 text-sm mb-4">Trả lời: Có <b>bao nhiêu?</b></p>
+                                <ul className="space-y-3 text-sm font-medium text-slate-700">
+                                    <li><Highlight color="warning">Some / Any</Highlight> Some (Khẳng định/mời mọc). Any (Hỏi/Phủ định).</li>
+                                    <li><Highlight color="warning">Many / Few</Highlight> + Danh từ đếm được số nhiều.</li>
+                                    <li><Highlight color="warning">Much / Little</Highlight> + Danh từ không đếm được.</li>
+                                </ul>
+                            </div>
+
+                            {/* Deep Dive 5: Numerals */}
+                            <div className="glass-detail p-6 rounded-3xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full"></div>
+                                <h3 className="text-xl font-bold text-blue-700 mb-4 border-b border-blue-100 pb-2">5. Số Từ (Numerals)</h3>
+                                <p className="text-slate-600 text-sm mb-4">Trả lời: Có <b>Mấy cái</b> (Số đếm) hoặc Đứng <b>Thứ mấy</b> (Thứ tự)?</p>
+                                <div className="grid grid-cols-2 gap-2 text-sm font-medium text-slate-700 mb-4">
+                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                        <p className="font-bold text-blue-700 mb-1">Số đếm (Cardinal)</p>
+                                        <p>one, two, three...</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <p className="font-bold text-slate-700 mb-1">Số thứ tự (Ordinal)</p>
+                                        <p>first, second, third...</p>
+                                    </div>
+                                </div>
+                                <p className="text-xs text-slate-500 bg-white p-2 rounded border border-slate-100"><i className="fas fa-info-circle text-blue-500 mr-1"></i> Trong <b>"the first book"</b>, <b>the</b> mới là Định từ chính, <b>first</b> là Modifier bổ nghĩa cho book.</p>
+                            </div>
+
+                            {/* Deep Dive 6: Interrogatives */}
+                            <div className="glass-detail p-6 rounded-3xl relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-full"></div>
+                                <h3 className="text-xl font-bold text-purple-700 mb-4 border-b border-purple-100 pb-2">6. Nghi Vấn (Interrogatives)</h3>
+                                <p className="text-slate-600 text-sm mb-4">Dùng khi đặt câu hỏi để xác định đối tượng.</p>
+                                <ul className="space-y-3 text-sm font-medium text-slate-700">
+                                    <li><Highlight color="primary">Which</Highlight> Lựa chọn bị giới hạn <i>(Which color do you prefer?)</i></li>
+                                    <li><Highlight color="primary">What</Highlight> Hỏi thông tin rộng <i>(What book are you reading?)</i></li>
+                                    <li><Highlight color="primary">Whose</Highlight> Hỏi về quyền sở hữu <i>(Whose phone is ringing?)</i></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs) */}
+                    <div id="exercises" className="glass rounded-3xl p-6 md:p-8 shadow-premium mb-12 border-2 border-white">
+                        <div className="text-center mb-10">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-2"><i className="fas fa-gamepad text-primary mr-3"></i>Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Chạm vào là biết đúng sai ngay! Các học trò nhà VocaFlow cùng test trình độ nào.</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-300/50 pb-4">
+                            {tabs.map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2
+                                    ${activeTab === index 
+                                        ? `${tab.color} text-white shadow-lg scale-105` 
+                                        : `bg-white/50 text-slate-600 hover:bg-white`}`}
+                                >
+                                    <i className={`fas ${tab.icon}`}></i> {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExIdentify />}
+                            {activeTab === 1 && <ExMultipleChoice />}
+                            {activeTab === 2 && <ExFindMistake />}
+                            {activeTab === 3 && <ExDetVsPro />}
+                            {activeTab === 4 && <ExHeadNoun />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Prepositional Phrases Masterclass</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (CDNJS) -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        primary: '#4f46e5', 
+                        secondary: '#10B981', 
+                        warning: '#F59E0B', 
+                        danger: '#F43F5E', 
+                        info: '#3B82F6', 
+                        brandDark: '#1e1b4b' 
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 50%, #fdf2f8 100%);
+            color: #334155; 
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; transform-origin: top; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: scaleY(0.95); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900 pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- PURE INLINE SVGS ---
+        const SvgCheck = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>;
+        const SvgCross = () => <svg className="w-5 h-5 text-rose-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>;
+        const SvgWarning = () => <svg className="w-5 h-5 text-amber-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>;
+        const SvgInfo = () => <svg className="w-5 h-5 text-indigo-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>;
+        const SvgChevron = ({ isOpen }) => <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
+        const SvgBook = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>;
+        const SvgTarget = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>;
+
+        // --- FORMATTING COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-50 text-indigo-700",
+                secondary: "bg-emerald-50 text-emerald-700",
+                warning: "bg-amber-50 text-amber-700",
+                danger: "bg-rose-50 text-rose-700",
+                info: "bg-blue-50 text-blue-700"
+            };
+            return <span className={`inline-block px-2 py-0.5 rounded font-semibold text-[15px] border border-slate-200 ${styles[color]}`}>{children}</span>;
+        };
+        
+        const ExampleBox = ({ children }) => (
+            <div className="bg-white border-l-4 border-indigo-500 p-4 my-4 rounded-r-lg text-slate-700 text-[15px] shadow-sm">
+                {children}
+            </div>
+        );
+
+        const NoteBox = ({ children, type = "info" }) => {
+            const styles = {
+                warning: "bg-amber-50 border-amber-200 text-amber-900",
+                info: "bg-indigo-50 border-indigo-200 text-indigo-900",
+                danger: "bg-rose-50 border-rose-200 text-rose-900"
+            };
+            const icons = {
+                warning: <SvgWarning />,
+                info: <SvgInfo />,
+                danger: <SvgCross />
+            };
+            return (
+                <div className={`border p-4 my-4 rounded-xl flex items-start text-[15px] ${styles[type]}`}>
+                    <div className="mt-0.5 shrink-0">{icons[type]}</div>
+                    <div className="ml-2 w-full">{children}</div>
+                </div>
+            );
+        };
+
+        const Point = ({ num, title, children, isLast }) => (
+            <div className={`pb-8 mb-8 ${!isLast ? 'border-b border-dashed border-slate-300' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                    <span className="bg-indigo-600 text-white font-extrabold px-3 py-1.5 rounded-lg text-sm shadow-sm">Mục {num}</span>
+                    <h3 className="font-extrabold text-slate-800 text-lg tracking-wide uppercase">{title}</h3>
+                </div>
+                <div className="text-slate-600 text-base leading-relaxed space-y-3">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Accordion = ({ title, children }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="mb-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-all">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 md:p-6 flex justify-between items-center text-left bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-indigo-600 shadow-sm">
+                                <SvgBook />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+                        </div>
+                        <SvgChevron isOpen={isOpen} />
+                    </button>
+                    {isOpen && <div className="p-6 md:p-8 bg-white slide-down">{children}</div>}
+                </div>
+            );
+        };
+
+        const ExplanationBox = ({ isCorrect, exp }) => (
+            <div className={`mt-4 p-4 rounded-xl text-[15px] font-medium border flex items-start gap-3 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                <div className="mt-0.5 shrink-0">
+                    {isCorrect ? <SvgCheck /> : <SvgCross />}
+                </div>
+                <div className="w-full">
+                    <strong className="block mb-1">{isCorrect ? "Chính xác!" : "Sai rồi!"}</strong>
+                    {exp}
+                </div>
+            </div>
+        );
+
+        // --- EXERCISE COMPONENTS ---
+
+        // Dạng 1: Xác định Head Noun và Cụm giới từ
+        const ExIdentify = () => {
+            const questions = [
+                { id: 1, q: "The girl in the red dress is my sister.", opts: ["girl", "dress", "sister"], ans: "girl", exp: "Head noun là 'girl'. Cụm 'in the red dress' bổ nghĩa cho girl." },
+                { id: 2, q: "The book on the table is mine.", opts: ["book", "table", "mine"], ans: "book", exp: "Head noun là 'book'. Cụm 'on the table' trả lời cho câu hỏi 'Which book?'." },
+                { id: 3, q: "The boy with glasses is my student.", opts: ["boy", "glasses", "student"], ans: "boy", exp: "Head noun là 'boy'. Cụm 'with glasses' là post-modifier." },
+                { id: 4, q: "The students from Vietnam are smart.", opts: ["students", "Vietnam", "smart"], ans: "students", exp: "Head noun là 'students'. Cụm 'from Vietnam' chỉ nguồn gốc." },
+                { id: 5, q: "The house near the park is expensive.", opts: ["house", "park", "expensive"], ans: "house", exp: "Head noun là 'house'. Cụm 'near the park' chỉ vị trí." },
+                { id: 6, q: "The manager of the company is kind.", opts: ["manager", "company", "kind"], ans: "manager", exp: "Head noun là 'manager'. Cụm 'of the company' chỉ mối quan hệ." },
+                { id: 7, q: "A machine for cutting wood.", opts: ["machine", "cutting", "wood"], ans: "machine", exp: "Head noun là 'machine'. Cụm 'for cutting wood' chỉ mục đích." },
+                { id: 8, q: "A table made of wood.", opts: ["table", "made", "wood"], ans: "table", exp: "Head noun là 'table'. Cụm 'made of wood' chỉ chất liệu." },
+                { id: 9, q: "Information from the Internet.", opts: ["Information", "from", "Internet"], ans: "Information", exp: "Head noun là 'Information'. Cụm 'from the Internet' chỉ nguồn (source)." },
+                { id: 10, q: "The capital of Vietnam is Hanoi.", opts: ["capital", "Vietnam", "Hanoi"], ans: "capital", exp: "Head noun là 'capital'. Cụm 'of Vietnam' là post-modifier." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 1: Xác định Danh từ chính (Head Noun) trong Cụm giới từ bổ nghĩa</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-slate-800 text-lg"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex flex-wrap gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-[15px] font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-indigo-500 hover:text-indigo-600";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 2: Chọn Giới từ đúng
+        const ExPrepositions = () => {
+            const questions = [
+                { id: 1, q: "The girl ________ the red dress is my friend.", opts: ["on", "in", "by"], ans: "in", exp: "'in' dùng cho trang phục (mặc váy đỏ)." },
+                { id: 2, q: "The boy ________ glasses is my brother.", opts: ["with", "at", "from"], ans: "with", exp: "'with' chỉ đặc điểm/mang theo (đeo kính)." },
+                { id: 3, q: "The book ________ the table is mine.", opts: ["on", "by", "from"], ans: "on", exp: "'on' chỉ vị trí trên bề mặt (trên bàn)." },
+                { id: 4, q: "The novel was written ________ Jane Austen.", opts: ["in", "with", "by"], ans: "by", exp: "'by' + person chỉ tác giả/người tạo ra." },
+                { id: 5, q: "The name ________ the student is David.", opts: ["for", "of", "in"], ans: "of", exp: "'of' chỉ sự sở hữu/quan hệ (tên CỦA học sinh)." },
+                { id: 6, q: "We need a room ________ meetings.", opts: ["for", "of", "with"], ans: "for", exp: "'for' chỉ mục đích (phòng DÀNH CHO họp)." },
+                { id: 7, q: "A ring made ________ gold.", opts: ["from", "of", "by"], ans: "of", exp: "'made of' dùng khi vật liệu chưa bị biến đổi (vàng)." },
+                { id: 8, q: "Wine made ________ grapes.", opts: ["from", "of", "in"], ans: "from", exp: "'made from' dùng khi vật liệu đã bị biến đổi hình dạng/tính chất (nho thành rượu)." },
+                { id: 9, q: "The man ________ the door is waiting for you.", opts: ["at", "in", "on"], ans: "at", exp: "'at' chỉ một điểm vị trí cụ thể (tại cửa)." },
+                { id: 10, q: "The students ________ Vietnam are studying hard.", opts: ["by", "with", "from"], ans: "from", exp: "'from' chỉ nguồn gốc (từ Việt Nam)." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 2: Chọn Giới từ phù hợp với Ngữ cảnh</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex flex-col gap-4">
+                                <span className="font-bold text-slate-800 text-lg"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex flex-col gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "text-left px-5 py-3 rounded-lg text-[15px] font-semibold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-700 hover:border-indigo-500 hover:bg-indigo-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-800";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-800";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 3: Bẫy Subject-Verb Agreement (Mục 42-45, 63-64)
+        const ExAgreement = () => {
+            const questions = [
+                { id: 1, q: "The group of students ________ ready.", opts: ["is", "are"], ans: "is", exp: "Head noun là 'group' (số ít) -> Chia 'is'." },
+                { id: 2, q: "The students in the classroom ________ ready.", opts: ["is", "are"], ans: "are", exp: "Head noun là 'students' (số nhiều) -> Chia 'are'." },
+                { id: 3, q: "The number of students in this school ________ increasing.", opts: ["is", "are"], ans: "is", exp: "Head noun là 'number' -> Chia 'is'." },
+                { id: 4, q: "The effects of social media on young people ________ significant.", opts: ["is", "are"], ans: "are", exp: "Head noun là 'effects' (số nhiều) -> Chia 'are'. Đừng nhầm với 'social media'." },
+                { id: 5, q: "The development of new technologies ________ created opportunities.", opts: ["has", "have"], ans: "has", exp: "Head noun là 'development' (số ít) -> Chia 'has'. Bỏ qua cụm 'of new technologies'." },
+                { id: 6, q: "The information from several reliable sources ________ useful.", opts: ["is", "are"], ans: "is", exp: "Head noun là 'information' (số ít/không đếm được) -> Chia 'is'." },
+                { id: 7, q: "The book on the tables ________ mine.", opts: ["is", "are"], ans: "is", exp: "Head noun là 'book' (số ít) -> Chia 'is'." },
+                { id: 8, q: "The members of the team ________ working hard.", opts: ["is", "are"], ans: "are", exp: "Head noun là 'members' (số nhiều) -> Chia 'are'." },
+                { id: 9, q: "A bottle of water ________ on the desk.", opts: ["is", "are"], ans: "is", exp: "Head noun là 'bottle' (số ít) -> Chia 'is'." },
+                { id: 10, q: "The students of this university ________ smart.", opts: ["is", "are"], ans: "are", exp: "Head noun là 'students' (số nhiều) -> Chia 'are'." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 3: Bẫy Subject-Verb Agreement (Chọn động từ hòa hợp với Head Noun)</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-slate-800 text-lg"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border transition-all ";
+                                        if (!st) style += "bg-white border-slate-300 text-slate-600 hover:border-indigo-500 hover:text-indigo-600";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 4: Giải mã Noun Phrase (Head-first reading)
+        const ExAnalysis = () => {
+            const questions = [
+                { id: 1, q: "the new students from a university in Vietnam", opts: ["students", "university", "Vietnam"], ans: "students", exp: "Head noun là 'students'. Phần còn lại bổ nghĩa cho students." },
+                { id: 2, q: "the development of renewable energy in developing countries", opts: ["development", "energy", "countries"], ans: "development", exp: "Head noun là 'development'. Nó là sự phát triển CỦA năng lượng tái tạo." },
+                { id: 3, q: "the impact of social media on young people", opts: ["impact", "media", "people"], ans: "impact", exp: "Head noun là 'impact' (sức ảnh hưởng)." },
+                { id: 4, q: "the book on the table in the classroom", opts: ["book", "table", "classroom"], ans: "book", exp: "Head noun là 'book'. (Quyển sách ở trên bàn ở trong lớp)." },
+                { id: 5, q: "a motivated IELTS student from Vietnam with excellent skills", opts: ["student", "Vietnam", "skills"], ans: "student", exp: "Head noun là 'student'. Mọi thứ bao quanh để mô tả học sinh đó." },
+                { id: 6, q: "the beautiful young football player from Vietnam with glasses", opts: ["player", "Vietnam", "glasses"], ans: "player", exp: "Head noun là 'player'. Đây là cốt lõi của việc đọc Noun Phrase." },
+                { id: 7, q: "a method for improving pronunciation", opts: ["method", "improving", "pronunciation"], ans: "method", exp: "Head noun là 'method' (phương pháp để làm gì đó)." },
+                { id: 8, q: "the problem of finding accommodation", opts: ["problem", "finding", "accommodation"], ans: "problem", exp: "Head noun là 'problem' (vấn đề của việc tìm chỗ ở)." },
+                { id: 9, q: "the researchers from several European universities", opts: ["researchers", "universities", "European"], ans: "researchers", exp: "Head noun là 'researchers' (các nhà nghiên cứu)." },
+                { id: 10, q: "the name of the student in the front row", opts: ["name", "student", "row"], ans: "name", exp: "Head noun là 'name' (Tên của ai đó)." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 4: Giải mã Noun Phrase (Đọc từ phải sang trái, tìm Head Noun)</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col gap-4">
+                                <span className="font-bold text-slate-800 text-lg"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex flex-col md:flex-row gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "text-left px-5 py-3 rounded-lg text-sm font-semibold border-2 transition-all w-full ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-700 hover:border-indigo-500 hover:bg-indigo-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-800";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-800";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 5: Lỗi sai & Cấu trúc Nâng cao
+        const ExAdvanced = () => {
+            const questions = [
+                { id: 1, s: ["I", "went", "with", "I", "friends."], errIdx: 3, exp: "Sau giới từ (with) phải dùng Object Pronoun (me), không dùng Subject Pronoun (I)." },
+                { id: 2, s: ["This", "gift", "is", "for", "he."], errIdx: 4, exp: "Tương tự, sau 'for' phải dùng 'him'." },
+                { id: 3, s: ["The", "secret", "between", "we."], errIdx: 3, exp: "Sau 'between' phải dùng 'us'." },
+                { id: 4, s: ["The", "problem", "of", "find", "accommodation."], errIdx: 3, exp: "Sau giới từ (of) nếu là động từ thì phải dùng V-ing (finding)." },
+                { id: 5, q: "The building's roof is damaged.", opts: ["Đúng", "Kém tự nhiên"], ans: "Kém tự nhiên", exp: "Với đồ vật, dùng 'the roof of the building' sẽ tự nhiên và formal hơn trong nhiều ngữ cảnh." },
+                { id: 6, q: "A machine for cut wood.", opts: ["Đúng", "Sai"], ans: "Sai", exp: "Sau giới từ 'for' chỉ mục đích phải là V-ing: 'for cutting'." },
+                { id: 7, q: "The boy with glasses is my student.", opts: ["Prepositional Phrase", "Relative Clause"], ans: "Prepositional Phrase", exp: "Cụm 'with glasses' là cụm giới từ đóng vai trò post-modifier." },
+                { id: 8, q: "The boy who is wearing glasses.", opts: ["Prepositional Phrase", "Relative Clause"], ans: "Relative Clause", exp: "Sử dụng 'who is wearing' là mệnh đề quan hệ (Relative Clause)." },
+                { id: 9, q: "Before the class...", opts: ["Preposition", "Conjunction"], ans: "Preposition", exp: "'Before' đi với Noun Phrase (the class) -> nó là Giới từ (Preposition)." },
+                { id: 10, q: "Before the class started...", opts: ["Preposition", "Conjunction"], ans: "Conjunction", exp: "'Before' đi với Mệnh đề (the class started) -> nó là Liên từ (Conjunction)." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 5: Cấu trúc Nâng cao & Lỗi Ngữ pháp</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id || q.q} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            {q.s ? (
+                                <div className="flex flex-col gap-4">
+                                    <span className="font-bold text-slate-800 text-lg mb-2"><span className="text-slate-400 mr-2">{q.id}.</span> Click vào 1 từ SAI trong câu:</span>
+                                    <div className="flex flex-wrap gap-2 text-lg">
+                                        {q.s.map((word, wIdx) => {
+                                            const st = status[q.id];
+                                            let style = "cursor-pointer px-3 py-1.5 rounded-lg transition-colors font-semibold border border-transparent ";
+                                            if (!st) style += "bg-slate-50 hover:bg-indigo-100 text-slate-700 hover:text-indigo-700 border-slate-200";
+                                            else {
+                                                if (st.selected === wIdx && st.isCorrect) style += "bg-emerald-50 text-emerald-700 border-emerald-500";
+                                                else if (st.selected === wIdx && !st.isCorrect) style += "bg-rose-50 text-rose-700 border-rose-500 line-through";
+                                                else if (wIdx === q.errIdx) style += "bg-white text-emerald-600 border-dashed border-emerald-400";
+                                                else style += "text-slate-400 bg-slate-50";
+                                            }
+                                            return <span key={wIdx} onClick={() => handleSelect(q.id, wIdx, q.errIdx, q.exp)} className={style}>{word}</span>;
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                    <span className="font-bold text-slate-800 text-[15px]"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                    <div className="flex gap-2">
+                                        {q.opts.map(opt => {
+                                            const st = status[q.id];
+                                            let style = "px-4 py-2 rounded-lg text-sm font-bold border transition-all ";
+                                            if (!st) style += "bg-white border-slate-300 text-slate-600 hover:border-indigo-500 hover:text-indigo-600";
+                                            else {
+                                                if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                                else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                                else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                                else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                            }
+                                            return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            
+            return (
+                <div className="max-w-4xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    <header className="text-center mb-16">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-brandDark tracking-tight mb-6 leading-tight">
+                            Bóc Tách <span className="text-primary">Cụm Giới Từ</span> <br className="hidden md:block"/>(Prepositional Phrases)
+                        </h1>
+                        <p className="text-[17px] text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            "Vũ khí hậu bổ nghĩa" quan trọng nhất của Danh từ. Hiểu rõ nó, bạn sẽ không bao giờ sợ các câu dài ngoằng trong IELTS Reading nữa!
+                        </p>
+                    </header>
+
+                    <div className="mb-16">
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-8 text-center border-b-2 border-slate-200 pb-4 inline-block mx-auto">Sổ tay Lý thuyết</h2>
+                        
+                        <Accordion title="1. Bản chất & Vị trí (Mục 1-13)">
+                            <Point num="1 - 3" title="Cụm Giới từ là gì?" isLast={false}>
+                                <p className="mb-2"><strong>Prepositional phrase = Preposition + Object</strong></p>
+                                <p className="mb-2">Ví dụ: <i>in the room, on the table, with glasses, from Vietnam, of my teacher, by the government</i>.</p>
+                                <p>Tại sao gọi là "cụm"? Vì một giới từ như "in" đứng một mình chưa đủ nghĩa. Phải là "in the room" mới tạo thành cụm hoàn chỉnh.</p>
+                                <NoteBox type="info">
+                                    <b>Lưu ý:</b> Sau giới từ không nhất thiết chỉ là danh từ đơn, nó có thể là cả một Noun Phrase. Ví dụ: <i>with the boy in the red shirt</i>.
+                                </NoteBox>
+                            </Point>
+
+                            <Point num="4 - 10" title="Vũ khí Hậu bổ nghĩa cho Noun" isLast={false}>
+                                <p className="mb-2">Trong Noun Phrase, Cụm giới từ đóng vai trò cực kỳ quan trọng là <b>Post-modifier</b> (đứng ngay sau danh từ) để xác định danh từ đó.</p>
+                                <ul className="space-y-2 mb-4 list-disc pl-5">
+                                    <li>the girl <b>in the red dress</b> -> cô gái nào? (cô gái mặc váy đỏ)</li>
+                                    <li>the boy <b>with glasses</b> -> cậu bé nào? (cậu bé đeo kính)</li>
+                                    <li>the book <b>on the table</b> -> sách nào? (sách trên bàn)</li>
+                                    <li>the student <b>from Vietnam</b> -> học sinh nào? (học sinh từ VN)</li>
+                                </ul>
+                                <p className="font-bold text-indigo-700">Công thức Tư duy: Khi thấy NOUN + PREPOSITIONAL PHRASE, hãy hỏi: "Cụm phía sau đang mô tả danh từ nào?" (Which one?).</p>
+                            </Point>
+
+                            <Point num="11 - 13" title="Phân biệt Chức năng" isLast={true}>
+                                <p className="mb-2 text-rose-600 font-bold">Không phải Prepositional phrase nào cũng bổ nghĩa cho Noun!</p>
+                                <ExampleBox>
+                                    1. <i>The man <b>in the room</b> is my teacher.</i><br/>
+                                    -> "in the room" trả lời câu hỏi Which man? -> Bổ nghĩa cho Noun (man).<br/><br/>
+                                    2. <i>The man is <b>in the room</b>.</i><br/>
+                                    -> "in the room" trả lời câu hỏi Where is he? -> Bổ nghĩa cho câu/Động từ (is).
+                                </ExampleBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="2. Các Giới từ Hậu bổ nghĩa phổ biến (Mục 14-34)">
+                            <Point num="14 - 22" title="Location (Vị trí)" isLast={false}>
+                                <ul className="space-y-2 list-disc pl-5">
+                                    <li><b>in</b> (bên trong): the students in the classroom.</li>
+                                    <li><b>on</b> (trên bề mặt): the book on the table.</li>
+                                    <li><b>at</b> (tại một điểm): the man at the door.</li>
+                                    <li><b>under</b> (bên dưới): the bridge under construction.</li>
+                                    <li><b>near</b> (gần): the house near the beach.</li>
+                                    <li><b>between / among</b>: the house between the school and the park / the students among the crowd.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="23 - 26" title="Đặc điểm & Nguồn gốc" isLast={false}>
+                                <ul className="space-y-2 list-disc pl-5">
+                                    <li><b>with</b> (có/mang đặc điểm): the girl with glasses.</li>
+                                    <li><b>without</b> (không có): a car without air conditioning.</li>
+                                    <li><b>from</b> (nguồn gốc): the student from Vietnam.</li>
+                                    <li><b>by</b> (người tạo ra/tác giả): a book by J.K. Rowling.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="27 - 31" title="OF và Phân biệt Vật liệu" isLast={false}>
+                                <p className="mb-2"><b>OF</b> (Quan hệ/Thuộc về): the door of the house, the capital of Vietnam.</p>
+                                <p className="mb-2 text-sm text-slate-500">Lưu ý: Không phải lúc nào cũng thay 'of' bằng sở hữu 's'. "the roof of the building" tự nhiên hơn "the building's roof".</p>
+                                <NoteBox type="warning">
+                                    <b>Made of vs Made from</b><br/>
+                                    - <b>made of:</b> Vật liệu vẫn nhận ra được (a table made of wood).<br/>
+                                    - <b>made from:</b> Vật liệu đã bị biến đổi đáng kể (paper made from wood).
+                                </NoteBox>
+                            </Point>
+
+                            <Point num="32 - 34" title="Purpose, Time, Source" isLast={true}>
+                                <ul className="space-y-2 list-disc pl-5">
+                                    <li><b>Purpose</b> (Mục đích - dùng 'for'): a room for meetings, equipment for outdoor activities.</li>
+                                    <li><b>Time</b> (Thời gian): the event on Monday, the festival in July.</li>
+                                    <li><b>Source</b> (Nguồn cung cấp): information from the Internet, money from the government.</li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="3. Sự mở rộng Noun Phrase (Mục 35-41)">
+                            <Point num="35 - 39" title="Nhiều cụm giới từ trong một Noun Phrase" isLast={false}>
+                                <p className="mb-2">Một Noun có thể đi kèm rất nhiều Prepositional Phrases:</p>
+                                <ExampleBox>
+                                    <b>the student from Vietnam in my class with glasses</b><br/>
+                                    Head: student<br/>
+                                    -> Which student? from Vietnam<br/>
+                                    -> Which student from Vietnam? in my class<br/>
+                                    -> Which student from Vietnam in my class? with glasses
+                                </ExampleBox>
+                                <p className="font-bold text-indigo-700">Đây là cách Tiếng Anh mở rộng Noun Phrase (Adjective đứng trước, Prepositional Phrase đứng sau).</p>
+                            </Point>
+
+                            <Point num="40 - 41" title="So sánh với Mệnh đề quan hệ (Relative Clause)" isLast={true}>
+                                <p className="mb-2">Cụm giới từ có thể coi là cách rút gọn thông tin của Mệnh đề quan hệ.</p>
+                                <ul className="list-disc pl-5 space-y-2">
+                                    <li><i>the girl <b>who is wearing a red dress</b></i> (Relative clause)</li>
+                                    <li>-> <i>the girl <b>in the red dress</b></i> (Prepositional phrase)</li>
+                                </ul>
+                                <p className="mt-2 text-sm text-slate-500">Việc dùng Prepositional phrase giúp câu văn ngắn gọn và tự nhiên hơn rất nhiều.</p>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="4. Ứng dụng IELTS & Phân tích Head Noun (Mục 42-49)">
+                            <Point num="42 - 45" title="Bẫy Subject-Verb Agreement trong IELTS" isLast={false}>
+                                <p className="mb-2 text-rose-600 font-bold">CỰC KỲ QUAN TRỌNG TRONG READING & WRITING!</p>
+                                <p className="mb-2">Động từ phải chia theo Head Noun, KHÔNG CHIA theo Noun nằm trong Cụm giới từ hậu bổ nghĩa.</p>
+                                <ExampleBox>
+                                    <i>The effects of excessive use of social media on teenagers <b>are</b> concerning.</i><br/>
+                                    - Head noun: <b>effects</b> (số nhiều) -> Verb: <b>are</b>.<br/>
+                                    - Đoạn "of excessive use of social media on teenagers" chỉ là thông tin bổ sung.
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="46 - 48" title="Cấu trúc Lồng ghép (Nested Structures)" isLast={false}>
+                                <p className="mb-2">Cụm giới từ có thể nằm trong một cụm giới từ khác.</p>
+                                <ExampleBox>
+                                    <b>the book on the table in the classroom</b><br/>
+                                    -> on [the table in the classroom]<br/>
+                                    Trong đó "in the classroom" bổ nghĩa cho "table".
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="49" title="Các Giới từ hay gặp trong IELTS" isLast={true}>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    <Highlight color="primary">of</Highlight> <Highlight color="primary">in</Highlight> <Highlight color="primary">on</Highlight> <Highlight color="primary">at</Highlight> 
+                                    <Highlight color="primary">from</Highlight> <Highlight color="primary">by</Highlight> <Highlight color="primary">with</Highlight> <Highlight color="primary">without</Highlight>
+                                    <Highlight color="secondary">for</Highlight> <Highlight color="secondary">about</Highlight> <Highlight color="secondary">against</Highlight> <Highlight color="secondary">among</Highlight>
+                                    <Highlight color="warning">between</Highlight> <Highlight color="warning">during</Highlight> <Highlight color="warning">after</Highlight> <Highlight color="warning">before</Highlight>
+                                </div>
+                                <p className="mt-3 text-sm text-slate-500">Quan trọng là: nhìn thấy giới từ -> nhận ra một prepositional phrase có thể đang bắt đầu.</p>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="5. Cấu trúc Nâng cao & Lỗi Ngữ pháp (Mục 50-55)">
+                            <Point num="50" title="Preposition + V-ing" isLast={false}>
+                                <p className="mb-2">Preposition không chỉ đi với Noun. Sau preposition có thể là V-ing.</p>
+                                <ul className="list-disc pl-5">
+                                    <li>the importance <b>of learning</b> English</li>
+                                    <li>a method <b>for improving</b> pronunciation</li>
+                                    <li>the problem <b>of finding</b> accommodation</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="51" title="Preposition + Object Pronoun" isLast={false}>
+                                <p className="mb-2">Sau giới từ BẮT BUỘC dùng Đại từ Tân ngữ (Object Pronoun).</p>
+                                <p className="text-emerald-600 font-bold mb-1">Đúng: with me, for him, between us.</p>
+                                <p className="text-rose-600 font-bold">Sai: with I, for he, between we.</p>
+                            </Point>
+
+                            <Point num="53" title="Preposition vs Conjunction" isLast={true}>
+                                <p className="mb-2">Đừng nhầm lẫn Giới từ và Liên từ (dù chúng viết giống nhau như before, after).</p>
+                                <ExampleBox>
+                                    <b>before the class</b> -> before + Noun Phrase -> Preposition (Giới từ).<br/>
+                                    <b>before the class started</b> -> before + Clause (S+V) -> Conjunction (Liên từ).
+                                </ExampleBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="6. Tổng kết: Bóc tách Noun Phrase hoàn chỉnh (Mục 69-71)">
+                            <Point num="69 - 71" title="Giải phẫu Noun Phrase Hoàn Chỉnh" isLast={true}>
+                                <p className="mb-4">Sau khi học Determiners, Adjectives, Compound Nouns, và Prepositional Phrases, chúng ta có thể đọc được một cấu trúc khổng lồ:</p>
+                                <div className="bg-brandDark text-white p-6 rounded-2xl shadow-lg border border-slate-700">
+                                    <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">the beautiful young football player from Vietnam with glasses</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[15px] text-slate-200">
+                                        <ul className="space-y-2">
+                                            <li><span className="text-indigo-400 font-bold">the</span> &rarr; Determiner (Xác định)</li>
+                                            <li><span className="text-blue-400 font-bold">beautiful + young</span> &rarr; Adjectives (Mô tả)</li>
+                                            <li><span className="text-emerald-400 font-bold">football</span> &rarr; Noun modifier (Bổ nghĩa)</li>
+                                        </ul>
+                                        <ul className="space-y-2">
+                                            <li><span className="text-rose-400 font-bold text-lg">PLAYER</span> &rarr; HEAD NOUN (Trung tâm)</li>
+                                            <li><span className="text-amber-400 font-bold">from Vietnam</span> &rarr; Post-modifier (Nguồn gốc)</li>
+                                            <li><span className="text-amber-400 font-bold">with glasses</span> &rarr; Post-modifier (Đặc điểm)</li>
+                                        </ul>
+                                    </div>
+                                    <div className="mt-6 pt-4 border-t border-slate-600 text-center text-emerald-400 font-bold">
+                                        Đây chính là bước chuyển từ "học từ vựng" sang "đọc được cấu trúc của tiếng Anh"!
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs) */}
+                    <div id="exercises" className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mb-12">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Test phản xạ tức thì. Bấm vào đáp án để nhận giải thích chi tiết!</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-4">
+                            {[
+                                { id: 0, title: "Tìm Head Noun", label: "Dạng 1" },
+                                { id: 1, title: "Chọn Giới từ", label: "Dạng 2" },
+                                { id: 2, title: "Hòa hợp SV", label: "Dạng 3" },
+                                { id: 3, title: "Phân tích Noun Phrase", label: "Dạng 4" },
+                                { id: 4, title: "Lỗi Ngữ pháp", label: "Dạng 5" }
+                            ].map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all
+                                    ${activeTab === index 
+                                        ? 'bg-indigo-600 text-white shadow-md' 
+                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                >
+                                    {tab.label}: {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExIdentify />}
+                            {activeTab === 1 && <ExPrepositions />}
+                            {activeTab === 2 && <ExAgreement />}
+                            {activeTab === 3 && <ExAnalysis />}
+                            {activeTab === 4 && <ExAdvanced />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

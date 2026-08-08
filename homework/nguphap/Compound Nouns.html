@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Compound Nouns Masterclass</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React, ReactDOM, Babel -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        primary: '#4f46e5', 
+                        primaryLight: '#e0e7ff', 
+                        secondary: '#10B981', 
+                        warning: '#F59E0B', 
+                        info: '#3B82F6', 
+                        accent: '#F43F5E', 
+                        brandDark: '#1e1b4b', 
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background-color: #f8fafc;
+            color: #334155; 
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        .glass {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; transform-origin: top; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: scaleY(0.95); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900 pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- PURE INLINE SVGS ---
+        const SvgCheck = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>;
+        const SvgCross = () => <svg className="w-5 h-5 text-rose-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>;
+        const SvgWarning = () => <svg className="w-5 h-5 text-amber-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>;
+        const SvgInfo = () => <svg className="w-5 h-5 text-indigo-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>;
+        const SvgChevron = ({ isOpen }) => <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
+        const SvgBook = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>;
+        const SvgTarget = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>;
+
+        // --- COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-50 text-indigo-700",
+                secondary: "bg-emerald-50 text-emerald-700",
+                warning: "bg-amber-50 text-amber-700",
+                accent: "bg-rose-50 text-rose-700",
+                info: "bg-blue-50 text-blue-700"
+            };
+            return <span className={`inline-block px-2 py-0.5 rounded font-semibold text-[15px] ${styles[color]}`}>{children}</span>;
+        };
+
+        const ExampleBox = ({ children }) => (
+            <div className="bg-slate-50 border-l-4 border-indigo-400 p-4 my-3 text-slate-700 rounded-r-lg shadow-sm text-[15px]">
+                {children}
+            </div>
+        );
+
+        const NoteBox = ({ children, type = "info" }) => {
+            const styles = {
+                warning: "bg-amber-50 border-amber-200 text-amber-900",
+                info: "bg-indigo-50 border-indigo-200 text-indigo-900",
+                danger: "bg-rose-50 border-rose-200 text-rose-900"
+            };
+            const icons = { warning: <SvgWarning />, info: <SvgInfo />, danger: <SvgCross /> };
+            return (
+                <div className={`border p-4 my-4 rounded-xl flex items-start text-[15px] ${styles[type]}`}>
+                    <div className="mt-0.5 shrink-0">{icons[type]}</div>
+                    <div className="ml-2 w-full">{children}</div>
+                </div>
+            );
+        };
+
+        const Point = ({ num, title, children, isLast }) => (
+            <div className={`pb-8 mb-8 ${!isLast ? 'border-b border-dashed border-slate-300' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                    <span className="bg-indigo-100 text-indigo-800 font-extrabold px-3 py-1.5 rounded-lg text-sm shadow-sm">Mục {num}</span>
+                    <h3 className="font-extrabold text-brandDark text-lg tracking-wide uppercase">{title}</h3>
+                </div>
+                <div className="text-slate-600 text-[15px] leading-relaxed space-y-2">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Accordion = ({ title, children }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="mb-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 md:p-6 flex justify-between items-center text-left bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl text-indigo-600 shadow-sm">
+                                <SvgBook />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+                        </div>
+                        <SvgChevron isOpen={isOpen} />
+                    </button>
+                    {isOpen && <div className="p-6 md:p-8 bg-white slide-down">{children}</div>}
+                </div>
+            );
+        };
+
+        const ExplanationBox = ({ isCorrect, exp }) => (
+            <div className={`mt-4 p-4 rounded-xl text-[15px] font-medium border flex items-start gap-3 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                <div className="mt-0.5">
+                    {isCorrect ? <SvgCheck /> : <SvgCross />}
+                </div>
+                <div className="w-full">
+                    <strong className="block mb-1">{isCorrect ? "Chính xác!" : "Sai rồi!"}</strong>
+                    {exp}
+                </div>
+            </div>
+        );
+
+        // --- EXERCISE COMPONENTS ---
+
+        // Dạng 1: Tìm Head Noun (Mục 61, 66, 67)
+        const ExHeadNoun = () => {
+            const questions = [
+                { id: 1, q: ["school", "bus"], ans: "bus", exp: "Bus là danh từ chính. School bổ nghĩa cho bus." },
+                { id: 2, q: ["football", "player"], ans: "player", exp: "Player là danh từ chính. Football cho biết loại người chơi." },
+                { id: 3, q: ["coffee", "shop"], ans: "shop", exp: "Shop là danh từ chính. Coffee chỉ loại cửa hàng." },
+                { id: 4, q: ["tennis", "court"], ans: "court", exp: "Court là danh từ chính." },
+                { id: 5, q: ["swimming", "pool"], ans: "pool", exp: "Pool là danh từ chính. Swimming chỉ mục đích (hồ để bơi)." },
+                { id: 6, q: ["traffic", "problem"], ans: "problem", exp: "Problem là danh từ chính." },
+                { id: 7, q: ["sports", "equipment"], ans: "equipment", exp: "Equipment là danh từ chính." },
+                { id: 8, q: ["bus", "stop"], ans: "stop", exp: "Stop là danh từ chính." },
+                { id: 9, q: ["a", "modern", "sports", "training", "centre"], ans: "centre", exp: "Centre nằm cuối (đóng vai trò head noun chính). Các từ trước đều bổ nghĩa." },
+                { id: 10, q: ["government", "education", "policy"], ans: "policy", exp: "Policy là danh từ chính. Nghĩa là chính sách giáo dục của chính phủ." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Xác định Danh từ chính (Head Noun) trong cụm.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-wrap gap-2 items-center mb-2">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span></span>
+                                {q.q.map(opt => {
+                                    const st = status[q.id];
+                                    let style = "px-3 py-1.5 rounded-lg text-[15px] font-bold border-2 transition-all cursor-pointer ";
+                                    if (!st) style += "border-transparent bg-slate-50 text-slate-700 hover:border-primary hover:text-primary";
+                                    else {
+                                        if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                        else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700 line-through";
+                                        else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                        else style += "bg-white border-transparent text-slate-400 opacity-50";
+                                    }
+                                    return <span key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</span>;
+                                })}
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 2: Quy tắc số nhiều (Mục 28-36, 62)
+        const ExPlural = () => {
+            const questions = [
+                { id: 1, q: "bus stop", opts: ["buses stops", "bus stops"], ans: "bus stops", exp: "Head noun là 'stop' -> bus stops." },
+                { id: 2, q: "football player", opts: ["football players", "footballs player"], ans: "football players", exp: "Head noun là 'player' -> football players." },
+                { id: 3, q: "school bus", opts: ["schools buses", "school buses"], ans: "school buses", exp: "Head noun là 'bus' -> school buses." },
+                { id: 4, q: "tennis court", opts: ["tennis courts", "tennises court"], ans: "tennis courts", exp: "Head noun là 'court' -> tennis courts." },
+                { id: 5, q: "water bottle", opts: ["waters bottle", "water bottles"], ans: "water bottles", exp: "Head noun là 'bottle' -> water bottles." },
+                { id: 6, q: "mother-in-law", opts: ["mother-in-laws", "mothers-in-law"], ans: "mothers-in-law", exp: "Head noun của cụm có gạch nối này là 'mother' -> mothers-in-law." },
+                { id: 7, q: "passer-by", opts: ["passers-by", "passer-bys"], ans: "passers-by", exp: "Head noun là 'passer' -> passers-by." },
+                { id: 8, q: "editor-in-chief", opts: ["editors-in-chief", "editor-in-chiefs"], ans: "editors-in-chief", exp: "Head noun là 'editor' -> editors-in-chief." },
+                { id: 9, q: "toothbrush", opts: ["teethbrush", "toothbrushes"], ans: "toothbrushes", exp: "Đã thành một từ khép kín (closed compound) -> toothbrushes." },
+                { id: 10, q: "swimming pool", opts: ["swimmings pool", "swimming pools"], ans: "swimming pools", exp: "Head noun là 'pool' -> swimming pools." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Chọn dạng số nhiều đúng cho Danh từ ghép.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 3: Compound hay Cụm bình thường? (Mục 14-20, 63-65)
+        const ExMeaning = () => {
+            const questions = [
+                { id: 1, q: "a blackbird", opts: ["một con chim có màu đen", "một loài chim cụ thể"], ans: "một loài chim cụ thể", exp: "Viết liền (compound noun) -> Tên một loài chim riêng biệt." },
+                { id: 2, q: "a black bird", opts: ["một con chim có màu đen", "một loài chim cụ thể"], ans: "một con chim có màu đen", exp: "Viết cách (adj + noun) -> Mô tả con chim có màu đen." },
+                { id: 3, q: "darkroom", opts: ["phòng bị tối", "phòng rửa/in ảnh"], ans: "phòng rửa/in ảnh", exp: "Compound noun -> Một khái niệm/tên gọi riêng." },
+                { id: 4, q: "dark room", opts: ["phòng bị tối", "phòng rửa/in ảnh"], ans: "phòng bị tối", exp: "Adj + Noun -> Mô tả căn phòng bị tối." },
+                { id: 5, q: "greenhouse", opts: ["ngôi nhà sơn màu xanh", "nhà kính trồng cây"], ans: "nhà kính trồng cây", exp: "Compound noun -> Khái niệm mới (nhà kính)." },
+                { id: 6, q: "paper bag", opts: ["túi làm bằng giấy", "túi chứa giấy bên trong"], ans: "túi làm bằng giấy", exp: "Modifier + Head -> Chất liệu làm nên túi." },
+                { id: 7, q: "a bag of paper", opts: ["túi làm bằng giấy", "túi chứa giấy bên trong"], ans: "túi chứa giấy bên trong", exp: "Head + of + Noun -> Cấu trúc chỉ vật chứa (túi) và nội dung (giấy)." },
+                { id: 8, q: "water bottle", opts: ["chai dùng để chứa nước", "chai đang chứa nước bên trong"], ans: "chai dùng để chứa nước", exp: "Compound noun -> Chỉ một LOẠI chai (vật dụng)." },
+                { id: 9, q: "a bottle of water", opts: ["chai dùng để chứa nước", "chai đang chứa nước bên trong"], ans: "chai đang chứa nước bên trong", exp: "Head + of + Noun -> Nhấn mạnh nội dung chứa trong chai." },
+                { id: 10, q: "coffee cup", opts: ["cốc dùng để uống cà phê", "cốc đang có cà phê bên trong"], ans: "cốc dùng để uống cà phê", exp: "Compound noun -> Chỉ LOẠI cốc (chức năng)." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Viết liền/cách/có "of" sẽ thay đổi ý nghĩa. Chọn nghĩa đúng.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex flex-col gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "text-left px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 4: Cấu trúc Nâng cao & Phân tích (Mục 54, 70, 71)
+        const ExAnalysis = () => {
+            const questions = [
+                { id: 1, q: "the football players’ changing room", opts: ["phòng thay đồ của 1 cầu thủ", "phòng thay đồ của các cầu thủ"], ans: "phòng thay đồ của các cầu thủ", exp: "players' = possessive plural (sở hữu của nhiều người)." },
+                { id: 2, q: "my brother's bedroom", opts: ["phòng ngủ của anh trai tôi", "những anh trai có chung phòng ngủ"], ans: "phòng ngủ của anh trai tôi", exp: "brother's = possessive singular." },
+                { id: 3, q: "a new football training centre", opts: ["Trung tâm mới dùng để huấn luyện bóng đá", "Trung tâm đào tạo cầu thủ bóng đá mới"], ans: "Trung tâm mới dùng để huấn luyện bóng đá", exp: "'new' là Adjective đứng trước toàn bộ cụm 'football training centre'." },
+                { id: 4, q: "urban traffic-reduction policy", opts: ["Chính sách giảm giao thông đô thị", "Giao thông đô thị làm giảm chính sách"], ans: "Chính sách giảm giao thông đô thị", exp: "Head noun là 'policy'. Các từ trước bổ nghĩa cho policy." },
+                { id: 5, q: "a large international sports training centre", opts: ["Có 2 adjectives (large, international)", "Có 4 adjectives"], ans: "Có 2 adjectives (large, international)", exp: "large, international là Adj. Sports, training là Noun Modifiers." },
+                { id: 6, q: "Trong cụm 'sports equipment', equipment là:", opts: ["Countable", "Uncountable"], ans: "Uncountable", exp: "Equipment luôn là U. Do đó chỉ dùng 'some sports equipment', không thêm s." },
+                { id: 7, q: "Trọng âm (stress) của 'BLACKboard' nhấn vào đâu?", opts: ["BLACK", "board"], ans: "BLACK", exp: "Compound nouns thường có stress chính ở thành phần đầu." },
+                { id: 8, q: "Trọng âm của cụm 'black BIRD' (một con chim màu đen) nhấn vào đâu?", opts: ["black", "BIRD"], ans: "BIRD", exp: "Adj + Noun thường nhấn vào Noun (BIRD)." },
+                { id: 9, q: "Từ 'pickpocket' (kẻ móc túi) có head noun theo nghĩa thông thường không?", opts: ["Có (pocket)", "Không (Idiomatic)"], ans: "Không (Idiomatic)", exp: "Lexicalized compound. Người móc túi không phải là một loại túi (pocket)." },
+                { id: 10, q: "Trong cụm 'international student accommodation centre', từ nào quyết định số ít/nhiều?", opts: ["student", "centre"], ans: "centre", exp: "Centre là Head Noun cuối cùng, quyết định ngữ pháp." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Phân tích cấu trúc & Ý nghĩa nâng cao.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex flex-col md:flex-row gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "flex-1 text-left md:text-center px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Dạng 5: Tìm lỗi sai IELTS Writing (Mục 68)
+        const ExIELTS = () => {
+            const questions = [
+                { id: 1, s: ["There", "are", "many", "footballs", "players", "here."], errIdx: 3, exp: "Football là modifier, không chia số nhiều. Phải là 'football players'." },
+                { id: 2, s: ["We", "have", "three", "schools", "buses."], errIdx: 3, exp: "School là modifier, không chia số nhiều. Phải là 'school buses'." },
+                { id: 3, s: ["He", "has", "two", "mother-in-laws."], errIdx: 4, exp: "Head noun của từ này là 'mother' -> mothers-in-law." },
+                { id: 4, s: ["We", "bought", "two", "new", "waters", "bottles."], errIdx: 4, exp: "Water là modifier -> water bottles." },
+                { id: 5, s: ["The", "tennises", "courts", "are", "full."], errIdx: 1, exp: "Tennis là modifier -> tennis courts." },
+                { id: 6, s: ["They", "need", "some", "sports", "equipments."], errIdx: 4, exp: "Equipment là U (không đếm được) -> Không bao giờ thêm -s." },
+                { id: 7, s: ["I", "saw", "two", "passer-bys", "on", "the", "street."], errIdx: 3, exp: "Head noun là 'passer' -> passers-by." },
+                { id: 8, s: ["The", "editor-in-chiefs", "had", "a", "meeting."], errIdx: 1, exp: "Head noun là 'editor' -> editors-in-chief." },
+                { id: 9, s: ["She", "broke", "two", "coffees", "cups."], errIdx: 3, exp: "Coffee là modifier -> coffee cups." },
+                { id: 10, s: ["There", "is", "a", "traffic", "problems", "today."], errIdx: 4, exp: "Có 'a' phía trước -> Head noun (problem) phải ở số ít -> problem." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, wIdx, errIdx, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: wIdx, isCorrect: wIdx === errIdx, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Click vào <b>1 TỪ</b> làm sai cấu trúc Danh từ ghép.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-wrap gap-x-1.5 gap-y-2 items-center text-lg mb-2">
+                                <span className="text-slate-400 font-bold mr-2 text-base">{q.id}.</span>
+                                {q.s.map((word, wIdx) => {
+                                    const st = status[q.id];
+                                    let style = "cursor-pointer px-3 py-1.5 rounded-lg transition-colors font-semibold border border-transparent ";
+                                    if (!st) style += "hover:bg-slate-100 text-slate-700 hover:text-indigo-600";
+                                    else {
+                                        if (st.selected === wIdx && st.isCorrect) style += "bg-emerald-50 text-emerald-700 border-emerald-500";
+                                        else if (st.selected === wIdx && !st.isCorrect) style += "bg-rose-50 text-rose-700 border-rose-500 line-through";
+                                        else if (wIdx === q.errIdx) style += "bg-white text-emerald-600 border-dashed border-emerald-400";
+                                        else style += "text-slate-400 bg-slate-50";
+                                    }
+                                    return <span key={wIdx} onClick={() => handleSelect(q.id, wIdx, q.errIdx, q.exp)} className={style}>{word}</span>;
+                                })}
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            
+            return (
+                <div className="max-w-4xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    <header className="text-center mb-16">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-brandDark tracking-tight mb-6 leading-tight">
+                            Bóc Tách <span className="text-primary">Danh từ Ghép</span> <br className="hidden md:block"/>(Compound Nouns)
+                        </h1>
+                        <p className="text-[17px] text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            Đừng dịch từng từ một cách máy móc! Hãy nhìn cấu trúc: Đâu là Head Noun, đâu là Modifier? Nắm chắc điều này để không bao giờ sai số nhiều trong IELTS Writing.
+                        </p>
+                    </header>
+
+                    {/* FULL THEORY */}
+                    <div className="mb-16">
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-8 text-center border-b-2 border-slate-200 pb-4 inline-block mx-auto">Sổ tay Lý thuyết</h2>
+                        
+                        <Accordion title="1. Bản chất: Tư duy Head Noun (Mục 1-5, 21)">
+                            <Point num="1" title="Compound Noun là gì?" isLast={false}>
+                                <p className="mb-2">Là danh từ tạo thành từ hai hay nhiều từ kết hợp để tạo ra khái niệm mới.</p>
+                                <p className="font-bold text-indigo-700">water + bottle = water bottle | school + bus = school bus</p>
+                            </Point>
+
+                            <Point num="2 - 5" title="Tư duy Head Noun (Từ chính)" isLast={false}>
+                                <p className="mb-2">Trong tiếng Anh, <b>Head Noun thường nằm ở bên phải</b>. Từ đứng trước (Modifier) bổ nghĩa cho nó.</p>
+                                <ExampleBox>
+                                    <b>water bottle</b><br/>
+                                    - Head noun = <b>bottle</b> (Đây là một loại chai).<br/>
+                                    - Modifier = <b>water</b> (Dùng cho nước).<br/>
+                                    -> <i>water bottle không phải là "nước + chai", mà là "một loại chai dùng để đựng nước".</i>
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="21" title="Đừng dịch từng từ" isLast={true}>
+                                <p className="mb-2">Khi gặp <i>coffee shop</i>, đừng đọc "coffee = cà phê, shop = cửa hàng" rồi ghép lại. Hãy đọc: coffee -> loại shop -> <b>shop bán coffee</b>.</p>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="2. Cấu tạo & Cách viết (Mục 6-13, 22-27)">
+                            <Point num="6 - 11" title="6 Dạng Compound Noun phổ biến" isLast={false}>
+                                <ul className="space-y-3 text-[15px]">
+                                    <li><b>Noun + Noun:</b> bus stop, school bus, football player.</li>
+                                    <li><b>Adjective + Noun:</b> blackboard, greenhouse, software.</li>
+                                    <li><b>Verb + Noun:</b> breakfast, swimming pool, washing machine. (Chỉ mục đích/chức năng).</li>
+                                    <li><b>Noun + Verb-ing:</b> sightseeing, bird-watching.</li>
+                                    <li><b>Verb + Particle/Adverb:</b> breakdown, checkout, feedback.</li>
+                                    <li><b>Preposition/Particle + Noun:</b> underground, overcoat.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="12 & 13" title="3 Cách viết phổ biến" isLast={false}>
+                                <ul className="list-disc pl-5 space-y-1 mb-2 text-[15px]">
+                                    <li><b>Closed:</b> Viết liền (bedroom, toothbrush).</li>
+                                    <li><b>Open:</b> Viết cách (bus stop, coffee shop).</li>
+                                    <li><b>Hyphenated:</b> Gạch nối (mother-in-law, check-in).</li>
+                                </ul>
+                                <NoteBox type="warning">
+                                    Đừng nhầm "Viết cách" với "Không phải Compound". <i>bus stop</i> vẫn là Compound Noun dù viết cách. Không thể chỉ nhìn cấu tạo để đoán cách viết. Cần học theo standard spelling.
+                                </NoteBox>
+                            </Point>
+
+                            <Point num="22 - 27" title="Nhóm chủ đề thông dụng" isLast={true}>
+                                <p className="mb-2 text-[15px]">Từ đứng đầu (Modifier) thường biểu thị:</p>
+                                <ul className="list-disc pl-5 space-y-1 text-[15px]">
+                                    <li><b>Purpose (Mục đích):</b> swimming pool, sleeping bag, dining table.</li>
+                                    <li><b>Material (Chất liệu):</b> paper bag, plastic bottle.</li>
+                                    <li><b>Place / Time:</b> school bus, city centre / lunchtime, weekend.</li>
+                                    <li><b>Person + Role:</b> football player, taxi driver.</li>
+                                    <li><b>Sports:</b> tennis court, basketball match, sports equipment (Rất hữu ích cho IELTS).</li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="3. Viết Liền vs Viết Cách / Noun + Of (Mục 14-20, 49-52)">
+                            <Point num="14 - 18" title="Sự thay đổi ý nghĩa (Viết liền vs Viết cách)" isLast={false}>
+                                <p className="mb-2">Rất quan trọng! So sánh:</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-[15px]">
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-1">A black bird (Cụm từ thường)</div>
+                                        <p>Adj + Noun. Nghĩa: một con chim có màu đen.</p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-1">A blackbird (Compound)</div>
+                                        <p>Nghĩa: Tên riêng của một loài chim cụ thể.</p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-emerald-700 mb-1">A dark room</div>
+                                        <p>Một căn phòng bị tối (mô tả).</p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-emerald-700 mb-1">A darkroom</div>
+                                        <p>Phòng tối dùng để rửa/in ảnh (Chức năng).</p>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="19, 20, 49-52" title="Modifier+Head VS Head+Of+Noun" isLast={true}>
+                                <p className="mb-2">Trong Tiếng Anh thường dùng <b>Modifier + Head</b> (coffee shop) thay vì <b>Head + Of + Modifier</b> (shop of coffee).</p>
+                                <p className="mb-2">Tuy nhiên, khi có cấu trúc <b>Head + Of + Noun</b>, ý nghĩa sẽ khác:</p>
+                                <ExampleBox>
+                                    <b>water bottle</b>: loại chai dùng để đựng nước. (Head = bottle).<br/>
+                                    <b>a bottle of water</b>: một chai đang chứa nước bên trong. (Head = bottle, water = nội dung).<br/><br/>
+                                    <b>paper bag</b>: túi làm bằng giấy.<br/>
+                                    <b>a bag of paper</b>: một túi chứa giấy bên trong.
+                                </ExampleBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="4. Trọng âm & Ngoại lệ (Mục 46-48, 55-56)">
+                            <Point num="46 - 48" title="Stress trong Compound Nouns" isLast={false}>
+                                <p className="mb-2">Compound nouns thường có <b>primary stress ở phần đầu</b> (first element).</p>
+                                <p className="font-bold text-indigo-700">GREENhouse | BLACKboard | FOOTball | BUS stop | TOOTHbrush</p>
+                                <p className="mt-2 text-[15px]">Trong khi Adj+Noun thường nhấn mạnh Noun (black BIRD). Cách phát âm giúp người nghe nhận diện Meaning.</p>
+                            </Point>
+
+                            <Point num="55 - 56" title="Transparent vs Idiomatic (Lexicalized)" isLast={true}>
+                                <p className="mb-2 text-[15px]">Không phải lúc nào Head Noun cũng đơn giản là "từ cuối".</p>
+                                <ul className="space-y-3 mb-2 text-[15px]">
+                                    <li><b>Transparent (Đoán được nghĩa):</b> school bus, coffee shop, bedroom.</li>
+                                    <li><b>Idiomatic / Lexicalized (Không thể cộng nghĩa):</b> pickpocket (người móc túi, không phải một loại túi), scarecrow (bù nhìn, không phải con quạ), butterfly, honeymoon.</li>
+                                </ul>
+                                <NoteBox type="warning">
+                                    Với các Idiomatic compounds, nghĩa không thể suy ra hoàn toàn từ từng thành phần. Word formation giúp đoán nghĩa, nhưng không đảm bảo 100%.
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="5. Cách thêm Số nhiều Cực Chuẩn (Mục 28-37, 58-60)">
+                            <Point num="28 - 32" title="Quy tắc Số Nhiều: Chỉ đổi Head Noun" isLast={false}>
+                                <p className="mb-2 text-rose-600 font-bold">Lỗi phổ biến: schools bus, footballs player.</p>
+                                <p className="mb-2">Vì Head Noun quyết định singular/plural nên khi pluralize, <b>ta chỉ thêm S vào Head Noun</b> (Từ đứng cuối trong đa số trường hợp).</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                    <div className="bg-white border border-slate-200 p-4 rounded-xl">
+                                        <p>water bottle &rarr; water <b>bottles</b></p>
+                                        <p>bus stop &rarr; bus <b>stops</b></p>
+                                    </div>
+                                    <div className="bg-white border border-slate-200 p-4 rounded-xl">
+                                        <p>school bus &rarr; school <b>buses</b></p>
+                                        <p>tennis court &rarr; tennis <b>courts</b></p>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="33 - 36" title="Với Compound Nouns Phức tạp" isLast={false}>
+                                <p className="mb-2">Nếu compound noun có <b>preposition</b> (in, by...) thì không thêm S vào chữ cuối cùng. Phải thêm vào Head Noun thật sự.</p>
+                                <ul className="list-disc pl-5 space-y-1">
+                                    <li>mother-in-law &rarr; <b>mothers</b>-in-law</li>
+                                    <li>passer-by &rarr; <b>passers</b>-by</li>
+                                    <li>editor-in-chief &rarr; <b>editors</b>-in-chief</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="58 - 60" title="Compound Noun + Uncountable Noun" isLast={true}>
+                                <p className="mb-2">Nếu Head Noun là từ không đếm được (U-Noun) thì toàn bộ cụm đó là Không đếm được.</p>
+                                <ExampleBox>
+                                    <b>sports equipment</b><br/>
+                                    Head là "equipment" (U). Vì vậy ta chỉ dùng: sports equipment, some sports equipment, a piece of sports equipment.<br/>
+                                    Không bao giờ dùng: <span className="line-through text-rose-500">sports equipments</span>.
+                                </ExampleBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="6. Kỹ năng Bóc tách & Lỗi IELTS (Mục 38-45, 53-54, 71-74)">
+                            <Point num="40 - 45, 53-54" title="Head-First Analysis (Đọc từ phải sang trái)" isLast={false}>
+                                <p className="mb-2">Kỹ năng cực kỳ quan trọng cho IELTS Reading. Khi gặp noun phrase dài: <b>a modern sports training centre</b></p>
+                                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl mt-2 text-[15px]">
+                                    <ol className="list-decimal pl-5 space-y-1">
+                                        <li>Bắt đầu từ phải: <b>centre</b> (Head Noun).</li>
+                                        <li>Centre gì? <b>training centre</b></li>
+                                        <li>Training centre nào? <b>sports training centre</b></li>
+                                        <li>Sports training centre loại nào? <b>modern sports training centre</b></li>
+                                    </ol>
+                                </div>
+                            </Point>
+
+                            <Point num="38 - 39" title="Compound Nouns và Possessive ('s)" isLast={false}>
+                                <p className="mb-2">Lưu ý sự khác biệt giữa Số nhiều và Sở hữu cách.</p>
+                                <ExampleBox>
+                                    <b>the football players’ changing room</b><br/>
+                                    football players = số nhiều<br/>
+                                    players’ = sở hữu số nhiều (của các cầu thủ)<br/>
+                                    changing room = compound noun (phòng thay đồ)
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="71 - 74" title="FINAL MENTAL MAP" isLast={true}>
+                                <div className="bg-brandDark text-white p-6 rounded-2xl shadow-lg border border-slate-700">
+                                    <h3 className="text-xl font-bold text-amber-400 mb-4">PHỄU TƯ DUY COMPOUND NOUN</h3>
+                                    <ol className="space-y-2 text-[15px] list-decimal pl-5 text-slate-200">
+                                        <li>Tìm <b>HEAD NOUN</b> (Từ chính, thường nằm cuối).</li>
+                                        <li>Hỏi "Đây là loại gì?". Đọc các từ bên trái như <b>Modifiers</b> (bổ nghĩa).</li>
+                                        <li>Kiểm tra Singular / Plural (Chỉ đổi ở Head Noun).</li>
+                                        <li>Kiểm tra Countable / Uncountable.</li>
+                                    </ol>
+                                    <div className="mt-4 pt-4 border-t border-slate-600 text-emerald-400 font-bold">
+                                        Chốt lại: Đừng đọc Compound Noun bằng cách cộng nghĩa từng từ. Hãy nhìn cấu trúc Modifier -> Head. (Ví dụ: football player không phải là "bóng đá + người chơi", mà là "một loại player, chơi môn football").
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs) */}
+                    <div id="exercises" className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mb-12">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Test phản xạ tức thì. Bấm vào đáp án để nhận giải thích chi tiết!</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-4">
+                            {[
+                                { id: 0, title: "Head Noun", label: "Dạng 1" },
+                                { id: 1, title: "Số nhiều", label: "Dạng 2" },
+                                { id: 2, title: "Nghĩa & 'Of'", label: "Dạng 3" },
+                                { id: 3, title: "Phân tích cụm", label: "Dạng 4" },
+                                { id: 4, title: "Lỗi IELTS", label: "Dạng 5" }
+                            ].map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all
+                                    ${activeTab === index 
+                                        ? 'bg-primary text-white shadow-md' 
+                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                >
+                                    {tab.label}: {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExHeadNoun />}
+                            {activeTab === 1 && <ExPlural />}
+                            {activeTab === 2 && <ExMeaning />}
+                            {activeTab === 3 && <ExAnalysis />}
+                            {activeTab === 4 && <ExIELTS />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

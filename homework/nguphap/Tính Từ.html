@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | OSASCOMP Masterclass</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        primary: '#6366F1', // Indigo 500
+                        secondary: '#10B981', // Emerald 500
+                        warning: '#F59E0B', // Amber 500
+                        danger: '#F43F5E', // Rose 500
+                        info: '#3B82F6', // Blue 500
+                        dark: '#1e293b' // Slate 800
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 50%, #fdf2f8 100%);
+            color: #334155; 
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        }
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; transform-origin: top; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: scaleY(0.95); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900 pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- PURE INLINE SVGS (0% Emojis, 0% External Fonts) ---
+        const SvgCheck = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>;
+        const SvgCross = () => <svg className="w-5 h-5 text-rose-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>;
+        const SvgWarning = () => <svg className="w-5 h-5 text-amber-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>;
+        const SvgInfo = () => <svg className="w-5 h-5 text-indigo-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>;
+        const SvgChevron = ({ isOpen }) => <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
+        const SvgBook = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>;
+
+        // --- FORMATTING COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-50 text-indigo-700",
+                secondary: "bg-emerald-50 text-emerald-700",
+                warning: "bg-amber-50 text-amber-700",
+                danger: "bg-rose-50 text-rose-700",
+                info: "bg-blue-50 text-blue-700"
+            };
+            return <span className={`inline-block px-2 py-0.5 rounded font-semibold text-[15px] border border-slate-200 ${styles[color]}`}>{children}</span>;
+        };
+        
+        const ExampleBox = ({ children }) => (
+            <div className="bg-white border-l-4 border-indigo-500 p-4 my-4 rounded-r-lg text-slate-700 text-[15px] shadow-sm">
+                {children}
+            </div>
+        );
+
+        const NoteBox = ({ children, type = "info" }) => {
+            const styles = {
+                warning: "bg-amber-50 border-amber-200 text-amber-900",
+                info: "bg-indigo-50 border-indigo-200 text-indigo-900",
+                danger: "bg-rose-50 border-rose-200 text-rose-900"
+            };
+            const icons = {
+                warning: <SvgWarning />,
+                info: <SvgInfo />,
+                danger: <SvgCross />
+            };
+            return (
+                <div className={`border p-4 my-4 rounded-xl flex items-start text-[15px] ${styles[type]}`}>
+                    <div className="mt-0.5 shrink-0">{icons[type]}</div>
+                    <div className="ml-2 w-full">{children}</div>
+                </div>
+            );
+        };
+
+        const Point = ({ num, title, children, isLast }) => (
+            <div className={`pb-8 mb-8 ${!isLast ? 'border-b border-dashed border-slate-300' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                    <span className="bg-indigo-600 text-white font-extrabold px-3 py-1.5 rounded-lg text-sm shadow-sm">Mục {num}</span>
+                    <h3 className="font-extrabold text-slate-800 text-lg tracking-wide uppercase">{title}</h3>
+                </div>
+                <div className="text-slate-600 text-base leading-relaxed space-y-3">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Accordion = ({ title, children }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="mb-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-all">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 md:p-6 flex justify-between items-center text-left bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-indigo-600 shadow-sm">
+                                <SvgBook />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+                        </div>
+                        <SvgChevron isOpen={isOpen} />
+                    </button>
+                    {isOpen && <div className="p-6 md:p-8 bg-white slide-down">{children}</div>}
+                </div>
+            );
+        };
+
+        const ExplanationBox = ({ isCorrect, exp }) => (
+            <div className={`mt-4 p-4 rounded-xl text-[15px] font-medium border flex items-start gap-3 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                <div className="mt-0.5 shrink-0">
+                    {isCorrect ? <SvgCheck /> : <SvgCross />}
+                </div>
+                <div className="w-full">
+                    <strong className="block mb-1">{isCorrect ? "Chính xác!" : "Sai rồi!"}</strong>
+                    {exp}
+                </div>
+            </div>
+        );
+
+        const FlipCard = ({ front, back, frontColor, backColor }) => {
+            const [isFlipped, setIsFlipped] = useState(false);
+            return (
+                <div className="perspective-1000 w-full h-28 group cursor-pointer" onClick={() => setIsFlipped(!isFlipped)}>
+                    <div className={`relative w-full h-full duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
+                        <div className={`absolute inset-0 backface-hidden rounded-2xl flex flex-col items-center justify-center p-4 text-center shadow-sm border border-white/50 ${frontColor}`}>
+                            <span className="font-extrabold text-lg">{front}</span>
+                        </div>
+                        <div className={`absolute inset-0 backface-hidden rotate-y-180 rounded-2xl flex items-center justify-center p-4 text-center shadow-lg border border-transparent ${backColor}`}>
+                            <span className="font-bold text-[15px]">{back}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- EXERCISE COMPONENTS ---
+
+        const ExCategory = () => {
+            const questions = [
+                { id: 1, word: "beautiful", opts: ["Opinion", "Size", "Shape", "Color"], ans: "Opinion", exp: "Beautiful là quan điểm/đánh giá chủ quan của người nói." },
+                { id: 2, word: "enormous", opts: ["Size", "Age", "Origin", "Material"], ans: "Size", exp: "Enormous nghĩa là to lớn, khổng lồ &rarr; Kích thước (Size)." },
+                { id: 3, word: "ancient", opts: ["Age", "Shape", "Color", "Purpose"], ans: "Age", exp: "Ancient nghĩa là cổ đại, lâu đời &rarr; Tuổi (Age)." },
+                { id: 4, word: "round", opts: ["Size", "Shape", "Material", "Opinion"], ans: "Shape", exp: "Round nghĩa là hình tròn &rarr; Hình dáng (Shape)." },
+                { id: 5, word: "blue", opts: ["Age", "Color", "Origin", "Purpose"], ans: "Color", exp: "Blue là Màu sắc (Color)." },
+                { id: 6, word: "Japanese", opts: ["Opinion", "Size", "Origin", "Material"], ans: "Origin", exp: "Japanese chỉ nguồn gốc, xuất xứ từ Nhật Bản &rarr; Nguồn gốc (Origin)." },
+                { id: 7, word: "wooden", opts: ["Shape", "Color", "Origin", "Material"], ans: "Material", exp: "Wooden chỉ chất liệu làm bằng gỗ &rarr; Chất liệu (Material)." },
+                { id: 8, word: "sleeping", opts: ["Opinion", "Age", "Material", "Purpose"], ans: "Purpose", exp: "Sleeping bag (túi ngủ) &rarr; Sleeping chỉ mục đích sử dụng (Purpose)." },
+                { id: 9, word: "expensive", opts: ["Opinion", "Size", "Shape", "Origin"], ans: "Opinion", exp: "Expensive (đắt) là đánh giá chủ quan &rarr; Opinion." },
+                { id: 10, word: "tiny", opts: ["Size", "Age", "Color", "Material"], ans: "Size", exp: "Tiny (nhỏ xíu) chỉ kích thước &rarr; Size." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 1: Phân loại Tính từ theo hệ thống OSASCOMP</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-slate-800 text-lg"><span className="text-slate-400 mr-2">{q.id}.</span> {q.word}</span>
+                                <div className="flex flex-wrap gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-[15px] font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-indigo-500 hover:text-indigo-600";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExOrder = () => {
+            const questions = [
+                { id: 1, q: "Huy bought a... (table)", opts: ["wooden beautiful old", "beautiful old wooden"], ans: "beautiful old wooden", exp: "Opinion (beautiful) &rarr; Age (old) &rarr; Material (wooden)." },
+                { id: 2, q: "Kim Phụng drives an... (car)", opts: ["Italian expensive sports", "expensive Italian sports"], ans: "expensive Italian sports", exp: "Opinion (expensive) &rarr; Origin (Italian) &rarr; Purpose (sports)." },
+                { id: 3, q: "Peter has a... (bag)", opts: ["large red leather", "red large leather"], ans: "large red leather", exp: "Size (large) &rarr; Color (red) &rarr; Material (leather)." },
+                { id: 4, q: "Michael bought a... (dress)", opts: ["traditional beautiful Vietnamese", "beautiful traditional Vietnamese"], ans: "beautiful traditional Vietnamese", exp: "Opinion (beautiful) &rarr; Age/Style (traditional) &rarr; Origin (Vietnamese)." },
+                { id: 5, q: "Gia Hưng likes the... (table)", opts: ["small round glass", "round small glass"], ans: "small round glass", exp: "Size (small) &rarr; Shape (round) &rarr; Material (glass)." },
+                { id: 6, q: "Look at that... (building)", opts: ["huge old", "old huge"], ans: "huge old", exp: "Size (huge) &rarr; Age (old)." },
+                { id: 7, q: "I wear a... (shirt)", opts: ["new lovely silk", "lovely new silk"], ans: "lovely new silk", exp: "Opinion (lovely) &rarr; Age (new) &rarr; Material (silk)." },
+                { id: 8, q: "She sat on an... (chair)", opts: ["ugly big plastic", "big ugly plastic"], ans: "ugly big plastic", exp: "Opinion (ugly) &rarr; Size (big) &rarr; Material (plastic)." },
+                { id: 9, q: "We bought a... (sofa)", opts: ["comfortable old leather", "old comfortable leather"], ans: "comfortable old leather", exp: "Opinion (comfortable) &rarr; Age (old) &rarr; Material (leather)." },
+                { id: 10, q: "He found an... (vase)", opts: ["ancient fascinating Chinese", "fascinating ancient Chinese"], ans: "fascinating ancient Chinese", exp: "Opinion (fascinating) &rarr; Age (ancient) &rarr; Origin (Chinese)." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 2: Sắp xếp theo OSASCOMP (Chọn cụm đúng)</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex flex-col gap-4">
+                                <span className="font-bold text-slate-800 text-lg"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex flex-col gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "text-left px-5 py-3 rounded-lg text-[15px] font-semibold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-700 hover:border-indigo-500 hover:bg-indigo-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-800";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-800";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExComma = () => {
+            const questions = [
+                { id: 1, q: "a beautiful elegant dress", ans: "Coordinate", exp: "Cả hai đều là Opinion &rarr; Cùng nhóm &rarr; Coordinate (Có thể dùng phẩy hoặc and)." },
+                { id: 2, q: "a beautiful old house", ans: "Cumulative", exp: "Opinion &rarr; Age. Các tính từ xây dựng thông tin theo lớp &rarr; Cumulative (Không dùng phẩy)." },
+                { id: 3, q: "a long difficult journey", ans: "Coordinate", exp: "Có thể chèn 'and' (a long and difficult journey) &rarr; Coordinate." },
+                { id: 4, q: "a cold rainy day", ans: "Coordinate", exp: "Cùng nhóm mô tả thời tiết (a cold and rainy day) &rarr; Coordinate." },
+                { id: 5, q: "a large wooden table", ans: "Cumulative", exp: "Size &rarr; Material. Không tự nhiên nếu nói 'large and wooden table' &rarr; Cumulative." },
+                { id: 6, q: "a tall smart man", ans: "Coordinate", exp: "Có thể đảo ngược 'a smart tall man' hoặc chèn 'and' &rarr; Coordinate." },
+                { id: 7, q: "a cheap plastic toy", ans: "Cumulative", exp: "Opinion &rarr; Material &rarr; Cumulative." },
+                { id: 8, q: "a dark scary forest", ans: "Coordinate", exp: "Cùng nhóm Opinion/Mô tả. Dùng phẩy hoặc 'and' &rarr; Coordinate." },
+                { id: 9, q: "a small black cat", ans: "Cumulative", exp: "Size &rarr; Color &rarr; Cumulative." },
+                { id: 10, q: "a happy energetic child", ans: "Coordinate", exp: "Cùng nhóm Opinion/Tính cách &rarr; Coordinate." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 3: Coordinate (Đồng đẳng) hay Cumulative (Tích lũy)?</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-slate-800 text-[17px]"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {["Coordinate", "Cumulative"].map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-[15px] font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-indigo-500 hover:text-indigo-600";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExHeadNoun = () => {
+            const questions = [
+                { id: 1, q: ["swimming", "pool"], ans: "pool", exp: "Pool là danh từ chính. Swimming là purpose (hồ để bơi)." },
+                { id: 2, q: ["dining", "table"], ans: "table", exp: "Table là danh từ chính." },
+                { id: 3, q: ["running", "shoes"], ans: "shoes", exp: "Shoes là danh từ chính." },
+                { id: 4, q: ["coffee", "cup"], ans: "cup", exp: "Cup là danh từ chính. Coffee là Noun Modifier." },
+                { id: 5, q: ["beautiful", "old", "house"], ans: "house", exp: "House là danh từ chính." },
+                { id: 6, q: ["expensive", "leather", "bag"], ans: "bag", exp: "Bag là danh từ chính." },
+                { id: 7, q: ["three", "large", "red", "boxes"], ans: "boxes", exp: "Boxes là danh từ chính." },
+                { id: 8, q: ["travel", "bag"], ans: "bag", exp: "Bag là danh từ chính. Travel là Purpose." },
+                { id: 9, q: ["kitchen", "table"], ans: "table", exp: "Table là danh từ chính. Kitchen là Noun Modifier." },
+                { id: 10, q: ["language", "school"], ans: "school", exp: "School là danh từ chính." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, word, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: word, isCorrect: word === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 4: Bóc tách Cụm (Click vào Head Noun trong cụm sau)</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-4 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex flex-wrap gap-2 items-center text-lg mb-2">
+                                <span className="text-slate-400 font-bold mr-2 text-base">{q.id}.</span>
+                                {q.q.map((word, wIdx) => {
+                                    const st = status[q.id];
+                                    let style = "cursor-pointer px-4 py-2 rounded-lg transition-colors font-semibold border-2 border-transparent ";
+                                    if (!st) style += "bg-slate-50 hover:bg-indigo-100 text-slate-700 hover:text-indigo-700 border-slate-200 hover:border-indigo-300";
+                                    else {
+                                        if (st.selected === word && st.isCorrect) style += "bg-emerald-50 text-emerald-700 border-emerald-500";
+                                        else if (st.selected === word && !st.isCorrect) style += "bg-rose-50 text-rose-700 border-rose-500 line-through";
+                                        else if (word === q.ans) style += "bg-white text-emerald-600 border-dashed border-emerald-400";
+                                        else style += "text-slate-400 bg-slate-50";
+                                    }
+                                    return <span key={wIdx} onClick={() => handleSelect(q.id, word, q.ans, q.exp)} className={style}>{word}</span>;
+                                })}
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExNatural = () => {
+            const questions = [
+                { id: 1, q: "a wooden beautiful table", opts: ["Lỗi Ngữ pháp", "Hợp lý"], ans: "Lỗi Ngữ pháp", exp: "Sai trật tự. Phải là 'a beautiful wooden table' (Opinion &rarr; Material)." },
+                { id: 2, q: "a red big house", opts: ["Lỗi Ngữ pháp", "Hợp lý"], ans: "Lỗi Ngữ pháp", exp: "Sai trật tự. Phải là 'a big red house' (Size &rarr; Color)." },
+                { id: 3, q: "an Italian expensive car", opts: ["Lỗi Ngữ pháp", "Hợp lý"], ans: "Lỗi Ngữ pháp", exp: "Sai trật tự. Phải là 'an expensive Italian car' (Opinion &rarr; Origin)." },
+                { id: 4, q: "a beautiful old Japanese building", opts: ["Lỗi Ngữ pháp", "Hợp lý"], ans: "Hợp lý", exp: "Đúng chuẩn OSASCOMP: Opinion &rarr; Age &rarr; Origin." },
+                { id: 5, q: "a huge big house", opts: ["Lỗi Ngữ pháp", "Không tự nhiên"], ans: "Không tự nhiên", exp: "Không ai dùng 2 tính từ Size sát nhau. Chỉ cần nói 'a huge house'." },
+                { id: 6, q: "Italian leather shoes", opts: ["Lỗi Ngữ pháp", "Hợp lý"], ans: "Hợp lý", exp: "Origin &rarr; Material." },
+                { id: 7, q: "leather Italian shoes", opts: ["Lỗi Ngữ pháp", "Hợp lý"], ans: "Lỗi Ngữ pháp", exp: "Origin luôn đi trước Material." },
+                { id: 8, q: "a beautiful amazing wonderful house", opts: ["Hợp lý", "Không tự nhiên"], ans: "Không tự nhiên", exp: "Quá tải thông tin. Không nên nhồi nhét quá nhiều tính từ Opinion cùng lúc." },
+                { id: 9, q: "a beautiful old wooden dining table", opts: ["Lỗi Ngữ pháp", "Hợp lý"], ans: "Hợp lý", exp: "Cụm danh từ đầy đủ, trật tự chuẩn và độ dài vừa đủ tự nhiên." },
+                { id: 10, q: "a beautiful large old round red Italian wooden dining table", opts: ["Hợp lý", "Không tự nhiên"], ans: "Không tự nhiên", exp: "Ngữ pháp đúng nhưng không ai nói ngoài đời thực vì quá dài." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 5: Ngữ pháp đúng chưa chắc đã Tự nhiên.</p>
+                        <span className="font-bold text-indigo-700 bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10 Điểm</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-slate-800 text-[16px]"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2 flex-shrink-0">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-[15px] font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-indigo-500 hover:text-indigo-600";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            
+            return (
+                <div className="max-w-4xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    {/* Hero Section */}
+                    <header className="text-center mb-16">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-dark tracking-tight mb-6 leading-tight">
+                            Làm chủ Trật tự Tính từ <br className="hidden md:block"/><span className="text-primary">(OSASCOMP)</span>
+                        </h1>
+                        <p className="text-[17px] text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            Quy tắc OSASCOMP là bảng chỉ đường, không phải một công thức toán học tuyệt đối. Hãy cùng phân tích bản chất thay vì chỉ học vẹt câu thần chú!
+                        </p>
+                    </header>
+
+                    {/* OVERVIEW CARDS */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
+                        <FlipCard front="O - Opinion" back="Đánh giá: beautiful, ugly, nice" frontColor="bg-indigo-50 text-indigo-700" backColor="bg-indigo-600 text-white" />
+                        <FlipCard front="S - Size" back="Kích thước: big, small, huge" frontColor="bg-emerald-50 text-emerald-700" backColor="bg-emerald-600 text-white" />
+                        <FlipCard front="A - Age" back="Độ tuổi: old, new, ancient" frontColor="bg-amber-50 text-amber-700" backColor="bg-amber-600 text-white" />
+                        <FlipCard front="S - Shape" back="Hình dáng: round, square" frontColor="bg-rose-50 text-rose-700" backColor="bg-rose-600 text-white" />
+                        <FlipCard front="C - Color" back="Màu sắc: red, blue, green" frontColor="bg-blue-50 text-blue-700" backColor="bg-blue-600 text-white" />
+                        <FlipCard front="O - Origin" back="Nguồn gốc: Vietnamese, Italian" frontColor="bg-purple-50 text-purple-700" backColor="bg-purple-600 text-white" />
+                        <FlipCard front="M - Material" back="Chất liệu: wooden, leather" frontColor="bg-cyan-50 text-cyan-700" backColor="bg-cyan-600 text-white" />
+                        <FlipCard front="P - Purpose" back="Mục đích: sleeping, dining" frontColor="bg-slate-100 text-slate-700" backColor="bg-slate-700 text-white" />
+                    </div>
+
+                    {/* FULL 49 POINTS THEORY */}
+                    <div className="mb-16">
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-8 text-center border-b-2 border-slate-200 pb-4 inline-block mx-auto">Sổ tay Lý thuyết</h2>
+                        
+                        <Accordion title="1. Tại sao & OSASCOMP là gì? (Mục 1-3, 16-18)">
+                            <Point num="1" title="Tại sao phải học Trật tự tính từ?" isLast={false}>
+                                <p className="mb-2">Trong tiếng Anh, ta có thể đặt nhiều tính từ trước một danh từ. Nhưng không thể tùy ý xếp:</p>
+                                <ul className="space-y-2 mb-2">
+                                    <li><SvgCross /> <span className="line-through text-rose-500">a wooden beautiful old house</span></li>
+                                    <li><SvgCheck /> <span className="text-emerald-700 font-semibold">a beautiful old wooden house</span></li>
+                                </ul>
+                                <p>Người bản xứ có một trật tự tương đối ổn định khi xếp nhiều adjective. Đó là lý do chúng ta học: <b>OSASCOMP</b>.</p>
+                            </Point>
+
+                            <Point num="2 & 3" title="Công thức OSASCOMP & Câu thần chú" isLast={false}>
+                                <p className="font-bold text-indigo-700 mb-2">Ông Sáu Ăn Súp Cua Ông Mập Phi</p>
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden text-[15px] mb-4">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="bg-slate-100 text-slate-800">
+                                                <th className="p-3 border-b border-slate-200">Chữ</th>
+                                                <th className="p-3 border-b border-slate-200">Category</th>
+                                                <th className="p-3 border-b border-slate-200">Ý nghĩa</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td className="p-3 border-b border-slate-200 font-bold">O</td><td className="p-3 border-b border-slate-200">Opinion</td><td className="p-3 border-b border-slate-200">Quan điểm/đánh giá</td></tr>
+                                            <tr><td className="p-3 border-b border-slate-200 font-bold">S</td><td className="p-3 border-b border-slate-200">Size</td><td className="p-3 border-b border-slate-200">Kích thước</td></tr>
+                                            <tr><td className="p-3 border-b border-slate-200 font-bold">A</td><td className="p-3 border-b border-slate-200">Age</td><td className="p-3 border-b border-slate-200">Tuổi tác</td></tr>
+                                            <tr><td className="p-3 border-b border-slate-200 font-bold">S</td><td className="p-3 border-b border-slate-200">Shape</td><td className="p-3 border-b border-slate-200">Hình dạng</td></tr>
+                                            <tr><td className="p-3 border-b border-slate-200 font-bold">C</td><td className="p-3 border-b border-slate-200">Color</td><td className="p-3 border-b border-slate-200">Màu sắc</td></tr>
+                                            <tr><td className="p-3 border-b border-slate-200 font-bold">O</td><td className="p-3 border-b border-slate-200">Origin</td><td className="p-3 border-b border-slate-200">Nguồn gốc</td></tr>
+                                            <tr><td className="p-3 border-b border-slate-200 font-bold">M</td><td className="p-3 border-b border-slate-200">Material</td><td className="p-3 border-b border-slate-200">Chất liệu</td></tr>
+                                            <tr><td className="p-3 font-bold">P</td><td className="p-3">Purpose</td><td className="p-3">Mục đích/Công dụng</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Point>
+
+                            <Point num="16 - 18" title="Thực tế vs Lý thuyết" isLast={true}>
+                                <ExampleBox>
+                                    a beautiful large old round red Italian wooden dining table<br/>
+                                    (a &rarr; Det, beautiful &rarr; O, large &rarr; S, old &rarr; A, round &rarr; S, red &rarr; C, Italian &rarr; O, wooden &rarr; M, dining &rarr; P, table &rarr; Head noun)
+                                </ExampleBox>
+                                <NoteBox type="info">
+                                    <b>OSASCOMP là bản đồ định hướng, không phải luật toán học tuyệt đối.</b><br/>
+                                    Không ai thường xuyên nói một câu dài như vậy trong thực tế. Tiếng Anh tự nhiên thường ưu tiên sự rõ ràng (clarity) và tự nhiên (naturalness) hơn là cố nhồi nhét 5-8 tính từ. Thường chỉ dùng 1-3 adjective.
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="2. Phân tích chi tiết 8 loại Tính từ (Mục 4-12, 25-26)">
+                            <Point num="4 & 5" title="O — OPINION (Chủ quan vs Khách quan)" isLast={false}>
+                                <p className="mb-2">Quan điểm / đánh giá. Thể hiện người nói nghĩ gì về danh từ đó.</p>
+                                <p className="mb-2 font-bold text-slate-700">VD: beautiful, ugly, nice, terrible, interesting, expensive...</p>
+                                <NoteBox type="warning">
+                                    <b>Tại sao Opinion đứng đầu?</b><br/>
+                                    So sánh <i>beautiful</i> (đánh giá của người nói) với <i>old</i> (thông tin khách quan). Ý tưởng là: "Tôi đánh giá nó đẹp" &rarr; "Nó có tuổi đời lâu". Vì vậy Opinion luôn đứng trước Factual description (Mô tả khách quan).
+                                </NoteBox>
+                            </Point>
+
+                            <Point num="6 - 11" title="S, A, S, C, O, M" isLast={false}>
+                                <ul className="space-y-4">
+                                    <li><Highlight color="primary">Size (Độ lớn):</Highlight> big, small, huge, tiny, tall. <i>(a beautiful big house)</i></li>
+                                    <li><Highlight color="secondary">Age (Tuổi):</Highlight> new, old, young, ancient. <i>(a small ancient temple)</i></li>
+                                    <li><Highlight color="warning">Shape (Hình dáng):</Highlight> round, square, rectangular, narrow. <i>(a large round table)</i></li>
+                                    <li><Highlight color="info">Color (Màu sắc):</Highlight> red, blue, green, black. <i>(a beautiful small red bag)</i></li>
+                                    <li><Highlight color="danger">Origin (Nguồn gốc):</Highlight> Vietnamese, Italian, European. <i>(an expensive Italian car)</i></li>
+                                    <li><Highlight color="primary">Material (Chất liệu):</Highlight> wooden, metal, plastic, leather. <i>(a small black leather bag)</i></li>
+                                </ul>
+                            </Point>
+
+                            <Point num="12" title="P — PURPOSE (Mục đích)" isLast={false}>
+                                <p className="mb-2">Đây là phần học sinh dễ thấy lạ nhất. Nó trả lời câu hỏi: <b>Dùng để làm gì?</b></p>
+                                <ul className="list-disc pl-5 mb-2 font-bold text-slate-700">
+                                    <li>sleeping bag &rarr; túi để ngủ</li>
+                                    <li>tennis shoes &rarr; giày để chơi tennis</li>
+                                    <li>swimming pool &rarr; hồ để bơi</li>
+                                    <li>dining table &rarr; bàn để ăn</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="25 & 26" title="Các loại khác & Sự dư thừa" isLast={true}>
+                                <p className="mb-2">OSASCOMP là một <i>memory aid</i>, không phải toàn bộ hệ thống. Còn có temperature, condition, texture (VD: <i>a beautiful soft leather sofa</i>).</p>
+                                <NoteBox type="danger">
+                                    <b>"Big" vs "Huge"</b><br/>
+                                    Cả hai đều là Size. Không nhất thiết phải có nhiều size cùng lúc. Nếu có <i>a huge big house</i> &rarr; rất không tự nhiên. Chọn 1 từ: <i>a huge house</i>. OSASCOMP không phải giấy phép để xếp tất cả adjective vào cùng một noun.
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="3. Purpose vs Noun Modifier & Vị trí (Mục 13-15, 27-32)">
+                            <Point num="13 & 14" title="Purpose không nhất thiết là Adjective" isLast={false}>
+                                <p className="mb-2">Trong <i>tennis shoes</i>, "tennis" về mặt hình thức là noun, không phải adjective. Nhưng nó đang đứng trước shoes để bổ nghĩa. Ta gọi: <b>noun modifier / attributive noun</b>.</p>
+                                <p>Thành phần ở vị trí Purpose thường có dạng <b>V-ing hoặc Noun</b> (running shoes, coffee cup, school bus). P = chức năng/công dụng, không nhất thiết là một adjective thực sự.</p>
+                            </Point>
+
+                            <Point num="15" title="Tại sao Purpose gần Noun nhất?" isLast={false}>
+                                <p className="mb-2">Hãy nhìn: <i>a beautiful old red Italian leather dining table</i>. Từ <i>dining</i> gắn rất chặt với <i>table</i> (What is the table for?). Trong khi <i>beautiful</i> chỉ là đánh giá.</p>
+                                <p className="font-bold text-indigo-700">Vì vậy: opinion &rarr; xa noun hơn, purpose &rarr; gần noun hơn. (Giải thích logic thay vì học thuộc OSASCOMP).</p>
+                            </Point>
+
+                            <Point num="27 - 32" title="Sự nhầm lẫn vị trí & Compound Nouns" isLast={true}>
+                                <ul className="space-y-4">
+                                    <li>
+                                        <b>Origin vs Material:</b> Rất dễ đảo. Đúng: <i>Italian leather shoes</i> (Origin &rarr; Material). Lỗi: <SvgCross /> leather Italian shoes.
+                                    </li>
+                                    <li>
+                                        <b>Color vs Origin:</b> <i>a beautiful red Italian car</i>. Lỗi: <SvgCross /> an Italian red beautiful car.
+                                    </li>
+                                    <li>
+                                        <b>Compound Noun vs Adjective:</b> <i>a wooden table</i> (wooden = adj). Nhưng <i>a coffee shop</i> (coffee = noun modifier).
+                                    </li>
+                                    <li>
+                                        <b>"Wooden" vs "Wood":</b> wooden table là cách thông thường khi nói chất liệu. Wood table có thể xuất hiện nhưng ít phổ biến hơn.
+                                    </li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="4. Coordinate vs Cumulative & Các quy tắc khác (Mục 19-24)">
+                            <Point num="21" title="Có thể có nhiều Adjective cùng một nhóm" isLast={false}>
+                                <p className="mb-2">Ví dụ: <i>a beautiful, elegant dress</i>. Cả hai đều là Opinion. Khi hai adjective cùng loại, ta có thể dùng <b>dấu phẩy (comma)</b> hoặc <b>and</b>.</p>
+                            </Point>
+
+                            <Point num="22" title="Coordinate vs Cumulative Adjectives" isLast={false}>
+                                <ul className="space-y-4">
+                                    <li>
+                                        <Highlight color="primary">Coordinate</Highlight> (Đồng đẳng): a beautiful, elegant dress. &rarr; Có thể nói <i>a beautiful and elegant dress</i>.
+                                    </li>
+                                    <li>
+                                        <Highlight color="secondary">Cumulative</Highlight> (Tích lũy): a beautiful old wooden house. &rarr; Không tự nhiên nếu nói <SvgCross /> a beautiful and old and wooden house. Các adjective đang xây dựng thông tin theo từng lớp.
+                                    </li>
+                                </ul>
+                            </Point>
+
+                            <Point num="23 & 24" title="Test nhanh với 'And' và 'Dấu phẩy'" isLast={true}>
+                                <p className="mb-2">Nếu có thể tự nhiên chèn <b>and</b> giữa hai adjective &rarr; Coordinate adjectives. Nếu không &rarr; không nên máy móc dùng "and".</p>
+                                <p>Coordinate adjectives thường có thể dùng <b>comma</b> (a long, difficult journey). Nhưng <i>a beautiful old wooden table</i> không cần: <SvgCross /> a beautiful, old, wooden table.</p>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="5. Tích hợp Noun Phrase & Mental Model (Mục 43-49)">
+                            <Point num="43" title="Những lỗi học sinh hay mắc" isLast={false}>
+                                <ul className="space-y-3 text-[15px]">
+                                    <li><SvgCross /> <b>Dịch trực tiếp từ tiếng Việt:</b> "một cái bàn gỗ cũ đẹp" &rarr; a wooden old beautiful table. (Sai). Phải là &rarr; a beautiful old wooden table.</li>
+                                    <li><SvgCross /> <b>Nhồi adjective:</b> a beautiful amazing wonderful fantastic house. (Không cần thiết).</li>
+                                    <li><SvgCross /> <b>Nghĩ OSASCOMP là luật tuyệt đối.</b></li>
+                                    <li><SvgCross /> <b>Nghĩ P luôn là adjective.</b> (swimming pool &rarr; noun modifier).</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="44 & 45" title="Cách 'Bóc' Cụm danh từ dài" isLast={false}>
+                                <p className="mb-2 font-bold text-indigo-700">Determiner + Adjective(s) + Noun Modifier + Head Noun</p>
+                                <ExampleBox>
+                                    <b>the three beautiful old red Italian leather handbags</b><br/>
+                                    1. Head Noun: handbags<br/>
+                                    2. Determiner: the<br/>
+                                    3. Number: three<br/>
+                                    4. Bóc Adjectives: beautiful (O), old (A), red (C), Italian (O), leather (M).
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="47 - 49" title="Final Mental Model & Cốt lõi" isLast={true}>
+                                <p className="mb-2">Hãy tưởng tượng Head Noun ở giữa, rồi thông tin được "xây" dần từ ngoài vào: <b>Opinion &rarr; Size &rarr; Age &rarr; Shape &rarr; Color &rarr; Origin &rarr; Material &rarr; Purpose &rarr; HEAD NOUN</b>.</p>
+                                <NoteBox type="info">
+                                    <b>MUST REMEMBER:</b><br/>
+                                    1. Không phải noun phrase nào cũng cần đủ 8 loại.<br/>
+                                    2. Không phải từ đứng trước noun nào cũng là adjective (school bus).<br/>
+                                    3. Purpose thường đứng rất gần noun.<br/>
+                                    4. OSASCOMP là guideline để giúp tự nhiên hơn, không phải luật tuyệt đối áp dụng máy móc.
+                                </NoteBox>
+                                <p className="font-bold text-indigo-700 mt-4 text-center text-lg">Grammar cho em biết câu nào đúng. Sense of language giúp em biết câu nào tự nhiên.</p>
+                            </Point>
+                        </Accordion>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs) */}
+                    <div id="exercises" className="glass rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mb-12">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Bấm vào đáp án để Check ngay đúng/sai. Đừng để dính bẫy nhé!</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-4">
+                            {[
+                                { id: 0, title: "Phân loại", label: "Dạng 1" },
+                                { id: 1, title: "Sắp xếp", label: "Dạng 2" },
+                                { id: 2, title: "Cumulative", label: "Dạng 3" },
+                                { id: 3, title: "Head Noun", label: "Dạng 4" },
+                                { id: 4, title: "Độ tự nhiên", label: "Dạng 5" }
+                            ].map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all
+                                    ${activeTab === index 
+                                        ? 'bg-indigo-600 text-white shadow-md' 
+                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                >
+                                    {tab.label}: {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExCategory />}
+                            {activeTab === 1 && <ExOrder />}
+                            {activeTab === 2 && <ExComma />}
+                            {activeTab === 3 && <ExHeadNoun />}
+                            {activeTab === 4 && <ExNatural />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

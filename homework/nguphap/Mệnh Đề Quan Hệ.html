@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Relative Clauses Masterclass</title>
+
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (CDNJS to prevent blank pages) -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        primary: '#6366F1', // Indigo 500
+                        secondary: '#10B981', // Emerald 500
+                        warning: '#F59E0B', // Amber 500
+                        danger: '#F43F5E', // Rose 500
+                        info: '#3B82F6', // Blue 500
+                        brandDark: '#0f172a' // Slate 900
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #fdf2f8 100%);
+            color: #334155; 
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; transform-origin: top; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: scaleY(0.95); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900 pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- PURE INLINE SVGS (0% Emojis) ---
+        const SvgCheck = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>;
+        const SvgCross = () => <svg className="w-5 h-5 text-rose-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>;
+        const SvgWarning = () => <svg className="w-5 h-5 text-amber-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>;
+        const SvgInfo = () => <svg className="w-5 h-5 text-indigo-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>;
+        const SvgChevron = ({ isOpen }) => <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
+        const SvgBook = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>;
+        const SvgTarget = () => <svg className="w-5 h-5 text-indigo-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>;
+
+        // --- FORMATTING COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-50 text-indigo-700",
+                secondary: "bg-emerald-50 text-emerald-700",
+                warning: "bg-amber-50 text-amber-700",
+                danger: "bg-rose-50 text-rose-700",
+                info: "bg-blue-50 text-blue-700"
+            };
+            return <span className={`inline-block px-2 py-0.5 rounded font-semibold text-[15px] border border-slate-200 ${styles[color]}`}>{children}</span>;
+        };
+        
+        const ExampleBox = ({ children }) => (
+            <div className="bg-slate-50 border-l-4 border-indigo-400 p-4 my-3 text-slate-700 rounded-r-lg shadow-sm text-[15px]">
+                {children}
+            </div>
+        );
+
+        const NoteBox = ({ children, type = "info" }) => {
+            const styles = {
+                warning: "bg-amber-50 border-amber-200 text-amber-900",
+                info: "bg-indigo-50 border-indigo-200 text-indigo-900",
+                danger: "bg-rose-50 border-rose-200 text-rose-900"
+            };
+            const icons = { warning: <SvgWarning />, info: <SvgInfo />, danger: <SvgCross /> };
+            return (
+                <div className={`border p-4 my-4 rounded-xl flex items-start text-[15px] ${styles[type]}`}>
+                    <div className="mt-0.5 shrink-0">{icons[type]}</div>
+                    <div className="ml-2 w-full">{children}</div>
+                </div>
+            );
+        };
+
+        const Point = ({ num, title, children, isLast }) => (
+            <div className={`pb-8 mb-8 ${!isLast ? 'border-b border-dashed border-slate-300' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                    <span className="bg-indigo-600 text-white font-extrabold px-3 py-1.5 rounded-lg text-sm shadow-sm">Mục {num}</span>
+                    <h3 className="font-extrabold text-slate-800 text-lg tracking-wide uppercase">{title}</h3>
+                </div>
+                <div className="text-slate-600 text-[15px] leading-relaxed space-y-2">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Accordion = ({ title, children }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="mb-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 md:p-6 flex justify-between items-center text-left bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl text-indigo-600 shadow-sm">
+                                <SvgBook />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+                        </div>
+                        <SvgChevron isOpen={isOpen} />
+                    </button>
+                    {isOpen && <div className="p-6 md:p-8 bg-white slide-down">{children}</div>}
+                </div>
+            );
+        };
+
+        const ExplanationBox = ({ isCorrect, exp }) => (
+            <div className={`mt-4 p-4 rounded-xl text-[15px] font-medium border flex items-start gap-3 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                <div className="mt-0.5 shrink-0">
+                    {isCorrect ? <SvgCheck /> : <SvgCross />}
+                </div>
+                <div className="w-full">
+                    <strong className="block mb-1">{isCorrect ? "Chính xác!" : "Sai rồi!"}</strong>
+                    {exp}
+                </div>
+            </div>
+        );
+
+        // --- EXERCISE COMPONENTS ---
+        
+        // Tab 1: Subject hay Object? (Mục 5-8, 27-29, 57)
+        const ExFunction = () => {
+            const questions = [
+                { id: 1, q: "The man who lives next door is a doctor.", opts: ["Subject", "Object"], ans: "Subject", exp: "Sau 'who' là động từ 'lives' -> who đóng vai trò Chủ ngữ (Subject) của mệnh đề." },
+                { id: 2, q: "The man who I met yesterday is a doctor.", opts: ["Subject", "Object"], ans: "Object", exp: "Sau 'who' là S + V ('I met') -> who đóng vai trò Tân ngữ (Object)." },
+                { id: 3, q: "The book which is on the table is mine.", opts: ["Subject", "Object"], ans: "Subject", exp: "Sau 'which' là động từ to be 'is' -> which đóng vai trò Subject." },
+                { id: 4, q: "The book which I bought is expensive.", opts: ["Subject", "Object"], ans: "Object", exp: "Sau 'which' là S + V ('I bought') -> which đóng vai trò Object." },
+                { id: 5, q: "The girl that won the prize is my sister.", opts: ["Subject", "Object"], ans: "Subject", exp: "Sau 'that' là động từ 'won' -> that đóng vai trò Subject." },
+                { id: 6, q: "The song that she sang was beautiful.", opts: ["Subject", "Object"], ans: "Object", exp: "Sau 'that' là S + V ('she sang') -> that đóng vai trò Object." },
+                { id: 7, q: "The car which hit the tree was speeding.", opts: ["Subject", "Object"], ans: "Subject", exp: "Sau 'which' là động từ 'hit' -> which đóng vai trò Subject." },
+                { id: 8, q: "The car which he drives is very old.", opts: ["Subject", "Object"], ans: "Object", exp: "Sau 'which' là S + V ('he drives') -> which đóng vai trò Object." },
+                { id: 9, q: "The students who study hard get good grades.", opts: ["Subject", "Object"], ans: "Subject", exp: "Sau 'who' là động từ 'study' -> who đóng vai trò Subject." },
+                { id: 10, q: "The students who the teacher praised were happy.", opts: ["Subject", "Object"], ans: "Object", exp: "Sau 'who' là S + V ('the teacher praised') -> who đóng vai trò Object." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Từ in đậm đóng vai trò Subject hay Object trong mệnh đề quan hệ?</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-lg text-slate-800"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q.replace(/(who|which|that)/, "👉$1👈")}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary bg-slate-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Tab 2: Có được bỏ đại từ quan hệ không? (Mục 30-32, 58)
+        const ExOmission = () => {
+            const questions = [
+                { id: 1, q: "The book which I bought yesterday is expensive.", opts: ["Được bỏ", "Không được bỏ"], ans: "Được bỏ", exp: "'Which' làm Object (do có S+V 'I bought' theo sau) -> Có thể rút gọn thành 'The book I bought...'." },
+                { id: 2, q: "The book which is on the table is mine.", opts: ["Được bỏ", "Không được bỏ"], ans: "Không được bỏ", exp: "'Which' làm Subject (đứng trước động từ 'is') -> Tuyệt đối không được bỏ." },
+                { id: 3, q: "The man who I spoke to was friendly.", opts: ["Được bỏ", "Không được bỏ"], ans: "Được bỏ", exp: "'Who' làm Object -> Có thể bỏ (The man I spoke to...)." },
+                { id: 4, q: "The man who lives here is friendly.", opts: ["Được bỏ", "Không được bỏ"], ans: "Không được bỏ", exp: "'Who' làm Subject -> Không được bỏ." },
+                { id: 5, q: "The cake that she baked was delicious.", opts: ["Được bỏ", "Không được bỏ"], ans: "Được bỏ", exp: "'That' làm Object -> Có thể bỏ." },
+                { id: 6, q: "The dog that bit him was a bulldog.", opts: ["Được bỏ", "Không được bỏ"], ans: "Không được bỏ", exp: "'That' làm Subject (trước động từ 'bit') -> Không được bỏ." },
+                { id: 7, q: "The movie which we watched last night was scary.", opts: ["Được bỏ", "Không được bỏ"], ans: "Được bỏ", exp: "'Which' làm Object -> Có thể bỏ." },
+                { id: 8, q: "My car, which I bought last year, is broken.", opts: ["Được bỏ", "Không được bỏ"], ans: "Không được bỏ", exp: "Dù làm Object, nhưng đây là Mệnh đề quan hệ KHÔNG XÁC ĐỊNH (có dấu phẩy) -> TUYỆT ĐỐI không được bỏ." },
+                { id: 9, q: "The person whom they interviewed got the job.", opts: ["Được bỏ", "Không được bỏ"], ans: "Được bỏ", exp: "'Whom' luôn làm Object -> Có thể bỏ." },
+                { id: 10, q: "The students who are waiting outside are cold.", opts: ["Được bỏ", "Không được bỏ"], ans: "Không được bỏ", exp: "'Who' làm Subject -> Không được bỏ." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Có thể LƯỢC BỎ đại từ quan hệ in đậm trong câu không?</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-lg text-slate-800"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q.replace(/(who|which|that|whom)/, "👉$1👈")}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary bg-slate-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Tab 3: Chọn Từ Quan Hệ (Mục 9-12, 18-26, 59-60)
+        const ExPronouns = () => {
+            const questions = [
+                { id: 1, q: "The woman ________ works here is my teacher.", opts: ["who", "which", "where"], ans: "who", exp: "Woman là người + đóng vai trò Subject -> Dùng 'who' (hoặc 'that')." },
+                { id: 2, q: "The book ________ I bought is interesting.", opts: ["who", "which", "where"], ans: "which", exp: "Book là vật -> Dùng 'which' (hoặc 'that')." },
+                { id: 3, q: "The girl ________ phone was stolen called the police.", opts: ["who", "which", "whose"], ans: "whose", exp: "Chỉ sự sở hữu (điện thoại của cô gái) -> Dùng 'whose'." },
+                { id: 4, q: "A company ________ products are sold worldwide.", opts: ["who", "which", "whose"], ans: "whose", exp: "Whose có thể dùng cho vật/tổ chức (sản phẩm của công ty)." },
+                { id: 5, q: "This is the city ________ I was born.", opts: ["which", "where", "when"], ans: "where", exp: "Chỉ nơi chốn (in the city) -> Dùng 'where'." },
+                { id: 6, q: "I remember the day ________ we first met.", opts: ["where", "when", "why"], ans: "when", exp: "Chỉ thời gian -> Dùng 'when'." },
+                { id: 7, q: "I don’t know the reason ________ she left.", opts: ["when", "why", "which"], ans: "why", exp: "Chỉ lý do -> Dùng 'why'." },
+                { id: 8, q: "The person to ________ I spoke was very helpful.", opts: ["who", "whom", "that"], ans: "whom", exp: "Sau giới từ (to) chỉ dùng 'whom' (đối với người) hoặc 'which' (đối với vật). Không dùng 'who/that'." },
+                { id: 9, q: "The house ________ I live in is beautiful.", opts: ["which", "where", "when"], ans: "which", exp: "Trong mệnh đề đã có giới từ 'in' -> Chỉ cần dùng 'which'. (Nếu dùng 'where' thì không còn 'in')." },
+                { id: 10, q: "My father, ________ is 60, still works.", opts: ["who", "that", "which"], ans: "who", exp: "Mệnh đề không xác định (có dấu phẩy) KHÔNG dùng 'that' -> Dùng 'who'." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Chọn Đại từ / Trạng từ quan hệ thích hợp.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-lg text-slate-800"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary bg-slate-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Tab 4: Rút gọn Mệnh đề (Mục 45-51, 63)
+        const ExReduction = () => {
+            const questions = [
+                { id: 1, q: "The man who is standing outside is my teacher.", opts: ["standing", "stood"], ans: "standing", exp: "Chủ động (người đàn ông đang đứng) -> Rút gọn thành V-ing (standing)." },
+                { id: 2, q: "The car which was made in Japan is expensive.", opts: ["making", "made"], ans: "made", exp: "Bị động (chiếc xe được làm ra) -> Rút gọn thành V3/ed (made)." },
+                { id: 3, q: "The students who study English improve faster.", opts: ["studying", "studied"], ans: "studying", exp: "Chủ động (học sinh học) -> Rút gọn thành V-ing (studying)." },
+                { id: 4, q: "The products which are produced locally are cheaper.", opts: ["producing", "produced"], ans: "produced", exp: "Bị động (sản phẩm được sản xuất) -> Rút gọn thành V3/ed (produced)." },
+                { id: 5, q: "The boy who plays football is my brother.", opts: ["playing", "played"], ans: "playing", exp: "Chủ động -> playing." },
+                { id: 6, q: "The house which was built in 1990 is beautiful.", opts: ["building", "built"], ans: "built", exp: "Bị động -> built." },
+                { id: 7, q: "The woman who drives that car is a doctor.", opts: ["driving", "driven"], ans: "driving", exp: "Chủ động -> driving." },
+                { id: 8, q: "The letter which was sent yesterday arrived today.", opts: ["sending", "sent"], ans: "sent", exp: "Bị động -> sent." },
+                { id: 9, q: "The bird which is flying in the sky is rare.", opts: ["flying", "flown"], ans: "flying", exp: "Chủ động -> flying." },
+                { id: 10, q: "The rules which were written by the principal must be followed.", opts: ["writing", "written"], ans: "written", exp: "Bị động -> written." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Chọn dạng Rút gọn (V-ing hoặc V3/ed) chính xác.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-lg text-slate-800"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary bg-slate-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Tab 5: Sửa lỗi / Lỗi IELTS (Mục 11-17, 42, 62)
+        const ExMistakes = () => {
+            const questions = [
+                { id: 1, s: ["The", "man", "which", "lives", "here", "is", "my", "teacher."], errIdx: 2, exp: "Man là người -> Phải dùng 'who' hoặc 'that'." },
+                { id: 2, s: ["The", "book", "who", "I", "bought", "is", "expensive."], errIdx: 2, exp: "Book là vật -> Phải dùng 'which' hoặc 'that'." },
+                { id: 3, s: ["My", "father,", "that", "lives", "in", "Hanoi,", "is", "a", "doctor."], errIdx: 2, exp: "Mệnh đề có dấu phẩy KHÔNG ĐƯỢC dùng 'that' -> Phải dùng 'who'." },
+                { id: 4, s: ["The", "girl", "whose", "she", "phone", "was", "stolen..."], errIdx: 3, exp: "Đã dùng 'whose' thì không dùng thêm 'she' -> Sửa thành 'whose phone'." },
+                { id: 5, s: ["The", "students,", "who", "study", "hard,", "usually", "improve", "quickly."], errIdx: 1, exp: "Đứng sau dấu phẩy làm thay đổi nghĩa. Cần Defining clause -> Bỏ dấu phẩy (The students who study hard...)." },
+                { id: 6, s: ["The", "number", "of", "students", "who", "study", "abroad", "have", "increased."], errIdx: 7, exp: "Head noun là 'The number' (số ít). Động từ chính phải là 'has increased'." },
+                { id: 7, s: ["He", "failed,", "what", "surprised", "everyone."], errIdx: 2, exp: "Để thay thế cho cả một mệnh đề phía trước, ta dùng 'which', không dùng 'what'." },
+                { id: 8, s: ["The", "person", "to", "who", "I", "spoke..."], errIdx: 3, exp: "Sau giới từ (to) đối với người phải dùng 'whom'." },
+                { id: 9, s: ["The", "book", "is", "on", "the", "table", "is", "mine."], errIdx: 2, exp: "Thiếu đại từ quan hệ. Phải là 'The book WHICH is on the table is mine'." },
+                { id: 10, s: ["The", "car", "which", "made", "in", "Japan", "is", "good."], errIdx: 3, exp: "Rút gọn bị động bị sai. Hoặc dùng 'which was made', hoặc rút gọn thành 'made'." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, wIdx, errIdx, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: wIdx, isCorrect: wIdx === errIdx, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Click vào <b>1 TỪ/DẤU CÂU TẠO RA LỖI SAI</b> trong câu.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-wrap gap-x-1.5 gap-y-2 items-center text-lg mb-2">
+                                <span className="text-slate-400 font-bold mr-2 text-base">{q.id}.</span>
+                                {q.s.map((word, wIdx) => {
+                                    const st = status[q.id];
+                                    let style = "cursor-pointer px-3 py-1.5 rounded-lg transition-colors font-semibold border border-transparent ";
+                                    if (!st) style += "hover:bg-slate-100 text-slate-700 hover:text-indigo-600";
+                                    else {
+                                        if (st.selected === wIdx && st.isCorrect) style += "bg-emerald-50 text-emerald-700 border-emerald-500";
+                                        else if (st.selected === wIdx && !st.isCorrect) style += "bg-rose-50 text-rose-700 border-rose-500 line-through";
+                                        else if (wIdx === q.errIdx) style += "bg-white text-emerald-600 border-dashed border-emerald-400";
+                                        else style += "text-slate-400 bg-slate-50";
+                                    }
+                                    return <span key={wIdx} onClick={() => handleSelect(q.id, wIdx, q.errIdx, q.exp)} className={style}>{word}</span>;
+                                })}
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            
+            return (
+                <div className="max-w-4xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    <header className="text-center mb-16">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-brandDark tracking-tight mb-6 leading-tight">
+                            Bóc Tách <span className="text-primary">Mệnh Đề Quan Hệ</span> <br className="hidden md:block"/>(Relative Clauses)
+                        </h1>
+                        <p className="text-[17px] text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            Mảnh ghép cuối cùng và lớn nhất của Cụm Danh Từ. Nắm vững nó để viết câu Complex Sentence trong IELTS một cách tự nhiên và chính xác nhất!
+                        </p>
+                    </header>
+
+                    {/* FULL THEORY */}
+                    <div className="mb-16">
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-8 text-center border-b-2 border-slate-200 pb-4 inline-block mx-auto">Sổ tay Lý thuyết</h2>
+                        
+                        <Accordion title="1. Bản chất & Cấu trúc cơ bản (Mục 1-4, 52-54, 66)">
+                            <Point num="1 & 2" title="Mệnh đề quan hệ là gì?" isLast={false}>
+                                <p className="mb-2">Là một mệnh đề dùng để bổ sung thông tin cho một danh từ đứng trước nó.</p>
+                                <ExampleBox>
+                                    Thay vì nói: <i>The girl is my sister. The girl is wearing a red dress.</i><br/>
+                                    Ta gộp lại: <i>The girl <b>who is wearing a red dress</b> is my sister.</i>
+                                </ExampleBox>
+                                <p className="font-bold text-indigo-700">Bản chất: Gắn thêm một câu con vào danh từ để trả lời câu hỏi "Which one?".</p>
+                            </Point>
+
+                            <Point num="3 & 52" title="So sánh với Cụm Giới Từ" isLast={false}>
+                                <p className="mb-2">Cả hai đều đóng vai trò Hậu bổ nghĩa (Post-modifier), nhưng cấu trúc khác nhau:</p>
+                                <ul className="list-disc pl-5 space-y-1 text-[15px]">
+                                    <li><i>the girl <b>in the red dress</b></i> (Prepositional Phrase - Cụm giới từ)</li>
+                                    <li><i>the girl <b>who is wearing a red dress</b></i> (Relative Clause - Mệnh đề quan hệ)</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="53, 54, 66" title="Bức tranh toàn cảnh Cụm Danh Từ" isLast={true}>
+                                <p className="mb-4">Hệ thống Noun Phrase khổng lồ bao gồm:</p>
+                                <div className="bg-brandDark text-white p-6 rounded-2xl shadow-lg border border-slate-700">
+                                    <h3 className="text-xl font-bold text-amber-400 mb-4 text-center">The two talented IELTS students from Vietnam who won the competition</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[15px] text-slate-200">
+                                        <ul className="space-y-2">
+                                            <li><span className="text-indigo-400 font-bold">The</span> &rarr; Determiner</li>
+                                            <li><span className="text-indigo-400 font-bold">two</span> &rarr; Number</li>
+                                            <li><span className="text-blue-400 font-bold">talented</span> &rarr; Adjective</li>
+                                            <li><span className="text-emerald-400 font-bold">IELTS</span> &rarr; Noun modifier</li>
+                                        </ul>
+                                        <ul className="space-y-2">
+                                            <li><span className="text-rose-400 font-bold text-lg">STUDENTS</span> &rarr; HEAD NOUN</li>
+                                            <li><span className="text-amber-400 font-bold">from Vietnam</span> &rarr; Prepositional Phrase</li>
+                                            <li><span className="text-amber-400 font-bold">who won...</span> &rarr; Relative Clause</li>
+                                        </ul>
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-slate-600 text-center text-emerald-400 font-bold">
+                                        Trước Head Noun là từ mô tả. Sau Head Noun là cụm xác định rõ "ai/cái nào".
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="2. Đại từ Quan hệ & Chức năng S/O (Mục 5-12, 27-32)">
+                            <Point num="5 - 8" title="Đừng chỉ học Who=Người, Which=Vật" isLast={false}>
+                                <p className="mb-2">Để làm bài chuẩn, phải tự hỏi: <b>Từ quan hệ đang đóng vai trò gì (S hay O) trong mệnh đề?</b></p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-1">WHO làm Chủ Ngữ (S)</div>
+                                        <p className="text-[15px]"><i>The man <b>who</b> lives next door.</i></p>
+                                        <p className="text-sm text-slate-500 mt-1">Dấu hiệu: Sau 'who' là Verb (lives). Who thực hiện hành động.</p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-1">WHO làm Tân Ngữ (O)</div>
+                                        <p className="text-[15px]"><i>The man <b>who</b> I met yesterday.</i></p>
+                                        <p className="text-sm text-slate-500 mt-1">Dấu hiệu: Sau 'who' là S+V (I met). 'Who' bị tác động.</p>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="9 - 12" title="Who / Whom / Which / That" isLast={false}>
+                                <ul className="space-y-3 text-[15px]">
+                                    <li><b>WHO/WHOM:</b> Cho người. Whom chỉ làm Tân ngữ. (Tiếng Anh hiện đại thường dùng Who thay cho Whom).</li>
+                                    <li><b>WHICH:</b> Cho vật/con vật. Làm S hoặc O đều được.</li>
+                                    <li><b>THAT:</b> Có thể thay cho Who/Which trong mệnh đề <b>XÁC ĐỊNH</b>. Tuyệt đối <b>KHÔNG</b> dùng sau dấu phẩy.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="28 & 29" title="Kỹ thuật 'Lấy danh từ ra' (Test S/O)" isLast={false}>
+                                <p className="mb-2">Ví dụ: <i>The woman who I met yesterday is my teacher.</i></p>
+                                <p className="text-[15px]">Bỏ từ <b>who</b> đi. Ta có: <i>I met ___ yesterday.</i> &rarr; Câu đang thiếu Tân ngữ (Object). Vậy <b>who = Object</b>.</p>
+                                <p className="text-[15px] mt-2">Ví dụ: <i>The woman who lives next door.</i> &rarr; <i>___ lives next door.</i> &rarr; Câu thiếu Chủ ngữ (Subject). Vậy <b>who = Subject</b>.</p>
+                            </Point>
+
+                            <Point num="30 - 32" title="Quy tắc Lược Bỏ (Omission)" isLast={true}>
+                                <NoteBox type="warning">
+                                    <b>LUẬT SIÊU QUAN TRỌNG:</b><br/>
+                                    - Nếu Đại từ làm <b>OBJECT</b> &rarr; CÓ THỂ BỎ. (<i>The book which I bought -> The book I bought</i>).<br/>
+                                    - Nếu Đại từ làm <b>SUBJECT</b> &rarr; KHÔNG ĐƯỢC BỎ. (<i>The book which is on the table -> ❌ The book is on the table</i>).
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="3. Defining vs Non-defining (Mục 13-17, 36-37)">
+                            <Point num="13 - 17, 36" title="Bảng so sánh 2 loại Mệnh đề" isLast={false}>
+                                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden text-[15px]">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-slate-800">
+                                                <th className="p-3 border-b border-slate-200">Đặc điểm</th>
+                                                <th className="p-3 border-b border-slate-200 text-indigo-700">Defining (Xác định)</th>
+                                                <th className="p-3 border-b border-slate-200 text-rose-700">Non-defining (Không xác định)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-semibold">Chức năng</td>
+                                                <td className="p-3 border-b border-slate-200">Cần thiết để xác định danh từ</td>
+                                                <td className="p-3 border-b border-slate-200">Chỉ thêm thông tin phụ</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-semibold">Dấu phẩy?</td>
+                                                <td className="p-3 border-b border-slate-200 text-rose-500 font-bold">KHÔNG</td>
+                                                <td className="p-3 border-b border-slate-200 text-emerald-500 font-bold">CÓ</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-semibold">Dùng "That"?</td>
+                                                <td className="p-3 border-b border-slate-200 text-emerald-500 font-bold">CÓ</td>
+                                                <td className="p-3 border-b border-slate-200 text-rose-500 font-bold">KHÔNG (Lỗi kinh điển)</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 font-semibold">Lược bỏ Object?</td>
+                                                <td className="p-3 text-emerald-500 font-bold">CÓ ĐƯỢC BỎ</td>
+                                                <td className="p-3 text-rose-500 font-bold">KHÔNG ĐƯỢC BỎ</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Point>
+
+                            <Point num="16" title="Dấu phẩy thay đổi Ý nghĩa" isLast={true}>
+                                <ul className="space-y-3 text-[15px]">
+                                    <li><b>Defining:</b> <i>The students who live in Hanoi will attend.</i> &rarr; Chỉ những học sinh sống ở HN mới tham gia (Xác định tập hợp con).</li>
+                                    <li><b>Non-defining:</b> <i>The students, who live in Hanoi, will attend.</i> &rarr; Tất cả học sinh đều tham gia (Đã xác định từ trước, thông tin sống ở HN chỉ là nói thêm).</li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="4. Whose, Where, When, Why & Giới từ (Mục 18-26, 33-35)">
+                            <Point num="18 - 20" title="WHOSE — Sở hữu" isLast={false}>
+                                <p className="mb-2">Whose = của người/vật nào đó. Luôn đi kèm <b>whose + Noun</b>.</p>
+                                <p className="text-[15px]"><i>The girl <b>whose phone</b> was stolen.</i></p>
+                                <p className="font-bold text-rose-600 mt-2">Lưu ý: Whose không chỉ dùng cho người, mà dùng cho cả vật/tổ chức (<i>a company whose products...</i>).</p>
+                            </Point>
+
+                            <Point num="21 - 24" title="Trạng từ Quan hệ: Where / When / Why" isLast={false}>
+                                <ul className="space-y-2 text-[15px]">
+                                    <li><b>Where</b> (Nơi chốn) &approx; in/on/at which.</li>
+                                    <li><b>When</b> (Thời gian) &approx; in/on/at which.</li>
+                                    <li><b>Why</b> (Lý do) &approx; for which.</li>
+                                </ul>
+                                <p className="mt-2 text-sm text-slate-500">Mẹo: in/on/at + which có thể được rút gọn bằng where/when, nhưng đừng biến nó thành công thức tuyệt đối 100%.</p>
+                            </Point>
+
+                            <Point num="25 & 26" title="Relative Adverb vs Relative Pronoun" isLast={false}>
+                                <p className="mb-2 font-bold">Sự khác biệt sống còn:</p>
+                                <ExampleBox>
+                                    - <i>The house <b>which</b> I bought is beautiful.</i> (I bought which -> which làm Object. Phải dùng Pronoun).<br/>
+                                    - <i>The house <b>where</b> I live is beautiful.</i> (I live there -> where chỉ địa điểm. Sau 'where' đã có đủ S+V).
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="33 - 35" title="Giới từ + Đại từ quan hệ (Preposition + Which/Whom)" isLast={true}>
+                                <p className="mb-2 text-[15px]">Ví dụ có thể viết bằng 3 cách:</p>
+                                <ol className="list-decimal pl-5 space-y-1 text-[15px]">
+                                    <li><i>The house <b>in which</b> I live is old.</i> (Rất Formal)</li>
+                                    <li><i>The house <b>which</b> I live <b>in</b> is old.</i></li>
+                                    <li><i>The house I live <b>in</b> is old.</i> (Tự nhiên nhất trong giao tiếp)</li>
+                                </ol>
+                                <NoteBox type="danger">
+                                    Không dùng THAT sau giới từ trong cấu trúc Formal. (Không nói: <i>the person to that I spoke</i>). Phải là <i>the person to whom I spoke</i>.
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="5. Rút gọn Mệnh đề & Bẫy IELTS (Mục 42-44, 45-51)">
+                            <Point num="45 - 51" title="Rút gọn Mệnh đề quan hệ (Reduced Relative Clauses)" isLast={false}>
+                                <p className="mb-2">Rút gọn giúp câu trở nên tinh gọn hơn. Chỉ áp dụng khi <b>Đại từ làm Chủ ngữ (Subject)</b>.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-emerald-700 mb-1">Câu CHỦ ĐỘNG &rarr; V-ing</div>
+                                        <p className="text-[15px] mb-1"><i>The boy who is standing...</i></p>
+                                        <p className="font-bold text-emerald-600">&rarr; The boy standing...</p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-info mb-1">Câu BỊ ĐỘNG &rarr; V3/ed</div>
+                                        <p className="text-[15px] mb-1"><i>The car which was made...</i></p>
+                                        <p className="font-bold text-blue-600">&rarr; The car made...</p>
+                                    </div>
+                                </div>
+                                <p className="text-rose-600 font-bold text-[15px] mt-3">Lưu ý: Không rút gọn kiểu này nếu đại từ làm Object. (Không nói: <i>The man meeting yesterday</i>).</p>
+                            </Point>
+
+                            <Point num="42 & 43" title="Bẫy Head Noun trong IELTS Reading" isLast={false}>
+                                <ExampleBox>
+                                    <i>The number of students who study abroad <b>is</b> increasing.</i>
+                                </ExampleBox>
+                                <p className="text-[15px]">Động từ chính là <b>is</b> vì Head Noun là <b>number</b>. Cụm "who study abroad" chỉ bổ sung cho "students". Đừng nhầm "study" hay "is" với nhau.</p>
+                            </Point>
+
+                            <Point num="44" title="'WHICH' thay thế cho cả một mệnh đề" isLast={true}>
+                                <p className="text-[15px] mb-2">Đây là cấu trúc cực kỳ ăn điểm trong IELTS Writing.</p>
+                                <p className="text-[15px]"><i>He failed the exam, <b>which</b> surprised everyone.</i></p>
+                                <p className="text-[15px] font-bold text-indigo-700 mt-2">Which ở đây không thay cho "exam", mà thay cho toàn bộ sự việc "he failed the exam". Nó luôn đi sau dấu phẩy.</p>
+                            </Point>
+                        </Accordion>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs) */}
+                    <div id="exercises" className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mb-12">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Test phản xạ tức thì. Bấm vào đáp án để nhận giải thích chi tiết!</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-4">
+                            {[
+                                { id: 0, title: "S hay O?", label: "Dạng 1" },
+                                { id: 1, title: "Có được Bỏ?", label: "Dạng 2" },
+                                { id: 2, title: "Chọn Từ", label: "Dạng 3" },
+                                { id: 3, title: "Rút gọn", label: "Dạng 4" },
+                                { id: 4, title: "Sửa lỗi", label: "Dạng 5" }
+                            ].map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all
+                                    ${activeTab === index 
+                                        ? 'bg-primary text-white shadow-md' 
+                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                >
+                                    {tab.label}: {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExFunction />}
+                            {activeTab === 1 && <ExOmission />}
+                            {activeTab === 2 && <ExPronouns />}
+                            {activeTab === 3 && <ExReduction />}
+                            {activeTab === 4 && <ExMistakes />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

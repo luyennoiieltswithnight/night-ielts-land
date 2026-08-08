@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Quantifiers Full Masterclass</title>
+
+    <!-- Google Fonts: Strictly Plus Jakarta Sans ONLY -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4f46e5', // Indigo 600
+                        primaryLight: '#e0e7ff', // Indigo 100
+                        secondary: '#10B981', // Emerald 500
+                        warning: '#F59E0B', // Amber 500
+                        info: '#3B82F6', // Blue 500
+                        accent: '#F43F5E', // Rose 500
+                        brandDark: '#1e1b4b', // Indigo 900
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background-color: #f8fafc;
+            color: #334155; 
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        .glass {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; transform-origin: top; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: scaleY(0.95); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-primary selection:text-white pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- CORE UI COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-50 text-indigo-700",
+                secondary: "bg-emerald-50 text-emerald-700",
+                warning: "bg-amber-50 text-amber-700",
+                accent: "bg-rose-50 text-rose-700",
+                info: "bg-blue-50 text-blue-700"
+            };
+            return <span className={`inline-block px-2 py-0.5 rounded font-semibold text-[15px] ${styles[color]}`}>{children}</span>;
+        };
+
+        const ExampleBox = ({ children }) => (
+            <div className="bg-slate-50 border-l-4 border-indigo-400 p-4 my-3 text-slate-700 rounded-r-lg shadow-sm text-[15px]">
+                {children}
+            </div>
+        );
+
+        // Component định dạng chuẩn xác từng mục
+        const Point = ({ num, title, children, isLast }) => (
+            <div className={`pb-8 mb-8 ${!isLast ? 'border-b border-dashed border-slate-300' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                    <span className="bg-indigo-100 text-indigo-800 font-extrabold px-3 py-1.5 rounded-lg text-sm shadow-sm">{num}</span>
+                    <h3 className="font-extrabold text-brandDark text-lg tracking-wide uppercase">{title}</h3>
+                </div>
+                <div className="text-slate-600 text-base leading-relaxed">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Accordion = ({ title, icon, children }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="mb-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 md:p-6 flex justify-between items-center text-left bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl text-indigo-600 shadow-sm">
+                                <i className={`fas ${icon}`}></i>
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+                        </div>
+                        <i className={`fas fa-chevron-down text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}></i>
+                    </button>
+                    {isOpen && <div className="p-6 md:p-8 bg-white slide-down">{children}</div>}
+                </div>
+            );
+        };
+
+        const ExplanationBox = ({ isCorrect, exp }) => (
+            <div className={`mt-4 p-4 rounded-xl text-[15px] font-medium border flex items-start gap-3 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                <div className="mt-0.5">
+                    {isCorrect ? <i className="fas fa-check-circle text-emerald-500 text-lg"></i> : <i className="fas fa-times-circle text-rose-500 text-lg"></i>}
+                </div>
+                <div>
+                    <strong className="block mb-1">{isCorrect ? "Chính xác!" : "Sai rồi!"}</strong>
+                    {exp}
+                </div>
+            </div>
+        );
+
+        // --- EXERCISE COMPONENTS ---
+        
+        const ExCountable = () => {
+            const questions = [
+                { id: 1, word: "information", ans: "U", exp: "Information (Thông tin) là không đếm được. Không dùng 'informations'." },
+                { id: 2, word: "student", ans: "C", exp: "Student đếm được: one student, two students." },
+                { id: 3, word: "advice", ans: "U", exp: "Advice là không đếm được." },
+                { id: 4, word: "mistake", ans: "C", exp: "Mistake đếm được: make many mistakes." },
+                { id: 5, word: "furniture", ans: "U", exp: "Furniture chỉ một tổng thể, không đếm được." },
+                { id: 6, word: "opportunity", ans: "C", exp: "Opportunity đếm được: several opportunities." },
+                { id: 7, word: "money", ans: "U", exp: "Money là khái niệm không đếm được." },
+                { id: 8, word: "traffic", ans: "U", exp: "Traffic là không đếm được. Dùng 'much traffic'." },
+                { id: 9, word: "equipment", ans: "U", exp: "Equipment là không đếm được." },
+                { id: 10, word: "problem", ans: "C", exp: "Problem đếm được: many problems." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><i className="fas fa-cubes text-primary mr-2"></i>Danh từ sau đây Đếm được (C) hay Không đếm được (U)?</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {questions.map((q) => (
+                            <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.word}</span>
+                                    <div className="flex gap-2">
+                                        {["C", "U"].map(opt => {
+                                            const st = status[q.id];
+                                            let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                            if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                            else {
+                                                if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                                else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                                else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                                else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                            }
+                                            return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt === "C" ? "Countable" : "Uncountable"}</button>;
+                                        })}
+                                    </div>
+                                </div>
+                                {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        const ExMultipleChoice = () => {
+            const questions = [
+                { id: 1, q: "How ________ money do you need, Huy?", opts: ["many", "much"], ans: "much", exp: "Money là U -> dùng much." },
+                { id: 2, q: "How ________ students are there in the class?", opts: ["many", "much"], ans: "many", exp: "Students là C -> dùng many." },
+                { id: 3, q: "There aren’t ________ opportunities here.", opts: ["many", "much"], ans: "many", exp: "Opportunities là C -> dùng many." },
+                { id: 4, q: "We don’t have ________ time.", opts: ["many", "much"], ans: "much", exp: "Time là U -> dùng much." },
+                { id: 5, q: "Kim Phụng doesn’t have ________ friends.", opts: ["many", "much"], ans: "many", exp: "Friends là C -> dùng many." },
+                { id: 6, q: "I don’t have ________ information.", opts: ["many", "much"], ans: "much", exp: "Information là U -> dùng much." },
+                { id: 7, q: "How ________ mistakes did you make?", opts: ["many", "much"], ans: "many", exp: "Mistakes là C -> dùng many." },
+                { id: 8, q: "How ________ progress have you made?", opts: ["many", "much"], ans: "much", exp: "Progress là U -> dùng much." },
+                { id: 9, q: "________ students enjoy sports.", opts: ["Many", "Many of"], ans: "Many", exp: "Không có the/my đứng trước students -> dùng Many trực tiếp." },
+                { id: 10, q: "________ the students in my class enjoy sports.", opts: ["Many", "Many of"], ans: "Many of", exp: "Có 'the' đứng trước students -> phải dùng Many of." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><i className="fas fa-mouse-pointer text-info mr-2"></i>Chọn Lượng từ phù hợp điền vào chỗ trống.</p>
+                        <span className="font-black text-xl text-info bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-slate-800 text-lg"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2 flex-shrink-0">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-5 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-info hover:text-info";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExNuance = () => {
+            const questions = [
+                { id: 1, q: "I have ________ friends, so I don’t feel lonely.", opts: ["a few", "few"], ans: "a few", exp: "'A few' mang sắc thái tích cực (một vài, đủ dùng)." },
+                { id: 2, q: "Peter has ________ friends and often feels lonely.", opts: ["a few", "few"], ans: "few", exp: "'Few' mang sắc thái tiêu cực (rất ít, thiếu hụt)." },
+                { id: 3, q: "We still have ________ time. Don’t worry.", opts: ["a little", "little"], ans: "a little", exp: "'A little' = có một chút, vẫn đủ dùng." },
+                { id: 4, q: "We have ________ time left. Hurry up!", opts: ["a little", "little"], ans: "little", exp: "'Little' = rất ít, gần như không có." },
+                { id: 5, q: "She made ________ mistakes, so her score was high.", opts: ["a few", "few"], ans: "few", exp: "Ít lỗi (tiêu cực đối với lỗi = tốt) -> điểm cao. Dùng 'few'." },
+                { id: 6, q: "Gia Hưng made ________ mistakes, which affected his score.", opts: ["a few", "few"], ans: "a few", exp: "Một vài lỗi (có tồn tại lỗi) làm ảnh hưởng điểm. Dùng 'a few'." },
+                { id: 7, q: "You are trying to reassure: 'Don’t worry. We have ________ time.'", opts: ["a little", "little"], ans: "a little", exp: "Trấn an -> nghĩa tích cực. Dùng 'a little'." },
+                { id: 8, q: "You want to emphasize almost no time: 'We have ________ time.'", opts: ["a little", "little"], ans: "little", exp: "Thiếu hụt -> nghĩa tiêu cực. Dùng 'little'." },
+                { id: 9, q: "There is ________ water left in the bottle. We can’t drink enough.", opts: ["a little", "little"], ans: "little", exp: "Water là U. Không uống đủ -> rất ít -> little." },
+                { id: 10, q: "Michael is very optimistic. He has ________ worries.", opts: ["few", "a few"], ans: "few", exp: "Lạc quan -> có RẤT ÍT nỗi lo. Dùng 'few'." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><i className="fas fa-theater-masks text-warning mr-2"></i>Dựa vào ngữ cảnh (Tích cực/Tiêu cực) để chọn Lượng từ.</p>
+                        <span className="font-black text-xl text-warning bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-slate-800 text-lg"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2 flex-shrink-0">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-5 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-warning hover:text-warning";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExAdvanced = () => {
+            const questions = [
+                { id: 1, q: "We need ________ students for this project.", opts: ["fewer", "less"], ans: "fewer", exp: "Students là C -> fewer." },
+                { id: 2, q: "You should spend ________ money on games.", opts: ["fewer", "less"], ans: "less", exp: "Money là U -> less." },
+                { id: 3, q: "There are ________ mistakes in your essay.", opts: ["fewer", "less"], ans: "fewer", exp: "Mistakes là C -> fewer." },
+                { id: 4, q: "I have ________ information than before.", opts: ["fewer", "less"], ans: "less", exp: "Information là U -> less." },
+                { id: 5, q: "There are ________ cars on the street.", opts: ["fewer", "less"], ans: "fewer", exp: "Cars là C -> fewer." },
+                { id: 6, q: "A number of students ________ absent today.", opts: ["is", "are"], ans: "are", exp: "'A number of' = Nhiều -> Động từ số nhiều (are)." },
+                { id: 7, q: "The number of students ________ increasing.", opts: ["is", "are"], ans: "is", exp: "'The number of' = Con số -> Động từ số ít (is)." },
+                { id: 8, q: "A number of people ________ complained.", opts: ["has", "have"], ans: "have", exp: "'A number of' -> số nhiều (have)." },
+                { id: 9, q: "The number of complaints ________ risen.", opts: ["has", "have"], ans: "has", exp: "'The number of' -> số ít (has)." },
+                { id: 10, q: "Sarah spent a large ________ of time on this.", opts: ["number", "amount"], ans: "amount", exp: "Time là U -> amount." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><i className="fas fa-rocket text-secondary mr-2"></i>Cấu trúc Nâng cao: Number/Amount & Fewer/Less</p>
+                        <span className="font-black text-xl text-secondary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-slate-800 text-lg"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2 flex-shrink-0">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-5 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-600 hover:border-secondary hover:text-secondary";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExFindMistake = () => {
+            const questions = [
+                { id: 1, s: ["I", "don’t", "have", "much", "friends", "here."], errIdx: 3, exp: "Friends đếm được. Dùng 'many'." },
+                { id: 2, s: ["There", "are", "many", "information", "online."], errIdx: 2, exp: "Information không đếm được. Dùng 'much' hoặc 'a lot of'." },
+                { id: 3, s: ["We", "need", "less", "people", "for", "this", "job."], errIdx: 2, exp: "People đếm được số nhiều. Dùng 'fewer'." },
+                { id: 4, s: ["He", "has", "few", "money", "left."], errIdx: 2, exp: "Money không đếm được. Dùng 'little'." },
+                { id: 5, s: ["There", "are", "a", "large", "amount", "of", "students."], errIdx: 4, exp: "Students đếm được. Dùng 'number'." },
+                { id: 6, s: ["She", "spent", "a", "large", "number", "of", "money."], errIdx: 4, exp: "Money không đếm được. Dùng 'amount'." },
+                { id: 7, s: ["I", "have", "many", "work", "to", "do", "today."], errIdx: 2, exp: "Work (công việc) không đếm được. Dùng 'a lot of'." },
+                { id: 8, s: ["She", "has", "a", "little", "friends", "here."], errIdx: 3, exp: "Friends đếm được. Dùng 'a few'." },
+                { id: 9, s: ["There", "isn’t", "many", "time", "left."], errIdx: 2, exp: "Time không đếm được. Dùng 'much'." },
+                { id: 10, s: ["Nowadays,", "a", "large", "amount", "of", "people", "spend", "too", "much", "time", "online."], errIdx: 4, exp: "People đếm được. Phải dùng 'a large number of'." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, wIdx, errIdx, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: wIdx, isCorrect: wIdx === errIdx, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><i className="fas fa-times-circle text-accent mr-2"></i>Click vào <b>1 từ</b> dùng Lượng từ SAI ngữ pháp trong câu.</p>
+                        <span className="font-black text-xl text-accent bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-wrap gap-x-2 gap-y-3 items-center text-lg mb-2">
+                                <span className="text-slate-400 font-bold mr-2 text-base">{q.id}.</span>
+                                {q.s.map((word, wIdx) => {
+                                    const st = status[q.id];
+                                    let style = "cursor-pointer px-3 py-1.5 rounded-lg transition-colors font-semibold border border-transparent ";
+                                    if (!st) style += "hover:bg-slate-100 text-slate-700";
+                                    else {
+                                        if (st.selected === wIdx && st.isCorrect) style += "bg-emerald-50 text-emerald-700 border-emerald-500";
+                                        else if (st.selected === wIdx && !st.isCorrect) style += "bg-rose-50 text-rose-700 border-rose-500 line-through";
+                                        else if (wIdx === q.errIdx) style += "bg-white text-emerald-600 border-dashed border-emerald-400";
+                                        else style += "text-slate-400";
+                                    }
+                                    return <span key={wIdx} onClick={() => handleSelect(q.id, wIdx, q.errIdx, q.exp)} className={style}>{word}</span>;
+                                })}
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            const tabs = [
+                { id: 0, title: "C hay U?", icon: "fa-cube" },
+                { id: 1, title: "Chọn từ", icon: "fa-mouse-pointer" },
+                { id: 2, title: "Sắc thái", icon: "fa-theater-masks" },
+                { id: 3, title: "Nâng cao", icon: "fa-rocket" },
+                { id: 4, title: "Lỗi sai", icon: "fa-times-circle" }
+            ];
+
+            return (
+                <div className="max-w-4xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    {/* Hero Section */}
+                    <header className="text-center mb-16">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            <i className="fas fa-balance-scale mr-2"></i> VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-brandDark tracking-tight mb-6 leading-tight">
+                            Làm chủ Hệ thống Lượng Từ <br className="hidden md:block"/><span className="text-primary">(Quantifiers)</span>
+                        </h1>
+                        <p className="text-lg text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            Nói về "bao nhiêu" một cách chính xác. Không học bảng khô khan, học sinh VocaFlow học theo tư duy 3 bước: <b>C/U? <i className="fas fa-arrow-right text-slate-400 mx-1"></i> Mức độ? <i className="fas fa-arrow-right text-slate-400 mx-1"></i> Chọn Quantifier!</b>
+                        </p>
+                    </header>
+
+                    {/* FULL 71 POINTS THEORY */}
+                    <div className="mb-16">
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-8 text-center"><i className="fas fa-book-open text-primary mr-3"></i>Bách Khoa Toàn Thư: Lượng Từ</h2>
+                        
+                        <Accordion title="1. Khái niệm & Phân loại Nền tảng (Mục 0-2)" icon="fa-cubes">
+                            <Point num="0" title="Quantifier là gì?" isLast={false}>
+                                <p className="mb-2">Hãy nhìn: <i>I have books.</i> Ta biết tôi có sách, nhưng chưa biết: Bao nhiêu cuốn?</p>
+                                <p className="mb-2">Nếu nói: <i>I have <Highlight>many</Highlight> books</i> (nhiều), <i>I have <Highlight>a few</Highlight> books</i> (một vài), <i>I have <Highlight>few</Highlight> books</i> (rất ít), <i>I have <Highlight>three</Highlight> books</i> (ba cuốn).</p>
+                                <p>Những từ/cụm từ giúp chúng ta xác định hoặc diễn tả số lượng của danh từ được gọi là: <b>QUANTIFIERS — LƯỢNG TỪ</b>.</p>
+                            </Point>
+
+                            <Point num="1" title="Đếm được hay Không đếm được?" isLast={false}>
+                                <p className="mb-4">Đây là nền tảng. Trước khi chọn quantifier, đừng vội nhìn vào nghĩa tiếng Việt. Hãy hỏi: Danh từ này có đếm được bằng từng đơn vị không?</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-2">A. Countable Nouns (C)</div>
+                                        <p className="text-sm">Có thể đếm từng cái: one book, two books, three books.</p>
+                                        <p className="text-sm font-semibold mt-2">Ví dụ: student, car, apple, idea, problem, mistake, opportunity, friend.</p>
+                                        <p className="text-sm mt-1">Có dạng: singular → book, plural → books.</p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-2">B. Uncountable Nouns (U)</div>
+                                        <p className="text-sm">Không thường được xem như những đơn vị riêng lẻ trong cách dùng tiếng Anh thông thường.</p>
+                                        <p className="text-sm font-semibold mt-2">Ví dụ: water, money, information, advice, furniture, equipment, traffic, time.</p>
+                                        <p className="text-sm text-rose-600 font-semibold mt-1">Không nói: informations, advices, furnitures, equipments.</p>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="2" title="Bản đồ Quantifiers Cơ bản" isLast={true}>
+                                <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl">
+                                    <p className="font-bold text-slate-800 mb-3"><i className="fas fa-brain text-amber-500 mr-2"></i>Quy tắc lớn:</p>
+                                    <ul className="space-y-2 list-disc pl-5 text-[15px]">
+                                        <li><Highlight>many / few / several</Highlight> <i className="fas fa-arrow-right mx-2 text-slate-400"></i> Countable Plural</li>
+                                        <li><Highlight>much / little</Highlight> <i className="fas fa-arrow-right mx-2 text-slate-400"></i> Uncountable</li>
+                                        <li><Highlight>a lot of / lots of / plenty of / some / any / enough</Highlight> <i className="fas fa-arrow-right mx-2 text-slate-400"></i> Dùng được cho Cả hai</li>
+                                    </ul>
+                                </div>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="2. Nhóm Cơ bản: Nhiều / Một số / Không có (Mục 3-6, 12-15)" icon="fa-layer-group">
+                            <Point num="3" title="MANY" isLast={false}>
+                                <p className="mb-2">MANY + COUNTABLE PLURAL. (many students, many books, many problems, many opportunities).</p>
+                                <p className="text-rose-600 font-semibold mb-2">Không: many student, many information, many money.</p>
+                                <ExampleBox>
+                                    There are many students in this class.<br/>
+                                    She has many friends.<br/>
+                                    We don’t have many opportunities to practise English.
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="4" title="MUCH" isLast={false}>
+                                <p className="mb-2">MUCH + UNCOUNTABLE NOUN. (much money, much time, much information, much effort, much traffic, much progress).</p>
+                                <ExampleBox>
+                                    I don’t have much time.<br/>
+                                    We don’t need much money.<br/>
+                                    She didn’t make much progress.
+                                </ExampleBox>
+                                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl mt-3 text-[15px]">
+                                    <p className="font-bold text-amber-800 mb-2"><i className="fas fa-exclamation-triangle mr-2"></i>Một điều rất quan trọng</p>
+                                    <p>Trong câu khẳng định thông thường, much đôi khi nghe khá formal/không tự nhiên. <i>I have much money</i> (Nghe chưa tự nhiên). Tự nhiên hơn: <i>I have a lot of money.</i></p>
+                                    <p className="mt-2">Tuy nhiên: <i>I don’t have much money. How much money do you have? Too much money can cause problems.</i> đều hoàn toàn bình thường.</p>
+                                    <p className="font-semibold text-amber-900 mt-2">Vì vậy đừng dạy: “much = không dùng được trong câu khẳng định.” Đó là quy tắc quá tuyệt đối.</p>
+                                </div>
+                            </Point>
+
+                            <Point num="5 & 6" title="A LOT OF / LOTS OF" isLast={false}>
+                                <p className="mb-2">Nhóm cực kỳ hữu dụng vì dùng được với CẢ C VÀ U.</p>
+                                <ul className="list-disc pl-5 mb-2 text-[15px]">
+                                    <li>Countable: a lot of students, lots of books.</li>
+                                    <li>Uncountable: a lot of money, lots of information.</li>
+                                </ul>
+                                <p className="mb-2">Hai cấu trúc gần như tương đương: a lot of = lots of. Trong speaking, cả hai đều rất tự nhiên.</p>
+                                <ExampleBox>
+                                    I have a lot of friends.<br/>
+                                    She spends a lot of time studying.<br/>
+                                    I have lots of work to do.
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="12" title="SEVERAL" isLast={false}>
+                                <p className="mb-2">several + countable plural noun = một số / vài / khá nhiều hơn “a few” tùy context. (several students, several reasons, several problems).</p>
+                                <ExampleBox>
+                                    There are several reasons why people choose to study abroad.<br/>
+                                    I’ve visited the city several times.
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="13" title="PLENTY OF" isLast={false}>
+                                <p className="mb-2">plenty of + C plural / U. Nghĩa: nhiều hơn mức cần thiết / đủ dùng và còn dư. Sắc thái của plenty of không đơn giản là “many”. Nó thường có ý: more than enough.</p>
+                                <ExampleBox>
+                                    We have plenty of time. (Chúng ta có dư thời gian).<br/>
+                                    There are plenty of opportunities available.
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="14 & 15" title="ENOUGH" isLast={true}>
+                                <p className="mb-2">enough = đủ. Có thể đi với Countable (enough books) và Uncountable (enough time).</p>
+                                <ExampleBox>
+                                    We have enough time.<br/>
+                                    Do you have enough money?
+                                </ExampleBox>
+                                <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-xl mt-3 text-[15px]">
+                                    <p className="font-bold text-indigo-800 mb-2"><i className="fas fa-bolt mr-2"></i>Điểm rất quan trọng: Vị trí của Enough</p>
+                                    <p><b>Enough + Noun:</b> enough money, enough time.</p>
+                                    <p><b>Adjective + Enough:</b> rich enough, good enough, old enough.</p>
+                                    <p className="text-rose-600 font-semibold mt-1">Không dùng: enough rich.</p>
+                                </div>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="3. Định luật 'Cốc nước': Few vs Little (Mục 7-11)" icon="fa-glass-water">
+                            <Point num="7" title="A FEW VS FEW" isLast={false}>
+                                <p className="mb-2">Đây là phần phải hiểu sắc thái, không được chỉ học: a few = vài, few = ít.</p>
+                                <ul className="space-y-3 mb-2 text-[15px]">
+                                    <li><Highlight>A FEW</Highlight> một vài, có một số. Mang sắc thái <b>tích cực / đủ dùng / có tồn tại</b>.<br/><i>I have a few friends.</i> (Người nói đang cho rằng: “Có vài người, thế là được.”)</li>
+                                    <li><Highlight>FEW</Highlight> rất ít / hầu như không có. Mang sắc thái <b>tiêu cực</b>.<br/><i>I have few friends.</i> (Ngầm hiểu: “Không đủ / đáng tiếc là ít.”)</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="8" title="HÌNH DUNG BẰNG 'CỐC NƯỚC'" isLast={false}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+                                        <div className="font-bold text-emerald-800 mb-1">A FEW (Tích cực)</div>
+                                        <p className="text-sm">Có một ít nhưng vẫn có.</p>
+                                        <p className="text-sm font-semibold mt-2">I have a few friends. <br/>(Có vài người bạn.)</p>
+                                    </div>
+                                    <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl">
+                                        <div className="font-bold text-rose-800 mb-1">FEW (Tiêu cực)</div>
+                                        <p className="text-sm">Ít đến mức gần như không có.</p>
+                                        <p className="text-sm font-semibold mt-2">I have few friends. <br/>(Rất ít bạn.)</p>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="9" title="A LITTLE VS LITTLE" isLast={false}>
+                                <p className="mb-2">Logic hoàn toàn tương tự. Nhưng nhớ: little đi với <b>UNCOUNTABLE</b>.</p>
+                                <ul className="space-y-2 mb-2 text-[15px]">
+                                    <li><b>A LITTLE:</b> một chút, một ít, vẫn đủ/có một lượng nhất định. <i>I have a little money. (Tôi có một ít tiền.)</i></li>
+                                    <li><b>LITTLE:</b> rất ít, gần như không đủ. <i>I have little money. (Tôi có rất ít tiền.)</i></li>
+                                </ul>
+                            </Point>
+
+                            <Point num="10" title="BẢNG SO SÁNH CỰC QUAN TRỌNG" isLast={false}>
+                                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden mt-2">
+                                    <table className="w-full text-left text-[15px]">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-slate-800">
+                                                <th className="p-3 border-b border-slate-200">Positive / Enough</th>
+                                                <th className="p-3 border-b border-slate-200">Negative / Not enough</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-semibold text-emerald-700">a few friends</td>
+                                                <td className="p-3 border-b border-slate-200 font-semibold text-rose-700">few friends</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 font-semibold text-emerald-700">a little money</td>
+                                                <td className="p-3 font-semibold text-rose-700">little money</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p className="mt-3 font-semibold text-indigo-700 text-[15px]">Nhớ: a few / a little = có một lượng. few / little = lượng quá nhỏ, nhấn mạnh sự thiếu hụt.</p>
+                            </Point>
+
+                            <Point num="11" title="'A FEW' KHÔNG CÓ NGHĨA LÀ 'RẤT ÍT'" isLast={true}>
+                                <p className="mb-2">Đây là lỗi dịch rất phổ biến. <i>I have a few friends.</i> Không nhất thiết: “Tôi có rất ít bạn.” Mà gần hơn: “Tôi có một vài người bạn.”</p>
+                                <p>Trong khi: <i>I have few friends.</i> mới mang ý: “Tôi có rất ít bạn.”</p>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="4. Too, So, How, Some, Any, No, None (Mục 16-23)" icon="fa-question-circle">
+                            <Point num="16" title="TOO MANY VS TOO MUCH" isLast={false}>
+                                <p className="mb-2"><b>too</b> = quá mức cần thiết.</p>
+                                <ul className="list-disc pl-5 mb-2 text-[15px]">
+                                    <li><b>TOO MANY + COUNTABLE PLURAL:</b> too many people, too many questions.</li>
+                                    <li><b>TOO MUCH + UNCOUNTABLE:</b> too much money, too much time.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="17" title="SO MANY VS SO MUCH" isLast={false}>
+                                <p className="mb-2"><b>so</b> = rất / đến mức như vậy.</p>
+                                <ul className="list-disc pl-5 mb-2 text-[15px]">
+                                    <li><b>SO MANY + C plural:</b> so many people, so many problems.</li>
+                                    <li><b>SO MUCH + U:</b> so much money, so much information.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="18" title="HOW MANY VS HOW MUCH" isLast={false}>
+                                <p className="mb-2">Đây là cách hỏi số lượng.</p>
+                                <ul className="list-disc pl-5 mb-2 text-[15px]">
+                                    <li><b>HOW MANY + C plural:</b> How many students are there? How many books do you have?</li>
+                                    <li><b>HOW MUCH + U:</b> How much money do you need? How much time do we have?</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="19" title="SOME" isLast={false}>
+                                <p className="mb-2">some + C plural / U.</p>
+                                <ul className="list-disc pl-5 mb-2 text-[15px]">
+                                    <li>Countable: some students, some books.</li>
+                                    <li>Uncountable: some water, some information.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="20" title="ANY" isLast={false}>
+                                <p className="mb-2">any + C plural / U. Thường xuất hiện trong: negative, questions. (<i>I don’t have any money. Are there any students here?</i>)</p>
+                                <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-xl mt-3 text-[15px]">
+                                    <p className="font-bold text-indigo-800 mb-2"><i className="fas fa-lightbulb mr-2"></i>Nhưng nhớ:</p>
+                                    <p>ANY không chỉ dùng trong câu hỏi và phủ định. Có thể dùng trong ý nghĩa: <b>bất kỳ</b>.</p>
+                                    <p className="font-semibold mt-1">You can choose any book you like. (Em có thể chọn bất kỳ cuốn sách nào.)</p>
+                                </div>
+                            </Point>
+
+                            <Point num="21" title="NO" isLast={false}>
+                                <p className="mb-2">no + noun. Có thể dùng với cả C và U. (no students, no money, no information).</p>
+                                <ExampleBox>
+                                    There are no students in the classroom.<br/>
+                                    I have no money.
+                                </ExampleBox>
+                                <p className="text-rose-600 font-semibold text-[15px] mt-2">So sánh: <i>I don’t have any money.</i> = <i>I have no money.</i> Nhưng không nói: <i>I don’t have no money.</i> (Double negative trong Standard English).</p>
+                            </Point>
+
+                            <Point num="22 & 23" title="NONE" isLast={true}>
+                                <p className="mb-2">Đây là chỗ học sinh hay nhầm: <b>no + noun</b> nhưng <b>none có thể đứng một mình</b>.</p>
+                                <ExampleBox>
+                                    How many students came? None.<br/>
+                                    None of my friends came.
+                                </ExampleBox>
+                                <p className="text-rose-600 font-semibold text-[15px] mb-4">Không dùng: <i>no of my friends.</i></p>
+                                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden text-[15px]">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="bg-slate-50 text-slate-800">
+                                                <th className="p-3 border-b border-slate-200">Cấu trúc</th>
+                                                <th className="p-3 border-b border-slate-200">Ví dụ</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200">some + noun</td>
+                                                <td className="p-3 border-b border-slate-200">some money</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200">any + noun</td>
+                                                <td className="p-3 border-b border-slate-200">any money</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200">no + noun</td>
+                                                <td className="p-3 border-b border-slate-200">no money</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200">none</td>
+                                                <td className="p-3 border-b border-slate-200">none</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3">none of + determiner + noun</td>
+                                                <td className="p-3">none of my money</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="5. All, Most, Each, Every, Both, Either... (Mục 24-35)" icon="fa-list-check">
+                            <Point num="24 & 25" title="ALL / ALL OF" isLast={false}>
+                                <p className="mb-2">all = tất cả. Dùng được với plural countable (all students) và uncountable (all the money).</p>
+                                <p className="mb-2">Khi có determiner/pronoun: <b>all of + the/my/these/them…</b> Ví dụ: all of the students, all of my friends, all of them.</p>
+                                <p className="text-[15px] font-semibold text-slate-700">Trong nhiều trường hợp: <i>all the students</i> và <i>all of the students</i> đều đúng.</p>
+                            </Point>
+
+                            <Point num="26 & 27" title="MOST / MOST OF" isLast={false}>
+                                <p className="mb-2">most = phần lớn.</p>
+                                <ul className="list-disc pl-5 mb-2 text-[15px]">
+                                    <li><b>Most + noun:</b> Most students like music. Most information is available online.</li>
+                                    <li><b>Most of + determiner:</b> Most of the students, Most of my friends, Most of them.</li>
+                                </ul>
+                                <p className="text-rose-600 font-semibold text-[15px]">Không dùng: <i>most of students.</i></p>
+                            </Point>
+
+                            <Point num="28 - 31" title="EACH & EVERY" isLast={false}>
+                                <p className="mb-2">Đây là nhóm rất quan trọng và thường được xếp vào quantifying/determining words.</p>
+                                <ul className="space-y-3 mb-2 text-[15px]">
+                                    <li><b>EACH:</b> Nhấn mạnh <b>từng cá thể một</b>. <br/><i>Each student has a different learning style.</i> (Từng học sinh).</li>
+                                    <li><b>EVERY:</b> Nhìn nhóm như một tổng thể nhưng nói về <b>từng thành viên</b>. <br/><i>Every student needs feedback.</i> (Học sinh nào cũng cần feedback).</li>
+                                </ul>
+                                <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-xl mt-3 text-[15px]">
+                                    <p className="font-bold text-indigo-800 mb-2"><i className="fas fa-exclamation-circle mr-2"></i>Quy tắc Ngữ pháp</p>
+                                    <p>Cả EACH và EVERY đều đi với <b>SINGULAR NOUN</b> (each student, every day) và động từ <b>SINGULAR</b>.</p>
+                                    <p className="text-rose-600 font-semibold mt-1">Không dùng: <i>each student have...</i> hoặc <i>every students</i>.</p>
+                                </div>
+                            </Point>
+
+                            <Point num="32 - 35" title="BOTH / EITHER / NEITHER" isLast={true}>
+                                <ul className="space-y-4 text-[15px]">
+                                    <li className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <span className="font-bold text-lg text-emerald-700 block mb-1">BOTH (Cả hai)</span>
+                                        <p>both students, both answers, both options. Động từ: <b>plural</b> (Both students are ready).</p>
+                                    </li>
+                                    <li className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <span className="font-bold text-lg text-emerald-700 block mb-1">EITHER (Một trong hai)</span>
+                                        <p>Either answer is acceptable. (Một trong hai đáp án đều được.)</p>
+                                    </li>
+                                    <li className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <span className="font-bold text-lg text-emerald-700 block mb-1">NEITHER (Không cái nào trong hai)</span>
+                                        <p>Neither answer is correct. (Cả hai đáp án đều không đúng.)</p>
+                                    </li>
+                                </ul>
+                                <p className="mt-4 text-[15px] font-semibold text-slate-700">Either/Neither đi với Singular Noun (either option). Khi có "of": both/either/neither + of + determiner/pronoun (both of my parents, neither of them).</p>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="6. Lỗi IELTS, Number/Amount, Fewer/Less (Mục 36-44, 50-52, 55-57)" icon="fa-rocket">
+                            <Point num="36" title="A NUMBER OF VS THE NUMBER OF" isLast={false}>
+                                <p className="mb-2 font-bold text-rose-600"><i className="fas fa-fire mr-2"></i>Đây là phần rất quan trọng cho IELTS Writing.</p>
+                                <ul className="space-y-3 mb-2 text-[15px]">
+                                    <li><Highlight>A NUMBER OF + PLURAL NOUN + PLURAL VERB</Highlight> = một số / nhiều.<br/><i>A number of students <b>are</b> absent.</i> (Không: A number of students is absent).</li>
+                                    <li><Highlight>THE NUMBER OF + PLURAL NOUN + SINGULAR VERB</Highlight> = số lượng.<br/><i>The number of students <b>is</b> increasing.</i><br/><span className="text-slate-500 italic mt-1 inline-block">Tại sao? Vì subject thật sự là "the number" không phải "students".</span></li>
+                                </ul>
+                            </Point>
+
+                            <Point num="37 - 39" title="FEWER VS LESS" isLast={false}>
+                                <p className="mb-2">Một trong những lỗi phổ biến nhất.</p>
+                                <ul className="list-disc pl-5 mb-3 text-[15px]">
+                                    <li><b>FEWER + COUNTABLE PLURAL:</b> fewer students, fewer cars, fewer mistakes.</li>
+                                    <li><b>LESS + UNCOUNTABLE:</b> less money, less time, less information.</li>
+                                </ul>
+                                <ExampleBox>We need fewer cars. We need less traffic.</ExampleBox>
+                                <p className="text-[15px] font-medium text-slate-700 mt-2"><b>Ý tưởng:</b> fewer = số lượng đơn vị, less = lượng. <br/>Tuy nhiên, "less" có ngoại lệ với đơn vị đo lường: <i>less than 10 minutes, less than $20</i>. Đừng máy móc áp dụng "Có số → phải dùng fewer".</p>
+                            </Point>
+
+                            <Point num="40 & 41" title="NUMBER VS AMOUNT" isLast={false}>
+                                <ul className="list-disc pl-5 mb-3 text-[15px]">
+                                    <li><b>NUMBER OF + COUNTABLE PLURAL:</b> the number of students, a large number of people, a considerable number of cases.</li>
+                                    <li><b>AMOUNT OF + UNCOUNTABLE:</b> a large amount of money, a small amount of information, a huge amount of time.</li>
+                                </ul>
+                                <p className="text-rose-600 font-semibold text-[15px]">Không dùng: <i>a large amount of students</i>, <i>a large number of money</i>.</p>
+                            </Point>
+
+                            <Point num="42 - 44" title="QUANTIFIERS + OF" isLast={false}>
+                                <p className="mb-2">Đây là một pattern cực kỳ quan trọng. So sánh: <i>many students</i> vs. <i>many of the students</i>.</p>
+                                <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl mt-3 text-[15px]">
+                                    <p className="font-bold text-indigo-800 mb-2">Công thức: quantifier + of + determiner/pronoun + noun</p>
+                                    <ul className="list-disc pl-5 space-y-1">
+                                        <li><b>Không có determiner:</b> many students, some people.</li>
+                                        <li><b>Có determiner:</b> many <b>of the</b> students, some <b>of my</b> friends, most <b>of the</b> information, all <b>of the</b> money, none <b>of them</b>.</li>
+                                    </ul>
+                                    <p className="text-rose-600 font-semibold mt-2">Không dùng: <i>many of students</i>.</p>
+                                </div>
+                                <p className="mt-3 text-[15px] font-medium text-slate-700"><b>Sự khác biệt:</b> <i>Some students</i> (một số học sinh nói chung). <i>Some of the students</i> (một số trong nhóm học sinh cụ thể đã xác định).</p>
+                            </Point>
+
+                            <Point num="50 - 52" title="CỤM RẤT HỮU ÍCH CHO IELTS WRITING" isLast={false}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+                                        <div className="font-bold text-emerald-800 mb-2">Countable</div>
+                                        <p className="text-sm space-y-1">
+                                            - a large number of students<br/>
+                                            - a significant number of people<br/>
+                                            - a considerable number of cases<br/>
+                                            - numerous studies<br/>
+                                            - a great many people
+                                        </p>
+                                    </div>
+                                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
+                                        <div className="font-bold text-blue-800 mb-2">Uncountable</div>
+                                        <p className="text-sm space-y-1">
+                                            - a large amount of money<br/>
+                                            - a significant amount of time<br/>
+                                            - a considerable amount of information<br/>
+                                            - a great deal of attention<br/>
+                                            - a great deal of effort
+                                        </p>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="55 - 57" title="PHÂN TÍCH LỖI SAI & NGỮ CẢNH" isLast={true}>
+                                <div className="space-y-4">
+                                    <div className="border-l-4 border-rose-400 pl-4">
+                                        <p className="font-semibold text-rose-700">Sarah spent a large number of time on this. (Sai)</p>
+                                        <p className="text-[15px] text-slate-600">Vì time = uncountable, number dùng với countable. Đúng: Sarah spent a large amount of time / a lot of time.</p>
+                                    </div>
+                                    <div className="border-l-4 border-emerald-400 pl-4">
+                                        <p className="font-semibold text-emerald-700">He is very optimistic. He has few worries.</p>
+                                        <p className="text-[15px] text-slate-600">Lạc quan (optimistic) thì có <b>rất ít</b> điều phải lo. Phải dùng <b>few</b> (mang ý tiêu cực đối với nỗi lo = tích cực cho bản thân).</p>
+                                    </div>
+                                    <div className="border-l-4 border-blue-400 pl-4">
+                                        <p className="font-semibold text-blue-700">There is little water left in the bottle. We can’t drink enough.</p>
+                                        <p className="text-[15px] text-slate-600">Water = U. Không đủ uống = lượng quá nhỏ (little). Nếu nói <i>a little water</i> nghĩa là vẫn còn một ít, đủ uống.</p>
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="7. Tổng hợp, Mental Map & Must Remember (Mục 45-49, 53-54, 68-71)" icon="fa-brain">
+                            <Point num="45 & 46" title="TỔNG HỢP THEO C/U & 5 VÙNG NGHĨA" isLast={false}>
+                                <p className="mb-2">Quantifiers không chỉ nói “nhiều / ít”. Hãy chia chúng thành 5 vùng nghĩa:</p>
+                                <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-2 text-[15px]">
+                                    <table className="w-full text-left">
+                                        <tbody>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-bold text-emerald-600 w-1/3">NHIỀU</td>
+                                                <td className="p-3 border-b border-slate-200">many, much, a lot of, lots of, plenty of, numerous</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-bold text-blue-600">MỘT SỐ</td>
+                                                <td className="p-3 border-b border-slate-200">some, several, a few, a little</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-bold text-amber-600">RẤT ÍT / KHÔNG ĐỦ</td>
+                                                <td className="p-3 border-b border-slate-200">few, little</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 border-b border-slate-200 font-bold text-rose-600">QUÁ NHIỀU</td>
+                                                <td className="p-3 border-b border-slate-200">too many, too much</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="p-3 font-bold text-indigo-600">ĐỦ</td>
+                                                <td className="p-3">enough</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Point>
+
+                            <Point num="47 - 49" title="SẮC THÁI CÁC TỪ TƯƠNG ĐƯƠNG" isLast={false}>
+                                <ul className="space-y-3 text-[15px] text-slate-700">
+                                    <li><b>"A LOT OF" VS "PLENTY OF":</b> a lot of = đơn giản là nhiều. plenty of = đủ và còn dư.</li>
+                                    <li><b>"A FEW" VS "SEVERAL":</b> a few = một số nhỏ. several = một số, thường gợi ý nhiều hơn a few tùy context. Không có quy tắc số học cứng (a few = 3, several = 5).</li>
+                                    <li><b>"NUMEROUS":</b> numerous + countable plural noun = rất nhiều / đông đảo. Khá formal trong IELTS.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="53 & 54" title="BẢNG TRA NHANH & LỖI PHẢI TRÁNH" isLast={false}>
+                                <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl text-[15px]">
+                                    <p className="font-bold text-rose-800 mb-2"><i className="fas fa-times-circle mr-2"></i>Sửa ngay các lỗi sau:</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                        <div><span className="line-through text-rose-500 mr-2">many information</span> <i className="fas fa-arrow-right mx-1 text-slate-400"></i> <span className="text-emerald-700 font-semibold">much information</span></div>
+                                        <div><span className="line-through text-rose-500 mr-2">much students</span> <i className="fas fa-arrow-right mx-1 text-slate-400"></i> <span className="text-emerald-700 font-semibold">many students</span></div>
+                                        <div><span className="line-through text-rose-500 mr-2">a few money</span> <i className="fas fa-arrow-right mx-1 text-slate-400"></i> <span className="text-emerald-700 font-semibold">a little money</span></div>
+                                        <div><span className="line-through text-rose-500 mr-2">less students</span> <i className="fas fa-arrow-right mx-1 text-slate-400"></i> <span className="text-emerald-700 font-semibold">fewer students</span></div>
+                                        <div><span className="line-through text-rose-500 mr-2">a large amount of students</span> <i className="fas fa-arrow-right mx-1 text-slate-400"></i> <span className="text-emerald-700 font-semibold">a large number of students</span></div>
+                                        <div><span className="line-through text-rose-500 mr-2">a large number of time</span> <i className="fas fa-arrow-right mx-1 text-slate-400"></i> <span className="text-emerald-700 font-semibold">a large amount of time</span></div>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="68 & 69" title="CÔNG THỨC TƯ DUY 5 GIÂY" isLast={false}>
+                                <p className="mb-2">Khi gặp chỗ trống: ______ students. Đừng nhìn nghĩa trước.</p>
+                                <ol className="list-decimal pl-5 space-y-2 text-[15px] font-medium text-indigo-900 bg-indigo-50 p-4 rounded-xl border border-indigo-200">
+                                    <li><b>Nhìn noun:</b> students → Countable? YES. Plural? YES.</li>
+                                    <li><b>Muốn diễn tả gì?</b> nhiều → many, một vài → a few, rất ít → few, đủ → enough.</li>
+                                    <li><b>Chọn theo meaning.</b></li>
+                                </ol>
+                                <p className="mt-3 text-[15px] font-bold text-slate-800">QUANTIFIER = QUANTITY + NOUN TYPE + MEANING</p>
+                            </Point>
+
+                            <Point num="70 & 71" title="FINAL MENTAL MAP & CÂU CHỐT" isLast={true}>
+                                <div className="bg-slate-800 text-white p-6 rounded-2xl shadow-lg border border-slate-700">
+                                    <h3 className="text-xl font-bold text-amber-400 mb-4"><i className="fas fa-fire mr-2"></i> MUST REMEMBER</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[15px] text-slate-200">
+                                        <ul className="space-y-2">
+                                            <li>① MANY ≠ MUCH</li>
+                                            <li>② FEW ≠ LITTLE</li>
+                                            <li>③ A FEW ≠ FEW</li>
+                                            <li>④ A LITTLE ≠ LITTLE</li>
+                                        </ul>
+                                        <ul className="space-y-2">
+                                            <li>⑤ FEWER ≠ LESS</li>
+                                            <li>⑥ NUMBER ≠ AMOUNT</li>
+                                            <li>⑦ A NUMBER OF ≠ THE NUMBER OF</li>
+                                            <li>⑧ QUANTIFIER + OF</li>
+                                        </ul>
+                                    </div>
+                                    <div className="mt-6 pt-6 border-t border-slate-600">
+                                        <h3 className="text-lg font-bold text-emerald-400 mb-3"><i className="fas fa-bullseye mr-2"></i> CÂU CHỐT CỦA CHUYÊN ĐỀ</h3>
+                                        <p className="text-[15px] leading-relaxed">Đừng học Quantifiers bằng cách dịch từng từ sang tiếng Việt. Khi gặp một lượng từ, hãy thực hiện 3 bước: <b>① NOUN LÀ C HAY U? ② MUỐN NÓI MỨC ĐỘ NÀO? ③ QUANTIFIER NÀO PHÙ HỢP?</b> Nếu hình thành được 3 bước này thì Quantifiers không còn là một bảng phải học thuộc, mà trở thành một hệ thống có logic.</p>
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs - Instant Feedback) */}
+                    <div id="exercises" className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mb-12">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-3"><i className="fas fa-gamepad text-primary mr-3"></i>Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Bấm vào đáp án để Check ngay đúng/sai. Chinh phục IELTS Error Correction nào!</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-4">
+                            {[
+                                { id: 0, title: "C hay U?", icon: "fa-cube", color: "bg-primary" },
+                                { id: 1, title: "Chọn từ", icon: "fa-mouse-pointer", color: "bg-info" },
+                                { id: 2, title: "Sắc thái", icon: "fa-theater-masks", color: "bg-warning" },
+                                { id: 3, title: "Nâng cao", icon: "fa-rocket", color: "bg-secondary" },
+                                { id: 4, title: "Lỗi sai", icon: "fa-times-circle", color: "bg-accent" }
+                            ].map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2
+                                    ${activeTab === index 
+                                        ? `${tab.color} text-white shadow-md scale-105` 
+                                        : `bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200`}`}
+                                >
+                                    <i className={`fas ${tab.icon}`}></i> {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExCountable />}
+                            {activeTab === 1 && <ExMultipleChoice />}
+                            {activeTab === 2 && <ExNuance />}
+                            {activeTab === 3 && <ExAdvanced />}
+                            {activeTab === 4 && <ExFindMistake />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

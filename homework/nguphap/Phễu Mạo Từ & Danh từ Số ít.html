@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Article System Masterclass</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Sử dụng CDNJS thay vì Unpkg để chống lỗi mạng gây trang trắng -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4f46e5', 
+                        primaryLight: '#e0e7ff', 
+                        secondary: '#10B981', 
+                        warning: '#F59E0B', 
+                        info: '#3B82F6', 
+                        accent: '#F43F5E', 
+                        brandDark: '#1e1b4b', 
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background-color: #f8fafc;
+            color: #334155; 
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        .glass {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; transform-origin: top; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: scaleY(0.95); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900 pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- PURE INLINE SVGS ---
+        const SvgCheck = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>;
+        const SvgCross = () => <svg className="w-5 h-5 text-rose-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>;
+        const SvgWarning = () => <svg className="w-5 h-5 text-amber-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>;
+        const SvgInfo = () => <svg className="w-5 h-5 text-indigo-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>;
+        const SvgChevron = ({ isOpen }) => <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
+        const SvgBook = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>;
+        const SvgTarget = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>;
+
+        // --- COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-50 text-indigo-700",
+                secondary: "bg-emerald-50 text-emerald-700",
+                warning: "bg-amber-50 text-amber-700",
+                accent: "bg-rose-50 text-rose-700",
+                info: "bg-blue-50 text-blue-700"
+            };
+            return <span className={`inline-block px-2 py-0.5 rounded font-semibold text-[15px] ${styles[color]}`}>{children}</span>;
+        };
+
+        const ExampleBox = ({ children }) => (
+            <div className="bg-slate-50 border-l-4 border-indigo-400 p-4 my-3 text-slate-700 rounded-r-lg shadow-sm text-[15px]">
+                {children}
+            </div>
+        );
+
+        const NoteBox = ({ children, type = "info" }) => {
+            const styles = {
+                warning: "bg-amber-50 border-amber-200 text-amber-900",
+                info: "bg-indigo-50 border-indigo-200 text-indigo-900",
+                danger: "bg-rose-50 border-rose-200 text-rose-900"
+            };
+            const icons = { warning: <SvgWarning />, info: <SvgInfo />, danger: <SvgCross /> };
+            return (
+                <div className={`border p-4 my-4 rounded-xl flex items-start text-[15px] ${styles[type]}`}>
+                    <div className="mt-0.5 shrink-0">{icons[type]}</div>
+                    <div className="ml-2 w-full">{children}</div>
+                </div>
+            );
+        };
+
+        const Point = ({ num, title, children, isLast }) => (
+            <div className={`pb-8 mb-8 ${!isLast ? 'border-b border-dashed border-slate-300' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                    <span className="bg-indigo-100 text-indigo-800 font-extrabold px-3 py-1.5 rounded-lg text-sm shadow-sm">{num}</span>
+                    <h3 className="font-extrabold text-brandDark text-lg tracking-wide uppercase">{title}</h3>
+                </div>
+                <div className="text-slate-600 text-[15px] leading-relaxed space-y-2">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Accordion = ({ title, children }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="mb-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 md:p-6 flex justify-between items-center text-left bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl text-indigo-600 shadow-sm">
+                                <SvgBook />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+                        </div>
+                        <SvgChevron isOpen={isOpen} />
+                    </button>
+                    {isOpen && <div className="p-6 md:p-8 bg-white slide-down">{children}</div>}
+                </div>
+            );
+        };
+
+        const ExplanationBox = ({ isCorrect, exp }) => (
+            <div className={`mt-4 p-4 rounded-xl text-[15px] font-medium border flex items-start gap-3 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                <div className="mt-0.5">
+                    {isCorrect ? <SvgCheck /> : <SvgCross />}
+                </div>
+                <div className="w-full">
+                    <strong className="block mb-1">{isCorrect ? "Chính xác!" : "Sai rồi!"}</strong>
+                    {exp}
+                </div>
+            </div>
+        );
+
+        // --- EXERCISE COMPONENTS ---
+        
+        const ExBasic = () => {
+            const questions = [
+                { id: 1, q: "________ education is essential for economic development.", opts: ["A", "An", "The", "Ø"], ans: "Ø", exp: "Education là danh từ không đếm được, nói chung &rarr; Dùng Ø." },
+                { id: 2, q: "I spoke to ________ teacher yesterday.", opts: ["a", "an", "the", "Ø"], ans: "a", exp: "Lần đầu tiên nhắc đến một giáo viên (chưa xác định) &rarr; Dùng 'a'." },
+                { id: 3, q: "________ teacher gave me some useful advice.", opts: ["A", "An", "The", "Ø"], ans: "The", exp: "Đã xác định từ câu trước (the listener can identify) &rarr; Dùng 'The'." },
+                { id: 4, q: "________ teachers need to understand their students.", opts: ["A", "An", "The", "Ø"], ans: "Ø", exp: "Nói về giáo viên nói chung (plural general) &rarr; Dùng Ø." },
+                { id: 5, q: "Huy wants to become ________ English teacher.", opts: ["a", "an", "the", "Ø"], ans: "an", exp: "Nghề nghiệp + bắt đầu bằng nguyên âm /E/ &rarr; Dùng 'an'." },
+                { id: 6, q: "________ English teacher I mentioned yesterday is from London.", opts: ["A", "An", "The", "Ø"], ans: "The", exp: "Được xác định rõ bằng mệnh đề 'I mentioned yesterday' &rarr; Dùng 'The'." },
+                { id: 7, q: "We can see ________ sun from here.", opts: ["a", "an", "the", "Ø"], ans: "the", exp: "'sun' là đối tượng duy nhất trong ngữ cảnh &rarr; Dùng 'the'." },
+                { id: 8, q: "Michael bought ________ new laptop.", opts: ["a", "an", "the", "Ø"], ans: "a", exp: "Một chiếc laptop chưa xác định &rarr; Dùng 'a'." },
+                { id: 9, q: "________ dogs are loyal animals.", opts: ["A", "An", "The", "Ø"], ans: "Ø", exp: "Nói về loài chó nói chung (plural general) &rarr; Dùng Ø." },
+                { id: 10, q: "I love ________ coffee you made.", opts: ["a", "an", "the", "Ø"], ans: "the", exp: "Cà phê cụ thể (mà bạn đã pha) &rarr; Dùng 'the'." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Chọn A / AN / THE / Ø cho phù hợp.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExAdvanced = () => {
+            const questions = [
+                { id: 1, q: "Gia Hưng is ________ engineer.", opts: ["a", "an", "the", "Ø"], ans: "an", exp: "Nghề nghiệp + bắt đầu âm nguyên âm &rarr; Dùng 'an'." },
+                { id: 2, q: "He is ________ only person who knows.", opts: ["a", "an", "the", "Ø"], ans: "the", exp: "'only' giúp xác định đối tượng duy nhất &rarr; Dùng 'the'." },
+                { id: 3, q: "This is ________ best restaurant.", opts: ["a", "an", "the", "Ø"], ans: "the", exp: "So sánh nhất (superlative) xác định vị trí cao nhất &rarr; Dùng 'the'." },
+                { id: 4, q: "We have ________ same problem.", opts: ["a", "an", "the", "Ø"], ans: "the", exp: "Luôn đi với 'the same'." },
+                { id: 5, q: "________ rich are not always happy.", opts: ["A", "An", "The", "Ø"], ans: "The", exp: "The + Adjective = Group of people (Người giàu) &rarr; Dùng 'The'." },
+                { id: 6, q: "Kim Phụng plays ________ piano very well.", opts: ["a", "an", "the", "Ø"], ans: "the", exp: "Chơi nhạc cụ (play the piano, the guitar) &rarr; Dùng 'the'." },
+                { id: 7, q: "Michael plays ________ football every weekend.", opts: ["a", "an", "the", "Ø"], ans: "Ø", exp: "Môn thể thao nói chung (play football) &rarr; Dùng Ø." },
+                { id: 8, q: "Education is one of ________ most important factors.", opts: ["a", "an", "the", "Ø"], ans: "the", exp: "Cấu trúc: one of + the + superlative + plural noun &rarr; Dùng 'the'." },
+                { id: 9, q: "I ordered ________ coffee.", opts: ["a", "an", "the", "Ø"], ans: "a", exp: "Nghĩa là một ly/phần cà phê (a serving) &rarr; Dùng 'a'." },
+                { id: 10, q: "I need ________ doctor.", opts: ["a", "an", "the", "Ø"], ans: "a", exp: "Introduce one member of a category (Bất kỳ bác sĩ nào) &rarr; Dùng 'a'." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Điền Mạo từ trong các cấu trúc đặc biệt.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExPlaces = () => {
+            const questions = [
+                { id: 1, q: "Children go to ________ school every day.", opts: ["a", "the", "Ø"], ans: "Ø", exp: "Đi học (nhấn mạnh chức năng) &rarr; Dùng Ø." },
+                { id: 2, q: "Peter went to ________ school to meet the principal.", opts: ["a", "the", "Ø"], ans: "the", exp: "Đến trường với tư cách một địa điểm cụ thể &rarr; Dùng 'the'." },
+                { id: 3, q: "I go to ________ bed at 10 PM.", opts: ["a", "the", "Ø"], ans: "Ø", exp: "Đi ngủ (nhấn mạnh chức năng) &rarr; Dùng Ø." },
+                { id: 4, q: "Please sit on ________ bed.", opts: ["a", "the", "Ø"], ans: "the", exp: "Ngồi trên cái giường cụ thể &rarr; Dùng 'the'." },
+                { id: 5, q: "He is from ________ United Kingdom.", opts: ["a", "the", "Ø"], ans: "the", exp: "Tên có cấu trúc mô tả (political entity) &rarr; Dùng 'the'." },
+                { id: 6, q: "I live in ________ Vietnam.", opts: ["a", "the", "Ø"], ans: "Ø", exp: "Tên quốc gia thông thường &rarr; Dùng Ø." },
+                { id: 7, q: "We climbed ________ Mount Everest.", opts: ["a", "the", "Ø"], ans: "Ø", exp: "Ngọn núi đơn lẻ &rarr; Dùng Ø." },
+                { id: 8, q: "They sailed across ________ Pacific Ocean.", opts: ["a", "the", "Ø"], ans: "the", exp: "Tên đại dương &rarr; Dùng 'the'." },
+                { id: 9, q: "I go to ________ work at 8 AM.", opts: ["a", "the", "Ø"], ans: "Ø", exp: "Đi làm &rarr; Dùng Ø (Không dùng 'go to the work')." },
+                { id: 10, q: "I am studying ________ mathematics.", opts: ["a", "the", "Ø"], ans: "Ø", exp: "Môn học nói chung &rarr; Dùng Ø." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Địa điểm và Tên riêng (Contextual definiteness).</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExMistakes = () => {
+            const questions = [
+                { id: 1, s: ["David", "is", "teacher."], errIdx: 2, exp: "Singular countable noun không đứng một mình. Phải là 'a teacher'." },
+                { id: 2, s: ["I", "bought", "new", "laptop."], errIdx: 2, exp: "Phải có determiner: 'a new laptop'." },
+                { id: 3, s: ["The", "dogs", "are", "loyal", "animals."], errIdx: 0, exp: "Nói về loài chó nói chung &rarr; Bỏ 'The' (Dogs are...)." },
+                { id: 4, s: ["People", "need", "the", "access", "to", "education."], errIdx: 2, exp: "Access ở đây là general concept &rarr; Bỏ 'the'." },
+                { id: 5, s: ["The", "technology", "has", "changed", "our", "lives."], errIdx: 0, exp: "Nói về công nghệ nói chung &rarr; Bỏ 'The'." },
+                { id: 6, s: ["The", "pollution", "is", "serious."], errIdx: 0, exp: "Ô nhiễm nói chung &rarr; Bỏ 'The'." },
+                { id: 7, s: ["The", "unemployment", "is", "increasing."], errIdx: 0, exp: "Thất nghiệp nói chung &rarr; Bỏ 'The' (Trừ phi nói 'The unemployment rate')." },
+                { id: 8, s: ["He", "has", "car."], errIdx: 2, exp: "Car là đếm được số ít. Phải là 'a car'." },
+                { id: 9, s: ["She", "is", "a", "honest", "person."], errIdx: 2, exp: "Honest bắt đầu bằng nguyên âm /ɒ/ &rarr; Phải dùng 'an'." },
+                { id: 10, s: ["She", "is", "an", "European."], errIdx: 2, exp: "European bắt đầu bằng phụ âm /j/ &rarr; Phải dùng 'a'." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, wIdx, errIdx, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: wIdx, isCorrect: wIdx === errIdx, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Click vào <b>1 TỪ TẠO RA LỖI SAI MẠO TỪ</b> trong câu.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-wrap gap-x-1.5 gap-y-2 items-center text-lg mb-2">
+                                <span className="text-slate-400 font-bold mr-2 text-base">{q.id}.</span>
+                                {q.s.map((word, wIdx) => {
+                                    const st = status[q.id];
+                                    let style = "cursor-pointer px-3 py-1.5 rounded-lg transition-colors font-semibold border border-transparent ";
+                                    if (!st) style += "hover:bg-slate-100 text-slate-700 hover:text-indigo-600";
+                                    else {
+                                        if (st.selected === wIdx && st.isCorrect) style += "bg-emerald-50 text-emerald-700 border-emerald-500";
+                                        else if (st.selected === wIdx && !st.isCorrect) style += "bg-rose-50 text-rose-700 border-rose-500 line-through";
+                                        else if (wIdx === q.errIdx) style += "bg-white text-emerald-600 border-dashed border-emerald-400";
+                                        else style += "text-slate-400 bg-slate-50";
+                                    }
+                                    return <span key={wIdx} onClick={() => handleSelect(q.id, wIdx, q.errIdx, q.exp)} className={style}>{word}</span>;
+                                })}
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ExExplain = () => {
+            const questions = [
+                { id: 1, q: "I saw a dog.", opts: ["Giới thiệu một đối tượng mới", "Đối tượng cụ thể"], ans: "Giới thiệu một đối tượng mới", exp: "A/an dùng để introduce one member of a category." },
+                { id: 2, q: "The dog was friendly.", opts: ["Loài chó nói chung", "Đối tượng đã xác định"], ans: "Đối tượng đã xác định", exp: "Dùng 'the' vì con chó đã được nhắc đến ở câu trước." },
+                { id: 3, q: "Dogs are loyal.", opts: ["Nói chung về giống loài", "Những con chó cụ thể"], ans: "Nói chung về giống loài", exp: "Plural noun nói chung &rarr; Zero article (Ø)." },
+                { id: 4, q: "She is a teacher.", opts: ["Thuộc nhóm nghề nghiệp", "Người duy nhất"], ans: "Thuộc nhóm nghề nghiệp", exp: "Giới thiệu cô ấy là một thành viên của nhóm 'giáo viên'." },
+                { id: 5, q: "The sun is hot.", opts: ["Duy nhất trong context", "Nhắc lại lần 2"], ans: "Duy nhất trong context", exp: "'Sun' là duy nhất mà cả người nói và nghe đều ngầm hiểu." },
+                { id: 6, q: "The best option.", opts: ["Superlative (So sánh nhất)", "Chỉ số lượng nhiều"], ans: "Superlative (So sánh nhất)", exp: "So sánh nhất xác định đối tượng đứng cao nhất trong tập hợp &rarr; The." },
+                { id: 7, q: "Water is essential.", opts: ["Khái niệm chung (General)", "Nước cụ thể"], ans: "Khái niệm chung (General)", exp: "Uncountable Noun nói chung &rarr; Zero article (Ø)." },
+                { id: 8, q: "The water in this bottle.", opts: ["Nói chung chung", "Xác định bằng cụm bổ nghĩa"], ans: "Xác định bằng cụm bổ nghĩa", exp: "'in this bottle' giúp xác định cụ thể nước nào &rarr; The." },
+                { id: 9, q: "I go to school.", opts: ["Institution (Chức năng)", "Tòa nhà cụ thể"], ans: "Institution (Chức năng)", exp: "Đi học (nhấn mạnh chức năng của trường) &rarr; Ø." },
+                { id: 10, q: "an hour", opts: ["Bắt đầu bằng âm nguyên âm", "Bắt đầu bằng chữ cái nguyên âm"], ans: "Bắt đầu bằng âm nguyên âm", exp: "Dựa vào ÂM THANH (/aʊ/), chữ h bị câm." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Đừng chỉ điền đáp án, hãy giải thích WHY.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-slate-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex flex-col md:flex-row gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "text-left px-5 py-3 rounded-lg text-sm font-semibold border-2 transition-all w-full ";
+                                        if (!st) style += "bg-white border-slate-200 text-slate-700 hover:border-indigo-500 hover:bg-indigo-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-800";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-800";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            
+            return (
+                <div className="max-w-4xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    <header className="text-center mb-16">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-brandDark tracking-tight mb-6 leading-tight">
+                            Phễu Mạo Từ &amp; <br className="hidden md:block"/><span className="text-primary">Danh từ Số ít</span>
+                        </h1>
+                        <p className="text-[17px] text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            A/AN không đơn giản là "một", THE không đơn giản là "cái đó". Đừng dịch tiếng Việt, hãy tư duy theo cách người bản xứ xác định danh từ!
+                        </p>
+                    </header>
+
+                    {/* FULL THEORY (100% Retained) */}
+                    <div className="mb-16">
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-8 text-center border-b-2 border-slate-200 pb-4 inline-block mx-auto">Sổ tay Lý thuyết</h2>
+                        
+                        <Accordion title="1. Nền tảng & Phễu Tư Duy">
+                            <Point num="1 & 2" title="Danh từ số ít không đứng một mình" isLast={false}>
+                                <p className="text-rose-600 font-semibold mb-2">Lỗi sai phổ biến: I bought book. / She is teacher. / He has car.</p>
+                                <p>Vì book, teacher, car đều là <b>Singular Countable Nouns</b> (Danh từ đếm được số ít). Chúng cần một determiner "bảo vệ".</p>
+                                <p className="font-bold text-emerald-700 mt-2">Đúng: I bought a book. / the book / my book / this book.</p>
+                            </Point>
+
+                            <Point num="3, 58, 71" title="Phễu Tư Duy Mạo Từ" isLast={true}>
+                                <p className="mb-4">Đừng lập tức chọn a/an/the. Hãy chạy qua cái phễu sau:</p>
+                                <ol className="list-decimal pl-5 space-y-3 font-medium bg-slate-50 p-5 rounded-xl border border-slate-200">
+                                    <li><b>Noun Type:</b> Đếm được hay không đếm được? (C hay U?)</li>
+                                    <li><b>Number:</b> Singular hay Plural? <br/><span className="text-sm text-rose-500">Nếu Singular Countable &rarr; BẮT BUỘC có determiner.</span></li>
+                                    <li><b>Determiner khác:</b> Đã có my, this, some chưa? <br/><span className="text-sm text-slate-500">Nếu có &rarr; thường không thêm a/the (Không nói: <i>the my car</i>).</span></li>
+                                    <li><b>Reference:</b> Người nghe có biết bạn đang nói đến đối tượng nào không?<br/>
+                                        <span className="text-indigo-600 block mt-1">- Có &rarr; <b>THE</b>.</span>
+                                        <span className="text-indigo-600 block">- Không (Nói chung) &rarr; <b>A/AN</b> (nếu số ít).</span>
+                                        <span className="text-indigo-600 block">- Khái quát chung (General) &rarr; <b>Ø</b> (nếu là U hoặc Plural).</span>
+                                    </li>
+                                </ol>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="2. A / AN — Đối tượng chưa xác định">
+                            <Point num="4 & 41, 42" title="One instance / One member" isLast={false}>
+                                <p className="mb-2"><b>A/AN không đơn giản là "một".</b> Nó giới thiệu một đối tượng chưa xác định, một thành viên của một nhóm (category).</p>
+                                <ExampleBox>
+                                    I saw a dog. (Người nghe chưa biết con chó nào. Chỉ giới thiệu: có một con chó).<br/>
+                                    I need a laptop. (Bất kỳ chiếc laptop nào phù hợp).
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="5 - 7" title="Nghề nghiệp" isLast={false}>
+                                <p className="mb-2">Trong câu: <i>I am a teacher.</i> Không nhất thiết dịch: Tôi là "một" giáo viên. A/an ở đây giúp đưa 'teacher' vào một nhóm nghề nghiệp.</p>
+                                <p className="font-bold text-emerald-700">Sau "be + profession" thường dùng a/an + singular profession.</p>
+                                <ul className="space-y-1 mt-2 list-disc pl-5">
+                                    <li>She is a teacher.</li>
+                                    <li>He is an engineer.</li>
+                                    <li className="text-rose-600">Không: She is teacher.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="8 & 9" title="A hay AN? Đừng nhìn chữ, hãy nghe âm!" isLast={true}>
+                                <p className="mb-2">Không chọn dựa trên chữ cái đầu tiên, mà dựa trên <b>ÂM THANH ĐẦU TIÊN</b>.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                                    <div className="bg-white border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-2">A + Phụ âm (Consonant sound)</div>
+                                        <p>a book, a university (/juː/), a European country (/jʊə/)</p>
+                                    </div>
+                                    <div className="bg-white border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-2">AN + Nguyên âm (Vowel sound)</div>
+                                        <p>an apple, an hour (/aʊ/), an honest person (/ɒ/), an MBA (/em/)</p>
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="3. THE — Đối tượng đã xác định">
+                            <Point num="10 & 11, 67" title="THE = Tôi biết bạn đang nói cái nào" isLast={false}>
+                                <p className="mb-2">Đừng học "The = Cụ thể". Hãy hiểu: <b>THE = The listener can identify the referent</b> (Người nghe có thể xác định được đối tượng).</p>
+                                <ExampleBox>
+                                    First mention: I saw <b>a</b> dog yesterday.<br/>
+                                    Second mention: <b>The</b> dog was very friendly. (Người nghe biết: "À, con chó mày vừa nói").
+                                </ExampleBox>
+                                <p className="mt-2">Ví dụ: <i>Close the door.</i> Không cần nói rõ cửa nào vì trong phòng context đã đủ để người nghe biết.</p>
+                            </Point>
+
+                            <Point num="14 - 16, 61-64" title="Các trường hợp luôn dùng THE" isLast={false}>
+                                <ul className="space-y-4">
+                                    <li><b>Superlative (So sánh nhất):</b> the best, the biggest. <i>(Đối tượng cao nhất trong tập hợp).</i> Rất hữu ích cho IELTS: <i>one of the most important factors.</i></li>
+                                    <li><b>Ordinal Number (Số thứ tự):</b> the first, the second.</li>
+                                    <li><b>The + Only:</b> the only person, the only solution.</li>
+                                    <li><b>The same:</b> We have the same problem. (Không nói: <i>a same problem</i>).</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="59 & 60" title="The + Adjective = Group" isLast={false}>
+                                <p className="mb-2">"The" có thể tạo ra một nhóm người.</p>
+                                <p className="font-bold">the rich, the poor, the elderly, the young, the unemployed.</p>
+                                <p className="text-sm mt-1">VD: The elderly need better healthcare. (= elderly people).</p>
+                            </Point>
+
+                            <Point num="18 - 20" title="Bổ nghĩa xác định & Test cực hay" isLast={true}>
+                                <p className="mb-2">So sánh:</p>
+                                <ul className="list-disc pl-5 mb-4">
+                                    <li><i>I need a pen.</i> (Cây bút nào cũng được).</li>
+                                    <li><i>I need the pen on your desk.</i> (Cụm "on your desk" giúp xác định cây bút).</li>
+                                </ul>
+                                <NoteBox type="info">
+                                    <b>Cách TEST:</b> Hỏi: "Người nghe có thể biết chính xác cái nào không?"<br/>
+                                    - <b>NO</b> &rarr; a/an<br/>
+                                    - <b>YES</b> &rarr; the
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="4. ZERO ARTICLE (Ø) — Khái quát chung">
+                            <Point num="21 - 24, 69" title="Nói chung (General meaning)" isLast={false}>
+                                <p className="mb-2">Không phải noun nào cũng cần a/an/the. Dùng Ø khi nói về <b>loại/khái niệm nói chung</b>.</p>
+                                <ul className="space-y-2 mb-4">
+                                    <li><b>Plural Noun (Số nhiều):</b> <i>Dogs are loyal.</i> (Chó nói chung. Không nói: <i>The dogs are loyal</i> trừ phi chỉ đàn chó cụ thể).</li>
+                                    <li><b>Uncountable Noun:</b> <i>Water is essential. Education is important.</i> (Nói chung).</li>
+                                </ul>
+                                <p className="text-sm">So sánh: <i>Education is important.</i> vs <i>The education provided by this school is excellent.</i></p>
+                            </Point>
+
+                            <Point num="25 & 26" title="Ví dụ kinh điển: COFFEE" isLast={false}>
+                                <ul className="space-y-2">
+                                    <li><i>I like coffee.</i> &rarr; coffee nói chung (Ø).</li>
+                                    <li><i>I ordered a coffee.</i> &rarr; một ly/phần coffee (a).</li>
+                                    <li><i>The coffee was delicious.</i> &rarr; ly coffee cụ thể (the).</li>
+                                </ul>
+                                <p className="mt-2 text-indigo-700 font-bold">Countability đôi khi phụ thuộc vào meaning!</p>
+                            </Point>
+
+                            <Point num="38" title="Nhóm thường KHÔNG có Article" isLast={true}>
+                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 list-none text-[15px]">
+                                    <li className="bg-slate-50 p-3 rounded-lg border border-slate-200"><b>Meals:</b> have breakfast, eat lunch.</li>
+                                    <li className="bg-slate-50 p-3 rounded-lg border border-slate-200"><b>Languages:</b> speak English, learn Chinese.</li>
+                                    <li className="bg-slate-50 p-3 rounded-lg border border-slate-200"><b>Subjects:</b> study math, learn history.</li>
+                                    <li className="bg-slate-50 p-3 rounded-lg border border-slate-200"><b>Sports:</b> play football, play tennis.</li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="5. Địa điểm, Tên riêng & Ngoại lệ">
+                            <Point num="27 - 33" title="Chức năng (Function) vs Tòa nhà (Physical place)" isLast={false}>
+                                <p className="mb-2">Với các từ school, bed, hospital, prison, work...</p>
+                                <ul className="space-y-3 text-[15px]">
+                                    <li><b>Ø SCHOOL:</b> <i>Children go to school every day.</i> (Đi học - nhấn mạnh chức năng).</li>
+                                    <li><b>THE SCHOOL:</b> <i>I went to the school to meet the principal.</i> (Đến trường với tư cách một địa điểm cụ thể).</li>
+                                    <li><b>BED:</b> <i>go to bed</i> (đi ngủ). <i>sit on the bed</i> (ngồi trên cái giường).</li>
+                                    <li><b>WORK:</b> <i>go to work</i> (đi làm). Không nói: <i>go to the work</i>.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="34 - 37" title="Tên địa lý (Geography)" isLast={false}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="bg-white p-4 border border-slate-200 rounded-xl">
+                                        <b className="text-rose-600 block mb-2">Thường KHÔNG CÓ The</b>
+                                        <p>Tên quốc gia đơn lẻ (Vietnam, France, Japan), Thành phố (London, Hanoi), Núi đơn (Mount Everest), Hồ (Lake Baikal).</p>
+                                    </div>
+                                    <div className="bg-white p-4 border border-slate-200 rounded-xl">
+                                        <b className="text-emerald-600 block mb-2">CÓ The</b>
+                                        <p>Quốc gia có cấu trúc plural/political (the United States, the UK, the Netherlands), Đại dương/Biển (the Pacific Ocean), Quần đảo/Dãy núi (the Alps, the Philippines).</p>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="39 - 40" title="Nhạc cụ & Thể thao" isLast={true}>
+                                <p className="mb-2">Pattern hay gặp:</p>
+                                <ul className="list-disc pl-5">
+                                    <li><b>Chơi nhạc cụ:</b> play <Highlight>the</Highlight> piano, play the guitar.</li>
+                                    <li><b>Chơi thể thao:</b> play football, play tennis (Không article).</li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="6. Lỗi IELTS & Tổng kết">
+                            <Point num="66" title="Các lỗi IELTS Writing hay gặp" isLast={false}>
+                                <ul className="space-y-2 text-[15px]">
+                                    <li><span className="line-through text-rose-500 mr-1">People should have the access to education.</span><br/> <span className="text-emerald-700 font-bold">People should have access to education.</span></li>
+                                    <li><span className="line-through text-rose-500 mr-1">The technology has changed our lives.</span><br/> <span className="text-emerald-700 font-bold">Technology has changed our lives.</span> (Technology nói chung).</li>
+                                    <li><span className="line-through text-rose-500 mr-1">The pollution is a serious problem.</span><br/> <span className="text-emerald-700 font-bold">Pollution is a serious problem.</span></li>
+                                </ul>
+                            </Point>
+
+                            <Point num="56 & 57" title="Nhưng cẩn thận: Reference thay đổi Article" isLast={false}>
+                                <p className="mb-2">Không phải cứ "the education" là sai. Tuỳ thuộc reference:</p>
+                                <ul className="space-y-2 text-[15px] bg-slate-50 p-4 border border-slate-200 rounded-xl">
+                                    <li><i>Education is important.</i> (Nói chung).</li>
+                                    <li><i>The education system is important.</i> (Hệ thống giáo dục).</li>
+                                    <li><i>The education system in Vietnam faces challenges.</i> (Hệ thống cụ thể tại VN).</li>
+                                </ul>
+                                <p className="mt-2 font-bold text-indigo-700">Level IELTS: Article thay đổi khi reference trở nên cụ thể hơn.</p>
+                            </Point>
+
+                            <Point num="70 & 73" title="FINAL TAKEAWAY" isLast={true}>
+                                <div className="bg-brandDark text-white p-6 rounded-2xl shadow-lg border border-slate-700">
+                                    <h3 className="text-xl font-bold text-amber-400 mb-4">CÂU CHỐT CỦA CHUYÊN ĐỀ</h3>
+                                    <p className="text-[15px] leading-relaxed mb-4">Mạo từ không phải là thứ mình “dịch” sang tiếng Việt. Nó là cách tiếng Anh cho người nghe biết danh từ đang được nói đến như thế nào.</p>
+                                    <ul className="space-y-3 font-medium text-slate-200">
+                                        <li><span className="text-amber-400 font-bold">A/AN:</span> "Tôi đang giới thiệu một thành viên của một nhóm."</li>
+                                        <li><span className="text-blue-400 font-bold">THE:</span> "Tôi nghĩ bạn biết tôi đang nói cái nào."</li>
+                                        <li><span className="text-emerald-400 font-bold">Ø:</span> "Tôi đang nói về cả loại / cả khái niệm nói chung."</li>
+                                    </ul>
+                                    <div className="mt-4 pt-4 border-t border-slate-600 text-rose-400 font-bold">
+                                        Luôn nhớ: Singular countable noun không được để trơ trọi.
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs) */}
+                    <div id="exercises" className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mb-12">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Kiểm tra ngay sự nhạy bén của bạn. VocaFlow Students không được sai Mạo từ!</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-4">
+                            {[
+                                { id: 0, title: "Cơ bản", label: "Dạng 1" },
+                                { id: 1, title: "Nâng cao", label: "Dạng 2" },
+                                { id: 2, title: "Địa điểm", label: "Dạng 3" },
+                                { id: 3, title: "Tìm Lỗi", label: "Dạng 4" },
+                                { id: 4, title: "Logic (WHY)", label: "Dạng 5" }
+                            ].map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all
+                                    ${activeTab === index 
+                                        ? 'bg-primary text-white shadow-md' 
+                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                >
+                                    {tab.label}: {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExBasic />}
+                            {activeTab === 1 && <ExAdvanced />}
+                            {activeTab === 2 && <ExPlaces />}
+                            {activeTab === 3 && <ExMistakes />}
+                            {activeTab === 4 && <ExExplain />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
