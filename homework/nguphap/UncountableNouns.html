@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VocaFlow | Uncountable Nouns Masterclass</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (CDNJS) -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.6/babel.min.js"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        primary: '#4f46e5', // Indigo 600
+                        secondary: '#10B981', // Emerald 500
+                        warning: '#F59E0B', // Amber 500
+                        danger: '#F43F5E', // Rose 500
+                        info: '#3B82F6', // Blue 500
+                        brandDark: '#0f172a' // Slate 900
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        body { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 50%, #fdf2f8 100%);
+            color: #334155; 
+            line-height: 1.8;
+            min-height: 100vh;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 1);
+            box-shadow: 0 10px 40px -10px rgba(0,0,0,0.08);
+        }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; transform-origin: top; }
+        @keyframes slideDown {
+            from { opacity: 0; transform: scaleY(0.95); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900 pb-24">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // --- PURE INLINE SVGS ---
+        const SvgCheck = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>;
+        const SvgCross = () => <svg className="w-5 h-5 text-rose-500 inline-block mr-1 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>;
+        const SvgWarning = () => <svg className="w-5 h-5 text-amber-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>;
+        const SvgInfo = () => <svg className="w-5 h-5 text-indigo-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>;
+        const SvgChevron = ({ isOpen }) => <svg className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>;
+        const SvgBook = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>;
+        const SvgTarget = () => <svg className="w-5 h-5 text-emerald-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>;
+        const SvgLightning = () => <svg className="w-5 h-5 text-amber-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>;
+        const SvgBrain = () => <svg className="w-5 h-5 text-purple-500 inline-block mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>;
+
+        // --- FORMATTING COMPONENTS ---
+        const Highlight = ({ children, color = "primary" }) => {
+            const styles = {
+                primary: "bg-indigo-50 text-indigo-700 border-indigo-200",
+                secondary: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                warning: "bg-amber-50 text-amber-700 border-amber-200",
+                danger: "bg-rose-50 text-rose-700 border-rose-200",
+                info: "bg-blue-50 text-blue-700 border-blue-200"
+            };
+            return <span className={`inline-block px-2 py-0.5 rounded font-semibold text-[15px] border ${styles[color]}`}>{children}</span>;
+        };
+        
+        const ExampleBox = ({ children }) => (
+            <div className="bg-slate-50 border-l-4 border-indigo-500 p-4 my-3 text-slate-700 rounded-r-lg shadow-sm text-[15px]">
+                {children}
+            </div>
+        );
+
+        const NoteBox = ({ children, type = "info" }) => {
+            const styles = {
+                warning: "bg-amber-50 border-amber-200 text-amber-900",
+                info: "bg-indigo-50 border-indigo-200 text-indigo-900",
+                danger: "bg-rose-50 border-rose-200 text-rose-900"
+            };
+            const icons = { warning: <SvgWarning />, info: <SvgInfo />, danger: <SvgCross /> };
+            return (
+                <div className={`border p-4 my-4 rounded-xl flex items-start text-[15px] ${styles[type]}`}>
+                    <div className="mt-0.5 shrink-0">{icons[type]}</div>
+                    <div className="ml-2 w-full">{children}</div>
+                </div>
+            );
+        };
+
+        const Point = ({ num, title, children, isLast }) => (
+            <div className={`pb-8 mb-8 ${!isLast ? 'border-b border-dashed border-slate-300' : ''}`}>
+                <div className="flex items-center gap-4 mb-4">
+                    <span className="bg-indigo-600 text-white font-extrabold px-3 py-1.5 rounded-lg text-sm shadow-sm">Mục {num}</span>
+                    <h3 className="font-extrabold text-brandDark text-lg tracking-wide uppercase">{title}</h3>
+                </div>
+                <div className="text-slate-600 text-[15px] leading-relaxed space-y-2">
+                    {children}
+                </div>
+            </div>
+        );
+
+        const Accordion = ({ title, children }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            return (
+                <div className="mb-6 bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <button onClick={() => setIsOpen(!isOpen)} className="w-full p-5 md:p-6 flex justify-between items-center text-left bg-slate-50 hover:bg-slate-100 transition-colors">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl text-indigo-600 shadow-sm">
+                                <SvgBook />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-800">{title}</h2>
+                        </div>
+                        <SvgChevron isOpen={isOpen} />
+                    </button>
+                    {isOpen && <div className="p-6 md:p-8 bg-white slide-down">{children}</div>}
+                </div>
+            );
+        };
+
+        const ExplanationBox = ({ isCorrect, exp }) => (
+            <div className={`mt-4 p-4 rounded-xl text-[15px] font-medium border flex items-start gap-3 ${isCorrect ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                <div className="mt-0.5 shrink-0">
+                    {isCorrect ? <SvgCheck /> : <SvgCross />}
+                </div>
+                <div className="w-full">
+                    <strong className="block mb-1">{isCorrect ? "Chính xác!" : "Sai rồi!"}</strong>
+                    {exp}
+                </div>
+            </div>
+        );
+
+        // --- EXERCISE COMPONENTS ---
+        
+        // Tab 1: Countable vs Uncountable
+        const ExCountable = () => {
+            const questions = [
+                { id: 1, word: "water", ans: "U", exp: "Chất lỏng, không đếm được bằng đơn vị 'water'." },
+                { id: 2, word: "student", ans: "C", exp: "Người, đếm được (one student, two students)." },
+                { id: 3, word: "advice", ans: "U", exp: "Khái niệm trừu tượng, không đếm được. Dùng 'a piece of advice'." },
+                { id: 4, word: "information", ans: "U", exp: "Khái niệm trừu tượng, không đếm được. Không có 'informations'." },
+                { id: 5, word: "book", ans: "C", exp: "Vật thể riêng lẻ, đếm được." },
+                { id: 6, word: "furniture", ans: "U", exp: "Tập hợp đồ đạc nói chung, không đếm được. Dùng 'a piece of furniture'." },
+                { id: 7, word: "money", ans: "U", exp: "Khái niệm chung, không đếm được trực tiếp (chỉ đếm được đồng/tờ)." },
+                { id: 8, word: "research", ans: "U", exp: "Khái niệm nghiên cứu nói chung là U. Nếu đếm, dùng 'studies' hoặc 'pieces of research'." },
+                { id: 9, word: "traffic", ans: "U", exp: "Tập hợp xe cộ, không đếm được." },
+                { id: 10, word: "equipment", ans: "U", exp: "Tập hợp trang thiết bị, không đếm được. Không có 'equipments'." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 1: Danh từ sau là Đếm được (C) hay Không đếm được (U)?</p>
+                        <span className="font-black text-xl text-primary bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {questions.map((q) => (
+                            <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.word}</span>
+                                    <div className="flex gap-2">
+                                        {["C", "U"].map(opt => {
+                                            const st = status[q.id];
+                                            let style = "px-4 py-1.5 rounded-lg text-sm font-bold border-2 transition-all ";
+                                            if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary";
+                                            else {
+                                                if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                                else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                                else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                                else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                            }
+                                            return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt === "C" ? "Countable" : "Uncountable"}</button>;
+                                        })}
+                                    </div>
+                                </div>
+                                {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // Tab 2: Chọn Lượng Từ (much/many, little/a little, some)
+        const ExQuantifiers = () => {
+            const questions = [
+                { id: 1, q: "She gave me ________ advice.", opts: ["an", "some"], ans: "some", exp: "Advice là U-noun -> dùng 'some', không dùng 'an'." },
+                { id: 2, q: "I need ________ information.", opts: ["some", "many"], ans: "some", exp: "Information là U-noun -> dùng 'some'." },
+                { id: 3, q: "We don’t have ________ time.", opts: ["much", "many"], ans: "much", exp: "Time (thời gian) là U-noun -> dùng 'much'." },
+                { id: 4, q: "He has ________ friends.", opts: ["a few", "a little"], ans: "a few", exp: "Friends đếm được số nhiều -> dùng 'a few'." },
+                { id: 5, q: "I have ________ money, so I can’t buy it.", opts: ["little", "a little"], ans: "little", exp: "Không thể mua -> Rất ít/không đủ -> mang sắc thái tiêu cực -> 'little'." },
+                { id: 6, q: "I have ________ money, so we can buy something.", opts: ["little", "a little"], ans: "a little", exp: "Có thể mua -> Vẫn có một ít/đủ dùng -> mang sắc thái tích cực -> 'a little'." },
+                { id: 7, q: "There is ________ water left. We need to buy more.", opts: ["little", "a little"], ans: "little", exp: "Cần mua thêm -> Rất ít/thiếu hụt -> 'little'." },
+                { id: 8, q: "There is ________ water left. We can make one cup of tea.", opts: ["little", "a little"], ans: "a little", exp: "Đủ pha trà -> Vẫn còn một ít -> 'a little'." },
+                { id: 9, q: "How ________ money do you need?", opts: ["much", "many"], ans: "much", exp: "Money là U-noun -> How much." },
+                { id: 10, q: "How ________ students are there?", opts: ["much", "many"], ans: "many", exp: "Students là C-noun số nhiều -> How many." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 2: Chọn Lượng từ phù hợp với Ngữ cảnh</p>
+                        <span className="font-black text-xl text-primary bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-lg text-slate-800"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2 flex-shrink-0">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary bg-slate-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Tab 3: Đếm U-Noun
+        const ExUnits = () => {
+            const questions = [
+                { id: 1, q: "advice", opts: ["a piece of", "a drop of"], ans: "a piece of", exp: "Lời khuyên -> a piece of advice." },
+                { id: 2, q: "bread", opts: ["a loaf of", "a bar of"], ans: "a loaf of", exp: "Bánh mì -> a loaf of bread (một ổ), a slice of bread (một lát)." },
+                { id: 3, q: "rice", opts: ["a grain of", "a piece of"], ans: "a grain of", exp: "Gạo -> a grain of rice (một hạt gạo)." },
+                { id: 4, q: "water", opts: ["a glass of", "a sheet of"], ans: "a glass of", exp: "Nước -> a glass/bottle of water." },
+                { id: 5, q: "furniture", opts: ["a piece of", "a bar of"], ans: "a piece of", exp: "Nội thất -> a piece of furniture." },
+                { id: 6, q: "information", opts: ["a piece of", "a drop of"], ans: "a piece of", exp: "Thông tin -> a piece of information." },
+                { id: 7, q: "chocolate", opts: ["a bar of", "a blade of"], ans: "a bar of", exp: "Sô-cô-la -> a bar of chocolate." },
+                { id: 8, q: "paper", opts: ["a sheet of", "a loaf of"], ans: "a sheet of", exp: "Giấy -> a sheet of paper / a piece of paper." },
+                { id: 9, q: "grass", opts: ["a blade of", "a grain of"], ans: "a blade of", exp: "Cỏ -> a blade of grass (một nhánh cỏ)." },
+                { id: 10, q: "blood", opts: ["a drop of", "a piece of"], ans: "a drop of", exp: "Máu (chất lỏng) -> a drop of blood." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 3: Tuyệt chiêu đếm U-Noun (Chọn Unit phù hợp)</p>
+                        <span className="font-black text-xl text-primary bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-medium text-lg text-slate-800"><span className="text-slate-400 font-bold mr-2">{q.id}.</span> ________ <b className="text-primary">{q.q}</b></span>
+                                <div className="flex gap-2 flex-shrink-0">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary bg-slate-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Tab 4: Tìm lỗi sai IELTS
+        const ExMistakes = () => {
+            const questions = [
+                { id: 1, s: ["I", "need", "an", "advice."], errIdx: 2, exp: "Advice không đếm được. Phải dùng 'some advice' hoặc 'a piece of advice'." },
+                { id: 2, s: ["She", "gave", "me", "two", "advices."], errIdx: 4, exp: "Không thêm -s vào advice. Phải dùng 'two pieces of advice'." },
+                { id: 3, s: ["There", "are", "many", "informations", "online."], errIdx: 3, exp: "Information không đếm được. Phải dùng 'much information' hoặc 'a lot of information'." },
+                { id: 4, s: ["We", "bought", "three", "furnitures."], errIdx: 3, exp: "Furniture không đếm được. Phải dùng 'three pieces of furniture'." },
+                { id: 5, s: ["He", "gave", "me", "an", "useful", "information."], errIdx: 3, exp: "Information không dùng với 'a/an'. Phải dùng 'a piece of useful information'." },
+                { id: 6, s: ["The", "gym", "has", "modern", "equipments."], errIdx: 4, exp: "Equipment không đếm được. Phải bỏ -s." },
+                { id: 7, s: ["I", "have", "two", "luggages."], errIdx: 3, exp: "Luggage không đếm được. Phải dùng 'two pieces of luggage' hoặc 'two suitcases'." },
+                { id: 8, s: ["The", "researches", "show", "that..."], errIdx: 1, exp: "Research nói chung không đếm được. Phải dùng 'Research shows' hoặc 'Studies show'." },
+                { id: 9, s: ["She", "made", "significant", "progresses."], errIdx: 3, exp: "Progress (sự tiến bộ) không đếm được. Phải bỏ -es." },
+                { id: 10, s: ["I", "have", "many", "works", "to", "do."], errIdx: 3, exp: "Work (công việc) không đếm được. Phải dùng 'much work' hoặc 'a lot of work'." }
+            ];
+
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, wIdx, errIdx, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: wIdx, isCorrect: wIdx === errIdx, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-slate-700"><SvgTarget /> Click vào <b>1 TỪ TẠO RA LỖI SAI NGỮ PHÁP</b> trong câu.</p>
+                        <span className="font-black text-xl text-primary bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-4 bg-white rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-wrap gap-x-1.5 gap-y-2 items-center text-lg mb-2">
+                                <span className="text-slate-400 font-bold mr-2 text-base">{q.id}.</span>
+                                {q.s.map((word, wIdx) => {
+                                    const st = status[q.id];
+                                    let style = "cursor-pointer px-3 py-1.5 rounded-lg transition-colors font-semibold border border-transparent ";
+                                    if (!st) style += "hover:bg-slate-100 text-slate-700 hover:text-indigo-600";
+                                    else {
+                                        if (st.selected === wIdx && st.isCorrect) style += "bg-emerald-50 text-emerald-700 border-emerald-500";
+                                        else if (st.selected === wIdx && !st.isCorrect) style += "bg-rose-50 text-rose-700 border-rose-500 line-through";
+                                        else if (wIdx === q.errIdx) style += "bg-white text-emerald-600 border-dashed border-emerald-400";
+                                        else style += "text-slate-400 bg-slate-50";
+                                    }
+                                    return <span key={wIdx} onClick={() => handleSelect(q.id, wIdx, q.errIdx, q.exp)} className={style}>{word}</span>;
+                                })}
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Tab 5: Danh từ "Hai mặt" C/U
+        const ExContext = () => {
+            const questions = [
+                { id: 1, q: "________ Water is essential for life.", opts: ["The", "Ø"], ans: "Ø", exp: "Nói về khái niệm/chất nói chung -> dùng Zero Article (Ø)." },
+                { id: 2, q: "________ water in this bottle is cold.", opts: ["The", "Ø"], ans: "The", exp: "Nước cụ thể trong chai -> dùng The." },
+                { id: 3, q: "She gave me ________ piece of advice.", opts: ["a", "some"], ans: "a", exp: "Piece đếm được -> a piece of advice." },
+                { id: 4, q: "I need ________ information about the course.", opts: ["some", "an"], ans: "some", exp: "Information là U -> dùng some." },
+                { id: 5, q: "________ information you gave me was useful.", opts: ["The", "Ø"], ans: "The", exp: "Thông tin cụ thể bạn đã đưa -> dùng The." },
+                { id: 6, q: "She has a lot of ________ teaching IELTS.", opts: ["experience", "experiences"], ans: "experience", exp: "Kinh nghiệm (U) -> experience." },
+                { id: 7, q: "It was a memorable ________.", opts: ["experience", "experiences"], ans: "experience", exp: "Một trải nghiệm (C) -> an experience." },
+                { id: 8, q: "I don't have much ________.", opts: ["time", "times"], ans: "time", exp: "Thời gian (U) -> time." },
+                { id: 9, q: "I've been there three ________.", opts: ["time", "times"], ans: "times", exp: "Số lần (C) -> times." },
+                { id: 10, q: "________ Business is difficult at the moment.", opts: ["A", "Ø"], ans: "Ø", exp: "Hoạt động kinh doanh nói chung (U) -> Ø." }
+            ];
+            const [status, setStatus] = useState({});
+            const handleSelect = (qId, opt, ans, exp) => {
+                if (status[qId]) return;
+                setStatus(prev => ({ ...prev, [qId]: { selected: opt, isCorrect: opt === ans, exp } }));
+            };
+            const score = Object.values(status).filter(s => s.isCorrect).length;
+
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                        <p className="font-bold text-indigo-800">Dạng 5: Danh từ thay đổi đặc tính C/U theo ngữ cảnh</p>
+                        <span className="font-black text-xl text-primary bg-white border border-indigo-200 px-4 py-1.5 rounded-lg shadow-sm">{score}/10</span>
+                    </div>
+                    {questions.map((q) => (
+                        <div key={q.id} className="p-5 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <span className="font-bold text-lg text-slate-800"><span className="text-slate-400 mr-2">{q.id}.</span> {q.q}</span>
+                                <div className="flex gap-2">
+                                    {q.opts.map(opt => {
+                                        const st = status[q.id];
+                                        let style = "px-4 py-2 rounded-lg text-sm font-bold border-2 transition-all ";
+                                        if (!st) style += "border-slate-200 text-slate-600 hover:border-primary hover:text-primary bg-slate-50";
+                                        else {
+                                            if (st.selected === opt && st.isCorrect) style += "bg-emerald-50 border-emerald-500 text-emerald-700";
+                                            else if (st.selected === opt && !st.isCorrect) style += "bg-rose-50 border-rose-500 text-rose-700";
+                                            else if (opt === q.ans) style += "bg-white border-emerald-300 text-emerald-600 border-dashed";
+                                            else style += "bg-slate-50 border-slate-200 text-slate-400 opacity-50";
+                                        }
+                                        return <button key={opt} onClick={() => handleSelect(q.id, opt, q.ans, q.exp)} className={style}>{opt}</button>;
+                                    })}
+                                </div>
+                            </div>
+                            {status[q.id] && <ExplanationBox isCorrect={status[q.id].isCorrect} exp={status[q.id].exp} />}
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState(0);
+            
+            return (
+                <div className="max-w-4xl mx-auto pt-16 px-4 sm:px-6">
+                    
+                    <header className="text-center mb-16">
+                        <div className="inline-flex items-center justify-center px-4 py-1.5 mb-6 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 text-sm font-bold tracking-widest uppercase shadow-sm">
+                            VocaFlow Grammar Hub
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-brandDark tracking-tight mb-6 leading-tight">
+                            Bóc Tách <span className="text-primary">Danh từ Không đếm được</span> <br className="hidden md:block"/>(Uncountable Nouns)
+                        </h1>
+                        <p className="text-[17px] text-slate-600 max-w-2xl mx-auto font-medium leading-relaxed">
+                            Đừng chỉ học thuộc bảng C/U! Hãy hiểu nguyên lý đếm "vỏ" không đếm "chất" và cạm bẫy Lượng từ trong IELTS.
+                        </p>
+                    </header>
+
+                    {/* FULL THEORY */}
+                    <div className="mb-16">
+                        <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 mb-8 text-center border-b-2 border-slate-200 pb-4 inline-block mx-auto">Sổ tay Lý thuyết</h2>
+                        
+                        <Accordion title="1. Bản chất & Nhận diện (Mục 1-3)">
+                            <Point num="1" title="Không đếm được nghĩa là gì?" isLast={false}>
+                                <p className="mb-2">Đừng hiểu là không thể đếm trong đời thực. Mà phải hiểu: Danh từ được xem như một khối/chất/khái niệm chung, không chia trực tiếp thành từng đơn vị bằng chính danh từ đó.</p>
+                                <ExampleBox>
+                                    Ta có thể uống: <i>1 glass of water, 2 bottles of water</i>.<br/>
+                                    Nhưng KHÔNG nói: <span className="line-through text-rose-500 font-bold">one water, two waters</span>.
+                                </ExampleBox>
+                            </Point>
+
+                            <Point num="2" title="Ba nhóm U-Noun rất dễ nhận diện" isLast={false}>
+                                <ul className="space-y-4">
+                                    <li><Highlight color="primary">A. Chất liệu / Chất:</Highlight> water, milk, rice, sugar, salt, sand, oil, air, blood.</li>
+                                    <li><Highlight color="secondary">B. Vật liệu nhỏ / Tập hợp:</Highlight> rice, flour, bread, furniture, equipment, luggage, traffic.</li>
+                                    <li><Highlight color="warning">C. Khái niệm trừu tượng:</Highlight> advice, information, knowledge, education, progress, happiness, love, research.</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="3" title="Quy tắc Vàng" isLast={true}>
+                                <NoteBox type="danger">
+                                    <p className="font-bold text-rose-700 uppercase mb-2">Một U-noun thông thường:</p>
+                                    <p>- KHÔNG dùng a/an (<SvgCross /> an information).</p>
+                                    <p>- KHÔNG thêm -s/-es để tạo số nhiều (<SvgCross /> advices, equipments, furnitures).</p>
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="2. Tuyệt chiêu Đếm U-Noun (Mục 4-16, 62)">
+                            <Point num="4 & 5" title="Tư duy: Đếm cái vỏ, không đếm cái chất" isLast={false}>
+                                <p className="mb-2">Ta không thể đếm trực tiếp U-noun. Ta phải thêm một đơn vị đếm (cái vỏ).</p>
+                                <p className="font-bold text-indigo-700 bg-indigo-50 p-2 rounded inline-block mb-3">Cấu trúc: a/an + UNIT + of + U-NOUN</p>
+                                <ul className="list-disc pl-5">
+                                    <li>Water &rarr; Đếm "glass" &rarr; a glass of water</li>
+                                    <li>Bread &rarr; Đếm "loaf" &rarr; a loaf of bread</li>
+                                </ul>
+                            </Point>
+
+                            <Point num="8 & 9" title="Nhóm 'Piece of' — Cực kỳ quan trọng" isLast={false}>
+                                <p className="mb-2">"Piece of" là cứu tinh của rất nhiều U-nouns.</p>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                                    <div className="bg-slate-50 p-2 rounded border border-slate-200 font-medium">a piece of advice</div>
+                                    <div className="bg-slate-50 p-2 rounded border border-slate-200 font-medium">a piece of information</div>
+                                    <div className="bg-slate-50 p-2 rounded border border-slate-200 font-medium">a piece of news</div>
+                                    <div className="bg-slate-50 p-2 rounded border border-slate-200 font-medium">a piece of furniture</div>
+                                    <div className="bg-slate-50 p-2 rounded border border-slate-200 font-medium">a piece of equipment</div>
+                                    <div className="bg-slate-50 p-2 rounded border border-slate-200 font-medium">a piece of research / evidence</div>
+                                </div>
+                                <NoteBox type="warning">
+                                    <b>Hiểu lầm phổ biến:</b> "a piece of advice" KHÔNG PHẢI là "một miếng lời khuyên". Nó đơn giản là "một lời khuyên".
+                                </NoteBox>
+                            </Point>
+
+                            <Point num="10 - 16, 62" title="Các Đơn vị Đặc thù khác" isLast={true}>
+                                <ul className="space-y-2 text-[15px]">
+                                    <li><b>BREAD:</b> a loaf of bread (ổ), a slice of bread (lát).</li>
+                                    <li><b>RICE / SUGAR / SALT / SAND:</b> a grain of rice (hạt).</li>
+                                    <li><b>WATER / BLOOD / RAIN:</b> a drop of blood (giọt).</li>
+                                    <li><b>PAPER / GLASS / CLOTH:</b> a sheet of paper.</li>
+                                    <li><b>CHOCOLATE / SOAP / GOLD:</b> a bar of chocolate (thỏi, thanh).</li>
+                                    <li><b>GRASS:</b> a blade of grass (nhánh).</li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="3. Lỗi kinh điển của người Việt & IELTS (Mục 17-25, 47, 63-66)">
+                            <Point num="17 - 25, 47" title="Tuyệt đối KHÔNG THÊM 'S' vào các từ này" isLast={false}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl">
+                                        <p className="font-bold text-rose-800 mb-2"><SvgCross /> Sai</p>
+                                        <ul className="text-rose-700 space-y-1">
+                                            <li>a furniture / furnitures</li>
+                                            <li>an equipment / equipments</li>
+                                            <li>a luggage / luggages</li>
+                                            <li>an advice / advices</li>
+                                            <li>an information / informations</li>
+                                        </ul>
+                                    </div>
+                                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl">
+                                        <p className="font-bold text-emerald-800 mb-2"><SvgCheck /> Đúng</p>
+                                        <ul className="text-emerald-700 space-y-1">
+                                            <li>some / a piece of furniture</li>
+                                            <li>some / pieces of equipment</li>
+                                            <li>some luggage / two suitcases</li>
+                                            <li>some / a piece of advice</li>
+                                            <li>some / a lot of information</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </Point>
+
+                            <Point num="22, 23, 25, 64-66" title="Các Danh từ Trừu tượng & Công việc" isLast={true}>
+                                <ul className="space-y-4 text-[15px]">
+                                    <li><Highlight>Knowledge:</Highlight> Thường là U (some knowledge). Nhưng đi trong cụm: <i>a good knowledge of English</i>.</li>
+                                    <li><Highlight>Research:</Highlight> Rất quan trọng trong IELTS. U-noun (research). Đếm được: <i>research studies, pieces of research</i>.</li>
+                                    <li><Highlight>Progress:</Highlight> U-noun. <i>make significant progress</i> (Không: progresses).</li>
+                                    <li><Highlight>Homework / Feedback:</Highlight> Đều là U-noun. <i>a lot of homework, some feedback</i>.</li>
+                                    <li><Highlight>Traffic:</Highlight> U-noun (heavy traffic). Nhưng <b>traffic jams</b> lại đếm được (vì đếm từ jam).</li>
+                                </ul>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="4. Danh từ 'Hai mặt' (Mục 26-33, 60, 67)">
+                            <Point num="26 - 32, 60" title="Thay đổi ý nghĩa -> Thay đổi Countability" isLast={false}>
+                                <div className="space-y-4 text-[15px]">
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <p className="font-bold text-indigo-700">WORK</p>
+                                        <p>U: Công việc nói chung (<i>I have a lot of work.</i>)</p>
+                                        <p>C: Tác phẩm (<i>literary works</i>)</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <p className="font-bold text-indigo-700">TIME</p>
+                                        <p>U: Thời gian (<i>I don't have much time.</i>)</p>
+                                        <p>C: Số lần (<i>I have been there three times.</i>)</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <p className="font-bold text-indigo-700">EXPERIENCE</p>
+                                        <p>U: Kinh nghiệm (<i>She has a lot of experience.</i>)</p>
+                                        <p>C: Trải nghiệm (<i>an unforgettable experience.</i>)</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <p className="font-bold text-indigo-700">BUSINESS</p>
+                                        <p>U: Hoạt động kinh doanh (<i>Business is difficult.</i>)</p>
+                                        <p>C: Một doanh nghiệp (<i>He owns a small business.</i>)</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <p className="font-bold text-indigo-700">PAPER</p>
+                                        <p>U: Vật liệu (<i>I need some paper.</i>)</p>
+                                        <p>C: Bài báo, bài nghiên cứu (<i>I read a paper.</i>)</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                                        <p className="font-bold text-indigo-700">CHICKEN / COFFEE</p>
+                                        <p>U: Thịt gà / Cà phê nói chung.</p>
+                                        <p>C: Một con gà / Một phần cà phê (<i>Two coffees, please = Two cups</i>).</p>
+                                    </div>
+                                </div>
+                            </Point>
+                            <Point num="33, 67" title="Tư duy Cốt lõi" isLast={true}>
+                                <NoteBox type="info">
+                                    Đừng hỏi: "Từ này có đếm được không?" một cách máy móc.<br/>
+                                    Hãy hỏi: "Trong câu này, tôi đang nói về một chất/khái niệm chung hay một đơn vị cụ体?"
+                                </NoteBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="5. Lượng từ đi kèm U-Noun (Mục 34-45, 48-49)">
+                            <Point num="34 - 45" title="Các Lượng từ quan trọng" isLast={false}>
+                                <ul className="space-y-2 text-[15px] list-disc pl-5">
+                                    <li><b>MUCH vs MANY:</b> much + U (much time), many + C (many students).</li>
+                                    <li><b>LITTLE vs A LITTLE:</b> little (rất ít, tiêu cực), a little (một ít, vẫn đủ). Đều đi với U-noun.</li>
+                                    <li><b>A LOT OF / PLENTY OF / ENOUGH / SOME / ANY:</b> Dùng được cho cả C và U.</li>
+                                    <li><b>HOW MUCH vs HOW MANY:</b> How much money? How many books?</li>
+                                </ul>
+                            </Point>
+                            <Point num="48 & 49" title="U-Noun không có nghĩa là không bao giờ có 'A'" isLast={true}>
+                                <p className="mb-2">Không nói <i>a furniture</i>. Nhưng có thể nói <i>a piece of furniture</i>. Ở đây 'a' bổ nghĩa cho 'piece', không phải 'furniture'.</p>
+                                <ExampleBox>
+                                    <i>I bought three pieces of furniture.</i><br/>
+                                    Ta đang thực sự đếm "pieces" (số nhiều), chứ không đếm "furniture" (U).
+                                </ExampleBox>
+                            </Point>
+                        </Accordion>
+
+                        <Accordion title="6. Mạo từ THE và Zero Article (Mục 50-54)">
+                            <Point num="50 - 54" title="Sự xác định của U-Noun" isLast={true}>
+                                <p className="mb-2">U-noun không dùng a/an trực tiếp, nhưng <b>vẫn có thể dùng THE</b> (khi đã xác định) và <b>đứng một mình (Ø)</b> khi nói chung chung.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 text-[15px]">
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-slate-700 mb-1">Chung chung (Ø)</div>
+                                        <p><i>Water is essential for life.</i></p>
+                                        <p><i>Information is important.</i></p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                        <div className="font-bold text-indigo-700 mb-1">Cụ thể (THE)</div>
+                                        <p><i>The water in this bottle is dirty.</i></p>
+                                        <p><i>The information you provided was useful.</i></p>
+                                    </div>
+                                </div>
+                            </Point>
+                        </Accordion>
+                    </div>
+
+                    {/* Interactive Exercises (Tabs) */}
+                    <div id="exercises" className="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200 mb-12">
+                        <div className="text-center mb-8">
+                            <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Trạm Huấn Luyện (50 CÂU)</h2>
+                            <p className="text-slate-600 font-medium">Bấm vào đáp án để nhận giải thích chi tiết. Hãy tránh xa các bẫy IELTS nhé!</p>
+                        </div>
+
+                        {/* Tabs Navigation */}
+                        <div className="flex flex-wrap gap-2 mb-8 border-b border-slate-200 pb-4">
+                            {[
+                                { id: 0, title: "C hay U?", label: "Dạng 1" },
+                                { id: 1, title: "Lượng Từ", label: "Dạng 2" },
+                                { id: 2, title: "Đếm U-Noun", label: "Dạng 3" },
+                                { id: 3, title: "Tìm Lỗi Sai", label: "Dạng 4" },
+                                { id: 4, title: "Ngữ Cảnh", label: "Dạng 5" }
+                            ].map((tab, index) => (
+                                <button 
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(index)}
+                                    className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all
+                                    ${activeTab === index 
+                                        ? 'bg-indigo-600 text-white shadow-md' 
+                                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                >
+                                    {tab.label}: {tab.title}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="min-h-[400px]">
+                            {activeTab === 0 && <ExCountable />}
+                            {activeTab === 1 && <ExQuantifiers />}
+                            {activeTab === 2 && <ExUnits />}
+                            {activeTab === 3 && <ExMistakes />}
+                            {activeTab === 4 && <ExContext />}
+                        </div>
+                    </div>
+
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
