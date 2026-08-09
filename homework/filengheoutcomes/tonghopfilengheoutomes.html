@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outcomes Audio Hub - Premium Edition</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4f46e5', // Indigo 600
+                        'primary-light': '#e0e7ff', // Indigo 100
+                        secondary: '#0ea5e9', // Sky 500
+                    },
+                    boxShadow: {
+                        'glass': '0 25px 50px -12px rgba(0, 0, 0, 0.08)',
+                        'card-hover': '0 10px 25px -5px rgba(79, 70, 229, 0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- WaveSurfer.js -->
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+
+    <style>
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Premium Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .animated-bg {
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        }
+    </style>
+</head>
+<body class="animated-bg text-slate-800 font-sans antialiased min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+
+        // ĐỔI LẠI ĐƯỜNG DẪN NÀY THÀNH ĐƯỜNG DẪN BẠN ĐANG DÙNG CHẠY ĐƯỢC
+        const BASE_URL = "https://cdn.jsdelivr.net/gh/luyennoiieltswithnight/night-ielts-land@main/homework/filengheoutcomes/";
+
+        // TỔNG HỢP FULL 16 UNIT, 8 REVIEW VÀ READING TEXTS DỰA TRÊN ẢNH
+        const generateFullFileList = () => {
+            const files = [];
+            
+            // 1. Reading texts (1-16)
+            for(let i=1; i<=16; i++) {
+                files.push(`out3e_3pi_readingtexts_u${i.toString().padStart(2,'0')}b_01.mp3`);
+            }
+            
+            // 2. Reviews (1-8)
+            for(let i=1; i<=8; i++) {
+                files.push(`out3e_3pi_sb_rev${i}_ex04.mp3`);
+            }
+
+            // 3. Units 1-16 (Trích xuất các bài tập từ ảnh chụp)
+            const unitData = [
+                "u01A_ex02", "u01A_ex05", "u01A_ex07_08", "u01C_ex02", "u01C_ex03", "u01C_ex04_05",
+                "u02A_ex02", "u02A_ex05_06", "u02A_ex12", "u02C_ex06", "u02C_ex07_08",
+                "u03A_ex03", "u03A_ex05_06", "u03C_ex04_06", "u03C_ex05",
+                "u04A_ex02", "u04A_ex04", "u04A_ex05_06", "u04C_ex08_09",
+                "u05A_ex03_04", "u05A_ex08", "u05C_ex03_05", "u05C_ex04", "u05C_ex08",
+                "u06A_ex03", "u06A_ex04", "u06A_ex07", "u06B_ex03", "u06C_ex04", "u06C_ex06", "u06C_ex07_08",
+                "u07A_ex02_03", "u07A_ex09", "u07C_ex02", "u07C_ex06",
+                "u08A_ex02", "u08A_ex04_05", "u08C_ex03", "u08C_ex05_06",
+                "u09A_ex02", "u09A_ex05_06", "u09C_ex07", "u09C_ex08",
+                "u10A_ex02", "u10A_ex06_07", "u10A_ex09", "u10C_ex03_05", "u10C_ex04",
+                "u11A_ex02", "u11A_ex05_06", "u11C_ex04", "u11C_ex05_06",
+                "u12A_ex02", "u12A_ex04_05", "u12C_ex02_05", "u12C_ex03", "u12C_ex04",
+                "u13A_ex05_06", "u13B_ex03", "u13C_ex03_05", "u13C_ex04",
+                "u14A_ex04", "u14C_ex02", "u14C_ex03", "u14C_ex07",
+                "u15A_ex02", "u15A_ex04_05", "u15C_ex05_08", "u15C_ex07",
+                "u16A_ex02", "u16A_ex05_06", "u16C_ex02_04", "u16C_ex03"
+            ];
+            
+            unitData.forEach(item => {
+                files.push(`out3e_3pi_sb_${item}.mp3`);
+            });
+
+            return files;
+        };
+
+        const RAW_FILES = generateFullFileList();
+
+        const parseFileGroup = (filename) => {
+            const unitMatch = filename.match(/u(\d{1,2})/i);
+            if (unitMatch) return `Unit ${parseInt(unitMatch[1])}`;
+            const revMatch = filename.match(/rev(\d{1,2})/i);
+            if (revMatch) return `Review ${parseInt(revMatch[1])}`;
+            return "Khác";
+        };
+
+        const groupFiles = (files) => {
+            const groups = {};
+            files.forEach(file => {
+                const groupName = parseFileGroup(file);
+                if (!groups[groupName]) groups[groupName] = [];
+                groups[groupName].push({
+                    name: file.replace('out3e_3pi_', '').replace('.mp3', ''),
+                    rawName: file,
+                    url: BASE_URL + file
+                });
+            });
+            return Object.keys(groups).sort((a, b) => {
+                const getNum = str => parseInt(str.match(/\d+/) || [0]);
+                const isRevA = a.includes('Review');
+                const isRevB = b.includes('Review');
+                if(isRevA !== isRevB) return isRevA ? 1 : -1; // Đẩy review xuống cuối
+                return getNum(a) - getNum(b);
+            }).reduce((acc, key) => {
+                // Sắp xếp file trong nhóm theo vần alpha để dễ tìm
+                acc[key] = groups[key].sort((f1, f2) => f1.name.localeCompare(f2.name));
+                return acc;
+            }, {});
+        };
+
+        // --- COMPONENT: Premium Player ---
+        const FloatingPlayerDock = ({ currentFile, onNext, onPrev }) => {
+            const waveformRef = useRef(null);
+            const wavesurfer = useRef(null);
+            
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [playbackRate, setPlaybackRate] = useState(1);
+            const [zoom, setZoom] = useState(50);
+            const [isReady, setIsReady] = useState(false);
+            const [error, setError] = useState(false);
+
+            useEffect(() => {
+                if (!currentFile || !waveformRef.current) return;
+                
+                setIsReady(false);
+                setError(false);
+
+                wavesurfer.current = WaveSurfer.create({
+                    container: waveformRef.current,
+                    waveColor: '#c7d2fe', // primary-light
+                    progressColor: '#4f46e5', // primary
+                    cursorColor: '#312e81',
+                    barWidth: 3,
+                    barGap: 2,
+                    barRadius: 3,
+                    height: 64,
+                    normalize: true,
+                    minPxPerSec: zoom,
+                });
+
+                wavesurfer.current.load(currentFile.url);
+
+                wavesurfer.current.on('ready', () => {
+                    setIsReady(true);
+                    wavesurfer.current.play();
+                    setIsPlaying(true);
+                    wavesurfer.current.setPlaybackRate(playbackRate);
+                });
+
+                wavesurfer.current.on('play', () => setIsPlaying(true));
+                wavesurfer.current.on('pause', () => setIsPlaying(false));
+                wavesurfer.current.on('error', () => setError(true));
+
+                const container = waveformRef.current;
+                const handleWheel = (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        const zoomDelta = e.deltaY < 0 ? 10 : -10;
+                        setZoom(prev => {
+                            const newZoom = Math.max(10, Math.min(prev + zoomDelta, 300));
+                            if (wavesurfer.current) wavesurfer.current.zoom(newZoom);
+                            return newZoom;
+                        });
+                    }
+                };
+                container.addEventListener('wheel', handleWheel, { passive: false });
+
+                return () => {
+                    container.removeEventListener('wheel', handleWheel);
+                    if (wavesurfer.current) wavesurfer.current.destroy();
+                };
+            }, [currentFile]);
+
+            useEffect(() => {
+                if (wavesurfer.current) wavesurfer.current.setPlaybackRate(playbackRate);
+            }, [playbackRate]);
+
+            if (!currentFile) return null;
+
+            return (
+                <div className="fixed bottom-4 left-4 right-4 z-50 flex justify-center pointer-events-none">
+                    <div className="w-full max-w-5xl glass-panel rounded-3xl shadow-glass p-4 md:p-5 flex flex-col md:flex-row items-center gap-4 pointer-events-auto transition-all transform translate-y-0">
+                        
+                        {/* Player Controls */}
+                        <div className="flex items-center gap-4 w-full md:w-auto shrink-0 justify-center">
+                            <div className="hidden md:block w-12 h-12 bg-gradient-to-tr from-primary to-secondary rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                            </div>
+                            
+                            <button onClick={() => wavesurfer.current?.skip(-5)} className="p-2.5 text-slate-500 hover:text-primary hover:bg-indigo-50 rounded-full transition-all">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg>
+                            </button>
+                            
+                            <button 
+                                onClick={() => wavesurfer.current?.playPause()} 
+                                disabled={!isReady || error}
+                                className={`w-14 h-14 flex items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 ${error ? 'bg-red-500' : 'bg-primary'}`}
+                            >
+                                {error ? <span className="text-xs font-bold">Lỗi</span> : 
+                                 isPlaying ? <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg> : 
+                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="ml-1"><polygon points="5 3 19 12 5 21 5 3" strokeWidth="2" strokeLinejoin="round"/></svg>}
+                            </button>
+
+                            <button onClick={() => wavesurfer.current?.skip(5)} className="p-2.5 text-slate-500 hover:text-primary hover:bg-indigo-50 rounded-full transition-all">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 17l5-5-5-5M6 17l5-5-5-5"/></svg>
+                            </button>
+                        </div>
+
+                        {/* Waveform Area */}
+                        <div className="flex-1 w-full min-w-0">
+                            <div className="flex justify-between items-center mb-2 px-1">
+                                <h3 className="font-bold text-slate-800 text-sm md:text-base truncate pr-2">{currentFile.name}</h3>
+                                
+                                <select 
+                                    className="text-xs font-medium bg-white/50 text-indigo-700 rounded-lg px-2 py-1 outline-none border border-indigo-100 cursor-pointer hover:bg-white"
+                                    value={playbackRate} onChange={(e) => setPlaybackRate(Number(e.target.value))}
+                                >
+                                    <option value="0.75">0.75x</option>
+                                    <option value="1">1.0x Chuẩn</option>
+                                    <option value="1.25">1.25x</option>
+                                </select>
+                            </div>
+                            
+                            <div className="relative w-full bg-white/40 rounded-xl overflow-hidden border border-white cursor-crosshair group" style={{ height: '64px' }}>
+                                <div ref={waveformRef} className="w-full h-full opacity-90 group-hover:opacity-100 transition-opacity"></div>
+                                {!isReady && !error && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10">
+                                        <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Zoom Control Slider */}
+                            <div className="flex items-center gap-3 text-xs text-slate-500 mt-2 px-1 font-medium">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                                <input 
+                                    type="range" min="10" max="250" value={zoom} 
+                                    onChange={(e) => {
+                                        const val = Number(e.target.value);
+                                        setZoom(val);
+                                        if (wavesurfer.current) wavesurfer.current.zoom(val);
+                                    }}
+                                    className="w-32 h-1.5 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-primary"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const fileGroups = useMemo(() => groupFiles(RAW_FILES), []);
+            const units = Object.keys(fileGroups);
+            const [activeUnit, setActiveUnit] = useState(units[0]);
+            const [currentFile, setCurrentFile] = useState(null);
+
+            return (
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row min-h-screen">
+                    
+                    {/* Sidebar / Topbar cho chọn Unit */}
+                    <aside className="w-full md:w-72 lg:w-80 shrink-0 p-4 md:p-6 md:h-screen md:sticky md:top-0 flex flex-col">
+                        <div className="mb-6 px-2">
+                            <h1 className="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary tracking-tight pb-1">
+                                Outcomes
+                            </h1>
+                            <p className="text-sm font-semibold text-slate-500 mt-1 uppercase tracking-wider">Audio Workspace</p>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto hide-scrollbar -mx-2 px-2">
+                            <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-4 md:pb-0">
+                                {units.map(unit => {
+                                    const isActive = activeUnit === unit;
+                                    return (
+                                        <button
+                                            key={unit}
+                                            onClick={() => setActiveUnit(unit)}
+                                            className={`flex items-center justify-between whitespace-nowrap px-4 py-3.5 rounded-2xl font-bold transition-all duration-300 ${
+                                                isActive 
+                                                ? 'bg-primary text-white shadow-card-hover translate-x-0 md:translate-x-2' 
+                                                : 'bg-white text-slate-600 hover:bg-indigo-50 border border-slate-100'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <svg className={`w-5 h-5 ${isActive ? 'text-indigo-200' : 'text-slate-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                                                {unit}
+                                            </div>
+                                            <span className={`text-xs px-2.5 py-1 rounded-lg ${isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                                {fileGroups[unit].length}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Main Content (Danh sách file) */}
+                    <main className="flex-1 p-4 md:p-8 pb-40">
+                        <div className="bg-white/60 backdrop-blur-xl border border-white rounded-3xl p-6 shadow-sm min-h-full">
+                            <div className="flex items-center justify-between mb-8">
+                                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                                    <span className="w-2 h-8 bg-primary rounded-full"></span>
+                                    {activeUnit}
+                                </h2>
+                                <span className="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                                    {fileGroups[activeUnit]?.length} Audio files
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                {fileGroups[activeUnit]?.map((file, index) => {
+                                    const isPlaying = currentFile && currentFile.rawName === file.rawName;
+                                    const isReading = file.name.includes('reading');
+                                    
+                                    return (
+                                        <div 
+                                            key={index} 
+                                            onClick={() => setCurrentFile(file)}
+                                            className={`group cursor-pointer p-4 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden ${
+                                                isPlaying 
+                                                ? 'border-primary bg-indigo-50/50 shadow-card-hover transform -translate-y-1' 
+                                                : 'border-transparent bg-white shadow-sm hover:shadow-card-hover hover:-translate-y-1 hover:border-indigo-100'
+                                            }`}
+                                        >
+                                            {isPlaying && <div className="absolute top-0 left-0 w-full h-1 bg-primary"></div>}
+                                            
+                                            <div className="flex items-start gap-4">
+                                                <div className={`p-3.5 rounded-2xl transition-all duration-300 ${
+                                                    isPlaying 
+                                                    ? 'bg-primary text-white shadow-lg shadow-indigo-200' 
+                                                    : 'bg-slate-50 text-slate-400 group-hover:bg-primary-light group-hover:text-primary'
+                                                }`}>
+                                                    {isPlaying ? (
+                                                        <div className="w-6 h-6 flex items-center justify-between px-1">
+                                                            <div className="w-1 bg-white h-full animate-pulse rounded-full"></div>
+                                                            <div className="w-1 bg-white h-2/3 animate-pulse rounded-full" style={{animationDelay: '0.1s'}}></div>
+                                                            <div className="w-1 bg-white h-4/5 animate-pulse rounded-full" style={{animationDelay: '0.2s'}}></div>
+                                                        </div>
+                                                    ) : (
+                                                        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd"></path></svg>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-bold text-slate-800 text-sm mb-1.5 truncate group-hover:text-primary transition-colors" title={file.name}>
+                                                        {file.name}
+                                                    </h4>
+                                                    <div className="flex gap-2 items-center">
+                                                        <span className="text-[11px] font-bold tracking-wide text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                                                            MP3
+                                                        </span>
+                                                        {isReading && (
+                                                            <span className="text-[11px] font-bold tracking-wide text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">
+                                                                READING
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* Floating Audio Dock */}
+                    <FloatingPlayerDock currentFile={currentFile} />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
