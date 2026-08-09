@@ -69,7 +69,7 @@
             border: 1px solid rgba(255, 255, 255, 0.6);
         }
         
-        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(99, 102, 241, 0.3); border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(99, 102, 241, 0.6); }
@@ -104,6 +104,9 @@
             const [speed, setSpeed] = useState(1);
             const [currentTime, setCurrentTime] = useState('0:00');
             const [duration, setDuration] = useState('0:00');
+            
+            // Thêm state để quản lý mức độ Zoom (mặc định 50)
+            const [zoom, setZoom] = useState(50);
 
             const speeds = [0.5, 0.75, 1, 1.25, 1.5];
 
@@ -136,7 +139,9 @@
                     height: 60,
                     normalize: true,
                     backend: 'MediaElement',
-                    url: track.url
+                    url: track.url,
+                    minPxPerSec: zoom, // Áp dụng Zoom ban đầu
+                    hideScrollbar: false // Đảm bảo hiện thanh cuộn ngang khi Zoom
                 });
 
                 wavesurfer.current.on('ready', () => {
@@ -161,7 +166,24 @@
                     setCurrentTime(formatTime(wavesurfer.current.getCurrentTime()));
                 });
 
+                // Xử lý sự kiện kéo dãn (Zoom) bằng 2 ngón tay / con lăn chuột
+                const container = waveformRef.current;
+                const handleWheel = (e) => {
+                    // Dùng ctrlKey (nhúm 2 ngón tay trên trackpad) hoặc lăn dọc deltaY
+                    if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) > 0) {
+                        e.preventDefault();
+                        const zoomDelta = e.deltaY < 0 ? 10 : -10;
+                        setZoom(prev => {
+                            const newZoom = Math.max(10, Math.min(prev + zoomDelta, 300));
+                            if (wavesurfer.current) wavesurfer.current.zoom(newZoom);
+                            return newZoom;
+                        });
+                    }
+                };
+                container.addEventListener('wheel', handleWheel, { passive: false });
+
                 return () => {
+                    container.removeEventListener('wheel', handleWheel);
                     if (wavesurfer.current) {
                         wavesurfer.current.destroy();
                     }
@@ -189,6 +211,13 @@
                 }
             };
 
+            // Hàm xử lý thanh kéo Zoom thủ công
+            const handleZoomSlider = (e) => {
+                const val = Number(e.target.value);
+                setZoom(val);
+                if (wavesurfer.current) wavesurfer.current.zoom(val);
+            };
+
             if (!track) return null;
 
             return (
@@ -196,24 +225,38 @@
                     <div className="max-w-4xl mx-auto glass-panel rounded-3xl p-4 md:p-6 shadow-premium border-t border-white/40 animate-fade-in-up">
                         
                         {/* Header */}
-                        <div className="flex justify-between items-center mb-2 px-2">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-2 px-2 gap-2">
                             <div className="font-bold text-indigo-900 text-lg flex items-center">
                                 <i className="fas fa-headphones-alt mr-3 text-indigo-500"></i>
                                 {track.title}
                             </div>
-                            <div className="text-sm font-semibold text-slate-500 font-mono">
-                                {isReady ? `${currentTime} / ${duration}` : 'Loading audio...'}
+                            
+                            <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                                {/* Zoom Slider */}
+                                <div className="flex items-center gap-2" title="Kéo để dãn sóng âm">
+                                    <i className="fas fa-search-minus text-[10px] text-slate-400"></i>
+                                    <input 
+                                        type="range" min="10" max="250" value={zoom}
+                                        onChange={handleZoomSlider}
+                                        className="w-24 h-1 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                                    />
+                                    <i className="fas fa-search-plus text-[10px] text-slate-400"></i>
+                                </div>
+                                
+                                <div className="text-sm font-semibold text-slate-500 font-mono min-w-[90px] text-right">
+                                    {isReady ? `${currentTime} / ${duration}` : 'Loading...'}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Sóng âm */}
-                        <div className="relative w-full h-[60px] mb-4 bg-slate-50/50 rounded-xl overflow-hidden cursor-pointer" title="Click để tua nhanh">
+                        {/* Sóng âm - Bỏ overflow-hidden để scrollbar của wavesurfer hoạt động mượt */}
+                        <div className="relative w-full h-[60px] mb-4 bg-slate-50/50 rounded-xl cursor-pointer" title="Dùng 2 ngón tay vuốt lên/xuống để Zoom">
                             {!isReady && (
-                                <div className="absolute inset-0 flex items-center justify-center text-indigo-400 font-medium text-sm animate-pulse">
+                                <div className="absolute inset-0 flex items-center justify-center text-indigo-400 font-medium text-sm animate-pulse z-10 bg-slate-50/80 rounded-xl">
                                     <i className="fas fa-spinner fa-spin mr-2"></i> Đang tải dữ liệu sóng âm...
                                 </div>
                             )}
-                            <div ref={waveformRef} className="w-full h-full"></div>
+                            <div ref={waveformRef} className="w-full h-full rounded-xl"></div>
                         </div>
 
                         {/* Thanh công cụ */}
@@ -280,7 +323,6 @@
             };
 
             return (
-                /* Padding tự động thay đổi: pb-20 khi chưa mở nhạc, pb-56 md:pb-64 khi nhạc đang mở để đẩy danh sách lên trên thanh điều khiển */
                 <div className={`flex-grow transition-all duration-300 ${currentTrackIndex !== null ? 'pb-56 md:pb-64' : 'pb-20'}`}>
                     <header className="pt-16 pb-12 px-4 text-center">
                         <div className="max-w-3xl mx-auto">
