@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chinese Learning Lab</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1',
+                            400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155',
+                            800: '#1e293b', 900: '#0f172a',
+                        },
+                        primary: '#0284c7', // Sky-600
+                        vocab: '#0d9488',   // Teal-600
+                    },
+                    boxShadow: {
+                        'floating': '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                        'premium': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- React 18 & Babel via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- HanziWriter -->
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            overscroll-behavior-y: none; 
+        }
+        .chinese-text {
+            font-family: "KaiTi", "STKaiti", "Kaiti SC", "Noto Serif SC", serif;
+        }
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        .mizi-grid {
+            background-image: 
+                linear-gradient(to right, transparent 49%, #e2e8f0 49%, #e2e8f0 51%, transparent 51%),
+                linear-gradient(to bottom, transparent 49%, #e2e8f0 49%, #e2e8f0 51%, transparent 51%),
+                linear-gradient(45deg, transparent 49%, #f1f5f9 49%, #f1f5f9 51%, transparent 51%),
+                linear-gradient(-45deg, transparent 49%, #f1f5f9 49%, #f1f5f9 51%, transparent 51%);
+            background-size: 100% 100%;
+            border: 2px solid #cbd5e1;
+            touch-action: none;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased h-screen overflow-hidden flex flex-col">
+    <div id="root" class="flex-1 flex overflow-hidden"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+        // ============================================================================
+        // 1. DATA (ĐÃ KHÔI PHỤC TOÀN BỘ TỪ SOURCE BẢN 1)
+        // ============================================================================
+        const lessonData = {
+            characters: [
+                { id: "qing", char: "请", pinyin: "qǐng", tone: 3, meaningVi: "xin hỏi, mời", meaningEn: "please, invite, ask", radical: "讠", components: [{part:"讠",type:"semantic",note:"Thành phần biểu nghĩa: liên quan lời nói"}, {part:"青",type:"phonetic",note:"Thành phần biểu thanh"}], strokeCount: 10, sourcePage: 3, verified: true, examples: ["请坐。", "请问，您贵姓？"] },
+                { id: "wen", char: "问", pinyin: "wèn", tone: 4, meaningVi: "hỏi", meaningEn: "ask", radical: "门", components: [{part:"门",type:"radical",note:"Bộ thủ tra cứu"}, {part:"口",type:"semantic",note:"Thành phần biểu nghĩa: liên quan miệng/hỏi"}], strokeCount: 6, sourcePage: 5, verified: true, examples: ["请问，洗手间在哪儿？", "你去问小马吧。"] },
+                { id: "shen", char: "什", pinyin: "shén", tone: 2, meaningVi: "gì (trong 什么)", meaningEn: "what (part of pronoun)", radical: "亻", components: [{part:"亻",type:"radical",note:"Bộ nhân"}, {part:"十",type:"component",note:"Thành phần cấu tạo"}], strokeCount: 4, sourcePage: 6, verified: true, examples: ["这是什么？", "你想学什么？"] },
+                { id: "me", char: "么", pinyin: "me", tone: 0, meaningVi: "trợ từ cấu tạo đại từ", meaningEn: "suffix/particle", radical: "丿", components: [{part:"丿",type:"radical"}], strokeCount: 3, sourcePage: 6, verified: true, examples: ["什么", "怎么"] },
+                { id: "gong", char: "工", pinyin: "gōng", tone: 1, meaningVi: "công, lao động", meaningEn: "work, labor", radical: "工", components: [{part:"工",type:"radical"}], strokeCount: 3, sourcePage: 7, verified: true, examples: ["工作", "工人"] },
+                { id: "zuo_work", char: "作", pinyin: "zuò", tone: 4, meaningVi: "làm, tác", meaningEn: "do, make", radical: "亻", components: [{part:"亻",type:"semantic"}, {part:"乍",type:"phonetic"}], strokeCount: 7, sourcePage: 7, verified: true, examples: ["工作", "你做什么工作？"] },
+                { id: "jin", char: "进", pinyin: "jìn", tone: 4, meaningVi: "vào, tiến", meaningEn: "enter", radical: "辶", components: [{part:"辶",type:"semantic",note:"Bộ quai xước (di chuyển)"}, {part:"井",type:"phonetic",note:"Thành phần biểu thanh"}], strokeCount: 7, sourcePage: 9, verified: true, examples: ["请进！", "请进，请坐！"] },
+                { id: "zuo_sit", char: "坐", pinyin: "zuò", tone: 4, meaningVi: "ngồi, toạ", meaningEn: "sit", radical: "土", components: [{part:"人",type:"semantic",note:"Hình ảnh người"}, {part:"土",type:"radical",note:"Ngồi trên đất"}], strokeCount: 7, sourcePage: 9, verified: true, examples: ["请坐。", "坐下"] },
+                { id: "he", char: "喝", pinyin: "hē", tone: 1, meaningVi: "uống", meaningEn: "drink", radical: "口", components: [{part:"口",type:"semantic",note:"Bộ khẩu (miệng)"}, {part:"曷",type:"phonetic",note:"Thành phần biểu thanh"}], strokeCount: 12, sourcePage: 11, verified: true, examples: ["喝水", "你喝茶吗？"] },
+                { id: "ke", char: "渴", pinyin: "kě", tone: 3, meaningVi: "khát", meaningEn: "thirsty", radical: "氵", components: [{part:"氵",type:"semantic",note:"liên quan nước/trạng thái"}, {part:"曷",type:"phonetic"}], strokeCount: 12, sourcePage: 11, verified: true, examples: ["我很渴。", "口渴"] },
+                { id: "shui", char: "水", pinyin: "shuǐ", tone: 3, meaningVi: "nước, thuỷ", meaningEn: "water", radical: "水", components: [{part:"水",type:"radical"}], strokeCount: 4, sourcePage: 11, verified: true, examples: ["请喝水。", "喝茶"] },
+                { id: "cha", char: "茶", pinyin: "chá", tone: 2, meaningVi: "trà, chè", meaningEn: "tea", radical: "艹", components: [{part:"艹",type:"semantic",note:"bộ thảo đầu/thực vật"}, {part:"木",type:"component"}], strokeCount: 9, sourcePage: 12, verified: true, examples: ["喝茶", "奶茶"] },
+                { id: "ba", char: "吧", pinyin: "ba", tone: 0, meaningVi: "nhé, nha, đi (trợ từ cuối câu)", meaningEn: "suggestion particle", radical: "口", components: [{part:"口",type:"radical"}, {part:"巴",type:"phonetic"}], strokeCount: 7, sourcePage: 13, verified: true, examples: ["我们回家吧。", "你喝水吧。"] },
+                { id: "gui", char: "贵", pinyin: "guì", tone: 4, meaningVi: "đắt, quý", meaningEn: "expensive, honorable", radical: "贝", components: [{part:"贵",type:"radical"}], strokeCount: 9, sourcePage: 14, verified: true, examples: ["贵姓", "白马很贵"] },
+                { id: "xing", char: "姓", pinyin: "xìng", tone: 4, meaningVi: "họ...", meaningEn: "surname", radical: "女", components: [{part:"女",type:"radical"}, {part:"生",type:"component"}], strokeCount: 8, sourcePage: 14, verified: true, examples: ["您贵姓？", "我姓阮。"] },
+                { id: "jiao", char: "叫", pinyin: "jiào", tone: 4, meaningVi: "gọi, tên là", meaningEn: "be called, call", radical: "口", components: [{part:"口",type:"radical"}, {part:"丩",type:"component"}], strokeCount: 5, sourcePage: 15, verified: true, examples: ["我叫阮陈国安。", "你叫什么名字？"] },
+                { id: "ming", char: "名", pinyin: "míng", tone: 2, meaningVi: "tên", meaningEn: "name", radical: "口", components: [{part:"夕",type:"component"}, {part:"口",type:"radical"}], strokeCount: 6, sourcePage: 16, verified: true, examples: ["名字", "你叫什么名字？"] },
+                { id: "zi", char: "字", pinyin: "zì", tone: 4, meaningVi: "chữ", meaningEn: "character, word", radical: "子", components: [{part:"宀",type:"component"}, {part:"子",type:"radical"}], strokeCount: 6, sourcePage: 16, verified: true, examples: ["汉字", "名字"] },
+                { id: "ge", char: "个", pinyin: "gè", tone: 4, meaningVi: "cái, con, lượng từ chung", meaningEn: "general classifier", radical: "丨", components: [{part:"个",type:"radical"}], strokeCount: 3, sourcePage: 18, verified: true, examples: ["一个学生", "哪个"] },
+                { id: "na_pron", char: "哪", pinyin: "nǎ", tone: 3, meaningVi: "nào", meaningEn: "which", radical: "口", components: [{part:"口",type:"radical"}, {part:"那",type:"component"}], strokeCount: 9, sourcePage: 20, verified: true, examples: ["你是哪国人？", "哪个"] },
+                { id: "na_demo", char: "那", pinyin: "nà", tone: 4, meaningVi: "kia, đó", meaningEn: "that", radical: "阝", components: [{part:"那",type:"radical"}], strokeCount: 6, sourcePage: 21, verified: true, examples: ["那是我的老师。", "那儿"] },
+                { id: "le", char: "了", pinyin: "le", tone: 0, meaningVi: "rồi (trợ từ biểu thị thay đổi)", meaningEn: "change of state particle", radical: "亅", components: [{part:"了",type:"radical"}], strokeCount: 2, sourcePage: 22, verified: true, examples: ["老师回家了。", "爸爸喝茶了。"] },
+                { id: "xue", char: "学", pinyin: "xué", tone: 2, meaningVi: "học", meaningEn: "study, learn", radical: "子", components: [{part:"⺍",type:"component"}, {part:"子",type:"radical"}], strokeCount: 8, sourcePage: 23, verified: true, examples: ["学习", "学生"] },
+                { id: "sheng", char: "生", pinyin: "shēng", tone: 1, meaningVi: "sinh, học sinh", meaningEn: "student, give birth", radical: "生", components: [{part:"生",type:"radical"}], strokeCount: 5, sourcePage: 23, verified: true, examples: ["学生", "留学生"] },
+                { id: "zhong", char: "中", pinyin: "zhōng", tone: 1, meaningVi: "trung, giữa", meaningEn: "middle, center", radical: "丨", components: [{part:"中",type:"radical"}], strokeCount: 4, sourcePage: 41, verified: true, examples: ["中国", "中国人"] },
+                { id: "guo", char: "国", pinyin: "guó", tone: 2, meaningVi: "nước, quốc gia", meaningEn: "country, nation", radical: "囗", components: [{part:"囗",type:"radical",note:"Bộ vi"}, {part:"玉",type:"component"}], strokeCount: 8, sourcePage: 25, verified: true, examples: ["中国", "越南", "美国"] }
+            ],
+            vocabulary: [
+                { id: "v1", zh: "京剧", pinyin: "jīngjù", tone: "1-4", meaningVi: "Kinh kịch", meaningEn: "Peking Opera", class: "Danh từ", sourcePage: 2, example: "京剧很好看。", examplePinyin: "Jīngjù hěn hǎokàn.", exampleVi: "Kinh kịch rất hay.", usage: "Mở đầu bài học văn hóa." },
+                { id: "v2", zh: "请", pinyin: "qǐng", tone: "3", meaningVi: "mời, xin", meaningEn: "please, invite", class: "Động từ", sourcePage: 3, example: "请坐，请进。", examplePinyin: "Qǐng zuò, qǐng jìn.", exampleVi: "Mời ngồi, mời vào.", usage: "Dùng trong câu cầu khiến lịch sự." },
+                { id: "v3", zh: "问", pinyin: "wèn", tone: "4", meaningVi: "hỏi", meaningEn: "to ask", class: "Động từ", sourcePage: 5, example: "请问，洗手间在哪儿？", examplePinyin: "Qǐngwèn, xǐshǒujiān zài nǎr?", exampleVi: "Xin hỏi, nhà vệ sinh ở đâu?", usage: "Thường đi kèm 请问." },
+                { id: "v4", zh: "什么", pinyin: "shénme", tone: "2-0", meaningVi: "cái gì, gì", meaningEn: "what", class: "Đại từ", sourcePage: 6, example: "你想学什么？", examplePinyin: "Nǐ xiǎng xué shénme?", exampleVi: "Bạn muốn học cái gì?", usage: "Đại từ nghi vấn đặt ở vị trí thành phần cần hỏi." },
+                { id: "v5", zh: "工作", pinyin: "gōngzuò", tone: "1-4", meaningVi: "công việc, làm việc", meaningEn: "work, job", class: "Danh từ/Động từ", sourcePage: 7, example: "你做什么工作？", examplePinyin: "Nǐ zuò shénme gōngzuò?", exampleVi: "Bạn làm công việc gì?", usage: "Hỏi về nghề nghiệp." },
+                { id: "v6", zh: "上班", pinyin: "shàngbān", tone: "4-1", meaningVi: "đi làm", meaningEn: "go to work", class: "Động từ", sourcePage: 7, example: "我八点上班。", examplePinyin: "Wǒ bā diǎn shàngbān.", exampleVi: "Tôi 8 giờ đi làm.", usage: "Động từ ly hợp phổ biến." },
+                { id: "v7", zh: "累", pinyin: "lèi", tone: "4", meaningVi: "mệt", meaningEn: "tired", class: "Tính từ", sourcePage: 7, example: "今天很累。", examplePinyin: "Jīntiān hěn lèi.", exampleVi: "Hôm nay rất mệt.", usage: "Miêu tả trạng thái cơ thể." },
+                { id: "v8", zh: "进", pinyin: "jìn", tone: "4", meaningVi: "vào", meaningEn: "enter", class: "Động từ", sourcePage: 9, example: "你好，请进！", examplePinyin: "Nǐhǎo, qǐng jìn!", exampleVi: "Xin chào, mời vào!", usage: "Đi kèm với 请." },
+                { id: "v9", zh: "坐", pinyin: "zuò", tone: "4", meaningVi: "ngồi", meaningEn: "sit", class: "Động từ", sourcePage: 9, example: "请进，请坐！", examplePinyin: "Qǐng jìn, qǐng zuò!", exampleVi: "Mời vào, mời ngồi!", usage: "Hành động lịch sự khi đón khách." },
+                { id: "v10", zh: "喝", pinyin: "hē", tone: "1", meaningVi: "uống", meaningEn: "drink", class: "Động từ", sourcePage: 11, example: "你喝茶吗？", examplePinyin: "Nǐ hē chá ma?", exampleVi: "Bạn uống trà không?", usage: "Dùng với đồ uống." },
+                { id: "v11", zh: "渴", pinyin: "kě", tone: "3", meaningVi: "khát", meaningEn: "thirsty", class: "Tính từ", sourcePage: 11, example: "我很渴。", examplePinyin: "Wǒ hěn kě.", exampleVi: "Tôi rất khát.", usage: "Trạng thái khát nước." },
+                { id: "v12", zh: "水", pinyin: "shuǐ", tone: "3", meaningVi: "nước", meaningEn: "water", class: "Danh từ", sourcePage: 11, example: "请喝水。", examplePinyin: "Qǐng hē shuǐ.", exampleVi: "Mời uống nước.", usage: "Danh từ chỉ nước." },
+                { id: "v13", zh: "茶", pinyin: "chá", tone: "2", meaningVi: "trà", meaningEn: "tea", class: "Danh từ", sourcePage: 12, example: "我喜欢喝茶。", examplePinyin: "Wǒ xǐhuān hē chá.", exampleVi: "Tôi thích uống trà.", usage: "Văn hóa trà Trung Hoa." },
+                { id: "v14", zh: "好喝", pinyin: "hǎohē", tone: "3-1", meaningVi: "uống ngon", meaningEn: "tasty (drink)", class: "Tính từ", sourcePage: 12, example: "茶好喝吗？", examplePinyin: "Chá hǎohē ma?", exampleVi: "Trà có ngon không?", usage: "Đánh giá đồ uống." },
+                { id: "v15", zh: "奶茶", pinyin: "nǎichá", tone: "3-2", meaningVi: "trà sữa", meaningEn: "milk tea", class: "Danh từ", sourcePage: 12, example: "我想喝奶茶。", examplePinyin: "Wǒ xiǎng hē nǎichá.", exampleVi: "Tôi muốn uống trà sữa.", usage: "Thức uống phổ biến." },
+                { id: "v16", zh: "吧", pinyin: "ba", tone: "0", meaningVi: "nhé, đi, nha", meaningEn: "suggestion particle", class: "Trợ từ", sourcePage: 13, example: "我们走吧。", examplePinyin: "Wǒmen zǒu ba.", exampleVi: "Chúng ta đi thôi.", usage: "Trợ từ cuối câu biểu thị đề nghị." },
+                { id: "v17", zh: "贵", pinyin: "guì", tone: "4", meaningVi: "đắt, quý", meaningEn: "expensive, honorable", class: "Tính từ", sourcePage: 14, example: "您贵姓？", examplePinyin: "Nín guìxìng?", exampleVi: "Ngài họ gì?", usage: "Dùng trong 贵姓 để hỏi họ lịch sự." },
+                { id: "v18", zh: "姓", pinyin: "xìng", tone: "4", meaningVi: "họ", meaningEn: "surname", class: "Động từ/Danh từ", sourcePage: 14, example: "我姓阮。", examplePinyin: "Wǒ xìng Ruǎn.", exampleVi: "Tôi họ Nguyễn.", usage: "Chỉ họ của người." },
+                { id: "v19", zh: "叫", pinyin: "jiào", tone: "4", meaningVi: "tên là, gọi", meaningEn: "to be called", class: "Động từ", sourcePage: 15, example: "我叫陈英书。", examplePinyin: "Wǒ jiào Chén Yīngshū.", exampleVi: "Tôi tên là Trần Anh Thư.", usage: "Giới thiệu tên." },
+                { id: "v20", zh: "名字", pinyin: "míngzi", tone: "2-0", meaningVi: "tên", meaningEn: "name", class: "Danh từ", sourcePage: 16, example: "你叫什么名字？", examplePinyin: "Nǐ jiào shénme míngzi?", exampleVi: "Bạn tên là gì?", usage: "Danh từ chỉ tên người." },
+                { id: "v21", zh: "个", pinyin: "gè", tone: "4", meaningVi: "cái, người (lượng từ)", meaningEn: "general classifier", class: "Lượng từ", sourcePage: 18, example: "一个学生", examplePinyin: "Yí gè xuéshēng", exampleVi: "Một học sinh", usage: "Lượng từ phổ biến nhất." },
+                { id: "v22", zh: "哪", pinyin: "nǎ", tone: "3", meaningVi: "nào", meaningEn: "which", class: "Đại từ", sourcePage: 20, example: "你是哪国人？", examplePinyin: "Nǐ shì nǎ guórén?", exampleVi: "Bạn là người nước nào?", usage: "Đại từ nghi vấn chọn lựa." },
+                { id: "v23", zh: "那", pinyin: "nà", tone: "4", meaningVi: "kia, đó", meaningEn: "that", class: "Đại từ", sourcePage: 21, example: "那是我的老师。", examplePinyin: "Nà shì wǒ de lǎoshī.", exampleVi: "Kia là giáo viên của tôi.", usage: "Chỉ định khoảng cách xa." },
+                { id: "v24", zh: "那儿", pinyin: "nàr", tone: "4", meaningVi: "chỗ đó, đằng kia", meaningEn: "there", class: "Đại từ", sourcePage: 21, example: "我家在那儿。", examplePinyin: "Wǒ jiā zài nàr.", exampleVi: "Nhà tôi ở đằng kia.", usage: "Chỉ địa điểm (có 儿化)." },
+                { id: "v25", zh: "哪儿", pinyin: "nǎr", tone: "3", meaningVi: "ở đâu", meaningEn: "where", class: "Đại từ", sourcePage: 21, example: "你在哪儿？", examplePinyin: "Nǐ zài nǎr?", exampleVi: "Bạn ở đâu?", usage: "Hỏi địa điểm." },
+                { id: "v26", zh: "了", pinyin: "le", tone: "0", meaningVi: "rồi", meaningEn: "change of state", class: "Trợ từ", sourcePage: 22, example: "老师回家了。", examplePinyin: "Lǎoshī huíjiā le.", exampleVi: "Giáo viên về nhà rồi.", usage: "Biểu thị sự thay đổi trạng thái." },
+                { id: "v27", zh: "学生", pinyin: "xuéshēng", tone: "2-1", meaningVi: "học sinh, sinh viên", meaningEn: "student", class: "Danh từ", sourcePage: 23, example: "我是大学生。", examplePinyin: "Wǒ shì dàxuéshēng.", exampleVi: "Tôi là sinh viên đại học.", usage: "Chỉ người học." },
+                { id: "v28", zh: "留学生", pinyin: "liúxuéshēng", tone: "2-2-1", meaningVi: "lưu học sinh", meaningEn: "international student", class: "Danh từ", sourcePage: 23, example: "她是留学生。", examplePinyin: "Tā shì liúxuéshēng.", exampleVi: "Cô ấy là lưu học sinh.", usage: "Học sinh du học." },
+                { id: "v29", zh: "中国", pinyin: "Zhōngguó", tone: "1-2", meaningVi: "Trung Quốc", meaningEn: "China", class: "Danh từ", sourcePage: 41, example: "我是中国人。", examplePinyin: "Wǒ shì Zhōngguó rén.", exampleVi: "Tôi là người Trung Quốc.", usage: "Tên quốc gia." },
+                { id: "v30", zh: "越南", pinyin: "Yuènán", tone: "4-2", meaningVi: "Việt Nam", meaningEn: "Vietnam", class: "Danh từ", sourcePage: 38, example: "我是越南人。", examplePinyin: "Wǒ shì Yuènán rén.", exampleVi: "Tôi là người Việt Nam.", usage: "Tên quốc gia." },
+                { id: "v31", zh: "美国", pinyin: "Měiguó", tone: "3-2", meaningVi: "Mỹ", meaningEn: "America", class: "Danh từ", sourcePage: 32, example: "他是美国人。", examplePinyin: "Tā shì Měiguó rén.", exampleVi: "Anh ấy là người Mỹ.", usage: "Tên quốc gia." },
+                { id: "v32", zh: "英国", pinyin: "Yīngguó", tone: "1-2", meaningVi: "Anh", meaningEn: "UK", class: "Danh từ", sourcePage: 33, example: "他是英国人。", examplePinyin: "Tā shì Yīngguó rén.", exampleVi: "Anh ấy là người Anh.", usage: "Tên quốc gia." },
+                { id: "v33", zh: "法国", pinyin: "Fǎguó", tone: "3-2", meaningVi: "Pháp", meaningEn: "France", class: "Danh từ", sourcePage: 26, example: "法国很漂亮。", examplePinyin: "Fǎguó hěn piàoliang.", exampleVi: "Nước Pháp rất đẹp.", usage: "Tên quốc gia." },
+                { id: "v34", zh: "德国", pinyin: "Déguó", tone: "2-2", meaningVi: "Đức", meaningEn: "Germany", class: "Danh từ", sourcePage: 25, example: "我是德国人。", examplePinyin: "Wǒ shì Déguó rén.", exampleVi: "Tôi là người Đức.", usage: "Tên quốc gia." },
+                { id: "v35", zh: "俄罗斯", pinyin: "Éluósī", tone: "2-2-2-1", meaningVi: "Nga", meaningEn: "Russia", class: "Danh từ", sourcePage: 28, example: "他来自俄罗斯。", examplePinyin: "Tā láizì Éluósī.", exampleVi: "Anh ấy đến từ Nga.", usage: "Tên quốc gia." },
+                { id: "v36", zh: "日本", pinyin: "Rìběn", tone: "4-3", meaningVi: "Nhật Bản", meaningEn: "Japan", class: "Danh từ", sourcePage: 30, example: "我喜欢日本。", examplePinyin: "Wǒ xǐhuān Rìběn.", exampleVi: "Tôi thích Nhật Bản.", usage: "Tên quốc gia." },
+                { id: "v37", zh: "汉语", pinyin: "Hànyǔ", tone: "4-3", meaningVi: "Tiếng Trung", meaningEn: "Chinese language", class: "Danh từ", sourcePage: 35, example: "我学习汉语。", examplePinyin: "Wǒ xuéxí Hànyǔ.", exampleVi: "Tôi học tiếng Trung.", usage: "Tên ngôn ngữ." },
+                { id: "v38", zh: "英语", pinyin: "Yīngyǔ", tone: "1-3", meaningVi: "Tiếng Anh", meaningEn: "English language", class: "Danh từ", sourcePage: 34, example: "我学英语。", examplePinyin: "Wǒ xué Yīngyǔ.", exampleVi: "Tôi học tiếng Anh.", usage: "Tên ngôn ngữ." },
+                { id: "v39", zh: "越南语", pinyin: "Yuènányǔ", tone: "4-2-3", meaningVi: "Tiếng Việt", meaningEn: "Vietnamese language", class: "Danh từ", sourcePage: 36, example: "我学习越南语。", examplePinyin: "Wǒ xuéxí Yuènányǔ.", exampleVi: "Tôi học tiếng Việt.", usage: "Tên ngôn ngữ." },
+                { id: "v40", zh: "同学", pinyin: "tóngxué", tone: "2-2", meaningVi: "bạn học", meaningEn: "classmate", class: "Danh từ", sourcePage: 43, example: "他是我的同学。", examplePinyin: "Tā shì wǒ de tóngxué.", exampleVi: "Cậu ấy là bạn học của tôi.", usage: "Xưng hô học đường." },
+                { id: "v41", zh: "们", pinyin: "men", tone: "0", meaningVi: "hậu tố số nhiều", meaningEn: "plural suffix", class: "Hậu tố", sourcePage: 43, example: "同学们，老师们好！", examplePinyin: "Tóngxuémen, lǎoshīmen hǎo!", exampleVi: "Các bạn học, chào các thầy cô!", usage: "Chỉ dùng với đại từ hoặc danh từ chỉ người." },
+                { id: "v42", zh: "介绍", pinyin: "jièshào", tone: "4-4", meaningVi: "giới thiệu", meaningEn: "introduce", class: "Động từ", sourcePage: 44, example: "我来介绍一下。", examplePinyin: "Wǒ lái jièshào yíxià.", exampleVi: "Để tôi giới thiệu một chút.", usage: "Hành động giới thiệu bản thân/người khác." },
+                { id: "v43", zh: "来", pinyin: "lái", tone: "2", meaningVi: "đến, để tôi", meaningEn: "come, to take initiative", class: "Động từ", sourcePage: 45, example: "我来帮你。", examplePinyin: "Wǒ lái bāng nǐ.", exampleVi: "Để tôi giúp bạn.", usage: "Thể hiện sự chủ động hành động." },
+                { id: "v44", zh: "一下", pinyin: "yíxià", tone: "2-4", meaningVi: "một chút, một lát", meaningEn: "a short while", class: "Cụm từ", sourcePage: 45, example: "请等一下。", examplePinyin: "Qǐng děng yíxià.", exampleVi: "Xin đợi một lát.", usage: "Làm mềm động từ." },
+                { id: "v45", zh: "认识", pinyin: "rènshi", tone: "4-0", meaningVi: "quen biết, nhận ra", meaningEn: "know, recognize", class: "Động từ", sourcePage: 47, example: "很高兴认识你。", examplePinyin: "Hěn gāoxìng rènshi nǐ.", exampleVi: "Rất vui được làm quen với bạn.", usage: "Xã giao khi gặp mặt." },
+                { id: "v46", zh: "高兴", pinyin: "gāoxìng", tone: "1-4", meaningVi: "vui vẻ", meaningEn: "happy, glad", class: "Tính từ", sourcePage: 48, example: "我很高兴。", examplePinyin: "Wǒ hěn gāoxìng.", exampleVi: "Tôi rất vui.", usage: "Biểu lộ cảm xúc." },
+                { id: "v47", zh: "也", pinyin: "yě", tone: "3", meaningVi: "cũng", meaningEn: "also, too", class: "Trạng từ", sourcePage: 50, example: "我也很高兴。", examplePinyin: "Wǒ yě hěn gāoxìng.", exampleVi: "Tôi cũng rất vui.", usage: "Trạng từ chỉ sự tương đồng." },
+                { id: "v48", zh: "呢", pinyin: "ne", tone: "0", meaningVi: "còn... thì sao?", meaningEn: "and you?", class: "Trợ từ", sourcePage: 52, example: "我是越南人，你呢？", examplePinyin: "Wǒ shì Yuènán rén, nǐ ne?", exampleVi: "Tôi là người Việt Nam, còn bạn?", usage: "Hỏi ngược lại câu hỏi trước đó." }
+            ],
+            grammar: [
+                { id: "g1", title: "什么 (shénme) — Đại từ nghi vấn", structure: "Động từ + 什么 ? / 什么 + Danh từ", meaning: "Dùng để hỏi sự vật, tên gọi, công việc, học vấn.", sourcePage: 6, examples: ["这是什么？ (Đây là gì?)", "你想学什么？ (Bạn muốn học gì?)", "你做什么工作？ (Bạn làm công việc gì?)", "你叫什么名字？ (Bạn tên là gì?)"], note: "Khác với tiếng Anh, 什么 nằm đúng vị trí của thành phần cần hỏi trong câu, không đảo lên đầu." },
+                { id: "g2", title: "哪 (nǎ) vs 哪儿 (nǎr) — 'Nào' và 'Ở đâu'", structure: "哪 + Lượng từ + Danh từ / N + 在 + 哪儿", meaning: "哪 dùng để lựa chọn trong một tập hợp; 哪儿 dùng để hỏi địa điểm.", sourcePage: 20, examples: ["你是哪国人？ (Bạn là người nước nào?)", "你喝哪个？ (Bạn uống cái nào?)", "你在哪儿？ (Bạn ở đâu?)"], note: "儿 trong 哪儿 là hậu tố 儿化, không phát âm thành âm tiết 'er' độc lập." },
+                { id: "g3", title: "Trợ từ 了 (le) — Thay đổi trạng thái", structure: "S + V + O + 了 hoặc S + V + 了", meaning: "Biểu thị tình huống mới xuất hiện hoặc sự thay đổi trạng thái.", sourcePage: 22, examples: ["老师回家了。(Giáo viên đã về nhà rồi)", "爸爸喝茶了。(Bố uống trà rồi)", "昨天我去银行取钱了。(Hôm qua tôi đi rút tiền rồi)"], note: "TUYỆT ĐỐI không đồng nhất 了 với thì quá khứ tiếng Anh. Nhấn mạnh sự thay đổi hoặc hoàn tất." },
+                { id: "g4", title: "Trợ từ ngữ khí 吧 (ba) — Đề nghị, phỏng đoán", structure: "Câu mệnh lệnh/gợi ý + 吧", meaning: "Dùng ở cuối câu để đưa ra lời đề nghị nhẹ nhàng, rủ rê hoặc phỏng đoán.", sourcePage: 13, examples: ["我们回家吧。(Chúng ta về nhà nhé.)", "你喝水吧。(Bạn uống nước đi.)", "你去问老师吧。(Em đi hỏi thầy giáo đi.)"], note: "Làm giảm sắc thái ra lệnh, câu nói trở nên thân thiện và mềm mỏng hơn." },
+                { id: "g5", title: "Hậu tố số nhiều 们 (men)", structure: "Đại từ / Danh từ chỉ người + 们", meaning: "Chỉ số nhiều cho đại từ nhân xưng và danh từ chỉ người.", sourcePage: 43, examples: ["我们 (chúng tôi)", "你们 (các bạn)", "老师们 (các thầy cô)", "同学们 (các bạn học)"], note: "Không dùng 们 cho danh từ đồ vật (*书们, *桌子们 là sai ngữ pháp)." },
+                { id: "g6", title: "Cấu trúc 来 + V và V + 一下", structure: "我来 + V / V + 一下儿", meaning: "Biểu thị người nói chủ động xung phong làm việc gì, hoặc làm hành động ngắn gọn, lịch sự.", sourcePage: 45, examples: ["我来介绍一下。(Để tôi giới thiệu một chút.)", "请等一下。(Xin đợi một lát.)", "我来帮你。(Để tôi giúp bạn.)"], note: "Giúp câu nói tiếng Trung tự nhiên và bớt khô cứng." }
+            ],
+            contrast: [
+                { id: "c1", a: "哪 (nǎ)", b: "那 (nà)", meaning: "哪 = Nào (Hỏi) vs 那 = Kia/Đó (Chỉ định)", structure: "哪 + Lượng từ vs 那 + Lượng từ", examples: ["你是哪国人？ (Bạn người nước nào?)", "那是我的老师。(Kia là giáo viên của tôi.)"], mistake: "Nhầm lẫn mặt chữ và cách phát âm giữa thanh 3 (nǎ) và thanh 4 (nà)." },
+                { id: "c2", a: "哪儿 (nǎr)", b: "那儿 (nàr)", meaning: "哪儿 = Ở đâu? vs 那儿 = Ở đằng kia", structure: "Hỏi địa điểm vs Chỉ định địa điểm", examples: ["你在哪儿？ (Bạn ở đâu?)", "我家在那儿。(Nhà tôi ở đằng kia.)"], mistake: "Phát âm thiếu âm 儿化 hoặc nhầm lẫn nghĩa hỏi và chỉ vị trí." },
+                { id: "c3", a: "什么 (shénme)", b: "哪个 (nǎge)", meaning: "什么 = Gì (hỏi chung) vs 哪个 = Cái nào (chọn lựa)", structure: "Đại từ chung vs Lượng từ xác định", examples: ["你学什么？ (Bạn học gì?)", "你喝哪个？ (Bạn uống cái nào?)"], mistake: "Dùng 什么 khi đang yêu cầu đối tượng chọn lựa trong một nhóm đã xác định." },
+                { id: "c4", a: "吗 (ma)", b: "呢 (ne)", meaning: "吗 = Câu hỏi Yes/No vs 呢 = Câu hỏi ngược / Còn... thì sao?", structure: "Cuối câu hỏi Yes/No vs Cuối câu hỏi ngược", examples: ["你喝水吗？ (Bạn uống nước không?)", "我是越南人，你呢？ (Tôi là người VN, còn bạn?)"], mistake: "Dùng 吗 để hỏi ngược 'còn bạn thì sao' thay vì dùng 呢." }
+            ],
+            exercises: [
+                { id: "ex1", level: 1, type: "Nhận diện", question: "Chữ Hán nào có nghĩa là 'mời, xin' xuất hiện ở bài 5?", options: ["请", "问", "喝", "坐"], answer: "请", explanation: "请 /qǐng/ là từ trọng tâm mang nghĩa mời hoặc xin phép." },
+                { id: "ex2", level: 1, type: "Phát âm", question: "Chọn pinyin chính xác cho chữ '水'?", options: ["shuǐ", "shén", "shàng", "suì"], answer: "shuǐ", explanation: "水 đọc là shuǐ (thanh 3), nghĩa là nước." },
+                { id: "ex3", level: 2, type: "Điền từ", question: "Điền từ thích hợp vào chỗ trống: 你叫______名字？", options: ["什么", "哪", "le", "吧"], answer: "什么", explanation: "Cấu trúc hỏi tên: 你叫什么名字？" },
+                { id: "ex4", level: 2, type: "Điền từ", question: "Điền trợ từ cuối câu biểu thị thay đổi: 老师回家______。", options: ["了", "吧", "吗", "呢"], answer: "了", explanation: "了 ở cuối câu biểu thị tình huống mới / sự thay đổi." },
+                { id: "ex5", level: 3, type: "Sắp xếp câu", question: "Sắp xếp thành câu hoàn chỉnh: [ 介绍 / 我 / 一下 / 来 ]", options: ["我来介绍一下", "来我介绍一下", "介绍一下我来", "我一下来介绍"], answer: "我来介绍一下", explanation: "Cấu trúc chủ động giới thiệu: 我来介绍一下。" },
+                { id: "ex6", level: 3, type: "Sửa lỗi", question: "Câu sau đây sai ở đâu? '*茶是动词。'", options: ["茶 là danh từ (Noun), không phải động từ", "茶 phải đọc thanh 4", "Không có lỗi gì", "Phải đổi thành 喝茶 mới đúng"], answer: "茶 là danh từ (Noun), không phải động từ", explanation: "Theo bài, 茶 là danh từ 'trà', động từ uống trà là 喝茶." }
+            ]
+        };
+
+        // ============================================================================
+        // 2. ICONS (Lucide style inline SVGs)
+        // ============================================================================
+        const Icons = {
+            Home: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>,
+            Book: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>,
+            Type: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line></svg>,
+            Layers: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>,
+            Mic: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>,
+            Edit: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+            MessageCircle: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>,
+            Play: () => <svg width="16" height="16" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>,
+            Square: () => <svg width="16" height="16" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>,
+            Refresh: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>,
+            X: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+            CheckCircle: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>,
+            Info: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>,
+            Volume2: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>,
+            PenTool: () => <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
+        };
+
+        // ============================================================================
+        // 3. AUDIO ENGINE (Web Speech API Wrapper)
+        // ============================================================================
+        const useAudioEngine = () => {
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [isSupported, setIsSupported] = useState(true);
+            const [activeText, setActiveText] = useState(null);
+
+            useEffect(() => {
+                if (!window.speechSynthesis) {
+                    setIsSupported(false);
+                }
+            }, []);
+
+            const speak = useCallback((text, rate = 1.0) => {
+                if (!window.speechSynthesis) return;
+
+                window.speechSynthesis.cancel(); // Stop current speech
+                setIsPlaying(true);
+                setActiveText(text);
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-CN';
+                utterance.rate = rate;
+
+                // Find a proper Chinese voice if available
+                const voices = window.speechSynthesis.getVoices();
+                const zhVoice = voices.find(v => v.lang.includes('zh') || v.lang.includes('CN'));
+                if (zhVoice) utterance.voice = zhVoice;
+
+                utterance.onend = () => {
+                    setIsPlaying(false);
+                    setActiveText(null);
+                };
+                
+                utterance.onerror = () => {
+                    setIsPlaying(false);
+                    setActiveText(null);
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }, []);
+
+            const stop = useCallback(() => {
+                if (window.speechSynthesis) {
+                    window.speechSynthesis.cancel();
+                    setIsPlaying(false);
+                    setActiveText(null);
+                }
+            }, []);
+
+            return { speak, stop, isPlaying, isSupported, activeText };
+        };
+
+        // UI Component for Audio Control
+        const AudioControl = ({ text, engine }) => {
+            const [currentRate, setCurrentRate] = useState(1.0);
+            
+            if (!engine.isSupported) {
+                return <div className="text-xs text-slate-400 flex items-center gap-1"><Icons.Info /> <span>Audio unavailable</span></div>;
+            }
+
+            const rates = [0.6, 0.8, 1.0, 1.2];
+            const isMePlaying = engine.isPlaying && engine.activeText === text;
+
+            const handlePlay = () => {
+                if (isMePlaying) engine.stop();
+                else engine.speak(text, currentRate);
+            };
+
+            return (
+                <div className="flex flex-col sm:flex-row items-center gap-2 mt-2 bg-slate-50 p-2 rounded-xl border border-slate-100 w-fit">
+                    <button 
+                        onClick={handlePlay}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${isMePlaying ? 'bg-amber-100 text-amber-700' : 'bg-primary text-white hover:bg-primary/90'}`}
+                    >
+                        {isMePlaying ? <Icons.Square /> : <Icons.Volume2 />}
+                        {isMePlaying ? "Đang phát..." : "Phát âm"}
+                    </button>
+                    <div className="flex items-center bg-white rounded-lg border border-slate-200 overflow-hidden">
+                        {rates.map(rate => (
+                            <button
+                                key={rate}
+                                onClick={() => { setCurrentRate(rate); if(isMePlaying) engine.speak(text, rate); }}
+                                className={`px-3 py-1.5 text-xs font-semibold border-r border-slate-100 last:border-0 transition ${currentRate === rate ? 'bg-slate-200 text-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}
+                            >
+                                {rate}x
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            );
+        };
+
+        // ============================================================================
+        // 4. WRITING SYSTEM (Hanzi Writer Wrapper)
+        // ============================================================================
+        const HanziCanvas = ({ character, mode = 'watch', onStateChange }) => {
+            const canvasRef = useRef(null);
+            const writerRef = useRef(null);
+
+            useEffect(() => {
+                if (!canvasRef.current || !character) return;
+
+                // Initialize Writer
+                if (!writerRef.current) {
+                    writerRef.current = HanziWriter.create(canvasRef.current, character, {
+                        width: 280,
+                        height: 280,
+                        padding: 15,
+                        showOutline: true,
+                        strokeAnimationSpeed: 1,
+                        delayBetweenStrokes: 50,
+                        radar: { strokeColor: '#cbd5e1' },
+                        strokeColor: '#0f172a',
+                        highlightColor: '#0284c7',
+                        drawingWidth: 15,
+                        drawingColor: '#0d9488'
+                    });
+                } else {
+                    writerRef.current.setCharacter(character);
+                }
+
+                // Apply Mode
+                if (mode === 'watch') {
+                    writerRef.current.hideCharacter();
+                    writerRef.current.animateCharacter();
+                    onStateChange("Đang trình diễn thứ tự nét...");
+                } else if (mode === 'trace') {
+                    writerRef.current.showOutline();
+                    writerRef.current.quiz({
+                        onMistake: (info) => onStateChange(`Sai nét. Thử lại nét thứ ${info.strokeNum + 1}`),
+                        onCorrectStroke: (info) => onStateChange(`Đúng nét! Đang viết nét ${info.strokeNum + 1} / ${info.totalStrokes}`),
+                        onComplete: () => onStateChange("Hoàn thành xuất sắc!")
+                    });
+                } else if (mode === 'copy') {
+                    writerRef.current.hideOutline();
+                    writerRef.current.showCharacter({ opacity: 0.1 });
+                    writerRef.current.quiz({
+                        onMistake: (info) => onStateChange(`Sai nét. Thử lại nét thứ ${info.strokeNum + 1}`),
+                        onCorrectStroke: (info) => onStateChange(`Đúng nét! Đang viết nét ${info.strokeNum + 1} / ${info.totalStrokes}`),
+                        onComplete: () => onStateChange("Hoàn thành xuất sắc!")
+                    });
+                } else if (mode === 'write') {
+                    writerRef.current.hideOutline();
+                    writerRef.current.hideCharacter();
+                    writerRef.current.quiz({
+                        onMistake: (info) => onStateChange(`Sai nét. Thử lại nét thứ ${info.strokeNum + 1}`),
+                        onCorrectStroke: (info) => onStateChange(`Đúng nét! Đang viết nét ${info.strokeNum + 1} / ${info.totalStrokes}`),
+                        onComplete: () => onStateChange("Hoàn thành xuất sắc!")
+                    });
+                }
+
+                return () => {
+                    if (writerRef.current) writerRef.current.cancelQuiz();
+                };
+            }, [character, mode]);
+
+            // Prevent scroll while drawing on iPad
+            useEffect(() => {
+                const handleTouchMove = (e) => e.preventDefault();
+                const el = canvasRef.current;
+                if (el) el.addEventListener('touchmove', handleTouchMove, { passive: false });
+                return () => {
+                    if (el) el.removeEventListener('touchmove', handleTouchMove);
+                }
+            }, []);
+
+            return <div ref={canvasRef} className="mizi-grid rounded-lg mx-auto overflow-hidden"></div>;
+        };
+
+        const WritingModal = ({ word, onClose }) => {
+            const characters = Array.from(word);
+            const [currentCharIdx, setCurrentCharIdx] = useState(0);
+            const [mode, setMode] = useState('watch');
+            const [feedback, setFeedback] = useState('Chuẩn bị...');
+
+            const char = characters[currentCharIdx];
+
+            return (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800">Luyện viết Hán tự</h3>
+                                <div className="text-sm text-slate-500 chinese-text">Từ: {word}</div>
+                            </div>
+                            <button onClick={onClose} className="p-2 bg-slate-200 hover:bg-slate-300 rounded-full text-slate-600 transition"><Icons.X /></button>
+                        </div>
+
+                        {/* Layout: Info Left, Canvas Right for Desktop, Stacked for iPad */}
+                        <div className="flex-1 overflow-y-auto flex flex-col md:flex-row p-6 gap-8">
+                            
+                            {/* Left Panel: Character Selection & Controls */}
+                            <div className="w-full md:w-1/3 flex flex-col gap-6">
+                                {characters.length > 1 && (
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Chọn chữ để luyện:</label>
+                                        <div className="flex gap-2 flex-wrap">
+                                            {characters.map((c, idx) => (
+                                                <button 
+                                                    key={idx} 
+                                                    onClick={() => {setCurrentCharIdx(idx); setMode('watch');}}
+                                                    className={`w-12 h-12 text-2xl chinese-text font-bold rounded-xl transition ${idx === currentCharIdx ? 'bg-primary text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                                                >
+                                                    {c}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div>
+                                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Chế độ luyện tập:</label>
+                                    <div className="flex flex-col gap-2">
+                                        {[
+                                            {id: 'watch', label: '1. Xem mẫu nét (Watch)', icon: <Icons.Play />},
+                                            {id: 'trace', label: '2. Đồ theo nét (Trace)', icon: <Icons.Edit />},
+                                            {id: 'copy', label: '3. Viết nhạt (Copy)', icon: <Icons.Type />},
+                                            {id: 'write', label: '4. Viết tự do (Free)', icon: <Icons.PenTool />}
+                                        ].map(m => (
+                                            <button 
+                                                key={m.id}
+                                                onClick={() => setMode(m.id)}
+                                                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition ${mode === m.id ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                                            >
+                                                {m.icon} {m.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right Panel: Canvas & Feedback */}
+                            <div className="w-full md:w-2/3 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 p-6 relative">
+                                <HanziCanvas character={char} mode={mode} onStateChange={setFeedback} />
+                                
+                                <div className="mt-6 w-full max-w-sm bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-center gap-2 text-sm font-semibold text-slate-700 shadow-sm">
+                                    <Icons.Info /> {feedback}
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+
+        // ============================================================================
+        // 5. MAIN APP COMPONENTS
+        // ============================================================================
+        function App() {
+            const [currentTab, setCurrentTab] = useState('overview');
+            const [isSidebarOpen, setSidebarOpen] = useState(false);
+            const audioEngine = useAudioEngine();
+
+            const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
+
+            return (
+                <div className="flex h-full w-full bg-slate-50">
+                    
+                    {/* Sidebar / Navigation */}
+                    <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                        <div className="p-6 border-b border-slate-100">
+                            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Chinese Learning Lab</h1>
+                            <p className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wider">Interactive Desktop</p>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                            <div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">HỌC TẬP</div>
+                                <nav className="space-y-1">
+                                    {[
+                                        { id: 'overview', label: 'Tổng quan', icon: <Icons.Home /> },
+                                        { id: 'characters', label: 'Character Lab', icon: <Icons.Type /> },
+                                        { id: 'vocabulary', label: 'Từ vựng', icon: <Icons.Layers /> },
+                                        { id: 'grammar', label: 'Ngữ pháp', icon: <Icons.Book /> },
+                                    ].map(tab => (
+                                        <button key={tab.id} onClick={() => {setCurrentTab(tab.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition ${currentTab === tab.id ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100'}`}>
+                                            {tab.icon} {tab.label}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+                            
+                            <div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">LUYỆN TẬP</div>
+                                <nav className="space-y-1">
+                                    {[
+                                        { id: 'practice', label: 'Bài tập', icon: <Icons.Edit /> },
+                                        { id: 'speaking', label: 'Hội thoại', icon: <Icons.MessageCircle /> },
+                                    ].map(tab => (
+                                        <button key={tab.id} onClick={() => {setCurrentTab(tab.id); setSidebarOpen(false);}} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition ${currentTab === tab.id ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100'}`}>
+                                            {tab.icon} {tab.label}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Mobile Overlay */}
+                    {isSidebarOpen && <div className="fixed inset-0 bg-slate-900/50 z-30 md:hidden" onClick={toggleSidebar}></div>}
+
+                    {/* Main Content */}
+                    <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+                        
+                        {/* Topbar */}
+                        <header className="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-4">
+                                <button onClick={toggleSidebar} className="md:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                                </button>
+                                <h2 className="text-lg font-bold text-slate-800">
+                                    {currentTab === 'overview' && 'Tổng quan bài học'}
+                                    {currentTab === 'characters' && 'Phân tích Chữ Hán'}
+                                    {currentTab === 'vocabulary' && 'Từ vựng trọng tâm'}
+                                    {currentTab === 'grammar' && 'Ngữ pháp & Phân biệt'}
+                                    {currentTab === 'practice' && 'Hệ thống Bài tập'}
+                                    {currentTab === 'speaking' && 'Hội thoại Tương tác'}
+                                </h2>
+                            </div>
+                        </header>
+
+                        {/* Scrollable Content Area */}
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar">
+                            <div className="max-w-6xl mx-auto w-full pb-20">
+                                {currentTab === 'overview' && <OverviewView setCurrentTab={setCurrentTab} />}
+                                {currentTab === 'characters' && <CharacterLabView engine={audioEngine} />}
+                                {currentTab === 'vocabulary' && <VocabularyLabView engine={audioEngine} />}
+                                {currentTab === 'grammar' && <GrammarLabView />}
+                                {currentTab === 'practice' && <PracticeEngineView />}
+                                {currentTab === 'speaking' && <SpeakingRoleplayView />}
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        // --- VIEWS ---
+
+        function OverviewView({ setCurrentTab }) {
+            return (
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden">
+                        <span className="text-primary font-bold text-xs tracking-wider uppercase mb-2 block">Bài 05 • Q1</span>
+                        <h2 className="text-3xl font-bold text-slate-900 mb-4 chinese-text">你叫什么名字？</h2>
+                        <p className="text-slate-600 mb-6 leading-relaxed max-w-2xl">
+                            Môi trường học tập tương tác thiết kế riêng cho người học tiếng Trung. Tập trung vào cấu tạo chữ, luyện viết Hán tự, và phản xạ giao tiếp thông qua hệ thống Audio tự nhiên. Đã khôi phục toàn bộ {lessonData.vocabulary.length} từ vựng và hệ thống Bài tập.
+                        </p>
+                        <div className="flex flex-wrap gap-3">
+                            <button onClick={() => setCurrentTab('characters')} className="bg-primary text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:bg-primary/90 transition flex items-center gap-2">
+                                <Icons.Edit /> Luyện viết Hán tự
+                            </button>
+                            <button onClick={() => setCurrentTab('practice')} className="bg-slate-100 text-slate-700 font-semibold px-6 py-3 rounded-xl hover:bg-slate-200 border border-slate-200 transition">
+                                Làm bài tập ngay
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                            <h3 className="font-bold text-emerald-800 mb-2 flex items-center gap-2"><Icons.CheckCircle /> Thuật ngữ Tiếng Việt</h3>
+                            <p className="text-sm text-emerald-700 leading-relaxed">
+                                Giải thích ngôn ngữ học sử dụng thuật ngữ chuẩn tiếng Việt (Bộ thủ, Thành phần biểu nghĩa, Thành phần biểu thanh...) giúp bạn dễ dàng tiếp thu kiến thức chuyên sâu.
+                            </p>
+                        </div>
+                        <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                            <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2"><Icons.Type /> Tối ưu cho iPad</h3>
+                            <p className="text-sm text-blue-700 leading-relaxed">
+                                Trải nghiệm luyện viết chữ Hán mượt mà với Apple Pencil hoặc cảm ứng. Khung viết cố định, không trôi trang, hỗ trợ đầy đủ các bước (Watch, Trace, Copy, Write).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function CharacterLabView({ engine }) {
+            const [selectedChar, setSelectedChar] = useState(lessonData.characters[0]);
+            const [writingWord, setWritingWord] = useState(null);
+
+            return (
+                <div className="space-y-6 animate-fadeIn">
+                    {/* Character Selector */}
+                    <div className="flex overflow-x-auto pb-2 gap-3 no-scrollbar">
+                        {lessonData.characters.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setSelectedChar(item)}
+                                className={`px-4 py-3 rounded-2xl border transition flex flex-col items-center justify-center shrink-0 min-w-[70px] ${
+                                    selectedChar.id === item.id
+                                        ? 'bg-primary text-white border-primary shadow-md'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                }`}
+                            >
+                                <span className="chinese-text text-2xl font-bold">{item.char}</span>
+                                <span className="text-[10px] mt-1 opacity-80">{item.pinyin}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Detail Card */}
+                    <div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-8">
+                        {/* Left: Big Char & Primary Info */}
+                        <div className="w-full md:w-1/3 flex flex-col items-center text-center border-b md:border-b-0 md:border-r border-slate-100 pb-6 md:pb-0 md:pr-8">
+                            <div className="w-32 h-32 md:w-40 md:h-40 bg-slate-50 border border-slate-200 rounded-3xl flex items-center justify-center mb-4 mizi-grid">
+                                <span className="chinese-text text-7xl md:text-8xl font-bold text-slate-900">{selectedChar.char}</span>
+                            </div>
+                            <div className="text-2xl font-bold text-slate-800 mb-1">{selectedChar.pinyin}</div>
+                            <div className="text-sm font-semibold text-primary mb-3">Thanh điệu: {selectedChar.tone}</div>
+                            <div className="text-lg font-medium text-slate-700 mb-4">{selectedChar.meaningVi}</div>
+                            
+                            <AudioControl text={selectedChar.char} engine={engine} />
+                            
+                            <button 
+                                onClick={() => setWritingWord(selectedChar.char)}
+                                className="mt-6 w-full py-3 bg-slate-900 text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-800 transition shadow-md"
+                            >
+                                <Icons.Edit /> Luyện viết Hán tự
+                            </button>
+                        </div>
+
+                        {/* Right: Linguistic Details */}
+                        <div className="w-full md:w-2/3 flex flex-col justify-center space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Bộ thủ tra cứu</span>
+                                    <strong className="text-lg chinese-text text-slate-800">{selectedChar.radical}</strong>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Số nét</span>
+                                    <strong className="text-lg text-slate-800">{selectedChar.strokeCount} nét</strong>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Thành phần cấu tạo</h4>
+                                <div className="space-y-3">
+                                    {selectedChar.components.map((comp, idx) => (
+                                        <div key={idx} className="flex items-start gap-4 p-3 bg-white border border-slate-200 rounded-xl">
+                                            <span className="chinese-text text-2xl font-bold text-slate-800 w-8 text-center shrink-0">{comp.part}</span>
+                                            <div>
+                                                <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 uppercase tracking-wide">
+                                                    {comp.type === 'semantic' ? 'Biểu nghĩa' : comp.type === 'phonetic' ? 'Biểu thanh' : 'Cấu tạo'}
+                                                </span>
+                                                <p className="text-sm text-slate-600 mt-1">{comp.note}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Ví dụ ngữ cảnh</h4>
+                                <div className="space-y-2">
+                                    {selectedChar.examples.map((ex, idx) => (
+                                        <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                            <span className="chinese-text text-lg text-slate-800 font-medium">{ex}</span>
+                                            <button onClick={() => engine.speak(ex)} className="p-2 text-primary hover:bg-primary/10 rounded-lg transition"><Icons.Volume2 /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {writingWord && <WritingModal word={writingWord} onClose={() => setWritingWord(null)} />}
+                </div>
+            );
+        }
+
+        function VocabularyLabView({ engine }) {
+            const [flippedId, setFlippedId] = useState(null);
+            const [writingWord, setWritingWord] = useState(null);
+
+            return (
+                <div className="space-y-6 animate-fadeIn">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {lessonData.vocabulary.map(item => {
+                            const isFlipped = flippedId === item.id;
+                            return (
+                                <div key={item.id} className="h-80 perspective-1000">
+                                    <div 
+                                        className={`w-full h-full relative duration-500 transform-style-3d shadow-sm rounded-3xl ${isFlipped ? 'rotate-y-180' : ''}`}
+                                    >
+                                        {/* FRONT */}
+                                        <div className="absolute inset-0 w-full h-full bg-white border border-slate-200 rounded-3xl p-6 flex flex-col justify-between backface-hidden">
+                                            <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                <span>{item.class}</span>
+                                                <button onClick={() => setFlippedId(item.id)} className="flex items-center gap-1 hover:text-primary"><Icons.Refresh /> Lật thẻ</button>
+                                            </div>
+                                            
+                                            <div className="text-center my-auto cursor-pointer" onClick={() => setFlippedId(item.id)}>
+                                                <h4 className="chinese-text text-5xl font-bold text-slate-900 mb-2">{item.zh}</h4>
+                                                <div className="text-lg font-bold text-primary">{item.pinyin}</div>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <button onClick={() => engine.speak(item.zh)} className="flex-1 py-2 bg-primary/10 text-primary text-sm font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-primary/20 transition">
+                                                    <Icons.Volume2 /> Đọc
+                                                </button>
+                                                <button onClick={() => setWritingWord(item.zh)} className="flex-1 py-2 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition">
+                                                    <Icons.Edit /> Viết
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* BACK */}
+                                        <div className="absolute inset-0 w-full h-full bg-slate-800 text-white rounded-3xl p-6 flex flex-col justify-between rotate-y-180 backface-hidden">
+                                            <div>
+                                                <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">
+                                                    <span>Ý NGHĨA</span>
+                                                    <button onClick={() => setFlippedId(null)} className="flex items-center gap-1 hover:text-white"><Icons.Refresh /> Lật lại</button>
+                                                </div>
+                                                <h5 className="text-xl font-bold mb-4">{item.meaningVi}</h5>
+                                                
+                                                <div className="bg-white/10 p-4 rounded-xl border border-white/10 text-sm space-y-2">
+                                                    <div className="text-xs font-bold text-primary-300 uppercase tracking-wider">Ví dụ / Ngữ cảnh</div>
+                                                    <div className="chinese-text font-medium text-amber-200 text-lg flex items-center justify-between">
+                                                        {item.example}
+                                                        <button onClick={() => engine.speak(item.example)} className="text-amber-200 hover:text-white"><Icons.Volume2 /></button>
+                                                    </div>
+                                                    <div className="text-slate-300">{item.examplePinyin}</div>
+                                                    <div className="text-slate-400">{item.exampleVi}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    {writingWord && <WritingModal word={writingWord} onClose={() => setWritingWord(null)} />}
+                </div>
+            );
+        }
+
+        function GrammarLabView() {
+            return (
+                <div className="space-y-8 animate-fadeIn">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {lessonData.grammar.map(item => (
+                            <div key={item.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col h-full">
+                                <h4 className="text-lg font-bold text-slate-900 mb-2">{item.title}</h4>
+                                <p className="text-sm text-slate-600 mb-4">{item.meaning}</p>
+                                
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 font-mono text-sm text-primary font-bold">
+                                    {item.structure}
+                                </div>
+
+                                <div className="space-y-2 mb-4 flex-1">
+                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ví dụ</div>
+                                    {item.examples.map((ex, idx) => (
+                                        <div key={idx} className="text-sm chinese-text font-medium text-slate-800 bg-white border border-slate-100 p-2.5 rounded-lg">
+                                            {ex}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-sm text-amber-900 mt-auto">
+                                    <strong className="flex items-center gap-2 mb-1"><Icons.Info /> Chú ý</strong> {item.note}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-lg">
+                        <h4 className="text-xl font-bold mb-6 flex items-center gap-2"><Icons.Layers /> Phân biệt từ dễ nhầm</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {lessonData.contrast.map(item => (
+                                <div key={item.id} className="border border-white/20 rounded-2xl p-6 bg-white/5">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className="px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg font-bold text-lg chinese-text">{item.a}</span>
+                                        <span className="text-slate-400 font-bold text-xs">VS</span>
+                                        <span className="px-3 py-1 bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg font-bold text-lg chinese-text">{item.b}</span>
+                                    </div>
+                                    <p className="text-sm font-medium mb-4 text-slate-200">{item.meaning}</p>
+                                    
+                                    <div className="text-xs text-red-300 bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+                                        <strong>Lỗi thường gặp:</strong> {item.mistake}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function PracticeEngineView() {
+            const [currentIdx, setCurrentIdx] = useState(0);
+            const [selectedOption, setSelectedOption] = useState(null);
+            const [isCorrect, setIsCorrect] = useState(null);
+            const [score, setScore] = useState(0);
+            const [isFinished, setIsFinished] = useState(false);
+
+            const q = lessonData.exercises[currentIdx];
+
+            const handleAnswer = (opt) => {
+                setSelectedOption(opt);
+                const correct = opt === q.answer;
+                setIsCorrect(correct);
+                if (correct) setScore(score + 1);
+            };
+
+            const nextQuestion = () => {
+                setSelectedOption(null);
+                setIsCorrect(null);
+                if (currentIdx + 1 < lessonData.exercises.length) {
+                    setCurrentIdx(currentIdx + 1);
+                } else {
+                    setIsFinished(true);
+                }
+            };
+
+            return (
+                <div className="space-y-6 max-w-2xl mx-auto animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xl font-bold text-slate-800">Hệ thống Luyện tập</h3>
+                        <span className="text-xs font-bold text-slate-500">Câu {currentIdx + 1} / {lessonData.exercises.length}</span>
+                    </div>
+
+                    {!isFinished ? (
+                        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                            <div className="inline-block px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full uppercase">
+                                {q.type}
+                            </div>
+                            <h4 className="text-lg font-bold text-slate-900">{q.question}</h4>
+
+                            <div className="space-y-3">
+                                {q.options.map((opt, idx) => {
+                                    let btnStyle = "bg-slate-50 border-slate-200 text-slate-700 hover:border-primary";
+                                    if (selectedOption !== null) {
+                                        if (opt === q.answer) btnStyle = "bg-emerald-50 border-emerald-500 text-emerald-800 font-bold";
+                                        else if (opt === selectedOption) btnStyle = "bg-red-50 border-red-500 text-red-800 font-bold";
+                                    }
+
+                                    return (
+                                        <button
+                                            key={idx}
+                                            disabled={selectedOption !== null}
+                                            onClick={() => handleAnswer(opt)}
+                                            className={`w-full text-left p-4 rounded-2xl border transition text-sm flex items-center justify-between ${btnStyle}`}
+                                        >
+                                            <span className={q.type === 'Nhận diện' ? 'chinese-text text-lg' : ''}>{opt}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {selectedOption !== null && (
+                                <div className="space-y-4 pt-4 border-t border-slate-100 animate-fadeIn">
+                                    <div className={`p-4 rounded-2xl text-sm ${isCorrect ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
+                                        <strong>{isCorrect ? '✓ Chính xác!' : '✗ Chưa chính xác!'}</strong> {q.explanation}
+                                    </div>
+                                    <button
+                                        onClick={nextQuestion}
+                                        className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-semibold rounded-xl transition shadow-lg shadow-primary/20"
+                                    >
+                                        {currentIdx + 1 < lessonData.exercises.length ? 'Câu tiếp theo' : 'Xem kết quả'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center space-y-4 animate-fadeIn flex flex-col items-center">
+                            <Icons.CheckCircle />
+                            <h4 className="text-2xl font-bold text-slate-900">Hoàn thành bài tập!</h4>
+                            <p className="text-slate-600">Bạn đạt số điểm: <strong className="text-primary">{score} / {lessonData.exercises.length}</strong></p>
+                            <button
+                                onClick={() => { setCurrentIdx(0); setScore(0); setIsFinished(false); }}
+                                className="mt-4 px-6 py-3 bg-primary text-white font-semibold rounded-xl shadow hover:bg-primary/90 transition"
+                            >
+                                Làm lại bài tập
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function SpeakingRoleplayView() {
+            const [step, setStep] = useState(0);
+            const [userAnswer, setUserAnswer] = useState('');
+            const [showSuggestion, setShowSuggestion] = useState(false);
+
+            const flow = [
+                { npc: "你好！请问，您贵姓？", hint: "Trả lời họ của bạn", suggestion: { zh: "我姓阮。", py: "Wǒ xìng Ruǎn.", vi: "Tôi họ Nguyễn." } },
+                { npc: "你叫什么名字？", hint: "Trả lời tên của bạn", suggestion: { zh: "我叫陈英书。", py: "Wǒ jiào Chén Yīngshū.", vi: "Tôi tên là Trần Anh Thư." } },
+                { npc: "你是哪国人？", hint: "Trả lời quốc tịch", suggestion: { zh: "我是越南人。", py: "Wǒ shì Yuènán rén.", vi: "Tôi là người Việt Nam." } },
+            ];
+
+            if (step >= flow.length) {
+                return (
+                    <div className="bg-white p-10 rounded-3xl border border-slate-200 shadow-sm text-center animate-fadeIn flex flex-col items-center">
+                        <Icons.MessageCircle />
+                        <h4 className="text-2xl font-bold text-slate-900 mb-2 mt-4">Hoàn thành hội thoại!</h4>
+                        <button onClick={() => {setStep(0); setUserAnswer(''); setShowSuggestion(false);}} className="mt-4 px-6 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary/90 transition">
+                            Luyện tập lại
+                        </button>
+                    </div>
+                );
+            }
+
+            const current = flow[step];
+
+            return (
+                <div className="max-w-2xl mx-auto space-y-6 animate-fadeIn">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                        {/* NPC */}
+                        <div className="flex gap-4 mb-8">
+                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 shrink-0">NPC</div>
+                            <div className="bg-slate-50 p-4 rounded-2xl rounded-tl-none border border-slate-100">
+                                <div className="chinese-text text-2xl font-bold text-slate-900">{current.npc}</div>
+                            </div>
+                        </div>
+
+                        {/* Suggestion Toggle */}
+                        <div className="mb-6">
+                            <button 
+                                onClick={() => setShowSuggestion(!showSuggestion)}
+                                className="text-sm font-semibold text-primary hover:underline flex items-center gap-1"
+                            >
+                                <Icons.Info /> {showSuggestion ? 'Ẩn gợi ý' : 'Xem gợi ý trả lời'}
+                            </button>
+                            
+                            {showSuggestion && (
+                                <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-xl animate-fadeIn">
+                                    <div className="chinese-text text-lg font-bold text-amber-900">{current.suggestion.zh}</div>
+                                    <div className="text-sm text-amber-700">{current.suggestion.py}</div>
+                                    <div className="text-sm text-amber-800/70 mt-1">{current.suggestion.vi}</div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* User Input */}
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">{current.hint}:</label>
+                            <input
+                                type="text"
+                                value={userAnswer}
+                                onChange={(e) => setUserAnswer(e.target.value)}
+                                placeholder="Nhập câu trả lời bằng tiếng Trung..."
+                                className="w-full p-4 bg-white border border-slate-200 rounded-xl text-lg chinese-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm"
+                            />
+                            <button
+                                onClick={() => { setUserAnswer(''); setShowSuggestion(false); setStep(step + 1); }}
+                                disabled={!userAnswer.trim() && !showSuggestion}
+                                className={`mt-4 w-full py-4 rounded-xl font-bold transition flex justify-center items-center gap-2 ${userAnswer.trim() || showSuggestion ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                            >
+                                Tiếp tục <Icons.MessageCircle />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render Application
+        const rootElement = document.getElementById('root');
+        ReactDOM.createRoot(rootElement).render(<App />);
+    </script>
+</body>
+</html>
