@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Chinese Study Desk - Bài 06</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{skyx:'#0284c7',mint:'#0f9f8f',violetx:'#6d5dfc'},boxShadow:{card:'0 8px 28px rgba(15,23,42,.055)'}}}};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#f7f9fc;color:#1e293b;font-family:'Plus Jakarta Sans',sans-serif;overscroll-behavior-y:none;}
+button,input,select{font-family:'Plus Jakarta Sans',sans-serif}
+.cn{font-family:"KaiTi","STKaiti","Kaiti SC","Noto Serif SC","Songti SC","SimSun",serif}
+.cn-sans{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC","Source Han Sans SC",sans-serif}
+.fade{animation:fade .25s ease both}@keyframes fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.scrollbar::-webkit-scrollbar{width:7px;height:7px}.scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:99px}
+.grid-paper{background-image:linear-gradient(to right,transparent 49.2%,#e2e8f0 49.2%,#e2e8f0 50.8%,transparent 50.8%),linear-gradient(to bottom,transparent 49.2%,#e2e8f0 49.2%,#e2e8f0 50.8%,transparent 50.8%),linear-gradient(45deg,transparent 49.5%,#eef2f7 49.5%,#eef2f7 50.5%,transparent 50.5%),linear-gradient(-45deg,transparent 49.5%,#eef2f7 49.5%,#eef2f7 50.5%,transparent 50.5%)}
+.char-slot{transition:.18s;border:1px solid #e2e8f0;background:#fff}.char-slot.done{border-color:#34d399;background:#ecfdf5;color:#047857;transform:translateY(-1px);box-shadow:0 5px 14px rgba(16,185,129,.12)}.char-slot.active{border-color:#38bdf8;background:#f0f9ff;color:#0369a1}
+.nav-active{background:linear-gradient(135deg,#0284c7,#0ea5e9);color:#fff;box-shadow:0 9px 20px rgba(2,132,199,.2)}.glass{background:rgba(255,255,255,.82);backdrop-filter:blur(14px)}
+.letter-progress{display:flex;gap:4px;min-height:6px}.letter-progress .letter-segment{flex:1;min-width:0}.letter-segment{height:6px;border-radius:999px;background:#e2e8f0;transition:background .18s ease,transform .18s ease}.letter-segment.filled{background:#34d399;transform:scaleY(1.15)}
+#fireworks{position:fixed;inset:0;pointer-events:none;z-index:90;overflow:hidden}.spark{position:absolute;width:7px;height:7px;border-radius:50%;animation:burst 1.05s ease-out forwards}@keyframes burst{0%{transform:translate(0,0) scale(.5);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0}}
+#writerTarget { touch-action: none; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased h-screen overflow-hidden flex flex-col">
+<div id="app"></div><div id="fireworks"></div>
+<script>
+// ============================================================================
+// 1. DATA (BÀI 06: CẬU THÍCH ĂN CÁI GÌ? - ĐÃ THAY THẾ TOÀN BỘ)
+// ============================================================================
+const lessonData = {
+    characters: [
+        { id: "shang", char: "上", pinyin: "shàng", tone: 4, meaningVi: "trên, phần trước", hanViet: "THƯỢNG", formation: "Chỉ sự", radical: "一", components: [["一","ngữ nghĩa", "Gạch ngang làm mốc"], ["卜","chỉ định", "Điểm ở trên"]], strokeCount: 3, sourcePage: 2, examples: ["上午", "上班"] },
+        { id: "xia", char: "下", pinyin: "xià", tone: 4, meaningVi: "dưới, phần sau", hanViet: "HẠ", formation: "Chỉ sự", radical: "一", components: [["一","ngữ nghĩa", "Gạch ngang làm mốc"], ["卜","chỉ định", "Điểm ở dưới"]], strokeCount: 3, sourcePage: 2, examples: ["下午", "下课"] },
+        { id: "zhong", char: "中", pinyin: "zhōng", tone: 1, meaningVi: "giữa", hanViet: "TRUNG", formation: "Chỉ sự", radical: "丨", components: [["丨","chỉ định", "Đâm xuyên vào giữa"]], strokeCount: 4, sourcePage: 2, examples: ["中午", "中文"] },
+        { id: "ji", char: "几", pinyin: "jǐ", tone: 3, meaningVi: "mấy, vài", hanViet: "KỶ", formation: "Tượng hình", radical: "几", components: [["几","chữ độc thể", "Hình chiếc bàn nhỏ"]], strokeCount: 2, sourcePage: 3, examples: ["星期几", "几口人"] },
+        { id: "dian", char: "点", pinyin: "diǎn", tone: 3, meaningVi: "giờ, điểm", hanViet: "ĐIỂM", formation: "Hình thanh", radical: "灬", components: [["灬","ngữ nghĩa", "Bộ hỏa (lửa)"], ["占","ngữ âm"]], strokeCount: 9, sourcePage: 4, examples: ["八点", "几点"] },
+        { id: "fen", char: "分", pinyin: "fēn", tone: 1, meaningVi: "phút, chia", hanViet: "PHÂN", formation: "Hội ý", radical: "刀", components: [["八","ngữ nghĩa", "Tách ra"], ["刀","ngữ nghĩa", "Con dao"]], strokeCount: 4, sourcePage: 4, examples: ["三十分", "五分"] },
+        { id: "xue", char: "学", pinyin: "xué", tone: 2, meaningVi: "học", hanViet: "HỌC", formation: "Hội ý", radical: "子", components: [["⺍","thành phần", "Dạng giản hóa"], ["子","ngữ nghĩa", "Đứa trẻ học"]], strokeCount: 8, sourcePage: 5, examples: ["学习", "学生"] },
+        { id: "han", char: "汉", pinyin: "hàn", tone: 4, meaningVi: "Hán", hanViet: "HÁN", formation: "Hình thanh", radical: "氵", components: [["氵","ngữ nghĩa", "Bộ Thủy (nước)"], ["又","ngữ âm"]], strokeCount: 5, sourcePage: 6, examples: ["汉语", "汉字"] },
+        { id: "zi", char: "字", pinyin: "zì", tone: 4, meaningVi: "chữ", hanViet: "TỰ", formation: "Hội ý", radical: "子", components: [["宀","ngữ nghĩa", "Mái nhà"], ["子","ngữ nghĩa", "Đứa trẻ"]], strokeCount: 6, sourcePage: 6, examples: ["汉字", "名字"] },
+        { id: "yu", char: "语", pinyin: "yǔ", tone: 3, meaningVi: "ngôn ngữ", hanViet: "NGỮ", formation: "Hình thanh", radical: "讠", components: [["讠","ngữ nghĩa", "Bộ Ngôn (lời nói)"], ["吾","ngữ âm"]], strokeCount: 9, sourcePage: 6, examples: ["汉语", "英语"] },
+        { id: "fa", char: "发", pinyin: "fā", tone: 1, meaningVi: "phát", hanViet: "PHÁT", formation: "Hình thanh", radical: "又", components: [["弓","ngữ âm"], ["又","ngữ nghĩa"]], strokeCount: 5, sourcePage: 9, examples: ["发音", "发现"] },
+        { id: "yin", char: "音", pinyin: "yīn", tone: 1, meaningVi: "âm thanh", hanViet: "ÂM", formation: "Chỉ sự", radical: "音", components: [["音","chữ độc thể"]], strokeCount: 9, sourcePage: 9, examples: ["发音", "音乐"] },
+        { id: "shu", char: "书", pinyin: "shū", tone: 1, meaningVi: "sách", hanViet: "THƯ", formation: "Tượng hình", radical: "乙", components: [["书","chữ độc thể"]], strokeCount: 4, sourcePage: 10, examples: ["看书", "汉语书"] },
+        { id: "za", char: "杂", pinyin: "zá", tone: 2, meaningVi: "tạp, hỗn hợp", hanViet: "TẠP", formation: "Hội ý", radical: "木", components: [["九","ngữ nghĩa"], ["木","ngữ nghĩa"]], strokeCount: 6, sourcePage: 11, examples: ["杂志"] },
+        { id: "zhi", char: "志", pinyin: "zhì", tone: 4, meaningVi: "chí, ghi chép", hanViet: "CHÍ", formation: "Hình thanh", radical: "心", components: [["士","ngữ âm"], ["心","ngữ nghĩa", "Bộ Tâm"]], strokeCount: 7, sourcePage: 11, examples: ["杂志", "同志"] },
+        { id: "zen", char: "怎", pinyin: "zěn", tone: 3, meaningVi: "sao, thế nào", hanViet: "TẨM", formation: "Hình thanh", radical: "心", components: [["乍","ngữ âm"], ["心","ngữ nghĩa", "Bộ Tâm"]], strokeCount: 9, sourcePage: 15, examples: ["怎么", "怎么样"] },
+        { id: "me", char: "么", pinyin: "me", tone: 0, meaningVi: "trợ từ đại từ", hanViet: "MA", formation: "Chưa xác định", radical: "丿", components: [["丿","thành phần"], ["么","thành phần"]], strokeCount: 3, sourcePage: 15, examples: ["怎么", "什么"] },
+        { id: "xi", char: "喜", pinyin: "xǐ", tone: 3, meaningVi: "vui vẻ", hanViet: "HỶ", formation: "Hội ý", radical: "口", components: [["吉","ngữ nghĩa"], ["口","ngữ nghĩa"]], strokeCount: 12, sourcePage: 16, examples: ["喜欢", "喜好"] },
+        { id: "huan", char: "欢", pinyin: "huān", tone: 1, meaningVi: "vui", hanViet: "HOAN", formation: "Hình thanh", radical: "欠", components: [["又","ngữ âm"], ["欠","ngữ nghĩa"]], strokeCount: 6, sourcePage: 16, examples: ["喜欢", "欢迎"] },
+        { id: "chi", char: "吃", pinyin: "chī", tone: 1, meaningVi: "ăn", hanViet: "CÁT", formation: "Hình thanh", radical: "口", components: [["口","ngữ nghĩa", "Bộ Khẩu (miệng)"], ["乞","ngữ âm"]], strokeCount: 6, sourcePage: 21, examples: ["吃饭", "好吃"] },
+        { id: "he", char: "喝", pinyin: "hē", tone: 1, meaningVi: "uống", hanViet: "HÁT", formation: "Hình thanh", radical: "口", components: [["口","ngữ nghĩa", "Bộ Khẩu"], ["曷","ngữ âm"]], strokeCount: 12, sourcePage: 21, examples: ["喝水", "喝茶"] },
+        { id: "zhen", char: "真", pinyin: "zhēn", tone: 1, meaningVi: "thật, thực sự", hanViet: "CHÂN", formation: "Hội ý", radical: "目", components: [["匕","thành phần"], ["目","ngữ nghĩa"]], strokeCount: 10, sourcePage: 21, examples: ["真好吃", "真的"] },
+        { id: "hao", char: "好", pinyin: "hǎo", tone: 3, meaningVi: "tốt, ngon", hanViet: "HẢO", formation: "Hội ý", radical: "女", components: [["女","ngữ nghĩa"], ["子","ngữ nghĩa"]], strokeCount: 6, sourcePage: 21, examples: ["好吃", "很好"] },
+        { id: "fan", char: "饭", pinyin: "fàn", tone: 4, meaningVi: "cơm, bữa ăn", hanViet: "PHẠN", formation: "Hình thanh", radical: "饣", components: [["饣","ngữ nghĩa", "Bộ Thực (ăn)"], ["反","ngữ âm"]], strokeCount: 7, sourcePage: 22, examples: ["吃饭", "米饭"] },
+        { id: "e", char: "饿", pinyin: "è", tone: 4, meaningVi: "đói", hanViet: "NGẠ", formation: "Hình thanh", radical: "饣", components: [["饣","ngữ nghĩa", "Bộ Thực (ăn)"], ["我","ngữ âm"]], strokeCount: 10, sourcePage: 25, examples: ["很饿", "饿了"] },
+        { id: "shi", char: "食", pinyin: "shí", tone: 2, meaningVi: "thức ăn", hanViet: "THỰC", formation: "Hội ý", radical: "食", components: [["人","ngữ nghĩa"], ["良","ngữ âm"]], strokeCount: 9, sourcePage: 26, examples: ["食堂", "食物"] },
+        { id: "tang", char: "堂", pinyin: "táng", tone: 2, meaningVi: "nhà, sảnh", hanViet: "ĐƯỜNG", formation: "Hình thanh", radical: "土", components: [["尚","ngữ âm"], ["土","ngữ nghĩa"]], strokeCount: 11, sourcePage: 26, examples: ["食堂", "课堂"] },
+        { id: "man", char: "馒", pinyin: "mán", tone: 2, meaningVi: "màn thầu", hanViet: "MAN", formation: "Hình thanh", radical: "饣", components: [["饣","ngữ nghĩa", "Bộ Thực"], ["曼","ngữ âm"]], strokeCount: 14, sourcePage: 28, examples: ["馒头"] },
+        { id: "bao", char: "包", pinyin: "bāo", tone: 1, meaningVi: "bao, bọc", hanViet: "BAO", formation: "Hội ý", radical: "勹", components: [["勹","ngữ nghĩa"], ["巳","ngữ nghĩa"]], strokeCount: 5, sourcePage: 29, examples: ["包子", "书包"] },
+        { id: "zi", char: "子", pinyin: "zi", tone: 0, meaningVi: "hậu tố", hanViet: "TỬ", formation: "Tượng hình", radical: "子", components: [["子","chữ độc thể"]], strokeCount: 3, sourcePage: 29, examples: ["包子", "本子", "饺子"] },
+        { id: "jiao", char: "饺", pinyin: "jiǎo", tone: 3, meaningVi: "sủi cảo", hanViet: "GIÁO", formation: "Hình thanh", radical: "饣", components: [["饣","ngữ nghĩa"], ["交","ngữ âm"]], strokeCount: 9, sourcePage: 31, examples: ["饺子"] },
+        { id: "mian", char: "面", pinyin: "miàn", tone: 4, meaningVi: "mì, mặt", hanViet: "DIỆN", formation: "Tượng hình", radical: "面", components: [["面","chữ độc thể"]], strokeCount: 9, sourcePage: 32, examples: ["面条", "里面"] },
+        { id: "tiao", char: "条", pinyin: "tiáo", tone: 2, meaningVi: "sợi, dải", hanViet: "ĐIỀU", formation: "Hình thanh", radical: "木", components: [["夂","ngữ âm"], ["木","ngữ nghĩa"]], strokeCount: 7, sourcePage: 32, examples: ["面条", "条件"] },
+        { id: "ji", char: "鸡", pinyin: "jī", tone: 1, meaningVi: "gà", hanViet: "KÊ", formation: "Hình thanh", radical: "鸟", components: [["又","ngữ âm"], ["鸟","ngữ nghĩa", "Bộ Điểu"]], strokeCount: 7, sourcePage: 34, examples: ["鸡蛋", "鸡汤"] },
+        { id: "dan", char: "蛋", pinyin: "dàn", tone: 4, meaningVi: "trứng", hanViet: "ĐẢN", formation: "Hình thanh", radical: "虫", components: [["疋","ngữ âm"], ["虫","ngữ nghĩa", "Bộ Trùng"]], strokeCount: 11, sourcePage: 34, examples: ["鸡蛋", "蛋糕"] },
+        { id: "tang_soup", char: "汤", pinyin: "tāng", tone: 1, meaningVi: "canh, súp", hanViet: "THANG", formation: "Hình thanh", radical: "氵", components: [["氵","ngữ nghĩa", "Bộ Thủy"], ["𠃓","ngữ âm"]], strokeCount: 6, sourcePage: 37, examples: ["鸡蛋汤", "喝汤"] },
+        { id: "mi", char: "米", pinyin: "mǐ", tone: 3, meaningVi: "gạo", hanViet: "MỄ", formation: "Tượng hình", radical: "米", components: [["米","chữ độc thể", "Bộ Mễ"]], strokeCount: 6, sourcePage: 39, examples: ["米饭", "大米"] },
+        { id: "le", char: "了", pinyin: "le", tone: 0, meaningVi: "rồi", hanViet: "LIỄU", formation: "Chưa xác định", radical: "亅", components: [["了","chữ độc thể"]], strokeCount: 2, sourcePage: 40, examples: ["了吗", "吃了"] },
+        { id: "wan", char: "碗", pinyin: "wǎn", tone: 3, meaningVi: "bát, tô", hanViet: "OẢN", formation: "Hình thanh", radical: "石", components: [["石","ngữ nghĩa", "Bộ Thạch (đá)"], ["宛","ngữ âm"]], strokeCount: 13, sourcePage: 41, examples: ["一碗饭", "碗筷"] },
+        { id: "bei", char: "杯", pinyin: "bēi", tone: 1, meaningVi: "cốc, ly", hanViet: "BÔI", formation: "Hình thanh", radical: "木", components: [["木","ngữ nghĩa", "Bộ Mộc (gỗ)"], ["不","ngữ âm"]], strokeCount: 8, sourcePage: 42, examples: ["一杯水", "干杯"] },
+        { id: "yao", char: "要", pinyin: "yào", tone: 4, meaningVi: "muốn, cần", hanViet: "YẾU", formation: "Hội ý", radical: "西", components: [["西","thành phần"], ["女","ngữ nghĩa"]], strokeCount: 9, sourcePage: 44, examples: ["我要...", "不要"] }
+    ],
+    vocabulary: [
+        { id: "v1", zh: "上午", pinyin: "shàngwǔ", tone: "4-3", hanViet: "THƯỢNG NGỌ", meaningVi: "buổi sáng", class: "Danh từ", sourcePage: 2, example: "今天上午我学习。", examplePinyin: "Jīntiān shàngwǔ wǒ xuéxí.", exampleVi: "Sáng nay tôi học bài.", usage: "Thời gian từ 8:00 - 11:00." },
+        { id: "v2", zh: "中午", pinyin: "zhōngwǔ", tone: "1-3", hanViet: "TRUNG NGỌ", meaningVi: "buổi trưa", class: "Danh từ", sourcePage: 2, example: "中午去食堂吃吧。", examplePinyin: "Zhōngwǔ qù shítáng chī ba.", exampleVi: "Trưa đi nhà ăn ăn đi.", usage: "Thời gian từ 11:00 - 13:00." },
+        { id: "v3", zh: "下午", pinyin: "xiàwǔ", tone: "4-3", hanViet: "HẠ NGỌ", meaningVi: "buổi chiều", class: "Danh từ", sourcePage: 2, example: "下午我要去学校。", examplePinyin: "Xiàwǔ wǒ yào qù xuéxiào.", exampleVi: "Chiều tôi phải đi đến trường.", usage: "Thời gian từ 13:00 - 17:00." },
+        { id: "v4", zh: "几", pinyin: "jǐ", tone: "3", hanViet: "KỶ", meaningVi: "mấy, vài", class: "Đại từ", sourcePage: 3, example: "今天星期几？", examplePinyin: "Jīntiān xīngqī jǐ?", exampleVi: "Hôm nay thứ mấy?", usage: "Dùng để hỏi số lượng nhỏ dưới 10." },
+        { id: "v5", zh: "点", pinyin: "diǎn", tone: "3", hanViet: "ĐIỂM", meaningVi: "giờ (đồng hồ)", class: "Danh từ / Lượng từ", sourcePage: 4, example: "现在是八点。", examplePinyin: "Xiànzài shì bā diǎn.", exampleVi: "Bây giờ là 8 giờ.", usage: "Dùng nói giờ." },
+        { id: "v6", zh: "分", pinyin: "fēn", tone: "1", hanViet: "PHÂN", meaningVi: "phút", class: "Danh từ / Lượng từ", sourcePage: 4, example: "八点三十分。", examplePinyin: "Bā diǎn sānshí fēn.", exampleVi: "Tám giờ ba mươi phút.", usage: "Dùng nói phút." },
+        { id: "v7", zh: "学习", pinyin: "xuéxí", tone: "2-2", hanViet: "HỌC TẬP", meaningVi: "học, học tập", class: "Động từ", sourcePage: 5, example: "你学习什么？", examplePinyin: "Nǐ xuéxí shénme?", exampleVi: "Bạn học gì?", usage: "Hành động học tập nói chung." },
+        { id: "v8", zh: "学", pinyin: "xué", tone: "2", hanViet: "HỌC", meaningVi: "học", class: "Động từ", sourcePage: 6, example: "你学汉字吗？", examplePinyin: "Nǐ xué hànzì ma?", exampleVi: "Bạn có học chữ Hán không?", usage: "Dùng như động từ ngắn gọn." },
+        { id: "v9", zh: "汉语", pinyin: "Hànyǔ", tone: "4-3", hanViet: "HÁN NGỮ", meaningVi: "tiếng Trung, tiếng Hán", class: "Danh từ", sourcePage: 6, example: "我学习汉语。", examplePinyin: "Wǒ xuéxí Hànyǔ.", exampleVi: "Tôi học tiếng Trung.", usage: "Chỉ ngôn ngữ tiếng Hán." },
+        { id: "v10", zh: "中文", pinyin: "Zhōngwén", tone: "1-2", hanViet: "TRUNG VĂN", meaningVi: "tiếng Trung", class: "Danh từ", sourcePage: 6, example: "你学中文？", examplePinyin: "Nǐ xué Zhōngwén?", exampleVi: "Bạn học tiếng Trung à?", usage: "Đồng nghĩa với 汉语." },
+        { id: "v11", zh: "汉字", pinyin: "hànzì", tone: "4-4", hanViet: "HÁN TỰ", meaningVi: "chữ Hán", class: "Danh từ", sourcePage: 6, example: "汉字太难了。", examplePinyin: "Hànzì tài nán le.", exampleVi: "Chữ Hán khó quá.", usage: "Ký tự tiếng Trung." },
+        { id: "v12", zh: "发音", pinyin: "fāyīn", tone: "1-1", hanViet: "PHÁT ÂM", meaningVi: "phát âm", class: "Danh từ", sourcePage: 9, example: "你学发音吗？", examplePinyin: "Nǐ xué fāyīn ma?", exampleVi: "Bạn có học phát âm không?", usage: "Chỉ cách đọc chữ." },
+        { id: "v13", zh: "书", pinyin: "shū", tone: "1", hanViet: "THƯ", meaningVi: "sách", class: "Danh từ", sourcePage: 10, example: "这是我的书。", examplePinyin: "Zhè shì wǒ de shū.", exampleVi: "Đây là sách của tôi.", usage: "Sách, tài liệu." },
+        { id: "v14", zh: "杂志", pinyin: "zázhì", tone: "2-4", hanViet: "TẠP CHÍ", meaningVi: "tạp chí", class: "Danh từ", sourcePage: 11, example: "这是谁的杂志？", examplePinyin: "Zhè shì shuí de zázhì?", exampleVi: "Đây là tạp chí của ai?", usage: "Ấn phẩm tạp chí." },
+        { id: "v15", zh: "怎么样", pinyin: "zěnmeyàng", tone: "3-0-4", hanViet: "TẨM MA DẠNG", meaningVi: "thế nào", class: "Đại từ", sourcePage: 13, example: "你觉得怎么样？", examplePinyin: "Nǐ juéde zěnmeyàng?", exampleVi: "Bạn cảm thấy thế nào?", usage: "Hỏi đánh giá, ý kiến." },
+        { id: "v16", zh: "觉得", pinyin: "juéde", tone: "2-0", hanViet: "GIÁC ĐẮC", meaningVi: "cảm thấy", class: "Động từ", sourcePage: 13, example: "我觉得很好。", examplePinyin: "Wǒ juéde hěn hǎo.", exampleVi: "Tôi cảm thấy rất tốt.", usage: "Bày tỏ quan điểm." },
+        { id: "v17", zh: "怎么", pinyin: "zěnme", tone: "3-0", hanViet: "TẨM MA", meaningVi: "cách thức (như thế nào)", class: "Đại từ", sourcePage: 15, example: "怎么学好汉语？", examplePinyin: "Zěnme xuéhǎo Hànyǔ?", exampleVi: "Làm thế nào để học giỏi tiếng Trung?", usage: "怎么 + Động từ." },
+        { id: "v18", zh: "喜欢", pinyin: "xǐhuān", tone: "3-1", hanViet: "HỶ HOAN", meaningVi: "thích", class: "Động từ", sourcePage: 16, example: "我喜欢学汉语。", examplePinyin: "Wǒ xǐhuān xué Hànyǔ.", exampleVi: "Tôi thích học tiếng Trung.", usage: "Biểu đạt sở thích." },
+        { id: "v19", zh: "吃", pinyin: "chī", tone: "1", hanViet: "CÁT", meaningVi: "ăn", class: "Động từ", sourcePage: 21, example: "你吃什么？", examplePinyin: "Nǐ chī shénme?", exampleVi: "Bạn ăn gì?", usage: "Hành động ăn." },
+        { id: "v20", zh: "喝", pinyin: "hē", tone: "1", hanViet: "HÁT", meaningVi: "uống", class: "Động từ", sourcePage: 21, example: "你喝什么？", examplePinyin: "Nǐ hē shénme?", exampleVi: "Bạn uống gì?", usage: "Hành động uống." },
+        { id: "v21", zh: "真", pinyin: "zhēn", tone: "1", hanViet: "CHÂN", meaningVi: "thật, thực sự", class: "Phó từ", sourcePage: 21, example: "真好吃。", examplePinyin: "Zhēn hǎochī.", exampleVi: "Thật ngon.", usage: "Nhấn mạnh mức độ." },
+        { id: "v22", zh: "好吃", pinyin: "hǎochī", tone: "3-1", hanViet: "HẢO CÁT", meaningVi: "ngon (đồ ăn)", class: "Tính từ", sourcePage: 21, example: "太好吃了！", examplePinyin: "Tài hǎochī le!", exampleVi: "Ngon quá đi mất!", usage: "Chỉ vị ngon thức ăn." },
+        { id: "v23", zh: "饭", pinyin: "fàn", tone: "4", hanViet: "PHẠN", meaningVi: "cơm, bữa ăn", class: "Danh từ", sourcePage: 22, example: "我吃饭。", examplePinyin: "Wǒ chī fàn.", exampleVi: "Tôi ăn cơm.", usage: "Cơm hoặc bữa ăn nói chung." },
+        { id: "v24", zh: "饿", pinyin: "è", tone: "4", hanViet: "NGẠ", meaningVi: "đói", class: "Tính từ", sourcePage: 25, example: "我很饿。", examplePinyin: "Wǒ hěn è.", exampleVi: "Tôi rất đói.", usage: "Trạng thái đói bụng." },
+        { id: "v25", zh: "食堂", pinyin: "shítáng", tone: "2-2", hanViet: "THỰC ĐƯỜNG", meaningVi: "nhà ăn, căng tin", class: "Danh từ", sourcePage: 26, example: "我去学校的食堂吃饭。", examplePinyin: "Wǒ qù xuéxiào de shítáng chīfàn.", exampleVi: "Tôi đến nhà ăn trường ăn cơm.", usage: "Nơi ăn uống chung." },
+        { id: "v26", zh: "慢", pinyin: "màn", tone: "4", hanViet: "MẠN", meaningVi: "chậm", class: "Tính từ", sourcePage: 28, example: "慢慢吃。", examplePinyin: "Màn màn chī.", exampleVi: "Ăn từ từ thôi.", usage: "Trạng thái tốc độ." },
+        { id: "v27", zh: "馒头", pinyin: "mántou", tone: "2-0", hanViet: "MAN ĐẦU", meaningVi: "màn thầu (bánh bao không nhân)", class: "Danh từ", sourcePage: 28, example: "去食堂吃馒头吧。", examplePinyin: "Qù shítáng chī mántou ba.", exampleVi: "Đi nhà ăn ăn màn thầu nhé.", usage: "Món ăn truyền thống." },
+        { id: "v28", zh: "包子", pinyin: "bāozi", tone: "1-0", hanViet: "BAO TỬ", meaningVi: "bánh bao (có nhân)", class: "Danh từ", sourcePage: 29, example: "我要两个包子。", examplePinyin: "Wǒ yào liǎng gè bāozi.", exampleVi: "Tôi muốn hai cái bánh bao.", usage: "Món ăn." },
+        { id: "v29", zh: "本子", pinyin: "běnzi", tone: "3-0", hanViet: "BẢN TỬ", meaningVi: "vở, cuốn sổ", class: "Danh từ", sourcePage: 29, example: "这是一个本子。", examplePinyin: "Zhè shì yí gè běnzi.", exampleVi: "Đây là một cuốn vở.", usage: "Đồ dùng học tập." },
+        { id: "v30", zh: "饺子", pinyin: "jiǎozi", tone: "3-0", hanViet: "GIÁO TỬ", meaningVi: "sủi cảo", class: "Danh từ", sourcePage: 31, example: "三个饺子", examplePinyin: "Sān gè jiǎozi", exampleVi: "Ba cái sủi cảo", usage: "Món ăn truyền thống." },
+        { id: "v31", zh: "面条", pinyin: "miàntiáo", tone: "4-2", hanViet: "DIỆN ĐIỀU", meaningVi: "mì sợi", class: "Danh từ", sourcePage: 32, example: "我想吃面条。", examplePinyin: "Wǒ xiǎng chī miàntiáo.", exampleVi: "Tôi muốn ăn mì.", usage: "Món mì." },
+        { id: "v32", zh: "鸡蛋", pinyin: "jīdàn", tone: "1-4", hanViet: "KÊ ĐẢN", meaningVi: "trứng gà", class: "Danh từ", sourcePage: 34, example: "我要鸡蛋。", examplePinyin: "Wǒ yào jīdàn.", exampleVi: "Tôi muốn trứng gà.", usage: "Thực phẩm." },
+        { id: "v33", zh: "汤", pinyin: "tāng", tone: "1", hanViet: "THANG", meaningVi: "canh, súp", class: "Danh từ", sourcePage: 37, example: "鸡蛋汤", examplePinyin: "Jīdàn tāng", exampleVi: "Canh trứng gà", usage: "Món nước." },
+        { id: "v34", zh: "米饭", pinyin: "mǐfàn", tone: "3-4", hanViet: "MỄ PHẠN", meaningVi: "cơm trắng", class: "Danh từ", sourcePage: 39, example: "吃米饭", examplePinyin: "Chī mǐfàn", exampleVi: "Ăn cơm trắng", usage: "Món ăn chính." },
+        { id: "v35", zh: "了", pinyin: "le", tone: "0", hanViet: "LIỄU", meaningVi: "rồi (trợ từ)", class: "Trợ từ", sourcePage: 40, example: "吃饭了吗？", examplePinyin: "Chīfàn le ma?", exampleVi: "Ăn cơm chưa?", usage: "Trợ từ động thái/ngữ khí." },
+        { id: "v36", zh: "碗", pinyin: "wǎn", tone: "3", hanViet: "OẢN", meaningVi: "bát, tô (lượng từ/danh từ)", class: "Lượng từ", sourcePage: 41, example: "一碗饭", examplePinyin: "Yì wǎn fàn", exampleVi: "Một bát cơm", usage: "Lượng từ cho đồ ăn trong bát." },
+        { id: "v37", zh: "杯", pinyin: "bēi", tone: "1", hanViet: "BÔI", meaningVi: "cốc, ly (lượng từ/danh từ)", class: "Lượng từ", sourcePage: 42, example: "一杯水", examplePinyin: "Yì bēi shuǐ", exampleVi: "Một cốc nước", usage: "Lượng từ đồ uống." },
+        { id: "v38", zh: "要", pinyin: "yào", tone: "4", hanViet: "YẾU", meaningVi: "muốn, cần, phải", class: "Động từ", sourcePage: 44, example: "我要一碗鸡蛋汤。", examplePinyin: "Wǒ yào yì wǎn jīdàn tāng.", exampleVi: "Tôi muốn một bát canh trứng.", usage: "Gọi món hoặc biểu đạt ý muốn." },
+        { id: "v39", zh: "啤酒", pinyin: "píjiǔ", tone: "2-3", hanViet: "TỲ TỬU", meaningVi: "bia", class: "Danh từ", sourcePage: 45, example: "我想喝啤酒。", examplePinyin: "Wǒ xiǎng hē píjiǔ.", exampleVi: "Tôi muốn uống bia.", usage: "Đồ uống có cồn." },
+        { id: "v40", zh: "瓶", pinyin: "píng", tone: "2", hanViet: "BÌNH", meaningVi: "chai, lọ (lượng từ/danh từ)", class: "Lượng từ", sourcePage: 45, example: "一瓶啤酒", examplePinyin: "Yì píng píjiǔ", exampleVi: "Một chai bia", usage: "Lượng từ cho chai lọ." },
+        { id: "v41", zh: "酒", pinyin: "jiǔ", tone: "3", hanViet: "TỬU", meaningVi: "rượu", class: "Danh từ", sourcePage: 45, example: "喝酒", examplePinyin: "Hē jiǔ", exampleVi: "Uống rượu", usage: "Đồ uống có cồn." }
+    ],
+    grammar: [
+        { id: "g1", title: "几 (jǐ) — Đại từ hỏi số lượng", structure: "几 + Lượng từ + Danh từ", meaning: "Hỏi số lượng nhỏ (thường <10) hoặc ngày/thứ.", sourcePage: 3, examples: ["今天几月几日？ (Hôm nay ngày mấy tháng mấy?)", "今天星期几？ (Hôm nay thứ mấy?)", "你家有几口人？ (Nhà bạn có mấy người?)"], note: "Dùng để hỏi các con số có thể đếm được dễ dàng." },
+        { id: "g2", title: "点 (diǎn) + 分 (fēn) — Nói giờ phút", structure: "Số + 点 + Số + 分", meaning: "Cách nói giờ phút cơ bản trong tiếng Trung.", sourcePage: 4, examples: ["8点30分 (8 giờ 30 phút)", "9点45分 (9 giờ 45 phút)", "下午1点25分 (1 giờ 25 phút chiều)", "8点零5分 (8 giờ lẻ 5 phút)"], note: "Có thể ghép thêm 上午/中午/下午 ở phía trước để chỉ buổi." },
+        { id: "g3", title: "怎么样 (zěnmeyàng) — Hỏi cảm nhận", structure: "S + 觉得 + 怎么样？", meaning: "Hỏi ý kiến, đánh giá về một sự việc, món ăn, hay tình trạng.", sourcePage: 13, examples: ["你学习怎么样了？ (Bạn học tập thế nào rồi?)", "你觉得怎么样？ (Bạn cảm thấy thế nào?)"], note: "Thường đi kèm với động từ 觉得 (cảm thấy)." },
+        { id: "g4", title: "怎么 (zěnme) + V — Hỏi cách thức", structure: "怎么 + Động từ", meaning: "Hỏi cách thức thực hiện một hành động.", sourcePage: 15, examples: ["怎么学好汉语？ (Làm thế nào học tốt tiếng Trung?)", "水怎么喝？ (Nước uống như thế nào?)"], note: "Đừng nhầm lẫn với 什么 (cái gì)." },
+        { id: "g5", title: "喜欢 (xǐhuān) — Sở thích", structure: "S + 喜欢 + Danh từ / Động từ", meaning: "Diễn tả sự yêu thích đối với đồ vật hoặc hoạt động.", sourcePage: 16, examples: ["我喜欢学汉语。 (Tôi thích học tiếng Trung.)", "你喜欢什么？ (Bạn thích gì?)"], note: "Phía sau có thể là một cụm động từ nguyên vẹn." },
+        { id: "g6", title: "Câu hỏi A-not-A (V不V)", structure: "S + V + 不 + V + O ?", meaning: "Dạng câu hỏi Yes/No trực tiếp không dùng 吗.", sourcePage: 21, examples: ["你吃不吃？ (Bạn ăn không?)", "你去不去？ (Bạn đi không?)"], note: "Nghĩa tương đương với thêm 吗 ở cuối câu (你吃吗？)." },
+        { id: "g7", title: "太……了 (tài...le) — Cảm thán", structure: "太 + Tính từ + 了", meaning: "Phản ứng mạnh, khen ngợi hoặc than vãn.", sourcePage: 21, examples: ["太好吃了！ (Ngon quá đi mất!)", "太渴了！ (Khát quá đi mất!)"], note: "Cấu trúc kinh điển để biểu lộ cảm xúc cường điệu." },
+        { id: "g8", title: "了吗 (le ma) — Đã/Chưa", structure: "V + O + 了吗？", meaning: "Dùng để hỏi một hành động đã xảy ra hay hoàn tất chưa.", sourcePage: 40, examples: ["你姐姐回国了吗？ (Chị gái bạn đã về nước chưa?)", "老师吃饭了吗？ (Thầy giáo ăn cơm chưa?)"], note: "Đáp lại có thể dùng V + 了 (đã V) hoặc 还没 (chưa)." },
+        { id: "g9", title: "Lượng từ 碗 / 杯 (wǎn/bēi)", structure: "Số từ + 碗/杯 + Danh từ", meaning: "Lượng từ chuyên dụng cho đồ ăn/đồ uống chứa trong bát/cốc.", sourcePage: 41, examples: ["一碗饭 (một bát cơm)", "一碗鸡蛋汤 (một bát canh trứng)", "一杯水 (một cốc nước)"], note: "Rất quan trọng khi gọi món tại nhà hàng." },
+        { id: "g10", title: "要 (yào) — Gọi món/Thể hiện ý muốn", structure: "S + 要 + Danh từ/Động từ", meaning: "Muốn, cần một thứ gì đó, thường dùng để gọi đồ ăn.", sourcePage: 44, examples: ["我要一碗鸡蛋汤。 (Tôi muốn một bát canh trứng gà.)", "明天我要去学校。 (Ngày mai tôi phải đi đến trường.)"], note: "Động từ cực kỳ phổ biến trong giao tiếp hàng ngày." }
+    ],
+    contrast: [
+        { id: "c1", a: "学习", b: "学", pinyin: "xuéxí vs xué", meaning: "学习 = học tập (tổng quát) vs 学 = học (thường kèm tân ngữ)", structure: "Có thể đứng độc lập vs Cần tân ngữ", examples: ["你学习什么？ (Bạn học gì?)", "你学汉字吗？ (Bạn học chữ Hán không?)"], mistake: "Thường dùng lộn xộn, 学 nên đi kèm danh từ trực tiếp phía sau." },
+        { id: "c2", a: "汉语", b: "中文", pinyin: "Hànyǔ vs Zhōngwén", meaning: "汉语 = tiếng Hán (ngữ âm) vs 中文 = tiếng Trung (văn viết/ngôn ngữ nói chung)", structure: "Ngôn ngữ nói vs Văn tự", examples: ["我学习汉语。 (Tôi học tiếng Hán.)", "你学中文？ (Bạn học tiếng Trung à?)"], mistake: "Ít khác biệt trong giao tiếp, nhưng 汉语 thường nhấn mạnh tiếng nói hơn." },
+        { id: "c3", a: "怎么样", b: "怎么", pinyin: "zěnmeyàng vs zěnme", meaning: "怎么样 = thế nào (đánh giá) vs 怎么 = bằng cách nào (cách thức)", structure: "Cuối câu vs Trước động từ", examples: ["你觉得怎么样？ (Bạn thấy thế nào?)", "怎么学好汉语？ (Làm sao để học giỏi?)"], mistake: "Dùng 怎么 ở cuối câu để hỏi ý kiến là sai." },
+        { id: "c4", a: "吃", b: "喝", pinyin: "chī vs hē", meaning: "吃 = ăn (đồ nhai) vs 喝 = uống (chất lỏng)", structure: "Động từ", examples: ["你吃什么？ (Bạn ăn gì?)", "你喝什么？ (Bạn uống gì?)"], mistake: "Nhầm lẫn khi nói về đồ dạng lỏng/đặc." },
+        { id: "c5", a: "饿", b: "俄", pinyin: "è vs é", meaning: "饿 = đói (bộ Thực) vs 俄 = Nga (bộ Nhân)", structure: "Tính từ vs Danh từ", examples: ["我很饿。 (Tôi rất đói.)", "俄罗斯 (Nước Nga)"], mistake: "Nhầm mặt chữ vì có chung âm '我', nhưng bộ thủ khác nhau hoàn toàn." },
+        { id: "c6", a: "包子", b: "本子", pinyin: "bāozi vs běnzi", meaning: "包子 = bánh bao vs 本子 = quyển vở", structure: "Danh từ", examples: ["两个包子 (2 cái bánh bao)", "一个本子 (1 quyển vở)"], mistake: "Viết sai pinyin hoặc nhầm nghĩa hoàn toàn." }
+    ]
+};
+
+// Map Vocab & Examples into Practice Items
+const practiceItems = [];
+const addSentence = (chinese, pinyin, meaningVi, sourcePage, targets = []) => {
+     if (!practiceItems.find(i => i.chinese === chinese && i.type === 'sentence')) {
+         practiceItems.push({ type: 'sentence', id: 'sent_' + Math.random().toString(36).substr(2, 9), chinese, pinyin, meaningVi, hanVietTargets: targets, sourcePage, audioText: chinese });
+     }
+};
+
+lessonData.vocabulary.forEach(v => {
+    practiceItems.push({ type: 'vocab', id: v.id, chinese: v.zh, pinyin: v.pinyin, hanViet: v.hanViet, meaningVi: v.meaningVi, wordClass: v.class, sourcePage: v.sourcePage, audioText: v.zh });
+    if (v.example) { addSentence(v.example, v.examplePinyin, v.exampleVi, v.sourcePage, [{ chinese: v.zh, hanViet: v.hanViet }]); }
+});
+
+lessonData.characters.forEach(c => {
+    c.examples.forEach(ex => addSentence(ex, "", "Ví dụ chữ Hán", c.sourcePage, [{ chinese: c.char, hanViet: c.hanViet }]));
+});
+
+lessonData.grammar.forEach(g => {
+    g.examples.forEach(ex => {
+        const parts = ex.split(' (');
+        if (parts.length > 1) { addSentence(parts[0].replace(' — ', ''), "", parts[1].replace(')', ''), g.sourcePage, []); } 
+        else { addSentence(ex, "", "Ví dụ ngữ pháp", g.sourcePage, []); }
+    });
+});
+
+// ============================================================================
+// 2. ICONS (Fix size w-full h-full)
+// ============================================================================
+const icon={
+ home:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.5 21v-6h5v6"/></svg>',
+ book:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H20v17H7.5A3.5 3.5 0 0 0 4 22z"/><path d="M4 5.5v13A3.5 3.5 0 0 1 7.5 15H20"/></svg>',
+ pen:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m4 20 4.3-1 10.5-10.5a2.1 2.1 0 0 0-3-3L5.3 16z"/><path d="m14.5 6.5 3 3"/></svg>',
+ keyboard:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6 9h1M10 9h1M14 9h1M18 9h1M6 13h1M10 13h1M14 13h4M7 16h10"/></svg>',
+ message:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.7 8.7 0 0 1-3.6-.8L4 20l1.4-4A7.4 7.4 0 0 1 4 11.5 7.5 7.5 0 0 1 12 4a7.5 7.5 0 0 1 8 7.5z"/></svg>',
+ volume:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M17 9.5a4 4 0 0 1 0 5M19.5 7a7.5 7.5 0 0 1 0 10"/></svg>',
+ turtle:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 14.5c0-3 2.2-5.5 5.2-5.5h1.3c2.4 0 4.3 1.8 4.3 4.1 0 2.5-2.1 4.4-4.7 4.4H10c-2 0-3.5-1.2-3.5-3z"/><path d="M8 13H5.5c-1.1 0-2-.9-2-2s.9-2 2-2h1.2M8 18.5l-1 2M12 18.5v2M17 17.8l1.2 1.8M18.3 11.3c.8-.8 1.8-1.2 2.7-.9"/></svg>',
+ rotate:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11a8 8 0 0 0-13.7-4L4 9"/><path d="M4 5v4h4"/><path d="M4 13a8 8 0 0 0 13.7 4L20 15"/><path d="M20 19v-4h-4"/></svg>',
+ check:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>',
+ info:'<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>'
+};
+
+const tabs=[['overview','Tổng quan','home'],['characters','Hán tự · Tập viết','pen'],['vocabulary','Từ vựng','book'],['grammar','Ngữ pháp','book'],['practice','Nghe → Gõ','keyboard'],['speaking','Hội thoại','message'],['review','Ôn tập','rotate']];
+
+let voices=[],writer=null,lastTypedLength=0,lastTypedNorm='',audioCtx=null;
+let state={tab:'overview',vocabFilter:'',selectedChar:0,charMode:'write',practiceType:'vocab',practiceIndex:0,inputMode:'pinyin',input:'',revealed:false,completed:false,voiceRate:1,mastered:JSON.parse(localStorage.getItem('boya06_mastered')||'[]'),typed:JSON.parse(localStorage.getItem('boya06_typed')||'{}')};
+
+// ============================================================================
+// 3. AUDIO UNLOCKER FOR IPAD/IOS
+// ============================================================================
+let audioUnlocked = false;
+function unlockAudio() {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    if ('speechSynthesis' in window) {
+        const dummy = new SpeechSynthesisUtterance(' ');
+        dummy.volume = 0;
+        window.speechSynthesis.speak(dummy);
+    }
+    if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click', unlockAudio, { once: true });
+
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
+function save(){localStorage.setItem('boya06_mastered',JSON.stringify(state.mastered));localStorage.setItem('boya06_typed',JSON.stringify(state.typed))}
+
+function chineseVoices(){return voices.filter(v=>/^zh(-|_)/i.test(v.lang)||/Chinese|Mandarin|普通话|中文/i.test(v.name))}
+function bestVoice(){const vs=chineseVoices(),keys=['Ting-Ting','Mei-Jia','Sin-ji','Eddy','Google 普通话','Microsoft Yunxi','Microsoft Xiaoxiao','Microsoft Yunyang'];for(const k of keys){const v=vs.find(x=>x.name.includes(k));if(v)return v}return vs.find(v=>/zh-CN|zh_CN/i.test(v.lang))||vs[0]}
+
+function loadVoices(){
+    voices=speechSynthesis.getVoices()||[];
+    const s=document.getElementById('voiceSelect');
+    if(!s)return;
+    const old=s.value,vs=chineseVoices();
+    s.innerHTML=vs.length?vs.map(v=>`<option value="${esc(v.name)}">${esc(v.name)} · ${v.lang}</option>`).join(''):'<option>Giọng mặc định hệ thống</option>';
+    const b=vs.find(v=>v.name===old)||bestVoice();
+    if(b)s.value=b.name;
+}
+if ('speechSynthesis' in window) {
+    speechSynthesis.onvoiceschanged=loadVoices;
+    setTimeout(loadVoices,250);
+}
+
+// Hàm Speak gọi thẳng, tránh setTimeout để vượt qua Autoplay policy Safari/iPad
+function speak(text,rate=1){
+    if(!('speechSynthesis'in window))return;
+    const playUtterance = () => {
+        const u=new SpeechSynthesisUtterance(text);
+        u.lang='zh-CN'; u.rate=rate; u.pitch=1;
+        const s=document.getElementById('voiceSelect'),v=voices.find(x=>x.name===s?.value)||bestVoice();
+        if(v) u.voice=v;
+        speechSynthesis.speak(u);
+    };
+
+    if (speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+        setTimeout(playUtterance, 100); 
+    } else {
+        playUtterance();
+    }
+}
+
+function ac(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx}
+function beep(freq,d=.06,vol=.03){
+    try{
+        const c=ac(),o=c.createOscillator(),g=c.createGain();
+        o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(vol,c.currentTime);
+        g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d);
+        o.connect(g);g.connect(c.destination);
+        o.start();o.stop(c.currentTime+d);
+    }catch(e){}
+}
+function completeSound(){[523,659,784,988].forEach((f,i)=>setTimeout(()=>beep(f,.15,.05),i*80))}
+function fireworks(){const r=document.getElementById('practiceBurst')||document.getElementById('fireworks');r.innerHTML='';for(let i=0;i<44;i++){const s=document.createElement('span'),a=Math.random()*Math.PI*2,rad=80+Math.random()*180;s.className='spark';s.style.left=(42+Math.random()*16)+'%';s.style.top=(32+Math.random()*24)+'%';s.style.background=['#0284c7','#10b981','#f59e0b','#8b5cf6','#ec4899'][i%5];s.style.setProperty('--dx',Math.cos(a)*rad+'px');s.style.setProperty('--dy',Math.sin(a)*rad+'px');r.appendChild(s)}setTimeout(()=>r.innerHTML='',1200)}
+
+function normalizePinyin(s){return(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+
+function practiceList(){return practiceItems.filter(i=>i.type==='vocab')}
+function sentenceList(){return practiceItems.filter(i=>i.type==='sentence')}
+function current(){const l=state.practiceType==='vocab'?practiceList():sentenceList();return l[state.practiceIndex]||l[0]}
+function getTargetPinyin(c){return normalizePinyin(c.pinyin)}
+
+function keyTick(index){beep(620+Math.min(index,12)*24,.055,.022)}
+
+// ============================================================================
+// 4. LUYỆN GÕ (Nghe -> Nhập Pinyin -> Biến Hán Tự)
+// ============================================================================
+function typeInput(v){
+    if(state.completed) return;
+    
+    state.input=v;
+    const c=current();
+    const targetStr=getTargetPinyin(c);
+    const typedStr=normalizePinyin(v);
+
+    if(typedStr.length > lastTypedLength){
+        keyTick(typedStr.length);
+    }
+    lastTypedLength = typedStr.length;
+
+    // Check completion
+    if(targetStr.startsWith(typedStr)){
+        if(typedStr.length === targetStr.length){
+            state.completed = true;
+            state.revealed = true;
+            state.input = c.chinese; // Tự động hóa giải thành Hán Tự
+            state.typed[c.chinese] = (state.typed[c.chinese]||0)+1;
+            save();
+            completeSound();
+            setTimeout(fireworks,60);
+        }
+    }
+    updateTyping();
+}
+
+function updateTyping(){
+    const c=current();
+    const targetStr=getTargetPinyin(c);
+    const typedStr=normalizePinyin(state.input);
+    const totalLetters=targetStr.length;
+    let correctCount=0;
+    
+    if(!state.completed){
+        for(let i=0;i<typedStr.length;i++){
+            if(typedStr[i]===targetStr[i]) correctCount++;
+            else break;
+        }
+    }else{
+        correctCount=totalLetters;
+    }
+
+    // Update Progress Bar bên trong input
+    const top=document.getElementById('letterProgress');
+    if(top){
+        top.innerHTML='';
+        for(let i=0;i<totalLetters;i++){
+            const d=document.createElement('span');
+            d.className='letter-segment '+(i<correctCount?'filled':'');
+            top.appendChild(d);
+        }
+    }
+
+    const wrapper=document.getElementById('inputWrapper');
+    if(wrapper){
+        if(state.completed){
+            wrapper.className = "relative w-full max-w-xl mx-auto mt-8 bg-emerald-50 border-2 border-emerald-400 rounded-2xl overflow-hidden transition shadow-sm text-emerald-800";
+        }else if(state.revealed){
+            wrapper.className = "relative w-full max-w-xl mx-auto mt-8 bg-rose-50 border-2 border-rose-400 rounded-2xl overflow-hidden transition shadow-sm";
+        }else{
+            wrapper.className = "relative w-full max-w-xl mx-auto mt-8 bg-white border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-sky-400 transition shadow-sm";
+        }
+    }
+
+    const inp=document.getElementById('typingInput');
+    if(inp){
+        inp.value=state.input;
+        inp.disabled=state.completed || state.revealed;
+    }
+    
+    const fb=document.getElementById('typingFeedback');
+    if(fb){
+        if(state.completed){
+            fb.innerHTML='<span class="text-emerald-700 font-extrabold">✓ Hoàn thành xuất sắc!</span>';
+        } else if(state.revealed){
+            fb.innerHTML=`<span class="text-amber-700 font-bold">Đáp án là: <b>${c.chinese}</b></span>`;
+        } else {
+            fb.innerHTML=`<span class="text-slate-400 font-bold">Gõ Pinyin (không dấu): ${correctCount} / ${totalLetters} ký tự</span>`;
+        }
+    }
+
+    const ans=document.getElementById('answerPanel');
+    if(ans){
+        ans.innerHTML=state.revealed?`<div class="text-center fade"><div class="cn text-5xl font-extrabold text-slate-900">${esc(c.chinese)}</div><div class="text-xl font-extrabold text-sky-600 mt-2">${esc(c.pinyin)}</div>${c.type==='vocab'?`<div class="text-xs font-extrabold text-emerald-600 tracking-wide mt-2">${esc(c.hanViet)}</div><div class="text-xs text-slate-500 font-bold mt-2 bg-slate-100 inline-block px-2 py-1 rounded">${esc(c.wordClass)}</div>`:`<div class="text-sm font-bold text-slate-700 mt-3">${esc(c.meaningVi)}</div>`}</div>`:`<div class="h-full min-h-[200px] flex flex-col justify-center items-center text-slate-300"><div class="text-7xl font-bold mb-2">?</div><div class="text-xs font-bold text-center px-4">Gõ đúng để mở khóa thẻ ghi nhớ</div></div>`
+    }
+}
+
+function setTab(t){state.tab=t;render()}
+
+// Audio kích hoạt ngay từ User Click 
+function changeType(t){state.practiceType=t;state.practiceIndex=0;reset()}
+function next(){const l=state.practiceType==='vocab'?practiceList():sentenceList();state.practiceIndex=(state.practiceIndex+1)%l.length;reset()}
+function prev(){const l=state.practiceType==='vocab'?practiceList():sentenceList();state.practiceIndex=(state.practiceIndex-1+l.length)%l.length;reset()}
+function reveal(){state.revealed=true;state.completed=false;state.input=current().chinese;updateTyping()}
+function reset(){
+    state.input='';state.revealed=false;state.completed=false;lastTypedLength=0;lastTypedNorm='';
+    render();
+    speak(current().audioText, state.voiceRate); // Phát Audio trực tiếp
+    setTimeout(()=>document.getElementById('typingInput')?.focus(),100);
+}
+
+// ============================================================================
+// 5. TẬP VIẾT HÁN TỰ (HanziWriter.create - Fix lỗi thư viện v3.5)
+// ============================================================================
+function selectChar(i){state.selectedChar=i;state.charMode='write';render();setTimeout(initWriter,80)}
+function charMode(m){state.charMode=m;render();if(m==='write')setTimeout(initWriter,80)}
+function toggleMastered(){const c=lessonData.characters[state.selectedChar];const i=state.mastered.indexOf(c.char);if(i>=0)state.mastered.splice(i,1);else state.mastered.push(c.char);save();render()}
+
+function initWriter(){
+    const el=document.getElementById('writerTarget');
+    if(!el||typeof HanziWriter==='undefined') return;
+    el.innerHTML=''; // Cực kỳ quan trọng để reset canvas
+    const c=lessonData.characters[state.selectedChar];
+    
+    try {
+        // PHIÊN BẢN CHUẨN HANZI WRITER v3.5+ DÙNG .create
+        writer=HanziWriter.create('writerTarget',c.char,{
+            width:250,height:250,padding:18,showOutline:true,showCharacter:false,
+            strokeAnimationSpeed:1.2,delayBetweenStrokes:140,drawingFadeDuration:180,
+            highlightOnComplete:true,strokeColor:'#0f172a',outlineColor:'#cbd5e1',
+            drawingColor:'#0284c7',highlightColor:'#10b981',showHintAfterMisses:2
+        });
+    } catch(e) {
+        console.error("HanziWriter init error:", e);
+        el.innerHTML = `<div class="text-sm text-amber-600 font-bold p-4">Ký tự này hiện chưa hỗ trợ mô phỏng nét viết.</div>`;
+    }
+}
+
+function animateChar(){if(writer)writer.animateCharacter()}
+function quizChar(){
+    if(!writer)return;
+    const r=document.getElementById('writeResult');
+    if(r) r.innerHTML='<span class="text-sky-700 font-bold">Bắt đầu! Viết theo thứ tự nét.</span>';
+    writer.quiz({
+        showHintAfterMisses:2,
+        highlightOnComplete:true,
+        onMistake:()=>{if(r)r.innerHTML='<span class="text-amber-700 font-bold">Chưa đúng nét — thử lại.</span>'},
+        onComplete:()=>{
+            if(r)r.innerHTML='<span class="text-emerald-700 font-extrabold">✓ Hoàn thành chữ!</span>';
+            const c=lessonData.characters[state.selectedChar];
+            if(!state.mastered.includes(c.char)){state.mastered.push(c.char);save()}
+        }
+    });
+}
+
+function stat(n,t,s){return`<div class="bg-white border border-slate-200 rounded-2xl p-5"><div class="text-3xl font-extrabold">${n}</div><div class="font-bold text-sm mt-1">${t}</div><div class="text-[10px] text-slate-400 mt-1">${s}</div></div>`}
+
+// Sidebar
+function nav(){return`<aside class="hidden md:flex w-[250px] shrink-0 bg-white border-r border-slate-200 flex-col h-screen sticky top-0"><div class="px-6 py-6 border-b border-slate-100"><div class="text-[10px] font-extrabold tracking-[.18em] text-sky-600 uppercase">Chinese Learning Lab</div><div class="text-xl font-extrabold mt-1">Boya Q1 · Bài 06</div><div class="cn text-sm text-slate-500 mt-1">你喜欢吃什么？</div></div><div class="p-4 overflow-y-auto scrollbar flex-1"><div class="text-[10px] font-extrabold tracking-widest text-slate-400 px-3 mb-2">HỌC & KHÁM PHÁ</div>${tabs.map(t=>`<button onclick="setTab('${t[0]}')" class="w-full text-left px-3.5 py-3 rounded-2xl mb-1 flex items-center gap-3 transition ${state.tab===t[0]?'nav-active':'text-slate-600 hover:bg-slate-50'}"><span class="w-8 h-8 rounded-xl flex items-center justify-center ${state.tab===t[0]?'bg-white/15':'bg-slate-100'}"><span class="w-4 h-4 shrink-0 flex items-center justify-center">${icon[t[2]]}</span></span><span><span class="block text-sm font-bold">${t[1]}</span><span class="block text-[10px] opacity-65 mt-0.5">${t[0]==='characters'?'stroke order + viết':t[0]==='practice'?'nghe → gõ + phản xạ':'Bài 06'}</span></span></button>`).join('')}</div><div class="p-4 border-t border-slate-100"><div class="flex justify-between text-[10px] font-extrabold text-slate-400 uppercase"><span>Tiến độ Hán tự</span><span class="text-sky-600">${Math.round(state.mastered.length/lessonData.characters.length*100)||0}%</span></div><div class="h-2 bg-slate-100 rounded-full mt-2 overflow-hidden"><div class="h-full bg-sky-500 rounded-full progress" style="width:${Math.round(state.mastered.length/lessonData.characters.length*100)||0}%"></div></div></div></aside>`}
+
+function mobileTop(){return`<div class="md:hidden sticky top-0 z-40 glass border-b border-slate-200 px-4 py-3 flex items-center justify-between"><div><div class="text-[9px] font-extrabold tracking-widest text-sky-600 uppercase">BOYA Q1</div><div class="font-extrabold text-sm">Bài 06 · 你喜欢吃什么？</div></div><select onchange="setTab(this.value)" class="text-xs border border-slate-200 rounded-xl px-2 py-2 bg-white">${tabs.map(t=>`<option value="${t[0]}" ${state.tab===t[0]?'selected':''}>${t[1]}</option>`).join('')}</select></div>`}
+
+function header(){const titles={overview:'Tổng quan bài học',vocabulary:'Từ vựng cốt lõi',characters:'Hán tự · Tập viết',grammar:'Ngữ pháp & Phân biệt',practice:'Nghe → Gõ',speaking:'Hội thoại thực tế',review:'Ôn tập & Mastery'};return`<header class="hidden md:flex h-[72px] bg-white/85 backdrop-blur border-b border-slate-200 px-7 items-center justify-between sticky top-0 z-30"><div><div class="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">BOYA Q1 · BÀI 06</div><h1 class="text-lg font-extrabold mt-0.5">${titles[state.tab]}</h1></div><div class="flex items-center gap-3"><span class="text-[10px] font-bold text-slate-400">GIỌNG TRUNG</span><select id="voiceSelect" class="max-w-[220px] text-xs border border-slate-200 rounded-xl px-3 py-2.5 bg-white"></select></div></header>`}
+
+// ============================================================================
+// HTML VIEWS RENDERER
+// ============================================================================
+function overview(){return`<div class="space-y-6 fade"><section class="relative overflow-hidden rounded-[30px] bg-slate-950 text-white p-7 md:p-10"><div class="absolute -right-10 -bottom-20 text-[220px] leading-none cn text-white/[.035]">饭</div><div class="relative max-w-3xl"><div class="inline-flex px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-xs font-bold">BOYA Q1 · BÀI 06</div><h2 class="cn text-4xl md:text-5xl font-extrabold mt-5">你喜欢吃什么？</h2><p class="text-slate-300 mt-4 text-sm md:text-base leading-7">Cậu thích ăn gì? — Chủ đề Ăn uống, Thời gian & Sở thích. Hệ thống tập viết Hán tự mượt mà trên iPad, gõ Pinyin phản xạ.</p><div class="flex flex-wrap gap-3 mt-7"><button onclick="setTab('practice');reset();" class="px-5 py-3 rounded-2xl bg-sky-500 hover:bg-sky-400 font-extrabold text-sm flex items-center gap-2"><span class="w-4 h-4 shrink-0">${icon.keyboard}</span> Bắt đầu Nghe → Gõ</button><button onclick="setTab('characters')" class="px-5 py-3 rounded-2xl bg-white/10 border border-white/15 font-extrabold text-sm flex items-center gap-2"><span class="w-4 h-4 shrink-0">${icon.pen}</span> Tập viết Hán tự</button></div></div></section><div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">${stat(lessonData.vocabulary.length,'Từ vựng','Hán Việt + từ loại')}${stat(lessonData.characters.length,'Hán tự','Lục Thư + bộ + nét')}${stat(practiceList().length+sentenceList().length,'Mục Nghe → Gõ','Từ + câu mẫu')}${stat(state.mastered.length,'Đã mastery','chữ đã tập viết')}</div><div class="grid lg:grid-cols-[1.2fr_.8fr] gap-5"><section class="bg-white border border-slate-200 rounded-[26px] p-6"><h3 class="font-extrabold text-lg"><span class="inline-flex items-center gap-2"><span class="w-5 h-5 text-sky-600 inline-block align-middle">${icon.home}</span>Lộ trình Bài 06</span></h3><p class="text-xs text-slate-400 mt-1">Nhận diện → viết → nghe/gõ → nói.</p><div class="grid sm:grid-cols-4 gap-3 mt-5">${[['01','pen','Hán tự','characters'],['02','pen','Tập viết','characters'],['03','keyboard','Nghe → Gõ','practice'],['04','message','Phản xạ','speaking']].map(x=>`<button onclick="setTab('${x[3]}')" class="text-left rounded-2xl border border-slate-200 p-4 hover:border-sky-300 hover:bg-sky-50/50 transition"><div class="text-[10px] font-extrabold text-slate-400">${x[0]}</div><div class="w-5 h-5 mt-2 text-slate-700">${icon[x[1]]}</div><div class="font-extrabold text-sm mt-2">${x[2]}</div></button>`).join('')}</div></section><section class="bg-white border border-slate-200 rounded-[26px] p-6"><div class="text-[10px] font-extrabold tracking-widest text-slate-400 uppercase">Điểm nhấn Bài 06</div><ul class="mt-4 space-y-3 text-sm text-slate-600"><li>✓ Khôi phục đủ 41 từ vựng và 41 chữ Hán mới.</li><li>✓ Tập viết trên iPad với HanziWriter.create() chuẩn xác.</li><li>✓ Progress Bar gõ Pinyin nằm <b>TRONG</b> khung gõ chữ.</li><li>✓ Audio hoạt động cực tốt trên iPad / Safari.</li></ul></section></div></div>`}
+
+function vocabularyView(){const q=state.vocabFilter.toLowerCase(),list=lessonData.vocabulary.filter(v=>v.zh.includes(state.vocabFilter)||v.pinyin.toLowerCase().includes(q)||v.meaningVi.toLowerCase().includes(q)||v.hanViet.toLowerCase().includes(q));return`<div class="space-y-5 fade"><div class="flex flex-col md:flex-row md:items-end justify-between gap-3"><div><div class="text-[10px] font-extrabold tracking-widest text-sky-600 uppercase">${lessonData.vocabulary.length} ITEMS</div><h2 class="text-2xl font-extrabold mt-1">Từ vựng cốt lõi</h2><p class="text-sm text-slate-500 mt-1">Hán tự · Pinyin · Hán Việt · từ loại · nghĩa · câu mẫu.</p></div><input value="${esc(state.vocabFilter)}" oninput="state.vocabFilter=this.value;render()" placeholder="Tìm từ, pinyin, Hán Việt…" class="w-full md:w-72 px-4 py-3 rounded-2xl border border-slate-200 bg-white outline-none focus:border-sky-400 text-sm"></div><div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">${list.map(v=>`<article class="bg-white border border-slate-200 rounded-[25px] p-5 hover:-translate-y-0.5 hover:shadow-card transition"><div class="flex justify-between"><span class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-500">${esc(v.class)}</span><span class="text-[10px] text-slate-400">p.${v.sourcePage}</span></div><div class="text-center py-5"><div class="cn text-5xl font-extrabold">${esc(v.zh)}</div><div class="text-base font-extrabold text-sky-600 mt-2">${esc(v.pinyin)}</div><div class="text-[11px] font-extrabold text-emerald-600 tracking-wide mt-2">${esc(v.hanViet)}</div><div class="text-sm font-semibold text-slate-700 mt-1">${esc(v.meaningVi)}</div></div><div class="rounded-2xl bg-slate-50 p-4"><div class="text-[9px] font-extrabold tracking-widest text-slate-400 uppercase">Câu mẫu</div><div class="cn text-lg font-bold mt-2">${esc(v.example)}</div><div class="text-xs text-sky-700 mt-1">${esc(v.examplePinyin)}</div><div class="text-xs text-slate-500 mt-1">${esc(v.exampleVi)}</div><div class="flex gap-2 mt-3"><button onclick="speak('${esc(v.example)}')" class="flex-1 px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-extrabold flex items-center justify-center gap-1"><span class="w-4 h-4 inline-block">${icon.volume}</span> Nghe</button><button onclick="state.practiceType='vocab';state.practiceIndex=${lessonData.vocabulary.indexOf(v)};reset();setTab('practice');" class="flex-1 px-3 py-2.5 rounded-xl bg-sky-600 text-white text-xs font-extrabold flex items-center justify-center gap-1"><span class="w-4 h-4 inline-block">${icon.keyboard}</span> Gõ</button></div></div></article>`).join('')}</div></div>`}
+
+// TẬP VIẾT HÁN TỰ (Sử dụng HanziWriter.create)
+function charactersView(){const c=lessonData.characters[state.selectedChar];return`<div class="space-y-5 fade"><div class="flex flex-col lg:flex-row lg:items-end justify-between gap-3"><div><div class="text-[10px] font-extrabold tracking-widest text-violetx uppercase">CHARACTER LAB</div><h2 class="text-2xl font-extrabold mt-1">Hán tự · Tập viết</h2><p class="text-sm text-slate-500 mt-1">Xem thứ tự nét và tự tay viết để nhớ chữ.</p></div><span class="px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-extrabold w-fit">LỤC THƯ = LỚP MỞ RỘNG</span></div><div class="flex gap-2 overflow-x-auto scrollbar pb-1">${lessonData.characters.map((x,i)=>`<button onclick="selectChar(${i})" class="shrink-0 px-4 py-2.5 rounded-2xl border ${i===state.selectedChar?'bg-slate-900 text-white border-slate-900':'bg-white border-slate-200 hover:border-sky-300'}"><span class="cn text-xl font-extrabold">${x.char}</span><span class="text-[10px] ml-2 opacity-70">${x.pinyin}</span></button>`).join('')}</div><div class="grid xl:grid-cols-[310px_1fr] gap-5"><aside class="bg-white border border-slate-200 rounded-[28px] p-6"><div class="flex justify-between"><span class="text-[10px] font-extrabold tracking-widest text-slate-400">SOURCE p.${c.sourcePage}</span><button onclick="toggleMastered()" class="text-[10px] font-extrabold px-2.5 py-1.5 rounded-lg ${state.mastered.includes(c.char)?'bg-emerald-100 text-emerald-700':'bg-slate-100 text-slate-500'}">${state.mastered.includes(c.char)?'✓ Mastered':'☆ Đánh dấu'}</button></div><div class="grid-paper rounded-[26px] aspect-square mt-5 flex items-center justify-center border border-slate-200"><div class="cn text-[110px] leading-none font-extrabold">${c.char}</div></div><div class="text-center mt-5"><div class="text-2xl font-extrabold">${c.pinyin} <span class="text-xs text-sky-600">(thanh ${c.tone})</span></div><div class="text-sm text-slate-500 mt-1">${c.meaningVi}</div></div><div class="grid grid-cols-2 gap-2 mt-5"><div class="bg-slate-50 rounded-2xl p-3"><div class="text-[9px] font-extrabold text-slate-400 uppercase">Hán Việt</div><div class="text-sm font-extrabold text-emerald-700 mt-1">${c.hanViet}</div></div><div class="bg-slate-50 rounded-2xl p-3"><div class="text-[9px] font-extrabold text-slate-400 uppercase">Số nét</div><div class="text-sm font-extrabold mt-1">${c.strokeCount}</div></div></div><div class="mt-2 bg-sky-50 rounded-2xl p-3"><div class="text-[9px] font-extrabold text-sky-600 uppercase">Loại chữ</div><div class="text-sm font-extrabold text-sky-800 mt-1">${c.formation}</div></div><div class="mt-2 bg-violet-50 rounded-2xl p-3"><div class="text-[9px] font-extrabold text-violet-600 uppercase">Bộ thủ tra cứu</div><div class="cn text-3xl font-extrabold text-violet-900 mt-1">${c.radical}</div></div></aside><section class="relative bg-white border border-slate-200 rounded-[28px] overflow-hidden"><div class="px-6 py-4 border-b border-slate-100 flex flex-wrap justify-between gap-3"><div class="flex p-1 rounded-xl bg-slate-100"><button onclick="charMode('write')" class="px-4 py-2 rounded-lg text-xs font-extrabold ${state.charMode==='write'?'bg-white shadow-sm text-sky-700':'text-slate-500'} flex items-center gap-2"><span class="w-4 h-4 shrink-0">${icon.pen}</span>Tập viết</button><button onclick="charMode('structure')" class="px-4 py-2 rounded-lg text-xs font-extrabold ${state.charMode==='structure'?'bg-white shadow-sm text-sky-700':'text-slate-500'} flex items-center gap-2"><span class="w-4 h-4 shrink-0">${icon.book}</span> Cấu tạo</button><button onclick="charMode('examples')" class="px-4 py-2 rounded-lg text-xs font-extrabold ${state.charMode==='examples'?'bg-white shadow-sm text-sky-700':'text-slate-500'} flex items-center gap-2"><span class="w-4 h-4 shrink-0">${icon.book}</span> Ví dụ</button></div></div>${state.charMode==='write'?`<div class="p-6 md:p-8"><div class="grid lg:grid-cols-[1fr_300px] gap-7 items-center"><div><div class="rounded-[26px] bg-slate-50 border border-slate-200 p-4 flex items-center justify-center"><div id="writerTarget" class="mizi-grid rounded-xl"></div></div><div class="flex flex-wrap gap-2 mt-4"><button onclick="animateChar()" class="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-extrabold flex items-center gap-2"><span class="w-4 h-4 inline-block">${icon.keyboard}</span>Xem thứ tự nét</button><button onclick="quizChar()" class="px-4 py-2.5 rounded-xl bg-sky-600 text-white text-xs font-extrabold flex items-center gap-2"><span class="w-4 h-4 inline-block">${icon.pen}</span>Bắt đầu tập viết</button></div><div id="writeResult" class="mt-3 text-sm text-slate-500">Viết trực tiếp lên ô mễ tự. Khung viết cố định để vẽ trên iPad.</div></div><div class="space-y-3"><div class="p-4 rounded-2xl bg-violet-50 border border-violet-100"><div class="text-[9px] font-extrabold text-violet-600 uppercase">Giải nghĩa Lục Thư</div><p class="text-xs text-violet-800/80 mt-2 leading-5 font-medium">${c.components.map(x=>`<b>${x[0]}</b>: ${x[2]||x[1]}`).join('<br>')}</p></div><div class="p-4 rounded-2xl bg-slate-50 border border-slate-100"><div class="text-[9px] font-extrabold text-slate-400 uppercase">Thành phần</div>${c.components.map(x=>`<div class="flex justify-between mt-2 items-center"><span class="cn text-xl font-extrabold">${x[0]}</span><span class="text-[10px] text-slate-500 font-bold bg-white px-2 py-1 rounded border border-slate-200">${x[1]}</span></div>`).join('')}</div></div></div></div>`:state.charMode==='structure'?`<div class="p-6 md:p-8 grid md:grid-cols-2 gap-4">${c.components.map((x,i)=>`<div class="rounded-2xl border border-slate-200 bg-slate-50 p-5"><div class="flex justify-between items-center"><span class="cn text-3xl font-extrabold">${x[0]}</span><span class="text-[10px] font-extrabold px-2 py-1 rounded-lg ${i===0?'bg-emerald-100 text-emerald-700':'bg-sky-100 text-sky-700'}">${x[1]}</span></div><div class="mt-3 text-sm font-medium text-slate-600">${x[2]||''}</div></div>`).join('')}<div class="md:col-span-2 p-5 rounded-2xl bg-amber-50 border border-amber-200 text-sm text-amber-900"><b>Ghi chú:</b> Phân tích thành phần cấu tạo chữ Hán theo bộ thủ, ý nghĩa và âm thanh.</div></div>`:`<div class="p-6 md:p-8 space-y-3">${c.examples.map(x=>`<div class="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100"><span class="cn text-xl font-bold">${esc(x)}</span><button onclick="speak('${esc(x)}')" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-extrabold flex items-center gap-1"><span class="w-3 h-3 shrink-0">${icon.volume}</span> Nghe</button></div>`).join('')}</div>`}</section></div></div>`}
+
+function grammarView(){return`<div class="space-y-6 fade"><div><div class="text-[10px] font-extrabold tracking-widest text-sky-600 uppercase">GRAMMAR LAB</div><h2 class="text-2xl font-extrabold mt-1">Ngữ pháp trọng tâm</h2><p class="text-sm text-slate-500 mt-1">Cấu trúc + ví dụ + cảnh báo lỗi.</p></div><div class="grid lg:grid-cols-2 gap-5">${lessonData.grammar.map(g=>`<article class="bg-white border border-slate-200 rounded-[26px] p-6"><h3 class="text-lg font-extrabold">${esc(g.title)}</h3><p class="text-sm text-slate-600 mt-2">${esc(g.meaning)}</p><div class="mt-4 p-4 rounded-2xl bg-sky-50 text-sky-900 font-extrabold text-sm">${esc(g.structure)}</div><div class="mt-4 space-y-2">${g.examples.map(e=>`<div class="cn bg-slate-50 rounded-xl p-3 font-semibold text-sm">${esc(e)}</div>`).join('')}</div><div class="mt-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900"><b>Ghi chú:</b> ${esc(g.note)}</div></article>`).join('')}</div><section class="bg-white border border-slate-200 rounded-[26px] p-6"><h3 class="text-lg font-extrabold">Phân biệt từ dễ nhầm</h3><div class="grid md:grid-cols-2 gap-4 mt-5">${lessonData.contrast.map(c=>`<div class="rounded-2xl border border-slate-200 p-5 bg-slate-50/60"><div class="flex items-center gap-2"><span class="cn text-lg font-extrabold px-3 py-1.5 rounded-xl bg-blue-100 text-blue-800">${c.a}</span><span class="text-xs font-extrabold text-slate-400">VS</span><span class="cn text-lg font-extrabold px-3 py-1.5 rounded-xl bg-violet-100 text-violet-800">${c.b}</span></div><div class="text-xs font-bold text-slate-400 mt-3">${c.pinyin}</div><div class="font-bold text-sm mt-2">${c.meaning}</div><div class="mt-3 space-y-1">${c.examples.map(e=>`<div class="cn text-sm bg-white rounded-xl p-2.5">${e}</div>`).join('')}</div><div class="mt-3 text-xs text-rose-700 bg-rose-50 border border-rose-100 rounded-xl p-3"><b>Lỗi:</b> ${c.mistake}</div></div>`).join('')}</div></section></div>`}
+
+// PRACTICE ENGINE VIEW (Thanh Progress nằm TRONG input box - Tự hóa thành Hán Tự)
+function practiceView(){
+    const c=current(),l=state.practiceType==='vocab'?practiceList():sentenceList();
+    const targetStr=getTargetPinyin(c);
+    const typedStr=normalizePinyin(state.input);
+    const totalLetters=targetStr.length;
+    let correctCount=0;
+    
+    if(!state.completed){
+        for(let i=0;i<typedStr.length;i++){
+            if(typedStr[i]===targetStr[i]) correctCount++;
+            else break;
+        }
+    }else{
+        correctCount=totalLetters;
+    }
+
+    const segments=Array.from({length:totalLetters},(_,i)=>`<span class="letter-segment ${i<correctCount?'filled':''}"></span>`).join('');
+    
+    return `<div class="space-y-5 fade">
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+        <div><div class="text-[10px] font-extrabold tracking-widest text-emerald-600 uppercase">LISTEN → TYPE ENGINE</div><h2 class="text-2xl font-extrabold mt-1">Nghe → Gõ Pinyin</h2><p class="text-sm text-slate-500 mt-1">Gõ Pinyin (không cần dấu thanh). Hoàn thành sẽ tự động hóa giải thành Hán Tự.</p></div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="changeType('vocab')" class="px-4 py-2.5 rounded-xl text-xs font-extrabold ${state.practiceType==='vocab'?'bg-slate-900 text-white':'bg-white border border-slate-200 text-slate-600'}">Từ vựng · ${practiceList().length}</button>
+          <button onclick="changeType('sentence')" class="px-4 py-2.5 rounded-xl text-xs font-extrabold ${state.practiceType==='sentence'?'bg-slate-900 text-white':'bg-white border border-slate-200 text-slate-600'}">Câu mẫu · ${sentenceList().length}</button>
+        </div>
+      </div>
+      <section class="bg-white border border-slate-200 rounded-[28px] overflow-hidden">
+        <div id="practiceBurst" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+            <span class="text-[10px] font-extrabold tracking-widest text-slate-400">${state.practiceIndex+1} / ${l.length}</span>
+            <span class="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold">GÕ PINYIN (KHÔNG DẤU)</span>
+        </div>
+        
+        <div class="p-6 md:p-9 flex flex-col md:flex-row gap-8">
+          <div class="flex-1 max-w-2xl mx-auto w-full">
+            <div class="text-center mt-2">
+                <button aria-label="Nghe" onclick="speak('${esc(c.audioText)}',1)" class="w-16 h-16 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-lg mx-auto hover:bg-sky-700 transition">
+                    <span class="w-8 h-8 inline-block">${icon.volume}</span>
+                </button>
+                <div class="text-[10px] font-bold text-slate-400 mt-3">Bấm để nghe lại</div>
+            </div>
+
+            <!-- Khung nhập liệu với Progress Bar nằm BÊN TRONG -->
+            <div id="inputWrapper" class="relative w-full max-w-xl mx-auto mt-8 bg-white border-2 border-slate-200 rounded-2xl overflow-hidden focus-within:border-sky-400 transition shadow-sm ${state.completed?'!border-emerald-400 !bg-emerald-50 text-emerald-800':state.revealed?'!border-rose-400 !bg-rose-50':''}">
+                <div class="absolute left-0 top-0 w-full px-4 pt-3 flex gap-1" id="letterProgress">
+                    ${segments}
+                </div>
+                <input id="typingInput" value="${esc(state.input)}" oninput="typeInput(this.value)" autocomplete="off" autocapitalize="off" spellcheck="false" class="w-full text-center text-3xl md:text-4xl font-bold p-6 pt-10 pb-8 bg-transparent outline-none cn" placeholder="${state.completed||state.revealed?'':'Gõ pinyin...'}" ${state.completed||state.revealed?'disabled':''}>
+            </div>
+
+            <div id="typingFeedback" class="mt-4 text-center text-sm font-bold">
+                ${state.completed?'<span class="text-emerald-700">✓ Hoàn thành xuất sắc!</span>':state.revealed?`<span class="text-amber-700">Đáp án là: <b>${c.chinese}</b></span>`:`<span class="text-slate-400">Tiến trình: ${correctCount} / ${totalLetters} ký tự Pinyin</span>`}
+            </div>
+          </div>
+
+          <!-- NỘI DUNG CẦN NHỚ -->
+          <div id="answerPanel" class="w-full md:w-[320px] shrink-0 border border-slate-200 rounded-2xl bg-white p-5">
+              <div class="text-[10px] font-extrabold tracking-widest text-emerald-600 uppercase mb-4 text-center bg-emerald-50 rounded px-2 py-1">Nội dung cần nhớ</div>
+              ${state.revealed?`
+              <div class="text-center fade">
+                  <div class="cn text-5xl font-extrabold text-slate-900">${esc(c.chinese)}</div>
+                  <div class="text-xl font-extrabold text-sky-600 mt-2">${esc(c.pinyin)}</div>
+                  ${c.type==='vocab'?`<div class="text-xs font-extrabold text-emerald-600 tracking-wide mt-2">${esc(c.hanViet)}</div><div class="text-xs text-slate-500 font-bold mt-2 bg-slate-100 inline-block px-2 py-1 rounded">${esc(c.wordClass)}</div><div class="text-sm font-bold text-slate-700 mt-3">${esc(c.meaningVi)}</div>`:`<div class="text-sm font-bold text-slate-700 mt-3">${esc(c.meaningVi)}</div>`}
+              </div>
+              `:`
+              <div class="h-full min-h-[200px] flex flex-col justify-center items-center text-slate-300">
+                  <div class="text-7xl font-bold mb-2">?</div>
+                  <div class="text-xs font-bold text-center px-4">Gõ đúng để mở khóa thẻ ghi nhớ</div>
+              </div>
+              `}
+          </div>
+        </div>
+        
+        <div class="border-t border-slate-100 bg-slate-50 p-4 flex flex-wrap justify-between gap-2">
+          <button onclick="prev()" class="px-4 py-3 rounded-xl bg-white border border-slate-200 text-xs font-extrabold">← Trước</button>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="speak('${esc(c.audioText)}',1)" class="px-4 py-3 rounded-xl bg-white border border-slate-200 text-xs font-extrabold flex items-center gap-1"><span class="w-4 h-4 shrink-0">${icon.volume}</span> Nghe</button>
+            <button onclick="speak('${esc(c.audioText)}',.65)" class="px-4 py-3 rounded-xl bg-white border border-slate-200 text-xs font-extrabold flex items-center gap-1"><span class="w-4 h-4 shrink-0">${icon.turtle}</span> Chậm</button>
+            ${!state.revealed?`<button onclick="reveal()" class="px-4 py-3 rounded-xl bg-slate-200 text-slate-700 text-xs font-extrabold">Xem Đáp án</button>`:''}
+          </div>
+          <button onclick="next()" class="px-6 py-3 rounded-xl bg-emerald-500 text-white text-sm font-extrabold shadow-md hover:bg-emerald-600 transition">Tiếp tục →</button>
+        </div>
+      </section>
+    </div>`
+}
+
+function speakingView(){
+    const flow=[
+        ['你去哪儿吃饭？','Trả lời đi nhà ăn','我去食堂吃饭。','Wǒ qù shítáng chīfàn.'],
+        ['你饿吗？','Trả lời rất đói','我很饿。','Wǒ hěn è.'],
+        ['这里的包子和饺子很好吃，你吃什么？','Gọi bánh bao bằng 要','我要两个包子。','Wǒ yào liǎng gè bāozi.'],
+        ['好的，你喝什么汤？','Gọi canh trứng gà','我要一碗鸡蛋汤。','Wǒ yào yì wǎn jīdàn tāng.']
+    ];
+    window.speakStep=window.speakStep||0;const s=flow[window.speakStep];
+    return`<div class="max-w-2xl mx-auto fade"><div class="text-[10px] font-extrabold tracking-widest text-violetx uppercase">AT THE CANTEEN</div><h2 class="text-2xl font-extrabold mt-1">Speaking Roleplay</h2><p class="text-sm text-slate-500 mt-1">Hỏi đi đâu → đói bụng → gọi món.</p><section class="bg-white border border-slate-200 rounded-[28px] p-7 mt-5"><div class="flex justify-between text-[10px] font-extrabold text-slate-400"><span>BƯỚC ${window.speakStep+1} / 4</span><span>PHẢN XẠ</span></div><div class="mt-5 p-6 rounded-2xl bg-slate-50"><div class="cn text-3xl font-extrabold">${s[0]}</div><button onclick="speak('${esc(s[0])}')" class="mt-4 px-3 py-2 rounded-xl bg-white border border-slate-200 text-xs font-extrabold flex items-center gap-2"><span class="w-4 h-4 shrink-0">${icon.volume}</span> Nghe NPC</button></div><div class="mt-5 text-xs font-bold text-slate-500 uppercase tracking-widest">${s[1]}</div><input class="mt-2 w-full p-4 rounded-2xl border-2 border-slate-200 cn text-2xl font-bold outline-none focus:border-sky-400" placeholder="Gõ câu trả lời bằng tiếng Trung…"><button onclick="window.speakStep=(window.speakStep+1)%4;render()" class="w-full mt-3 py-4 rounded-xl bg-sky-600 hover:bg-sky-700 transition text-white font-extrabold shadow-md">Tiếp tục →</button><details class="mt-5"><summary class="cursor-pointer text-xs font-extrabold text-sky-700">Mở gợi ý trả lời</summary><div class="mt-2 p-4 rounded-xl bg-amber-50"><div class="cn text-lg font-bold text-amber-900">${s[2]}</div><div class="text-xs font-bold text-amber-700 mt-1">${s[3]}</div></div></details></section></div>`}
+
+function reviewView(){const typed=Object.values(state.typed).reduce((a,b)=>a+b,0);return`<div class="space-y-5 fade"><div><div class="text-[10px] font-extrabold tracking-widest text-emerald-600 uppercase">MASTERY DASHBOARD</div><h2 class="text-2xl font-extrabold mt-1">Ôn tập & Mastery</h2><p class="text-sm text-slate-500 mt-1">Tiến độ lưu tự động cục bộ trong trình duyệt.</p></div><div class="grid md:grid-cols-3 gap-4">${stat(state.mastered.length+' / '+lessonData.characters.length,'Hán tự đã học','thuộc cách viết')}${stat(typed,'Lượt gõ hoàn thành','từ / câu mẫu')}${stat(Object.keys(state.typed).length,'Mục đã chạm','không trùng lặp')}</div><section class="bg-white border border-slate-200 rounded-[26px] p-6"><h3 class="font-extrabold">Hán tự đã đánh dấu (Mastered)</h3><div class="flex flex-wrap gap-2 mt-4">${lessonData.characters.map((c,i)=>`<button onclick="selectChar(${i});setTab('characters')" class="px-3 py-2 rounded-xl border ${state.mastered.includes(c.char)?'bg-emerald-50 border-emerald-200 text-emerald-700':'bg-white border-slate-200 text-slate-400'}"><span class="cn text-xl font-bold">${c.char}</span></button>`).join('')}</div></section></div>`}
+
+function render(){
+    const content=state.tab==='overview'?overview():state.tab==='vocabulary'?vocabularyView():state.tab==='characters'?charactersView():state.tab==='grammar'?grammarView():state.tab==='practice'?practiceView():state.tab==='speaking'?speakingView():reviewView();
+    document.getElementById('app').innerHTML=`<div class="min-h-screen flex">${nav()}<main class="flex-1 min-w-0 h-screen overflow-y-auto">${mobileTop()}${header()}<div class="max-w-[1400px] mx-auto p-4 md:p-7 lg:p-9 pb-24">${content}</div></main></div>`;
+    loadVoices();
+    if(state.tab==='characters'&&state.charMode==='write') setTimeout(initWriter,60);
+}
+
+render();
+</script>
+</body>
+</html>
