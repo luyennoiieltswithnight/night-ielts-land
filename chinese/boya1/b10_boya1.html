@@ -389,11 +389,18 @@ function reset(){
     speak(current().audioText, state.voiceRate);
     setTimeout(()=>document.getElementById('typingInput')?.focus(),100);
 }
-    // Lắng nghe sự kiện bấm phím Enter để qua câu tiếp theo
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && state.tab === 'practice') {
-        e.preventDefault(); // Ngăn hành vi mặc định của phím Enter (nếu có)
-        next();             // Gọi hàm chuyển câu tiếp theo
+window.addEventListener('keydown', function(e) {
+    // Bắt chính xác phím Enter (kể cả Enter bên bàn phím số)
+    if ((e.key === 'Enter' || e.keyCode === 13) && state.tab === 'practice') {
+        e.preventDefault();
+        
+        // Nếu đã gõ đúng (hoặc đã bấm xem đáp án) -> Enter sẽ chuyển câu tiếp theo
+        if (state.completed || state.revealed) {
+            next();
+        } else {
+            // Tính năng phụ cực tiện: Đang gõ mà bí quá, ấn Enter sẽ lật đáp án luôn!
+            reveal(); 
+        }
     }
 });
 
