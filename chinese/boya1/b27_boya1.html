@@ -176,14 +176,21 @@ function loadVoices(){
     voices=speechSynthesis.getVoices()||[];
     const s=document.getElementById('voiceSelect');
     if(!s)return;
-    const old=s.value,vs=chineseVoices();
+    
+    const vs=chineseVoices();
     s.innerHTML=vs.length?vs.map(v=>`<option value="${esc(v.name)}">${esc(v.name)} · ${v.lang}</option>`).join(''):'<option>Giọng mặc định hệ thống</option>';
-    const b=vs.find(v=>v.name===old)||bestVoice();
-    if(b)s.value=b.name;
-}
-if ('speechSynthesis' in window) {
-    speechSynthesis.onvoiceschanged=loadVoices;
-    setTimeout(loadVoices,250);
+    
+    // 1. Moi tên giọng đã được lưu trong bộ nhớ trình duyệt ra (nếu có)
+    const savedVoice = localStorage.getItem('global_saved_voice');
+    
+    // 2. Ưu tiên gán: Giọng đã lưu -> Giọng Google mặc định -> Các giọng khác
+    const b = vs.find(v=>v.name===savedVoice) || bestVoice();
+    if(b) s.value=b.name;
+
+    // 3. Mỗi khi bạn chọn giọng mới ở menu, lưu vĩnh viễn nó lại
+    s.onchange = function() {
+        localStorage.setItem('global_saved_voice', this.value);
+    };
 }
 
 function speak(text,rate=1){
