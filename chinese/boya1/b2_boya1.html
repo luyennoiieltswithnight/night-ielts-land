@@ -181,14 +181,21 @@ function loadVoices(){
     voices=speechSynthesis.getVoices()||[];
     const s=document.getElementById('voiceSelect');
     if(!s)return;
-    const old=s.value,vs=chineseVoices();
+    
+    const vs=chineseVoices();
     s.innerHTML=vs.length?vs.map(v=>`<option value="${esc(v.name)}">${esc(v.name)} · ${v.lang}</option>`).join(''):'<option>Giọng mặc định hệ thống</option>';
-    const b=vs.find(v=>v.name===old)||bestVoice();
-    if(b)s.value=b.name;
-}
-if ('speechSynthesis' in window) {
-    speechSynthesis.onvoiceschanged=loadVoices;
-    setTimeout(loadVoices,250);
+    
+    // 1. Moi tên giọng đã được lưu trong bộ nhớ trình duyệt ra (nếu có)
+    const savedVoice = localStorage.getItem('global_saved_voice');
+    
+    // 2. Ưu tiên gán: Giọng đã lưu -> Giọng Google mặc định -> Các giọng khác
+    const b = vs.find(v=>v.name===savedVoice) || bestVoice();
+    if(b) s.value=b.name;
+
+    // 3. Mỗi khi bạn chọn giọng mới ở menu, lưu vĩnh viễn nó lại
+    s.onchange = function() {
+        localStorage.setItem('global_saved_voice', this.value);
+    };
 }
 
 function speak(text,rate=1){
@@ -347,6 +354,16 @@ function reset(){
     speak(current().audioText, state.voiceRate);
     setTimeout(()=>document.getElementById('typingInput')?.focus(),100);
 }
+
+// Lắng nghe sự kiện NHẢ phím Enter (keyup) để tránh xung đột với bộ gõ tiếng Việt
+window.addEventListener('keyup', function(e) {
+    if (state.tab === 'practice' && (e.key === 'Enter' || e.keyCode === 13)) {
+        // Chỉ lướt qua câu tiếp theo NẾU đã gõ đúng hoặc đã bấm xem đáp án
+        if (state.completed || state.revealed) {
+            next();
+        }
+    }
+});
 
 // ============================================================================
 // 5. TẬP VIẾT HÁN TỰ (HanziWriter.create)
