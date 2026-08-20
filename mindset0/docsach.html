@@ -140,33 +140,10 @@
     </style>
 </head>
 <body>
-    <script>
-        // KHOÁ PINCH-ZOOM / DOUBLE-TAP-ZOOM TRÊN IPAD BẰNG JS.
-        // Ghi chú: thẻ <meta viewport ... user-scalable=no, maximum-scale=1"> KHÔNG còn
-        // hiệu lực trên Safari/iPadOS hiện đại (Apple cố tình bỏ qua để đảm bảo trợ năng),
-        // nên phải chặn bằng sự kiện JS mới thực sự khoá được zoom khi lỡ tỳ tay/2 ngón tay
-        // trong lúc viết. Việc phóng to/thu nhỏ trang PDF vẫn dùng nút +/- % như cũ, không đổi.
-        (function () {
-            var lastTouchEnd = 0;
-
-            // Safari bắn các sự kiện "gesture*" riêng khi chụm/mở 2 ngón — chặn hẳn.
-            document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
-            document.addEventListener('gesturechange', function (e) { e.preventDefault(); }, { passive: false });
-            document.addEventListener('gestureend', function (e) { e.preventDefault(); }, { passive: false });
-
-            // Chặn pinch-zoom bằng 2 ngón tay (không ảnh hưởng cuộn/vẽ 1 ngón hay bút Apple Pencil).
-            document.addEventListener('touchmove', function (e) {
-                if (e.touches && e.touches.length > 1) e.preventDefault();
-            }, { passive: false });
-
-            // Chặn double-tap-to-zoom (chạm nhanh 2 lần liên tiếp).
-            document.addEventListener('touchend', function (e) {
-                var now = Date.now();
-                if (now - lastTouchEnd <= 300) e.preventDefault();
-                lastTouchEnd = now;
-            }, { passive: false });
-        })();
-    </script>
+    <!-- GHI CHÚ: trước đây có 1 đoạn script khoá pinch-zoom/double-tap-zoom LUÔN LUÔN bật sẵn
+         ở đây. Vì cơ chế tự động đó "chưa hoạt động hiệu quả lắm" trong thực tế sử dụng, giờ được
+         thay bằng nút "Khoá zoom" điều khiển được (component App bên dưới, ngay cạnh chữ
+         "TÀI LIỆU IELTS") — bấm để bật/tắt khoá theo ý muốn thay vì luôn bật cứng. -->
     <div id="root"></div>
 
     <script type="text/babel">
@@ -314,6 +291,56 @@
                 try { audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); } catch (e) {}
             };
         };
+
+        // --- BOX PHIÊN ÂM (IPA) + TỪ LOẠI — hiện bên trái box dịch khi dùng bút IPA ---
+        const IPAPanel = React.memo(function IPAPanel({ info, onClose }) {
+            if (!info) return null;
+            const { word, phonetic, partOfSpeech, error, loading } = info;
+
+            return (
+                <div className="w-[220px] shrink-0 glass-panel rounded-2xl shadow-2xl border-2 border-sky-100 overflow-hidden flex flex-col animate-slide-down">
+                    <div className="bg-sky-50 px-3 py-2 flex items-center justify-between border-b border-sky-100">
+                        <span className="text-xs font-extrabold text-sky-600 tracking-wide flex items-center gap-1.5">
+                            <i className="fas fa-spell-check"></i> IPA
+                        </span>
+                        <button onClick={onClose} className="w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors">
+                            <i className="fas fa-times text-[10px]"></i>
+                        </button>
+                    </div>
+                    <div className="p-4 bg-white flex-1 space-y-3">
+                        {loading ? (
+                            <div className="flex items-center justify-center gap-2 text-sky-500 py-4">
+                                <i className="fas fa-circle-notch fa-spin"></i>
+                                <span className="text-xs font-semibold">Đang tra từ điển…</span>
+                            </div>
+                        ) : error ? (
+                            <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>
+                        ) : (
+                            <div className="space-y-2">
+                                <p className="text-lg font-extrabold text-slate-800 tracking-tight">{word}</p>
+                                {phonetic && <p className="text-sky-600 font-semibold text-sm">{phonetic}</p>}
+                                {partOfSpeech && (
+                                    <span className="inline-block text-[11px] font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
+                                        {partOfSpeech}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Nút mở Cambridge Dictionary — nút bấm thật này LUÔN chắc chắn không bị
+                            trình duyệt chặn popup, dù cửa sổ tự mở lúc kéo-thả có bị chặn hay không. */}
+                        {!loading && word && (
+                            <button
+                                onClick={() => window.open('https://dictionary.cambridge.org/dictionary/english/' + encodeURIComponent(word), '_blank')}
+                                className="w-full px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm shadow-sky-200"
+                            >
+                                <i className="fas fa-up-right-from-square"></i> Mở Cambridge Dictionary
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        });
 
         // --- THANH DỊCH THUẬT NỔI ---
         const MagicTranslationBar = ({ text, isProcessing, onClose }) => {
@@ -549,7 +576,7 @@
         };
 
         // --- COMPONENT TEXT BOX THÔNG MINH CÓ 3 NÚM RESIZE ---
-        const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText, onDragStart }) {
+        const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText }) {
             const [active, setActive] = useState(true);
             const containerRef = useRef(null);
             const textareaRef = useRef(null);
@@ -571,6 +598,41 @@
                 document.addEventListener('pointerdown', handleClickOutside);
                 return () => document.removeEventListener('pointerdown', handleClickOutside);
             }, []);
+
+            // THUẬT TOÁN KÉO DI CHUYỂN BOX (di chuyển vị trí)
+            // SỬA LỖI "text box không di chuyển được": trước đây việc kéo-thả di chuyển được lập
+            // trình gián tiếp qua rất nhiều tầng (PdfTextBox -> PdfPage -> App giữ "dragState" ->
+            // App lắng nghe pointermove/pointerup ở tận div gốc -> tự dò canvas bằng
+            // document.querySelectorAll('.draw-canvas')[pageNum-1] -> bắn CustomEvent để PdfPage
+            // nhận lại) — chuỗi này rất dễ gãy, đặc biệt khi có trang PDF nào đó CHƯA được render
+            // (lazy-mount ngoài vùng nhìn thấy) làm lệch chỉ số canvas cần tìm. Bút TẨY/RESIZE vốn
+            // đã hoạt động tốt vì tự xử lý gọn trong chính component, không phụ thuộc tầng nào khác
+            // — nay áp dụng ĐÚNG cách làm y hệt cho việc "di chuyển", đơn giản & chắc chắn hơn hẳn:
+            // tự tính độ lệch chuột ngay trong component này rồi gọi thẳng updateText, không cần
+            // đi vòng qua App/PdfPage nữa.
+            const startMove = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startTX = t.x;
+                const startTY = t.y;
+
+                const onMove = (ev) => {
+                    const newX = startTX + (ev.clientX - startX) / scale;
+                    const newY = startTY + (ev.clientY - startY) / scale;
+                    updateText(t.id, { ...t, x: newX, y: newY });
+                };
+
+                const onUp = () => {
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                };
+
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+            };
 
             // THUẬT TOÁN KÉO RESIZE BOX
             const startResize = (e, direction) => {
@@ -618,7 +680,14 @@
                         height: (t.height || 40) * scale,
                         zIndex: active ? 100 : 10,
                     }}
-                    className={`group transition-all ${active ? 'border-2 border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
+                    /* QUAN TRỌNG — sửa lỗi kéo-thả/resize bị "ghì lại", không mượt: trước đây dùng
+                       class "transition-all" ở đây, khiến MỌI thay đổi style (kể cả left/top/width/
+                       height cập nhật liên tục bằng inline style lúc đang kéo) đều bị CSS animate
+                       trong ~150ms thay vì áp dụng ngay lập tức — tạo cảm giác box bị "đuổi theo"
+                       con trỏ/ngón tay có độ trễ thay vì bám sát tức thời. Đổi sang "transition-colors"
+                       để CHỈ hiệu ứng mượt cho phần đổi màu viền/nền khi bật/tắt active, còn vị trí và
+                       kích thước luôn cập nhật NGAY LẬP TỨC, bám sát 100% theo thao tác kéo. */
+                    className={`group transition-colors ${active ? 'border-2 border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
                     onPointerDown={(e) => { e.stopPropagation(); setActive(true); }}
                 >
                     {/* Nút Xóa */}
@@ -633,12 +702,8 @@
 
                     {/* Nắm Kéo Move (Bên Trên) */}
                     {active && (
-                        <div 
-                            onPointerDown={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                onDragStart(t.id, e);
-                            }}
+                        <div
+                            onPointerDown={startMove}
                             className="absolute -top-5 left-1/2 transform -translate-x-1/2 w-14 h-5 bg-indigo-500 text-white rounded-t-lg cursor-move shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600 transition-colors"
                         >
                             <i className="fas fa-grip-lines text-[10px]"></i>
@@ -737,8 +802,140 @@
             );
         });
 
+        // --- CẤU HÌNH KIỂU NÉT VẼ CHO TỪNG LOẠI BÚT (1 nguồn duy nhất, dùng lại ở mọi nơi) ---
+        // Gộp về 1 chỗ để tránh lặp code 3 nơi khác nhau (từng là nguyên nhân dễ gây lệch nét
+        // giữa lúc đang vẽ và lúc redraw) — sửa độ dày/màu ở đây là áp dụng đồng bộ toàn bộ.
+        const DEFAULT_HIGHLIGHT_THICKNESS = 11; // giữ lại cho tương thích ngược, không còn dùng để căn OCR nữa (xem ghi chú dưới)
+        const TOOL_STYLES = {
+            // Bút Magic (OCR + dịch + đọc): nét mảnh, đứt nét — mảnh hơn bản trước (3 -> 1.5)
+            magic: { color: '#FBBF24', width: () => 1.5, alpha: 0.9, dash: [7, 5], useColorProp: false },
+            // Bút IPA và bút tra ảnh: giờ CHỈ dùng cơ chế "kéo-thả ô chữ nhật" (giống bút Magic ở chế
+            // độ hình chữ nhật) thay vì kiểu bút highlight quét ngang trước đây, nên khung vẽ ra chỉ là
+            // 1 viền mảnh để người dùng thấy rõ vùng mình đang chọn — không còn tô phủ dày trong suốt nữa.
+            ipa: { color: '#38BDF8', width: () => 2, alpha: 0.95, dash: [6, 4], useColorProp: false },
+            photo: { color: '#FB7185', width: () => 2, alpha: 0.95, dash: [6, 4], useColorProp: false },
+            pencil: { width: (s) => 2 * s, alpha: 0.6, dash: [], useColorProp: true },
+            pen: { width: (s) => 4 * s, alpha: 1.0, dash: [], useColorProp: true },
+        };
+        const applyToolStyle = (ctx, toolName, colorProp, scaleVal, thicknessVal) => {
+            const cfg = TOOL_STYLES[toolName];
+            if (!cfg) return;
+            ctx.strokeStyle = cfg.useColorProp ? colorProp : cfg.color;
+            ctx.setLineDash(cfg.dash);
+            ctx.lineWidth = cfg.width(scaleVal, thicknessVal);
+            ctx.globalAlpha = cfg.alpha;
+        };
+
+        // Chuyển 2 điểm chéo (kéo-thả kiểu marquee) thành 4 góc hình chữ nhật theo chiều kim đồng
+        // hồ — dùng chung cho CẢ BA bút: Magic (chế độ hình chữ nhật), IPA và tra ảnh (giờ cả 2 bút
+        // này đều LUÔN dùng kéo-thả hình chữ nhật thay vì kiểu highlight quét ngang trước đây, để
+        // chọn trúng khít đúng vùng chữ cần, không còn bị mất nét/sai chữ do vùng cắt quá hẹp nữa).
+        const rectPointsFromDiagonal = (p1, p2) => {
+            const x1 = Math.min(p1.x, p2.x), x2 = Math.max(p1.x, p2.x);
+            const y1 = Math.min(p1.y, p2.y), y2 = Math.max(p1.y, p2.y);
+            return [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }];
+        };
+
+        // Tách chữ cái đầu tiên (1 từ) từ văn bản OCR ra được — dùng chung cho tra IPA lẫn mở Cambridge Dictionary.
+        const extractFirstWord = (rawText) => {
+            const match = (rawText || '').match(/[A-Za-z']+/);
+            return match ? match[0].toLowerCase() : '';
+        };
+
+        // --- TRA CỨU PHIÊN ÂM (IPA) + TỪ LOẠI — Free Dictionary API, miễn phí, không cần khoá ---
+        const _dictCache = {}; // cache theo từ để tránh gọi lại API khi quét trùng 1 từ nhiều lần
+        const fetchIPAInfo = async (rawText) => {
+            const word = extractFirstWord(rawText);
+            if (!word) return { word: '', error: 'Không nhận diện được từ trong vùng đã quét.' };
+            if (_dictCache[word]) return _dictCache[word];
+
+            try {
+                const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
+                if (!res.ok) throw new Error('not found');
+                const data = await res.json();
+                const entry = data && data[0];
+                const phoneticObj = entry && (entry.phonetics || []).find(p => p.text) ;
+                const phonetic = (entry && entry.phonetic) || (phoneticObj && phoneticObj.text) || '';
+                const partOfSpeech = entry && entry.meanings && entry.meanings[0] ? entry.meanings[0].partOfSpeech : '';
+                const result = { word, phonetic, partOfSpeech, error: (!phonetic && !partOfSpeech) ? 'Không có dữ liệu phiên âm cho từ này.' : '' };
+                _dictCache[word] = result;
+                return result;
+            } catch (err) {
+                const result = { word, phonetic: '', partOfSpeech: '', error: 'Không tìm thấy từ "' + word + '" trong từ điển.' };
+                return result;
+            }
+        };
+
+        // --- BÚT TRA ẢNH MINH HOẠ: mở 1 cửa sổ Google Hình ảnh THẬT, đặt bên phải màn hình ---
+        // Vì Google chặn nhúng (iframe) trang kết quả của họ vào web khác, cách khả thi & đúng ý
+        // "cửa sổ nằm bên phải, hình chữ nhật đứng to" là mở 1 popup window thật với kích thước/
+        // vị trí được set sẵn (trên Mac/laptop sẽ đúng như ý; trên iPad Safari trình duyệt sẽ tự
+        // mở dạng tab do hệ điều hành quản lý, đó là giới hạn của chính Safari chứ không phải bug).
+        //
+        // Để KHÔNG bị trình duyệt chặn popup: cửa sổ được mở NGAY LẬP TỨC (đồng bộ) trong lúc
+        // đang xử lý cử chỉ chạm/thả bút của người dùng — trước khi chờ kết quả OCR bất đồng bộ —
+        // sau đó mới điều hướng cửa sổ đó sang URL tìm kiếm thật khi có chữ.
+        const openPhotoLookupWindow = () => {
+            try {
+                const w = 460;
+                const h = Math.max(500, Math.round((window.screen.availHeight || 900) * 0.85));
+                const left = Math.max(0, Math.round((window.screen.availWidth || window.innerWidth) - w - 24));
+                const top = 50;
+                const win = window.open('about:blank', 'nightIeltsPhotoLookup', `width=${w},height=${h},left=${left},top=${top}`);
+                if (win && win.document) {
+                    win.document.title = 'Đang tra ảnh minh hoạ…';
+                    win.document.body.style.cssText = 'margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#EEF2FF;font-family:sans-serif;color:#4F46E5;font-size:18px;text-align:center;padding:24px;box-sizing:border-box;';
+                    win.document.body.textContent = 'Đang quét chữ & tìm ảnh minh hoạ…';
+                }
+                return win;
+            } catch (err) { return null; }
+        };
+        const navigatePhotoLookupWindow = (win, text) => {
+            if (!win || win.closed) return;
+            const clean = (text || '').replace(/\s+/g, ' ').trim();
+            if (!clean || clean === "Không tìm thấy chữ trong vùng chọn." || clean === "Lỗi nhận diện chữ.") {
+                try {
+                    win.document.body.textContent = 'Không nhận diện được chữ trong vùng đã quét. Cửa sổ này sẽ tự đóng…';
+                    setTimeout(() => { try { win.close(); } catch (e) {} }, 1800);
+                } catch (e) {}
+                return;
+            }
+            win.location.href = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(clean);
+        };
+
+        // --- BÚT IPA: mở 1 cửa sổ Cambridge Dictionary THẬT cho từ vừa quét ---
+        // Dùng lại y hệt cơ chế "mở popup rỗng ngay trong cử chỉ chạm -> điều hướng sau khi có
+        // kết quả OCR" của bút tra ảnh ở trên, để trình duyệt không chặn popup. Đặt cùng vị trí/
+        // kích thước bên phải màn hình cho nhất quán.
+        const openIPALookupWindow = () => {
+            try {
+                const w = 460;
+                const h = Math.max(500, Math.round((window.screen.availHeight || 900) * 0.85));
+                const left = Math.max(0, Math.round((window.screen.availWidth || window.innerWidth) - w - 24));
+                const top = 50;
+                const win = window.open('about:blank', 'nightIeltsIPALookup', `width=${w},height=${h},left=${left},top=${top}`);
+                if (win && win.document) {
+                    win.document.title = 'Đang tra Cambridge Dictionary…';
+                    win.document.body.style.cssText = 'margin:0;height:100vh;display:flex;align-items:center;justify-content:center;background:#EFF6FF;font-family:sans-serif;color:#0284C7;font-size:18px;text-align:center;padding:24px;box-sizing:border-box;';
+                    win.document.body.textContent = 'Đang quét chữ & mở từ điển Cambridge…';
+                }
+                return win;
+            } catch (err) { return null; }
+        };
+        const navigateIPALookupWindow = (win, word) => {
+            if (!win || win.closed) return;
+            if (!word) {
+                try {
+                    win.document.body.textContent = 'Không nhận diện được từ trong vùng đã quét. Cửa sổ này sẽ tự đóng…';
+                    setTimeout(() => { try { win.close(); } catch (e) {} }, 1800);
+                } catch (e) {}
+                return;
+            }
+            win.location.href = 'https://dictionary.cambridge.org/dictionary/english/' + encodeURIComponent(word);
+        };
+
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText, onDragStart }) {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, highlightThickness, onExtractText, onIPALookup, onPhotoLookup }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -815,38 +1012,47 @@
                 };
             }, [isDrawingMode, isVisible]);
 
+
             const redrawStrokes = useCallback(() => {
                 const drawCanvas = drawCanvasRef.current;
                 if (!drawCanvas) return;
                 const ctx = drawCanvas.getContext('2d');
                 ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-                
+
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
 
                 const drawLine = (stroke) => {
                     if (!stroke || !stroke.points || stroke.points.length === 0) return;
-                    
+
                     ctx.beginPath();
-                    if (stroke.tool === 'magic') {
-                        ctx.strokeStyle = '#FBBF24'; ctx.setLineDash([8, 8]); ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
-                    } else {
-                        ctx.strokeStyle = stroke.color; ctx.setLineDash([]);
-                        ctx.lineWidth = stroke.tool === 'pencil' ? 2 * scale : 4 * scale;
-                        ctx.globalAlpha = stroke.tool === 'pencil' ? 0.6 : 1.0;
+                    applyToolStyle(ctx, stroke.tool, stroke.color, scale, highlightThickness);
+
+                    // Chế độ "Hình chữ nhật" (kéo-thả): dùng chung cho bút Magic (khi bật chế độ hình
+                    // chữ nhật) VÀ bút IPA / tra ảnh (giờ luôn dùng kéo-thả) — vẽ khung chữ nhật thay
+                    // vì nối các điểm như nét vẽ tay thường.
+                    if (stroke.shape === 'rect' && stroke.points.length >= 2) {
+                        const p1 = stroke.points[0], p2 = stroke.points[1];
+                        const x = Math.min(p1.x, p2.x) * scale;
+                        const y = Math.min(p1.y, p2.y) * scale;
+                        const w = Math.abs(p2.x - p1.x) * scale;
+                        const h = Math.abs(p2.y - p1.y) * scale;
+                        ctx.strokeRect(x, y, w, h);
+                        ctx.setLineDash([]);
+                        return;
                     }
-                    
+
                     ctx.moveTo(stroke.points[0].x * scale, stroke.points[0].y * scale);
                     for (let i = 1; i < stroke.points.length; i++) {
                         ctx.lineTo(stroke.points[i].x * scale, stroke.points[i].y * scale);
                     }
                     ctx.stroke();
-                    ctx.setLineDash([]); 
+                    ctx.setLineDash([]);
                 };
 
                 strokes.forEach(drawLine);
                 if (currentStrokeRef.current) drawLine(currentStrokeRef.current);
-            }, [strokes, scale]);
+            }, [strokes, scale, highlightThickness]);
 
             useEffect(() => { if(isVisible) redrawStrokes(); }, [redrawStrokes, isVisible]);
 
@@ -866,12 +1072,10 @@
                 if (!isDrawingMode) return;
                 if (e.pointerType === 'touch') return;
 
-                if (tool === 'magic') {
-                    // Mở khoá audio ngay trong cử chỉ bắt đầu nét quét OCR — đây là thao tác chạm
-                    // thật gần nhất trước khi cần đọc to văn bản, giúp giọng đọc Online chắc chắn
-                    // được Safari/iPadOS cho phép phát thay vì bị âm thầm chặn.
-                    unlockAudio();
-                }
+                // Mở khoá audio ngay trong cử chỉ chạm thật gần nhất trước khi có thể cần đọc to
+                // văn bản (bút Magic/IPA) — giúp giọng đọc Online chắc chắn được Safari/iPadOS cho
+                // phép phát thay vì âm thầm chặn. Gọi vô hại với các bút khác, không tốn kém.
+                unlockAudio();
 
                 try { e.target.setPointerCapture(e.pointerId); } catch(err) {}
 
@@ -884,34 +1088,49 @@
                 }
 
                 if (tool === 'text') {
-                    setTexts(prev => [...prev, { 
-                        id: Date.now(), x: coords.x, y: coords.y, text: '', color, size: fontSize, width: 150, height: 40 
+                    setTexts(prev => [...prev, {
+                        id: Date.now(), x: coords.x, y: coords.y, text: '', color, size: fontSize, width: 150, height: 40
                     }]);
-                    return; 
+                    return;
                 }
 
+                // QUAN TRỌNG — sửa lỗi "kéo-thả ô chữ nhật không dùng được" của bút IPA/tra ảnh:
+                // trước đây popup (Cambridge Dictionary / Google Hình ảnh) được mở NGAY tại đây
+                // (pointerdown), tức là NGAY LÚC BẮT ĐẦU kéo — việc mở 1 cửa sổ/tab mới đúng lúc đó
+                // làm trình duyệt cướp mất focus khỏi canvas đang vẽ, khiến toàn bộ chuỗi sự kiện kéo
+                // (pointermove/pointerup) bị đứt gãy giữa chừng nên KHÔNG kéo-thả được nữa — đây chính
+                // là lý do bút Magic (không mở popup lúc pointerdown) vẫn kéo-thả bình thường còn 2 bút
+                // này thì không. Bút Magic không hề bị ảnh hưởng nên không cần sửa gì ở bút đó.
+                // Cách sửa: dời việc mở popup xuống handlePointerUp — lúc đó cú kéo đã HOÀN TẤT, và
+                // pointerup vẫn là 1 cử chỉ người dùng thật 100% (giống hệt click) nên trình duyệt vẫn
+                // không chặn popup, mà không còn làm gián đoạn thao tác kéo nữa.
+
                 isDrawingRef.current = true;
+
+                // Chế độ khoanh vùng "Hình chữ nhật" (kéo-thả): bút Magic khi bật chế độ hình chữ
+                // nhật (tiện dùng chuột/trackpad trên Mac), và LUÔN LUÔN với bút IPA / tra ảnh (2 bút
+                // này giờ chỉ còn 1 cơ chế chọn vùng duy nhất — kéo-thả ô chữ nhật — thay cho kiểu bút
+                // highlight quét ngang trước đây, để chọn trúng khít đúng phần chữ cần, không mất nét).
+                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo') {
+                    currentStrokeRef.current = { id: Date.now(), tool, shape: 'rect', points: [coords, coords] };
+                    return;
+                }
+
                 currentStrokeRef.current = { id: Date.now(), tool, color, points: [coords] };
-                
+
                 const ctx = drawCanvasRef.current.getContext('2d');
                 ctx.beginPath();
-                if (tool === 'magic') {
-                    ctx.strokeStyle = '#FBBF24'; ctx.setLineDash([8, 8]); ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
-                } else {
-                    ctx.strokeStyle = color; ctx.setLineDash([]); 
-                    ctx.lineWidth = tool === 'pencil' ? 2 * scale : 4 * scale;
-                    ctx.globalAlpha = tool === 'pencil' ? 0.6 : 1.0;
-                }
+                applyToolStyle(ctx, tool, color, scale, highlightThickness);
                 ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 ctx.moveTo(coords.x * scale, coords.y * scale);
                 ctx.lineTo(coords.x * scale, coords.y * scale);
                 ctx.stroke();
-                ctx.setLineDash([]); 
+                ctx.setLineDash([]);
             };
 
             const handlePointerMove = (e) => {
                 if (!isDrawingRef.current) return;
-                if (e.pointerType === 'touch') return; 
+                if (e.pointerType === 'touch') return;
 
                 const coords = getCoordinates(e);
 
@@ -920,55 +1139,89 @@
                     return;
                 }
 
-                if (currentStrokeRef.current) {
-                    const canvas = drawCanvasRef.current;
-                    if (!canvas) return;
-                    
-                    const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
-                    currentStrokeRef.current.points.push(coords);
+                if (!currentStrokeRef.current) return;
 
-                    const ctx = canvas.getContext('2d');
-                    ctx.beginPath();
-                    if (tool === 'magic') {
-                        ctx.strokeStyle = '#FBBF24'; ctx.setLineDash([8, 8]); ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
-                    } else {
-                        ctx.strokeStyle = color; ctx.setLineDash([]); 
-                        ctx.lineWidth = tool === 'pencil' ? 2 * scale : 4 * scale;
-                        ctx.globalAlpha = tool === 'pencil' ? 0.6 : 1.0;
-                    }
-                    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                    ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
-                    ctx.lineTo(coords.x * scale, coords.y * scale);
-                    ctx.stroke();
-                    ctx.setLineDash([]); 
+                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo') {
+                    // Cập nhật góc đối diện của khung chữ nhật và vẽ lại toàn bộ canvas — chi phí
+                    // rẻ vì số nét lưu trên 1 trang thường ít, vẫn mượt ở cả Mac lẫn iPad.
+                    currentStrokeRef.current.points[1] = coords;
+                    redrawStrokes();
+                    return;
                 }
+
+                const canvas = drawCanvasRef.current;
+                if (!canvas) return;
+
+                const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
+                currentStrokeRef.current.points.push(coords);
+
+                const ctx = canvas.getContext('2d');
+                ctx.beginPath();
+                applyToolStyle(ctx, tool, color, scale, highlightThickness);
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
+                ctx.lineTo(coords.x * scale, coords.y * scale);
+                ctx.stroke();
+                ctx.setLineDash([]);
             };
 
             const handlePointerUp = (e) => {
                 if (!isDrawingRef.current) return;
                 isDrawingRef.current = false;
-                
-                try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
-                
-                if (currentStrokeRef.current && tool !== 'eraser') {
-                    if (tool === 'magic') {
-                        const unlockUtterance = new SpeechSynthesisUtterance('');
-                        unlockUtterance.volume = 0;
-                        window.speechSynthesis.speak(unlockUtterance);
 
-                        performOCR(currentStrokeRef.current);
-                        currentStrokeRef.current = null; 
-                        redrawStrokes(); 
-                    } else {
-                        const strokeToSave = { ...currentStrokeRef.current };
-                        setStrokes(prev => [...prev, strokeToSave]);
-                        currentStrokeRef.current = null;
+                try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
+
+                if (!currentStrokeRef.current || tool === 'eraser') return;
+
+                if (tool === 'magic') {
+                    if (magicShapeMode === 'rect') {
+                        const [p1, p2] = currentStrokeRef.current.points;
+                        currentStrokeRef.current.points = rectPointsFromDiagonal(p1, p2);
                     }
+                    const strokeToOCR = currentStrokeRef.current;
+                    currentStrokeRef.current = null;
+                    redrawStrokes();
+                    performMagicOCR(strokeToOCR);
+                    return;
                 }
+
+                if (tool === 'ipa') {
+                    // Kéo-thả ô chữ nhật (giống bút Magic ở chế độ hình chữ nhật) — chọn trúng khít
+                    // đúng vùng chữ cần tra, không còn cần "phình" nét như kiểu bút highlight cũ nữa.
+                    const [p1, p2] = currentStrokeRef.current.points;
+                    currentStrokeRef.current.points = rectPointsFromDiagonal(p1, p2);
+                    const strokeToOCR = currentStrokeRef.current;
+                    currentStrokeRef.current = null;
+                    redrawStrokes();
+                    // Mở popup NGAY TẠI ĐÂY (pointerup — vẫn là 1 cử chỉ chạm/bấm thật, trình duyệt
+                    // không chặn) SAU KHI cú kéo đã xong, để không làm gián đoạn thao tác kéo-thả.
+                    const popupWin = openIPALookupWindow();
+                    performIPAOCR(strokeToOCR, popupWin);
+                    return;
+                }
+
+                if (tool === 'photo') {
+                    // Kéo-thả ô chữ nhật — cùng cơ chế với bút IPA/Magic ở trên.
+                    const [p1, p2] = currentStrokeRef.current.points;
+                    currentStrokeRef.current.points = rectPointsFromDiagonal(p1, p2);
+                    const strokeToOCR = currentStrokeRef.current;
+                    currentStrokeRef.current = null;
+                    redrawStrokes();
+                    // Mở popup NGAY TẠI ĐÂY (pointerup), sau khi cú kéo đã xong — xem giải thích chi
+                    // tiết ở nhánh 'ipa' phía trên.
+                    const popupWin = openPhotoLookupWindow();
+                    performPhotoOCR(strokeToOCR, popupWin);
+                    return;
+                }
+
+                // Bút chì / bút bi: lưu nét vẽ như bình thường
+                const strokeToSave = { ...currentStrokeRef.current };
+                setStrokes(prev => [...prev, strokeToSave]);
+                currentStrokeRef.current = null;
             };
 
             const handleErase = (x, y) => {
-                const eraseRadius = 15; 
+                const eraseRadius = 15;
                 setStrokes(prev => prev.filter(stroke => {
                     for (let pt of stroke.points) {
                         if (Math.hypot(pt.x - x, pt.y - y) < eraseRadius) return false;
@@ -978,57 +1231,87 @@
                 setTimeout(() => redrawStrokes(), 0);
             };
 
-            const performOCR = async (stroke) => {
-                if (!viewport || !stroke || !stroke.points || stroke.points.length < 3) return;
-                
+            // --- LÕI OCR DÙNG CHUNG CHO CẢ 3 BÚT (Magic / IPA / Tra ảnh) ---
+            // Gộp về 1 chỗ để chắc chắn cả 3 bút hoạt động ổn định như nhau, tránh lặp code.
+            const getStrokeBounds = (stroke) => {
+                if (!viewport || !stroke || !stroke.points || stroke.points.length < 3) return null;
                 const xs = stroke.points.map(p => p.x * scale);
                 const ys = stroke.points.map(p => p.y * scale);
-                const minX = Math.min(...xs);
-                const maxX = Math.max(...xs);
-                const minY = Math.min(...ys);
-                const maxY = Math.max(...ys);
+                const minX = Math.min(...xs), maxX = Math.max(...xs);
+                const minY = Math.min(...ys), maxY = Math.max(...ys);
+                const width = maxX - minX, height = maxY - minY;
+                if (width < 10 || height < 10) return null;
+                return { xs, ys, minX, minY, width, height };
+            };
 
-                const width = maxX - minX;
-                const height = maxY - minY;
-
-                if (width < 10 || height < 10) return;
-
-                onExtractText("", true);
-
+            const runOCROnBounds = async (bounds) => {
                 try {
                     const canvas = canvasRef.current;
                     const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = width;
-                    tempCanvas.height = height;
+                    tempCanvas.width = bounds.width;
+                    tempCanvas.height = bounds.height;
                     const tempCtx = tempCanvas.getContext('2d');
-                    
+
                     tempCtx.fillStyle = 'white';
-                    tempCtx.fillRect(0, 0, width, height);
+                    tempCtx.fillRect(0, 0, bounds.width, bounds.height);
 
                     tempCtx.beginPath();
-                    tempCtx.moveTo(xs[0] - minX, ys[0] - minY);
-                    for (let i = 1; i < xs.length; i++) {
-                        tempCtx.lineTo(xs[i] - minX, ys[i] - minY);
+                    tempCtx.moveTo(bounds.xs[0] - bounds.minX, bounds.ys[0] - bounds.minY);
+                    for (let i = 1; i < bounds.xs.length; i++) {
+                        tempCtx.lineTo(bounds.xs[i] - bounds.minX, bounds.ys[i] - bounds.minY);
                     }
                     tempCtx.closePath();
-                    tempCtx.clip(); 
-                    
-                    tempCtx.drawImage(canvas, minX, minY, width, height, 0, 0, width, height);
+                    tempCtx.clip();
+
+                    tempCtx.drawImage(canvas, bounds.minX, bounds.minY, bounds.width, bounds.height, 0, 0, bounds.width, bounds.height);
 
                     const imageDataUrl = tempCanvas.toDataURL('image/png');
-
                     const result = await Tesseract.recognize(imageDataUrl, 'eng');
                     const text = result.data.text.replace(/\n/g, ' ').trim();
-                    
-                    if (text.length > 0) {
-                        onExtractText(text, false);
-                    } else {
-                        onExtractText("Không tìm thấy chữ trong vùng chọn.", false);
-                    }
+                    return text.length > 0 ? text : "Không tìm thấy chữ trong vùng chọn.";
                 } catch (err) {
                     console.error("OCR Error:", err);
-                    onExtractText("Lỗi nhận diện chữ.", false);
+                    return "Lỗi nhận diện chữ.";
                 }
+            };
+
+            const performMagicOCR = async (stroke) => {
+                const bounds = getStrokeBounds(stroke);
+                if (!bounds) return;
+                onExtractText("", true);
+                const text = await runOCROnBounds(bounds);
+                onExtractText(text, false);
+            };
+
+            const performIPAOCR = async (stroke, popupWin) => {
+                const bounds = getStrokeBounds(stroke);
+                if (!bounds) {
+                    if (popupWin && !popupWin.closed) { try { popupWin.close(); } catch (e) {} }
+                    return;
+                }
+                onExtractText("", true);
+                const text = await runOCROnBounds(bounds);
+                onExtractText(text, false);
+                if (text !== "Không tìm thấy chữ trong vùng chọn." && text !== "Lỗi nhận diện chữ." && onIPALookup) {
+                    onIPALookup(text);
+                }
+                // Thử điều hướng popup Cambridge Dictionary đã mở sẵn (best effort — nếu bị chặn thì
+                // nút "Mở Cambridge Dictionary" trong box IPA vẫn chắc chắn hoạt động).
+                navigateIPALookupWindow(popupWin, extractFirstWord(text));
+            };
+
+            const performPhotoOCR = async (stroke, popupWin) => {
+                const bounds = getStrokeBounds(stroke);
+                if (!bounds) {
+                    if (popupWin && !popupWin.closed) { try { popupWin.close(); } catch (e) {} }
+                    return;
+                }
+                const text = await runOCROnBounds(bounds);
+                // Thử điều hướng popup đã mở sẵn (nếu trình duyệt không chặn) — best effort.
+                navigatePhotoLookupWindow(popupWin, text);
+                // LUÔN báo về App để hiện nút "Mở ảnh trên Google" — cách này chắc chắn hoạt động
+                // dù popup tự động có bị chặn hay không, vì bấm nút là 1 cú chạm/bấm thật.
+                if (onPhotoLookup) onPhotoLookup(text);
             };
 
             const updateText = (id, newProps) => {
@@ -1038,23 +1321,6 @@
             const removeText = (id) => {
                 setTexts(prev => prev.filter(t => t.id !== id));
             };
-
-            const handleTextDragStart = (id, e) => {
-                const coords = getCoordinates(e);
-                const tObj = texts.find(t => t.id === id);
-                if(tObj) onDragStart(pageNum, id, coords.x - tObj.x, coords.y - tObj.y);
-            };
-
-            useEffect(() => {
-                const handleGlobalDragUpdate = (e) => {
-                    const { action, pNum, tId, newX, newY } = e.detail;
-                    if (action === 'update' && pNum === pageNum) {
-                        setTexts(prev => prev.map(t => t.id === tId ? { ...t, x: newX, y: newY } : t));
-                    }
-                };
-                window.addEventListener('textDragUpdate', handleGlobalDragUpdate);
-                return () => window.removeEventListener('textDragUpdate', handleGlobalDragUpdate);
-            }, [pageNum]);
 
             return (
                 <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={viewport ? { width: viewport.width, height: viewport.height } : { width: '100%', minHeight: (1131 * scale) + 'px' }}>
@@ -1074,13 +1340,12 @@
 
                             {/* Render Text Boxes */}
                             {texts.map(t => (
-                                <PdfTextBox 
-                                    key={t.id} 
-                                    t={t} 
-                                    scale={scale} 
-                                    updateText={updateText} 
-                                    removeText={removeText} 
-                                    onDragStart={handleTextDragStart}
+                                <PdfTextBox
+                                    key={t.id}
+                                    t={t}
+                                    scale={scale}
+                                    updateText={updateText}
+                                    removeText={removeText}
                                 />
                             ))}
                         </>
@@ -1101,15 +1366,60 @@
             const [scale, setScale] = useState(1.2);
             
             const [isDrawingMode, setIsDrawingMode] = useState(false);
-            const [tool, setTool] = useState('pencil'); 
+            const [tool, setTool] = useState('pencil');
+            const [magicShapeMode, setMagicShapeMode] = useState('lasso'); // 'lasso' (tự do) | 'rect' (hình chữ nhật) — chỉ áp dụng cho bút Magic
             const [color, setColor] = useState('#4F46E5');
             const [fontSize, setFontSize] = useState(10); // Mặc định 10
-            
+            // Giữ lại state này (không còn nút +/- điều chỉnh) để không phải sửa lại toàn bộ props/deps
+            // liên quan ở PdfPage — từ khi bút IPA/tra ảnh chuyển sang kéo-thả ô chữ nhật, giá trị này
+            // không còn ảnh hưởng gì đến 2 bút đó nữa (chỉ còn ý nghĩa lịch sử).
+            const [highlightThickness] = useState(DEFAULT_HIGHLIGHT_THICKNESS);
+
             const [magicText, setMagicText] = useState("");
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+            const [ipaInfo, setIpaInfo] = useState(null); // { word, phonetic, partOfSpeech, error, loading }
+            const [photoLookup, setPhotoLookup] = useState(null); // { text } — bút tra ảnh minh hoạ
 
-            const [dragState, setDragState] = useState(null); 
             const [showTOC, setShowTOC] = useState(false);
+
+            // --- KHOÁ ZOOM (nút bật/tắt, thay cho cơ chế tự động chặn pinch-zoom trước đây vốn
+            // "chưa hoạt động hiệu quả lắm" trên thực tế) — mặc định TẮT (zoom bình thường), người
+            // dùng tự bấm bật khi cần viết/note để tránh lỡ tỳ tay làm phóng to/thu nhỏ ngoài ý muốn.
+            const [zoomLocked, setZoomLocked] = useState(false);
+            const zoomLockedRef = useRef(zoomLocked);
+            useEffect(() => { zoomLockedRef.current = zoomLocked; }, [zoomLocked]);
+
+            useEffect(() => {
+                let lastTouchEnd = 0;
+
+                // Safari bắn các sự kiện "gesture*" riêng khi chụm/mở 2 ngón — chặn khi đang khoá.
+                const onGesture = (e) => { if (zoomLockedRef.current) e.preventDefault(); };
+                // Chặn pinch-zoom bằng 2 ngón tay (không ảnh hưởng cuộn/vẽ 1 ngón hay bút Apple Pencil).
+                const onTouchMove = (e) => {
+                    if (zoomLockedRef.current && e.touches && e.touches.length > 1) e.preventDefault();
+                };
+                // Chặn double-tap-to-zoom (chạm nhanh 2 lần liên tiếp) khi đang khoá.
+                const onTouchEnd = (e) => {
+                    if (!zoomLockedRef.current) return;
+                    const now = Date.now();
+                    if (now - lastTouchEnd <= 300) e.preventDefault();
+                    lastTouchEnd = now;
+                };
+
+                document.addEventListener('gesturestart', onGesture, { passive: false });
+                document.addEventListener('gesturechange', onGesture, { passive: false });
+                document.addEventListener('gestureend', onGesture, { passive: false });
+                document.addEventListener('touchmove', onTouchMove, { passive: false });
+                document.addEventListener('touchend', onTouchEnd, { passive: false });
+
+                return () => {
+                    document.removeEventListener('gesturestart', onGesture);
+                    document.removeEventListener('gesturechange', onGesture);
+                    document.removeEventListener('gestureend', onGesture);
+                    document.removeEventListener('touchmove', onTouchMove);
+                    document.removeEventListener('touchend', onTouchEnd);
+                };
+            }, []);
 
             // useCallback: giữ nguyên "địa chỉ" hàm giữa các lần render, để các PdfPage đã
             // memo hoá (React.memo) không phải render lại toàn bộ mỗi khi App có state khác
@@ -1127,51 +1437,73 @@
                 }
             }, []);
 
-            const onTextDragStart = useCallback((pageNum, textId, offsetX, offsetY) => {
-                setDragState({ pageNum, textId, offsetX, offsetY });
-            }, []);
-
             const onExtractText = useCallback((text, processing) => {
                 setMagicText(text);
                 setIsOcrProcessing(processing);
+                // Bắt đầu 1 lượt quét mới (processing=true, text rỗng) -> dọn box IPA cũ để
+                // không hiển thị nhầm thông tin của từ trước đó trong lúc đang chờ kết quả mới.
+                if (processing) setIpaInfo(null);
             }, []);
 
-            const handleGlobalPointerMove = useCallback((e) => {
-                setDragState(prevDragState => {
-                    if (prevDragState) {
-                        const rects = document.querySelectorAll('.draw-canvas');
-                        const canvas = rects[prevDragState.pageNum - 1];
-                        if (canvas) {
-                            const rect = canvas.getBoundingClientRect();
-                            const scaleX = canvas.width / rect.width;
-                            const scaleY = canvas.height / rect.height;
+            // Tra phiên âm (IPA) + từ loại cho bút IPA — chạy song song, không chặn luồng dịch/đọc.
+            const onIPALookup = useCallback(async (text) => {
+                setIpaInfo({ word: '', phonetic: '', partOfSpeech: '', error: '', loading: true });
+                const info = await fetchIPAInfo(text);
+                setIpaInfo({ ...info, loading: false });
+            }, []);
 
-                            const newX = ((e.clientX - rect.left) * scaleX) / scale - prevDragState.offsetX;
-                            const newY = ((e.clientY - rect.top) * scaleY) / scale - prevDragState.offsetY;
-
-                            const event = new CustomEvent('textDragUpdate', {
-                                detail: { action: 'update', pNum: prevDragState.pageNum, tId: prevDragState.textId, newX, newY }
-                            });
-                            window.dispatchEvent(event);
-                        }
-                    }
-                    return prevDragState; // không đổi state ở đây, chỉ đọc
-                });
-            }, [scale]);
-
-            const handleGlobalPointerUp = useCallback(() => {
-                setDragState(prev => prev ? null : prev);
+            // Luôn hiện panel "Mở ảnh trên Google" khi quét được chữ — không phụ thuộc việc popup
+            // tự động có bị trình duyệt chặn hay không (xem giải thích ở openPhotoLookupWindow).
+            const onPhotoLookup = useCallback((text) => {
+                const clean = (text || '').trim();
+                if (!clean || clean === "Không tìm thấy chữ trong vùng chọn." || clean === "Lỗi nhận diện chữ.") {
+                    setPhotoLookup(null);
+                    return;
+                }
+                setPhotoLookup({ text: clean });
             }, []);
 
             return (
-                <div 
-                    className={"flex h-screen w-full font-sans bg-slate-100 overflow-hidden " + (dragState ? 'select-none' : '')}
-                    onPointerMove={handleGlobalPointerMove}
-                    onPointerUp={handleGlobalPointerUp}
-                    onPointerLeave={handleGlobalPointerUp}
-                    onPointerCancel={handleGlobalPointerUp}
+                <div
+                    className="flex h-screen w-full font-sans bg-slate-100 overflow-hidden"
                 >
-                    <MagicTranslationBar text={magicText} isProcessing={isOcrProcessing} onClose={() => { setMagicText(""); setIsOcrProcessing(false); }} />
+                    {/* Box dịch: giữ NGUYÊN vị trí canh giữa màn hình như trước — không bao giờ bị
+                        box IPA làm xê dịch, vì box IPA được định vị ĐỘC LẬP (không ghép flex chung). */}
+                    <MagicTranslationBar text={magicText} isProcessing={isOcrProcessing} onClose={() => { setMagicText(""); setIsOcrProcessing(false); setIpaInfo(null); }} />
+
+                    {/* Box IPA: định vị riêng, bám sát ngay mép trái của box dịch bằng calc() — box
+                        dịch không hề hay biết sự tồn tại của box này nên không bao giờ bị lệch. */}
+                    {ipaInfo && (magicText || isOcrProcessing) && (
+                        <div
+                            className="fixed top-24 z-[100] hidden sm:block animate-slide-down"
+                            style={{ right: 'calc(50% + min(45vw, 24rem) + 12px)' }}
+                        >
+                            <IPAPanel info={ipaInfo} onClose={() => setIpaInfo(null)} />
+                        </div>
+                    )}
+
+                    {/* Thông báo/nút mở kết quả ảnh minh hoạ cho bút Tra ảnh — luôn hiện ra khi có
+                        chữ vừa quét, để KHÔNG phụ thuộc vào việc trình duyệt có chặn popup hay không:
+                        bấm nút là mở tab/cửa sổ Google Hình ảnh thật, chắc chắn không bị chặn vì đó
+                        là 1 cú bấm chuột/chạm thật của người dùng. */}
+                    {photoLookup && (
+                        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[100] glass-panel rounded-2xl shadow-2xl border-2 border-rose-100 px-5 py-3 flex items-center gap-4 animate-slide-down max-w-[92%]">
+                            <i className="fas fa-images text-rose-500 text-xl shrink-0"></i>
+                            <div className="min-w-0">
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Đã quét được</p>
+                                <p className="text-sm font-bold text-slate-800 truncate max-w-[220px]">{photoLookup.text}</p>
+                            </div>
+                            <button
+                                onClick={() => { window.open('https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(photoLookup.text), '_blank'); }}
+                                className="shrink-0 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2 shadow-md shadow-rose-200"
+                            >
+                                <i className="fas fa-up-right-from-square"></i> Mở ảnh trên Google
+                            </button>
+                            <button onClick={() => setPhotoLookup(null)} className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors bg-white border border-slate-200">
+                                <i className="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                    )}
 
                     {/* FLOATING WINDOW: MỤC LỤC TRANG DẠNG GRID */}
                     {showTOC && pdfDoc && (
@@ -1223,25 +1555,59 @@
                                     </div>
                                     TÀI LIỆU IELTS
                                 </div>
+
+                                {/* NÚT KHOÁ ZOOM — bấm để khoá cứng pinch/double-tap-zoom (tránh lỡ tỳ tay
+                                    khi viết trên iPad làm phóng to/thu nhỏ ngoài ý muốn); bấm lại để mở khoá,
+                                    zoom hoạt động bình thường. Phóng to/thu nhỏ trang PDF vẫn dùng nút +/- % riêng. */}
+                                <button
+                                    onClick={() => setZoomLocked(z => !z)}
+                                    className={"w-9 h-9 shrink-0 rounded-xl flex items-center justify-center transition-colors border shadow-sm " + (zoomLocked ? 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-slate-600')}
+                                    title={zoomLocked ? 'Đang khoá zoom — bấm để mở lại zoom bình thường' : 'Khoá zoom (chặn pinch/double-tap-zoom khi lỡ tỳ tay lúc viết)'}
+                                >
+                                    <i className={"fas text-sm " + (zoomLocked ? 'fa-lock' : 'fa-lock-open')}></i>
+                                </button>
                             </div>
                             
                             {/* DRAWING TOOLBAR */}
                             <div className="flex-1 flex justify-center">
                                 {pdfUrl && isDrawingMode && (
-                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in">
+                                    <div className="flex items-center flex-wrap justify-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in max-w-full">
                                         <button onClick={() => setTool('pencil')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì"><i className="fas fa-pencil-alt text-md"></i></button>
-                                        
+
                                         <button onClick={() => setTool('magic')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch">
                                             <i className="fas fa-wand-magic-sparkles text-md"></i>
                                         </button>
-                                        
+
+                                        <button onClick={() => setTool('ipa')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'ipa' ? 'bg-sky-100 text-sky-600 shadow-inner' : 'text-sky-500 hover:bg-slate-200 hover:text-sky-600')} title="Bút IPA: Quét chữ để tra phiên âm & từ loại">
+                                            <i className="fas fa-spell-check text-md"></i>
+                                        </button>
+
+                                        <button onClick={() => setTool('photo')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'photo' ? 'bg-rose-100 text-rose-600 shadow-inner' : 'text-rose-500 hover:bg-slate-200 hover:text-rose-600')} title="Bút tra ảnh minh hoạ: Mở Google Hình ảnh cho chữ vừa quét">
+                                            <i className="fas fa-images text-md"></i>
+                                        </button>
+
                                         <button onClick={() => setTool('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút bi"><i className="fas fa-pen-nib text-md"></i></button>
                                         <button onClick={() => setTool('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text"><i className="fas fa-font text-md"></i></button>
                                         <button onClick={() => setTool('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ"><i className="fas fa-eraser text-md"></i></button>
-                                        
+
                                         <div className="w-px h-5 bg-slate-300 mx-2"></div>
-                                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded-full cursor-pointer border-2 border-white shadow-sm p-0" title="Đổi màu" disabled={tool === 'magic'} />
-                                        
+                                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded-full cursor-pointer border-2 border-white shadow-sm p-0" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo'} />
+
+                                        {/* Chọn kiểu khoanh vùng cho bút Magic: Tự do (freehand) hoặc Hình chữ nhật (kéo-thả, tiện cho Mac/trackpad) */}
+                                        {tool === 'magic' && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kiểu khoanh vùng">
+                                                    <button onClick={() => setMagicShapeMode('lasso')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (magicShapeMode === 'lasso' ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
+                                                        <i className="fas fa-signature text-xs"></i>
+                                                    </button>
+                                                    <button onClick={() => setMagicShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (magicShapeMode === 'rect' ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — tiện cho Mac/trackpad)">
+                                                        <i className="fas fa-vector-square text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </React.Fragment>
+                                        )}
+
                                         {/* Kích thước chữ Text */}
                                         {tool === 'text' && (
                                             <React.Fragment>
@@ -1251,6 +1617,18 @@
                                                     <span className="text-xs font-bold text-slate-700 w-6 text-center">{fontSize}</span>
                                                     <button onClick={() => setFontSize(s => Math.min(48, s + 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-plus text-[10px]"></i></button>
                                                 </div>
+                                            </React.Fragment>
+                                        )}
+
+                                        {/* Gợi ý cách dùng bút IPA / tra ảnh: giờ cả 2 bút đều chọn vùng bằng cách
+                                            KÉO-THẢ 1 Ô CHỮ NHẬT quanh đúng chữ cần (giống bút Magic ở chế độ hình
+                                            chữ nhật) thay vì kiểu bút highlight quét ngang trước đây. */}
+                                        {(tool === 'ipa' || tool === 'photo') && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <span className="text-[11px] font-semibold text-slate-400 px-1 flex items-center gap-1.5 whitespace-nowrap">
+                                                    <i className="fas fa-vector-square text-[10px]"></i> Kéo-thả ô chữ nhật quanh chữ cần chọn
+                                                </span>
                                             </React.Fragment>
                                         )}
                                     </div>
@@ -1275,7 +1653,7 @@
                                     <button
                                         onClick={() => {
                                             setIsDrawingMode(!isDrawingMode);
-                                            if(!isDrawingMode && tool==='magic') setTool('pencil');
+                                            if(!isDrawingMode && (tool==='magic' || tool==='ipa' || tool==='photo')) setTool('pencil');
                                             unlockAudio();
                                         }}
                                         className={"px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
@@ -1305,17 +1683,20 @@
                                 </div>
                             ) : (
                                 pdfDoc && Array.from(new Array(numPages), (el, index) => (
-                                    <PdfPage 
-                                        key={index + 1} 
-                                        pageNum={index + 1} 
-                                        pdf={pdfDoc} 
-                                        scale={scale} 
+                                    <PdfPage
+                                        key={index + 1}
+                                        pageNum={index + 1}
+                                        pdf={pdfDoc}
+                                        scale={scale}
                                         isDrawingMode={isDrawingMode}
                                         tool={tool}
+                                        magicShapeMode={magicShapeMode}
+                                        highlightThickness={highlightThickness}
                                         color={color}
                                         fontSize={fontSize}
                                         onExtractText={onExtractText}
-                                        onDragStart={onTextDragStart}
+                                        onIPALookup={onIPALookup}
+                                        onPhotoLookup={onPhotoLookup}
                                     />
                                 ))
                             )}
