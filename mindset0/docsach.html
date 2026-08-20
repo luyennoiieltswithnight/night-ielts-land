@@ -110,6 +110,10 @@
             top: 0;
             left: 0;
             border-radius: 12px;
+            /* touch-action thực tế được set ĐỘNG bằng inline style trong PdfPage (xem JSX):
+               'none' khi đang bật Note (chặn Safari tự cuộn/zoom bằng chính CPU nền tảng — không
+               tốn JS) và 'auto' khi tắt Note (cuộn trang bình thường). Để mặc định 'auto' ở đây
+               phòng khi JS chưa kịp gán inline style lúc mới mount. */
             touch-action: auto;
             z-index: 10;
         }
@@ -1005,32 +1009,20 @@
                 return () => { if(renderTask) renderTask.cancel(); };
             }, [pdf, pageNum, scale, isVisible]);
 
-            useEffect(() => {
-                const canvas = drawCanvasRef.current;
-                if (!canvas || !isVisible) return;
-
-                const preventTouchScroll = (e) => {
-                    if (!isDrawingMode) return;
-                    let isStylus = false;
-                    if (e.touches && e.touches.length > 0) {
-                        for (let i = 0; i < e.touches.length; i++) {
-                            if (e.touches[i].touchType === 'stylus' || e.touches[i].touchType === 'pen') {
-                                isStylus = true;
-                            }
-                        }
-                    }
-                    if (isStylus) e.preventDefault(); 
-                };
-
-                canvas.addEventListener('touchstart', preventTouchScroll, { passive: false });
-                canvas.addEventListener('touchmove', preventTouchScroll, { passive: false });
-
-                return () => {
-                    canvas.removeEventListener('touchstart', preventTouchScroll);
-                    canvas.removeEventListener('touchmove', preventTouchScroll);
-                };
-            }, [isDrawingMode, isVisible]);
-
+            // QUAN TRỌNG — sửa lỗi "viết vài nét là bị đứng màn hình iPad" (vẫn còn xảy ra sau khi
+            // đã sửa unlockAudio + Khoá zoom): trước đây ở đây có 1 listener JS thuần
+            // (touchstart/touchmove, passive:false) tự gọi preventDefault() để chặn Safari cuộn
+            // trang khi viết bằng Apple Pencil. Vấn đề là: Apple Pencil sinh ra ĐỒNG THỜI cả Touch
+            // Events (bắt bằng listener này) LẪN Pointer Events (bắt bằng onPointerDown/Move/Up bên
+            // dưới, có gọi setPointerCapture) cho CÙNG 1 lần chạm — để 2 hệ thống sự kiện khác nhau
+            // cùng xử lý và gọi preventDefault() chồng chéo lên nhau cho cùng 1 cử chỉ là kiểu xung
+            // đột dễ khiến bộ xử lý cảm ứng của WebKit trên iPadOS bị "kẹt" sau vài lần chạm liên
+            // tiếp — chỉ hồi phục khi trang mất rồi lấy lại focus, đúng y hệt hiện tượng gặp phải.
+            // Sửa lại bằng cách dùng CSS "touch-action: none" (set động qua inline style ngay tại
+            // canvas, xem phần JSX return bên dưới) thay cho JS preventDefault — đây là cách chuẩn,
+            // được xử lý sẵn ở tầng trình duyệt/compositor (không tốn JS trên luồng chính, không
+            // xung đột với Pointer Events), Safari sẽ tự động không bao giờ cuộn/zoom khi chạm vào
+            // canvas lúc đang bật Note, dù là ngón tay hay Apple Pencil.
 
             const redrawStrokes = useCallback(() => {
                 const drawCanvas = drawCanvasRef.current;
@@ -1349,7 +1341,7 @@
                             <canvas 
                                 ref={drawCanvasRef} 
                                 className="draw-canvas cursor-crosshair"
-                                style={{ pointerEvents: isDrawingMode ? 'auto' : 'none' }}
+                                style={{ pointerEvents: isDrawingMode ? 'auto' : 'none', touchAction: isDrawingMode ? 'none' : 'auto' }}
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerUp}
@@ -1405,21 +1397,32 @@
             // "chưa hoạt động hiệu quả lắm" trên thực tế) — mặc định TẮT (zoom bình thường), người
             // dùng tự bấm bật khi cần viết/note để tránh lỡ tỳ tay làm phóng to/thu nhỏ ngoài ý muốn.
             const [zoomLocked, setZoomLocked] = useState(false);
-            const zoomLockedRef = useRef(zoomLocked);
-            useEffect(() => { zoomLockedRef.current = zoomLocked; }, [zoomLocked]);
 
+            // QUAN TRỌNG — sửa lỗi "viết vài nét là bị đứng màn hình iPad" VẪN CÒN xảy ra sau khi đã
+            // sửa unlockAudio: trước đây các listener chặn pinch/double-tap-zoom ở dưới được GẮN SẴN
+            // VĨNH VIỄN vào document (useEffect chạy 1 lần, deps rỗng) NGAY TỪ LÚC TẢI TRANG — dù
+            // "Khoá zoom" có đang tắt hay không, listener touchmove/touchend/gesture* (đều passive:
+            // false, tức bắt buộc Safari phải đợi JS chạy xong mới quyết định có cho cuộn/zoom hay
+            // không) vẫn LUÔN chạy trên MỌI cử động của bút Apple Pencil khi viết. Việc trộn lẫn giữa
+            // Pointer Events (dùng để vẽ, có setPointerCapture) và Touch Events có preventDefault
+            // chạy song song cho CÙNG 1 thao tác chạm bút là nguyên nhân gây "kẹt" bộ xử lý cảm ứng
+            // của WebKit trên iPadOS — đúng kiểu lỗi chỉ hồi phục khi trang mất rồi lấy lại focus.
+            // Sửa lại: CHỈ gắn các listener này khi "Khoá zoom" thực sự đang BẬT — mặc định (TẮT) sẽ
+            // không có bất kỳ listener chặn cảm ứng nào chạy cả, viết bằng bút mượt như trước khi có
+            // tính năng Khoá zoom này.
             useEffect(() => {
+                if (!zoomLocked) return;
+
                 let lastTouchEnd = 0;
 
-                // Safari bắn các sự kiện "gesture*" riêng khi chụm/mở 2 ngón — chặn khi đang khoá.
-                const onGesture = (e) => { if (zoomLockedRef.current) e.preventDefault(); };
+                // Safari bắn các sự kiện "gesture*" riêng khi chụm/mở 2 ngón — chặn hẳn.
+                const onGesture = (e) => { e.preventDefault(); };
                 // Chặn pinch-zoom bằng 2 ngón tay (không ảnh hưởng cuộn/vẽ 1 ngón hay bút Apple Pencil).
                 const onTouchMove = (e) => {
-                    if (zoomLockedRef.current && e.touches && e.touches.length > 1) e.preventDefault();
+                    if (e.touches && e.touches.length > 1) e.preventDefault();
                 };
-                // Chặn double-tap-to-zoom (chạm nhanh 2 lần liên tiếp) khi đang khoá.
+                // Chặn double-tap-to-zoom (chạm nhanh 2 lần liên tiếp).
                 const onTouchEnd = (e) => {
-                    if (!zoomLockedRef.current) return;
                     const now = Date.now();
                     if (now - lastTouchEnd <= 300) e.preventDefault();
                     lastTouchEnd = now;
@@ -1438,7 +1441,7 @@
                     document.removeEventListener('touchmove', onTouchMove);
                     document.removeEventListener('touchend', onTouchEnd);
                 };
-            }, []);
+            }, [zoomLocked]);
 
             // useCallback: giữ nguyên "địa chỉ" hàm giữa các lần render, để các PdfPage đã
             // memo hoá (React.memo) không phải render lại toàn bộ mỗi khi App có state khác
