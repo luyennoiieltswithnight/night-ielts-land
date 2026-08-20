@@ -173,8 +173,27 @@
         // Hàm này PHẢI được gọi trực tiếp bên trong 1 thao tác chạm/bấm thật của người dùng
         // (không phải trong callback bất đồng bộ) — đó là điều kiện Safari yêu cầu để "mở khoá"
         // phát audio, kể cả cho các lần phát bằng JS sau đó (giọng đọc Online).
+        //
+        // SỬA TIẾP LỖI "viết khoảng 9 nét là bị đứng màn hình iPad, phải bấm ra ngoài web mới viết
+        // tiếp được": nguyên nhân thật sự là hàm này trước đây được gọi lại ở MỖI LẦN đặt bút xuống
+        // — tức MỖI NÉT VẼ, kể cả bút chì/bút bi không hề liên quan gì đến âm thanh — và MỖI LẦN gọi
+        // đều tạo mới 1 oscillator + phát 1 SpeechSynthesisUtterance (window.speechSynthesis.speak)
+        // + play()/pause() lại thẻ <audio>. Cơ chế đọc-giọng-nói (speechSynthesis) trên Safari/iPadOS
+        // có lỗi đã biết: gọi .speak() dồn dập nhiều lần trong thời gian ngắn có thể làm "kẹt" tiến
+        // trình xử lý âm thanh nội bộ của WebKit, khiến TOÀN BỘ trang bị đứng hình — chỉ hồi phục khi
+        // trang mất rồi lấy lại focus, đúng y hệt hiện tượng "bấm ra ngoài web mới hết đứng" mà người
+        // dùng gặp phải. Vì việc "mở khoá" phát âm thanh trên Safari chỉ cần làm ĐÚNG 1 LẦN DUY NHẤT
+        // trong cả phiên sử dụng (một khi đã mở khoá thành công, các lần phát bằng JS sau đó — kể cả
+        // không nằm trong cử chỉ chạm — vẫn hoạt động bình thường, không bị mất khoá), nên thêm cờ
+        // "_audioUnlocked" để đảm bảo phần xử lý audio/speech nặng bên dưới CHỈ THỰC SỰ CHẠY 1 LẦN
+        // DUY NHẤT cho cả phiên — gọi lại unlockAudio() bao nhiêu lần sau đó (mỗi nét vẽ, mỗi lần bấm
+        // Bật Note...) cũng chỉ là 1 lệnh kiểm tra cờ gần như miễn phí, không tạo thêm audio node hay
+        // utterance mới nữa.
+        let _audioUnlocked = false;
         let _sharedAudioCtx = null;
         const unlockAudio = () => {
+            if (_audioUnlocked) return;
+            _audioUnlocked = true;
             try {
                 if (!_sharedAudioCtx) {
                     const Ctor = window.AudioContext || window.webkitAudioContext;
