@@ -80,6 +80,12 @@
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-modal-pop { animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
 </head>
 <body>
@@ -148,9 +154,7 @@
                     .then(data => {
                         if(data && data[0]) {
                             let fullTranslation = "";
-                            data[0].forEach(chunk => {
-                                if (chunk[0]) fullTranslation += chunk[0];
-                            });
+                            data[0].forEach(chunk => { if (chunk[0]) fullTranslation += chunk[0]; });
                             setTranslation(fullTranslation);
                         } else {
                             setTranslation("Không thể dịch nội dung này.");
@@ -243,20 +247,20 @@
             );
         };
 
-        // --- COMPONENT TEXT BOX THÔNG MINH ---
-        const PdfTextBox = ({ t, scale, updateText, removeText }) => {
-            const [active, setActive] = useState(true); // Mới chèn là active luôn
+        // --- COMPONENT TEXT BOX THÔNG MINH CÓ 3 NÚM RESIZE ---
+        const PdfTextBox = ({ t, scale, updateText, removeText, onDragStart }) => {
+            const [active, setActive] = useState(true); 
             const containerRef = useRef(null);
             const textareaRef = useRef(null);
 
-            // Bấm vào phát là Focus ngay lập tức
+            // Focus tự động khi tạo mới
             useEffect(() => {
                 if (active && textareaRef.current) {
                     textareaRef.current.focus();
                 }
             }, [active]);
 
-            // Bấm ra chỗ khác thì ẩn viền và nút X
+            // Bấm ra ngoài -> Ẩn box viền (tàng hình)
             useEffect(() => {
                 const handleClickOutside = (e) => {
                     if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -267,50 +271,37 @@
                 return () => document.removeEventListener('pointerdown', handleClickOutside);
             }, []);
 
-            // Kéo Thả Resize
+            // THUẬT TOÁN KÉO RESIZE BOX
             const startResize = (e, direction) => {
                 e.stopPropagation();
                 e.preventDefault();
+                
                 const startX = e.clientX;
                 const startY = e.clientY;
-                const startW = t.width || 150;
-                const startH = t.height || 40;
+                
+                // Lấy kích thước thực tế hiện tại
+                const rect = containerRef.current.getBoundingClientRect();
+                const startW = rect.width / scale;
+                const startH = rect.height / scale;
 
                 const onMove = (ev) => {
                     let w = startW;
                     let h = startH;
-                    if (direction === 'w' || direction === 'both') w = startW + (ev.clientX - startX) / scale;
-                    if (direction === 'h' || direction === 'both') h = startH + (ev.clientY - startY) / scale;
-                    updateText(t.id, { ...t, width: Math.max(50, w), height: Math.max(30, h) });
+                    if (direction === 'w' || direction === 'both') {
+                        w = startW + (ev.clientX - startX) / scale;
+                    }
+                    if (direction === 'h' || direction === 'both') {
+                        h = startH + (ev.clientY - startY) / scale;
+                    }
+                    // Giới hạn chiều rộng/cao tối thiểu
+                    updateText(t.id, { ...t, width: Math.max(60, w), height: Math.max(30, h) });
                 };
+                
                 const onUp = () => {
                     window.removeEventListener('pointermove', onMove);
                     window.removeEventListener('pointerup', onUp);
                 };
-                window.addEventListener('pointermove', onMove);
-                window.addEventListener('pointerup', onUp);
-            };
-
-            // Kéo Thả Move
-            const startMove = (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const startX = e.clientX;
-                const startY = e.clientY;
-                const startLeft = t.x;
-                const startTop = t.y;
-
-                const onMove = (ev) => {
-                    updateText(t.id, { 
-                        ...t, 
-                        x: startLeft + (ev.clientX - startX) / scale, 
-                        y: startTop + (ev.clientY - startY) / scale 
-                    });
-                };
-                const onUp = () => {
-                    window.removeEventListener('pointermove', onMove);
-                    window.removeEventListener('pointerup', onUp);
-                };
+                
                 window.addEventListener('pointermove', onMove);
                 window.addEventListener('pointerup', onUp);
             };
@@ -326,58 +317,60 @@
                         height: (t.height || 40) * scale,
                         zIndex: active ? 100 : 10,
                     }}
-                    className={`group ${active ? 'bg-white/80 border-2 border-indigo-400 shadow-lg backdrop-blur-sm' : 'bg-transparent border-2 border-transparent'}`}
+                    className={`group transition-all ${active ? 'border-2 border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
                     onPointerDown={(e) => { e.stopPropagation(); setActive(true); }}
-                    onDoubleClick={(e) => { e.stopPropagation(); setActive(true); }}
                 >
                     {/* Nút Xóa */}
                     {active && (
                         <button 
                             onPointerDown={(e) => { e.stopPropagation(); removeText(t.id); }}
-                            className="absolute -top-3 -right-3 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md touch-none z-20"
+                            className="absolute -top-3 -right-3 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md touch-none z-20 hover:scale-110 transition-transform"
                         >
-                            <i className="fas fa-times text-xs"></i>
+                            <i className="fas fa-times text-[10px]"></i>
                         </button>
                     )}
 
                     {/* Nắm Kéo Move (Bên Trên) */}
                     {active && (
                         <div 
-                            onPointerDown={startMove}
-                            className="absolute -top-3 left-1/2 transform -translate-x-1/2 w-10 h-5 bg-indigo-500 text-white rounded-md cursor-move shadow-md flex items-center justify-center touch-none z-20"
+                            onPointerDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                onDragStart(t.id, e);
+                            }}
+                            className="absolute -top-5 left-1/2 transform -translate-x-1/2 w-14 h-5 bg-indigo-500 text-white rounded-t-lg cursor-move shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600 transition-colors"
                         >
-                            <i className="fas fa-arrows-alt text-[10px]"></i>
+                            <i className="fas fa-grip-lines text-[10px]"></i>
                         </div>
                     )}
 
-                    {/* Resize Ngang (Bên Phải) */}
+                    {/* 3 NÚM ĐIỀU KHIỂN RESIZE CHO IPAD */}
                     {active && (
-                        <div 
-                            onPointerDown={(e) => startResize(e, 'w')}
-                            className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-8 bg-indigo-400 rounded-md cursor-e-resize shadow-md touch-none flex items-center justify-center z-20"
-                        >
-                            <i className="fas fa-ellipsis-v text-white text-[8px]"></i>
-                        </div>
-                    )}
+                        <>
+                            {/* Núm ngang */}
+                            <div 
+                                onPointerDown={(e) => startResize(e, 'w')}
+                                className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-8 bg-indigo-500 text-white rounded-md cursor-e-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600"
+                            >
+                                <i className="fas fa-ellipsis-v text-[8px]"></i>
+                            </div>
+                            
+                            {/* Núm dọc */}
+                            <div 
+                                onPointerDown={(e) => startResize(e, 'h')}
+                                className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-indigo-500 text-white rounded-md cursor-s-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600"
+                            >
+                                <i className="fas fa-ellipsis-h text-[8px]"></i>
+                            </div>
 
-                    {/* Resize Dọc (Bên Dưới) */}
-                    {active && (
-                        <div 
-                            onPointerDown={(e) => startResize(e, 'h')}
-                            className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-indigo-400 rounded-md cursor-s-resize shadow-md touch-none flex items-center justify-center z-20"
-                        >
-                            <i className="fas fa-ellipsis-h text-white text-[8px]"></i>
-                        </div>
-                    )}
-
-                    {/* Resize Cả 2 chiều (Góc Dưới Phải) */}
-                    {active && (
-                        <div 
-                            onPointerDown={(e) => startResize(e, 'both')}
-                            className="absolute -bottom-2 -right-2 w-5 h-5 bg-indigo-600 rounded-full cursor-se-resize shadow-md flex items-center justify-center touch-none z-20"
-                        >
-                            <i className="fas fa-expand-arrows-alt text-white text-[10px] rotate-90"></i>
-                        </div>
+                            {/* Núm 2 chiều góc dưới */}
+                            <div 
+                                onPointerDown={(e) => startResize(e, 'both')}
+                                className="absolute -bottom-2 -right-2 w-5 h-5 bg-indigo-600 text-white rounded-full cursor-se-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-700 hover:scale-110 transition-transform"
+                            >
+                                <i className="fas fa-expand-arrows-alt text-[10px] rotate-90"></i>
+                            </div>
+                        </>
                     )}
 
                     <textarea
@@ -387,19 +380,64 @@
                         placeholder="Gõ chữ..."
                         style={{ 
                             color: t.color, 
-                            fontSize: t.size * scale,
-                            width: '100%',
-                            height: '100%',
-                            resize: 'none'
+                            fontSize: (t.size * scale) + 'px',
+                            resize: 'none' // Khóa resize native vì đã dùng núm xịn
                         }}
-                        className={`w-full h-full bg-transparent outline-none p-2 font-sans leading-relaxed block overflow-hidden ${active ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                        className={`w-full h-full outline-none bg-transparent p-2 font-sans block leading-relaxed overflow-hidden ${active ? 'pointer-events-auto' : 'pointer-events-none'}`}
                     />
                 </div>
             );
         };
 
+        // --- PDF THUMBNAIL (FLOATING WINDOW) ---
+        const PdfThumbnail = ({ pdf, pageNum, onClick }) => {
+            const canvasRef = useRef(null);
+            const containerRef = useRef(null);
+            const [isVisible, setIsVisible] = useState(false);
+
+            useEffect(() => {
+                const observer = new IntersectionObserver(
+                    ([entry]) => { setIsVisible(entry.isIntersecting); },
+                    { rootMargin: '200px 0px' } 
+                );
+                if (containerRef.current) observer.observe(containerRef.current);
+                return () => observer.disconnect();
+            }, []);
+
+            useEffect(() => {
+                if (!pdf || !isVisible) return;
+                let renderTask = null;
+                pdf.getPage(pageNum).then(page => {
+                    const canvas = canvasRef.current;
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    const viewport = page.getViewport({ scale: 0.3 });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    renderTask = page.render({ canvasContext: ctx, viewport });
+                });
+                return () => { if(renderTask) renderTask.cancel(); };
+            }, [pdf, pageNum, isVisible]);
+
+            return (
+                <div 
+                    ref={containerRef} 
+                    onClick={onClick} 
+                    className="cursor-pointer border border-slate-200 hover:border-indigo-500 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all flex flex-col relative group transform hover:-translate-y-1"
+                >
+                    <div className="bg-slate-100 w-full aspect-[1/1.4] flex items-center justify-center relative overflow-hidden">
+                        {isVisible ? <canvas ref={canvasRef} className="w-full h-full object-cover" /> : <i className="fas fa-file-pdf text-slate-300 text-3xl absolute"></i>}
+                        <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+                    <div className="absolute bottom-0 w-full bg-slate-900/70 backdrop-blur-sm text-center py-1.5">
+                        <span className="text-xs font-extrabold text-white tracking-widest uppercase">Trang {pageNum}</span>
+                    </div>
+                </div>
+            );
+        };
+
         // --- SINGLE PDF PAGE ---
-        const PdfPage = ({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText }) => {
+        const PdfPage = ({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText, onDragStart }) => {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -447,7 +485,6 @@
                 return () => { if(renderTask) renderTask.cancel(); };
             }, [pdf, pageNum, scale, isVisible]);
 
-            // CHẶN CUỘN TRANG CỦA IPAD (CHỈ KHI DÙNG BÚT)
             useEffect(() => {
                 const canvas = drawCanvasRef.current;
                 if (!canvas || !isVisible) return;
@@ -627,7 +664,6 @@
                     }
                     return true;
                 }));
-                // Tẩy nét vẽ không tẩy text
                 setTimeout(() => redrawStrokes(), 0);
             };
 
@@ -692,6 +728,23 @@
                 setTexts(prev => prev.filter(t => t.id !== id));
             };
 
+            const handleTextDragStart = (id, e) => {
+                const coords = getCoordinates(e);
+                const tObj = texts.find(t => t.id === id);
+                if(tObj) onDragStart(pageNum, id, coords.x - tObj.x, coords.y - tObj.y);
+            };
+
+            useEffect(() => {
+                const handleGlobalDragUpdate = (e) => {
+                    const { action, pNum, tId, newX, newY } = e.detail;
+                    if (action === 'update' && pNum === pageNum) {
+                        setTexts(prev => prev.map(t => t.id === tId ? { ...t, x: newX, y: newY } : t));
+                    }
+                };
+                window.addEventListener('textDragUpdate', handleGlobalDragUpdate);
+                return () => window.removeEventListener('textDragUpdate', handleGlobalDragUpdate);
+            }, [pageNum]);
+
             return (
                 <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={viewport ? { width: viewport.width, height: viewport.height } : { width: '100%', minHeight: (1131 * scale) + 'px' }}>
                     {isVisible ? (
@@ -716,6 +769,7 @@
                                     scale={scale} 
                                     updateText={updateText} 
                                     removeText={removeText} 
+                                    onDragStart={handleTextDragStart}
                                 />
                             ))}
                         </>
@@ -738,10 +792,13 @@
             const [isDrawingMode, setIsDrawingMode] = useState(false);
             const [tool, setTool] = useState('pencil'); 
             const [color, setColor] = useState('#4F46E5');
-            const [fontSize, setFontSize] = useState(10); // Đổi mặc định thành 10
+            const [fontSize, setFontSize] = useState(10); // Mặc định 10
             
             const [magicText, setMagicText] = useState("");
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+
+            const [dragState, setDragState] = useState(null); 
+            const [showTOC, setShowTOC] = useState(false);
 
             const handleFileUpload = (e) => {
                 const file = e.target.files[0];
@@ -755,16 +812,88 @@
                 }
             };
 
+            const onTextDragStart = (pageNum, textId, offsetX, offsetY) => {
+                setDragState({ pageNum, textId, offsetX, offsetY });
+            };
+
+            const handleGlobalPointerMove = (e) => {
+                if (dragState) {
+                    const rects = document.querySelectorAll('.draw-canvas');
+                    if(rects[dragState.pageNum - 1]) {
+                        const canvas = rects[dragState.pageNum - 1];
+                        const rect = canvas.getBoundingClientRect();
+                        const scaleX = canvas.width / rect.width;
+                        const scaleY = canvas.height / rect.height;
+                        
+                        const newX = ((e.clientX - rect.left) * scaleX) / scale - dragState.offsetX;
+                        const newY = ((e.clientY - rect.top) * scaleY) / scale - dragState.offsetY;
+
+                        const event = new CustomEvent('textDragUpdate', {
+                            detail: { action: 'update', pNum: dragState.pageNum, tId: dragState.textId, newX, newY }
+                        });
+                        window.dispatchEvent(event);
+                    }
+                }
+            };
+
+            const handleGlobalPointerUp = () => {
+                if (dragState) setDragState(null);
+            };
+
             return (
-                <div className="flex h-screen w-full font-sans bg-slate-100 overflow-hidden">
+                <div 
+                    className={"flex h-screen w-full font-sans bg-slate-100 overflow-hidden " + (dragState ? 'select-none' : '')}
+                    onPointerMove={handleGlobalPointerMove}
+                    onPointerUp={handleGlobalPointerUp}
+                    onPointerLeave={handleGlobalPointerUp}
+                    onPointerCancel={handleGlobalPointerUp}
+                >
                     <MagicTranslationBar text={magicText} isProcessing={isOcrProcessing} onClose={() => { setMagicText(""); setIsOcrProcessing(false); }} />
 
+                    {/* FLOATING WINDOW: MỤC LỤC TRANG DẠNG GRID */}
+                    {showTOC && pdfDoc && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 sm:p-8" onClick={() => setShowTOC(false)}>
+                            <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-5xl max-h-full flex flex-col overflow-hidden animate-modal-pop" onClick={e => e.stopPropagation()}>
+                                <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white shadow-sm z-10">
+                                    <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">
+                                        <i className="fas fa-th-large text-indigo-500 mr-3"></i> Chọn trang nhanh
+                                    </h3>
+                                    <button onClick={() => setShowTOC(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <div className="p-6 overflow-y-auto flex-1 pb-10">
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6">
+                                        {Array.from(new Array(numPages), (el, index) => (
+                                            <PdfThumbnail 
+                                                key={index} 
+                                                pdf={pdfDoc} 
+                                                pageNum={index + 1} 
+                                                onClick={() => {
+                                                    const el = document.getElementById(`pdf-page-${index + 1}`);
+                                                    if(el) el.scrollIntoView({behavior: 'smooth'});
+                                                    setShowTOC(false);
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MAIN CONTENT PANE */}
                     <div className="flex-1 h-full relative flex flex-col z-10 overflow-hidden bg-slate-200">
                         
                         {/* TOP HEADER */}
                         <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-20 shadow-sm shrink-0">
                             
                             <div className="flex items-center gap-4 w-1/4">
+                                {pdfUrl && (
+                                    <button onClick={() => setShowTOC(true)} className="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-colors border border-indigo-100 shadow-sm" title="Mở mục lục">
+                                        <i className="fas fa-list-ul"></i>
+                                    </button>
+                                )}
                                 <div className="font-extrabold text-xl text-slate-800 tracking-tight truncate flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
                                         <i className="fas fa-book"></i>
@@ -790,6 +919,7 @@
                                         <div className="w-px h-5 bg-slate-300 mx-2"></div>
                                         <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded-full cursor-pointer border-2 border-white shadow-sm p-0" title="Đổi màu" disabled={tool === 'magic'} />
                                         
+                                        {/* Kích thước chữ Text */}
                                         {tool === 'text' && (
                                             <React.Fragment>
                                                 <div className="w-px h-5 bg-slate-300 mx-1"></div>
@@ -823,7 +953,7 @@
                                         onClick={() => { 
                                             setIsDrawingMode(!isDrawingMode); 
                                             if(!isDrawingMode && tool==='magic') setTool('pencil'); 
-                                            unlockAudio(); // Mồi âm thanh
+                                            unlockAudio();
                                         }}
                                         className={"px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
                                     >
@@ -843,7 +973,7 @@
                                         <i className="fas fa-file-pdf text-6xl text-indigo-500"></i>
                                     </div>
                                     <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">Night IELTS Land</h2>
-                                    <p className="text-slate-500 mb-10 text-lg leading-relaxed">Được tinh chỉnh đặc biệt cho iPad và Apple Pencil. Trải nghiệm vẽ Zero-latency mượt mà và quét Dịch AI thông minh không lo Crash máy.</p>
+                                    <p className="text-slate-500 mb-10 text-lg leading-relaxed">Hỗ trợ đọc PDF Offline siêu tốc. Trải nghiệm vẽ Zero-latency mượt mà và quét Dịch AI thông minh được thiết kế đặc quyền cho iPad.</p>
                                     
                                     <label className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold cursor-pointer shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 text-lg flex items-center gap-3">
                                         <i className="fas fa-cloud-upload-alt text-2xl"></i> Chọn Sách PDF từ máy
@@ -862,6 +992,7 @@
                                         color={color}
                                         fontSize={fontSize}
                                         onExtractText={(text, processing) => { setMagicText(text); setIsOcrProcessing(processing); }}
+                                        onDragStart={onTextDragStart}
                                     />
                                 ))
                             )}
