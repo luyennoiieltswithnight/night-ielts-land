@@ -140,10 +140,52 @@
     </style>
 </head>
 <body>
+    <script>
+        // KHOÁ PINCH-ZOOM / DOUBLE-TAP-ZOOM TRÊN IPAD BẰNG JS.
+        // Ghi chú: thẻ <meta viewport ... user-scalable=no, maximum-scale=1"> KHÔNG còn
+        // hiệu lực trên Safari/iPadOS hiện đại (Apple cố tình bỏ qua để đảm bảo trợ năng),
+        // nên phải chặn bằng sự kiện JS mới thực sự khoá được zoom khi lỡ tỳ tay/2 ngón tay
+        // trong lúc viết. Việc phóng to/thu nhỏ trang PDF vẫn dùng nút +/- % như cũ, không đổi.
+        (function () {
+            var lastTouchEnd = 0;
+
+            // Safari bắn các sự kiện "gesture*" riêng khi chụm/mở 2 ngón — chặn hẳn.
+            document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, { passive: false });
+            document.addEventListener('gesturechange', function (e) { e.preventDefault(); }, { passive: false });
+            document.addEventListener('gestureend', function (e) { e.preventDefault(); }, { passive: false });
+
+            // Chặn pinch-zoom bằng 2 ngón tay (không ảnh hưởng cuộn/vẽ 1 ngón hay bút Apple Pencil).
+            document.addEventListener('touchmove', function (e) {
+                if (e.touches && e.touches.length > 1) e.preventDefault();
+            }, { passive: false });
+
+            // Chặn double-tap-to-zoom (chạm nhanh 2 lần liên tiếp).
+            document.addEventListener('touchend', function (e) {
+                var now = Date.now();
+                if (now - lastTouchEnd <= 300) e.preventDefault();
+                lastTouchEnd = now;
+            }, { passive: false });
+        })();
+    </script>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- 1 THẺ <audio> DÙNG CHUNG CHO CẢ APP (tạo bằng DOM thuần, không phụ thuộc React) ---
+        // Lý do tạo ngoài React: nếu để React tạo/huỷ thẻ <audio> mỗi lần box dịch ẩn/hiện,
+        // trạng thái "đã được mở khoá phát âm thanh" (autoplay unlock) trên Safari/iPadOS sẽ
+        // bị mất mỗi lần thẻ bị huỷ, khiến lần đọc tiếp theo lại bị Safari chặn im lặng.
+        let _sharedAudioEl = null;
+        const getSharedAudioEl = () => {
+            if (!_sharedAudioEl) {
+                _sharedAudioEl = document.createElement('audio');
+                _sharedAudioEl.setAttribute('playsinline', '');
+                _sharedAudioEl.style.display = 'none';
+                document.body.appendChild(_sharedAudioEl);
+            }
+            return _sharedAudioEl;
+        };
 
         // --- GLOBAL AUDIO UNLOCKER FOR IPAD ---
         // QUAN TRỌNG: trước đây hàm này tạo MỘT AudioContext THẬT MỚI mỗi lần được gọi
@@ -151,6 +193,9 @@
         // AudioContext không đóng sẽ tích tụ dần và là nguyên nhân chính khiến trang bị
         // "đứng hình" sau một lúc sử dụng (phải bấm ra ngoài app mới hồi lại được).
         // Sửa lại thành 1 AudioContext DÙNG CHUNG (singleton), chỉ tạo 1 lần duy nhất.
+        // Hàm này PHẢI được gọi trực tiếp bên trong 1 thao tác chạm/bấm thật của người dùng
+        // (không phải trong callback bất đồng bộ) — đó là điều kiện Safari yêu cầu để "mở khoá"
+        // phát audio, kể cả cho các lần phát bằng JS sau đó (giọng đọc Online).
         let _sharedAudioCtx = null;
         const unlockAudio = () => {
             try {
@@ -178,6 +223,17 @@
                     window.speechSynthesis.speak(utter);
                 } catch (err) {}
             }
+
+            // Mở khoá luôn thẻ <audio> dùng cho giọng đọc Online, ngay trong cùng 1 cử chỉ chạm này.
+            // Dùng 1 file WAV câm lặng cực ngắn thay vì để trống src, vì Safari/iPadOS chỉ thực sự
+            // ghi nhận "đã mở khoá" khi có 1 lượt phát thành công thật sự (không phải bị từ chối do thiếu src).
+            try {
+                const el = getSharedAudioEl();
+                if (!el.src) el.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+                const p = el.play();
+                if (p && p.catch) p.catch(() => {});
+                el.pause();
+            } catch (err) {}
         };
 
         // --- NHẬN DIỆN THIẾT BỊ (để chọn giọng đọc mặc định tốt nhất) ---
@@ -221,9 +277,17 @@
 
         // Phát 1 danh sách chunk văn bản tuần tự bằng thẻ <audio> qua Google TTS.
         // Trả về 1 hàm "cancel" để có thể dừng giữa chừng khi người dùng đóng box hoặc mute.
-        const playOnlineTTS = (text, audioEl, { onStart, onEnd, onError } = {}) => {
+        //
+        // LƯU Ý QUAN TRỌNG (bug đã sửa): khi audioEl.play() đang chờ (promise "pending") mà bị
+        // gọi audioEl.pause()/đổi src ở giữa chừng (vd người dùng quét chữ lần 2 trong lúc lần 1
+        // còn đang tải), trình duyệt sẽ TỪ CHỐI promise đó với lỗi "interrupted by pause()".
+        // Trước đây .catch() không kiểm tra "đã bị huỷ hay chưa" nên vẫn gọi onError -> tự động
+        // đọc lại bằng giọng máy dù lượt phát đó đã bị huỷ từ trước — đây chính là nguyên nhân
+        // gây đọc lặp lại 2 lần liên tiếp. Giờ mọi callback bất đồng bộ đều kiểm tra "cancelled".
+        const playOnlineTTS = (text, { onStart, onEnd, onError } = {}) => {
+            const audioEl = getSharedAudioEl();
             const chunks = splitTextForTTS(text);
-            if (!audioEl || chunks.length === 0) { onEnd && onEnd(); return () => {}; }
+            if (chunks.length === 0) { onEnd && onEnd(); return () => {}; }
 
             let idx = 0;
             let cancelled = false;
@@ -235,7 +299,7 @@
                 const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=" + encodeURIComponent(chunk);
                 audioEl.src = url;
                 const p = audioEl.play();
-                if (p && p.catch) p.catch(() => { onError && onError(); });
+                if (p && p.catch) p.catch(() => { if (!cancelled) { onError && onError(); } });
             };
 
             audioEl.onended = playNext;
@@ -245,6 +309,8 @@
 
             return () => {
                 cancelled = true;
+                audioEl.onended = null;
+                audioEl.onerror = null;
                 try { audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); } catch (e) {}
             };
         };
@@ -263,11 +329,20 @@
 
             const [copiedEn, setCopiedEn] = useState(false);
             const [copiedVi, setCopiedVi] = useState(false);
+            // true khi lần đọc Online gần nhất bị lỗi/chặn và đã tự chuyển sang giọng máy —
+            // hiển thị 1 dòng nhỏ để người dùng biết rõ lý do, thay vì tưởng là app "không đổi giọng".
+            const [onlineFailed, setOnlineFailed] = useState(false);
 
-            const audioRef = useRef(null);
             const stopOnlineRef = useRef(null);
             const isMutedRef = useRef(isMuted);
             useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+
+            // "Thế hệ" của lượt đọc hiện tại — mỗi lần speak() được gọi sẽ tăng số này lên.
+            // Mọi callback bất đồng bộ (onEnd/onError của TTS online) đều tự kiểm tra xem mình
+            // còn đúng là lượt đọc mới nhất hay không trước khi làm bất cứ điều gì. Nhờ vậy dù
+            // mạng chậm/trình duyệt trả kết quả trễ, một lượt đọc cũ KHÔNG BAO GIỜ có thể chen
+            // ngang hoặc đọc chồng lên lượt đọc mới — đây là nguyên nhân gốc của lỗi "đọc 2 lần".
+            const speakGenRef = useRef(0);
 
             useEffect(() => {
                 const loadVoices = () => {
@@ -282,6 +357,7 @@
             }, []);
 
             const stopAllAudio = useCallback(() => {
+                speakGenRef.current++; // vô hiệu hoá mọi callback của các lượt đọc trước đó
                 window.speechSynthesis.cancel();
                 if (stopOnlineRef.current) { stopOnlineRef.current(); stopOnlineRef.current = null; }
                 setIsSpeaking(false);
@@ -290,14 +366,20 @@
             const speak = useCallback((content) => {
                 if (!content || isMutedRef.current) return;
                 stopAllAudio();
+                const myGen = ++speakGenRef.current; // đánh dấu đây là lượt đọc mới nhất
+                setOnlineFailed(false);
 
                 if (voiceMode === 'online') {
                     setIsSpeaking(true);
-                    stopOnlineRef.current = playOnlineTTS(content, audioRef.current, {
-                        onEnd: () => setIsSpeaking(false),
+                    stopOnlineRef.current = playOnlineTTS(content, {
+                        onEnd: () => { if (speakGenRef.current === myGen) setIsSpeaking(false); },
                         onError: () => {
-                            // Nếu dịch vụ online lỗi/mạng chậm -> tự động phát bằng giọng máy để không bị câm tiếng
+                            // Chỉ xử lý nếu đây vẫn là lượt đọc mới nhất — nếu người dùng đã bấm
+                            // đọc lần khác/đóng box từ trước thì bỏ qua, tránh đọc chồng/đọc lặp.
+                            if (speakGenRef.current !== myGen) return;
+                            // Dịch vụ Online lỗi/bị chặn mạng -> tự động chuyển sang giọng máy để không bị câm tiếng
                             setIsSpeaking(false);
+                            setOnlineFailed(true);
                             const utterance = new SpeechSynthesisUtterance(content);
                             const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
                             if (voice) utterance.voice = voice;
@@ -308,9 +390,9 @@
                     const utterance = new SpeechSynthesisUtterance(content);
                     const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
                     if (voice) utterance.voice = voice;
-                    utterance.onstart = () => setIsSpeaking(true);
-                    utterance.onend = () => setIsSpeaking(false);
-                    utterance.onerror = () => setIsSpeaking(false);
+                    utterance.onstart = () => { if (speakGenRef.current === myGen) setIsSpeaking(true); };
+                    utterance.onend = () => { if (speakGenRef.current === myGen) setIsSpeaking(false); };
+                    utterance.onerror = () => { if (speakGenRef.current === myGen) setIsSpeaking(false); };
                     window.speechSynthesis.speak(utterance);
                 }
             }, [voiceMode, voices, selectedVoiceURI, stopAllAudio]);
@@ -368,20 +450,20 @@
 
             return (
                 <div className="fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-3xl glass-panel rounded-2xl z-[100] animate-slide-down flex flex-col overflow-hidden shadow-2xl border-2 border-indigo-100">
-                    <audio ref={audioRef} className="hidden" playsInline preload="none" />
-                    <div className="bg-slate-100/80 px-4 py-2 flex items-center justify-between border-b border-slate-200 shrink-0 relative gap-2">
+                    <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 shrink-0">
+                        <div className="flex items-center justify-between gap-2 relative">
                         <div className="flex items-center gap-2 flex-wrap">
                             {/* Chọn nguồn giọng đọc: Online (chất lượng cao, tốt cho iPad) / Máy (offline) */}
                             <div className="flex items-center bg-white border border-slate-300 rounded-full p-0.5 shadow-sm text-xs font-bold">
                                 <button
-                                    onClick={() => setVoiceMode('online')}
+                                    onClick={() => { setVoiceMode('online'); setOnlineFailed(false); }}
                                     className={"px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 " + (voiceMode === 'online' ? 'bg-indigo-500 text-white shadow' : 'text-slate-500 hover:text-indigo-600')}
                                     title="Giọng đọc Online (chất lượng cao, khuyên dùng cho iPad)"
                                 >
                                     <i className="fas fa-cloud text-[10px]"></i> Online
                                 </button>
                                 <button
-                                    onClick={() => setVoiceMode('device')}
+                                    onClick={() => { setVoiceMode('device'); setOnlineFailed(false); }}
                                     className={"px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 " + (voiceMode === 'device' ? 'bg-indigo-500 text-white shadow' : 'text-slate-500 hover:text-indigo-600')}
                                     title="Giọng đọc có sẵn trên máy (chạy offline)"
                                 >
@@ -414,6 +496,15 @@
                         <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-all absolute right-2 top-1/2 transform -translate-y-1/2 bg-white border border-slate-200 hover:border-red-500 shadow-sm">
                             <i className="fas fa-times text-md"></i>
                         </button>
+                        </div>
+
+                        {/* Thông báo khi giọng Online bị lỗi/chặn mạng và đã tự chuyển sang giọng máy */}
+                        {onlineFailed && voiceMode === 'online' && (
+                            <p className="mt-1.5 text-[11px] font-semibold text-amber-600 flex items-center gap-1.5 animate-fade-in">
+                                <i className="fas fa-triangle-exclamation"></i>
+                                Không kết nối được giọng Online (có thể do mạng/chặn quảng cáo) — đang tạm đọc bằng giọng máy.
+                            </p>
+                        )}
                     </div>
 
                     <div className="p-6 relative bg-white flex-1">
@@ -773,10 +864,17 @@
 
             const handlePointerDown = (e) => {
                 if (!isDrawingMode) return;
-                if (e.pointerType === 'touch') return; 
+                if (e.pointerType === 'touch') return;
+
+                if (tool === 'magic') {
+                    // Mở khoá audio ngay trong cử chỉ bắt đầu nét quét OCR — đây là thao tác chạm
+                    // thật gần nhất trước khi cần đọc to văn bản, giúp giọng đọc Online chắc chắn
+                    // được Safari/iPadOS cho phép phát thay vì bị âm thầm chặn.
+                    unlockAudio();
+                }
 
                 try { e.target.setPointerCapture(e.pointerId); } catch(err) {}
-                
+
                 const coords = getCoordinates(e);
 
                 if (tool === 'eraser') {
