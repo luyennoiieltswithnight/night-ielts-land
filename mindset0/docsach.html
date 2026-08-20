@@ -110,10 +110,13 @@
             top: 0;
             left: 0;
             border-radius: 12px;
-            /* touch-action thực tế được set ĐỘNG bằng inline style trong PdfPage (xem JSX):
-               'none' khi đang bật Note (chặn Safari tự cuộn/zoom bằng chính CPU nền tảng — không
-               tốn JS) và 'auto' khi tắt Note (cuộn trang bình thường). Để mặc định 'auto' ở đây
-               phòng khi JS chưa kịp gán inline style lúc mới mount. */
+            /* GIỮ "auto" cố định — KHÔNG đổi thành "none" theo isDrawingMode. Đã thử "none" nhưng
+               touch-action là thuộc tính CSS thuần, không phân biệt được ngón tay hay Apple Pencil,
+               nên chặn cứng luôn cả việc cuộn trang bằng ngón tay (dùng "none" làm hỏng tính năng
+               "ngón tay để cuộn, bút để viết, tỳ tay không bị nhận nhầm nét vẽ"). Việc chặn Safari tự
+               cuộn/zoom riêng khi CHỈ có Apple Pencil chạm (không chặn khi là ngón tay) phải xử lý
+               bằng JS phân biệt theo touchType — xem preventTouchScroll trong component PdfPage.
+            */
             touch-action: auto;
             z-index: 10;
         }
@@ -1009,20 +1012,37 @@
                 return () => { if(renderTask) renderTask.cancel(); };
             }, [pdf, pageNum, scale, isVisible]);
 
-            // QUAN TRỌNG — sửa lỗi "viết vài nét là bị đứng màn hình iPad" (vẫn còn xảy ra sau khi
-            // đã sửa unlockAudio + Khoá zoom): trước đây ở đây có 1 listener JS thuần
-            // (touchstart/touchmove, passive:false) tự gọi preventDefault() để chặn Safari cuộn
-            // trang khi viết bằng Apple Pencil. Vấn đề là: Apple Pencil sinh ra ĐỒNG THỜI cả Touch
-            // Events (bắt bằng listener này) LẪN Pointer Events (bắt bằng onPointerDown/Move/Up bên
-            // dưới, có gọi setPointerCapture) cho CÙNG 1 lần chạm — để 2 hệ thống sự kiện khác nhau
-            // cùng xử lý và gọi preventDefault() chồng chéo lên nhau cho cùng 1 cử chỉ là kiểu xung
-            // đột dễ khiến bộ xử lý cảm ứng của WebKit trên iPadOS bị "kẹt" sau vài lần chạm liên
-            // tiếp — chỉ hồi phục khi trang mất rồi lấy lại focus, đúng y hệt hiện tượng gặp phải.
-            // Sửa lại bằng cách dùng CSS "touch-action: none" (set động qua inline style ngay tại
-            // canvas, xem phần JSX return bên dưới) thay cho JS preventDefault — đây là cách chuẩn,
-            // được xử lý sẵn ở tầng trình duyệt/compositor (không tốn JS trên luồng chính, không
-            // xung đột với Pointer Events), Safari sẽ tự động không bao giờ cuộn/zoom khi chạm vào
-            // canvas lúc đang bật Note, dù là ngón tay hay Apple Pencil.
+            // GHI CHÚ: từng thử thay listener JS dưới đây bằng CSS "touch-action: none" để đỡ tốn JS,
+            // nhưng touch-action là thuộc tính CSS thuần — không phân biệt được ngón tay hay Apple
+            // Pencil, nên "none" chặn cứng LUÔN CẢ việc cuộn trang bằng ngón tay, làm hỏng tính năng
+            // quan trọng "ngón tay để cuộn, bút để viết, tỳ tay không bị nhận nhầm nét vẽ". Đã revert
+            // lại đúng cơ chế JS phân biệt theo touchType như cũ — CHỈ preventDefault khi phát hiện
+            // có Apple Pencil trong lượt chạm, ngón tay/tỳ tay vẫn cuộn trang bình thường.
+            useEffect(() => {
+                const canvas = drawCanvasRef.current;
+                if (!canvas || !isVisible) return;
+
+                const preventTouchScroll = (e) => {
+                    if (!isDrawingMode) return;
+                    let isStylus = false;
+                    if (e.touches && e.touches.length > 0) {
+                        for (let i = 0; i < e.touches.length; i++) {
+                            if (e.touches[i].touchType === 'stylus' || e.touches[i].touchType === 'pen') {
+                                isStylus = true;
+                            }
+                        }
+                    }
+                    if (isStylus) e.preventDefault();
+                };
+
+                canvas.addEventListener('touchstart', preventTouchScroll, { passive: false });
+                canvas.addEventListener('touchmove', preventTouchScroll, { passive: false });
+
+                return () => {
+                    canvas.removeEventListener('touchstart', preventTouchScroll);
+                    canvas.removeEventListener('touchmove', preventTouchScroll);
+                };
+            }, [isDrawingMode, isVisible]);
 
             const redrawStrokes = useCallback(() => {
                 const drawCanvas = drawCanvasRef.current;
@@ -1341,7 +1361,7 @@
                             <canvas 
                                 ref={drawCanvasRef} 
                                 className="draw-canvas cursor-crosshair"
-                                style={{ pointerEvents: isDrawingMode ? 'auto' : 'none', touchAction: isDrawingMode ? 'none' : 'auto' }}
+                                style={{ pointerEvents: isDrawingMode ? 'auto' : 'none' }}
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerUp}
