@@ -50,8 +50,9 @@
             box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15), 0 8px 15px -6px rgba(0, 0, 0, 0.1);
         }
 
+        /* Tùy chỉnh Box Text */
         .goodnotes-text {
-            /* resize: both giúp iPad kéo giãn được kích thước box */
+            /* resize: both giúp iPad kéo giãn được kích thước box ở góc phải dưới */
             resize: both;
             overflow: auto;
             background: rgba(255, 255, 255, 0.6);
@@ -81,13 +82,16 @@
         }
         
         .pdf-canvas { display: block; border-radius: 8px; }
+        
         .draw-canvas {
             position: absolute;
             top: 0;
             left: 0;
             border-radius: 8px;
-            /* touch-action: auto giúp ngón tay LƯỚT LÊN XUỐNG trên iPad không bị cứng */
-            touch-action: pan-y pan-x;
+            /* Cực kỳ quan trọng: auto cho phép Safari vuốt cuộn bằng ngón tay bình thường.
+               Khi dùng bút (pen), JS sẽ tự động chặn việc cuộn trang. */
+            touch-action: auto; 
+            z-index: 10;
         }
 
         @keyframes slideDown {
@@ -154,7 +158,7 @@
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        // Sửa lỗi mảng bị cắt khúc của Google API
+                        // Sửa lỗi mảng bị cắt khúc của Google API để dịch Full 100% nội dung
                         if(data && data[0]) {
                             let fullTranslation = "";
                             data[0].forEach(chunk => {
@@ -183,7 +187,7 @@
 
             return (
                 <div className="fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-3xl glass-panel rounded-2xl z-[100] animate-slide-down flex flex-col overflow-hidden shadow-2xl border-2 border-indigo-100">
-                    <div className="bg-slate-100/50 px-4 py-2 flex items-center justify-between border-b border-slate-200 shrink-0 relative">
+                    <div className="bg-slate-100/80 px-4 py-2 flex items-center justify-between border-b border-slate-200 shrink-0 relative">
                         <div className="flex items-center gap-3">
                             <select 
                                 className="text-xs bg-white border border-slate-300 rounded-md px-2 py-1 outline-none text-slate-700 max-w-[180px] truncate shadow-sm font-semibold cursor-pointer"
@@ -219,7 +223,7 @@
                             </div>
                         ) : (
                             <div className="space-y-6">
-                                {/* Tiếng Anh */}
+                                {/* Tiếng Anh - Nút Copy LUÔN HIỂN THỊ */}
                                 <div className="relative pr-16 group">
                                     <p className="font-bold text-slate-800 text-[18px] leading-relaxed tracking-wide">{text}</p>
                                     <button 
@@ -233,7 +237,7 @@
                                 
                                 <div className="w-full h-px bg-slate-100"></div>
                                 
-                                {/* Tiếng Việt */}
+                                {/* Tiếng Việt - Nút Copy LUÔN HIỂN THỊ */}
                                 {translation && translation !== "Đang dịch..." && (
                                     <div className="relative pr-16 group">
                                         <p className="font-semibold text-emerald-700 text-[17px] leading-relaxed tracking-wide flex items-start">
@@ -304,17 +308,19 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = ({ pdf, pageNum, scale, isDrawingMode, tool, color, onExtractText, onDragStart }) => {
+        const PdfPage = ({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText, onDragStart }) => {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
             
             const [strokes, setStrokes] = useState([]);
             const [texts, setTexts] = useState([]);
-            const [isDrawing, setIsDrawing] = useState(false);
-            const [currentStroke, setCurrentStroke] = useState(null);
             const [isVisible, setIsVisible] = useState(false);
             const containerRef = useRef(null);
+
+            // Refs quản lý vẽ trực tiếp (Tránh React re-render gây đứt nét/mất nét)
+            const isDrawingRef = useRef(false);
+            const currentStrokeRef = useRef(null);
 
             useEffect(() => {
                 const observer = new IntersectionObserver(
@@ -351,6 +357,7 @@
                 return () => { if(renderTask) renderTask.cancel(); };
             }, [pdf, pageNum, scale, isVisible]);
 
+            // Hàm vẽ lại tất cả các nét đã hoàn thành từ State
             const redrawStrokes = useCallback(() => {
                 const drawCanvas = drawCanvasRef.current;
                 if (!drawCanvas) return;
@@ -385,8 +392,7 @@
                 };
 
                 strokes.forEach(drawLine);
-                if (currentStroke) drawLine(currentStroke);
-            }, [strokes, currentStroke, scale]);
+            }, [strokes, scale]);
 
             useEffect(() => { redrawStrokes(); }, [redrawStrokes]);
 
@@ -401,35 +407,55 @@
                 };
             };
 
-            // HỖ TRỢ IPAD: POINTER DOWN PHÂN BIỆT NGÓN TAY/BÚT APPLE
+            // HỖ TRỢ IPAD PRO (Zero-latency drawing)
             const handlePointerDown = (e) => {
                 if (!isDrawingMode) return;
                 
-                // Nếu dùng ngón tay chạm màn hình (touch), bỏ qua không vẽ để nhường chỗ cho thao tác cuộn (Scroll)
-                if (e.pointerType === 'touch') {
-                    return; 
-                }
+                // Nếu dùng NGUYÊN NGÓN TAY CHẠM (touch), Safari sẽ tự động cuộn trang. Bỏ qua vẽ.
+                if (e.pointerType === 'touch') return;
 
+                // Nếu là Apple Pencil hoặc Mouse, chặn cuộn trang và khóa con trỏ
+                e.preventDefault(); 
                 e.target.setPointerCapture(e.pointerId); 
                 const coords = getCoordinates(e);
 
                 if (tool === 'eraser') {
                     handleErase(coords.x, coords.y);
-                    setIsDrawing(true);
+                    isDrawingRef.current = true;
                     return;
                 }
 
                 if (tool === 'text') {
-                    setTexts(prev => [...prev, { id: Date.now(), x: coords.x, y: coords.y, text: '', color, size: 16 }]);
+                    setTexts(prev => [...prev, { 
+                        id: Date.now(), x: coords.x, y: coords.y, text: '', color, size: fontSize, width: '', height: '' 
+                    }]);
                     return; 
                 }
 
-                setIsDrawing(true);
-                setCurrentStroke({ id: Date.now(), tool, color, points: [coords] });
+                // Vẽ Trực Tiếp Lên Canvas ngay lập tức (Bỏ qua React State) để chống Đứt Nét/Mất nét
+                isDrawingRef.current = true;
+                currentStrokeRef.current = { id: Date.now(), tool, color, points: [coords] };
+                
+                const ctx = drawCanvasRef.current.getContext('2d');
+                ctx.beginPath();
+                if (tool === 'magic') {
+                    ctx.strokeStyle = '#FBBF24'; ctx.setLineDash([8, 8]); ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
+                } else {
+                    ctx.strokeStyle = color; ctx.setLineDash([]); 
+                    ctx.lineWidth = tool === 'pencil' ? 2 * scale : 4 * scale;
+                    ctx.globalAlpha = tool === 'pencil' ? 0.6 : 1.0;
+                }
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.moveTo(coords.x * scale, coords.y * scale);
+                ctx.lineTo(coords.x * scale, coords.y * scale);
+                ctx.stroke();
+                ctx.setLineDash([]); 
             };
 
             const handlePointerMove = (e) => {
-                if (!isDrawing) return;
+                if (!isDrawingRef.current) return;
+                if (e.pointerType === 'touch') return; 
+
                 const coords = getCoordinates(e);
 
                 if (tool === 'eraser') {
@@ -437,26 +463,45 @@
                     return;
                 }
 
-                if (currentStroke) {
-                    setCurrentStroke({ ...currentStroke, points: [...currentStroke.points, coords] });
+                if (currentStrokeRef.current) {
+                    const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
+                    currentStrokeRef.current.points.push(coords);
+
+                    // Vẽ Trực Tiếp
+                    const ctx = drawCanvasRef.current.getContext('2d');
+                    ctx.beginPath();
+                    if (tool === 'magic') {
+                        ctx.strokeStyle = '#FBBF24'; ctx.setLineDash([8, 8]); ctx.lineWidth = 3; ctx.globalAlpha = 0.8;
+                    } else {
+                        ctx.strokeStyle = color; ctx.setLineDash([]); 
+                        ctx.lineWidth = tool === 'pencil' ? 2 * scale : 4 * scale;
+                        ctx.globalAlpha = tool === 'pencil' ? 0.6 : 1.0;
+                    }
+                    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                    ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
+                    ctx.lineTo(coords.x * scale, coords.y * scale);
+                    ctx.stroke();
+                    ctx.setLineDash([]); 
                 }
             };
 
             const handlePointerUp = (e) => {
-                if (!isDrawing) return;
-                setIsDrawing(false);
+                if (!isDrawingRef.current) return;
+                isDrawingRef.current = false;
                 e.target.releasePointerCapture(e.pointerId);
                 
-                if (currentStroke && tool !== 'eraser') {
+                if (currentStrokeRef.current && tool !== 'eraser') {
                     if (tool === 'magic') {
-                        // Mẹo nhỏ: Bật âm thanh rỗng ngay khi nhả Apple Pencil để Bypass chính sách Autoplay trên iOS
+                        // Trick Vượt Rào Trình Duyệt: Phát 1 âm thanh rỗng để iPad cho phép auto-play giọng Google
                         window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
 
-                        performOCR(currentStroke);
-                        setCurrentStroke(null); 
+                        performOCR(currentStrokeRef.current);
+                        currentStrokeRef.current = null; 
+                        redrawStrokes(); // Vẽ lại để xóa nét đứt màu vàng
                     } else {
-                        setStrokes(prev => [...prev, currentStroke]);
-                        setCurrentStroke(null);
+                        // Lưu nét vẽ xịn vào State để React giữ lại
+                        setStrokes(prev => [...prev, currentStrokeRef.current]);
+                        currentStrokeRef.current = null;
                     }
                 }
             };
@@ -472,7 +517,7 @@
                 setTexts(prev => prev.filter(t => Math.hypot(t.x - x, t.y - y) > 30));
             };
 
-            // THUẬT TOÁN AI OCR - CLIPPING MASK (Chặn chữ thừa trên/dưới)
+            // THUẬT TOÁN AI OCR (Cắt đúng viền vẽ để chống lấy nguyên dòng)
             const performOCR = async (stroke) => {
                 if (!viewport || stroke.points.length < 3) return;
                 
@@ -497,9 +542,11 @@
                     tempCanvas.height = height;
                     const tempCtx = tempCanvas.getContext('2d');
                     
+                    // Phủ nền trắng
                     tempCtx.fillStyle = 'white';
                     tempCtx.fillRect(0, 0, width, height);
 
+                    // Tạo Clipping path theo hình dạng đã khoanh
                     tempCtx.beginPath();
                     tempCtx.moveTo(xs[0] - minX, ys[0] - minY);
                     for (let i = 1; i < xs.length; i++) {
@@ -526,10 +573,13 @@
                 }
             };
 
-            const handleTextareaInput = (e, id) => {
-                e.target.style.height = 'auto';
-                e.target.style.height = (e.target.scrollHeight) + 'px';
+            const handleTextareaChange = (e, id) => {
                 setTexts(prev => prev.map(t => t.id === id ? { ...t, text: e.target.value } : t));
+            };
+
+            const handleTextareaPointerUp = (e, id) => {
+                const el = e.target;
+                setTexts(prev => prev.map(t => t.id === id ? { ...t, width: el.style.width, height: el.style.height } : t));
             };
 
             const handleTextDragStart = (e, tObj) => {
@@ -580,14 +630,19 @@
                                     )}
                                     <textarea 
                                         value={t.text} 
-                                        onChange={(e) => handleTextareaInput(e, t.id)}
+                                        onChange={(e) => handleTextareaChange(e, t.id)}
+                                        onPointerUp={(e) => handleTextareaPointerUp(e, t.id)}
                                         placeholder="Gõ chữ..."
-                                        style={{ color: t.color, fontSize: (t.size * scale) + 'px' }}
+                                        style={{ 
+                                            color: t.color, 
+                                            fontSize: (t.size * scale) + 'px',
+                                            width: t.width || 'auto',
+                                            height: t.height || 'auto'
+                                        }}
                                         className="goodnotes-text outline-none"
-                                        rows="1"
                                     />
                                     {isDrawingMode && (
-                                        <button onClick={() => setTexts(prev => prev.filter(x => x.id !== t.id))} className="absolute -top-3 -right-4 bg-red-500 text-white rounded-full w-6 h-6 text-[10px] flex items-center justify-center shadow-md">
+                                        <button onClick={() => setTexts(prev => prev.filter(x => x.id !== t.id))} className="absolute -top-3 -right-4 bg-red-500 text-white rounded-full w-6 h-6 text-[10px] flex items-center justify-center opacity-100 shadow-md">
                                             <i className="fas fa-times"></i>
                                         </button>
                                     )}
@@ -609,12 +664,12 @@
             const [isDrawingMode, setIsDrawingMode] = useState(false);
             const [tool, setTool] = useState('pencil'); 
             const [color, setColor] = useState('#4F46E5');
+            const [fontSize, setFontSize] = useState(18);
             
             const [magicText, setMagicText] = useState("");
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
 
             const [dragState, setDragState] = useState(null); 
-            
             const [showSidebar, setShowSidebar] = useState(false);
 
             const handleFileUpload = (e) => {
@@ -659,7 +714,7 @@
 
             return (
                 <div 
-                    className="flex h-screen w-full font-sans bg-slate-100"
+                    className="flex h-screen w-full font-sans bg-slate-100 overflow-hidden"
                     onPointerMove={handleGlobalPointerMove}
                     onPointerUp={handleGlobalPointerUp}
                     onPointerLeave={handleGlobalPointerUp}
@@ -709,22 +764,34 @@
                                 </div>
                             </div>
                             
-                            {/* DRAWING TOOLBAR - Ở GIỮA */}
+                            {/* DRAWING TOOLBAR */}
                             <div className="flex-1 flex justify-center">
                                 {pdfUrl && isDrawingMode && (
                                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in">
-                                        <button onClick={() => setTool('pencil')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì"><i className="fas fa-pencil-alt text-md"></i></button>
+                                        <button onClick={() => setTool('pencil')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì"><i className="fas fa-pencil-alt text-md"></i></button>
                                         
-                                        <button onClick={() => setTool('magic')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch">
+                                        <button onClick={() => setTool('magic')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch">
                                             <i className="fas fa-wand-magic-sparkles text-md"></i>
                                         </button>
                                         
-                                        <button onClick={() => setTool('pen')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút bi"><i className="fas fa-pen-nib text-md"></i></button>
-                                        <button onClick={() => setTool('text')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text"><i className="fas fa-font text-md"></i></button>
-                                        <button onClick={() => setTool('eraser')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ"><i className="fas fa-eraser text-md"></i></button>
+                                        <button onClick={() => setTool('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút bi"><i className="fas fa-pen-nib text-md"></i></button>
+                                        <button onClick={() => setTool('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text"><i className="fas fa-font text-md"></i></button>
+                                        <button onClick={() => setTool('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ"><i className="fas fa-eraser text-md"></i></button>
                                         
                                         <div className="w-px h-5 bg-slate-300 mx-2"></div>
                                         <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded-full cursor-pointer border-2 border-white shadow-sm p-0" title="Đổi màu" disabled={tool === 'magic'} />
+                                        
+                                        {/* Kích thước chữ Text */}
+                                        {tool === 'text' && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kích cỡ chữ Text">
+                                                    <button onClick={() => setFontSize(s => Math.max(10, s - 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-minus text-[10px]"></i></button>
+                                                    <span className="text-xs font-bold text-slate-700 w-6 text-center">{fontSize}</span>
+                                                    <button onClick={() => setFontSize(s => Math.min(48, s + 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-plus text-[10px]"></i></button>
+                                                </div>
+                                            </React.Fragment>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -746,7 +813,7 @@
                                 {pdfUrl && (
                                     <button 
                                         onClick={() => { setIsDrawingMode(!isDrawingMode); if(!isDrawingMode && tool==='magic') setTool('pencil'); }}
-                                        className={"px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
+                                        className={"px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
                                     >
                                         <i className="fas fa-pen-fancy"></i>
                                         {isDrawingMode ? 'Đóng Note' : 'Bật Note'}
@@ -764,7 +831,7 @@
                                         <i className="fas fa-file-pdf text-6xl text-indigo-500"></i>
                                     </div>
                                     <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">Night IELTS Land</h2>
-                                    <p className="text-slate-500 mb-10 text-lg leading-relaxed">Hỗ trợ đọc PDF Offline siêu tốc. Toàn bộ tính năng Magic Pen, Dịch, Đọc và Ghi Chú Kéo Thả đều được thiết kế tối ưu hóa cho màn hình cảm ứng, iPad và Apple Pencil.</p>
+                                    <p className="text-slate-500 mb-10 text-lg leading-relaxed">Được tinh chỉnh đặc biệt cho iPad và Apple Pencil. Trải nghiệm vẽ Zero-latency mượt mà và quét Dịch AI thông minh.</p>
                                     
                                     <label className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold cursor-pointer shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 text-lg flex items-center gap-3">
                                         <i className="fas fa-cloud-upload-alt text-2xl"></i> Chọn Sách PDF từ máy
@@ -781,6 +848,7 @@
                                         isDrawingMode={isDrawingMode}
                                         tool={tool}
                                         color={color}
+                                        fontSize={fontSize}
                                         onExtractText={(text, processing) => { setMagicText(text); setIsOcrProcessing(processing); }}
                                         onDragStart={onTextDragStart}
                                     />
