@@ -33,7 +33,7 @@
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: #F1F5F9;
             overflow: hidden;
-            /* Giúp vuốt tự nhiên trên iPad không bị bật cao su (rubber band) */
+            /* Khóa đàn hồi cao su trên iOS để cuộn trang mượt mà */
             overscroll-behavior-y: none;
         }
         
@@ -50,9 +50,8 @@
             box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15), 0 8px 15px -6px rgba(0, 0, 0, 0.1);
         }
 
-        /* Tùy chỉnh Box Text */
+        /* Tùy chỉnh Box Text iPad */
         .goodnotes-text {
-            /* resize: both giúp iPad kéo giãn được kích thước box ở góc phải dưới */
             resize: both;
             overflow: auto;
             background: rgba(255, 255, 255, 0.6);
@@ -88,8 +87,7 @@
             top: 0;
             left: 0;
             border-radius: 8px;
-            /* Cực kỳ quan trọng: auto cho phép Safari vuốt cuộn bằng ngón tay bình thường.
-               Khi dùng bút (pen), JS sẽ tự động chặn việc cuộn trang. */
+            /* touch-action: auto giúp tay vuốt cuộn bình thường. Cấm scroll bằng bút được xử lý trong JS */
             touch-action: auto; 
             z-index: 10;
         }
@@ -113,12 +111,24 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
 
+        // --- GLOBAL AUDIO UNLOCKER FOR IPAD ---
+        const unlockAudio = () => {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            osc.connect(ctx.destination);
+            osc.start(0);
+            osc.stop(0.001);
+            
+            const utter = new SpeechSynthesisUtterance('');
+            utter.volume = 0;
+            window.speechSynthesis.speak(utter);
+        };
+
         // --- THANH DỊCH THUẬT NỔI ---
         const MagicTranslationBar = ({ text, isProcessing, onClose }) => {
             const [translation, setTranslation] = useState("");
             const [voices, setVoices] = useState([]);
             const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
-            
             const [copiedEn, setCopiedEn] = useState(false);
             const [copiedVi, setCopiedVi] = useState(false);
 
@@ -153,12 +163,13 @@
                 }
                 window.speechSynthesis.speak(utterance);
 
-                // Dịch API Google
-                const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=" + encodeURIComponent(text);
+                // Dịch API Google (Xử lý full text)
+                const cleanText = text.replace(/\s+/g, ' ').trim();
+                const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=" + encodeURIComponent(cleanText);
+                
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
-                        // Sửa lỗi mảng bị cắt khúc của Google API để dịch Full 100% nội dung
                         if(data && data[0]) {
                             let fullTranslation = "";
                             data[0].forEach(chunk => {
@@ -223,7 +234,7 @@
                             </div>
                         ) : (
                             <div className="space-y-6">
-                                {/* Tiếng Anh - Nút Copy LUÔN HIỂN THỊ */}
+                                {/* Tiếng Anh */}
                                 <div className="relative pr-16 group">
                                     <p className="font-bold text-slate-800 text-[18px] leading-relaxed tracking-wide">{text}</p>
                                     <button 
@@ -237,7 +248,7 @@
                                 
                                 <div className="w-full h-px bg-slate-100"></div>
                                 
-                                {/* Tiếng Việt - Nút Copy LUÔN HIỂN THỊ */}
+                                {/* Tiếng Việt */}
                                 {translation && translation !== "Đang dịch..." && (
                                     <div className="relative pr-16 group">
                                         <p className="font-semibold text-emerald-700 text-[17px] leading-relaxed tracking-wide flex items-start">
@@ -260,7 +271,7 @@
             );
         };
 
-        // --- PDF THUMBNAIL COMPONENT (Show in Sidebar) ---
+        // --- PDF THUMBNAIL (SIDEBAR) ---
         const PdfThumbnail = ({ pdf, pageNum, onClick }) => {
             const canvasRef = useRef(null);
             const containerRef = useRef(null);
@@ -269,7 +280,7 @@
             useEffect(() => {
                 const observer = new IntersectionObserver(
                     ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
-                    { rootMargin: '200px 0px' } 
+                    { rootMargin: '300px 0px' } 
                 );
                 if (containerRef.current) observer.observe(containerRef.current);
                 return () => observer.disconnect();
@@ -307,7 +318,7 @@
             );
         };
 
-        // --- SINGLE PDF PAGE ---
+        // --- SINGLE PDF PAGE (LÕI XỬ LÝ VẼ MỚI DÀNH CHO IPAD) ---
         const PdfPage = ({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText, onDragStart }) => {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
@@ -318,14 +329,14 @@
             const [isVisible, setIsVisible] = useState(false);
             const containerRef = useRef(null);
 
-            // Refs quản lý vẽ trực tiếp (Tránh React re-render gây đứt nét/mất nét)
+            // Refs quản lý vẽ trực tiếp không độ trễ
             const isDrawingRef = useRef(false);
             const currentStrokeRef = useRef(null);
 
             useEffect(() => {
                 const observer = new IntersectionObserver(
                     ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
-                    { rootMargin: '500px 0px' } 
+                    { rootMargin: '300px 0px' } 
                 );
                 if (containerRef.current) observer.observe(containerRef.current);
                 return () => observer.disconnect();
@@ -357,7 +368,41 @@
                 return () => { if(renderTask) renderTask.cancel(); };
             }, [pdf, pageNum, scale, isVisible]);
 
-            // Hàm vẽ lại tất cả các nét đã hoàn thành từ State
+            // THUẬT TOÁN BẮT SỰ KIỆN NGUYÊN BẢN (NATIVE) ĐỂ TÁCH BIỆT APPLE PENCIL VÀ NGÓN TAY
+            useEffect(() => {
+                const canvas = drawCanvasRef.current;
+                if (!canvas) return;
+
+                const preventTouchScroll = (e) => {
+                    if (!isDrawingMode) return;
+                    
+                    // Phân tích xem có chạm bằng Apple Pencil không
+                    let isStylus = false;
+                    if (e.touches && e.touches.length > 0) {
+                        for (let i = 0; i < e.touches.length; i++) {
+                            if (e.touches[i].touchType === 'stylus') {
+                                isStylus = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Nếu dùng Apple Pencil thì cấm iPad cuộn trang để ưu tiên nét vẽ
+                    if (isStylus) {
+                        e.preventDefault();
+                    }
+                };
+
+                // Bắt buộc dùng passive: false thì mới chặn được scroll của Safari
+                canvas.addEventListener('touchstart', preventTouchScroll, { passive: false });
+                canvas.addEventListener('touchmove', preventTouchScroll, { passive: false });
+
+                return () => {
+                    canvas.removeEventListener('touchstart', preventTouchScroll);
+                    canvas.removeEventListener('touchmove', preventTouchScroll);
+                };
+            }, [isDrawingMode]);
+
             const redrawStrokes = useCallback(() => {
                 const drawCanvas = drawCanvasRef.current;
                 if (!drawCanvas) return;
@@ -407,16 +452,11 @@
                 };
             };
 
-            // HỖ TRỢ IPAD PRO (Zero-latency drawing)
             const handlePointerDown = (e) => {
                 if (!isDrawingMode) return;
-                
-                // Nếu dùng NGUYÊN NGÓN TAY CHẠM (touch), Safari sẽ tự động cuộn trang. Bỏ qua vẽ.
-                if (e.pointerType === 'touch') return;
+                // Nếu là ngón tay (touch) -> Bỏ qua, nhường cho iPad scroll
+                if (e.pointerType === 'touch') return; 
 
-                // Nếu là Apple Pencil hoặc Mouse, chặn cuộn trang và khóa con trỏ
-                e.preventDefault(); 
-                e.target.setPointerCapture(e.pointerId); 
                 const coords = getCoordinates(e);
 
                 if (tool === 'eraser') {
@@ -432,10 +472,10 @@
                     return; 
                 }
 
-                // Vẽ Trực Tiếp Lên Canvas ngay lập tức (Bỏ qua React State) để chống Đứt Nét/Mất nét
                 isDrawingRef.current = true;
                 currentStrokeRef.current = { id: Date.now(), tool, color, points: [coords] };
                 
+                // Vẽ trực tiếp lên màn hình không thông qua React State để chống đứt nét
                 const ctx = drawCanvasRef.current.getContext('2d');
                 ctx.beginPath();
                 if (tool === 'magic') {
@@ -454,7 +494,7 @@
 
             const handlePointerMove = (e) => {
                 if (!isDrawingRef.current) return;
-                if (e.pointerType === 'touch') return; 
+                if (e.pointerType === 'touch') return;
 
                 const coords = getCoordinates(e);
 
@@ -467,7 +507,6 @@
                     const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
                     currentStrokeRef.current.points.push(coords);
 
-                    // Vẽ Trực Tiếp
                     const ctx = drawCanvasRef.current.getContext('2d');
                     ctx.beginPath();
                     if (tool === 'magic') {
@@ -488,18 +527,14 @@
             const handlePointerUp = (e) => {
                 if (!isDrawingRef.current) return;
                 isDrawingRef.current = false;
-                e.target.releasePointerCapture(e.pointerId);
                 
                 if (currentStrokeRef.current && tool !== 'eraser') {
                     if (tool === 'magic') {
-                        // Trick Vượt Rào Trình Duyệt: Phát 1 âm thanh rỗng để iPad cho phép auto-play giọng Google
-                        window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
-
                         performOCR(currentStrokeRef.current);
                         currentStrokeRef.current = null; 
-                        redrawStrokes(); // Vẽ lại để xóa nét đứt màu vàng
+                        redrawStrokes(); // Xóa nét đứt màu vàng
                     } else {
-                        // Lưu nét vẽ xịn vào State để React giữ lại
+                        // Lưu nét vẽ thật
                         setStrokes(prev => [...prev, currentStrokeRef.current]);
                         currentStrokeRef.current = null;
                     }
@@ -515,6 +550,7 @@
                     return true;
                 }));
                 setTexts(prev => prev.filter(t => Math.hypot(t.x - x, t.y - y) > 30));
+                redrawStrokes();
             };
 
             // THUẬT TOÁN AI OCR (Cắt đúng viền vẽ để chống lấy nguyên dòng)
@@ -542,11 +578,9 @@
                     tempCanvas.height = height;
                     const tempCtx = tempCanvas.getContext('2d');
                     
-                    // Phủ nền trắng
                     tempCtx.fillStyle = 'white';
                     tempCtx.fillRect(0, 0, width, height);
 
-                    // Tạo Clipping path theo hình dạng đã khoanh
                     tempCtx.beginPath();
                     tempCtx.moveTo(xs[0] - minX, ys[0] - minY);
                     for (let i = 1; i < xs.length; i++) {
@@ -622,8 +656,8 @@
                                     {isDrawingMode && (
                                         <div 
                                             onPointerDown={(e) => handleTextDragStart(e, t)}
-                                            className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-white border border-slate-300 rounded shadow-md px-4 py-1 cursor-move flex items-center justify-center transition-opacity z-50 text-indigo-500"
-                                            title="Kéo thả để di chuyển (Góc phải dưới để Resize)"
+                                            className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-white border border-slate-300 rounded shadow-md px-4 py-1 cursor-move opacity-100 flex items-center justify-center z-50 text-indigo-500"
+                                            title="Kéo thả để di chuyển"
                                         >
                                             <i className="fas fa-arrows-alt text-xs"></i>
                                         </div>
@@ -642,7 +676,7 @@
                                         className="goodnotes-text outline-none"
                                     />
                                     {isDrawingMode && (
-                                        <button onClick={() => setTexts(prev => prev.filter(x => x.id !== t.id))} className="absolute -top-3 -right-4 bg-red-500 text-white rounded-full w-6 h-6 text-[10px] flex items-center justify-center opacity-100 shadow-md">
+                                        <button onClick={() => setTexts(prev => prev.filter(x => x.id !== t.id))} className="absolute -top-3 -right-4 bg-red-500 text-white rounded-full w-6 h-6 text-[10px] flex items-center justify-center opacity-100 shadow-md transition-opacity">
                                             <i className="fas fa-times"></i>
                                         </button>
                                     )}
@@ -764,7 +798,7 @@
                                 </div>
                             </div>
                             
-                            {/* DRAWING TOOLBAR */}
+                            {/* DRAWING TOOLBAR - Ở GIỮA */}
                             <div className="flex-1 flex justify-center">
                                 {pdfUrl && isDrawingMode && (
                                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in">
@@ -812,8 +846,13 @@
 
                                 {pdfUrl && (
                                     <button 
-                                        onClick={() => { setIsDrawingMode(!isDrawingMode); if(!isDrawingMode && tool==='magic') setTool('pencil'); }}
-                                        className={"px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
+                                        onClick={() => { 
+                                            setIsDrawingMode(!isDrawingMode); 
+                                            if(!isDrawingMode && tool==='magic') setTool('pencil'); 
+                                            // Gọi âm thanh rỗng để đánh lừa Safari
+                                            unlockAudio();
+                                        }}
+                                        className={"px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
                                     >
                                         <i className="fas fa-pen-fancy"></i>
                                         {isDrawingMode ? 'Đóng Note' : 'Bật Note'}
@@ -831,7 +870,7 @@
                                         <i className="fas fa-file-pdf text-6xl text-indigo-500"></i>
                                     </div>
                                     <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">Night IELTS Land</h2>
-                                    <p className="text-slate-500 mb-10 text-lg leading-relaxed">Được tinh chỉnh đặc biệt cho iPad và Apple Pencil. Trải nghiệm vẽ Zero-latency mượt mà và quét Dịch AI thông minh.</p>
+                                    <p className="text-slate-500 mb-10 text-lg leading-relaxed">Hỗ trợ đọc PDF Offline siêu tốc. Toàn bộ tính năng Magic Pen, Dịch, Đọc và Ghi Chú Kéo Thả đều được thiết kế tối ưu hóa hoàn hảo cho Apple Pencil trên iPad.</p>
                                     
                                     <label className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold cursor-pointer shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 text-lg flex items-center gap-3">
                                         <i className="fas fa-cloud-upload-alt text-2xl"></i> Chọn Sách PDF từ máy
