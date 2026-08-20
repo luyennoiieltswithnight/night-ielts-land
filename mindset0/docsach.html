@@ -2,23 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Night IELTS Land - Ultimate iPad Edition</title>
-    
+
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    
+
     <!-- Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+    <script>
+        // Đảm bảo TOÀN BỘ tiện ích "font-sans" của Tailwind (đang được dùng ở nhiều nơi
+        // trong app) trỏ đúng về Plus Jakarta Sans, thay vì font hệ thống mặc định.
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+
     <!-- FontAwesome & Google Fonts -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
+
     <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>
@@ -29,18 +46,43 @@
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
     <style>
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
+        html, body {
+            height: 100%;
+            overscroll-behavior: none;
+        }
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
             background-color: #F1F5F9;
             overflow: hidden;
             overscroll-behavior-y: none;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            /* Bỏ hiệu ứng chớp xám khi chạm trên iPad/Safari + tránh double-tap-zoom trễ 300ms */
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
-        
+
+        * { font-family: inherit; }
+
+        /* Vùng nội dung PDF/dịch vẫn cho phép bôi đen & copy chữ bình thường */
+        .pdf-page-container, .pdf-page-container *,
+        .glass-panel, .glass-panel * {
+            -webkit-touch-callout: default;
+        }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
-        
+        ::-webkit-scrollbar-thumb { background: #C7D2FE; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #A5B4FC; }
+
+        button, [role="button"], input[type="file"] + label, label.cursor-pointer {
+            touch-action: manipulation;
+        }
+        button:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: 2px solid #818CF8;
+            outline-offset: 2px;
+        }
+
         .glass-panel {
             background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(16px);
@@ -54,18 +96,21 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
             margin: 10px auto 30px auto;
             background: white;
-            border-radius: 8px;
-            will-change: transform; 
+            border-radius: 12px;
+            /* Không dùng will-change:transform cố định trên mọi trang: với PDF dài,
+               mỗi trang sẽ chiếm 1 lớp GPU riêng vĩnh viễn dù đang cuộn xa khỏi màn hình,
+               gây ngốn bộ nhớ và là nguyên nhân chính khiến iPad bị đơ/đứng hình sau một lúc dùng. */
+            contain: layout style;
         }
-        
-        .pdf-canvas { display: block; border-radius: 8px; }
-        
+
+        .pdf-canvas { display: block; border-radius: 12px; }
+
         .draw-canvas {
             position: absolute;
             top: 0;
             left: 0;
-            border-radius: 8px;
-            touch-action: auto; 
+            border-radius: 12px;
+            touch-action: auto;
             z-index: 10;
         }
 
@@ -74,18 +119,24 @@
             to { opacity: 1; transform: translate(-50%, 0) scale(1); }
         }
         .animate-slide-down { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        
+
         @keyframes modalPop {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
         }
         .animate-modal-pop { animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @keyframes gentleBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+        .animate-gentle-bounce { animation: gentleBounce 1.6s ease-in-out infinite; }
     </style>
 </head>
 <body>
@@ -95,16 +146,107 @@
         const { useState, useEffect, useRef, useCallback } = React;
 
         // --- GLOBAL AUDIO UNLOCKER FOR IPAD ---
+        // QUAN TRỌNG: trước đây hàm này tạo MỘT AudioContext THẬT MỚI mỗi lần được gọi
+        // (mỗi lần bấm "Bật Note"/"Đóng Note") và không bao giờ đóng lại. Trên Safari/iPadOS,
+        // AudioContext không đóng sẽ tích tụ dần và là nguyên nhân chính khiến trang bị
+        // "đứng hình" sau một lúc sử dụng (phải bấm ra ngoài app mới hồi lại được).
+        // Sửa lại thành 1 AudioContext DÙNG CHUNG (singleton), chỉ tạo 1 lần duy nhất.
+        let _sharedAudioCtx = null;
         const unlockAudio = () => {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = ctx.createOscillator();
-            osc.connect(ctx.destination);
-            osc.start(0);
-            osc.stop(0.001);
-            
-            const utter = new SpeechSynthesisUtterance('');
-            utter.volume = 0;
-            window.speechSynthesis.speak(utter);
+            try {
+                if (!_sharedAudioCtx) {
+                    const Ctor = window.AudioContext || window.webkitAudioContext;
+                    if (Ctor) _sharedAudioCtx = new Ctor();
+                }
+                if (_sharedAudioCtx && _sharedAudioCtx.state === 'suspended') {
+                    _sharedAudioCtx.resume();
+                }
+                if (_sharedAudioCtx) {
+                    const osc = _sharedAudioCtx.createOscillator();
+                    const gain = _sharedAudioCtx.createGain();
+                    gain.gain.value = 0; // câm lặng — chỉ dùng để "mở khóa" audio, không phát âm thanh thật
+                    osc.connect(gain).connect(_sharedAudioCtx.destination);
+                    osc.start(0);
+                    osc.stop(_sharedAudioCtx.currentTime + 0.05);
+                }
+            } catch (err) { /* một số trình duyệt chặn — bỏ qua an toàn */ }
+
+            if (window.speechSynthesis) {
+                try {
+                    const utter = new SpeechSynthesisUtterance(' ');
+                    utter.volume = 0;
+                    window.speechSynthesis.speak(utter);
+                } catch (err) {}
+            }
+        };
+
+        // --- NHẬN DIỆN THIẾT BỊ (để chọn giọng đọc mặc định tốt nhất) ---
+        // iPadOS (từ iPad OS 13+) báo User-Agent giống macOS, nên phải dò thêm cảm ứng.
+        const isIOSDevice = (() => {
+            const ua = navigator.userAgent || '';
+            const isClassicIOS = /iPad|iPhone|iPod/.test(ua);
+            const isIPadOSAsMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+            return isClassicIOS || isIPadOSAsMac;
+        })();
+
+        // --- GIỌNG ĐỌC "ONLINE" CHẤT LƯỢNG CAO CHO IPAD/SAFARI ---
+        // Safari trên iPad chỉ có giọng đọc hệ thống offline (nghe khá "robot"), trong khi
+        // Chrome trên Mac có sẵn các giọng Google chất lượng cao. Vì trang đã gọi
+        // translate.googleapis.com để dịch, ta tận dụng thêm dịch vụ đọc-văn-bản (TTS) công khai
+        // của Google Translate để phát giọng đọc tự nhiên hơn nhiều trên mọi thiết bị, kể cả iPad.
+        const splitTextForTTS = (text, maxLen = 190) => {
+            const clean = (text || '').replace(/\s+/g, ' ').trim();
+            if (!clean) return [];
+            if (clean.length <= maxLen) return [clean];
+
+            const sentences = clean.match(/[^.!?,;]+[.!?,;]?/g) || [clean];
+            const chunks = [];
+            let current = "";
+            sentences.forEach(sentence => {
+                if ((current + sentence).length > maxLen) {
+                    if (current.trim()) chunks.push(current.trim());
+                    current = sentence;
+                    // Câu quá dài, phải cắt cứng theo độ dài
+                    while (current.length > maxLen) {
+                        chunks.push(current.slice(0, maxLen).trim());
+                        current = current.slice(maxLen);
+                    }
+                } else {
+                    current += sentence;
+                }
+            });
+            if (current.trim()) chunks.push(current.trim());
+            return chunks;
+        };
+
+        // Phát 1 danh sách chunk văn bản tuần tự bằng thẻ <audio> qua Google TTS.
+        // Trả về 1 hàm "cancel" để có thể dừng giữa chừng khi người dùng đóng box hoặc mute.
+        const playOnlineTTS = (text, audioEl, { onStart, onEnd, onError } = {}) => {
+            const chunks = splitTextForTTS(text);
+            if (!audioEl || chunks.length === 0) { onEnd && onEnd(); return () => {}; }
+
+            let idx = 0;
+            let cancelled = false;
+
+            const playNext = () => {
+                if (cancelled) return;
+                if (idx >= chunks.length) { onEnd && onEnd(); return; }
+                const chunk = chunks[idx++];
+                const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=" + encodeURIComponent(chunk);
+                audioEl.src = url;
+                const p = audioEl.play();
+                if (p && p.catch) p.catch(() => { onError && onError(); });
+            };
+
+            audioEl.onended = playNext;
+            audioEl.onerror = () => { if (!cancelled) { onError && onError(); } };
+            onStart && onStart();
+            playNext();
+
+            return () => {
+                cancelled = true;
+                try { audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); } catch (e) {}
+            };
         };
 
         // --- THANH DỊCH THUẬT NỔI ---
@@ -112,9 +254,20 @@
             const [translation, setTranslation] = useState("");
             const [voices, setVoices] = useState([]);
             const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
-            
+
+            // Giọng đọc: 'online' (Google, chất lượng cao, cần mạng) hoặc 'device' (giọng máy, chạy offline)
+            // Mặc định: iPad/iPhone -> online (vì giọng Safari mặc định nghe robot); Mac -> device (Chrome trên Mac vốn đã có giọng hay)
+            const [voiceMode, setVoiceMode] = useState(isIOSDevice ? 'online' : 'device');
+            const [isMuted, setIsMuted] = useState(false);
+            const [isSpeaking, setIsSpeaking] = useState(false);
+
             const [copiedEn, setCopiedEn] = useState(false);
             const [copiedVi, setCopiedVi] = useState(false);
+
+            const audioRef = useRef(null);
+            const stopOnlineRef = useRef(null);
+            const isMutedRef = useRef(isMuted);
+            useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
 
             useEffect(() => {
                 const loadVoices = () => {
@@ -128,27 +281,54 @@
                 window.speechSynthesis.onvoiceschanged = loadVoices;
             }, []);
 
+            const stopAllAudio = useCallback(() => {
+                window.speechSynthesis.cancel();
+                if (stopOnlineRef.current) { stopOnlineRef.current(); stopOnlineRef.current = null; }
+                setIsSpeaking(false);
+            }, []);
+
+            const speak = useCallback((content) => {
+                if (!content || isMutedRef.current) return;
+                stopAllAudio();
+
+                if (voiceMode === 'online') {
+                    setIsSpeaking(true);
+                    stopOnlineRef.current = playOnlineTTS(content, audioRef.current, {
+                        onEnd: () => setIsSpeaking(false),
+                        onError: () => {
+                            // Nếu dịch vụ online lỗi/mạng chậm -> tự động phát bằng giọng máy để không bị câm tiếng
+                            setIsSpeaking(false);
+                            const utterance = new SpeechSynthesisUtterance(content);
+                            const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+                            if (voice) utterance.voice = voice;
+                            window.speechSynthesis.speak(utterance);
+                        }
+                    });
+                } else {
+                    const utterance = new SpeechSynthesisUtterance(content);
+                    const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+                    if (voice) utterance.voice = voice;
+                    utterance.onstart = () => setIsSpeaking(true);
+                    utterance.onend = () => setIsSpeaking(false);
+                    utterance.onerror = () => setIsSpeaking(false);
+                    window.speechSynthesis.speak(utterance);
+                }
+            }, [voiceMode, voices, selectedVoiceURI, stopAllAudio]);
+
             useEffect(() => {
                 if (isProcessing || !text) return;
-                
+
                 if (text === "Không tìm thấy chữ trong vùng chọn." || text === "Lỗi nhận diện chữ.") {
                     setTranslation("");
                     return;
                 }
 
                 setTranslation("Đang dịch...");
-                
-                window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                if (selectedVoiceURI) {
-                    const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-                    if (voice) utterance.voice = voice;
-                }
-                window.speechSynthesis.speak(utterance);
+                speak(text);
 
                 const cleanText = text.replace(/\s+/g, ' ').trim();
                 const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=" + encodeURIComponent(cleanText);
-                
+
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
@@ -164,44 +344,74 @@
                         console.error(err);
                         setTranslation("Lỗi kết nối từ điển.");
                     });
-                    
-                return () => window.speechSynthesis.cancel();
-            }, [text, isProcessing, selectedVoiceURI, voices]); 
+
+                return () => stopAllAudio();
+                // eslint-disable-next-line
+            }, [text, isProcessing]);
 
             const handleCopy = (content, type) => {
                 navigator.clipboard.writeText(content);
-                if (type === 'en') { setCopiedEn(true); setTimeout(() => setCopiedEn(false), 2000); } 
+                if (type === 'en') { setCopiedEn(true); setTimeout(() => setCopiedEn(false), 2000); }
                 else { setCopiedVi(true); setTimeout(() => setCopiedVi(false), 2000); }
+            };
+
+            const handleClose = () => { stopAllAudio(); onClose(); };
+            const toggleMute = () => {
+                setIsMuted(m => {
+                    const next = !m;
+                    if (next) stopAllAudio(); // Mute -> im lặng ngay lập tức
+                    return next;
+                });
             };
 
             if (!text && !isProcessing) return null;
 
             return (
                 <div className="fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-3xl glass-panel rounded-2xl z-[100] animate-slide-down flex flex-col overflow-hidden shadow-2xl border-2 border-indigo-100">
-                    <div className="bg-slate-100/80 px-4 py-2 flex items-center justify-between border-b border-slate-200 shrink-0 relative">
-                        <div className="flex items-center gap-3">
-                            <select 
-                                className="text-xs bg-white border border-slate-300 rounded-md px-2 py-1 outline-none text-slate-700 max-w-[180px] truncate shadow-sm font-semibold cursor-pointer"
-                                value={selectedVoiceURI}
-                                onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                            >
-                                {voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
-                            </select>
-                            
+                    <audio ref={audioRef} className="hidden" playsInline preload="none" />
+                    <div className="bg-slate-100/80 px-4 py-2 flex items-center justify-between border-b border-slate-200 shrink-0 relative gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            {/* Chọn nguồn giọng đọc: Online (chất lượng cao, tốt cho iPad) / Máy (offline) */}
+                            <div className="flex items-center bg-white border border-slate-300 rounded-full p-0.5 shadow-sm text-xs font-bold">
+                                <button
+                                    onClick={() => setVoiceMode('online')}
+                                    className={"px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 " + (voiceMode === 'online' ? 'bg-indigo-500 text-white shadow' : 'text-slate-500 hover:text-indigo-600')}
+                                    title="Giọng đọc Online (chất lượng cao, khuyên dùng cho iPad)"
+                                >
+                                    <i className="fas fa-cloud text-[10px]"></i> Online
+                                </button>
+                                <button
+                                    onClick={() => setVoiceMode('device')}
+                                    className={"px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 " + (voiceMode === 'device' ? 'bg-indigo-500 text-white shadow' : 'text-slate-500 hover:text-indigo-600')}
+                                    title="Giọng đọc có sẵn trên máy (chạy offline)"
+                                >
+                                    <i className="fas fa-mobile-screen-button text-[10px]"></i> Máy
+                                </button>
+                            </div>
+
+                            {voiceMode === 'device' && (
+                                <select
+                                    className="text-xs bg-white border border-slate-300 rounded-md px-2 py-1.5 outline-none text-slate-700 max-w-[150px] truncate shadow-sm font-semibold cursor-pointer"
+                                    value={selectedVoiceURI}
+                                    onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                                >
+                                    {voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
+                                </select>
+                            )}
+
                             {!isProcessing && (
-                                <button onClick={() => {
-                                    window.speechSynthesis.cancel();
-                                    const utterance = new SpeechSynthesisUtterance(text);
-                                    const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-                                    if (voice) utterance.voice = voice;
-                                    window.speechSynthesis.speak(utterance);
-                                }} className="w-7 h-7 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 flex items-center justify-center transition-colors shadow-sm" title="Phát âm lại">
-                                    <i className="fas fa-volume-up text-xs"></i>
+                                <button onClick={() => speak(text)} disabled={isMuted} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm " + (isMuted ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-indigo-500 text-white hover:bg-indigo-600')} title="Phát âm lại">
+                                    <i className={"fas text-xs " + (isSpeaking ? 'fa-volume-high' : 'fa-volume-up')}></i>
                                 </button>
                             )}
+
+                            {/* NÚT MUTE — tắt tiếng bất cứ lúc nào cần */}
+                            <button onClick={toggleMute} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm border " + (isMuted ? 'bg-red-50 text-red-500 border-red-200 hover:bg-red-100' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100')} title={isMuted ? 'Đang tắt tiếng — bấm để bật lại' : 'Tắt tiếng'}>
+                                <i className={"fas text-xs " + (isMuted ? 'fa-volume-xmark' : 'fa-volume-mute')}></i>
+                            </button>
                         </div>
-                        
-                        <button onClick={() => { window.speechSynthesis.cancel(); onClose(); }} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-all absolute right-2 top-1/2 transform -translate-y-1/2 bg-white border border-slate-200 hover:border-red-500 shadow-sm">
+
+                        <button onClick={handleClose} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-all absolute right-2 top-1/2 transform -translate-y-1/2 bg-white border border-slate-200 hover:border-red-500 shadow-sm">
                             <i className="fas fa-times text-md"></i>
                         </button>
                     </div>
@@ -248,8 +458,8 @@
         };
 
         // --- COMPONENT TEXT BOX THÔNG MINH CÓ 3 NÚM RESIZE ---
-        const PdfTextBox = ({ t, scale, updateText, removeText, onDragStart }) => {
-            const [active, setActive] = useState(true); 
+        const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText, onDragStart }) {
+            const [active, setActive] = useState(true);
             const containerRef = useRef(null);
             const textareaRef = useRef(null);
 
@@ -387,10 +597,10 @@
                     />
                 </div>
             );
-        };
+        });
 
         // --- PDF THUMBNAIL (FLOATING WINDOW) ---
-        const PdfThumbnail = ({ pdf, pageNum, onClick }) => {
+        const PdfThumbnail = React.memo(function PdfThumbnail({ pdf, pageNum, onClick }) {
             const canvasRef = useRef(null);
             const containerRef = useRef(null);
             const [isVisible, setIsVisible] = useState(false);
@@ -434,10 +644,10 @@
                     </div>
                 </div>
             );
-        };
+        });
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = ({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText, onDragStart }) => {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText, onDragStart }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -451,9 +661,12 @@
             const currentStrokeRef = useRef(null);
 
             useEffect(() => {
+                // Vùng đệm preload nhỏ hơn (600px thay vì 1000px): vẫn đủ để cuộn mượt mà không
+                // giữ quá nhiều canvas nặng cùng lúc trong bộ nhớ — quan trọng với iPad vì RAM
+                // hạn chế hơn nhiều so với máy Mac, giúp giảm nguy cơ Safari phải "giải phóng" tab.
                 const observer = new IntersectionObserver(
                     ([entry]) => { setIsVisible(entry.isIntersecting); },
-                    { rootMargin: '1000px 0px' } 
+                    { rootMargin: '600px 0px' }
                 );
                 if (containerRef.current) observer.observe(containerRef.current);
                 return () => observer.disconnect();
@@ -780,7 +993,7 @@
                     )}
                 </div>
             );
-        };
+        });
 
         // --- MAIN APP COMPONENT ---
         const App = () => {
@@ -800,7 +1013,11 @@
             const [dragState, setDragState] = useState(null); 
             const [showTOC, setShowTOC] = useState(false);
 
-            const handleFileUpload = (e) => {
+            // useCallback: giữ nguyên "địa chỉ" hàm giữa các lần render, để các PdfPage đã
+            // memo hoá (React.memo) không phải render lại toàn bộ mỗi khi App có state khác
+            // đổi (vd: đang gõ chữ trong 1 ô note) — giúp phản hồi nhanh & mượt hơn, nhất là
+            // với sách PDF nhiều trang trên iPad.
+            const handleFileUpload = useCallback((e) => {
                 const file = e.target.files[0];
                 if (file && file.type === "application/pdf") {
                     const objectUrl = URL.createObjectURL(file);
@@ -810,35 +1027,43 @@
                         setNumPages(loadedPdf.numPages);
                     }).catch(err => alert("Lỗi khi mở file."));
                 }
-            };
+            }, []);
 
-            const onTextDragStart = (pageNum, textId, offsetX, offsetY) => {
+            const onTextDragStart = useCallback((pageNum, textId, offsetX, offsetY) => {
                 setDragState({ pageNum, textId, offsetX, offsetY });
-            };
+            }, []);
 
-            const handleGlobalPointerMove = (e) => {
-                if (dragState) {
-                    const rects = document.querySelectorAll('.draw-canvas');
-                    if(rects[dragState.pageNum - 1]) {
-                        const canvas = rects[dragState.pageNum - 1];
-                        const rect = canvas.getBoundingClientRect();
-                        const scaleX = canvas.width / rect.width;
-                        const scaleY = canvas.height / rect.height;
-                        
-                        const newX = ((e.clientX - rect.left) * scaleX) / scale - dragState.offsetX;
-                        const newY = ((e.clientY - rect.top) * scaleY) / scale - dragState.offsetY;
+            const onExtractText = useCallback((text, processing) => {
+                setMagicText(text);
+                setIsOcrProcessing(processing);
+            }, []);
 
-                        const event = new CustomEvent('textDragUpdate', {
-                            detail: { action: 'update', pNum: dragState.pageNum, tId: dragState.textId, newX, newY }
-                        });
-                        window.dispatchEvent(event);
+            const handleGlobalPointerMove = useCallback((e) => {
+                setDragState(prevDragState => {
+                    if (prevDragState) {
+                        const rects = document.querySelectorAll('.draw-canvas');
+                        const canvas = rects[prevDragState.pageNum - 1];
+                        if (canvas) {
+                            const rect = canvas.getBoundingClientRect();
+                            const scaleX = canvas.width / rect.width;
+                            const scaleY = canvas.height / rect.height;
+
+                            const newX = ((e.clientX - rect.left) * scaleX) / scale - prevDragState.offsetX;
+                            const newY = ((e.clientY - rect.top) * scaleY) / scale - prevDragState.offsetY;
+
+                            const event = new CustomEvent('textDragUpdate', {
+                                detail: { action: 'update', pNum: prevDragState.pageNum, tId: prevDragState.textId, newX, newY }
+                            });
+                            window.dispatchEvent(event);
+                        }
                     }
-                }
-            };
+                    return prevDragState; // không đổi state ở đây, chỉ đọc
+                });
+            }, [scale]);
 
-            const handleGlobalPointerUp = () => {
-                if (dragState) setDragState(null);
-            };
+            const handleGlobalPointerUp = useCallback(() => {
+                setDragState(prev => prev ? null : prev);
+            }, []);
 
             return (
                 <div 
@@ -895,7 +1120,7 @@
                                     </button>
                                 )}
                                 <div className="font-extrabold text-xl text-slate-800 tracking-tight truncate flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                                    <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
                                         <i className="fas fa-book"></i>
                                     </div>
                                     TÀI LIỆU IELTS
@@ -935,7 +1160,7 @@
                             </div>
 
                             <div className="flex items-center justify-end gap-5 w-1/4">
-                                <label className="cursor-pointer px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-sm font-bold transition-all flex items-center gap-2 border border-slate-200 shadow-sm">
+                                <label className="cursor-pointer px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 active:scale-95 rounded-xl text-sm font-bold transition-all flex items-center gap-2 border border-slate-200 shadow-sm">
                                     <i className="fas fa-upload text-indigo-500"></i> <span className="hidden sm:inline">Tải sách</span>
                                     <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} />
                                 </label>
@@ -949,13 +1174,13 @@
                                 )}
 
                                 {pdfUrl && (
-                                    <button 
-                                        onClick={() => { 
-                                            setIsDrawingMode(!isDrawingMode); 
-                                            if(!isDrawingMode && tool==='magic') setTool('pencil'); 
+                                    <button
+                                        onClick={() => {
+                                            setIsDrawingMode(!isDrawingMode);
+                                            if(!isDrawingMode && tool==='magic') setTool('pencil');
                                             unlockAudio();
                                         }}
-                                        className={"px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
+                                        className={"px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
                                     >
                                         <i className="fas fa-pen-fancy"></i>
                                         {isDrawingMode ? 'Đóng Note' : 'Bật Note'}
@@ -969,13 +1194,13 @@
                             
                             {!pdfUrl ? (
                                 <div className="flex-1 flex flex-col items-center justify-center p-8 w-full max-w-2xl text-center animate-fade-in">
-                                    <div className="w-32 h-32 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-8 border border-slate-100">
+                                    <div className="w-32 h-32 bg-gradient-to-br from-indigo-50 to-violet-100 rounded-3xl shadow-xl flex items-center justify-center mb-8 border border-slate-100 animate-gentle-bounce">
                                         <i className="fas fa-file-pdf text-6xl text-indigo-500"></i>
                                     </div>
                                     <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">Night IELTS Land</h2>
                                     <p className="text-slate-500 mb-10 text-lg leading-relaxed">Hỗ trợ đọc PDF Offline siêu tốc. Trải nghiệm vẽ Zero-latency mượt mà và quét Dịch AI thông minh được thiết kế đặc quyền cho iPad.</p>
-                                    
-                                    <label className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold cursor-pointer shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 text-lg flex items-center gap-3">
+
+                                    <label className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold cursor-pointer shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 active:scale-95 text-lg flex items-center gap-3">
                                         <i className="fas fa-cloud-upload-alt text-2xl"></i> Chọn Sách PDF từ máy
                                         <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} />
                                     </label>
@@ -991,7 +1216,7 @@
                                         tool={tool}
                                         color={color}
                                         fontSize={fontSize}
-                                        onExtractText={(text, processing) => { setMagicText(text); setIsOcrProcessing(processing); }}
+                                        onExtractText={onExtractText}
                                         onDragStart={onTextDragStart}
                                     />
                                 ))
