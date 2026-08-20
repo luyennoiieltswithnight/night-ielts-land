@@ -1087,10 +1087,23 @@
 
             useEffect(() => { if(isVisible) redrawStrokes(); }, [redrawStrokes, isVisible]);
 
-            const getCoordinates = (e) => {
+            // QUAN TRỌNG — 1 trong 2 nguồn gây "viết vài nét là đứng màn hình iPad": mỗi lần
+            // getCoordinates() chạy, canvas.getBoundingClientRect() buộc trình duyệt phải tính lại
+            // layout (forced synchronous reflow) NGAY LẬP TỨC. Apple Pencil trên iPad Pro/ProMotion
+            // có thể bắn sự kiện pointermove tới 120-240 lần/giây — nếu mỗi lần di chuyển bút đều ép
+            // tính lại layout, chỉ vài giây viết liên tục là hàng trăm/nghìn lần reflow dồn vào luồng
+            // chính, đủ để làm nghẽn hẳn UI (giống hệt "đứng hình"). Vì canvas KHÔNG đổi vị trí/kích
+            // thước trong lúc đang vẽ 1 nét, giờ chỉ tính rect 1 LẦN DUY NHẤT lúc đặt bút xuống
+            // (refreshRect=true) rồi dùng lại (cache) cho toàn bộ các lần di chuyển tiếp theo của
+            // đúng nét đó — không còn ép reflow liên tục theo tần suất bút nữa.
+            const canvasRectRef = useRef(null);
+            const getCoordinates = (e, refreshRect) => {
                 const canvas = drawCanvasRef.current;
                 if (!canvas) return { x: 0, y: 0 };
-                const rect = canvas.getBoundingClientRect();
+                if (refreshRect || !canvasRectRef.current) {
+                    canvasRectRef.current = canvas.getBoundingClientRect();
+                }
+                const rect = canvasRectRef.current;
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
                 return {
@@ -1110,7 +1123,8 @@
 
                 try { e.target.setPointerCapture(e.pointerId); } catch(err) {}
 
-                const coords = getCoordinates(e);
+                // refreshRect=true: đầu 1 nét vẽ mới — tính lại rect 1 lần, cache dùng cho cả nét.
+                const coords = getCoordinates(e, true);
 
                 if (tool === 'eraser') {
                     handleErase(coords.x, coords.y);
@@ -1149,14 +1163,22 @@
 
                 currentStrokeRef.current = { id: Date.now(), tool, color, points: [coords] };
 
+                // QUAN TRỌNG — nguồn thứ 2 gây "viết vài nét là đứng màn hình iPad": trước đây MỖI
+                // LẦN pointermove đều gọi lại applyToolStyle() (gán strokeStyle/lineWidth/globalAlpha
+                // + cấp phát mảng mới cho setLineDash) dù các giá trị này KHÔNG hề đổi trong suốt 1
+                // nét vẽ (chỉ phụ thuộc tool/color/scale — cố định từ lúc đặt bút xuống). Với tần suất
+                // sự kiện cao của Apple Pencil, việc gán lại y hệt hàng trăm lần/giây vẫn tốn CPU và
+                // cấp phát bộ nhớ (garbage) không cần thiết, cộng dồn với việc reflow ở trên càng dễ
+                // làm nghẽn luồng chính. Giờ set style CHỈ 1 LẦN DUY NHẤT ngay khi đặt bút xuống —
+                // context canvas tự giữ nguyên các thuộc tính này cho các lệnh stroke() tiếp theo,
+                // không cần (và không nên) gán lại mỗi lần di chuyển.
                 const ctx = drawCanvasRef.current.getContext('2d');
-                ctx.beginPath();
-                applyToolStyle(ctx, tool, color, scale, highlightThickness);
                 ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                applyToolStyle(ctx, tool, color, scale, highlightThickness);
+                ctx.beginPath();
                 ctx.moveTo(coords.x * scale, coords.y * scale);
                 ctx.lineTo(coords.x * scale, coords.y * scale);
                 ctx.stroke();
-                ctx.setLineDash([]);
             };
 
             const handlePointerMove = (e) => {
@@ -1186,14 +1208,13 @@
                 const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
                 currentStrokeRef.current.points.push(coords);
 
+                // Style đã được set 1 lần lúc pointerDown — không gọi lại applyToolStyle() ở đây nữa
+                // (xem giải thích chi tiết ở handlePointerDown), chỉ còn vẽ đoạn nối ngắn giữa 2 điểm.
                 const ctx = canvas.getContext('2d');
                 ctx.beginPath();
-                applyToolStyle(ctx, tool, color, scale, highlightThickness);
-                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
                 ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
                 ctx.lineTo(coords.x * scale, coords.y * scale);
                 ctx.stroke();
-                ctx.setLineDash([]);
             };
 
             const handlePointerUp = (e) => {
