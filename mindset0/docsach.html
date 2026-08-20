@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Night IELTS Land - Ultimate Magic Reader</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+
+    <!-- Tesseract.js (AI Nhận diện hình ảnh thành chữ OCR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --bg-color: #F8FAFC;
+        }
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: var(--bg-color);
+            overflow: hidden;
+        }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1), 0 8px 15px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Tùy chỉnh Box Text - Hỗ trợ kéo giãn kích thước (Resize: Both) */
+        .goodnotes-text {
+            resize: both;
+            overflow: auto;
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(4px);
+            min-height: 40px;
+            min-width: 150px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            border: 1px solid #CBD5E1;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .goodnotes-text:focus {
+            background: rgba(255, 255, 255, 0.95);
+            border-color: #818CF8;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .pdf-page-container {
+            position: relative;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin: 10px auto 30px auto;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .pdf-canvas { display: block; border-radius: 8px; }
+        .draw-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            border-radius: 8px;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translate(-50%, -20px) scale(0.98); }
+            to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+        }
+        .animate-slide-down { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- THANH DỊCH THUẬT NỔI (NÚT COPY LUÔN HIỂN THỊ) ---
+        const MagicTranslationBar = ({ text, isProcessing, onClose }) => {
+            const [translation, setTranslation] = useState("");
+            const [voices, setVoices] = useState([]);
+            const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
+            
+            const [copiedEn, setCopiedEn] = useState(false);
+            const [copiedVi, setCopiedVi] = useState(false);
+
+            // Load Voices
+            useEffect(() => {
+                const loadVoices = () => {
+                    const availableVoices = window.speechSynthesis.getVoices();
+                    const engVoices = availableVoices.filter(v => v.lang.startsWith('en'));
+                    setVoices(engVoices);
+                    const preferred = engVoices.find(v => v.name.includes('Google') && (v.lang === 'en-GB' || v.lang === 'en-US')) || engVoices[0];
+                    if (preferred) setSelectedVoiceURI(preferred.voiceURI);
+                };
+                loadVoices();
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }, []);
+
+            // Process Translation
+            useEffect(() => {
+                if (isProcessing || !text) return;
+                
+                if (text === "Không tìm thấy chữ trong vùng chọn." || text === "Lỗi nhận diện chữ.") {
+                    setTranslation("");
+                    return;
+                }
+
+                setTranslation("Đang dịch...");
+                
+                // Speak Text
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                if (selectedVoiceURI) {
+                    const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+                    if (voice) utterance.voice = voice;
+                }
+                window.speechSynthesis.speak(utterance);
+
+                // Google Translate API
+                const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=" + encodeURIComponent(text);
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data && data[0] && data[0][0] && data[0][0][0]) {
+                            setTranslation(data[0][0][0]);
+                        } else {
+                            setTranslation("Không thể dịch nội dung này.");
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        setTranslation("Lỗi kết nối từ điển.");
+                    });
+                    
+                return () => window.speechSynthesis.cancel();
+            }, [text, isProcessing, selectedVoiceURI, voices]); 
+
+            const handleReplay = () => {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+                if (voice) utterance.voice = voice;
+                window.speechSynthesis.speak(utterance);
+            };
+
+            const handleCopy = (content, type) => {
+                navigator.clipboard.writeText(content);
+                if (type === 'en') { setCopiedEn(true); setTimeout(() => setCopiedEn(false), 2000); } 
+                else { setCopiedVi(true); setTimeout(() => setCopiedVi(false), 2000); }
+            };
+
+            if (!text && !isProcessing) return null;
+
+            return (
+                <div className="fixed top-24 left-1/2 transform -translate-x-1/2 w-[90%] max-w-3xl glass-panel rounded-2xl z-[100] animate-slide-down flex flex-col overflow-hidden shadow-2xl border-2 border-indigo-100">
+                    
+                    {/* Nút X Góc Phải & Phát Âm */}
+                    <div className="bg-slate-100/80 px-4 py-2 flex items-center justify-between border-b border-slate-200 shrink-0 relative">
+                        <div className="flex items-center gap-3">
+                            <select 
+                                className="text-xs bg-white border border-slate-300 rounded-md px-2 py-1 outline-none text-slate-700 max-w-[180px] truncate shadow-sm font-semibold cursor-pointer"
+                                value={selectedVoiceURI}
+                                onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                            >
+                                {voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
+                            </select>
+                            
+                            {!isProcessing && (
+                                <button onClick={handleReplay} className="w-7 h-7 bg-indigo-500 text-white rounded-full hover:bg-indigo-600 flex items-center justify-center transition-colors shadow-sm" title="Phát âm lại">
+                                    <i className="fas fa-volume-up text-xs"></i>
+                                </button>
+                            )}
+                        </div>
+                        
+                        <button onClick={() => { window.speechSynthesis.cancel(); onClose(); }} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-all absolute right-2 top-1/2 transform -translate-y-1/2 bg-white border border-slate-200 hover:border-red-500 shadow-sm">
+                            <i className="fas fa-times text-md"></i>
+                        </button>
+                    </div>
+
+                    <div className="p-6 relative bg-white flex-1">
+                        {isProcessing ? (
+                            <div className="flex items-center justify-center gap-4 text-indigo-600 py-6">
+                                <i className="fas fa-circle-notch fa-spin text-4xl"></i>
+                                <span className="font-bold text-xl">AI đang quét & nhận diện chữ (OCR)...</span>
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {/* Tiếng Anh - Nút Copy LUÔN HIỂN THỊ */}
+                                <div className="relative pr-16">
+                                    <p className="font-bold text-slate-800 text-[18px] leading-relaxed tracking-wide">{text}</p>
+                                    <button 
+                                        onClick={() => handleCopy(text, 'en')} 
+                                        className="absolute top-1/2 transform -translate-y-1/2 right-0 w-11 h-11 flex items-center justify-center rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100 shadow-sm" 
+                                        title="Copy Tiếng Anh"
+                                    >
+                                        <i className={copiedEn ? "fas fa-check text-green-500 text-xl" : "fas fa-copy text-xl"}></i>
+                                    </button>
+                                </div>
+                                
+                                {/* Đường gạch ngang phân cách mờ */}
+                                <div className="w-full h-px bg-slate-100"></div>
+                                
+                                {/* Tiếng Việt - Nút Copy LUÔN HIỂN THỊ */}
+                                {translation && translation !== "Đang dịch..." && (
+                                    <div className="relative pr-16">
+                                        <p className="font-semibold text-emerald-700 text-[17px] leading-relaxed tracking-wide flex items-start">
+                                            <i className="fas fa-language mt-1 mr-3 opacity-80 text-xl"></i>
+                                            <span>{translation}</span>
+                                        </p>
+                                        <button 
+                                            onClick={() => handleCopy(translation, 'vi')} 
+                                            className="absolute top-1/2 transform -translate-y-1/2 right-0 w-11 h-11 flex items-center justify-center rounded-xl text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-100 shadow-sm" 
+                                            title="Copy Tiếng Việt"
+                                        >
+                                            <i className={copiedVi ? "fas fa-check text-white text-xl" : "fas fa-copy text-xl"}></i>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- PDF THUMBNAIL COMPONENT (Sidebar) ---
+        const PdfThumbnail = ({ pdf, pageNum, onClick }) => {
+            const canvasRef = useRef(null);
+            const containerRef = useRef(null);
+            const [isVisible, setIsVisible] = useState(false);
+
+            useEffect(() => {
+                const observer = new IntersectionObserver(
+                    ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+                    { rootMargin: '200px 0px' } 
+                );
+                if (containerRef.current) observer.observe(containerRef.current);
+                return () => observer.disconnect();
+            }, []);
+
+            useEffect(() => {
+                if (!pdf || !isVisible) return;
+                let renderTask = null;
+                pdf.getPage(pageNum).then(page => {
+                    const canvas = canvasRef.current;
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+                    const viewport = page.getViewport({ scale: 0.3 });
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    renderTask = page.render({ canvasContext: ctx, viewport });
+                });
+                return () => { if(renderTask) renderTask.cancel(); };
+            }, [pdf, pageNum, isVisible]);
+
+            return (
+                <div 
+                    ref={containerRef} 
+                    onClick={onClick} 
+                    className="cursor-pointer mb-5 border-2 border-slate-200 hover:border-indigo-500 rounded-lg overflow-hidden bg-white shadow-sm transition-all hover:shadow-md transform hover:-translate-y-1 mx-2"
+                >
+                    <div className="bg-slate-100 w-full min-h-[120px] flex items-center justify-center relative">
+                        <canvas ref={canvasRef} className="w-full h-auto block" />
+                        {!isVisible && <i className="fas fa-file-pdf text-slate-300 text-2xl absolute"></i>}
+                    </div>
+                    <div className="text-center py-2 bg-slate-50 border-t border-slate-200">
+                        <span className="text-sm font-bold text-slate-600">Trang {pageNum}</span>
+                    </div>
+                </div>
+            );
+        };
+
+
+        // --- SINGLE PDF PAGE ---
+        const PdfPage = ({ pdf, pageNum, scale, isDrawingMode, tool, color, fontSize, onExtractText, onDragStart }) => {
+            const canvasRef = useRef(null);
+            const drawCanvasRef = useRef(null);
+            const [viewport, setViewport] = useState(null);
+            
+            const [strokes, setStrokes] = useState([]);
+            const [texts, setTexts] = useState([]);
+            const [isDrawing, setIsDrawing] = useState(false);
+            const [currentStroke, setCurrentStroke] = useState(null);
+            const [isVisible, setIsVisible] = useState(false);
+            const containerRef = useRef(null);
+
+            useEffect(() => {
+                const observer = new IntersectionObserver(
+                    ([entry]) => { if (entry.isIntersecting) setIsVisible(true); },
+                    { rootMargin: '500px 0px' } 
+                );
+                if (containerRef.current) observer.observe(containerRef.current);
+                return () => observer.disconnect();
+            }, []);
+
+            useEffect(() => {
+                if (!pdf || !isVisible) return;
+                let renderTask = null;
+
+                pdf.getPage(pageNum).then(page => {
+                    const vp = page.getViewport({ scale });
+                    setViewport(vp);
+                    
+                    const canvas = canvasRef.current;
+                    const drawCanvas = drawCanvasRef.current;
+                    if(!canvas || !drawCanvas) return;
+                    
+                    canvas.height = vp.height;
+                    canvas.width = vp.width;
+                    drawCanvas.height = vp.height;
+                    drawCanvas.width = vp.width;
+
+                    const ctx = canvas.getContext('2d');
+                    renderTask = page.render({ canvasContext: ctx, viewport: vp });
+                    
+                    renderTask.promise.then(() => redrawStrokes()).catch(e => {});
+                });
+
+                return () => { if(renderTask) renderTask.cancel(); };
+            }, [pdf, pageNum, scale, isVisible]);
+
+            const redrawStrokes = useCallback(() => {
+                const drawCanvas = drawCanvasRef.current;
+                if (!drawCanvas) return;
+                const ctx = drawCanvas.getContext('2d');
+                ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+                
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                const drawLine = (stroke) => {
+                    if (stroke.points.length === 0) return;
+                    ctx.beginPath();
+                    
+                    if (stroke.tool === 'magic') {
+                        ctx.strokeStyle = '#FBBF24'; 
+                        ctx.setLineDash([6, 6]); 
+                        ctx.lineWidth = 3;
+                        ctx.globalAlpha = 0.8;
+                    } else {
+                        ctx.strokeStyle = stroke.color;
+                        ctx.setLineDash([]);
+                        ctx.lineWidth = stroke.tool === 'pencil' ? 2 * scale : 4 * scale;
+                        ctx.globalAlpha = stroke.tool === 'pencil' ? 0.6 : 1.0;
+                    }
+                    
+                    ctx.moveTo(stroke.points[0].x * scale, stroke.points[0].y * scale);
+                    for (let i = 1; i < stroke.points.length; i++) {
+                        ctx.lineTo(stroke.points[i].x * scale, stroke.points[i].y * scale);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]); 
+                };
+
+                strokes.forEach(drawLine);
+                if (currentStroke) drawLine(currentStroke);
+            }, [strokes, currentStroke, scale]);
+
+            useEffect(() => { redrawStrokes(); }, [redrawStrokes]);
+
+            const getCoordinates = (e) => {
+                const canvas = drawCanvasRef.current;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                return {
+                    x: ((e.clientX - rect.left) * scaleX) / scale,
+                    y: ((e.clientY - rect.top) * scaleY) / scale
+                };
+            };
+
+            const handleMouseDown = (e) => {
+                if (!isDrawingMode) return;
+                const coords = getCoordinates(e);
+
+                if (tool === 'eraser') {
+                    handleErase(coords.x, coords.y);
+                    setIsDrawing(true);
+                    return;
+                }
+
+                if (tool === 'text') {
+                    // Chèn Text Box với fontSize toàn cục hiện tại
+                    setTexts(prev => [...prev, { 
+                        id: Date.now(), 
+                        x: coords.x, 
+                        y: coords.y, 
+                        text: '', 
+                        color, 
+                        size: fontSize,
+                        width: '', // Để rỗng mặc định
+                        height: '' 
+                    }]);
+                    return; 
+                }
+
+                setIsDrawing(true);
+                setCurrentStroke({ id: Date.now(), tool, color, points: [coords] });
+            };
+
+            const handleMouseMove = (e) => {
+                if (!isDrawing) return;
+                const coords = getCoordinates(e);
+
+                if (tool === 'eraser') {
+                    handleErase(coords.x, coords.y);
+                    return;
+                }
+
+                if (currentStroke) {
+                    setCurrentStroke({ ...currentStroke, points: [...currentStroke.points, coords] });
+                }
+            };
+
+            const handleMouseUp = () => {
+                if (!isDrawing) return;
+                setIsDrawing(false);
+                
+                if (currentStroke && tool !== 'eraser') {
+                    if (tool === 'magic') {
+                        performOCR(currentStroke);
+                        setCurrentStroke(null); 
+                    } else {
+                        setStrokes(prev => [...prev, currentStroke]);
+                        setCurrentStroke(null);
+                    }
+                }
+            };
+
+            const handleErase = (x, y) => {
+                const eraseRadius = 15; 
+                setStrokes(prev => prev.filter(stroke => {
+                    for (let pt of stroke.points) {
+                        if (Math.hypot(pt.x - x, pt.y - y) < eraseRadius) return false;
+                    }
+                    return true;
+                }));
+                setTexts(prev => prev.filter(t => Math.hypot(t.x - x, t.y - y) > 30));
+            };
+
+            // THUẬT TOÁN AI OCR
+            const performOCR = async (stroke) => {
+                if (!viewport || stroke.points.length < 3) return;
+                
+                const xs = stroke.points.map(p => p.x * scale);
+                const ys = stroke.points.map(p => p.y * scale);
+                const minX = Math.min(...xs);
+                const maxX = Math.max(...xs);
+                const minY = Math.min(...ys);
+                const maxY = Math.max(...ys);
+
+                const width = maxX - minX;
+                const height = maxY - minY;
+
+                if (width < 10 || height < 10) return;
+
+                onExtractText("", true);
+
+                try {
+                    const canvas = canvasRef.current;
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    tempCtx.fillStyle = 'white';
+                    tempCtx.fillRect(0, 0, width, height);
+
+                    tempCtx.beginPath();
+                    tempCtx.moveTo(xs[0] - minX, ys[0] - minY);
+                    for (let i = 1; i < xs.length; i++) {
+                        tempCtx.lineTo(xs[i] - minX, ys[i] - minY);
+                    }
+                    tempCtx.closePath();
+                    tempCtx.clip(); 
+                    
+                    tempCtx.drawImage(canvas, minX, minY, width, height, 0, 0, width, height);
+
+                    const imageDataUrl = tempCanvas.toDataURL('image/png');
+
+                    const result = await Tesseract.recognize(imageDataUrl, 'eng');
+                    const text = result.data.text.replace(/\n/g, ' ').trim();
+                    
+                    if (text.length > 0) {
+                        onExtractText(text, false);
+                    } else {
+                        onExtractText("Không tìm thấy chữ trong vùng chọn.", false);
+                    }
+                } catch (err) {
+                    console.error("OCR Error:", err);
+                    onExtractText("Lỗi nhận diện chữ.", false);
+                }
+            };
+
+            const handleTextareaChange = (e, id) => {
+                setTexts(prev => prev.map(t => t.id === id ? { ...t, text: e.target.value } : t));
+            };
+
+            // Lưu lại kích thước khi người dùng kéo thả (Resize Text Box)
+            const handleTextareaMouseUp = (e, id) => {
+                const el = e.target;
+                setTexts(prev => prev.map(t => t.id === id ? { ...t, width: el.style.width, height: el.style.height } : t));
+            };
+
+            const handleTextDragStart = (e, tObj) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const coords = getCoordinates(e);
+                onDragStart(pageNum, tObj.id, coords.x - tObj.x, coords.y - tObj.y);
+            };
+
+            useEffect(() => {
+                const handleGlobalDragUpdate = (e) => {
+                    const { action, pNum, tId, newX, newY } = e.detail;
+                    if (action === 'update' && pNum === pageNum) {
+                        setTexts(prev => prev.map(t => t.id === tId ? { ...t, x: newX, y: newY } : t));
+                    }
+                };
+                window.addEventListener('textDragUpdate', handleGlobalDragUpdate);
+                return () => window.removeEventListener('textDragUpdate', handleGlobalDragUpdate);
+            }, [pageNum]);
+
+
+            return (
+                <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={{ width: viewport ? viewport.width : 'auto', height: viewport ? viewport.height : (1131 * scale) }}>
+                    {isVisible && (
+                        <>
+                            <canvas ref={canvasRef} className="pdf-canvas" />
+                            <canvas 
+                                ref={drawCanvasRef} 
+                                className="draw-canvas cursor-crosshair"
+                                style={{ pointerEvents: isDrawingMode ? 'auto' : 'none' }}
+                                onMouseDown={handleMouseDown}
+                                onMouseMove={handleMouseMove}
+                                onMouseUp={handleMouseUp}
+                                onMouseOut={handleMouseUp}
+                            />
+
+                            {texts.map(t => (
+                                <div key={t.id} style={{ position: 'absolute', left: (t.x * scale) + 'px', top: (t.y * scale) + 'px', pointerEvents: isDrawingMode ? 'auto' : 'none' }} className="group">
+                                    {isDrawingMode && (
+                                        <div 
+                                            onMouseDown={(e) => handleTextDragStart(e, t)}
+                                            className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-white border border-slate-300 rounded shadow-md px-4 py-1 cursor-move opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-50"
+                                            title="Kéo để di chuyển (Góc phải dưới để Resize)"
+                                        >
+                                            <i className="fas fa-grip-lines text-xs text-slate-500"></i>
+                                        </div>
+                                    )}
+                                    <textarea 
+                                        value={t.text} 
+                                        onChange={(e) => handleTextareaChange(e, t.id)}
+                                        onMouseUp={(e) => handleTextareaMouseUp(e, t.id)}
+                                        placeholder="Gõ chữ..."
+                                        style={{ 
+                                            color: t.color, 
+                                            fontSize: (t.size * scale) + 'px',
+                                            width: t.width || 'auto',
+                                            height: t.height || 'auto'
+                                        }}
+                                        className="goodnotes-text outline-none"
+                                    />
+                                    {isDrawingMode && (
+                                        <button onClick={() => setTexts(prev => prev.filter(x => x.id !== t.id))} className="absolute -top-3 -right-4 bg-red-500 text-white rounded-full w-6 h-6 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-md transition-opacity">
+                                            <i className="fas fa-times"></i>
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        const App = () => {
+            const [pdfUrl, setPdfUrl] = useState(null); 
+            const [pdfDoc, setPdfDoc] = useState(null);
+            const [numPages, setNumPages] = useState(0);
+            const [scale, setScale] = useState(1.2);
+            
+            const [isDrawingMode, setIsDrawingMode] = useState(false);
+            const [tool, setTool] = useState('pencil'); 
+            const [color, setColor] = useState('#4F46E5');
+            const [fontSize, setFontSize] = useState(18); // Kích thước chữ Textbox
+            
+            const [magicText, setMagicText] = useState("");
+            const [isOcrProcessing, setIsOcrProcessing] = useState(false);
+
+            const [dragState, setDragState] = useState(null); 
+            const [showSidebar, setShowSidebar] = useState(false);
+
+            const handleFileUpload = (e) => {
+                const file = e.target.files[0];
+                if (file && file.type === "application/pdf") {
+                    const objectUrl = URL.createObjectURL(file);
+                    setPdfUrl(objectUrl);
+                    pdfjsLib.getDocument(objectUrl).promise.then(loadedPdf => {
+                        setPdfDoc(loadedPdf);
+                        setNumPages(loadedPdf.numPages);
+                    }).catch(err => alert("Lỗi khi mở file."));
+                }
+            };
+
+            const onTextDragStart = (pageNum, textId, offsetX, offsetY) => {
+                setDragState({ pageNum, textId, offsetX, offsetY });
+            };
+
+            const handleGlobalMouseMove = (e) => {
+                if (dragState) {
+                    const rects = document.querySelectorAll('.draw-canvas');
+                    if(rects[dragState.pageNum - 1]) {
+                        const canvas = rects[dragState.pageNum - 1];
+                        const rect = canvas.getBoundingClientRect();
+                        const scaleX = canvas.width / rect.width;
+                        const scaleY = canvas.height / rect.height;
+                        
+                        const newX = ((e.clientX - rect.left) * scaleX) / scale - dragState.offsetX;
+                        const newY = ((e.clientY - rect.top) * scaleY) / scale - dragState.offsetY;
+
+                        const event = new CustomEvent('textDragUpdate', {
+                            detail: { action: 'update', pNum: dragState.pageNum, tId: dragState.textId, newX, newY }
+                        });
+                        window.dispatchEvent(event);
+                    }
+                }
+            };
+
+            const handleGlobalMouseUp = () => {
+                if (dragState) setDragState(null);
+            };
+
+            return (
+                <div 
+                    className={"flex h-screen w-full font-sans bg-slate-100 " + (dragState ? 'select-none' : '')}
+                    onMouseMove={handleGlobalMouseMove}
+                    onMouseUp={handleGlobalMouseUp}
+                    onMouseLeave={handleGlobalMouseUp}
+                >
+                    <MagicTranslationBar text={magicText} isProcessing={isOcrProcessing} onClose={() => { setMagicText(""); setIsOcrProcessing(false); }} />
+
+                    {/* LEFT SIDEBAR (PAGE THUMBNAILS NAVIGATION) */}
+                    {showSidebar && pdfDoc && (
+                        <div className="w-64 h-full bg-slate-50 border-r border-slate-200 shadow-xl flex flex-col z-30 transition-all shrink-0">
+                            <div className="h-16 bg-white border-b border-slate-200 flex items-center px-6 font-extrabold text-slate-800 shrink-0 shadow-sm text-lg tracking-wide">
+                                <i className="fas fa-images mr-3 text-indigo-500"></i> Mục lục trang
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20">
+                                {Array.from(new Array(numPages), (el, index) => (
+                                    <PdfThumbnail 
+                                        key={index} 
+                                        pdf={pdfDoc} 
+                                        pageNum={index + 1} 
+                                        onClick={() => {
+                                            const el = document.getElementById(`pdf-page-${index + 1}`);
+                                            if(el) el.scrollIntoView({behavior: 'smooth'});
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MAIN CONTENT PANE */}
+                    <div className="flex-1 h-full relative flex flex-col z-10 overflow-hidden bg-slate-200">
+                        
+                        {/* TOP HEADER */}
+                        <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-20 shadow-sm shrink-0">
+                            
+                            <div className="flex items-center gap-4 w-1/4">
+                                {pdfUrl && (
+                                    <button onClick={() => setShowSidebar(!showSidebar)} className="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-colors border border-indigo-100 shadow-sm">
+                                        <i className="fas fa-list-ul"></i>
+                                    </button>
+                                )}
+                                <div className="font-extrabold text-xl text-slate-800 tracking-tight truncate flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-md">
+                                        <i className="fas fa-book"></i>
+                                    </div>
+                                    TÀI LIỆU IELTS
+                                </div>
+                            </div>
+                            
+                            {/* DRAWING TOOLBAR - Ở GIỮA */}
+                            <div className="flex-1 flex justify-center">
+                                {pdfUrl && isDrawingMode && (
+                                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in">
+                                        <button onClick={() => setTool('pencil')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì"><i className="fas fa-pencil-alt text-sm"></i></button>
+                                        
+                                        <button onClick={() => setTool('magic')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch">
+                                            <i className="fas fa-wand-magic-sparkles text-sm"></i>
+                                        </button>
+                                        
+                                        <button onClick={() => setTool('pen')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút bi"><i className="fas fa-pen-nib text-sm"></i></button>
+                                        <button onClick={() => setTool('text')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text"><i className="fas fa-font text-sm"></i></button>
+                                        <button onClick={() => setTool('eraser')} className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ"><i className="fas fa-eraser text-sm"></i></button>
+                                        
+                                        <div className="w-px h-5 bg-slate-300 mx-2"></div>
+                                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-7 h-7 rounded-full cursor-pointer border-2 border-white shadow-sm p-0" title="Đổi màu" disabled={tool === 'magic'} />
+                                        
+                                        {/* Kích thước chữ (Chỉ hiện khi chọn Text) */}
+                                        {tool === 'text' && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kích cỡ chữ Text">
+                                                    <button onClick={() => setFontSize(s => Math.max(10, s - 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-minus text-[10px]"></i></button>
+                                                    <span className="text-xs font-bold text-slate-700 w-6 text-center">{fontSize}</span>
+                                                    <button onClick={() => setFontSize(s => Math.min(48, s + 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-plus text-[10px]"></i></button>
+                                                </div>
+                                            </React.Fragment>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center justify-end gap-5 w-1/4">
+                                <label className="cursor-pointer px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-sm font-bold transition-all flex items-center gap-2 border border-slate-200 shadow-sm">
+                                    <i className="fas fa-upload text-indigo-500"></i> <span className="hidden sm:inline">Tải sách</span>
+                                    <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} />
+                                </label>
+
+                                {pdfUrl && (
+                                    <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 border border-slate-200 shadow-sm">
+                                        <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-minus"></i></button>
+                                        <span className="text-sm font-bold text-slate-600 w-12 text-center">{Math.round(scale * 100)}%</span>
+                                        <button onClick={() => setScale(s => Math.min(3, s + 0.2))} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-plus"></i></button>
+                                    </div>
+                                )}
+
+                                {pdfUrl && (
+                                    <button 
+                                        onClick={() => { setIsDrawingMode(!isDrawingMode); if(!isDrawingMode && tool==='magic') setTool('pencil'); }}
+                                        className={"px-5 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
+                                    >
+                                        <i className="fas fa-pen-fancy"></i>
+                                        {isDrawingMode ? 'Đóng Note' : 'Bật Note'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* PDF CONTENT AREA */}
+                        <div className="flex-1 overflow-y-auto relative p-6 pb-32 flex flex-col items-center justify-start">
+                            
+                            {!pdfUrl ? (
+                                <div className="flex-1 flex flex-col items-center justify-center p-8 w-full max-w-2xl text-center animate-fade-in">
+                                    <div className="w-32 h-32 bg-white rounded-3xl shadow-xl flex items-center justify-center mb-8 border border-slate-100">
+                                        <i className="fas fa-file-pdf text-6xl text-indigo-500"></i>
+                                    </div>
+                                    <h2 className="text-4xl font-extrabold text-slate-800 mb-4 tracking-tight">Night IELTS Land</h2>
+                                    <p className="text-slate-500 mb-10 text-lg leading-relaxed">Hỗ trợ đọc PDF Offline siêu tốc. Toàn bộ tính năng Magic Pen, Dịch, Đọc và Ghi Chú Kéo Thả đều được xử lý cục bộ trên thiết bị của bạn.</p>
+                                    
+                                    <label className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-bold cursor-pointer shadow-xl shadow-indigo-200 transition-all transform hover:-translate-y-1 text-lg flex items-center gap-3">
+                                        <i className="fas fa-cloud-upload-alt text-2xl"></i> Chọn Sách PDF từ máy
+                                        <input type="file" accept="application/pdf" className="hidden" onChange={handleFileUpload} />
+                                    </label>
+                                </div>
+                            ) : (
+                                pdfDoc && Array.from(new Array(numPages), (el, index) => (
+                                    <PdfPage 
+                                        key={index + 1} 
+                                        pageNum={index + 1} 
+                                        pdf={pdfDoc} 
+                                        scale={scale} 
+                                        isDrawingMode={isDrawingMode}
+                                        tool={tool}
+                                        color={color}
+                                        fontSize={fontSize}
+                                        onExtractText={(text, processing) => { setMagicText(text); setIsOcrProcessing(processing); }}
+                                        onDragStart={onTextDragStart}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
