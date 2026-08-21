@@ -1764,7 +1764,16 @@
                     <div className="flex-1 h-full relative flex flex-col z-10 overflow-hidden bg-slate-200">
                         
                         {/* TOP HEADER */}
-                        <div className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-20 shadow-sm shrink-0">
+                        {/* QUAN TRỌNG — TÌM ĐÚNG GỐC "control bar bị che mất 1 khúc": không phải do hình
+                            dạng bo góc (đã thử sửa nhầm chỗ đó) — mà do khung header này trước đây có
+                            chiều cao CỐ ĐỊNH `h-16` (64px). Khi toolbar ở giữa (DRAWING TOOLBAR) wrap
+                            xuống 2 dòng (vd bật thêm hàng "Độ dày bút chì"), nội dung cao hơn 64px nhưng
+                            khung header vẫn báo cáo layout là ĐÚNG 64px — hàng thứ 2 của toolbar bị tràn
+                            ra khỏi đáy header, đè lên/bị che bởi nội dung PDF hoặc panel tra từ (fixed
+                            top-24) render ngay bên dưới. Đổi `h-16` (cố định) thành `min-h-16` (tối
+                            thiểu 64px, tự giãn thêm khi cần) — header giờ tự cao lên đúng bằng nội dung
+                            thật sự, không còn hàng nào bị tràn ra ngoài/bị che nữa. */}
+                        <div className="min-h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-20 shadow-sm shrink-0">
                             
                             <div className="flex items-center gap-4 w-1/4">
                                 {pdfUrl && (
@@ -1794,6 +1803,10 @@
                             {/* DRAWING TOOLBAR */}
                             <div className="flex-1 flex justify-center">
                                 {pdfUrl && isDrawingMode && (
+                                    // GHI CHÚ: từng thử đổi rounded-full sang bo góc cố định ở đây, nhưng đó không
+                                    // phải gốc vấn đề (hình dạng cũ vẫn đẹp) — gốc thật nằm ở header cha bị giới
+                                    // hạn chiều cao cứng h-16, xem sửa ở "TOP HEADER" phía trên. Trả lại rounded-full
+                                    // như cũ.
                                     <div className="flex items-center flex-wrap justify-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in max-w-full">
                                         <button onClick={() => setTool('pencil')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì"><i className="fas fa-pencil-alt text-md"></i></button>
 
