@@ -746,12 +746,42 @@
             );
         });
 
+        // Sentinel vô hình đặt ở cuối lưới Mục lục — khi lọt vào vùng nhìn thấy (tức người dùng đã
+        // cuộn gần tới cuối danh sách ô hiện có), gọi onReach() để modal "tải thêm" 1 đợt nữa. Nhờ
+        // vậy modal chỉ cần dựng sẵn 1 số lượng ô nhỏ, cố định lúc mở, thay vì toàn bộ file cùng lúc.
+        const TocLoadMoreSentinel = ({ onReach }) => {
+            const ref = useRef(null);
+            useEffect(() => {
+                const el = ref.current;
+                if (!el) return;
+                const observer = new IntersectionObserver(([entry]) => {
+                    if (entry.isIntersecting) onReach();
+                }, { rootMargin: '400px 0px' });
+                observer.observe(el);
+                return () => observer.disconnect();
+            }, [onReach]);
+            return <div ref={ref} className="col-span-full h-2 w-full"></div>;
+        };
+
         // --- CẤU HÌNH KIỂU NÉT VẼ CHO TỪNG LOẠI BÚT (1 nguồn duy nhất, dùng lại ở mọi nơi) ---
         // Gộp về 1 chỗ để tránh lặp code 3 nơi khác nhau (từng là nguyên nhân dễ gây lệch nét
         // giữa lúc đang vẽ và lúc redraw) — sửa độ dày/màu ở đây là áp dụng đồng bộ toàn bộ.
         // 3 mức độ dày cho bút chì: nhỏ nhất (mức cũ, mặc định) + 2 mức lớn hơn 1 chút.
         const PENCIL_SIZES = [2, 3.5, 5];
         const DEFAULT_PENCIL_SIZE = PENCIL_SIZES[0];
+
+        // Bảng màu bút có sẵn (bấm chọn nhanh) — thay cho việc phải bấm vào 1 chấm tròn nhỏ để
+        // mở bảng màu của hệ điều hành mỗi lần muốn đổi màu. Vẫn giữ 1 ô "tuỳ chỉnh" (icon ống hút
+        // màu) cạnh bên để chọn màu bất kỳ ngoài 7 màu có sẵn này khi cần.
+        const PRESET_COLORS = ['#4F46E5', '#EF4444', '#F59E0B', '#10B981', '#0EA5E9', '#EC4899', '#000000'];
+
+        // QUAN TRỌNG — sửa lỗi "mở mục lục file nặng tải rất lâu": trước đây modal Mục lục tạo ra
+        // CÙNG LÚC 1 component PdfThumbnail (kèm 1 IntersectionObserver riêng) cho TẤT CẢ các trang
+        // của file — với sách vài trăm trang, chỉ riêng việc React dựng hàng trăm ô lưới + hàng trăm
+        // observer trong 1 lần "commit" đã đủ làm nghẽn luồng chính ngay khi vừa bấm mở, trước khi ảnh
+        // thu nhỏ nào kịp hiện ra. Giờ modal chỉ dựng 1 ĐỢT nhỏ (TOC_BATCH_SIZE ô) khi vừa mở, rồi tự
+        // "tải thêm" từng đợt khi người dùng cuộn gần tới cuối danh sách hiện có — xem TocLoadMoreSentinel.
+        const TOC_BATCH_SIZE = 30;
         const TOOL_STYLES = {
             // Bút Magic (OCR + dịch + đọc): nét mảnh, đứt nét — mảnh hơn bản trước (3 -> 1.5)
             magic: { color: '#FBBF24', width: () => 1.5, alpha: 0.9, dash: [7, 5], useColorProp: false },
@@ -883,7 +913,7 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, pencilSize, onExtractText, onIPALookup, onPhotoLookup }) {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -1298,7 +1328,13 @@
             };
 
             return (
-                <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={viewport ? { width: viewport.width, height: viewport.height } : { width: '100%', minHeight: (1131 * scale) + 'px' }}>
+                <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={
+                    viewport
+                        ? { width: viewport.width, height: viewport.height }
+                        : (basePageSize
+                            ? { width: basePageSize.width * scale, height: basePageSize.height * scale }
+                            : { width: '100%', minHeight: (1131 * scale) + 'px' })
+                }>
                     {isVisible ? (
                         <>
                             <canvas ref={canvasRef} className="pdf-canvas" />
@@ -1335,10 +1371,21 @@
 
         // --- MAIN APP COMPONENT ---
         const App = () => {
-            const [pdfUrl, setPdfUrl] = useState(null); 
+            const [pdfUrl, setPdfUrl] = useState(null);
             const [pdfDoc, setPdfDoc] = useState(null);
             const [numPages, setNumPages] = useState(0);
             const [scale, setScale] = useState(1.2);
+            // QUAN TRỌNG — sửa lỗi "cuộn bị giật/nhảy qua nhiều trang": trước đây, TRƯỚC KHI 1 trang
+            // kịp render, khung chứa của nó dùng 1 chiều cao ƯỚC LƯỢNG cố định (1131px * scale) làm
+            // placeholder. Với sách có kích thước trang khác con số đó (rất phổ biến), ngay khi trang
+            // render xong và đổi sang chiều cao THẬT, khung sẽ đổi kích thước đột ngột — đẩy lệch toàn
+            // bộ các trang bên dưới, khiến vị trí cuộn hiện tại bị "nhảy" theo, càng rõ khi cuộn nhanh
+            // qua nhiều trang chưa kịp render (mỗi trang đổi kích thước là 1 lần giật). Giờ lấy kích
+            // thước THẬT của trang 1 (chỉ 1 lần, ngay sau khi mở file — rất nhẹ, không phải render)
+            // rồi dùng chung cho placeholder của MỌI trang: vì tuyệt đại đa số PDF có các trang cùng
+            // kích thước, placeholder sẽ khớp gần như chính xác kích thước thật ngay từ đầu, không còn
+            // phải "nhảy" khi trang render xong nữa.
+            const [basePageSize, setBasePageSize] = useState(null); // { width, height } ở scale 1
             
             const [isDrawingMode, setIsDrawingMode] = useState(false);
             const [tool, setTool] = useState('pencil');
@@ -1358,6 +1405,13 @@
             const [photoLookup, setPhotoLookup] = useState(null); // { text } — bút tra ảnh minh hoạ
 
             const [showTOC, setShowTOC] = useState(false);
+            // Số ô mục lục đang được dựng trong modal — bắt đầu từ 1 đợt nhỏ (TOC_BATCH_SIZE), tự
+            // tăng dần khi cuộn gần tới cuối (qua TocLoadMoreSentinel). Xem giải thích chi tiết ở khai
+            // báo TOC_BATCH_SIZE phía trên (sửa lỗi "mở mục lục file nặng tải rất lâu").
+            const [tocVisibleCount, setTocVisibleCount] = useState(TOC_BATCH_SIZE);
+            useEffect(() => {
+                if (showTOC) setTocVisibleCount(TOC_BATCH_SIZE); // mỗi lần mở lại modal, reset về đợt đầu
+            }, [showTOC]);
             // Tham chiếu tới đúng vùng cuộn nội dung PDF (không phải toàn trang) — dùng để tự tính
             // và cuộn tới đúng trang khi bấm từ mục lục, xem giải thích chi tiết ở nơi dùng bên dưới.
             const pdfContentAreaRef = useRef(null);
@@ -1416,14 +1470,29 @@
             // memo hoá (React.memo) không phải render lại toàn bộ mỗi khi App có state khác
             // đổi (vd: đang gõ chữ trong 1 ô note) — giúp phản hồi nhanh & mượt hơn, nhất là
             // với sách PDF nhiều trang trên iPad.
+            // Tải thêm 1 đợt ô mục lục khi cuộn gần tới cuối danh sách hiện có (xem TocLoadMoreSentinel
+            // và giải thích ở khai báo TOC_BATCH_SIZE). useCallback để sentinel không phải huỷ/tạo lại
+            // IntersectionObserver mỗi khi App render lại vì lý do khác không liên quan tới mục lục.
+            const handleTocLoadMore = useCallback(() => {
+                setTocVisibleCount(c => Math.min(numPages, c + TOC_BATCH_SIZE));
+            }, [numPages]);
+
             const handleFileUpload = useCallback((e) => {
                 const file = e.target.files[0];
                 if (file && file.type === "application/pdf") {
                     const objectUrl = URL.createObjectURL(file);
                     setPdfUrl(objectUrl);
+                    setBasePageSize(null);
                     pdfjsLib.getDocument(objectUrl).promise.then(loadedPdf => {
                         setPdfDoc(loadedPdf);
                         setNumPages(loadedPdf.numPages);
+                        // Lấy kích thước thật (scale 1) của trang đầu tiên — chỉ đọc thông tin trang,
+                        // KHÔNG rasterize/render nên rất nhẹ — dùng làm placeholder chung cho mọi trang
+                        // (xem giải thích chi tiết ở khai báo basePageSize phía trên).
+                        loadedPdf.getPage(1).then(page => {
+                            const vp = page.getViewport({ scale: 1 });
+                            setBasePageSize({ width: vp.width, height: vp.height });
+                        }).catch(err => {});
                     }).catch(err => alert("Lỗi khi mở file."));
                 }
             }, []);
@@ -1510,8 +1579,8 @@
                                 </div>
                                 <div className="p-6 overflow-y-auto flex-1 pb-10">
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6">
-                                        {Array.from(new Array(numPages), (el, index) => (
-                                            <PdfThumbnail 
+                                        {Array.from(new Array(Math.min(numPages, tocVisibleCount)), (el, index) => (
+                                            <PdfThumbnail
                                                 key={index} 
                                                 pdf={pdfDoc} 
                                                 pageNum={index + 1} 
@@ -1537,6 +1606,9 @@
                                                 }}
                                             />
                                         ))}
+                                        {tocVisibleCount < numPages && (
+                                            <TocLoadMoreSentinel onReach={handleTocLoadMore} />
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1597,7 +1669,26 @@
                                         <button onClick={() => setTool('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ"><i className="fas fa-eraser text-md"></i></button>
 
                                         <div className="w-px h-5 bg-slate-300 mx-2"></div>
-                                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded-full cursor-pointer border-2 border-white shadow-sm p-0" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo'} />
+                                        {/* Bảng màu có sẵn — bấm 1 phát chọn màu ngay, thay cho việc phải mở bảng màu
+                                            của hệ điều hành. Ô cuối (icon ống hút) vẫn mở bảng màu tuỳ chỉnh khi cần
+                                            màu ngoài 7 màu có sẵn — value/onChange/disabled giữ nguyên như cũ. */}
+                                        <div className={"flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm " + ((tool === 'magic' || tool === 'ipa' || tool === 'photo') ? 'opacity-40 pointer-events-none' : '')} title="Chọn màu bút">
+                                            {PRESET_COLORS.map(c => (
+                                                <button
+                                                    key={c}
+                                                    type="button"
+                                                    onClick={() => setColor(c)}
+                                                    className={"w-6 h-6 rounded-full shrink-0 border-2 transition-transform " + (color.toLowerCase() === c.toLowerCase() ? 'border-indigo-400 scale-110' : 'border-white hover:scale-110')}
+                                                    style={{ backgroundColor: c }}
+                                                    title={c}
+                                                ></button>
+                                            ))}
+                                            <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
+                                            <label className="relative w-6 h-6 rounded-full shrink-0 cursor-pointer border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden" title="Màu tuỳ chỉnh">
+                                                <i className="fas fa-eye-dropper text-[9px] text-slate-400 pointer-events-none"></i>
+                                                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo'} />
+                                            </label>
+                                        </div>
 
                                         {/* Độ dày bút chì: 3 lựa chọn — nhỏ nhất (mặc định, giữ nguyên độ dày cũ) + 2
                                             mức lớn hơn 1 chút, chọn bằng 3 nút chấm tròn tăng dần kích cỡ trực quan. */}
@@ -1723,6 +1814,7 @@
                                         pencilSize={pencilSize}
                                         color={color}
                                         fontSize={fontSize}
+                                        basePageSize={basePageSize}
                                         onExtractText={onExtractText}
                                         onIPALookup={onIPALookup}
                                         onPhotoLookup={onPhotoLookup}
