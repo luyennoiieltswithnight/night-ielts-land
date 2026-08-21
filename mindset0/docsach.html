@@ -113,14 +113,27 @@
                mỗi trang sẽ chiếm 1 lớp GPU riêng vĩnh viễn dù đang cuộn xa khỏi màn hình,
                gây ngốn bộ nhớ và là nguyên nhân chính khiến iPad bị đơ/đứng hình sau một lúc dùng. */
             contain: layout style;
+            /* GHI CHÚ: từng thử tắt hẳn "scroll anchoring" (overflow-anchor: none) ở đây, nhưng thực
+               tế lại làm cuộn TỆ HƠN — bị nhảy ở CẢ 2 HƯỚNG thay vì chỉ 1 hướng như trước. Điều đó cho
+               thấy cơ chế anchoring mặc định của trình duyệt vốn đang ÂM THẦM bù lại 1 sự thay đổi nội
+               dung/kích thước thật nào đó phía trên vị trí đang xem — tắt nó đi chỉ làm lộ rõ hẳn cú
+               nhảy ra thay vì sửa được gốc. Đã revert lại về mặc định (auto) — xem PdfPage để biết
+               cách sửa TẬN GỐC (không còn thay đổi cấu trúc DOM khi cuộn nữa) thay vì tắt anchoring. */
         }
 
-        .pdf-canvas { display: block; border-radius: 12px; }
+        /* width/height 100%: canvas LUÔN lấp đầy đúng khung .pdf-page-container (nay có kích thước
+           CỐ ĐỊNH ngay từ đầu — xem basePageSize trong component App) bất kể độ phân giải pixel thật
+           bên trong canvas là bao nhiêu — tránh trường hợp hiếm 1 trang có kích thước khác các trang
+           còn lại làm canvas tràn ra ngoài khung. getCoordinates() trong PdfPage đã tự quy đổi toạ độ
+           theo tỉ lệ canvas.width/rect.width nên toạ độ vẽ vẫn chính xác dù canvas co giãn theo CSS. */
+        .pdf-canvas { display: block; border-radius: 12px; width: 100%; height: 100%; }
 
         .draw-canvas {
             position: absolute;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             border-radius: 12px;
             /* GIỮ "auto" cố định — KHÔNG đổi thành "none" theo isDrawingMode. Đã thử "none" nhưng
                touch-action là thuộc tính CSS thuần, không phân biệt được ngón tay hay Apple Pencil,
@@ -715,18 +728,38 @@
 
             useEffect(() => {
                 if (!pdf || !isVisible) return;
-                let renderTask = null;
-                pdf.getPage(pageNum).then(page => {
-                    const canvas = canvasRef.current;
-                    if (!canvas) return;
-                    const ctx = canvas.getContext('2d');
-                    const viewport = page.getViewport({ scale: 0.3 });
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-                    // Đi qua hàng đợi dùng chung — xem giải thích chi tiết ở scheduleRender phía trên.
-                    renderTask = scheduleRender(() => page.render({ canvasContext: ctx, viewport }));
+                let cancelled = false;
+                let realRenderTask = null;
+
+                // Gộp CẢ getPage() LẪN render() làm 1 việc, đi qua chung hàng đợi (xem giải thích chi
+                // tiết ở effect tương tự trong PdfPage) — tránh dồn hàng chục getPage() cùng lúc khi
+                // cuộn nhanh trong mục lục file nhiều trang.
+                const task = scheduleRender(() => {
+                    const p = pdf.getPage(pageNum).then(page => {
+                        if (cancelled) return;
+                        const canvas = canvasRef.current;
+                        if (!canvas) return;
+                        const ctx = canvas.getContext('2d');
+                        // Hạ tiếp độ phân giải render ảnh thu nhỏ (0.3 -> 0.2 -> 0.13): ô mục lục hiển
+                        // thị rất nhỏ trên lưới (CSS đã tự co vừa khung qua object-cover) nên gần như
+                        // không thấy khác biệt độ nét, nhưng giảm thêm ~58% số pixel so với mức 0.2
+                        // trước đó — giúp mở mục lục và cuộn trong đó nhanh/nhẹ hơn nữa với file nhiều trang.
+                        const viewport = page.getViewport({ scale: 0.13 });
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        realRenderTask = page.render({ canvasContext: ctx, viewport });
+                        return realRenderTask.promise;
+                    });
+                    return {
+                        promise: p,
+                        cancel: () => {
+                            cancelled = true;
+                            if (realRenderTask) { try { realRenderTask.cancel(); } catch (err) {} }
+                        }
+                    };
                 });
-                return () => { if(renderTask) renderTask.cancel(); };
+
+                return () => task.cancel();
             }, [pdf, pageNum, isVisible]);
 
             return (
@@ -746,23 +779,6 @@
             );
         });
 
-        // Sentinel vô hình đặt ở cuối lưới Mục lục — khi lọt vào vùng nhìn thấy (tức người dùng đã
-        // cuộn gần tới cuối danh sách ô hiện có), gọi onReach() để modal "tải thêm" 1 đợt nữa. Nhờ
-        // vậy modal chỉ cần dựng sẵn 1 số lượng ô nhỏ, cố định lúc mở, thay vì toàn bộ file cùng lúc.
-        const TocLoadMoreSentinel = ({ onReach }) => {
-            const ref = useRef(null);
-            useEffect(() => {
-                const el = ref.current;
-                if (!el) return;
-                const observer = new IntersectionObserver(([entry]) => {
-                    if (entry.isIntersecting) onReach();
-                }, { rootMargin: '400px 0px' });
-                observer.observe(el);
-                return () => observer.disconnect();
-            }, [onReach]);
-            return <div ref={ref} className="col-span-full h-2 w-full"></div>;
-        };
-
         // --- CẤU HÌNH KIỂU NÉT VẼ CHO TỪNG LOẠI BÚT (1 nguồn duy nhất, dùng lại ở mọi nơi) ---
         // Gộp về 1 chỗ để tránh lặp code 3 nơi khác nhau (từng là nguyên nhân dễ gây lệch nét
         // giữa lúc đang vẽ và lúc redraw) — sửa độ dày/màu ở đây là áp dụng đồng bộ toàn bộ.
@@ -780,7 +796,7 @@
         // của file — với sách vài trăm trang, chỉ riêng việc React dựng hàng trăm ô lưới + hàng trăm
         // observer trong 1 lần "commit" đã đủ làm nghẽn luồng chính ngay khi vừa bấm mở, trước khi ảnh
         // thu nhỏ nào kịp hiện ra. Giờ modal chỉ dựng 1 ĐỢT nhỏ (TOC_BATCH_SIZE ô) khi vừa mở, rồi tự
-        // "tải thêm" từng đợt khi người dùng cuộn gần tới cuối danh sách hiện có — xem TocLoadMoreSentinel.
+        // "tải thêm" từng đợt khi người dùng cuộn gần tới cuối danh sách hiện có — xem handleTocScroll.
         const TOC_BATCH_SIZE = 30;
         const TOOL_STYLES = {
             // Bút Magic (OCR + dịch + đọc): nét mảnh, đứt nét — mảnh hơn bản trước (3 -> 1.5)
@@ -925,6 +941,14 @@
 
             const isDrawingRef = useRef(false);
             const currentStrokeRef = useRef(null);
+            // QUAN TRỌNG — nhớ đã render xong cho (pdf, scale) nào rồi: canvas giờ LUÔN nằm sẵn
+            // trong DOM (chỉ ẩn/hiện bằng display, không hề unmount) nên nội dung đã vẽ vẫn còn
+            // nguyên khi ẩn đi rồi hiện lại — KHÔNG cần render lại từ đầu mỗi lần isVisible bật lại
+            // true nữa. Phải nhớ CẢ pdf (không chỉ scale): vì các PdfPage dùng key={pageNum} cố định,
+            // khi người dùng mở 1 file MỚI (pdfDoc đổi nhưng cùng số trang) thì React TÁI SỬ DỤNG lại
+            // đúng các instance PdfPage cũ theo key — nếu chỉ so scale mà quên so cả pdf, trang của
+            // file mới sẽ bị coi nhầm là "đã render rồi" và không chịu vẽ lại.
+            const renderedRef = useRef({ pdf: null, scale: null });
 
             useEffect(() => {
                 // Vùng đệm preload nhỏ hơn (600px thay vì 1000px): vẫn đủ để cuộn mượt mà không
@@ -938,31 +962,61 @@
                 return () => observer.disconnect();
             }, []);
 
+            // QUAN TRỌNG — nguyên nhân THẬT SỰ của "cuộn lùi bị nhảy mấy chục trang" (đã đào sâu lại
+            // sau nhiều lần sửa wheel không ăn thua): effect này trước đây RENDER LẠI TỪ ĐẦU (gọi lại
+            // pdf.getPage + page.render + redrawStrokes — đều là việc NẶNG) MỖI LẦN isVisible chuyển
+            // từ false -> true, kể cả khi trang đó đã render xong rồi và chỉ đơn giản cuộn ra xa rồi
+            // quay lại! Khi cuộn LÙI qua 1 vùng đã đọc/ghi chú trước đó (đúng như người dùng nhận xét:
+            // "trang đó đã tải rồi"), rất nhiều trang ĐÃ RENDER cùng lúc lọt lại vào vùng đệm 600px và
+            // toàn bộ đều bị render lại từ đầu + vẽ lại hết các nét bút đã ghi (redrawStrokes) — dồn 1
+            // đợt việc nặng lên luồng chính, đúng lúc đang xử lý cả loạt sự kiện wheel, gây khựng/dồn
+            // input rồi "nhảy" ra ngoài ý muốn. Cuộn XUÔI ít gặp vì đa số trang phía trước là trang
+            // "nguội" (chưa render lần nào) — quét qua landmark thường chậm dần đều chứ không dồn cục.
+            // Sửa TẬN GỐC: chỉ render 1 LẦN cho mỗi (file, scale) — dùng renderedRef nhớ lại đã render
+            // cho pdf/scale nào, lần isVisible bật lại true sau đó (cùng file, cùng scale) sẽ bỏ qua
+            // toàn bộ, canvas vẫn còn nguyên nội dung cũ vì chưa từng bị gỡ khỏi DOM. Chỉ render lại
+            // thật sự khi đổi scale (zoom) hoặc đổi sang file khác — 2 trường hợp bắt buộc phải vẽ lại.
             useEffect(() => {
                 if (!pdf || !isVisible) return;
-                let renderTask = null;
+                if (renderedRef.current.pdf === pdf && renderedRef.current.scale === scale) return; // đã render đúng file+scale này rồi — khỏi làm lại
+                let cancelled = false;
+                let realRenderTask = null;
 
-                pdf.getPage(pageNum).then(page => {
-                    const vp = page.getViewport({ scale });
-                    setViewport(vp);
-                    
-                    const canvas = canvasRef.current;
-                    const drawCanvas = drawCanvasRef.current;
-                    if(!canvas || !drawCanvas) return;
-                    
-                    canvas.height = vp.height;
-                    canvas.width = vp.width;
-                    drawCanvas.height = vp.height;
-                    drawCanvas.width = vp.width;
+                const task = scheduleRender(() => {
+                    const p = pdf.getPage(pageNum).then(page => {
+                        if (cancelled) return; // effect đã bị dọn (vd trang cuộn ra khỏi vùng đệm) trước khi tới lượt
 
-                    const ctx = canvas.getContext('2d');
-                    // Đi qua hàng đợi dùng chung — xem giải thích chi tiết ở scheduleRender phía trên.
-                    renderTask = scheduleRender(() => page.render({ canvasContext: ctx, viewport: vp }));
+                        const vp = page.getViewport({ scale });
+                        setViewport(vp);
 
-                    renderTask.promise.then(() => redrawStrokes()).catch(e => {});
+                        const canvas = canvasRef.current;
+                        const drawCanvas = drawCanvasRef.current;
+                        if (!canvas || !drawCanvas) return;
+
+                        canvas.height = vp.height;
+                        canvas.width = vp.width;
+                        drawCanvas.height = vp.height;
+                        drawCanvas.width = vp.width;
+
+                        const ctx = canvas.getContext('2d');
+                        realRenderTask = page.render({ canvasContext: ctx, viewport: vp });
+                        return realRenderTask.promise.then(() => {
+                            if (!cancelled) {
+                                redrawStrokes();
+                                renderedRef.current = { pdf, scale };
+                            }
+                        });
+                    });
+                    return {
+                        promise: p,
+                        cancel: () => {
+                            cancelled = true;
+                            if (realRenderTask) { try { realRenderTask.cancel(); } catch (err) {} }
+                        }
+                    };
                 });
 
-                return () => { if(renderTask) renderTask.cancel(); };
+                return () => task.cancel();
             }, [pdf, pageNum, scale, isVisible]);
 
             // GHI CHÚ: từng thử thay listener JS dưới đây bằng CSS "touch-action: none" để đỡ tốn JS,
@@ -1329,42 +1383,79 @@
 
             return (
                 <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={
-                    viewport
-                        ? { width: viewport.width, height: viewport.height }
-                        : (basePageSize
-                            ? { width: basePageSize.width * scale, height: basePageSize.height * scale }
+                    // QUAN TRỌNG — sửa dứt điểm lỗi "cuộn giật/nhảy trang", "bấm mục lục đến sai trang",
+                    // "có text box thì cuộn bị nhảy giật": trước đây khung TRANG luôn đổi từ kích thước
+                    // ước lượng (basePageSize) SANG kích thước thật (viewport) đúng lúc trang đó vừa
+                    // render xong — dù đã ước lượng khá sát, việc ĐỔI kích thước này (dù chỉ 1 lần/trang)
+                    // vẫn là 1 lần reflow thật, và khi nhiều trang cùng đổi gần như đồng thời lúc cuộn
+                    // nhanh, các lần reflow dồn lại làm view "nhảy" xa hơn hẳn thao tác cuộn thật của
+                    // người dùng — cũng chính là lý do trình duyệt tự "kéo" lại về gần ô đang có focus
+                    // (text box) mỗi khi có reflow ở ngay phía trên nó. Giờ ưu tiên basePageSize LUÔN
+                    // LUÔN (một khi đã có — chỉ mất đúng 1 lần load ngay khi mở file) làm kích thước
+                    // DUY NHẤT và CỐ ĐỊNH cho MỌI trang, không đổi sang viewport riêng của từng trang
+                    // nữa — vì tuyệt đại đa số PDF có mọi trang cùng kích thước nên basePageSize vốn dĩ
+                    // đã khớp chính xác, và giờ khung trang không còn đổi kích thước lần nào sau khi
+                    // mount nữa => không còn nguồn gây reflow/nhảy cuộn nào từ việc này nữa.
+                    basePageSize
+                        ? { width: basePageSize.width * scale, height: basePageSize.height * scale }
+                        : (viewport
+                            ? { width: viewport.width, height: viewport.height }
                             : { width: '100%', minHeight: (1131 * scale) + 'px' })
                 }>
-                    {isVisible ? (
-                        <>
-                            <canvas ref={canvasRef} className="pdf-canvas" />
-                            <canvas 
-                                ref={drawCanvasRef} 
-                                className="draw-canvas cursor-crosshair"
-                                style={{ pointerEvents: isDrawingMode ? 'auto' : 'none' }}
-                                onPointerDown={handlePointerDown}
-                                onPointerMove={handlePointerMove}
-                                onPointerUp={handlePointerUp}
-                                onPointerCancel={handlePointerUp}
-                                onPointerOut={handlePointerUp}
-                            />
+                    {/* QUAN TRỌNG — TÌM RA ĐÚNG GỐC "cuộn lùi nhảy vọt lên trang đầu": trước đây 2 canvas
+                        + spinner tuy đã được mount sẵn cố định (không unmount nữa), nhưng vẫn ẩn/hiện
+                        bằng CSS `display: none/block`. `display` đổi qua lại nghĩa là phần tử bị GỠ hẳn
+                        khỏi/rồi CHÈN LẠI vào Layout Tree (cây bố cục) — mỗi lần cuộn lùi qua nhiều trang
+                        đã từng hiện ra trước đó, hàng loạt canvas cùng lúc chuyển từ none -> block, cây
+                        bố cục bị coi như "vừa có nội dung mới chèn vào phía trên", khiến cơ chế "scroll
+                        anchoring" của trình duyệt (vốn dùng để tự bù cuộn khi có nội dung thật sự bị
+                        chèn/xoá phía trên) hiểu lầm và tự ý bù vị trí cuộn — đúng kiểu jump đột ngột (không
+                        tăng dần như quán tính) mà không hề liên quan gì tới lực lướt hay tốc độ wheel cả.
+                        Sửa: đổi hẳn sang `visibility: hidden/visible` thay cho `display` — visibility
+                        vẫn ẩn hoàn toàn hình ảnh (không tốn công vẽ) và vẫn tự động không nhận sự kiện
+                        chuột/bút khi ẩn (giống display:none), NHƯNG không hề đụng tới Layout Tree — phần
+                        tử vẫn luôn ở đó, chỉ đổi trạng thái hiển thị, nên trình duyệt không còn lý do gì
+                        để "giật mình" bù cuộn nữa. */}
+                    <canvas ref={canvasRef} className="pdf-canvas" style={{ visibility: isVisible ? 'visible' : 'hidden' }} />
+                    <canvas
+                        ref={drawCanvasRef}
+                        className="draw-canvas cursor-crosshair"
+                        style={{ visibility: isVisible ? 'visible' : 'hidden', pointerEvents: isDrawingMode ? 'auto' : 'none' }}
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                        onPointerOut={handlePointerUp}
+                    />
+                    <div
+                        className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-50 text-slate-300 pointer-events-none"
+                        style={{ visibility: isVisible ? 'hidden' : 'visible' }}
+                    >
+                        <i className="fas fa-circle-notch fa-spin text-4xl"></i>
+                    </div>
 
-                            {/* Render Text Boxes */}
-                            {texts.map(t => (
-                                <PdfTextBox
-                                    key={t.id}
-                                    t={t}
-                                    scale={scale}
-                                    updateText={updateText}
-                                    removeText={removeText}
-                                />
-                            ))}
-                        </>
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300">
-                            <i className="fas fa-circle-notch fa-spin text-4xl"></i>
-                        </div>
-                    )}
+                    {/* QUAN TRỌNG — TÌM RA ĐÚNG GỐC lỗi "cuộn (đặc biệt lùi về trang trước) bị nhảy
+                        vọt tới 1 vị trí xa lạ, không liên quan gì tới tốc độ lướt": Text Box trước đây
+                        nằm CHUNG trong khối chỉ render khi isVisible — nghĩa là mỗi khi 1 trang cuộn ra
+                        khỏi rồi quay lại vùng đệm (rất hay xảy ra khi cuộn qua lại nhiều), TOÀN BỘ text
+                        box trên trang đó bị HUỶ rồi TẠO MỚI lại từ đầu. PdfTextBox có state "active"
+                        khởi tạo mặc định = true kèm useEffect tự gọi textareaRef.focus() ngay khi mount
+                        — nghĩa là mỗi lần "tạo mới lại" như vậy, ô textarea đó lại được focus() lại 1
+                        lần nữa, và trình duyệt sẽ TỰ ĐỘNG cuộn tới đúng vị trí ô đang được focus đó —
+                        đây mới là nguyên nhân thật của cú "nhảy" (không phải do quán tính cuộn hay do
+                        reflow kích thước trang). Giờ Text Box được tách ra render LUÔN LUÔN, không phụ
+                        thuộc isVisible nữa — chỉ mất đúng 1 lần mount/focus duy nhất lúc thật sự tạo
+                        note mới, không bao giờ tự mount lại (nên không bao giờ tự focus lại) chỉ vì
+                        cuộn qua cuộn lại nữa. */}
+                    {texts.map(t => (
+                        <PdfTextBox
+                            key={t.id}
+                            t={t}
+                            scale={scale}
+                            updateText={updateText}
+                            removeText={removeText}
+                        />
+                    ))}
                 </div>
             );
         });
@@ -1406,7 +1497,7 @@
 
             const [showTOC, setShowTOC] = useState(false);
             // Số ô mục lục đang được dựng trong modal — bắt đầu từ 1 đợt nhỏ (TOC_BATCH_SIZE), tự
-            // tăng dần khi cuộn gần tới cuối (qua TocLoadMoreSentinel). Xem giải thích chi tiết ở khai
+            // tăng dần khi cuộn gần tới cuối (qua handleTocScroll). Xem giải thích chi tiết ở khai
             // báo TOC_BATCH_SIZE phía trên (sửa lỗi "mở mục lục file nặng tải rất lâu").
             const [tocVisibleCount, setTocVisibleCount] = useState(TOC_BATCH_SIZE);
             useEffect(() => {
@@ -1415,6 +1506,27 @@
             // Tham chiếu tới đúng vùng cuộn nội dung PDF (không phải toàn trang) — dùng để tự tính
             // và cuộn tới đúng trang khi bấm từ mục lục, xem giải thích chi tiết ở nơi dùng bên dưới.
             const pdfContentAreaRef = useRef(null);
+            // Tham chiếu tới vùng cuộn BÊN TRONG modal Mục lục — dùng để tự "tải thêm" 1 đợt ô mới
+            // khi cuộn gần tới cuối, xem giải thích chi tiết ở useEffect ngay bên dưới.
+            const tocScrollRef = useRef(null);
+            // true trong lúc app TỰ cuộn bằng lệnh (vd bấm mục lục) — cho phép bộ khống chế tốc độ
+            // cuộn bên dưới bỏ qua, không chặn nhầm cú cuộn mượt do chính app gây ra.
+            const isProgrammaticScrollRef = useRef(false);
+
+            // QUAN TRỌNG — LỊCH SỬ sửa lỗi "lướt lùi về trang trước bị nhảy vọt": đã thử rất nhiều lớp
+            // can thiệp trực tiếp vào wheel/scrollTop (giảm tốc 1 chiều, tự bù mỗi rAF, chặn hẳn wheel
+            // lấy lại toàn quyền cuộn bằng tay, giới hạn từng sự kiện, rồi "ngân sách" quãng đường theo
+            // từng đợt lướt) — không lớp nào dứt điểm, có lớp còn làm trải nghiệm TỆ HƠN (khựng cứng khi
+            // hết ngân sách), và tất cả đều đánh đổi mất luôn quán tính (momentum) mượt mà vốn có của
+            // trackpad. Đã TÌM RA ĐÚNG GỐC thật sự: không liên quan gì tới wheel/tốc độ lướt cả — do
+            // canvas/spinner của PdfPage đổi qua lại bằng CSS `display: none/block` mỗi khi cuộn qua,
+            // việc này làm trình duyệt tưởng có nội dung mới chèn vào Layout Tree phía trên, khiến cơ
+            // chế "scroll anchoring" mặc định tự ý bù sai vị trí cuộn — đúng kiểu jump đột ngột, không
+            // tăng dần. Đã sửa tận gốc bằng cách đổi `display` thành `visibility` (xem style của canvas/
+            // spinner trong PdfPage) — phần tử không còn bị gỡ khỏi/chèn lại Layout Tree khi ẩn/hiện
+            // nữa, nên anchoring không còn lý do gì để bù nhầm. Nhờ vậy KHÔNG CẦN can thiệp wheel bằng
+            // tay nữa — bỏ hẳn useEffect chặn wheel ở đây, trả lại nguyên bản cảm giác lướt/quán tính tự
+            // nhiên của trackpad/Trackpad Mac và cảm ứng iPad.
 
             // --- KHOÁ ZOOM (nút bật/tắt, thay cho cơ chế tự động chặn pinch-zoom trước đây vốn
             // "chưa hoạt động hiệu quả lắm" trên thực tế) — mặc định TẮT (zoom bình thường), người
@@ -1470,12 +1582,39 @@
             // memo hoá (React.memo) không phải render lại toàn bộ mỗi khi App có state khác
             // đổi (vd: đang gõ chữ trong 1 ô note) — giúp phản hồi nhanh & mượt hơn, nhất là
             // với sách PDF nhiều trang trên iPad.
-            // Tải thêm 1 đợt ô mục lục khi cuộn gần tới cuối danh sách hiện có (xem TocLoadMoreSentinel
-            // và giải thích ở khai báo TOC_BATCH_SIZE). useCallback để sentinel không phải huỷ/tạo lại
-            // IntersectionObserver mỗi khi App render lại vì lý do khác không liên quan tới mục lục.
+            // Tải thêm 1 đợt ô mục lục khi cuộn gần tới cuối danh sách hiện có — xem giải thích ở
+            // khai báo TOC_BATCH_SIZE. useCallback để không tạo hàm mới mỗi khi App render lại vì lý
+            // do khác không liên quan tới mục lục.
             const handleTocLoadMore = useCallback(() => {
                 setTocVisibleCount(c => Math.min(numPages, c + TOC_BATCH_SIZE));
             }, [numPages]);
+
+            // QUAN TRỌNG — sửa lỗi "mở mục lục file lớn thì nhiều trang không hiện": cách cũ dùng 1
+            // IntersectionObserver quan sát 1 ô "sentinel" ở cuối danh sách, chỉ bắn callback khi ô đó
+            // CHUYỂN TRẠNG THÁI (từ ngoài màn hình vào trong hoặc ngược lại). Với modal cao/vùng đệm
+            // rootMargin rộng, sau khi tải thêm 1 đợt, sentinel có thể vẫn tiếp tục nằm trong vùng
+            // "đang giao nhau" — tức KHÔNG hề chuyển trạng thái — nên callback không bắn lại nữa, và
+            // việc tải thêm bị "kẹt" mãi ở đó dù người dùng vẫn đang cuộn, khiến các trang phía sau
+            // không bao giờ được tải. Giờ chuyển sang cách chắc chắn hơn: theo dõi trực tiếp vị trí
+            // cuộn (onScroll) và so sánh còn cách đáy bao xa — kiểm tra lại MỖI lần cuộn, không phụ
+            // thuộc việc "chuyển trạng thái" nên không thể bị kẹt. Thêm 1 effect tự tải thêm ngay cả
+            // khi CHƯA cuộn (vd: file ít trang hơn 1 màn hình, hoặc màn hình rất to) — vì lúc đó modal
+            // không đủ nội dung để tạo ra sự kiện cuộn nào cả.
+            useEffect(() => {
+                if (!showTOC) return;
+                const el = tocScrollRef.current;
+                if (!el) return;
+                if (tocVisibleCount < numPages && el.scrollHeight <= el.clientHeight + 200) {
+                    handleTocLoadMore();
+                }
+            }, [showTOC, tocVisibleCount, numPages, handleTocLoadMore]);
+
+            const handleTocScroll = useCallback((e) => {
+                const el = e.target;
+                if (el.scrollHeight - el.scrollTop - el.clientHeight < 800) {
+                    handleTocLoadMore();
+                }
+            }, [handleTocLoadMore]);
 
             const handleFileUpload = useCallback((e) => {
                 const file = e.target.files[0];
@@ -1577,7 +1716,7 @@
                                         <i className="fas fa-times"></i>
                                     </button>
                                 </div>
-                                <div className="p-6 overflow-y-auto flex-1 pb-10">
+                                <div ref={tocScrollRef} onScroll={handleTocScroll} className="p-6 overflow-y-auto flex-1 pb-10">
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6">
                                         {Array.from(new Array(Math.min(numPages, tocVisibleCount)), (el, index) => (
                                             <PdfThumbnail
@@ -1600,16 +1739,22 @@
                                                         const containerRect = container.getBoundingClientRect();
                                                         const targetRect = target.getBoundingClientRect();
                                                         const delta = targetRect.top - containerRect.top;
+                                                        // Đánh dấu đây là cú cuộn app TỰ ra lệnh — để bộ khống chế tốc độ cuộn lùi
+                                                        // (xem isProgrammaticScrollRef) không chặn nhầm cú cuộn mượt này.
+                                                        isProgrammaticScrollRef.current = true;
                                                         container.scrollTo({ top: container.scrollTop + delta - 16, behavior: 'smooth' });
+                                                        setTimeout(() => { isProgrammaticScrollRef.current = false; }, 900);
                                                     }
                                                     setShowTOC(false);
                                                 }}
                                             />
                                         ))}
-                                        {tocVisibleCount < numPages && (
-                                            <TocLoadMoreSentinel onReach={handleTocLoadMore} />
-                                        )}
                                     </div>
+                                    {tocVisibleCount < numPages && (
+                                        <div className="flex items-center justify-center gap-2 text-slate-400 text-xs font-semibold py-6">
+                                            <i className="fas fa-circle-notch fa-spin"></i> Đang tải thêm trang…
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1739,18 +1884,6 @@
                                                 </div>
                                             </React.Fragment>
                                         )}
-
-                                        {/* Gợi ý cách dùng bút IPA / tra ảnh: giờ cả 2 bút đều chọn vùng bằng cách
-                                            KÉO-THẢ 1 Ô CHỮ NHẬT quanh đúng chữ cần (giống bút Magic ở chế độ hình
-                                            chữ nhật) thay vì kiểu bút highlight quét ngang trước đây. */}
-                                        {(tool === 'ipa' || tool === 'photo') && (
-                                            <React.Fragment>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                                                <span className="text-[11px] font-semibold text-slate-400 px-1 flex items-center gap-1.5 whitespace-nowrap">
-                                                    <i className="fas fa-vector-square text-[10px]"></i> Kéo-thả ô chữ nhật quanh chữ cần chọn
-                                                </span>
-                                            </React.Fragment>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1786,6 +1919,11 @@
                         </div>
                         
                         {/* PDF CONTENT AREA */}
+                        {/* GHI CHÚ: đã thử tắt overflow-anchor (scroll anchoring) ở đây 2 LẦN riêng biệt
+                            — cả 2 lần đều làm cuộn TỆ HƠN theo phản hồi thực tế, dù bối cảnh DOM đã khác
+                            nhau giữa 2 lần thử. Kết luận: giữ nguyên mặc định (auto) của trình duyệt ở
+                            đây, KHÔNG đụng vào nữa — gốc vấn đề nằm ở chỗ khác (xem PdfPage: bỏ re-render
+                            thừa mỗi khi 1 trang cũ quay lại vùng nhìn thấy). */}
                         <div ref={pdfContentAreaRef} className="flex-1 overflow-y-auto relative p-6 pb-32 flex flex-col items-center justify-start">
                             
                             {!pdfUrl ? (
