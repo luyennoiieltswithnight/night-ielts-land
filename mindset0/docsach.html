@@ -7,6 +7,12 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>Night IELTS Land - Ultimate iPad Edition</title>
 
+    <!-- Favicon: icon hình con Nai (emoji 🦌 vẽ vào 1 SVG nhỏ, nhúng thẳng dạng base64 — không cần
+         file ảnh riêng, không phụ thuộc mạng, hiện ngay trên tab trình duyệt và icon "Thêm vào Màn
+         hình chính" khi ghim app trên iPad). Cũng dùng chung icon này cho Apple Touch Icon. -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSI1MCIgeT0iNzgiIGZvbnQtc2l6ZT0iODIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfpow8L3RleHQ+PC9zdmc+">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48dGV4dCB4PSI1MCIgeT0iNzgiIGZvbnQtc2l6ZT0iODIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfpow8L3RleHQ+PC9zdmc+">
+
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -156,21 +162,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
 
-        // --- 1 THẺ <audio> DÙNG CHUNG CHO CẢ APP (tạo bằng DOM thuần, không phụ thuộc React) ---
-        // Lý do tạo ngoài React: nếu để React tạo/huỷ thẻ <audio> mỗi lần box dịch ẩn/hiện,
-        // trạng thái "đã được mở khoá phát âm thanh" (autoplay unlock) trên Safari/iPadOS sẽ
-        // bị mất mỗi lần thẻ bị huỷ, khiến lần đọc tiếp theo lại bị Safari chặn im lặng.
-        let _sharedAudioEl = null;
-        const getSharedAudioEl = () => {
-            if (!_sharedAudioEl) {
-                _sharedAudioEl = document.createElement('audio');
-                _sharedAudioEl.setAttribute('playsinline', '');
-                _sharedAudioEl.style.display = 'none';
-                document.body.appendChild(_sharedAudioEl);
-            }
-            return _sharedAudioEl;
-        };
-
         // --- GLOBAL AUDIO UNLOCKER FOR IPAD ---
         // QUAN TRỌNG: trước đây hàm này tạo MỘT AudioContext THẬT MỚI mỗi lần được gọi
         // (mỗi lần bấm "Bật Note"/"Đóng Note") và không bao giờ đóng lại. Trên Safari/iPadOS,
@@ -226,97 +217,13 @@
                     window.speechSynthesis.speak(utter);
                 } catch (err) {}
             }
-
-            // Mở khoá luôn thẻ <audio> dùng cho giọng đọc Online, ngay trong cùng 1 cử chỉ chạm này.
-            // Dùng 1 file WAV câm lặng cực ngắn thay vì để trống src, vì Safari/iPadOS chỉ thực sự
-            // ghi nhận "đã mở khoá" khi có 1 lượt phát thành công thật sự (không phải bị từ chối do thiếu src).
-            try {
-                const el = getSharedAudioEl();
-                if (!el.src) el.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-                const p = el.play();
-                if (p && p.catch) p.catch(() => {});
-                el.pause();
-            } catch (err) {}
         };
 
-        // --- NHẬN DIỆN THIẾT BỊ (để chọn giọng đọc mặc định tốt nhất) ---
-        // iPadOS (từ iPad OS 13+) báo User-Agent giống macOS, nên phải dò thêm cảm ứng.
-        const isIOSDevice = (() => {
-            const ua = navigator.userAgent || '';
-            const isClassicIOS = /iPad|iPhone|iPod/.test(ua);
-            const isIPadOSAsMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-            return isClassicIOS || isIPadOSAsMac;
-        })();
-
-        // --- GIỌNG ĐỌC "ONLINE" CHẤT LƯỢNG CAO CHO IPAD/SAFARI ---
-        // Safari trên iPad chỉ có giọng đọc hệ thống offline (nghe khá "robot"), trong khi
-        // Chrome trên Mac có sẵn các giọng Google chất lượng cao. Vì trang đã gọi
-        // translate.googleapis.com để dịch, ta tận dụng thêm dịch vụ đọc-văn-bản (TTS) công khai
-        // của Google Translate để phát giọng đọc tự nhiên hơn nhiều trên mọi thiết bị, kể cả iPad.
-        const splitTextForTTS = (text, maxLen = 190) => {
-            const clean = (text || '').replace(/\s+/g, ' ').trim();
-            if (!clean) return [];
-            if (clean.length <= maxLen) return [clean];
-
-            const sentences = clean.match(/[^.!?,;]+[.!?,;]?/g) || [clean];
-            const chunks = [];
-            let current = "";
-            sentences.forEach(sentence => {
-                if ((current + sentence).length > maxLen) {
-                    if (current.trim()) chunks.push(current.trim());
-                    current = sentence;
-                    // Câu quá dài, phải cắt cứng theo độ dài
-                    while (current.length > maxLen) {
-                        chunks.push(current.slice(0, maxLen).trim());
-                        current = current.slice(maxLen);
-                    }
-                } else {
-                    current += sentence;
-                }
-            });
-            if (current.trim()) chunks.push(current.trim());
-            return chunks;
-        };
-
-        // Phát 1 danh sách chunk văn bản tuần tự bằng thẻ <audio> qua Google TTS.
-        // Trả về 1 hàm "cancel" để có thể dừng giữa chừng khi người dùng đóng box hoặc mute.
-        //
-        // LƯU Ý QUAN TRỌNG (bug đã sửa): khi audioEl.play() đang chờ (promise "pending") mà bị
-        // gọi audioEl.pause()/đổi src ở giữa chừng (vd người dùng quét chữ lần 2 trong lúc lần 1
-        // còn đang tải), trình duyệt sẽ TỪ CHỐI promise đó với lỗi "interrupted by pause()".
-        // Trước đây .catch() không kiểm tra "đã bị huỷ hay chưa" nên vẫn gọi onError -> tự động
-        // đọc lại bằng giọng máy dù lượt phát đó đã bị huỷ từ trước — đây chính là nguyên nhân
-        // gây đọc lặp lại 2 lần liên tiếp. Giờ mọi callback bất đồng bộ đều kiểm tra "cancelled".
-        const playOnlineTTS = (text, { onStart, onEnd, onError } = {}) => {
-            const audioEl = getSharedAudioEl();
-            const chunks = splitTextForTTS(text);
-            if (chunks.length === 0) { onEnd && onEnd(); return () => {}; }
-
-            let idx = 0;
-            let cancelled = false;
-
-            const playNext = () => {
-                if (cancelled) return;
-                if (idx >= chunks.length) { onEnd && onEnd(); return; }
-                const chunk = chunks[idx++];
-                const url = "https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=" + encodeURIComponent(chunk);
-                audioEl.src = url;
-                const p = audioEl.play();
-                if (p && p.catch) p.catch(() => { if (!cancelled) { onError && onError(); } });
-            };
-
-            audioEl.onended = playNext;
-            audioEl.onerror = () => { if (!cancelled) { onError && onError(); } };
-            onStart && onStart();
-            playNext();
-
-            return () => {
-                cancelled = true;
-                audioEl.onended = null;
-                audioEl.onerror = null;
-                try { audioEl.pause(); audioEl.removeAttribute('src'); audioEl.load(); } catch (e) {}
-            };
-        };
+        // GHI CHÚ: trước đây ở đây có thêm 1 chế độ giọng đọc "Online" (phát qua dịch vụ Google
+        // Translate TTS) dành riêng cho iPad vì tưởng giọng máy mặc định của Safari nghe "robot"
+        // hơn. Trên thực tế dùng, giọng Online trên iPad nghe không khác gì giọng máy bình thường,
+        // nên đã BỎ HẲN chế độ Online để gọn hơn — giờ chỉ còn đúng 1 nguồn giọng đọc duy nhất:
+        // giọng có sẵn trên máy (window.speechSynthesis), chọn được qua ô dropdown trong box dịch.
 
         // --- BOX PHIÊN ÂM (IPA) + TỪ LOẠI — hiện bên trái box dịch khi dùng bút IPA ---
         const IPAPanel = React.memo(function IPAPanel({ info, onClose }) {
@@ -374,27 +281,19 @@
             const [voices, setVoices] = useState([]);
             const [selectedVoiceURI, setSelectedVoiceURI] = useState("");
 
-            // Giọng đọc: 'online' (Google, chất lượng cao, cần mạng) hoặc 'device' (giọng máy, chạy offline)
-            // Mặc định: iPad/iPhone -> online (vì giọng Safari mặc định nghe robot); Mac -> device (Chrome trên Mac vốn đã có giọng hay)
-            const [voiceMode, setVoiceMode] = useState(isIOSDevice ? 'online' : 'device');
             const [isMuted, setIsMuted] = useState(false);
             const [isSpeaking, setIsSpeaking] = useState(false);
 
             const [copiedEn, setCopiedEn] = useState(false);
             const [copiedVi, setCopiedVi] = useState(false);
-            // true khi lần đọc Online gần nhất bị lỗi/chặn và đã tự chuyển sang giọng máy —
-            // hiển thị 1 dòng nhỏ để người dùng biết rõ lý do, thay vì tưởng là app "không đổi giọng".
-            const [onlineFailed, setOnlineFailed] = useState(false);
 
-            const stopOnlineRef = useRef(null);
             const isMutedRef = useRef(isMuted);
             useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
 
-            // "Thế hệ" của lượt đọc hiện tại — mỗi lần speak() được gọi sẽ tăng số này lên.
-            // Mọi callback bất đồng bộ (onEnd/onError của TTS online) đều tự kiểm tra xem mình
-            // còn đúng là lượt đọc mới nhất hay không trước khi làm bất cứ điều gì. Nhờ vậy dù
-            // mạng chậm/trình duyệt trả kết quả trễ, một lượt đọc cũ KHÔNG BAO GIỜ có thể chen
-            // ngang hoặc đọc chồng lên lượt đọc mới — đây là nguyên nhân gốc của lỗi "đọc 2 lần".
+            // "Thế hệ" của lượt đọc hiện tại — mỗi lần speak() được gọi sẽ tăng số này lên. Mọi
+            // callback bất đồng bộ (onstart/onend/onerror của utterance) đều tự kiểm tra xem mình
+            // còn đúng là lượt đọc mới nhất hay không trước khi làm bất cứ điều gì, để 1 lượt đọc cũ
+            // không bao giờ chen ngang/đọc chồng lên lượt đọc mới.
             const speakGenRef = useRef(0);
 
             useEffect(() => {
@@ -412,7 +311,6 @@
             const stopAllAudio = useCallback(() => {
                 speakGenRef.current++; // vô hiệu hoá mọi callback của các lượt đọc trước đó
                 window.speechSynthesis.cancel();
-                if (stopOnlineRef.current) { stopOnlineRef.current(); stopOnlineRef.current = null; }
                 setIsSpeaking(false);
             }, []);
 
@@ -420,35 +318,15 @@
                 if (!content || isMutedRef.current) return;
                 stopAllAudio();
                 const myGen = ++speakGenRef.current; // đánh dấu đây là lượt đọc mới nhất
-                setOnlineFailed(false);
 
-                if (voiceMode === 'online') {
-                    setIsSpeaking(true);
-                    stopOnlineRef.current = playOnlineTTS(content, {
-                        onEnd: () => { if (speakGenRef.current === myGen) setIsSpeaking(false); },
-                        onError: () => {
-                            // Chỉ xử lý nếu đây vẫn là lượt đọc mới nhất — nếu người dùng đã bấm
-                            // đọc lần khác/đóng box từ trước thì bỏ qua, tránh đọc chồng/đọc lặp.
-                            if (speakGenRef.current !== myGen) return;
-                            // Dịch vụ Online lỗi/bị chặn mạng -> tự động chuyển sang giọng máy để không bị câm tiếng
-                            setIsSpeaking(false);
-                            setOnlineFailed(true);
-                            const utterance = new SpeechSynthesisUtterance(content);
-                            const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-                            if (voice) utterance.voice = voice;
-                            window.speechSynthesis.speak(utterance);
-                        }
-                    });
-                } else {
-                    const utterance = new SpeechSynthesisUtterance(content);
-                    const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
-                    if (voice) utterance.voice = voice;
-                    utterance.onstart = () => { if (speakGenRef.current === myGen) setIsSpeaking(true); };
-                    utterance.onend = () => { if (speakGenRef.current === myGen) setIsSpeaking(false); };
-                    utterance.onerror = () => { if (speakGenRef.current === myGen) setIsSpeaking(false); };
-                    window.speechSynthesis.speak(utterance);
-                }
-            }, [voiceMode, voices, selectedVoiceURI, stopAllAudio]);
+                const utterance = new SpeechSynthesisUtterance(content);
+                const voice = voices.find(v => v.voiceURI === selectedVoiceURI);
+                if (voice) utterance.voice = voice;
+                utterance.onstart = () => { if (speakGenRef.current === myGen) setIsSpeaking(true); };
+                utterance.onend = () => { if (speakGenRef.current === myGen) setIsSpeaking(false); };
+                utterance.onerror = () => { if (speakGenRef.current === myGen) setIsSpeaking(false); };
+                window.speechSynthesis.speak(utterance);
+            }, [voices, selectedVoiceURI, stopAllAudio]);
 
             useEffect(() => {
                 if (isProcessing || !text) return;
@@ -506,33 +384,16 @@
                     <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 shrink-0">
                         <div className="flex items-center justify-between gap-2 relative">
                         <div className="flex items-center gap-2 flex-wrap">
-                            {/* Chọn nguồn giọng đọc: Online (chất lượng cao, tốt cho iPad) / Máy (offline) */}
-                            <div className="flex items-center bg-white border border-slate-300 rounded-full p-0.5 shadow-sm text-xs font-bold">
-                                <button
-                                    onClick={() => { setVoiceMode('online'); setOnlineFailed(false); }}
-                                    className={"px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 " + (voiceMode === 'online' ? 'bg-indigo-500 text-white shadow' : 'text-slate-500 hover:text-indigo-600')}
-                                    title="Giọng đọc Online (chất lượng cao, khuyên dùng cho iPad)"
-                                >
-                                    <i className="fas fa-cloud text-[10px]"></i> Online
-                                </button>
-                                <button
-                                    onClick={() => { setVoiceMode('device'); setOnlineFailed(false); }}
-                                    className={"px-2.5 py-1 rounded-full transition-colors flex items-center gap-1 " + (voiceMode === 'device' ? 'bg-indigo-500 text-white shadow' : 'text-slate-500 hover:text-indigo-600')}
-                                    title="Giọng đọc có sẵn trên máy (chạy offline)"
-                                >
-                                    <i className="fas fa-mobile-screen-button text-[10px]"></i> Máy
-                                </button>
-                            </div>
-
-                            {voiceMode === 'device' && (
-                                <select
-                                    className="text-xs bg-white border border-slate-300 rounded-md px-2 py-1.5 outline-none text-slate-700 max-w-[150px] truncate shadow-sm font-semibold cursor-pointer"
-                                    value={selectedVoiceURI}
-                                    onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                                >
-                                    {voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
-                                </select>
-                            )}
+                            {/* Chọn giọng đọc có sẵn trên máy — đã bỏ chế độ "Online" vì trên iPad nghe
+                                không khác gì giọng máy, giữ lại 1 nguồn giọng đọc duy nhất cho gọn. */}
+                            <select
+                                className="text-xs bg-white border border-slate-300 rounded-md px-2 py-1.5 outline-none text-slate-700 max-w-[170px] truncate shadow-sm font-semibold cursor-pointer"
+                                value={selectedVoiceURI}
+                                onChange={(e) => setSelectedVoiceURI(e.target.value)}
+                                title="Chọn giọng đọc"
+                            >
+                                {voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
+                            </select>
 
                             {!isProcessing && (
                                 <button onClick={() => speak(text)} disabled={isMuted} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm " + (isMuted ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-indigo-500 text-white hover:bg-indigo-600')} title="Phát âm lại">
@@ -550,14 +411,6 @@
                             <i className="fas fa-times text-md"></i>
                         </button>
                         </div>
-
-                        {/* Thông báo khi giọng Online bị lỗi/chặn mạng và đã tự chuyển sang giọng máy */}
-                        {onlineFailed && voiceMode === 'online' && (
-                            <p className="mt-1.5 text-[11px] font-semibold text-amber-600 flex items-center gap-1.5 animate-fade-in">
-                                <i className="fas fa-triangle-exclamation"></i>
-                                Không kết nối được giọng Online (có thể do mạng/chặn quảng cáo) — đang tạm đọc bằng giọng máy.
-                            </p>
-                        )}
                     </div>
 
                     <div className="p-6 relative bg-white flex-1">
@@ -1419,7 +1272,10 @@
             
             const [isDrawingMode, setIsDrawingMode] = useState(false);
             const [tool, setTool] = useState('pencil');
-            const [magicShapeMode, setMagicShapeMode] = useState('lasso'); // 'lasso' (tự do) | 'rect' (hình chữ nhật) — chỉ áp dụng cho bút Magic
+            // Mặc định ưu tiên "Hình chữ nhật" (kéo-thả) cho bút Magic — nhanh/tiện hơn cho đa số
+            // trường hợp quét chữ; vẫn có thể đổi sang "Tự do" (vẽ tay/khoanh vùng bất kỳ) qua nút
+            // chọn kiểu khoanh vùng trên thanh công cụ khi cần.
+            const [magicShapeMode, setMagicShapeMode] = useState('rect'); // 'rect' (hình chữ nhật, mặc định) | 'lasso' (tự do)
             const [color, setColor] = useState('#4F46E5');
             const [fontSize, setFontSize] = useState(10); // Mặc định 10
             // Giữ lại state này (không còn nút +/- điều chỉnh) để không phải sửa lại toàn bộ props/deps
