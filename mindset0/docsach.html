@@ -749,7 +749,9 @@
         // --- CẤU HÌNH KIỂU NÉT VẼ CHO TỪNG LOẠI BÚT (1 nguồn duy nhất, dùng lại ở mọi nơi) ---
         // Gộp về 1 chỗ để tránh lặp code 3 nơi khác nhau (từng là nguyên nhân dễ gây lệch nét
         // giữa lúc đang vẽ và lúc redraw) — sửa độ dày/màu ở đây là áp dụng đồng bộ toàn bộ.
-        const DEFAULT_HIGHLIGHT_THICKNESS = 11; // giữ lại cho tương thích ngược, không còn dùng để căn OCR nữa (xem ghi chú dưới)
+        // 3 mức độ dày cho bút chì: nhỏ nhất (mức cũ, mặc định) + 2 mức lớn hơn 1 chút.
+        const PENCIL_SIZES = [2, 3.5, 5];
+        const DEFAULT_PENCIL_SIZE = PENCIL_SIZES[0];
         const TOOL_STYLES = {
             // Bút Magic (OCR + dịch + đọc): nét mảnh, đứt nét — mảnh hơn bản trước (3 -> 1.5)
             magic: { color: '#FBBF24', width: () => 1.5, alpha: 0.9, dash: [7, 5], useColorProp: false },
@@ -758,7 +760,9 @@
             // 1 viền mảnh để người dùng thấy rõ vùng mình đang chọn — không còn tô phủ dày trong suốt nữa.
             ipa: { color: '#38BDF8', width: () => 2, alpha: 0.95, dash: [6, 4], useColorProp: false },
             photo: { color: '#FB7185', width: () => 2, alpha: 0.95, dash: [6, 4], useColorProp: false },
-            pencil: { width: (s) => 2 * s, alpha: 0.6, dash: [], useColorProp: true },
+            // Độ dày bút chì giờ lấy từ "pencilSize" (chọn được qua 3 nút chấm tròn trên thanh công
+            // cụ khi đang dùng bút chì) thay vì cố định — mặc định vẫn y hệt độ dày cũ (2).
+            pencil: { width: (s, pencilSizeVal) => (pencilSizeVal || DEFAULT_PENCIL_SIZE) * s, alpha: 0.6, dash: [], useColorProp: true },
             pen: { width: (s) => 4 * s, alpha: 1.0, dash: [], useColorProp: true },
         };
         const applyToolStyle = (ctx, toolName, colorProp, scaleVal, thicknessVal) => {
@@ -879,7 +883,7 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, highlightThickness, onExtractText, onIPALookup, onPhotoLookup }) {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, pencilSize, onExtractText, onIPALookup, onPhotoLookup }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -976,7 +980,7 @@
                     if (!stroke || !stroke.points || stroke.points.length === 0) return;
 
                     ctx.beginPath();
-                    applyToolStyle(ctx, stroke.tool, stroke.color, scale, highlightThickness);
+                    applyToolStyle(ctx, stroke.tool, stroke.color, scale, pencilSize);
 
                     // Chế độ "Hình chữ nhật" (kéo-thả): dùng chung cho bút Magic (khi bật chế độ hình
                     // chữ nhật) VÀ bút IPA / tra ảnh (giờ luôn dùng kéo-thả) — vẽ khung chữ nhật thay
@@ -1002,7 +1006,7 @@
 
                 strokes.forEach(drawLine);
                 if (currentStrokeRef.current) drawLine(currentStrokeRef.current);
-            }, [strokes, scale, highlightThickness]);
+            }, [strokes, scale, pencilSize]);
 
             useEffect(() => { if(isVisible) redrawStrokes(); }, [redrawStrokes, isVisible]);
 
@@ -1093,7 +1097,7 @@
                 // không cần (và không nên) gán lại mỗi lần di chuyển.
                 const ctx = drawCanvasRef.current.getContext('2d');
                 ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                applyToolStyle(ctx, tool, color, scale, highlightThickness);
+                applyToolStyle(ctx, tool, color, scale, pencilSize);
                 ctx.beginPath();
                 ctx.moveTo(coords.x * scale, coords.y * scale);
                 ctx.lineTo(coords.x * scale, coords.y * scale);
@@ -1344,10 +1348,9 @@
             const [magicShapeMode, setMagicShapeMode] = useState('rect'); // 'rect' (hình chữ nhật, mặc định) | 'lasso' (tự do)
             const [color, setColor] = useState('#4F46E5');
             const [fontSize, setFontSize] = useState(10); // Mặc định 10
-            // Giữ lại state này (không còn nút +/- điều chỉnh) để không phải sửa lại toàn bộ props/deps
-            // liên quan ở PdfPage — từ khi bút IPA/tra ảnh chuyển sang kéo-thả ô chữ nhật, giá trị này
-            // không còn ảnh hưởng gì đến 2 bút đó nữa (chỉ còn ý nghĩa lịch sử).
-            const [highlightThickness] = useState(DEFAULT_HIGHLIGHT_THICKNESS);
+            // Độ dày bút chì: 3 mức chọn được qua 3 nút chấm tròn trên thanh công cụ khi đang dùng
+            // bút chì — mặc định là mức nhỏ nhất (giữ nguyên độ dày cũ), 2 mức còn lại lớn hơn 1 chút.
+            const [pencilSize, setPencilSize] = useState(DEFAULT_PENCIL_SIZE);
 
             const [magicText, setMagicText] = useState("");
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
@@ -1596,6 +1599,29 @@
                                         <div className="w-px h-5 bg-slate-300 mx-2"></div>
                                         <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-8 h-8 rounded-full cursor-pointer border-2 border-white shadow-sm p-0" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo'} />
 
+                                        {/* Độ dày bút chì: 3 lựa chọn — nhỏ nhất (mặc định, giữ nguyên độ dày cũ) + 2
+                                            mức lớn hơn 1 chút, chọn bằng 3 nút chấm tròn tăng dần kích cỡ trực quan. */}
+                                        {tool === 'pencil' && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2.5 py-1 shadow-sm" title="Độ dày bút chì">
+                                                    {PENCIL_SIZES.map((sz, i) => (
+                                                        <button
+                                                            key={sz}
+                                                            onClick={() => setPencilSize(sz)}
+                                                            className={"w-6 h-6 rounded-full flex items-center justify-center transition-colors " + (pencilSize === sz ? 'bg-indigo-100' : 'hover:bg-slate-100')}
+                                                            title={['Nhỏ', 'Vừa', 'Lớn'][i]}
+                                                        >
+                                                            <span
+                                                                className={"rounded-full transition-colors " + (pencilSize === sz ? 'bg-indigo-600' : 'bg-slate-400')}
+                                                                style={{ width: (6 + i * 4) + 'px', height: (6 + i * 4) + 'px' }}
+                                                            ></span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </React.Fragment>
+                                        )}
+
                                         {/* Chọn kiểu khoanh vùng cho bút Magic: Tự do (freehand) hoặc Hình chữ nhật (kéo-thả, tiện cho Mac/trackpad) */}
                                         {tool === 'magic' && (
                                             <React.Fragment>
@@ -1694,7 +1720,7 @@
                                         isDrawingMode={isDrawingMode}
                                         tool={tool}
                                         magicShapeMode={magicShapeMode}
-                                        highlightThickness={highlightThickness}
+                                        pencilSize={pencilSize}
                                         color={color}
                                         fontSize={fontSize}
                                         onExtractText={onExtractText}
