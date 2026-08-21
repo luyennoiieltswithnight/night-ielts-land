@@ -168,6 +168,64 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback } = React;
 
+        // --- BỘ GIỚI HẠN SỐ LƯỢT RENDER PDF.JS CHẠY ĐỒNG THỜI ---
+        // QUAN TRỌNG — sửa lỗi "mở mục lục tải lâu, lag khi hiện thị/lướt": page.render() của
+        // pdf.js khá nặng CPU (giải mã + rasterize nội dung trang). Trước đây MỌI trang/thumbnail
+        // lọt vào vùng nhìn thấy (IntersectionObserver) đều gọi render() NGAY LẬP TỨC — khi mở mục
+        // lục, hàng chục ảnh thu nhỏ cùng lọt vào vùng nhìn thấy 1 lúc (do lưới nhiều cột), khiến
+        // hàng chục lệnh render() dồn vào luồng chính CÙNG MỘT LÚC, đủ để làm nghẽn hẳn khi mở modal
+        // lẫn khi cuộn. Giờ MỌI lệnh render() (cả trang chính lẫn thumbnail) đều đi qua hàng đợi
+        // dùng chung này — chỉ tối đa vài lệnh chạy thật sự cùng lúc, còn lại xếp hàng chờ tới lượt,
+        // giữ nguyên hành vi hiển thị (không mất trang nào) nhưng luồng chính không bị dồn ứ nữa.
+        const MAX_CONCURRENT_PDF_RENDERS = 3;
+        let _activePdfRenders = 0;
+        const _pdfRenderQueue = [];
+        const scheduleRender = (renderFn) => {
+            let cancelled = false;
+            let realTask = null;
+            let resolveOuter, rejectOuter;
+            const outerPromise = new Promise((res, rej) => { resolveOuter = res; rejectOuter = rej; });
+
+            const freeSlotAndAdvance = () => {
+                _activePdfRenders--;
+                const next = _pdfRenderQueue.shift();
+                if (next) next();
+            };
+
+            const start = () => {
+                if (cancelled) { resolveOuter(); return; } // bị huỷ trước khi tới lượt — bỏ qua êm
+                _activePdfRenders++;
+                try {
+                    realTask = renderFn();
+                } catch (err) {
+                    freeSlotAndAdvance();
+                    rejectOuter(err);
+                    return;
+                }
+                realTask.promise.then(
+                    (v) => { freeSlotAndAdvance(); resolveOuter(v); },
+                    (e) => { freeSlotAndAdvance(); rejectOuter(e); }
+                );
+            };
+
+            if (_activePdfRenders < MAX_CONCURRENT_PDF_RENDERS) {
+                start();
+            } else {
+                _pdfRenderQueue.push(start);
+            }
+
+            // Trả về 1 "renderTask" giả có cùng giao diện (.promise / .cancel()) như renderTask
+            // thật của pdf.js, để mọi nơi đang gọi renderTask.cancel()/renderTask.promise.then(...)
+            // không cần đổi gì thêm.
+            return {
+                promise: outerPromise,
+                cancel: () => {
+                    cancelled = true;
+                    if (realTask) { try { realTask.cancel(); } catch (err) {} }
+                }
+            };
+        };
+
         // --- GLOBAL AUDIO UNLOCKER FOR IPAD ---
         // QUAN TRỌNG: trước đây hàm này tạo MỘT AudioContext THẬT MỚI mỗi lần được gọi
         // (mỗi lần bấm "Bật Note"/"Đóng Note") và không bao giờ đóng lại. Trên Safari/iPadOS,
@@ -665,7 +723,8 @@
                     const viewport = page.getViewport({ scale: 0.3 });
                     canvas.width = viewport.width;
                     canvas.height = viewport.height;
-                    renderTask = page.render({ canvasContext: ctx, viewport });
+                    // Đi qua hàng đợi dùng chung — xem giải thích chi tiết ở scheduleRender phía trên.
+                    renderTask = scheduleRender(() => page.render({ canvasContext: ctx, viewport }));
                 });
                 return () => { if(renderTask) renderTask.cancel(); };
             }, [pdf, pageNum, isVisible]);
@@ -863,8 +922,9 @@
                     drawCanvas.width = vp.width;
 
                     const ctx = canvas.getContext('2d');
-                    renderTask = page.render({ canvasContext: ctx, viewport: vp });
-                    
+                    // Đi qua hàng đợi dùng chung — xem giải thích chi tiết ở scheduleRender phía trên.
+                    renderTask = scheduleRender(() => page.render({ canvasContext: ctx, viewport: vp }));
+
                     renderTask.promise.then(() => redrawStrokes()).catch(e => {});
                 });
 
@@ -1295,6 +1355,9 @@
             const [photoLookup, setPhotoLookup] = useState(null); // { text } — bút tra ảnh minh hoạ
 
             const [showTOC, setShowTOC] = useState(false);
+            // Tham chiếu tới đúng vùng cuộn nội dung PDF (không phải toàn trang) — dùng để tự tính
+            // và cuộn tới đúng trang khi bấm từ mục lục, xem giải thích chi tiết ở nơi dùng bên dưới.
+            const pdfContentAreaRef = useRef(null);
 
             // --- KHOÁ ZOOM (nút bật/tắt, thay cho cơ chế tự động chặn pinch-zoom trước đây vốn
             // "chưa hoạt động hiệu quả lắm" trên thực tế) — mặc định TẮT (zoom bình thường), người
@@ -1450,8 +1513,23 @@
                                                 pdf={pdfDoc} 
                                                 pageNum={index + 1} 
                                                 onClick={() => {
-                                                    const el = document.getElementById(`pdf-page-${index + 1}`);
-                                                    if(el) el.scrollIntoView({behavior: 'smooth'});
+                                                    // QUAN TRỌNG — sửa lỗi "bấm chuyển trang từ mục lục làm nguyên trang bị kéo lên,
+                                                    // khuất mất thanh công cụ, kéo xuống lại không được": trước đây dùng
+                                                    // el.scrollIntoView() — hàm này để TRÌNH DUYỆT TỰ CHỌN cuộn ancestor scroll
+                                                    // nào, và trên Safari/iPadOS đôi khi nó cuộn luôn CẢ container cha lẫn
+                                                    // document/viewport thay vì chỉ đúng vùng nội dung PDF, đẩy luôn thanh công cụ
+                                                    // (nằm NGOÀI vùng cuộn đó) ra khỏi màn hình theo. Giờ tự tính khoảng cách và
+                                                    // chỉ gọi scrollTo() trên ĐÚNG 1 vùng cuộn nội dung PDF (pdfContentAreaRef) —
+                                                    // không đụng tới bất kỳ phần tử nào khác, nên thanh công cụ không bao giờ bị
+                                                    // trôi theo nữa.
+                                                    const container = pdfContentAreaRef.current;
+                                                    const target = document.getElementById(`pdf-page-${index + 1}`);
+                                                    if (container && target) {
+                                                        const containerRect = container.getBoundingClientRect();
+                                                        const targetRect = target.getBoundingClientRect();
+                                                        const delta = targetRect.top - containerRect.top;
+                                                        container.scrollTo({ top: container.scrollTop + delta - 16, behavior: 'smooth' });
+                                                    }
                                                     setShowTOC(false);
                                                 }}
                                             />
@@ -1591,7 +1669,7 @@
                         </div>
                         
                         {/* PDF CONTENT AREA */}
-                        <div className="flex-1 overflow-y-auto relative p-6 pb-32 flex flex-col items-center justify-start">
+                        <div ref={pdfContentAreaRef} className="flex-1 overflow-y-auto relative p-6 pb-32 flex flex-col items-center justify-start">
                             
                             {!pdfUrl ? (
                                 <div className="flex-1 flex flex-col items-center justify-center p-8 w-full max-w-2xl text-center animate-fade-in">
