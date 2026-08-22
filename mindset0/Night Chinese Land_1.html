@@ -57,6 +57,10 @@
     <!-- Tesseract.js (AI Nhận diện hình ảnh thành chữ OCR) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
+    <!-- pdf-lib (dùng để "dán" nét vẽ/note đã ghi vào chính file PDF gốc khi xuất file — xem tính
+         năng "Lưu ghi chú vào file" ở component App) -->
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
     <style>
         html, body {
             height: 100%;
@@ -193,7 +197,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef, useCallback } = React;
+        const { useState, useEffect, useRef, useCallback, useImperativeHandle } = React;
 
         // --- BỘ GIỚI HẠN SỐ LƯỢT RENDER PDF.JS CHẠY ĐỒNG THỜI ---
         // QUAN TRỌNG — sửa lỗi "mở mục lục tải lâu, lag khi hiện thị/lướt": page.render() của
@@ -375,6 +379,23 @@
             );
         });
 
+        // --- GIỌNG ĐỌC ĐƯỢC CHỌN: LƯU VĨNH VIỄN BẰNG localStorage ---
+        // Trước đây selectedVoiceURI chỉ là state nội bộ của MagicTranslationBar — mỗi lần đóng hộp
+        // dịch (bấm X, hoặc mở lượt quét chữ MỚI) component này bị UNMOUNT hẳn (xem điều kiện
+        // "magicText || isOcrProcessing" ở App, bọc ngoài MagicTranslationBar), nên lần sau là 1 lượt
+        // mount MỚI TOANH — state selectedVoiceURI mất sạch, bị tính lại từ đầu theo giọng ưu tiên mặc
+        // định. Đây chính là lỗi "chọn giọng xong, bấm dịch lại (quét chữ mới) là bị reset về giọng
+        // khác" — sửa bằng cách lưu lựa chọn vào localStorage (tồn tại độc lập với vòng đời component,
+        // sống sót qua cả việc đóng hẳn tab/tải lại trang — đúng nghĩa "vĩnh viễn") thay vì chỉ giữ
+        // trong useState của riêng 1 lần mount.
+        const VOICE_STORAGE_KEY = 'nightChineseLand_selectedVoiceURI';
+        const getSavedVoiceURI = () => {
+            try { return localStorage.getItem(VOICE_STORAGE_KEY) || ''; } catch (err) { return ''; }
+        };
+        const saveVoiceURI = (uri) => {
+            try { localStorage.setItem(VOICE_STORAGE_KEY, uri); } catch (err) { /* Safari riêng tư có thể chặn — bỏ qua an toàn */ }
+        };
+
         // --- THANH DỊCH THUẬT NỔI ---
         const MagicTranslationBar = ({ text, isProcessing, onClose }) => {
             const [translation, setTranslation] = useState("");
@@ -405,7 +426,14 @@
                     // vì nội dung học là tiếng Trung PHỒN THỂ.
                     const zhVoices = availableVoices.filter(v => v.lang.toLowerCase().startsWith('zh'));
                     setVoices(zhVoices);
-                    const preferred = zhVoices.find(v => v.lang.toLowerCase() === 'zh-tw')
+
+                    // Ưu tiên SỐ 1: giọng người dùng đã tự tay chọn ở lần trước (lưu vĩnh viễn), miễn là
+                    // máy hiện tại vẫn có giọng đó — chỉ khi chưa từng chọn (lần đầu mở app) hoặc giọng
+                    // đã lưu không còn tồn tại nữa thì mới rơi xuống các mức ưu tiên mặc định bên dưới.
+                    const savedURI = getSavedVoiceURI();
+                    const savedVoice = savedURI && zhVoices.find(v => v.voiceURI === savedURI);
+                    const preferred = savedVoice
+                        || zhVoices.find(v => v.lang.toLowerCase() === 'zh-tw')
                         || zhVoices.find(v => v.name.includes('Google') && v.lang.toLowerCase() === 'zh-tw')
                         || zhVoices.find(v => v.lang.toLowerCase().includes('tw'))
                         || zhVoices[0];
@@ -505,8 +533,8 @@
                             <select
                                 className="text-xs bg-white border border-slate-300 rounded-md px-2 py-1.5 outline-none text-slate-700 max-w-[170px] truncate shadow-sm font-semibold cursor-pointer"
                                 value={selectedVoiceURI}
-                                onChange={(e) => setSelectedVoiceURI(e.target.value)}
-                                title="Chọn giọng đọc"
+                                onChange={(e) => { setSelectedVoiceURI(e.target.value); saveVoiceURI(e.target.value); }}
+                                title="Chọn giọng đọc (tự động nhớ vĩnh viễn cho các lần sau)"
                             >
                                 {voices.map(v => <option key={v.voiceURI} value={v.voiceURI}>{v.name}</option>)}
                             </select>
@@ -982,7 +1010,10 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup }) {
+        // Bọc thêm React.forwardRef (giữ nguyên React.memo bên ngoài) để App có thể "gọi vào" từng
+        // trang lấy ảnh chụp nét vẽ + text đã ghi (getAnnotationSnapshot, xem useImperativeHandle bên
+        // dưới) — phục vụ tính năng "Lưu ghi chú vào file" (xuất PDF đã dán note) ở component App.
+        const PdfPage = React.memo(React.forwardRef(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup }, ref) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -1438,6 +1469,71 @@
                 setTexts(prev => prev.filter(t => t.id !== id));
             };
 
+            // --- "CHỤP" LẠI TOÀN BỘ GHI CHÚ CỦA TRANG NÀY THÀNH 1 ẢNH PNG NỀN TRONG SUỐT ---
+            // Dùng cho tính năng "Lưu ghi chú vào file" ở App (xem handleExportAnnotatedPdf) — App gọi
+            // vào đây qua ref (useImperativeHandle bên dưới) để lấy ảnh rồi dán đè lên đúng trang PDF
+            // gốc bằng pdf-lib. Trả về null nếu trang chưa từng render (chưa có viewport — nghĩa là
+            // người dùng chưa từng cuộn tới, chắc chắn cũng chưa ghi note gì) hoặc trang không có nét
+            // vẽ/text nào (không cần tốn công dựng ảnh cho trang "sạch").
+            const getAnnotationSnapshot = useCallback(() => {
+                const drawCanvas = drawCanvasRef.current;
+                if (!drawCanvas || !viewport) return null;
+                if (strokes.length === 0 && texts.length === 0) return null;
+
+                // Vẽ lên 1 canvas TẠM, không đụng gì tới canvas đang hiển thị cho người dùng. Canvas
+                // tạm bắt đầu bằng đúng nét vẽ đã có (redrawStrokes đã tự vẽ sẵn lên drawCanvas), rồi
+                // vẽ thêm các ô Text (PdfTextBox vốn là <textarea> DOM riêng, không tự nằm trên canvas).
+                const temp = document.createElement('canvas');
+                temp.width = drawCanvas.width;
+                temp.height = drawCanvas.height;
+                const ctx = temp.getContext('2d');
+                ctx.drawImage(drawCanvas, 0, 0);
+
+                const PAD = 8; // khớp class Tailwind "p-2" (0.5rem = 8px) của <textarea> trong PdfTextBox
+                texts.forEach(t => {
+                    const content = (t.text || '').trim();
+                    if (!content) return; // ô text rỗng — không có gì để in ra
+                    const fontPx = t.size * scale;
+                    ctx.font = fontPx + 'px "Plus Jakarta Sans", "Noto Sans TC", sans-serif';
+                    ctx.fillStyle = t.color;
+                    ctx.textBaseline = 'alphabetic';
+
+                    const boxX = t.x * scale;
+                    const boxY = t.y * scale;
+                    const maxWidth = Math.max(10, (t.width || 150) * scale - PAD * 2);
+                    const lineHeight = fontPx * 1.4; // xấp xỉ "leading-relaxed" của Tailwind
+
+                    // Tự xuống dòng theo TỪNG KÝ TỰ (không theo từ) — đúng cách chữ Hán/tiếng Trung tự
+                    // nhiên xuống dòng ở bất kỳ đâu (không có khoảng trắng ngăn "từ" như tiếng Anh).
+                    // Với chữ Việt gõ trong ô note đây là cách xuống dòng gần đúng (best-effort, có thể
+                    // ngắt giữa từ) chứ không tự nhiên hệt như trình duyệt tự render <textarea> — nhưng
+                    // vẫn đọc được đủ nội dung, không bị cắt mất chữ nào.
+                    let lineIndex = 0;
+                    const drawLineAt = (str) => {
+                        ctx.fillText(str, boxX + PAD, boxY + PAD + lineHeight * lineIndex + fontPx * 0.85);
+                        lineIndex++;
+                    };
+                    content.split('\n').forEach(paragraph => {
+                        if (paragraph === '') { lineIndex++; return; }
+                        let current = '';
+                        for (const ch of paragraph) {
+                            const test = current + ch;
+                            if (current !== '' && ctx.measureText(test).width > maxWidth) {
+                                drawLineAt(current);
+                                current = ch;
+                            } else {
+                                current = test;
+                            }
+                        }
+                        if (current) drawLineAt(current);
+                    });
+                });
+
+                return { pageNum, dataUrl: temp.toDataURL('image/png') };
+            }, [strokes, texts, viewport, scale, pageNum]);
+
+            useImperativeHandle(ref, () => ({ getAnnotationSnapshot }), [getAnnotationSnapshot]);
+
             return (
                 <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={
                     // QUAN TRỌNG — sửa dứt điểm lỗi "cuộn giật/nhảy trang", "bấm mục lục đến sai trang",
@@ -1515,7 +1611,7 @@
                     ))}
                 </div>
             );
-        });
+        }));
 
         // --- MAIN APP COMPONENT ---
         const App = () => {
@@ -1585,6 +1681,17 @@
             // true trong lúc app TỰ cuộn bằng lệnh (vd bấm mục lục) — cho phép bộ khống chế tốc độ
             // cuộn bên dưới bỏ qua, không chặn nhầm cú cuộn mượt do chính app gây ra.
             const isProgrammaticScrollRef = useRef(false);
+
+            // --- PHỤC VỤ TÍNH NĂNG "LƯU GHI CHÚ VÀO FILE" (xem handleExportAnnotatedPdf) ---
+            // originalFileRef: giữ nguyên File gốc người dùng đã chọn (không phải objectUrl) — cần
+            // đọc lại byte gốc bằng file.arrayBuffer() lúc xuất, để pdf-lib mở đúng file PDF gốc rồi
+            // "dán" thêm lớp ghi chú lên trên, thay vì phải render lại từ đầu (giữ nguyên chữ/hình gốc
+            // sắc nét). pageRefs: map { [pageNum]: ref-instance-của-PdfPage } — mỗi PdfPage tự đăng ký
+            // vào đây qua ref callback (xem JSX render danh sách trang bên dưới), để App có thể "gọi
+            // vào" lấy getAnnotationSnapshot() của TỪNG trang khi xuất file.
+            const originalFileRef = useRef(null);
+            const pageRefs = useRef({});
+            const [isExporting, setIsExporting] = useState(false);
 
             // QUAN TRỌNG — LỊCH SỬ sửa lỗi "lướt lùi về trang trước bị nhảy vọt": đã thử rất nhiều lớp
             // can thiệp trực tiếp vào wheel/scrollTop (giảm tốc 1 chiều, tự bù mỗi rAF, chặn hẳn wheel
@@ -1692,6 +1799,8 @@
             const handleFileUpload = useCallback((e) => {
                 const file = e.target.files[0];
                 if (file && file.type === "application/pdf") {
+                    originalFileRef.current = file; // giữ lại File gốc — dùng khi xuất file có ghi chú
+                    pageRefs.current = {}; // file mới -> danh sách ref trang cũ (nếu có) không còn hợp lệ
                     const objectUrl = URL.createObjectURL(file);
                     setPdfUrl(objectUrl);
                     setBasePageSize(null);
@@ -1708,6 +1817,87 @@
                     }).catch(err => alert("Lỗi khi mở file."));
                 }
             }, []);
+
+            // --- LƯU GHI CHÚ VÀO FILE (xuất PDF gốc + toàn bộ nét vẽ/note đã dán đè lên đúng vị trí) ---
+            // GIỚI HẠN QUAN TRỌNG cần hiểu trước khi đọc code bên dưới: Safari/iPadOS (khác hẳn 1 app
+            // "native" thật sự) KHÔNG có File System Access API — không website/web app nào trên iPad
+            // có thể tự ý ghi đè thẳng vào ĐÚNG file gốc trong Files mà không cần người dùng thao tác
+            // gì, đây là giới hạn bảo mật của chính hệ điều hành/trình duyệt, không phải app này thiếu
+            // tính năng. Cách TỐT NHẤT có thể làm trên iPad: xuất ra 1 bản PDF mới (giữ nguyên chữ/hình
+            // trang gốc sắc nét — chỉ CHÈN THÊM 1 lớp ảnh trong suốt chứa nét vẽ/note lên trên, không
+            // rasterize lại từ đầu), đặt ĐÚNG TÊN file gốc, rồi mở thẳng bảng "Chia sẻ" (Web Share API)
+            // — trong đó bấm "Lưu vào Files", chọn lại đúng thư mục đang chứa file gốc, iOS sẽ tự hỏi
+            // "Thay thế?" vì trùng tên; bấm Thay thế coi như đã "ghi đè" file gốc thành công (chỉ tốn
+            // thêm vài thao tác chạm, không thể làm hoàn toàn tự động/im lặng được). Trên máy tính
+            // (không có Share Sheet, vd Mac/Windows) sẽ tự động tải file mới xuống như bình thường.
+            const handleExportAnnotatedPdf = useCallback(async () => {
+                if (!originalFileRef.current || !numPages || isExporting) return;
+                if (!window.PDFLib) {
+                    alert("Không tải được thư viện xử lý PDF (pdf-lib) — kiểm tra lại kết nối mạng rồi thử lại.");
+                    return;
+                }
+                setIsExporting(true);
+                try {
+                    const arrayBuffer = await originalFileRef.current.arrayBuffer();
+                    // ignoreEncryption: một số file PDF quét/tải về có đặt hạn chế in ấn/chỉnh sửa
+                    // (nhưng vẫn xem/đọc bình thường) — nếu không có cờ này, pdf-lib sẽ từ chối mở
+                    // thẳng những file đó. Bản xuất ra sẽ không giữ lại hạn chế gốc (chấp nhận được,
+                    // vì đây là file ghi chú cá nhân của người dùng).
+                    const pdfLibDoc = await PDFLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+                    const pdfLibPages = pdfLibDoc.getPages();
+
+                    for (let i = 1; i <= numPages; i++) {
+                        const pageApi = pageRefs.current[i];
+                        const snap = pageApi && pageApi.getAnnotationSnapshot && pageApi.getAnnotationSnapshot();
+                        if (!snap) continue; // trang "sạch" (không note gì) hoặc chưa từng render — giữ nguyên, khỏi tốn công
+
+                        const pdfLibPage = pdfLibPages[i - 1];
+                        if (!pdfLibPage) continue;
+
+                        const pngBytes = await (await fetch(snap.dataUrl)).arrayBuffer();
+                        const pngImage = await pdfLibDoc.embedPng(pngBytes);
+                        const { width: pw, height: ph } = pdfLibPage.getSize();
+                        // Ảnh nền TRONG SUỐT (chỉ có nét vẽ/chữ note) dán đè full khung trang — phần
+                        // không vẽ gì vẫn để lộ nguyên nội dung trang gốc bên dưới, không mất chi tiết.
+                        pdfLibPage.drawImage(pngImage, { x: 0, y: 0, width: pw, height: ph });
+                    }
+
+                    const outBytes = await pdfLibDoc.save();
+                    const blob = new Blob([outBytes], { type: 'application/pdf' });
+                    const fileName = originalFileRef.current.name || 'tai-lieu-da-ghi-chu.pdf';
+
+                    let shared = false;
+                    try {
+                        const outFile = new File([blob], fileName, { type: 'application/pdf' });
+                        if (navigator.canShare && navigator.canShare({ files: [outFile] })) {
+                            await navigator.share({ files: [outFile], title: fileName });
+                            shared = true;
+                        }
+                    } catch (shareErr) {
+                        // Người dùng bấm Huỷ trên bảng Chia sẻ (AbortError) — coi là bình thường, không
+                        // báo lỗi gì thêm. Các lỗi khác thì rơi xuống tải file thông thường bên dưới.
+                        if (shareErr && shareErr.name === 'AbortError') { shared = true; }
+                    }
+
+                    if (!shared) {
+                        // Máy tính / trình duyệt không hỗ trợ chia sẻ file (vd Chrome/Firefox trên máy
+                        // tính) — tải file mới xuống như bình thường, người dùng tự chuyển vào đúng chỗ.
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        setTimeout(() => URL.revokeObjectURL(url), 30000);
+                    }
+                } catch (err) {
+                    console.error('Lỗi xuất PDF đã ghi chú:', err);
+                    alert("Không xuất được file PDF đã ghi chú. Vui lòng thử lại.");
+                } finally {
+                    setIsExporting(false);
+                }
+            }, [numPages, isExporting]);
 
             const onExtractText = useCallback((text, processing) => {
                 setMagicText(text);
@@ -2019,6 +2209,24 @@
                                         {isDrawingMode ? 'Đóng Note' : 'Bật Note'}
                                     </button>
                                 )}
+
+                                {/* LƯU GHI CHÚ VÀO FILE: xuất PDF gốc + toàn bộ nét vẽ/note đã dán đè,
+                                    rồi mở bảng Chia sẻ (Web Share API) với đúng tên file gốc — trên iPad,
+                                    chọn "Lưu vào Files" > chọn lại đúng thư mục cũ > bấm "Thay thế" khi
+                                    được hỏi, coi như đã ghi đè vào đúng file gốc (xem giải thích đầy đủ
+                                    ở handleExportAnnotatedPdf — Safari không có API ghi thẳng vào file
+                                    như 1 app native nên đây là cách gần nhất/tốt nhất làm được). */}
+                                {pdfUrl && (
+                                    <button
+                                        onClick={handleExportAnnotatedPdf}
+                                        disabled={isExporting}
+                                        className={"px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2 border shadow-sm " + (isExporting ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-emerald-600 hover:bg-emerald-50 border-emerald-200')}
+                                        title="Lưu toàn bộ nét vẽ/note vào file PDF (mở bảng Chia sẻ để lưu đè vào đúng file gốc trong Files)"
+                                    >
+                                        <i className={"fas " + (isExporting ? 'fa-circle-notch fa-spin' : 'fa-floppy-disk')}></i>
+                                        <span className="hidden sm:inline">{isExporting ? 'Đang lưu…' : 'Lưu ghi chú'}</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                         
@@ -2047,6 +2255,7 @@
                                 pdfDoc && Array.from(new Array(numPages), (el, index) => (
                                     <PdfPage
                                         key={index + 1}
+                                        ref={(el) => { if (el) pageRefs.current[index + 1] = el; }}
                                         pageNum={index + 1}
                                         pdf={pdfDoc}
                                         scale={scale}
