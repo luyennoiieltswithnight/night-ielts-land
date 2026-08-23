@@ -213,26 +213,46 @@
 
     <!-- MODAL GIAO BÀI TẬP (Ẩn mặc định) -->
     <div id="studio-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-floating transform transition-all">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-floating transform transition-all max-h-[90vh] overflow-y-auto hide-scrollbar">
             <h2 class="text-2xl font-black text-brand-purple mb-1">Giao Bài Tập Mới</h2>
-            <p class="text-sm text-gray-500 font-bold mb-6">Chọn học sinh và nạp danh sách từ vựng VocaFlow</p>
-            
+            <p class="text-sm text-gray-500 font-bold mb-5">Chọn học sinh và nạp bài tập</p>
+
+            <!-- Chuyển đổi giữa 2 cách giao bài -->
+            <div class="flex gap-2 bg-gray-100 rounded-xl p-1 mb-5">
+                <button id="mode-typed-btn" onclick="setTaskMode('typed')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm">✍️ Nhập từ vựng mới</button>
+                <button id="mode-link-btn" onclick="setTaskMode('link')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📂 Chọn bài có sẵn</button>
+            </div>
+
             <div class="space-y-4">
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tên bài học</label>
                     <input id="task-title" type="text" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors" placeholder="Ví dụ: Unit 1 - Daily Life">
                 </div>
-                
+
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Chọn học sinh</label>
                     <select id="student-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
                         <option value="">Đang tải danh sách...</option>
                     </select>
                 </div>
-                
-                <div>
+
+                <!-- CHẾ ĐỘ: nhập từ vựng mới -->
+                <div id="mode-typed-fields">
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Từ vựng (Từ | Nghĩa | Câu ví dụ)</label>
                     <textarea id="task-data" rows="5" class="w-full border-2 border-gray-100 rounded-xl p-3 text-sm font-mono text-gray-700 outline-none focus:border-brand-purple transition-colors hide-scrollbar" placeholder="get up | thức dậy | Ava gets up at 7am."></textarea>
+                </div>
+
+                <!-- CHẾ ĐỘ: chọn bài có sẵn trong thư mục -->
+                <div id="mode-link-fields" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Thư mục</label>
+                        <select id="task-folder-select" onchange="onTaskFolderChange()" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Bài trong thư mục</label>
+                        <select id="task-file-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                    </div>
+                    <p class="text-[11px] text-gray-400 font-semibold">File vẫn nằm nguyên trong thư mục — chỉ giao 1 đường link riêng cho học sinh này. Vì đây là bài có sẵn (không phải Listening Type), học sinh cần tự bấm "Đánh dấu đã hoàn thành" sau khi làm xong.</p>
                 </div>
 
                 <div>
@@ -403,8 +423,8 @@
                     const colorCombo = bgColors[idx % bgColors.length];
 
                     html += `
-                        <div class="group bg-gray-50/50 hover:bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 hover:border-brand-purple/30 transition-all duration-300 hover:shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-default relative overflow-hidden">
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-purple transform -translate-x-full group-hover:translate-x-0 transition-transform"></div>
+                        <div class="group bg-gray-50/50 hover:bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 hover:border-brand-purple/30 transition-all duration-300 hover:shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-default relative">
+                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-purple rounded-l-2xl transform -translate-x-full group-hover:translate-x-0 transition-transform"></div>
                             <div class="flex items-center gap-4 w-full sm:w-auto">
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${colorCombo}">
                                     <i class="fa-solid fa-file-lines"></i>
@@ -422,7 +442,17 @@
                                 <a href="${test.link}" class="flex-1 sm:flex-none px-5 py-2.5 bg-white border-2 border-gray-100 text-gray-600 group-hover:bg-brand-purple group-hover:border-brand-purple group-hover:text-white rounded-xl font-bold text-sm text-center transition-all duration-300 shadow-sm">
                                     Mở bài <i class="fa-solid fa-arrow-right ml-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1"></i>
                                 </a>
-                                ${IS_ADMIN ? `<button onclick="confirmDeleteTest(${folderIndex}, ${idx})" title="Xoá bài này" class="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors flex-shrink-0"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                                ${IS_ADMIN ? `
+                                <div class="relative flex-shrink-0">
+                                    <button onclick="toggleTestMenu(event, ${folderIndex}, ${idx})" title="Tuỳ chọn" class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                                    </button>
+                                    <div id="test-menu-${folderIndex}-${idx}" class="hidden absolute right-0 top-12 z-20 bg-white rounded-xl shadow-floating border border-gray-100 py-1 min-w-[150px]">
+                                        <button onclick="confirmDeleteTest(${folderIndex}, ${idx})" class="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 rounded-lg">
+                                            <i class="fa-solid fa-trash-can"></i> Xoá bài
+                                        </button>
+                                    </div>
+                                </div>` : ''}
                             </div>
                         </div>
                     `;
@@ -555,6 +585,60 @@
         }
 
         // ==========================================
+        // GIAO BÀI: chuyển đổi giữa "nhập từ vựng mới" và "chọn bài có sẵn trong thư mục"
+        // ==========================================
+        var currentTaskMode = 'typed';
+        function setTaskMode(mode){
+            currentTaskMode = mode;
+            var typedBtn = document.getElementById('mode-typed-btn');
+            var linkBtn = document.getElementById('mode-link-btn');
+            var typedFields = document.getElementById('mode-typed-fields');
+            var linkFields = document.getElementById('mode-link-fields');
+            if(mode === 'link'){
+                typedBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500';
+                linkBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm';
+                typedFields.classList.add('hidden');
+                linkFields.classList.remove('hidden');
+                populateTaskFolderSelect();
+            } else {
+                typedBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm';
+                linkBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500';
+                typedFields.classList.remove('hidden');
+                linkFields.classList.add('hidden');
+            }
+        }
+        function populateTaskFolderSelect(){
+            var sel = document.getElementById('task-folder-select');
+            sel.innerHTML = LESSON_DATA.filter(function(f){ return f.id !== 'MY_TASKS' && f.tests.length > 0; }).map(function(f, i){
+                return '<option value="' + f.id.replace(/"/g,'&quot;') + '">' + f.name + ' (' + f.tests.length + ' bài)</option>';
+            }).join('');
+            onTaskFolderChange();
+        }
+        function onTaskFolderChange(){
+            var folderId = document.getElementById('task-folder-select').value;
+            var folder = LESSON_DATA.find(function(f){ return f.id === folderId; });
+            var fileSel = document.getElementById('task-file-select');
+            if(!folder){ fileSel.innerHTML = ''; return; }
+            fileSel.innerHTML = folder.tests.map(function(t, i){
+                return '<option value="' + i + '">' + t.title + '</option>';
+            }).join('');
+        }
+
+        // Menu "..." (3 chấm) cho mỗi bài trong Kho Lưu Trữ
+        function toggleTestMenu(evt, folderIndex, testIdx){
+            evt.stopPropagation();
+            var targetId = 'test-menu-' + folderIndex + '-' + testIdx;
+            document.querySelectorAll('[id^="test-menu-"]').forEach(function(m){
+                if(m.id !== targetId) m.classList.add('hidden');
+            });
+            var menu = document.getElementById(targetId);
+            if(menu) menu.classList.toggle('hidden');
+        }
+        document.addEventListener('click', function(){
+            document.querySelectorAll('[id^="test-menu-"]').forEach(function(m){ m.classList.add('hidden'); });
+        });
+
+        // ==========================================
         // XOÁ BÀI TRONG KHO LƯU TRỮ (admin, có xác nhận)
         // ==========================================
         function confirmDeleteTest(folderIndex, testIdx){
@@ -668,11 +752,12 @@
                     deleteDoc(doc(db, "assignments", docSnap.id)).catch(() => {});
                     return;
                 }
+                const isDone = data.link ? (data.completed === true) : false;
                 myTasks.push({
-                    title: data.title,
+                    title: (isDone ? '✅ ' : '') + data.title,
                     date: new Date(data.createdAt).toLocaleDateString('vi-VN'),
-                    questions: data.vocabList.length,
-                    link: `game.html?id=${docSnap.id}`
+                    questions: data.vocabList ? data.vocabList.length : 0,
+                    link: data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`
                 });
             });
 
@@ -773,8 +858,9 @@
         adminBtn.addEventListener('click', async () => {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            if (window.setTaskMode) window.setTaskMode('typed');
             select.innerHTML = '<option value="">-- Đang tải danh sách học sinh... --</option>';
-            
+
             const q = query(collection(db, "users"), where("role", "==", "student"));
             const snap = await getDocs(q);
             select.innerHTML = '<option value="">-- Chọn học sinh --</option>';
@@ -790,45 +876,67 @@
         });
 
         document.getElementById('btn-submit-task').addEventListener('click', async () => {
-            const title = document.getElementById('task-title').value;
             const studentId = select.value;
-            const rawData = document.getElementById('task-data').value;
-            
-            if(!title || !studentId || !rawData) return alert('Vui lòng điền đủ thông tin bài học và chọn học sinh!');
-            
-            const lines = rawData.split('\n').filter(l => l.trim() !== '');
-            const vocabList = [];
-            lines.forEach(line => {
-                const parts = line.split(/[\t|]/).map(p => p.trim());
-                if(parts.length >= 2) {
-                    vocabList.push({
-                        phrase: parts[0],
-                        meaningVi: parts[1],
-                        sentence: parts[2] || parts[0]
-                    });
-                }
-            });
-
-            if(vocabList.length === 0) return alert('Dữ liệu từ vựng không đúng định dạng!');
-
-            const btn = document.getElementById('btn-submit-task');
-            btn.innerText = 'Đang giao...'; btn.disabled = true;
+            if(!studentId) return alert('Vui lòng chọn học sinh!');
 
             const now = Date.now();
             const deadlineStr = document.getElementById('task-deadline').value;
             const deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
+            const btn = document.getElementById('btn-submit-task');
+            const mode = window.currentTaskMode || 'typed';
 
-            await addDoc(collection(db, "assignments"), {
-                title: title,
-                studentId: studentId,
-                vocabList: vocabList,
-                createdAt: now,
-                deadlineAt: deadlineAt,
-                expiresAt: now + ASSIGNMENT_TTL_MS,
-                completedIndices: []
-            });
+            let payload = null;
 
-            alert('Đã giao bài thành công! (Bài sẽ tự động biến mất sau 20 ngày)');
+            if (mode === 'link') {
+                const folderId = document.getElementById('task-folder-select').value;
+                const fileIdx = document.getElementById('task-file-select').value;
+                const folder = LESSON_DATA.find(f => f.id === folderId);
+                const test = folder ? folder.tests[fileIdx] : null;
+                if (!test) return alert('Vui lòng chọn một bài trong thư mục!');
+                payload = {
+                    title: test.title,
+                    studentId: studentId,
+                    link: test.link,
+                    createdAt: now,
+                    deadlineAt: deadlineAt,
+                    expiresAt: now + ASSIGNMENT_TTL_MS,
+                    completed: false,
+                    percent: 0
+                };
+            } else {
+                const title = document.getElementById('task-title').value;
+                const rawData = document.getElementById('task-data').value;
+                if(!title || !rawData) return alert('Vui lòng điền đủ thông tin bài học!');
+
+                const lines = rawData.split('\n').filter(l => l.trim() !== '');
+                const vocabList = [];
+                lines.forEach(line => {
+                    const parts = line.split(/[\t|]/).map(p => p.trim());
+                    if(parts.length >= 2) {
+                        vocabList.push({
+                            phrase: parts[0],
+                            meaningVi: parts[1],
+                            sentence: parts[2] || parts[0]
+                        });
+                    }
+                });
+                if(vocabList.length === 0) return alert('Dữ liệu từ vựng không đúng định dạng!');
+
+                payload = {
+                    title: title,
+                    studentId: studentId,
+                    vocabList: vocabList,
+                    createdAt: now,
+                    deadlineAt: deadlineAt,
+                    expiresAt: now + ASSIGNMENT_TTL_MS,
+                    completedIndices: []
+                };
+            }
+
+            btn.innerText = 'Đang giao...'; btn.disabled = true;
+            await addDoc(collection(db, "assignments"), payload);
+
+            alert('Đã giao bài thành công! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của học sinh sau 20 ngày)');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             btn.innerText = '🚀 Giao Bài'; btn.disabled = false;
@@ -870,10 +978,12 @@
                     const percent = (a.percent != null) ? a.percent : (total ? Math.round(done / total * 100) : 0);
                     const stu = studentMap[a.studentId];
                     rows.push({
+                        id: d.id,
                         title: a.title || '(Không tên)',
                         studentName: stu ? stu.name : (a.studentId || '?'),
                         studentEmail: stu ? stu.email : '',
                         percent, total, done,
+                        isLink: !!a.link,
                         createdAt: a.createdAt || 0,
                         deadlineAt: a.deadlineAt || null
                     });
@@ -881,6 +991,7 @@
                 // Dọn dẹp âm thầm các bài đã hết hạn 20 ngày
                 expiredIds.forEach(id => { deleteDoc(doc(db, "assignments", id)).catch(() => {}); });
                 rows.sort((x, y) => y.createdAt - x.createdAt);
+                window.__lastProgressRows = rows;
 
                 if (rows.length === 0) {
                     progressList.innerHTML = '<p class="text-gray-400 text-sm font-bold">Chưa có bài nào được giao.</p>';
@@ -899,6 +1010,9 @@
                             ? `<span class="inline-flex items-center gap-1 text-[10px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-1.5"><i class="fa-solid fa-triangle-exclamation"></i> Quá hạn (${dlStr})</span>`
                             : `<span class="inline-flex items-center gap-1 text-[10px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full mt-1.5"><i class="fa-regular fa-clock"></i> Hạn: ${dlStr}</span>`;
                     }
+                    const doneLine = r.isLink
+                        ? (r.percent >= 100 ? '✅ Học sinh đã đánh dấu hoàn thành' : 'Chưa đánh dấu hoàn thành')
+                        : `${r.done}/${r.total} câu đã gõ đúng`;
                     return `
                         <div class="bg-gray-50/60 rounded-2xl p-4 border border-gray-100">
                             <div class="flex justify-between items-start gap-3">
@@ -907,12 +1021,17 @@
                                     <p class="text-xs text-gray-400 font-semibold mt-0.5 truncate">${r.studentName}${r.studentEmail ? ' · ' + r.studentEmail : ''}${dateStr ? ' · ' + dateStr : ''}</p>
                                     ${deadlineBadge}
                                 </div>
-                                <span class="text-sm font-black ${percentColor} shrink-0">${r.percent}%</span>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <span class="text-sm font-black ${percentColor}">${r.percent}%</span>
+                                    <button onclick="confirmDeleteAssignment('${r.id}')" title="Xoá bài đã giao này" class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors">
+                                        <i class="fa-solid fa-trash-can text-xs"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="w-full h-2 bg-gray-100 rounded-full mt-3 overflow-hidden">
                                 <div class="h-full ${barColor} rounded-full transition-all" style="width:${r.percent}%"></div>
                             </div>
-                            <p class="text-[11px] text-gray-400 font-semibold mt-1.5">${r.done}/${r.total} câu đã gõ đúng</p>
+                            <p class="text-[11px] text-gray-400 font-semibold mt-1.5">${doneLine}</p>
                         </div>
                     `;
                 }).join('');
@@ -921,6 +1040,18 @@
                 progressList.innerHTML = '<p class="text-red-500 text-sm font-bold">Lỗi tải dữ liệu tiến độ.</p>';
             }
         });
+
+        window.confirmDeleteAssignment = function(assignmentId){
+            const row = (window.__lastProgressRows || []).find(r => r.id === assignmentId);
+            const title = row ? row.title : 'bài này';
+            const ok = confirm('Xoá bài đã giao "' + title + '"?\nHọc sinh sẽ không còn thấy bài này nữa. Hành động này không thể hoàn tác.');
+            if(!ok) return;
+            deleteDoc(doc(db, "assignments", assignmentId)).then(() => {
+                progressBtn.click();
+            }).catch(e => {
+                alert('Lỗi khi xoá: ' + e.message);
+            });
+        };
 
         document.getElementById('btn-close-progress').addEventListener('click', () => {
             progressModal.classList.add('hidden');
