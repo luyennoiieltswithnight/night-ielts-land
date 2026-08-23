@@ -187,6 +187,11 @@
                         <i class="fa-solid fa-chart-simple mr-1"></i> Tiến Độ
                     </button>
 
+                    <!-- Nút cấu hình GitHub, dùng để đăng/xoá bài trong Kho Lưu Trữ (Chỉ admin mới thấy) -->
+                    <button id="admin-gh-settings-btn" title="Cấu hình GitHub" class="hidden w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold rounded-full shadow-sm transition-shadow text-sm mr-2 items-center justify-center">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+
                     <button id="login-btn" class="px-5 py-2.5 bg-brand-purple text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow">
                         <i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail
                     </button>
@@ -229,11 +234,48 @@
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Từ vựng (Từ | Nghĩa | Câu ví dụ)</label>
                     <textarea id="task-data" rows="5" class="w-full border-2 border-gray-100 rounded-xl p-3 text-sm font-mono text-gray-700 outline-none focus:border-brand-purple transition-colors hide-scrollbar" placeholder="get up | thức dậy | Ava gets up at 7am."></textarea>
                 </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Hạn nộp (không bắt buộc)</label>
+                    <input id="task-deadline" type="date" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                    <p class="text-[11px] text-gray-400 font-semibold mt-1.5">Bài giao riêng sẽ tự động biến mất sau 20 ngày kể từ lúc giao, bất kể có đặt hạn nộp hay không.</p>
+                </div>
             </div>
-            
+
             <div class="flex justify-end gap-3 mt-8">
                 <button id="btn-close-modal" class="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Hủy</button>
                 <button id="btn-submit-task" class="px-6 py-2.5 bg-brand-purple text-white font-bold rounded-xl hover:bg-purple-600 shadow-md transition-colors">🚀 Giao Bài</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CẤU HÌNH GITHUB (Ẩn mặc định, chỉ admin) -->
+    <div id="gh-settings-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-floating transform transition-all">
+            <h2 class="text-xl font-black text-gray-800 mb-1">⚙️ Cấu hình GitHub</h2>
+            <p class="text-xs text-gray-400 font-bold mb-5">Dùng để xoá bài trong Kho Lưu Trữ trực tiếp trên repo. Token chỉ lưu trên trình duyệt này.</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Owner (username GitHub)</label>
+                    <input id="gh-owner" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Repo</label>
+                    <input id="gh-repo" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Branch</label>
+                    <input id="gh-branch" value="main" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Personal Access Token</label>
+                    <input id="gh-token" type="password" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors font-mono">
+                </div>
+            </div>
+            <div id="gh-settings-msg" class="text-xs mt-3 min-h-[16px] font-bold"></div>
+            <div class="flex justify-end gap-3 mt-6">
+                <button id="btn-close-gh-settings" class="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Đóng</button>
+                <button id="btn-save-gh-settings" class="px-6 py-2.5 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-900 shadow-md transition-colors">Lưu</button>
             </div>
         </div>
     </div>
@@ -297,6 +339,7 @@
     </main>
 
     <script>
+        var IS_ADMIN = false;
         let totalTests = 0;
         function updateStats() {
             totalTests = 0;
@@ -375,9 +418,12 @@
                                     </div>
                                 </div>
                             </div>
-                            <a href="${test.link}" class="w-full sm:w-auto px-5 py-2.5 bg-white border-2 border-gray-100 text-gray-600 group-hover:bg-brand-purple group-hover:border-brand-purple group-hover:text-white rounded-xl font-bold text-sm text-center transition-all duration-300 shadow-sm flex-shrink-0">
-                                Mở bài <i class="fa-solid fa-arrow-right ml-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1"></i>
-                            </a>
+                            <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                                <a href="${test.link}" class="flex-1 sm:flex-none px-5 py-2.5 bg-white border-2 border-gray-100 text-gray-600 group-hover:bg-brand-purple group-hover:border-brand-purple group-hover:text-white rounded-xl font-bold text-sm text-center transition-all duration-300 shadow-sm">
+                                    Mở bài <i class="fa-solid fa-arrow-right ml-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1"></i>
+                                </a>
+                                ${IS_ADMIN ? `<button onclick="confirmDeleteTest(${folderIndex}, ${idx})" title="Xoá bài này" class="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors flex-shrink-0"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                            </div>
                         </div>
                     `;
                 });
@@ -402,13 +448,183 @@
             renderTests(index);
         }
         renderFolders();
+
+        window.setAdminMode = function(isAdmin){
+            IS_ADMIN = isAdmin;
+            renderTests(currentFolderIndex);
+        };
+
+        // ==========================================
+        // GITHUB HELPERS (dùng để xoá bài trong Kho Lưu Trữ trực tiếp trên repo)
+        // ==========================================
+        var GH_CFG_KEY = 'nightIeltsGithubCfg';
+        function ghLoadCfg(){
+            try { return JSON.parse(localStorage.getItem(GH_CFG_KEY) || '{}'); } catch(e){ return {}; }
+        }
+        function ghSaveCfg(cfg){ localStorage.setItem(GH_CFG_KEY, JSON.stringify(cfg)); }
+        function utf8ToB64(str){
+            var bytes = new TextEncoder().encode(str);
+            var binary = '';
+            for(var i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary);
+        }
+        function b64ToUtf8(b64){
+            var binary = atob(String(b64||'').replace(/\n/g,''));
+            var bytes = new Uint8Array(binary.length);
+            for(var i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+            return new TextDecoder('utf-8').decode(bytes);
+        }
+        function ghApiBase(cfg){ return 'https://api.github.com/repos/' + cfg.owner + '/' + cfg.repo + '/contents/'; }
+        function ghGetFile(cfg, path){
+            return fetch(ghApiBase(cfg) + path + '?ref=' + encodeURIComponent(cfg.branch || 'main'), {
+                headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json' }
+            }).then(function(res){
+                if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub GET lỗi (' + res.status + '): ' + path + ' — ' + t); });
+                return res.json();
+            }).then(function(j){ return { sha: j.sha, text: b64ToUtf8(j.content) }; });
+        }
+        function ghPutFile(cfg, path, text, message, sha){
+            var body = { message: message, content: utf8ToB64(text), branch: cfg.branch || 'main' };
+            if(sha) body.sha = sha;
+            return fetch(ghApiBase(cfg) + path, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }).then(function(res){
+                if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub PUT lỗi (' + res.status + '): ' + t); });
+                return res.json();
+            });
+        }
+        function ghDeleteFile(cfg, path, message, sha){
+            return fetch(ghApiBase(cfg) + path, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: message, sha: sha, branch: cfg.branch || 'main' })
+            }).then(function(res){
+                if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub DELETE lỗi (' + res.status + '): ' + t); });
+            });
+        }
+        function extractLessonDataArrayText(fullText){
+            var marker = 'const LESSON_DATA = ';
+            var startIdx = fullText.indexOf(marker);
+            if(startIdx === -1) throw new Error('Không tìm thấy LESSON_DATA trong index.html');
+            var i = startIdx + marker.length;
+            while(fullText[i] !== '[') i++;
+            var arrStart = i;
+            var depth = 0, inStr = false, strCh = '', esc = false;
+            for(; i < fullText.length; i++){
+                var c = fullText[i];
+                if(inStr){
+                    if(esc){ esc = false; }
+                    else if(c === '\\'){ esc = true; }
+                    else if(c === strCh){ inStr = false; }
+                    continue;
+                }
+                if(c === '"' || c === "'" || c === '`'){ inStr = true; strCh = c; continue; }
+                if(c === '[') depth++;
+                else if(c === ']'){ depth--; if(depth === 0){ i++; break; } }
+            }
+            var arrEnd = i;
+            return { marker: marker, startIdx: startIdx, arrStart: arrStart, arrEnd: arrEnd, arrayText: fullText.slice(arrStart, arrEnd) };
+        }
+        function parseLessonData(arrayText){ return (new Function('return ' + arrayText))(); }
+        function serializeLessonData(dataArray){ return JSON.stringify(dataArray, null, 4); }
+        function replaceLessonDataInFile(fullText, newArrayText){
+            var r = extractLessonDataArrayText(fullText);
+            return fullText.slice(0, r.arrStart) + newArrayText + fullText.slice(r.arrEnd);
+        }
+        function ghDeleteFolderTest(cfg, folderId, matchKey){
+            var idxPath = 'index.html';
+            return ghGetFile(cfg, idxPath).then(function(res){
+                var data = parseLessonData(extractLessonDataArrayText(res.text).arrayText);
+                var folder = data.find(function(f){ return f.id === folderId; });
+                if(!folder) throw new Error('Không tìm thấy folder: ' + folderId);
+                var idx = folder.tests.findIndex(function(t){ return (t.gen && t.gen === matchKey) || t.link === matchKey; });
+                if(idx === -1) throw new Error('Không tìm thấy bài để xoá trong folder này.');
+                var removed = folder.tests[idx];
+                folder.tests.splice(idx, 1);
+                var newFullText = replaceLessonDataInFile(res.text, serializeLessonData(data));
+                return ghPutFile(cfg, idxPath, newFullText, 'Night IELTS: xoá bài "' + removed.title + '"', res.sha).then(function(){
+                    if(removed.gen){
+                        return ghGetFile(cfg, removed.link).then(function(f){
+                            return ghDeleteFile(cfg, removed.link, 'Night IELTS: xoá file bài "' + removed.title + '"', f.sha);
+                        }).catch(function(){ /* file có thể không còn tồn tại — bỏ qua */ });
+                    }
+                }).then(function(){ return removed; });
+            });
+        }
+
+        // ==========================================
+        // XOÁ BÀI TRONG KHO LƯU TRỮ (admin, có xác nhận)
+        // ==========================================
+        function confirmDeleteTest(folderIndex, testIdx){
+            var folder = LESSON_DATA[folderIndex];
+            var test = folder.tests[testIdx];
+            if(!test) return;
+            var cfg = ghLoadCfg();
+            if(!cfg.owner || !cfg.repo || !cfg.token){
+                alert('Chưa cấu hình GitHub. Bấm nút ⚙️ ở góc trên bên phải để nhập trước.');
+                return;
+            }
+            var ok = confirm('Xoá bài "' + test.title + '" khỏi thư mục "' + folder.name + '"?\nHành động này KHÔNG thể hoàn tác.');
+            if(!ok) return;
+            var matchKey = test.gen || test.link;
+            ghDeleteFolderTest(cfg, folder.id, matchKey).then(function(){
+                folder.tests.splice(testIdx, 1);
+                updateStats();
+                renderTests(folderIndex);
+                alert('Đã xoá bài thành công.');
+            }).catch(function(e){
+                alert('Lỗi khi xoá: ' + e.message);
+            });
+        }
+
+        // Nút cấu hình GitHub
+        var ghSettingsBtn = document.getElementById('admin-gh-settings-btn');
+        var ghSettingsModal = document.getElementById('gh-settings-modal');
+        if(ghSettingsBtn){
+            ghSettingsBtn.addEventListener('click', function(){
+                var cfg = ghLoadCfg();
+                document.getElementById('gh-owner').value = cfg.owner || '';
+                document.getElementById('gh-repo').value = cfg.repo || '';
+                document.getElementById('gh-branch').value = cfg.branch || 'main';
+                document.getElementById('gh-token').value = cfg.token || '';
+                document.getElementById('gh-settings-msg').innerHTML = '';
+                ghSettingsModal.classList.remove('hidden');
+                ghSettingsModal.classList.add('flex');
+            });
+        }
+        var btnCloseGhSettings = document.getElementById('btn-close-gh-settings');
+        if(btnCloseGhSettings){
+            btnCloseGhSettings.addEventListener('click', function(){
+                ghSettingsModal.classList.add('hidden');
+                ghSettingsModal.classList.remove('flex');
+            });
+        }
+        var btnSaveGhSettings = document.getElementById('btn-save-gh-settings');
+        if(btnSaveGhSettings){
+            btnSaveGhSettings.addEventListener('click', function(){
+                var cfg = {
+                    owner: document.getElementById('gh-owner').value.trim(),
+                    repo: document.getElementById('gh-repo').value.trim(),
+                    branch: document.getElementById('gh-branch').value.trim() || 'main',
+                    token: document.getElementById('gh-token').value.trim()
+                };
+                ghSaveCfg(cfg);
+                document.getElementById('gh-settings-msg').innerHTML = '<span class="text-emerald-600">Đã lưu.</span>';
+                setTimeout(function(){
+                    ghSettingsModal.classList.add('hidden');
+                    ghSettingsModal.classList.remove('flex');
+                }, 700);
+            });
+        }
     </script>
 
     <!-- SCRIPT FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
@@ -434,19 +650,29 @@
         loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
         document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
+        // Bài giao riêng cho học sinh tự động biến mất sau 20 ngày kể từ lúc giao
+        const ASSIGNMENT_TTL_MS = 20 * 24 * 60 * 60 * 1000;
+
         // Hàm tải bài tập cho học sinh
         async function fetchStudentTasks(uid) {
             const q = query(collection(db, "assignments"), where("studentId", "==", uid));
             const snap = await getDocs(q);
             const myTasks = [];
-            
-            snap.forEach(doc => {
-                const data = doc.data();
+            const now = Date.now();
+
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                const expiresAt = data.expiresAt || (data.createdAt ? data.createdAt + ASSIGNMENT_TTL_MS : null);
+                if (expiresAt && now > expiresAt) {
+                    // Bài đã quá 20 ngày — tự dọn dẹp, không hiện cho học sinh nữa
+                    deleteDoc(doc(db, "assignments", docSnap.id)).catch(() => {});
+                    return;
+                }
                 myTasks.push({
                     title: data.title,
                     date: new Date(data.createdAt).toLocaleDateString('vi-VN'),
                     questions: data.vocabList.length,
-                    link: `game.html?id=${doc.id}`
+                    link: `game.html?id=${docSnap.id}`
                 });
             });
 
@@ -502,6 +728,9 @@
                     if (role === 'admin') {
                         adminBtn.classList.remove('hidden');
                         progressBtn.classList.remove('hidden');
+                        document.getElementById('admin-gh-settings-btn').classList.remove('hidden');
+                        document.getElementById('admin-gh-settings-btn').classList.add('flex');
+                        if (window.setAdminMode) window.setAdminMode(true);
                     } else {
                         fetchStudentTasks(user.uid);
                     }
@@ -521,6 +750,9 @@
                 userProfile.classList.remove('flex');
                 adminBtn.classList.add('hidden');
                 progressBtn.classList.add('hidden');
+                document.getElementById('admin-gh-settings-btn').classList.add('hidden');
+                document.getElementById('admin-gh-settings-btn').classList.remove('flex');
+                if (window.setAdminMode) window.setAdminMode(false);
 
                 // Xóa tab Bài Tập nếu đăng xuất
                 const idx = LESSON_DATA.findIndex(f => f.id === "MY_TASKS");
@@ -582,20 +814,28 @@
             const btn = document.getElementById('btn-submit-task');
             btn.innerText = 'Đang giao...'; btn.disabled = true;
 
+            const now = Date.now();
+            const deadlineStr = document.getElementById('task-deadline').value;
+            const deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
+
             await addDoc(collection(db, "assignments"), {
                 title: title,
                 studentId: studentId,
                 vocabList: vocabList,
-                createdAt: Date.now()
+                createdAt: now,
+                deadlineAt: deadlineAt,
+                expiresAt: now + ASSIGNMENT_TTL_MS,
+                completedIndices: []
             });
-            
-            alert('Đã giao bài thành công!');
+
+            alert('Đã giao bài thành công! (Bài sẽ tự động biến mất sau 20 ngày)');
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             btn.innerText = '🚀 Giao Bài'; btn.disabled = false;
 
             document.getElementById('task-title').value = '';
             document.getElementById('task-data').value = '';
+            document.getElementById('task-deadline').value = '';
         });
 
         // ==========================================
@@ -616,8 +856,15 @@
 
                 const assignSnap = await getDocs(collection(db, "assignments"));
                 const rows = [];
+                const now = Date.now();
+                const expiredIds = [];
                 assignSnap.forEach(d => {
                     const a = d.data();
+                    const expiresAt = a.expiresAt || (a.createdAt ? a.createdAt + ASSIGNMENT_TTL_MS : null);
+                    if (expiresAt && now > expiresAt) {
+                        expiredIds.push(d.id);
+                        return; // đã quá 20 ngày — không hiện, sẽ tự dọn dẹp bên dưới
+                    }
                     const total = (a.vocabList || []).length;
                     const done = (a.completedIndices || []).length;
                     const percent = (a.percent != null) ? a.percent : (total ? Math.round(done / total * 100) : 0);
@@ -627,9 +874,12 @@
                         studentName: stu ? stu.name : (a.studentId || '?'),
                         studentEmail: stu ? stu.email : '',
                         percent, total, done,
-                        createdAt: a.createdAt || 0
+                        createdAt: a.createdAt || 0,
+                        deadlineAt: a.deadlineAt || null
                     });
                 });
+                // Dọn dẹp âm thầm các bài đã hết hạn 20 ngày
+                expiredIds.forEach(id => { deleteDoc(doc(db, "assignments", id)).catch(() => {}); });
                 rows.sort((x, y) => y.createdAt - x.createdAt);
 
                 if (rows.length === 0) {
@@ -641,12 +891,21 @@
                     const barColor = r.percent >= 100 ? 'bg-emerald-500' : (r.percent > 0 ? 'bg-brand-purple' : 'bg-gray-200');
                     const percentColor = r.percent >= 100 ? 'text-emerald-600' : 'text-brand-purple';
                     const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString('vi-VN') : '';
+                    const isOverdue = r.deadlineAt && now > r.deadlineAt && r.percent < 100;
+                    let deadlineBadge = '';
+                    if (r.deadlineAt) {
+                        const dlStr = new Date(r.deadlineAt).toLocaleDateString('vi-VN');
+                        deadlineBadge = isOverdue
+                            ? `<span class="inline-flex items-center gap-1 text-[10px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-1.5"><i class="fa-solid fa-triangle-exclamation"></i> Quá hạn (${dlStr})</span>`
+                            : `<span class="inline-flex items-center gap-1 text-[10px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full mt-1.5"><i class="fa-regular fa-clock"></i> Hạn: ${dlStr}</span>`;
+                    }
                     return `
                         <div class="bg-gray-50/60 rounded-2xl p-4 border border-gray-100">
                             <div class="flex justify-between items-start gap-3">
                                 <div class="min-w-0">
                                     <p class="font-bold text-gray-800 text-sm truncate">${r.title}</p>
                                     <p class="text-xs text-gray-400 font-semibold mt-0.5 truncate">${r.studentName}${r.studentEmail ? ' · ' + r.studentEmail : ''}${dateStr ? ' · ' + dateStr : ''}</p>
+                                    ${deadlineBadge}
                                 </div>
                                 <span class="text-sm font-black ${percentColor} shrink-0">${r.percent}%</span>
                             </div>
