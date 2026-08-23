@@ -366,9 +366,6 @@
             );
         });
 
-        // Chờ 1 khoảng thời gian — dùng cho cơ chế thử lại có giãn cách (backoff) bên dưới.
-        const sleepMs = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
         // QUAN TRỌNG — sửa lỗi "dịch bị lỗi trên Safari/iPad nhưng Chrome thì vẫn bình thường": API
         // dịch đang dùng (translate.googleapis.com/translate_a/single) là API KHÔNG CHÍNH THỨC của
         // Google Translate — Google chặn khá gắt (lỗi 429) nếu thấy quá nhiều request dồn dập từ
@@ -410,26 +407,36 @@
             });
         };
 
-        // Thử Google Translate tối đa 3 lần (giãn cách dần: ngay lập tức, 0.8s, 1.8s) trước khi
-        // chuyển hẳn sang phương án dự phòng MyMemory — hầu hết lỗi 429 tạm thời sẽ tự hết sau vài
-        // trăm ms tới vài giây, nên thử lại có giãn cách thường đủ để vượt qua mà không cần dự phòng.
-        const translateWithFallback = async (text) => {
-            const RETRY_DELAYS_MS = [0, 800, 1800];
-            let lastError = null;
-            for (const delay of RETRY_DELAYS_MS) {
-                if (delay) await sleepMs(delay);
-                try {
-                    return await translateViaGoogle(text);
-                } catch (err) {
-                    lastError = err;
-                }
-            }
-            try {
-                return await translateViaMyMemory(text);
-            } catch (err) {
-                throw lastError || err;
-            }
-        };
+        // QUAN TRỌNG — sửa lỗi "dịch lâu 3-4s mới ra kết quả": bản trước dùng cách THỬ LẠI TUẦN TỰ
+        // (Google lần 1 -> chờ 0.8s -> Google lần 2 -> chờ 1.8s -> Google lần 3 -> mới chuyển sang
+        // MyMemory) — mỗi lần Google lỗi/chậm đều phải CHỜ HẾT khoảng giãn cách rồi mới thử tiếp,
+        // cộng dồn lại dễ ra 3-4s thật. Đổi sang kiểu "đua song song" (race): gọi Google trước, nếu
+        // sau 900ms Google CHƯA trả lời (chậm hoặc đang bị chặn) thì lập tức gọi thêm MyMemory chạy
+        // song song — bên nào xong trước dùng kết quả bên đó, không cần chờ bên kia nữa. Nếu Google
+        // lỗi ngay lập tức (vd 429) thì chuyển sang MyMemory ngay, không cần chờ đủ 900ms. Nhờ vậy
+        // trường hợp bình thường (Google phản hồi nhanh) vẫn nhanh như cũ, còn trường hợp Google
+        // chậm/lỗi thì tối đa chỉ mất thêm ~900ms trước khi có phương án dự phòng chạy song song,
+        // thay vì phải chờ đủ 2 vòng giãn cách (0.8s + 1.8s = 2.6s) như trước mới chịu chuyển.
+        const translateWithFallback = (text) => new Promise((resolve, reject) => {
+            let settled = false;
+            let backupStarted = false;
+
+            const succeed = (result) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(backupTimer);
+                resolve(result);
+            };
+            const startBackup = () => {
+                if (backupStarted) return;
+                backupStarted = true;
+                clearTimeout(backupTimer);
+                translateViaMyMemory(text).then(succeed).catch(err => { if (!settled) reject(err); });
+            };
+
+            const backupTimer = setTimeout(startBackup, 900);
+            translateViaGoogle(text).then(succeed).catch(() => startBackup());
+        });
 
         // --- THANH DỊCH THUẬT NỔI ---
         const MagicTranslationBar = ({ text, isProcessing, onClose }) => {
@@ -497,12 +504,12 @@
 
                 const cleanText = text.replace(/\s+/g, ' ').trim();
 
-                // QUAN TRỌNG — debounce 500ms trước khi gọi API dịch: nếu người dùng quét nhiều đoạn
-                // liên tiếp thật nhanh bằng bút Magic, chỉ đoạn CUỐI CÙNG mới thực sự gửi request —
-                // giảm hẳn số lượng request dồn dập, đúng như 1 trong các nguyên nhân khiến Google
-                // Translate (API không chính thức) dễ đánh dấu spam trên Safari/iPad (xem giải thích
-                // đầy đủ ở translateWithFallback phía trên component này). Phần đọc-giọng-nói (speak)
-                // ở trên KHÔNG debounce vì chạy hoàn toàn trên máy (Web Speech API), không gọi mạng.
+                // QUAN TRỌNG — sửa lỗi "dịch lâu 3-4s": rút debounce từ 500ms xuống còn 150ms — vẫn
+                // đủ để gộp lại nếu người dùng quét liên tiếp thật nhanh (chống spam Google), nhưng
+                // không còn cộng thêm nửa giây "chết" vào MỌI lần dịch như trước (xem thêm phần rút
+                // ngắn ở translateWithFallback phía trên — đó mới là phần tốn thời gian nhiều nhất
+                // trước đây). Phần đọc-giọng-nói (speak) ở trên KHÔNG debounce vì chạy hoàn toàn trên
+                // máy (Web Speech API), không gọi mạng.
                 let cancelled = false;
                 const debounceTimer = setTimeout(() => {
                     translateWithFallback(cleanText)
@@ -511,7 +518,7 @@
                             console.error(err);
                             if (!cancelled) setTranslation("Lỗi kết nối từ điển (đã thử lại nhiều lần).");
                         });
-                }, 500);
+                }, 150);
 
                 return () => { cancelled = true; clearTimeout(debounceTimer); stopAllAudio(); };
                 // eslint-disable-next-line
