@@ -480,11 +480,12 @@
 
                 // sl=zh-CN: nguồn là tiếng Trung GIẢN THỂ (Trung Quốc đại lục) thay vì tiếng Anh — Google
                 // Translate vẫn nhận diện đúng chữ phồn thể lẫn trong đó (nếu OCR lỡ nhận nhầm) nên không
-                // cần đổi thêm gì khác; đích dịch vẫn là tiếng Việt (tl=vi) như bản gốc. translateGoogle()
-                // tự thử lại bằng domain thay thế nếu domain chính lỗi (xem giải thích ở khai báo hàm).
+                // cần đổi thêm gì khác; đích dịch vẫn là tiếng Việt (tl=vi) như bản gốc. translateText()
+                // tự thử domain thay thế, rồi tự chuyển qua nguồn dịch khác (MyMemory) nếu Google lỗi
+                // hết (xem giải thích chi tiết ở khai báo hàm).
                 const cleanText = text.replace(/\s+/g, ' ').trim();
                 let cancelled = false;
-                translateGoogle(cleanText, 'zh-CN', 'vi')
+                translateText(cleanText, 'zh-CN', 'vi')
                     .then(result => {
                         if (cancelled) return;
                         setTranslation(result || "Không thể dịch nội dung này.");
@@ -907,19 +908,24 @@
             return [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }];
         };
 
-        // --- GỌI GOOGLE DỊCH (helper dùng chung cho cả thanh dịch Magic lẫn box tra Pinyin) ---
-        // Endpoint không chính thức translate.googleapis.com thỉnh thoảng bị chặn/giới hạn tốc độ
-        // tuỳ theo mạng đang dùng — hay gặp nhất là trên mạng di động (4G/5G) vì IP của nhà mạng
-        // dùng chung cho rất nhiều người nên dễ bị Google đánh dấu tạm thời, hoặc do đổi mạng/mất
-        // sóng ngay lúc đang gọi. Những lúc đó fetch() có thể báo lỗi thẳng, hoặc "thành công" nhưng
-        // trả về nội dung không phải JSON hợp lệ (ví dụ trang chặn của Google) khiến res.json() ném
-        // lỗi — cả 2 trường hợp đều bị bắt ở đây. Trước khi thật sự báo "lỗi kết nối", hàm tự thử lại
-        // 1 lần bằng domain thay thế translate.google.com (cùng 1 dịch vụ, nhưng đôi khi domain kia
-        // vẫn phản hồi được dù domain translate.googleapis.com đang bị mạng chặn/lỗi).
-        const translateGoogle = async (text, sl, tl) => {
-            const hosts = ['translate.googleapis.com', 'translate.google.com'];
-            let lastErr = null;
-            for (const host of hosts) {
+        // --- DỊCH VĂN BẢN (helper dùng chung cho cả thanh dịch Magic lẫn box tra Pinyin) ---
+        // translate.googleapis.com/translate.google.com là API "chui" (không chính thức, không có
+        // tài liệu công khai) mà Google dùng cho chính trang dịch của họ — không phải API dành cho
+        // ai cũng gọi tự do, nên Google có cơ chế phát hiện & tạm khoá các thiết bị/IP gọi endpoint
+        // này quá nhiều/quá nhanh (hiện đúng trang "We're sorry... your computer or network may be
+        // sending automated queries"), KHÔNG liên quan gì đến Wi-Fi/4G hay Safari/CORS gì cả — đơn
+        // giản là do gọi thử đi thử lại nhiều lần lúc test nên bị đánh dấu khả nghi. Vì lỗi này có
+        // thể tự nhiên xảy ra bất cứ lúc nào (không đoán trước được, không phải lỗi trong code), nếu
+        // chỉ dựa vào 1 mình Google thì app sẽ có lúc bị "đứng dịch" hoàn toàn. Nên ở đây: thử lần
+        // lượt 2 domain của Google trước (nhanh, không giới hạn khi chưa bị khoá), nếu CẢ 2 đều lỗi
+        // (bị khoá, mất mạng, JSON trả về không hợp lệ...) thì tự động rơi xuống dùng MyMemory
+        // (api.mymemory.translated.net) — 1 dịch vụ dịch máy MIỄN PHÍ, CHÍNH THỨC cho phép gọi trực
+        // tiếp từ trình duyệt (có bật CORS công khai, không cần khoá API), nên không bị chặn kiểu
+        // "automated queries" như trên. Giới hạn dùng ẩn danh khoảng vài trăm chữ/lượt, đủ cho 1
+        // câu/đoạn ngắn quét được bằng bút Magic hay Pinyin.
+        const translateText = async (text, sl, tl) => {
+            const googleHosts = ['translate.googleapis.com', 'translate.google.com'];
+            for (const host of googleHosts) {
                 try {
                     const url = 'https://' + host + '/translate_a/single?client=gtx&sl=' + sl + '&tl=' + tl + '&dt=t&q=' + encodeURIComponent(text);
                     const res = await fetch(url);
@@ -928,12 +934,18 @@
                     if (!data || !data[0]) throw new Error('Dữ liệu trả về rỗng');
                     let result = '';
                     data[0].forEach(chunk => { if (chunk[0]) result += chunk[0]; });
-                    return result;
-                } catch (err) {
-                    lastErr = err;
-                }
+                    if (result) return result;
+                } catch (err) { /* thử domain/nguồn tiếp theo */ }
             }
-            throw lastErr || new Error('Không kết nối được dịch vụ dịch.');
+
+            // Cả 2 domain Google đều lỗi — rơi xuống MyMemory.
+            const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + encodeURIComponent(sl + '|' + tl);
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            const result = data && data.responseData && data.responseData.translatedText;
+            if (!result) throw new Error('Dữ liệu trả về rỗng');
+            return result;
         };
 
         // Tách cụm chữ Hán đầu tiên từ văn bản OCR ra được — dùng chung cho tra pinyin (pinyin-pro)
@@ -966,7 +978,7 @@
 
                 let definition = '';
                 try {
-                    definition = (await translateGoogle(word, 'zh-CN', 'vi')).trim();
+                    definition = (await translateText(word, 'zh-CN', 'vi')).trim();
                 } catch (e) { /* bỏ qua lỗi dịch, vẫn giữ pinyin nếu có */ }
 
                 const result = { word, pinyin, definition, error: (!pinyin && !definition) ? 'Không tra được dữ liệu cho từ này.' : '' };
