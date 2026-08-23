@@ -407,6 +407,11 @@
             const [copiedEn, setCopiedEn] = useState(false);
             const [copiedVi, setCopiedVi] = useState(false);
 
+            // Tăng lên mỗi lần người dùng bấm "Thử lại" sau khi dịch lỗi — có mặt trong dependency
+            // của useEffect dịch bên dưới để ép nó chạy lại đúng với chữ hiện tại, không cần quét
+            // lại từ đầu.
+            const [retryTick, setRetryTick] = useState(0);
+
             const isMutedRef = useRef(isMuted);
             useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
 
@@ -475,29 +480,23 @@
 
                 // sl=zh-CN: nguồn là tiếng Trung GIẢN THỂ (Trung Quốc đại lục) thay vì tiếng Anh — Google
                 // Translate vẫn nhận diện đúng chữ phồn thể lẫn trong đó (nếu OCR lỡ nhận nhầm) nên không
-                // cần đổi thêm gì khác; đích dịch vẫn là tiếng Việt (tl=vi) như bản gốc.
+                // cần đổi thêm gì khác; đích dịch vẫn là tiếng Việt (tl=vi) như bản gốc. translateGoogle()
+                // tự thử lại bằng domain thay thế nếu domain chính lỗi (xem giải thích ở khai báo hàm).
                 const cleanText = text.replace(/\s+/g, ' ').trim();
-                const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&q=" + encodeURIComponent(cleanText);
-
-                fetch(url)
-                    .then(res => res.json())
-                    .then(data => {
-                        if(data && data[0]) {
-                            let fullTranslation = "";
-                            data[0].forEach(chunk => { if (chunk[0]) fullTranslation += chunk[0]; });
-                            setTranslation(fullTranslation);
-                        } else {
-                            setTranslation("Không thể dịch nội dung này.");
-                        }
+                let cancelled = false;
+                translateGoogle(cleanText, 'zh-CN', 'vi')
+                    .then(result => {
+                        if (cancelled) return;
+                        setTranslation(result || "Không thể dịch nội dung này.");
                     })
                     .catch(err => {
                         console.error(err);
-                        setTranslation("Lỗi kết nối từ điển.");
+                        if (!cancelled) setTranslation("Lỗi kết nối từ điển.");
                     });
 
-                return () => stopAllAudio();
+                return () => { cancelled = true; stopAllAudio(); };
                 // eslint-disable-next-line
-            }, [text, isProcessing]);
+            }, [text, isProcessing, retryTick]);
 
             const handleCopy = (content, type) => {
                 navigator.clipboard.writeText(content);
@@ -576,15 +575,27 @@
                                 
                                 <div className="w-full h-px bg-slate-100"></div>
                                 
-                                {translation && translation !== "Đang dịch..." && (
+                                {translation === "Lỗi kết nối từ điển." ? (
+                                    <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                                        <p className="text-sm text-amber-700 font-semibold flex items-center gap-2">
+                                            <i className="fas fa-triangle-exclamation"></i> Lỗi kết nối từ điển — kiểm tra lại mạng rồi thử lại nhé.
+                                        </p>
+                                        <button
+                                            onClick={() => setRetryTick(t => t + 1)}
+                                            className="shrink-0 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95"
+                                        >
+                                            <i className="fas fa-rotate-right mr-1"></i>Thử lại
+                                        </button>
+                                    </div>
+                                ) : translation && translation !== "Đang dịch..." && (
                                     <div className="relative pr-16 group">
                                         <p className="font-semibold text-emerald-700 text-[17px] leading-relaxed tracking-wide flex items-start">
                                             <i className="fas fa-language mt-1 mr-3 opacity-80 text-xl"></i>
                                             <span>{translation}</span>
                                         </p>
-                                        <button 
-                                            onClick={() => handleCopy(translation, 'vi')} 
-                                            className="absolute top-1/2 transform -translate-y-1/2 right-0 w-11 h-11 flex items-center justify-center rounded-xl text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-100 shadow-sm" 
+                                        <button
+                                            onClick={() => handleCopy(translation, 'vi')}
+                                            className="absolute top-1/2 transform -translate-y-1/2 right-0 w-11 h-11 flex items-center justify-center rounded-xl text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition-colors border border-emerald-100 shadow-sm"
                                         >
                                             <i className={copiedVi ? "fas fa-check text-white text-xl" : "fas fa-copy text-xl"}></i>
                                         </button>
@@ -896,6 +907,35 @@
             return [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }];
         };
 
+        // --- GỌI GOOGLE DỊCH (helper dùng chung cho cả thanh dịch Magic lẫn box tra Pinyin) ---
+        // Endpoint không chính thức translate.googleapis.com thỉnh thoảng bị chặn/giới hạn tốc độ
+        // tuỳ theo mạng đang dùng — hay gặp nhất là trên mạng di động (4G/5G) vì IP của nhà mạng
+        // dùng chung cho rất nhiều người nên dễ bị Google đánh dấu tạm thời, hoặc do đổi mạng/mất
+        // sóng ngay lúc đang gọi. Những lúc đó fetch() có thể báo lỗi thẳng, hoặc "thành công" nhưng
+        // trả về nội dung không phải JSON hợp lệ (ví dụ trang chặn của Google) khiến res.json() ném
+        // lỗi — cả 2 trường hợp đều bị bắt ở đây. Trước khi thật sự báo "lỗi kết nối", hàm tự thử lại
+        // 1 lần bằng domain thay thế translate.google.com (cùng 1 dịch vụ, nhưng đôi khi domain kia
+        // vẫn phản hồi được dù domain translate.googleapis.com đang bị mạng chặn/lỗi).
+        const translateGoogle = async (text, sl, tl) => {
+            const hosts = ['translate.googleapis.com', 'translate.google.com'];
+            let lastErr = null;
+            for (const host of hosts) {
+                try {
+                    const url = 'https://' + host + '/translate_a/single?client=gtx&sl=' + sl + '&tl=' + tl + '&dt=t&q=' + encodeURIComponent(text);
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    if (!data || !data[0]) throw new Error('Dữ liệu trả về rỗng');
+                    let result = '';
+                    data[0].forEach(chunk => { if (chunk[0]) result += chunk[0]; });
+                    return result;
+                } catch (err) {
+                    lastErr = err;
+                }
+            }
+            throw lastErr || new Error('Không kết nối được dịch vụ dịch.');
+        };
+
         // Tách cụm chữ Hán đầu tiên từ văn bản OCR ra được — dùng chung cho tra pinyin (pinyin-pro)
         // lẫn mở link từ điển đầy đủ (Hanzii).
         // Khác tiếng Anh (từ cách nhau bằng dấu cách nên tách bằng [A-Za-z']+), chữ Hán không có dấu
@@ -926,15 +966,13 @@
 
                 let definition = '';
                 try {
-                    const res = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-CN&tl=vi&dt=t&q=' + encodeURIComponent(word));
-                    if (res.ok) {
-                        const data = await res.json();
-                        definition = (data && data[0] || []).map(seg => seg[0]).join('').trim();
-                    }
+                    definition = (await translateGoogle(word, 'zh-CN', 'vi')).trim();
                 } catch (e) { /* bỏ qua lỗi dịch, vẫn giữ pinyin nếu có */ }
 
                 const result = { word, pinyin, definition, error: (!pinyin && !definition) ? 'Không tra được dữ liệu cho từ này.' : '' };
-                _dictCache[word] = result;
+                // Chỉ cache khi có ít nhất pinyin hoặc nghĩa — tránh việc 1 lần lỗi mạng tạm thời bị
+                // nhớ mãi, khiến những lần quét lại từ này sau (dù mạng đã ổn định) vẫn báo lỗi cũ.
+                if (pinyin || definition) _dictCache[word] = result;
                 return result;
             } catch (err) {
                 const result = { word, pinyin: '', definition: '', error: 'Không tìm thấy từ "' + word + '" trong từ điển.' };
