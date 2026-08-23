@@ -36,6 +36,7 @@ button,input,select{font-family:'Plus Jakarta Sans',sans-serif;outline:none;}
     <div>
       <div class="text-[9px] font-extrabold tracking-widest text-primary-500 uppercase">NIGHT IELTS &middot; LISTENING TYPE</div>
       <h1 id="lessonTitle" class="text-lg md:text-xl font-extrabold text-slate-800 mt-0.5">Đang tải...</h1>
+      <span id="deadlineBadge" class="hidden items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full mt-1"></span>
     </div>
   </div>
   <div class="flex items-center gap-2 flex-wrap">
@@ -465,12 +466,23 @@ function render(scrollTop){
 }
 
 // Gọi bởi script Firebase khi tải xong dữ liệu bài tập (xem cuối trang)
-window.__assignmentLoaded = function(title, items, completedIndices){
+window.__assignmentLoaded = function(title, items, completedIndices, deadlineAt){
   TITLE = title;
   ITEMS = items;
   (completedIndices || []).forEach(function(i){ completedSet.add(i); });
   document.getElementById('lessonTitle').textContent = TITLE;
   updateProgressBadge();
+
+  var dlBadge = document.getElementById('deadlineBadge');
+  if(deadlineAt){
+    var dlStr = new Date(deadlineAt).toLocaleDateString('vi-VN');
+    var overdue = Date.now() > deadlineAt;
+    dlBadge.className = 'inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full mt-1 ' + (overdue ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-500');
+    dlBadge.innerHTML = (overdue ? '<i class="fa-solid fa-triangle-exclamation"></i> Đã quá hạn nộp (' + dlStr + ')' : '<i class="fa-regular fa-clock"></i> Hạn nộp: ' + dlStr);
+  } else {
+    dlBadge.classList.add('hidden');
+  }
+
   document.getElementById('loadingScreen').classList.add('hidden');
   document.getElementById('mainArea').classList.remove('hidden');
   render(0);
@@ -545,7 +557,7 @@ window.__assignmentLoadError = function(msg){
         sentenceVi: it.sentenceVi || it.meaningVi || ''
       };
     });
-    window.__assignmentLoaded(data.title || 'Bài tập VocaFlow', items, data.completedIndices || []);
+    window.__assignmentLoaded(data.title || 'Bài tập VocaFlow', items, data.completedIndices || [], data.deadlineAt || null);
   })();
 </script>
 </body>
