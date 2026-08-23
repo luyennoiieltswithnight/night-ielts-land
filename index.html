@@ -182,6 +182,11 @@
                         <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Giao Bài
                     </button>
 
+                    <!-- Nút Tiến Độ (Chỉ admin mới thấy) -->
+                    <button id="admin-progress-btn" class="hidden px-5 py-2.5 bg-emerald-500 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2">
+                        <i class="fa-solid fa-chart-simple mr-1"></i> Tiến Độ
+                    </button>
+
                     <button id="login-btn" class="px-5 py-2.5 bg-brand-purple text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow">
                         <i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail
                     </button>
@@ -229,6 +234,24 @@
             <div class="flex justify-end gap-3 mt-8">
                 <button id="btn-close-modal" class="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Hủy</button>
                 <button id="btn-submit-task" class="px-6 py-2.5 bg-brand-purple text-white font-bold rounded-xl hover:bg-purple-600 shadow-md transition-colors">🚀 Giao Bài</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TIẾN ĐỘ HỌC SINH (Ẩn mặc định) -->
+    <div id="progress-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-3xl shadow-floating transform transition-all max-h-[85vh] flex flex-col">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-2xl font-black text-emerald-600 mb-1">Tiến Độ Học Sinh</h2>
+                    <p class="text-sm text-gray-500 font-bold">Bài đã giao và % câu đã gõ đúng</p>
+                </div>
+                <button id="btn-close-progress" class="text-gray-400 hover:text-gray-600 text-xl leading-none mt-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="progress-list" class="mt-6 space-y-3 overflow-y-auto hide-scrollbar flex-1">
+                <p class="text-gray-400 text-sm font-bold">Đang tải...</p>
             </div>
         </div>
     </div>
@@ -406,7 +429,8 @@
         const loginBtn = document.getElementById('login-btn');
         const userProfile = document.getElementById('user-profile');
         const adminBtn = document.getElementById('admin-studio-btn');
-        
+        const progressBtn = document.getElementById('admin-progress-btn');
+
         loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
         document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
@@ -462,6 +486,7 @@
                     
                     if (role === 'admin') {
                         adminBtn.classList.remove('hidden');
+                        progressBtn.classList.remove('hidden');
                     } else {
                         fetchStudentTasks(user.uid);
                     }
@@ -480,7 +505,8 @@
                 userProfile.classList.add('hidden');
                 userProfile.classList.remove('flex');
                 adminBtn.classList.add('hidden');
-                
+                progressBtn.classList.add('hidden');
+
                 // Xóa tab Bài Tập nếu đăng xuất
                 const idx = LESSON_DATA.findIndex(f => f.id === "MY_TASKS");
                 if(idx > -1) {
@@ -552,9 +578,79 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             btn.innerText = '🚀 Giao Bài'; btn.disabled = false;
-            
+
             document.getElementById('task-title').value = '';
             document.getElementById('task-data').value = '';
+        });
+
+        // ==========================================
+        // TIẾN ĐỘ HỌC SINH (% câu đã gõ đúng, đọc từ assignments)
+        // ==========================================
+        const progressModal = document.getElementById('progress-modal');
+        const progressList = document.getElementById('progress-list');
+
+        progressBtn.addEventListener('click', async () => {
+            progressModal.classList.remove('hidden');
+            progressModal.classList.add('flex');
+            progressList.innerHTML = '<p class="text-gray-400 text-sm font-bold">Đang tải...</p>';
+
+            try {
+                const studentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student")));
+                const studentMap = {};
+                studentsSnap.forEach(d => { studentMap[d.id] = d.data(); });
+
+                const assignSnap = await getDocs(collection(db, "assignments"));
+                const rows = [];
+                assignSnap.forEach(d => {
+                    const a = d.data();
+                    const total = (a.vocabList || []).length;
+                    const done = (a.completedIndices || []).length;
+                    const percent = (a.percent != null) ? a.percent : (total ? Math.round(done / total * 100) : 0);
+                    const stu = studentMap[a.studentId];
+                    rows.push({
+                        title: a.title || '(Không tên)',
+                        studentName: stu ? stu.name : (a.studentId || '?'),
+                        studentEmail: stu ? stu.email : '',
+                        percent, total, done,
+                        createdAt: a.createdAt || 0
+                    });
+                });
+                rows.sort((x, y) => y.createdAt - x.createdAt);
+
+                if (rows.length === 0) {
+                    progressList.innerHTML = '<p class="text-gray-400 text-sm font-bold">Chưa có bài nào được giao.</p>';
+                    return;
+                }
+
+                progressList.innerHTML = rows.map(r => {
+                    const barColor = r.percent >= 100 ? 'bg-emerald-500' : (r.percent > 0 ? 'bg-brand-purple' : 'bg-gray-200');
+                    const percentColor = r.percent >= 100 ? 'text-emerald-600' : 'text-brand-purple';
+                    const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString('vi-VN') : '';
+                    return `
+                        <div class="bg-gray-50/60 rounded-2xl p-4 border border-gray-100">
+                            <div class="flex justify-between items-start gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-bold text-gray-800 text-sm truncate">${r.title}</p>
+                                    <p class="text-xs text-gray-400 font-semibold mt-0.5 truncate">${r.studentName}${r.studentEmail ? ' · ' + r.studentEmail : ''}${dateStr ? ' · ' + dateStr : ''}</p>
+                                </div>
+                                <span class="text-sm font-black ${percentColor} shrink-0">${r.percent}%</span>
+                            </div>
+                            <div class="w-full h-2 bg-gray-100 rounded-full mt-3 overflow-hidden">
+                                <div class="h-full ${barColor} rounded-full transition-all" style="width:${r.percent}%"></div>
+                            </div>
+                            <p class="text-[11px] text-gray-400 font-semibold mt-1.5">${r.done}/${r.total} câu đã gõ đúng</p>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error(e);
+                progressList.innerHTML = '<p class="text-red-500 text-sm font-bold">Lỗi tải dữ liệu tiến độ.</p>';
+            }
+        });
+
+        document.getElementById('btn-close-progress').addEventListener('click', () => {
+            progressModal.classList.add('hidden');
+            progressModal.classList.remove('flex');
         });
     </script>
 </body>
