@@ -243,14 +243,23 @@
                     </div>
                 </div>
 
-                <!-- User Profile -->
-                <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-gray-100">
-                    <div class="text-right hidden sm:block">
-                        <p class="text-[10px] font-bold text-gray-400 uppercase">Teacher</p>
-                        <p class="text-sm font-extrabold text-gray-800">Mr. Night</p>
-                    </div>
-                    <div class="w-10 h-10 rounded-full bg-brand-purple text-white flex items-center justify-center text-lg font-bold shadow-inner">
-                        N
+                <!-- Auth Container (Nút đăng nhập và Profile động) -->
+                <div id="auth-container" class="flex items-center gap-3">
+                    <!-- Nút đăng nhập -->
+                    <button id="login-btn" class="px-5 py-2.5 bg-brand-purple text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow">
+                        <i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail
+                    </button>
+                    
+                    <!-- User Profile (Sẽ ẩn cho đến khi đăng nhập thành công) -->
+                    <div id="user-profile" class="hidden items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-gray-100">
+                        <div class="text-right hidden sm:block">
+                            <p id="user-role" class="text-[10px] font-bold text-gray-400 uppercase">Student</p>
+                            <p id="user-name" class="text-sm font-extrabold text-gray-800">Đang tải...</p>
+                        </div>
+                        <img id="user-avatar" src="" class="w-10 h-10 rounded-full shadow-inner object-cover" alt="Avatar">
+                        <button id="logout-btn" class="ml-2 text-gray-400 hover:text-red-500 transition-colors">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -449,6 +458,86 @@
 
         // Khởi chạy khi load trang
         renderFolders();
+    </script>
+
+    <!-- Thêm module Firebase -->
+    <script type="module">
+        // Dùng đường link CDN tĩnh cho HTML thuần
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // Cấu hình Firebase CỦA BẠN
+        const firebaseConfig = {
+            apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+            authDomain: "night-ielts-land.firebaseapp.com",
+            databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+            projectId: "night-ielts-land",
+            storageBucket: "night-ielts-land.firebasestorage.app",
+            messagingSenderId: "408519436407",
+            appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+            measurementId: "G-H3P14NJR76"
+        };
+
+        // Khởi tạo hệ thống
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GoogleAuthProvider();
+
+        // Lấy các thẻ HTML để tương tác
+        const loginBtn = document.getElementById('login-btn');
+        const userProfile = document.getElementById('user-profile');
+        const userName = document.getElementById('user-name');
+        const userAvatar = document.getElementById('user-avatar');
+        const userRole = document.getElementById('user-role');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        // Sự kiện bấm nút Đăng nhập
+        loginBtn.addEventListener('click', () => {
+            signInWithPopup(auth, provider).catch(error => alert("Lỗi đăng nhập: " + error.message));
+        });
+
+        // Sự kiện bấm nút Đăng xuất
+        logoutBtn.addEventListener('click', () => {
+            signOut(auth);
+        });
+
+        // Kiểm tra trạng thái người dùng (Có đăng nhập hay chưa)
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // Đã đăng nhập: Hiện hình ảnh và tên
+                loginBtn.classList.add('hidden');
+                userProfile.classList.remove('hidden');
+                userProfile.classList.add('flex');
+                
+                userName.textContent = user.displayName;
+                userAvatar.src = user.photoURL;
+
+                // KIỂM TRA QUYỀN TRÊN FIRESTORE DATABASE
+                const userRef = doc(db, "users", user.uid);
+                const userSnap = await getDoc(userRef);
+
+                if (userSnap.exists()) {
+                    const role = userSnap.data().role;
+                    userRole.textContent = role === 'admin' ? 'Teacher' : 'Student';
+                } else {
+                    // Tạo mới tài khoản vào Database nếu là lần đầu đăng nhập
+                    await setDoc(userRef, {
+                        email: user.email,
+                        name: user.displayName,
+                        role: "student",
+                        createdAt: new Date()
+                    });
+                    userRole.textContent = 'Student';
+                }
+            } else {
+                // Chưa đăng nhập: Hiện nút Login
+                loginBtn.classList.remove('hidden');
+                userProfile.classList.add('hidden');
+                userProfile.classList.remove('flex');
+            }
+        });
     </script>
 </body>
 </html>
