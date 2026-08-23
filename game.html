@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VocaFlow | Bài tập</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{primary:{50:'#f0f9ff',100:'#e0f2fe',200:'#99f6e4',300:'#7dd3fc',400:'#38bdf8',500:'#0ea5e9',600:'#0d9488',700:'#0369a1',800:'#075985',900:'#134e4a'}},boxShadow:{card:'0 10px 30px rgba(20,184,166,.08)'}}}};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#f8fafc;color:#1e293b;font-family:'Plus Jakarta Sans',sans-serif;overscroll-behavior-y:none;}
+button,input{font-family:'Plus Jakarta Sans',sans-serif; outline: none;}
+.fade{animation:fade .3s ease both}@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+#fireworks{position:fixed;inset:0;pointer-events:none;z-index:90;overflow:hidden}.spark{position:absolute;width:7px;height:7px;border-radius:50%;animation:burst 1.05s ease-out forwards}@keyframes burst{0%{transform:translate(0,0) scale(.5);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0}}
+.char-box { display: inline-block; min-width: 0.8em; border-bottom: 3px solid transparent; text-align: center; margin: 0 2px; transition: all 0.15s ease-in-out; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 1.15em;}
+.char-untyped { color: #cbd5e1; border-bottom: 3px solid #99f6e4; }
+.char-masked { color: #cbd5e1; } 
+.char-typed { color: #134e4a; border-bottom: 3px solid #0d9488; transform: translateY(-2px); } 
+.char-error { color: #fff; background-color: #ef4444; border-radius: 6px; border-bottom: 3px solid #b91c1c; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(239,68,68,.3); animation: shake 0.3s ease-in-out; }
+.char-hint { color: #d97706; background-color: #fef3c7; border-radius: 6px; font-weight: 800; border-bottom: 3px solid transparent; transform: translateY(-2px); opacity: 0.9; }
+@keyframes shake { 0%, 100% {transform: translateX(0) translateY(-2px);} 25% {transform: translateX(-4px) translateY(-2px);} 75% {transform: translateX(4px) translateY(-2px);} }
+</style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+<header class="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shadow-sm shrink-0 z-10">
+    <div class="flex items-center gap-3">
+        <a href="index.html" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
+            <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+            <div class="text-[10px] font-extrabold tracking-widest text-primary-500 uppercase">VOCAFLOW ENGINE</div>
+            <h1 id="lesson-title" class="text-sm font-extrabold text-slate-800">Đang tải dữ liệu...</h1>
+        </div>
+    </div>
+</header>
+
+<div id="loading" class="flex-1 flex flex-col items-center justify-center">
+    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary-500 mb-4"></i>
+    <p class="font-bold text-slate-500">Đang kéo bài tập từ máy chủ...</p>
+</div>
+
+<main id="app" class="flex-1 overflow-y-auto hidden pb-20"></main>
+<div id="fireworks"></div>
+
+<!-- FIREBASE & LOGIC GAME -->
+<script type="module">
+    // 1. Cấu hình Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+        authDomain: "night-ielts-land.firebaseapp.com",
+        databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+        projectId: "night-ielts-land",
+        storageBucket: "night-ielts-land.firebasestorage.app",
+        messagingSenderId: "408519436407",
+        appId: "1:408519436407:web:a9f0b9ba23368b54427e72"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 2. Biến toàn cục cho Game
+    window.customList = [];
+    window.state = {
+        practiceType: 'phrase', // 'phrase' hoặc 'sentence'
+        practiceIndex: 0,
+        input: '', revealed: false, completed: false, hintActive: false, hintEndIndex: -1, errorIndex: -1
+    };
+
+    // 3. Lấy ID bài tập từ URL (VD: game.html?id=abc)
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskId = urlParams.get('id');
+
+    if (!taskId) {
+        document.getElementById('loading').innerHTML = `<p class="font-bold text-red-500 text-xl">Lỗi: Không tìm thấy ID bài tập!</p><a href="index.html" class="mt-4 px-6 py-2 bg-slate-200 rounded-full font-bold">Quay lại trang chủ</a>`;
+    } else {
+        // Tải dữ liệu từ Firestore
+        const docRef = doc(db, "assignments", taskId);
+        getDoc(docRef).then((docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                document.getElementById('lesson-title').innerText = data.title || "Bài tập VocaFlow";
+                window.customList = data.vocabList;
+                
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('app').classList.remove('hidden');
+                
+                initAudio();
+                renderGame();
+                
+                // Mặc định đọc từ đầu tiên khi vừa load xong
+                setTimeout(() => window.speak(window.currentItem().audioText), 500);
+            } else {
+                document.getElementById('loading').innerHTML = `<p class="font-bold text-red-500 text-xl">Bài tập không tồn tại hoặc đã bị xóa!</p>`;
+            }
+        }).catch(err => {
+            console.error(err);
+            document.getElementById('loading').innerHTML = `<p class="font-bold text-red-500 text-xl">Lỗi kết nối mạng!</p>`;
+        });
+    }
+
+    // ==========================================
+    // AUDIO ENGINE (Web Speech API)
+    // ==========================================
+    window.audioCtx = null;
+    function initAudio() {
+        document.addEventListener('touchstart', unlockAudio, { once: true });
+        document.addEventListener('click', unlockAudio, { once: true });
+    }
+    function unlockAudio() {
+        if ('speechSynthesis' in window) {
+            const dummy = new SpeechSynthesisUtterance(' '); dummy.volume = 0; window.speechSynthesis.speak(dummy);
+        }
+        if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (window.audioCtx.state === 'suspended') window.audioCtx.resume();
+    }
+    window.speak = function(text, rate=1) {
+        if(!('speechSynthesis' in window) || !text) return;
+        window.speechSynthesis.cancel();
+        setTimeout(() => {
+            const u = new SpeechSynthesisUtterance(String(text));
+            u.lang = 'en-US'; u.rate = rate;
+            window.speechSynthesis.speak(u);
+        }, 60);
+    }
+    function ac(){ if(!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); if(window.audioCtx.state==='suspended') window.audioCtx.resume(); return window.audioCtx; }
+    function beep(freq, d=.06, vol=.03, type='sine'){
+        try {
+            const c=ac(), o=c.createOscillator(), g=c.createGain();
+            o.type=type; o.frequency.value=freq; g.gain.setValueAtTime(vol,c.currentTime);
+            g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d);
+            o.connect(g); g.connect(c.destination);
+            o.start(); o.stop(c.currentTime+d);
+        } catch(e){}
+    }
+    window.completeSound = () => [523,659,784,988].forEach((f,i)=>setTimeout(()=>beep(f,.15,.05), i*80));
+    window.errorSound = () => beep(150, 0.15, 0.05, 'sawtooth');
+    window.fireworks = () => {
+        const r=document.getElementById('fireworks'); r.innerHTML='';
+        for(let i=0;i<40;i++){
+            const s=document.createElement('span'), a=Math.random()*Math.PI*2, rad=80+Math.random()*180;
+            s.className='spark'; s.style.left=(42+Math.random()*16)+'%'; s.style.top=(32+Math.random()*24)+'%';
+            s.style.background=['#0ea5e9','#38bdf8','#99f6e4','#0d9488'][i%4];
+            s.style.setProperty('--dx',Math.cos(a)*rad+'px'); s.style.setProperty('--dy',Math.sin(a)*rad+'px');
+            r.appendChild(s);
+        }
+        setTimeout(()=>r.innerHTML='',1200);
+    }
+
+    // ==========================================
+    // TYPING ENGINE LOGIC
+    // ==========================================
+    window.currentItem = () => {
+        const item = window.customList[window.state.practiceIndex];
+        const isPhrase = window.state.practiceType === 'phrase';
+        return {
+            target: isPhrase ? item.phrase : item.sentence,
+            promptVi: item.meaningVi, // Modal giao bài lưu nghĩa chung
+            audioText: isPhrase ? item.phrase : item.sentence,
+            kind: isPhrase ? 'PHRASE' : 'SENTENCE'
+        };
+    }
+
+    window.handleKeyInput = (e) => {
+        if(window.state.completed || window.state.revealed) return;
+        const c = window.currentItem();
+        const targetStr = c.target.replace(/\s+/g, ' ');
+        const typedStr = e.target.value.replace(/\s+/g, ' ');
+        
+        let isValid = true;
+        let errIdx = -1;
+        for(let i=0; i<typedStr.length; i++) {
+            if(typedStr[i].toLowerCase() !== targetStr[i]?.toLowerCase()) {
+                isValid = false; errIdx = i; break;
+            }
+        }
+
+        if(!isValid) {
+            window.errorSound();
+            e.target.value = typedStr.substring(0, errIdx);
+            window.state.input = e.target.value;
+            window.state.errorIndex = errIdx;
+            updateTypingVisual();
+            clearTimeout(window.errorTimer);
+            window.errorTimer = setTimeout(() => { window.state.errorIndex = -1; updateTypingVisual(); }, 350);
+            return;
+        }
+
+        window.state.errorIndex = -1;
+        window.state.input = typedStr;
+        if(typedStr.length > 0) beep(620+Math.min(typedStr.length,12)*24, .05, .02);
+
+        if(typedStr.toLowerCase() === targetStr.toLowerCase()){
+            window.state.completed = true;
+            window.state.revealed = true;
+            window.state.input = c.target;
+            e.target.value = c.target;
+            window.completeSound();
+            setTimeout(window.fireworks, 60);
+        }
+        updateTypingVisual();
+    }
+
+    window.giveHint = () => {
+        if(window.state.completed || window.state.revealed) return;
+        const targetStr = window.currentItem().target;
+        if(window.state.input.length < targetStr.length) {
+            let startIdx = window.state.input.length;
+            if (targetStr[startIdx] === ' ') startIdx++;
+            let nextSpace = targetStr.indexOf(' ', startIdx);
+            if (nextSpace === -1) nextSpace = targetStr.length;
+            window.state.hintActive = true;
+            window.state.hintEndIndex = nextSpace;
+            updateTypingVisual();
+            setTimeout(() => document.getElementById('hiddenInput')?.focus(), 50);
+        }
+    }
+
+    window.updateTypingVisual = () => {
+        const c = window.currentItem();
+        const targetStr = c.target;
+        const typedStr = window.state.input;
+        const visualBox = document.getElementById('visualInputBox');
+        if(!visualBox) return;
+
+        let html = '';
+        for(let i=0; i<targetStr.length; i++) {
+            let char = targetStr[i];
+            let isSpace = char === ' ';
+            if (i < typedStr.length) {
+                html += `<span class="char-box char-typed">${isSpace ? '&nbsp;' : typedStr[i]}</span>`;
+            } else if (i === window.state.errorIndex) {
+                html += `<span class="char-box char-error">${isSpace ? '&nbsp;' : char}</span>`;
+            } else if (window.state.hintActive && i >= typedStr.length && i < window.state.hintEndIndex) {
+                html += `<span class="char-box char-hint">${char}</span>`;
+            } else {
+                if(window.state.revealed || window.state.completed) {
+                    html += `<span class="char-box char-untyped" style="border-bottom-color:transparent;">${isSpace ? '&nbsp;' : char}</span>`;
+                } else {
+                    html += `<span class="char-box char-untyped"><span class="char-masked">${isSpace ? '&nbsp;' : '*'}</span></span>`;
+                }
+            }
+        }
+        visualBox.innerHTML = html;
+
+        const bar = document.getElementById('progressBar');
+        if(bar) bar.style.width = ((typedStr.length / targetStr.length) * 100) + '%';
+        
+        const hiddenInp = document.getElementById('hiddenInput');
+        if(hiddenInp) hiddenInp.value = window.state.input;
+    }
+
+    // ==========================================
+    // RENDER GIAO DIỆN GAME
+    // ==========================================
+    window.changeType = (type) => {
+        window.state.practiceType = type;
+        window.state.input = ''; window.state.revealed = false; window.state.completed = false;
+        renderGame();
+        window.speak(window.currentItem().audioText, 1);
+        setTimeout(() => document.getElementById('hiddenInput')?.focus(), 150);
+    }
+    
+    window.nextItem = (dir) => {
+        window.state.practiceIndex = (window.state.practiceIndex + dir + window.customList.length) % window.customList.length;
+        window.state.input = ''; window.state.revealed = false; window.state.completed = false;
+        renderGame();
+        window.speak(window.currentItem().audioText, 1);
+        setTimeout(() => document.getElementById('hiddenInput')?.focus(), 150);
+    }
+
+    window.revealAnswer = () => {
+        window.state.revealed = true;
+        window.state.input = window.currentItem().target;
+        window.updateTypingVisual();
+    }
+
+    function renderGame() {
+        const c = window.currentItem();
+        
+        const html = `
+        <div class="max-w-4xl mx-auto p-4 md:p-8 fade">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex gap-2">
+                    <button onclick="changeType('phrase')" class="px-5 py-2.5 rounded-xl text-xs font-extrabold ${window.state.practiceType==='phrase'?'bg-primary-500 text-white shadow-sm':'bg-white text-slate-600 border border-slate-200'}">01. Cụm từ</button>
+                    <button onclick="changeType('sentence')" class="px-5 py-2.5 rounded-xl text-xs font-extrabold ${window.state.practiceType==='sentence'?'bg-primary-500 text-white shadow-sm':'bg-white text-slate-600 border border-slate-200'}">02. Cả câu</button>
+                </div>
+                <span class="text-xs font-extrabold text-slate-400">CÂU ${window.state.practiceIndex+1} / ${window.customList.length}</span>
+            </div>
+
+            <section class="bg-white border border-primary-100 rounded-[36px] overflow-hidden shadow-card p-6 md:p-12 relative">
+                <div class="text-center relative">
+                    <button onclick="speak('${c.audioText.replace(/'/g,"\\'")}',1); document.getElementById('hiddenInput')?.focus();" class="w-20 h-20 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-xl mx-auto hover:scale-105 transition">
+                        <i class="fa-solid fa-play ml-1 text-2xl"></i>
+                    </button>
+                    <div class="text-[10px] font-extrabold uppercase tracking-widest text-primary-500 mt-6">${c.kind} MEANING</div>
+                    <div class="text-2xl font-extrabold text-slate-800 mt-1">${c.promptVi}</div>
+                </div>
+
+                <div class="relative w-full max-w-2xl mx-auto mt-8 bg-white border-2 border-primary-100 rounded-2xl shadow-sm cursor-text overflow-hidden" onclick="document.getElementById('hiddenInput')?.focus()">
+                    <div id="visualInputBox" class="w-full text-center text-xl md:text-3xl font-bold px-4 py-8 flex justify-center flex-wrap leading-loose"></div>
+                    <input id="hiddenInput" value="${window.state.input}" oninput="handleKeyInput(event)" autocomplete="off" autocapitalize="off" spellcheck="false" class="absolute opacity-0 w-full h-full top-0 left-0" ${window.state.completed||window.state.revealed?'disabled':''}>
+                    <div id="progressBar" class="absolute bottom-0 left-0 h-1.5 bg-primary-500 transition-all duration-300" style="width: 0%"></div>
+                </div>
+
+                <div class="mt-8 flex flex-wrap justify-between items-center border-t border-slate-100 pt-6 gap-4">
+                    <button onclick="nextItem(-1)" class="px-5 py-3 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">← Trước</button>
+                    
+                    <div class="flex flex-wrap gap-2 justify-center">
+                        <button onclick="speak('${c.audioText.replace(/'/g,"\\'")}',1); document.getElementById('hiddenInput')?.focus();" class="px-4 py-2.5 rounded-xl bg-slate-50 text-xs font-extrabold text-slate-700 hover:bg-slate-100"><i class="fa-solid fa-volume-high"></i> Nghe</button>
+                        <button onclick="speak('${c.audioText.replace(/'/g,"\\'")}',0.7); document.getElementById('hiddenInput')?.focus();" class="px-4 py-2.5 rounded-xl bg-slate-50 text-xs font-extrabold text-slate-700 hover:bg-slate-100"><i class="fa-solid fa-turtle"></i> Chậm</button>
+                        ${!window.state.revealed?`<button onclick="giveHint()" class="px-4 py-2.5 rounded-xl bg-amber-50 text-amber-700 text-xs font-extrabold hover:bg-amber-100">Gợi ý</button>`:''}
+                        ${!window.state.revealed?`<button onclick="revealAnswer()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-extrabold hover:bg-slate-200">Đáp án</button>`:''}
+                    </div>
+
+                    <button onclick="nextItem(1)" class="px-6 py-3 rounded-xl bg-slate-900 text-white text-xs font-extrabold shadow-md hover:bg-slate-800">Tiếp theo →</button>
+                </div>
+            </section>
+        </div>`;
+        
+        document.getElementById('app').innerHTML = html;
+        window.updateTypingVisual();
+    }
+</script>
+</body>
+</html>
