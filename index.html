@@ -1,1072 +1,2120 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Night IELTS — Vocabulary Game Generator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Fredoka+One&display=swap');
+
+:root{
+  --bg:#0b0f19;
+  --panel:rgba(255,255,255,0.05);
+  --panel-border:rgba(0,240,255,0.18);
+  --primary:#00f0ff;
+  --danger:#ff4757;
+  --success:#2ed573;
+  --warning:#ffa502;
+  --text:#eef2f7;
+  --text-dim:#93a0b4;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:radial-gradient(circle at 20% 0%, #101a2e 0%, #0b0f19 55%, #05070c 100%);
+  color:var(--text);
+  font-family:'Plus Jakarta Sans', sans-serif;
+  padding:24px 16px 80px;
+}
+.wrap{max-width:1180px; margin:0 auto;}
+header{text-align:center; margin-bottom:28px;}
+header .eyebrow{font-size:0.8rem; letter-spacing:2px; color:var(--primary); font-weight:700; text-transform:uppercase;}
+header h1{font-family:'Fredoka One', cursive; font-size:2rem; margin:8px 0 6px; text-shadow:0 0 18px rgba(0,240,255,0.35);}
+header p{color:var(--text-dim); font-size:0.95rem; max-width:560px; margin:0 auto;}
+
+.grid{display:grid; grid-template-columns: 1.1fr 1.3fr; gap:20px;}
+@media (max-width: 920px){ .grid{grid-template-columns: 1fr;} }
+
+.card{
+  background:var(--panel);
+  border:1px solid var(--panel-border);
+  border-radius:18px;
+  padding:20px;
+  margin-bottom:20px;
+  backdrop-filter: blur(6px);
+}
+.card h2{font-size:1.05rem; margin:0 0 14px; display:flex; align-items:center; gap:8px;}
+.card h2 .num{
+  width:24px; height:24px; border-radius:50%; background:var(--primary); color:#000;
+  font-size:0.8rem; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+
+label{display:block; font-size:0.82rem; color:var(--text-dim); margin-bottom:5px; font-weight:600;}
+.field{margin-bottom:14px;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+
+input[type=text], input[type=number], textarea{
+  width:100%;
+  background:rgba(0,0,0,0.35);
+  border:1px solid rgba(255,255,255,0.12);
+  color:var(--text);
+  border-radius:10px;
+  padding:10px 12px;
+  font-family:inherit;
+  font-size:0.92rem;
+  outline:none;
+  transition:border-color .15s;
+}
+input:focus, textarea:focus{border-color:var(--primary);}
+textarea{resize:vertical; min-height:220px; line-height:1.5; font-size:0.88rem;}
+.hint{font-size:0.78rem; color:var(--text-dim); margin-top:6px; line-height:1.5;}
+.hint code{background:rgba(255,255,255,0.08); padding:1px 5px; border-radius:4px; font-size:0.78rem;}
+
+.btn{
+  border:none; border-radius:12px; padding:12px 18px; font-weight:700; cursor:pointer;
+  font-family:inherit; font-size:0.92rem; display:inline-flex; align-items:center; gap:8px;
+  transition:transform .1s, box-shadow .15s;
+}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--primary); color:#000; box-shadow:0 6px 18px rgba(0,240,255,0.3);}
+.btn-secondary{background:rgba(255,255,255,0.08); color:var(--text); border:1px solid rgba(255,255,255,0.15);}
+.btn-ghost{background:transparent; color:var(--text-dim); border:1px solid rgba(255,255,255,0.12); padding:8px 12px; font-size:0.82rem;}
+.actions{display:flex; flex-wrap:wrap; gap:10px; margin-top:6px;}
+
+table{width:100%; border-collapse:collapse; font-size:0.88rem;}
+thead th{text-align:left; color:var(--text-dim); font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; padding:0 8px 8px;}
+tbody tr{border-top:1px solid rgba(255,255,255,0.08);}
+tbody td{padding:6px 6px;}
+tbody input{padding:8px 9px; font-size:0.86rem;}
+.row-num{color:var(--text-dim); font-size:0.8rem; width:26px; text-align:center;}
+.dup-warning input{border-color:var(--warning) !important;}
+.del-btn{
+  background:rgba(255,71,87,0.12); border:1px solid rgba(255,71,87,0.4); color:var(--danger);
+  width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:0.9rem; line-height:1;
+}
+.table-wrap{max-height:360px; overflow-y:auto; border-radius:10px;}
+.table-wrap::-webkit-scrollbar{width:8px;}
+.table-wrap::-webkit-scrollbar-thumb{background:var(--primary); border-radius:4px;}
+.table-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,0.06); border-radius:4px;}
+
+.status-bar{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+.status-bar .count{font-weight:700; color:var(--primary);}
+.status-bar .warn{color:var(--warning); font-size:0.82rem;}
+
+#preview-frame{
+  width:100%; height:640px; border:1px solid var(--panel-border); border-radius:14px;
+  background:#000; display:none;
+}
+#preview-frame.active{display:block;}
+.preview-placeholder{
+  border:1px dashed rgba(255,255,255,0.15); border-radius:14px; padding:40px 20px;
+  text-align:center; color:var(--text-dim); font-size:0.9rem;
+}
+
+.toast{
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:#111827; border:1px solid var(--primary); color:var(--text);
+  padding:12px 20px; border-radius:12px; font-size:0.88rem; opacity:0; pointer-events:none;
+  transition:opacity .2s, transform .2s; z-index:50; box-shadow:0 8px 24px rgba(0,0,0,0.5);
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+.empty-state{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:24px 10px;}
+
+.hidden{display:none!important;}
+.modal-overlay{position:fixed; inset:0; z-index:900; background:rgba(5,7,12,0.85); display:flex; align-items:center; justify-content:center; padding:16px;}
+.modal-card{background:#0d1220; border:1px solid var(--panel-border); border-radius:18px; padding:24px; max-width:420px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,0.5);}
+.modal-card h3{font-family:'Fredoka One', cursive; font-size:1.15rem; margin:0 0 6px;}
+.modal-card p.desc{color:var(--text-dim); font-size:0.82rem; margin:0 0 16px; line-height:1.5;}
+.modal-actions{display:flex; gap:10px; margin-top:18px;}
+.modal-actions .btn{flex:1; justify-content:center;}
+.modal-msg{font-size:0.8rem; min-height:18px; margin-top:6px;}
+.modal-msg.ok{color:var(--success);}
+.modal-msg.err{color:var(--danger);}
+select.gg-select{
+  width:100%; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.12); color:var(--text);
+  border-radius:10px; padding:10px 12px; font-family:inherit; font-size:0.9rem; outline:none;
+}
+#authGate{position:fixed; inset:0; z-index:999; background:rgba(5,7,12,0.97); display:flex; align-items:center; justify-content:center; padding:24px;}
+#authGate .modal-card{max-width:420px; text-align:center;}
+#authGate .eyebrow{font-size:0.8rem; letter-spacing:2px; color:var(--primary); font-weight:700; text-transform:uppercase;}
+#authGate h1{font-family:'Fredoka One', cursive; font-size:1.4rem; margin:8px 0 6px;}
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH GATE (chỉ giáo viên/admin mới vào được) ================= -->
+<div id="authGate">
+  <div class="modal-card">
+    <div class="eyebrow">NIGHT IELTS</div>
+    <h1>Vocabulary Game Generator</h1>
+    <p id="authGateMsg" class="desc">Công cụ này chỉ dành cho giáo viên. Vui lòng đăng nhập bằng tài khoản Google quản trị.</p>
+    <button id="authGateLoginBtn" class="btn btn-primary" style="width:100%;justify-content:center;">Đăng nhập bằng Google</button>
+  </div>
+</div>
+
+<!-- ================= GITHUB SETTINGS MODAL ================= -->
+<div id="ghSettingsModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>⚙️ Cấu hình GitHub</h3>
+    <p class="desc">Dùng để đăng bài trực tiếp lên repo GitHub Pages của web. Token chỉ lưu trên trình duyệt này (localStorage) — dùng chung với các tool khác của Night IELTS.</p>
+    <div class="field"><label>Owner (username GitHub)</label><input type="text" id="ghOwner"></div>
+    <div class="field"><label>Repo</label><input type="text" id="ghRepo"></div>
+    <div class="field"><label>Branch</label><input type="text" id="ghBranch" value="main"></div>
+    <div class="field" style="margin-bottom:0;"><label>Personal Access Token</label><input type="text" id="ghToken"></div>
+    <div id="ghSettingsMsg" class="modal-msg"></div>
+    <div class="modal-actions">
+      <button id="ghSettingsCancel" class="btn btn-secondary">Đóng</button>
+      <button id="ghSettingsSave" class="btn btn-primary">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PUBLISH TO FOLDER MODAL ================= -->
+<div id="publishModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>📁 Đăng lên thư mục có sẵn</h3>
+    <p class="desc">Game sẽ nằm vĩnh viễn trong thư mục này trên trang chủ, cho tới khi thầy bấm xoá.</p>
+    <div class="field" style="margin-bottom:0;"><label>Chọn thư mục</label><select id="publishFolderSelect" class="gg-select"></select></div>
+    <div id="publishMsg" class="modal-msg"></div>
+    <div class="modal-actions">
+      <button id="publishCancel" class="btn btn-secondary">Huỷ</button>
+      <button id="publishConfirm" class="btn btn-primary">🚀 Đăng bài</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ASSIGN TO STUDENT MODAL ================= -->
+<div id="assignModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>🎯 Giao cho học sinh</h3>
+    <p class="desc">Game giao riêng sẽ tự động biến mất khỏi mục bài tập của học sinh sau 20 ngày. Vì đây là game (không phải Listening Type), học sinh sẽ tự bấm "Đánh dấu đã hoàn thành" sau khi chơi xong.</p>
+    <div class="field"><label>Học sinh</label><select id="assignStudentSelect" class="gg-select"></select></div>
+    <div class="field" style="margin-bottom:0;"><label>Hạn nộp (không bắt buộc)</label><input type="date" id="assignDeadline"></div>
+    <div id="assignMsg" class="modal-msg"></div>
+    <div class="modal-actions">
+      <button id="assignCancel" class="btn btn-secondary">Huỷ</button>
+      <button id="assignConfirm" class="btn btn-primary">🚀 Giao bài</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" class="wrap hidden">
+
+<header>
+  <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:10px;">
+    <span id="authUserBadge" style="color:var(--text-dim); font-size:0.78rem; align-self:center;"></span>
+    <button id="ghSettingsBtn" class="btn-ghost" title="Cấu hình GitHub" style="border-radius:50%; width:36px; height:36px; padding:0;">⚙️</button>
+    <button id="genLogoutBtn" class="btn-ghost">Đăng xuất</button>
+  </div>
+  <div class="eyebrow">Night IELTS · Internal Tool</div>
+  <h1>🐔 Vocabulary Game Generator</h1>
+  <p>Dán danh sách từ vựng, chỉnh vài thiết lập, rồi tải về (hoặc copy) file game HTML để gửi cho học sinh hoặc đăng lên trang Night IELTS.</p>
+</header>
+
+<div class="grid">
+  <!-- LEFT COLUMN: settings + input -->
+  <div>
+    <div class="card">
+      <h2><span class="num">1</span> Thiết lập bài học</h2>
+      <div class="field">
+        <label>Tiêu đề game (hiển thị trong game)</label>
+        <input type="text" id="input-title" placeholder="VD: UNIT 5 VOCABULARY" value="VOCABULARY CHICKEN INVADERS">
+      </div>
+      <div class="field">
+        <label>Câu phụ đề (tuỳ chọn)</label>
+        <input type="text" id="input-subtitle" placeholder="VD: Listen. Think. Aim. Shoot." value="Listen. Think. Aim. Shoot.">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Số mạng (lives)</label>
+          <input type="number" id="input-lives" min="1" max="9" value="3">
+        </div>
+        <div class="field">
+          <label>% để Pass</label>
+          <input type="number" id="input-pass" min="10" max="100" step="5" value="80">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Tên file khi tải xuống</label>
+        <input type="text" id="input-filename" value="vocabulary-chicken-invaders.html">
+        <div class="hint">Tự động tạo theo tiêu đề — có thể sửa lại nếu muốn (nên giữ đuôi <code>.html</code>, chữ thường, không dấu, cách nhau bằng dấu gạch ngang để hợp với GitHub Pages).</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">2</span> Dán danh sách từ vựng</h2>
+      <div class="field" style="margin-bottom:10px;">
+        <textarea id="input-vocab" placeholder="abandon - từ bỏ
+abundant - dồi dào
+accurate: chính xác
+(hoặc dán trực tiếp 2 cột từ Google Sheets/Excel — Anh cách Việt bằng Tab)"></textarea>
+        <div class="hint">Mỗi dòng một từ. Hỗ trợ các cách phân tách: <code>Tab</code> (dán từ Excel/Google Sheets), <code>từ - nghĩa</code>, <code>từ: nghĩa</code>, hoặc <code>từ, nghĩa</code>. Dòng trống sẽ tự bỏ qua.</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="btn-parse">🔄 Phân tích danh sách</button>
+        <button class="btn btn-secondary" id="btn-add-row">➕ Thêm dòng thủ công</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: table + actions + preview -->
+  <div>
+    <div class="card">
+      <h2><span class="num">3</span> Kiểm tra & chỉnh sửa</h2>
+      <div class="status-bar">
+        <div><span class="count" id="word-count">0</span> từ đã sẵn sàng</div>
+        <div class="warn" id="dup-warning" style="display:none;"></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:26px;"></th>
+              <th>English</th>
+              <th>Tiếng Việt</th>
+              <th style="width:36px;"></th>
+            </tr>
+          </thead>
+          <tbody id="vocab-tbody"></tbody>
+        </table>
+      </div>
+      <div id="empty-state" class="empty-state">Chưa có từ nào. Dán danh sách ở bước 2 rồi bấm "Phân tích danh sách".</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="num">4</span> Xuất game</h2>
+      <div class="actions">
+        <button class="btn btn-primary" id="btn-preview">🧪 Xem thử ngay tại đây</button>
+        <button class="btn btn-secondary" id="btn-download">⬇️ Tải file HTML</button>
+        <button class="btn btn-secondary" id="btn-copy">📋 Copy mã HTML</button>
+        <button class="btn btn-secondary" id="btn-publish">📁 Đăng lên thư mục</button>
+        <button class="btn btn-secondary" id="btn-assign">🎯 Giao cho học sinh</button>
+      </div>
+      <div class="hint" style="margin-top:12px;">Tải file về rồi kéo thả (hoặc upload) vào repo GitHub Pages của Night IELTS — mở trực tiếp bằng trình duyệt là chạy ngay, không cần build gì thêm. Cũng có thể gửi thẳng file <code>.html</code> này cho học sinh qua Zalo/Messenger để các em tự mở chơi.</div>
+      <div style="margin-top:16px;">
+        <iframe id="preview-frame"></iframe>
+        <div id="preview-placeholder" class="preview-placeholder">Bấm "🧪 Xem thử ngay tại đây" để xem trước game với danh sách từ hiện tại.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="text/template" id="game-template">
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Night IELTS | Test Repository</title>
-    
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%25%22 y1=%220%25%22 x2=%22100%25%22 y2=%22100%25%22><stop offset=%220%25%22 stop-color=%22%239b87f5%22/><stop offset=%22100%25%22 stop-color=%22%23f9a8d4%22/></linearGradient></defs><rect width=%22100%22 height=%22100%22 rx=%2225%22 fill=%22url(%23g)%22/><g transform=%22translate(27, 20) scale(0.12)%22><path d=%22M223.5 32C100 32 0 132.3 0 256S100 480 223.5 480c60.6 0 115.5-24.2 155.8-63.4c5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6c-96.9 0-175.5-78.8-175.5-176c0-65.8 36-123.1 89.3-153.3c6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z%22 fill=%22%23fff%22/></g></svg>" type="image/svg+xml">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
-                    colors: {
-                        brand: { purple: '#9b87f5', pink: '#f9a8d4', blue: '#7dd3fc', mint: '#6ee7b7', yellow: '#fde047' }
-                    },
-                    boxShadow: {
-                        'soft': '0 10px 40px -10px rgba(0,0,0,0.08)',
-                        'floating': '0 20px 40px -10px rgba(155,135,245,0.3)',
-                    }
-                }
-            }
-        }
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>__GAME_TITLE__</title>
     <style>
-        body { background: linear-gradient(135deg, #f8fafc 0%, #f3e8ff 50%, #fce7f3 100%); background-attachment: fixed; min-height: 100vh; }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .glass-header { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255, 255, 255, 0.5); }
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #0b0f19;
+            --primary: #00f0ff;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --warning: #ffa502;
+            --text-light: #ffffff;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --card-text: #2f3542;
+            /* Cập nhật bằng JS = window.innerHeight thật, tránh lỗi 100vh trên Safari iOS
+               (thanh địa chỉ ẩn/hiện làm 100vh tính dư ra, đẩy hàng phím A-K xuống khuất). */
+            --app-height: 100vh;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            /* Chặn pinch-zoom/double-tap-zoom ở mức trình duyệt — quan trọng trên iOS vì
+               Safari không còn tôn trọng user-scalable=no cho pinch-zoom từ iOS 10 trở đi,
+               nên phải chặn bằng touch-action ở đây mới ăn chắc. */
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            overscroll-behavior: none;
+        }
+
+        body {
+            background-color: #000;
+            color: var(--text-light);
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            height: var(--app-height, 100vh);
+        }
+        @supports (height: 100dvh) {
+            body { height: 100dvh; }
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 100%;
+            max-height: 1200px;
+            background: var(--bg-color);
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            touch-action: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        /* UI Screens */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 15, 25, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            text-align: center;
+            padding: 20px;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        h1 { font-family: 'Fredoka One', cursive; font-size: 2.5rem; color: var(--primary); margin-bottom: 10px; text-shadow: 0 0 10px var(--primary); }
+        h2 { font-size: 1.8rem; margin-bottom: 20px; }
+        p { font-size: 1.2rem; margin-bottom: 15px; }
+        
+        .btn {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-family: 'Fredoka One', cursive;
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+            touch-action: manipulation;
+        }
+        .btn:active { transform: scale(0.95); }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; width: 100%;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 5;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px #000;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .hud-left, .hud-right { display: flex; flex-direction: column; }
+        .hud-right { align-items: flex-end; }
+        #lives { color: var(--danger); font-size: 1.5rem; letter-spacing: 5px; }
+        #combo-display { color: var(--warning); font-size: 1.2rem; opacity: 0; transition: opacity 0.2s; }
+        #combo-display.active { opacity: 1; }
+
+        /* Controls */
+        #controls {
+            display: flex;
+            height: 80px;
+            /* Chừa khoảng an toàn cho vùng home-indicator/viền cong ở dưới iPhone & iPad,
+               nếu không hàng phím A-K có thể bị vùng đó che mất một phần. */
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            background: rgba(0, 0, 0, 0.5);
+            border-top: 2px solid rgba(0, 240, 255, 0.3);
+            z-index: 5;
+            touch-action: none;
+            flex-shrink: 0;
+        }
+        .control-btn {
+            flex: 1;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.5);
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            touch-action: none;
+            transition: background 0.1s, color 0.1s;
+        }
+        .control-btn:active, .control-btn.active {
+            background: rgba(0, 240, 255, 0.3);
+            color: #fff;
+        }
+
+        /* Review List — cho phép cuộn dọc bình thường, chỉ chặn zoom */
+        .review-list {
+            max-height: 55vh;
+            overflow-y: auto;
+            touch-action: pan-y;
+            width: 100%;
+            max-width: 450px;
+            margin: 15px 0;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 10px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        
+        /* Custom Scrollbar for review list */
+        .review-list::-webkit-scrollbar { width: 8px; }
+        .review-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        .review-list::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+
+        .review-item {
+            background: rgba(255,255,255,0.1);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .review-item:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .review-word { font-weight: bold; font-size: 1.2rem; margin-bottom: 5px; display: inline-block; }
+        .review-meaning { font-size: 0.95rem; color: #cbd5e1; }
+        
+        .speaker-btn {
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            font-size: 1.3rem;
+            cursor: pointer;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s, background 0.2s;
+            touch-action: manipulation;
+        }
+        .speaker-btn:active { transform: scale(0.9); }
+        .speaker-btn:hover { background: rgba(0, 240, 255, 0.3); }
+
+        /* Voice picker (chọn giọng đọc tiếng Anh) */
+        .voice-select-row {
+            margin: 8px 0 5px;
+            text-align: left;
+            width: 100%;
+            max-width: 320px;
+        }
+        .voice-select-row label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.45);
+        }
+        #voiceSelect {
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            padding: 9px 10px;
+            font-size: 0.9rem;
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation;
+        }
+        #voiceSelect option { color: #000; }
+
     </style>
 </head>
-<body class="text-gray-700 antialiased font-sans pb-12">
+<body>
 
-    <script>
-        const LESSON_DATA = [
-            {
-                id: "LINH TINH", name: "Linh Tinh", icon: "fa-regular fa-folder-open", description: "Chứa các bài test nhỏ phục vụ giảng dạy cuốn sách Mindset 2.",
-                tests: [
-                    {title: "Vocab Shooter - Generator", date: "09/07", questions: 30, link: "homework/night-ielts-vocabulary-game-generator.html" },
-                    {title: "Tạo bài tập", date: "09/07", questions: 30, link: "homework/listening-type-generator_2.html" },
-                    {title: "TRÌNH ĐỌC SÁCH", date: "09/07", questions: 30, link: "mindset0/docsach.html" }, 
-                    {title: "TRÌNH ĐỌC SÁCH - Chinese (Giản Thể)", date: "09/07", questions: 30, link: "mindset0/Night Chinese Land_3.html" },
-                    {title: "TRÌNH ĐỌC SÁCH - Chinese (Phồn thể)", date: "09/07", questions: 30, link: "mindset0/Night Chinese Land_1.html" }, 
-                    {title: "Unit 2: sports - reading", date: "09/07", questions: 30, link: "homework/mindset2-u2t1a.html" },
-                    {title: "Unit 2-3: tổng hợp test", date: "31/07", questions: 40, link: "homework/testmindsetu23.html" },
-                    {title: "ielts_writing_task_1_process_recycling", date: "31/07", questions: 40, link: "homework/ielts_process_interactive_lesson.html" },
-                    {title: "unit 1: reading 2 bài", date: "31/07", questions: 0, link: "homework/interactive_reading_app_combined.html" }
-                ]
-            },
-            {
-                id: "listening - cac giao trinh", name: "listening - các giáo trình", icon: "fa-regular fa-folder-open", description: "nghe vui cùng Nai.",
-                tests: [
-                    { title: "tổng hợp file nghe mindset2", date: "0", questions: 0, link: "homework/filenghemindset2/tổng hợp file nghe mindset2.html" },
-                    { title: "tổng hợp file nghe outcomes", date: "0", questions: 0, link: "homework/filengheoutcomes/tonghopfilengheoutomes.html" }
-                ]
-            },
-            {
-                id: "bai tap pre-listening", name: "pre-listening", icon: "fa-regular fa-folder-open", description: "nghe vui cùng Nai.",
-                tests: [
-                    { title: "unit4/prelistening_unit4", date: "0", questions: 0, link: "homework/mindset2/unit4/prelistening_unit4.html" }
-                ]
-            },
-            {
-                id: "Mindset-foundation", name: "Mindset0", icon: "fa-regular fa-folder-open", description: "^^",
-                tests: [
-                    { title: "Unit01_Daily_Life", date: "0", questions: 0, link: "mindset0/Mindset_Unit01_Daily_Life.html" },
-                    { title: "Unit02_House_and_Home", date: "0", questions: 0, link: "mindset0/Mindset_Unit02_House_and_Home.html" },
-                    { title: "Unit03_Hobbies_Leisure", date: "0", questions: 0, link: "mindset0/Mindset_Unit03_Hobbies_Leisure.html" }
-                ]
-            },
-            {
-                id: "mindset 2 - giáo trình - interactive lessons", name: "speaking mindset2", icon: "fa-solid fa-microphone-lines", description: "Chứa các mini tests thực hành kỹ năng Nói (Part 1, 2, 3).",
-                tests: [
-                    { title: "unit 2 | mindset 2", date: "0", questions: 0, link: "mindset2_practice/Unit02_Leisure_and_Recreation_Mindset2.html" },
-                    { title: "unit 5 | mindset 2", date: "0", questions: 0, link: "mindset2_practice/Unit05_Business_and_Work_Mindset2_3.html" }
-                ]
-            },
-            {
-                id: "mindset0", name: "mindset foundation", icon: "fa-solid fa-microphone-lines", description: "^^",
-                tests: [
-                    { title: "unit1-pre", date: "0", questions: 0, link: "homework/mindset0/unit1-pre.html" },
-                    { title: "unitư-pre", date: "0", questions: 0, link: "homework/mindset2/unit2-pre.html" }
-                ]
-            },
-            {
-                id: "nguphap", name: "ngữ pháp tổng hợp", icon: "fa-solid fa-microphone-lines", description: "^^",
-                tests: [
-                    { title: "Cụm Danh từ tổng hợp", date: "0", questions: 0, link: "homework/nguphap/nounphrase-th.html" }
-                ]
-            },
-            {
-                id: "Vocab Practice Mindset 2", name: "Vocab Practice Mindset 2", icon: "fa-solid fa-microphone-lines", description: "^^",
-                tests: [
-                    { title: "Bài 1: ACCOMMODATION", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Unit01_Fixed_Contrast (1).html" },
-                    { title: "Bài 2: LEISURE", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Mindset2_Unit02_Pastel_Lavender.html" },
-                    { title: "Bài 3: NEWS AND MEDIA", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Mindset2_Unit03_Pastel_Sky.html" },
-                    { title: "Bài 4: TRAVEL AND TRANSPORT", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Mindset2_Unit04_Pastel_Peach.html" },
-                    { title: "Bài 5: BUSINESS AND WORK", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Mindset2_Unit05_Pastel_Mint.html" },
-                    { title: "Bài 6: THE NATURAL ENVIRONMENT: ", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Mindset2_Unit06_Pastel_Coral_MODEL_SENTENCES_FIXED.html" },
-                    { title: "Bài 7: EDUCATION SYSTEMS", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Mindset2_Unit07_Education_Systems_Pastel_Purple.html" },
-                    { title: "Bài 8: FESTIVALS AND TRADITIONS", date: "0", questions: 0, link: "mindset2_practice/English_Study_Desk_Mindset2_Unit08_Festivals_Traditions_FROM_UNIT05_TEMPLATE.html" }
-                ]
-            },
-            {
-                id: "writing1", name: "Writing Task 1", icon: "fa-solid fa-pen-nib", description: "Chứa các đề bài hoặc bài mẫu luyện viết biểu đồ Task 1.",
-                tests: [
-                    {title: "|đề| ielts_writing_task_1_process_recycling", date: "31/07", questions: 0, link: "homework/ielts_process_interactive_lesson.html" },
-                    {title: "|đề| ielts_map_interactive_lesson", date: "31/07", questions: 0, link: "homework/ielts_map_interactive_lesson.html" },
-                    {title: "|đề| bar chart - art-subjects", date: "31/07", questions: 0, link: "homework/deonwriting1/|đề| bar chart (art-subjects).html" },
-                    {title: "|đề| bar chart - tập thể dục", date: "31/07", questions: 0, link: "homework/deonwriting1/|đề| bar chart (tập thể dục).html" },
-                    {title: "|đề| bar chart - danh thu hãng dth", date: "31/07", questions: 0, link: "homework/deonwriting1/|đề| Bar Chart - danh thu hãng dth.html" },
-                    {title: "|đề| line graph - chi phí", date: "31/07", questions: 0, link: "homework/deonwriting1/|đề| line graph (chi phí).html" },
-                    {title: "|đề| pie chart - sản xuất điện tại 4 quốc gia", date: "31/07", questions: 0, link: "homework/deonwriting1/|đề| pie chart (sản xuất điện tại 4 quốc gia).html" },
-                    {title: "|đề| pie chart - điện năng", date: "31/07", questions: 0, link: "homework/deonwriting1/|đề| pie chart (điện năng).html" },
-                    {title: "|đề| table - du học sinh.html", date: "31/07", questions: 0, link: "homework/deonwriting1/|đề| table [du học sinh].html" },
-                    {title: "bộ kĩ năng ĐỘNG", date: "31/07", questions: 0, link: "homework/ielts_task_1_dynamic_chart_workbook (1).html" },
-                    {title: "combo 2 bộ kĩ năng cơ bản", date: "31/07", questions: 0, link: "homework/gemini-code-1785667477042.html" },
-                    {title: "lesson 2: dynamic_chart", date: "31/07", questions: 0, link: "homework/writingtask1-bai2-dang1-dynamicchart.html" },
-                    {title: "lesson 2: dynamic_chart - bài tập tổng hợp", date: "31/07", questions: 0, link: "homework/baitaptonghop_lesson2_w6.html" }
-                ]
-            },
-            {
-                id: "Boya1", name: "Boya1", icon: "fa-solid fa-microphone-lines", description: "^^",
-                tests: [
-                    { title: "Bài 1: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b1_boya1.html" },
-                    { title: "Bài 2: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b2_boya1.html" },
-                    { title: "Bài 3: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b3_boya1.html" },
-                    { title: "Bài 4: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b4_boya1.html" },
-                    { title: "Bài 5: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/q5_boya1.html" },
-                    { title: "Bài 6: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b6_boya1.html" },
-                    { title: "Bài 7: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b7_boya1.html" },
-                    { title: "Bài 8: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b8_boya1.html" },
-                    { title: "Bài 9: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b9_boya1.html" },
-                    { title: "Bài 10: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b10_boya1.html" },
-                    { title: "Bài 11: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b11_boya1.html" },
-                    { title: "Bài 12: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b12_boya1.html" },
-                    { title: "Bài 13: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b13_boya1.html" },
-                    { title: "Bài 14: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b14_boya1.html" },
-                    { title: "Bài 15: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b15_boya1.html" },
-                    { title: "Bài 16: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b16_boya1.html" },
-                    { title: "Bài 17: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b17_boya1.html" },
-                    { title: "Bài 18: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b18_boya1.html" },
-                    { title: "Bài 19: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b19_boya1.html" },
-                    { title: "Bài 20: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b20_boya1.html" },
-                    { title: "Bài 21: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b21_boya1.html" },
-                    { title: "Bài 22: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b22_boya1.html" },
-                    { title: "Bài 23: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b23_boya1.html" },
-                    { title: "Bài 24: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b24_boya1.html" },
-                    { title: "Bài 25: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b25_boya1.html" },
-                    { title: "Bài 26: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b26_boya1.html" },
-                    { title: "Bài 27: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b27_boya1.html" },
-                    { title: "Bài 28: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b28_boya1.html" },
-                    { title: "Bài 29: Bạn tên là gì?", date: "0", questions: 0, link: "chinese/boya1/b29_boya1.html" }
-                ]
-            },
-            {
-                id: "empty_demo", name: "Thư mục mới", icon: "fa-solid fa-plus", description: "Thư mục này hiện tại chưa có dữ liệu.",
-                tests: []
-            }
-        ];
-    </script>
-
-    <header class="glass-header sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-20">
-                <div class="flex items-center gap-3 cursor-pointer group">
-                    <div class="w-12 h-12 bg-gradient-to-br from-brand-purple to-brand-pink rounded-2xl shadow-md flex items-center justify-center text-2xl text-white group-hover:rotate-12 group-hover:scale-110 transition-all duration-300">
-                        <i class="fa-solid fa-moon"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-black text-gray-800 tracking-tight">Night IELTS</h1>
-                        <p class="text-xs font-bold text-brand-purple uppercase tracking-wider">Classroom Hub</p>
-                    </div>
-                </div>
-
-                <div id="auth-container" class="flex items-center gap-3">
-                    <!-- Nút Giao Bài (Chỉ admin mới thấy) -->
-                    <button id="admin-studio-btn" class="hidden px-5 py-2.5 bg-brand-pink text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2">
-                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Giao Bài
-                    </button>
-
-                    <!-- Nút Tiến Độ (Chỉ admin mới thấy) -->
-                    <button id="admin-progress-btn" class="hidden px-5 py-2.5 bg-emerald-500 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2">
-                        <i class="fa-solid fa-chart-simple mr-1"></i> Tiến Độ
-                    </button>
-
-                    <!-- Nút cấu hình GitHub, dùng để đăng/xoá bài trong Kho Lưu Trữ (Chỉ admin mới thấy) -->
-                    <button id="admin-gh-settings-btn" title="Cấu hình GitHub" class="hidden w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold rounded-full shadow-sm transition-shadow text-sm mr-2 items-center justify-center">
-                        <i class="fa-solid fa-gear"></i>
-                    </button>
-
-                    <button id="login-btn" class="px-5 py-2.5 bg-brand-purple text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow">
-                        <i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail
-                    </button>
-                    
-                    <div id="user-profile" class="hidden items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-gray-100">
-                        <div class="text-right hidden sm:block">
-                            <p id="user-role" class="text-[10px] font-bold text-gray-400 uppercase">Student</p>
-                            <p id="user-name" class="text-sm font-extrabold text-gray-800">Đang tải...</p>
-                        </div>
-                        <img id="user-avatar" src="" class="w-10 h-10 rounded-full shadow-inner object-cover" alt="Avatar">
-                        <button id="logout-btn" class="ml-2 text-gray-400 hover:text-red-500 transition-colors">
-                            <i class="fa-solid fa-right-from-bracket"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
+<div id="game-container">
+    <div id="hud">
+        <div class="hud-left">
+            <div id="lives">❤️❤️❤️</div>
+            <div id="progress">Words: 0/20</div>
+            <div id="target-meaning" style="color: var(--primary); font-size: 1.3rem; margin-top: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px; cursor: pointer; pointer-events: auto;"></div>
         </div>
-    </header>
-
-    <!-- MODAL GIAO BÀI TẬP (Ẩn mặc định) -->
-    <div id="studio-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-floating transform transition-all max-h-[90vh] overflow-y-auto hide-scrollbar">
-            <h2 class="text-2xl font-black text-brand-purple mb-1">Giao Bài Tập Mới</h2>
-            <p class="text-sm text-gray-500 font-bold mb-5">Chọn học sinh và nạp bài tập</p>
-
-            <!-- Chuyển đổi giữa 2 cách giao bài -->
-            <div class="flex gap-2 bg-gray-100 rounded-xl p-1 mb-5">
-                <button id="mode-typed-btn" onclick="setTaskMode('typed')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm">✍️ Nhập từ vựng mới</button>
-                <button id="mode-link-btn" onclick="setTaskMode('link')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📂 Chọn bài có sẵn</button>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tên bài học</label>
-                    <input id="task-title" type="text" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors" placeholder="Ví dụ: Unit 1 - Daily Life">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Chọn học sinh</label>
-                    <select id="student-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
-                        <option value="">Đang tải danh sách...</option>
-                    </select>
-                </div>
-
-                <!-- CHẾ ĐỘ: nhập từ vựng mới -->
-                <div id="mode-typed-fields">
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Từ vựng (Từ | Nghĩa | Câu ví dụ)</label>
-                    <textarea id="task-data" rows="5" class="w-full border-2 border-gray-100 rounded-xl p-3 text-sm font-mono text-gray-700 outline-none focus:border-brand-purple transition-colors hide-scrollbar" placeholder="get up | thức dậy | Ava gets up at 7am."></textarea>
-                </div>
-
-                <!-- CHẾ ĐỘ: chọn bài có sẵn trong thư mục -->
-                <div id="mode-link-fields" class="hidden space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Thư mục</label>
-                        <select id="task-folder-select" onchange="onTaskFolderChange()" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Bài trong thư mục</label>
-                        <select id="task-file-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
-                    </div>
-                    <p class="text-[11px] text-gray-400 font-semibold">File vẫn nằm nguyên trong thư mục — chỉ giao 1 đường link riêng cho học sinh này. Vì đây là bài có sẵn (không phải Listening Type), học sinh cần tự bấm "Đánh dấu đã hoàn thành" sau khi làm xong.</p>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Hạn nộp (không bắt buộc)</label>
-                    <input id="task-deadline" type="date" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
-                    <p class="text-[11px] text-gray-400 font-semibold mt-1.5">Bài giao riêng sẽ tự động biến mất sau 20 ngày kể từ lúc giao, bất kể có đặt hạn nộp hay không.</p>
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-3 mt-8">
-                <button id="btn-close-modal" class="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Hủy</button>
-                <button id="btn-submit-task" class="px-6 py-2.5 bg-brand-purple text-white font-bold rounded-xl hover:bg-purple-600 shadow-md transition-colors">🚀 Giao Bài</button>
-            </div>
+        <div class="hud-right">
+            <div id="score">Score: 0</div>
+            <div id="combo-display">COMBO x2</div>
         </div>
     </div>
 
-    <!-- MODAL CẤU HÌNH GITHUB (Ẩn mặc định, chỉ admin) -->
-    <div id="gh-settings-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-floating transform transition-all">
-            <h2 class="text-xl font-black text-gray-800 mb-1">⚙️ Cấu hình GitHub</h2>
-            <p class="text-xs text-gray-400 font-bold mb-5">Dùng để xoá bài trong Kho Lưu Trữ trực tiếp trên repo. Token chỉ lưu trên trình duyệt này.</p>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Owner (username GitHub)</label>
-                    <input id="gh-owner" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Repo</label>
-                    <input id="gh-repo" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Branch</label>
-                    <input id="gh-branch" value="main" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5">Personal Access Token</label>
-                    <input id="gh-token" type="password" class="w-full border-2 border-gray-100 rounded-xl p-2.5 font-bold text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors font-mono">
-                </div>
-            </div>
-            <div id="gh-settings-msg" class="text-xs mt-3 min-h-[16px] font-bold"></div>
-            <div class="flex justify-end gap-3 mt-6">
-                <button id="btn-close-gh-settings" class="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Đóng</button>
-                <button id="btn-save-gh-settings" class="px-6 py-2.5 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-900 shadow-md transition-colors">Lưu</button>
-            </div>
-        </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="controls">
+        <div class="control-btn" data-lane="0">A</div>
+        <div class="control-btn" data-lane="1">S</div>
+        <div class="control-btn" data-lane="2">D</div>
+        <div class="control-btn" data-lane="3">F</div>
+        <div class="control-btn" data-lane="4">G</div>
+        <div class="control-btn" data-lane="5">H</div>
+        <div class="control-btn" data-lane="6">J</div>
+        <div class="control-btn" data-lane="7">K</div>
     </div>
 
-    <!-- MODAL TIẾN ĐỘ HỌC SINH (Ẩn mặc định) -->
-    <div id="progress-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-3xl shadow-floating transform transition-all max-h-[85vh] flex flex-col">
-            <div class="flex items-start justify-between gap-3">
-                <div>
-                    <h2 class="text-2xl font-black text-emerald-600 mb-1">Tiến Độ Học Sinh</h2>
-                    <p class="text-sm text-gray-500 font-bold">Bài đã giao và % câu đã gõ đúng</p>
-                </div>
-                <button id="btn-close-progress" class="text-gray-400 hover:text-gray-600 text-xl leading-none mt-1">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div id="progress-list" class="mt-6 space-y-3 overflow-y-auto hide-scrollbar flex-1">
-                <p class="text-gray-400 text-sm font-bold">Đang tải...</p>
-            </div>
+    <!-- Start Screen -->
+    <div id="screen-start" class="screen active">
+        <h1 id="game-title-h1">VOCABULARY<br>CHICKEN INVADERS</h1>
+        <p id="subtitle-text">Listen. Think. Aim. Shoot.</p>
+        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 20px 0;">
+            <p id="info-line">🎯 20 Words | ❤️ 3 Lives</p>
+            <p id="pass-line">🏆 80% to Pass</p>
         </div>
+        <p id="credit-line" style="font-size: 0.8rem; color: rgba(255,255,255,0.35); margin-top: -10px; margin-bottom: 15px;">Night IELTS · by Mr. Night</p>
+        <div class="voice-select-row" id="voiceSelectRow" style="display:none;">
+            <label for="voiceSelect">🔊 Chọn giọng đọc tiếng Anh</label>
+            <select id="voiceSelect"></select>
+        </div>
+        <button class="btn" id="btn-start">🚀 START MISSION</button>
     </div>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div class="grid grid-cols-2 gap-4 sm:gap-6 mt-4 max-w-2xl">
-            <div class="bg-white p-5 rounded-3xl shadow-soft hover:shadow-md transition-shadow border border-gray-50 flex items-center gap-4">
-                <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-500 flex flex-shrink-0 items-center justify-center text-2xl">
-                    <i class="fa-solid fa-folder-tree"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-bold text-gray-400">Thư mục</p>
-                    <p class="text-2xl font-black text-gray-800" id="total-folders">0</p>
-                </div>
-            </div>
-            <div class="bg-white p-5 rounded-3xl shadow-soft hover:shadow-md transition-shadow border border-gray-50 flex items-center gap-4">
-                <div class="w-14 h-14 rounded-2xl bg-pink-50 text-pink-500 flex flex-shrink-0 items-center justify-center text-2xl">
-                    <i class="fa-solid fa-file-signature"></i>
-                </div>
-                <div>
-                    <p class="text-sm font-bold text-gray-400">Tổng Test</p>
-                    <p class="text-2xl font-black text-gray-800" id="total-tests">0</p>
-                </div>
-            </div>
+    <!-- Tutorial Screen -->
+    <div id="screen-tutorial" class="screen">
+        <h2>HOW TO PLAY</h2>
+        <p>1. Read/listen to the Vietnamese meaning on the top left.</p>
+        <p>2. Find the matching English word on a chicken.</p>
+        <p>3. Press the lane button (A-K or tap) to move & shoot.</p>
+        <button class="btn" id="btn-play">LET'S PLAY</button>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="screen-results" class="screen">
+        <h1 id="result-title" style="margin-bottom: 5px;">MISSION COMPLETE</h1>
+        <h2 id="result-percent" style="margin-bottom: 5px;">90%</h2>
+        <p id="result-stats" style="margin-bottom: 10px; font-size: 1rem;"></p>
+        
+        <h3 style="color: var(--primary); text-transform: uppercase; font-size: 1rem; letter-spacing: 2px;">Tổng hợp từ vựng</h3>
+        
+        <div class="review-list" id="review-list">
+            <!-- Words will be dynamically injected here -->
         </div>
+        
+        <button class="btn" id="btn-replay" style="margin-top: 10px;">PLAY AGAIN</button>
+    </div>
+</div>
 
-        <div class="mt-10">
-            <div class="space-y-6">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-xl font-black text-gray-800 flex items-center gap-2">
-                        <span class="text-brand-purple"><i class="fa-solid fa-layer-group"></i></span>
-                        Kho Lưu Trữ
-                    </h3>
-                </div>
-                <div class="hide-scrollbar overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <div class="flex gap-3" id="folder-tabs-container"></div>
-                </div>
-                <div class="bg-white rounded-[2rem] p-6 sm:p-8 shadow-soft border border-white min-h-[400px]">
-                    <div id="test-list-container" class="space-y-4"></div>
-                </div>
-            </div>
-        </div>
-    </main>
+<script>
+/**
+ * VOCABULARY DATASET
+ */
+const rawVocabulary = __VOCAB_JSON__;
+const GAME_TITLE = "__GAME_TITLE__";
+const GAME_SUBTITLE = "__GAME_SUBTITLE__";
+const LIVES_COUNT = __LIVES__;
+const PASS_PERCENT = __PASS_PERCENT__;
 
-    <script>
-        var IS_ADMIN = false;
-        let totalTests = 0;
-        function updateStats() {
-            totalTests = 0;
-            LESSON_DATA.forEach(f => totalTests += f.tests.length);
-            document.getElementById('total-tests').innerText = totalTests;
-            document.getElementById('total-folders').innerText = LESSON_DATA.length;
-        }
-        updateStats();
+/**
+ * GAME ENGINE & STATE
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-        const tabsContainer = document.getElementById('folder-tabs-container');
-        const testsContainer = document.getElementById('test-list-container');
-        let currentFolderIndex = 0;
+let gameWidth = 0;
+let gameHeight = 0;
+const LANE_COUNT = 8;
+const DANGER_ZONE_HEIGHT = 100;
 
-        function renderFolders() {
-            tabsContainer.innerHTML = '';
-            LESSON_DATA.forEach((folder, index) => {
-                const isActive = index === 0;
-                const baseClass = "flex-shrink-0 px-6 py-3 rounded-full cursor-pointer transition-all duration-300 font-bold whitespace-nowrap flex items-center gap-2 text-sm sm:text-base border-2";
-                const activeClass = "bg-brand-purple border-brand-purple text-white shadow-md transform scale-105";
-                const inactiveClass = "bg-white border-transparent text-gray-500 hover:bg-purple-50 hover:text-brand-purple";
+// Audio Context
+let audioCtx = null;
 
-                tabsContainer.innerHTML += `
-                    <div class="folder-tab ${baseClass} ${isActive ? activeClass : inactiveClass}" 
-                         onclick="changeFolder(${index}, this)">
-                        <i class="${folder.icon}"></i> ${folder.name}
-                    </div>
-                `;
-            });
-            renderTests(0);
-        }
+// Game State
+let state = {
+    screen: 'start',
+    vocabQueue: [],
+    activeEnemies: [],
+    lasers: [],
+    particles: [],
+    stars: [],
+    score: 0,
+    lives: LIVES_COUNT,
+    combo: 0,
+    maxCombo: 0,
+    completed: 0,
+    missedWords: [],
+    masteredWords: [],
+    targetWord: null,
+    lastTime: 0,
+    animFrame: null,
+    spawnTimer: 0,
+    difficultyMultiplier: 1
+};
 
-        function renderTests(folderIndex) {
-            const folder = LESSON_DATA[folderIndex];
-            let html = `
-                <div class="mb-6 pb-4 border-b border-gray-100 flex items-start gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-purple-100 text-brand-purple flex items-center justify-center text-xl flex-shrink-0">
-                        <i class="${folder.icon}"></i>
-                    </div>
-                    <div>
-                        <h4 class="text-xl font-black text-gray-800">${folder.name}</h4>
-                        <p class="text-gray-500 text-sm font-medium mt-1">${folder.description}</p>
-                    </div>
-                </div>
-            `;
+// Player (Spaceship)
+let player = {
+    lane: 3.5,
+    targetLane: 3.5,
+    y: 0,
+    width: 40,
+    height: 40,
+    fireTimer: 0
+};
 
-            if (folder.tests.length === 0) {
-                html += `
-                    <div class="flex flex-col items-center justify-center py-12 text-center animate-fade-in">
-                        <div class="w-32 h-32 bg-gray-50 rounded-full flex items-center justify-center mb-4 relative">
-                            <span class="text-6xl">🗂️</span>
-                            <span class="absolute -bottom-2 -right-2 text-3xl">✨</span>
-                        </div>
-                        <h5 class="text-lg font-black text-gray-700 mb-2">Thư mục này đang trống</h5>
-                        <p class="text-gray-400 font-medium mb-6">Chưa có bài kiểm tra nào được thêm vào đây.</p>
-                    </div>
-                `;
-            } else {
-                html += `<div class="grid grid-cols-1 gap-4">`;
-                folder.tests.forEach((test, idx) => {
-                    const bgColors = ['bg-blue-100 text-blue-500', 'bg-green-100 text-green-500', 'bg-yellow-100 text-yellow-500', 'bg-pink-100 text-pink-500'];
-                    const colorCombo = bgColors[idx % bgColors.length];
+// Controls Map & Labels
+const keysMap = {
+    'a': 0, 's': 1, 'd': 2, 'f': 3, 'g': 4, 'h': 5, 'j': 6, 'k': 7,
+    '1': 0, '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, '7': 6, '8': 7
+};
+const laneLabels = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K'];
 
-                    html += `
-                        <div class="group bg-gray-50/50 hover:bg-white p-4 sm:p-5 rounded-2xl border border-gray-100 hover:border-brand-purple/30 transition-all duration-300 hover:shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-default relative">
-                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-purple rounded-l-2xl transform -translate-x-full group-hover:translate-x-0 transition-transform"></div>
-                            <div class="flex items-center gap-4 w-full sm:w-auto">
-                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${colorCombo}">
-                                    <i class="fa-solid fa-file-lines"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <h5 class="font-bold text-gray-800 text-base sm:text-lg leading-tight group-hover:text-brand-purple transition-colors line-clamp-1">${test.title}</h5>
-                                    <div class="flex items-center gap-3 mt-1.5 text-xs sm:text-sm font-semibold text-gray-400">
-                                        <span class="flex items-center gap-1"><i class="fa-regular fa-calendar"></i> ${test.date}</span>
-                                        <span class="w-1 h-1 rounded-full bg-gray-300"></span>
-                                        <span class="flex items-center gap-1"><i class="fa-solid fa-list-ol"></i> ${test.questions || 0} câu hỏi</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
-                                <a href="${test.link}" class="flex-1 sm:flex-none px-5 py-2.5 bg-white border-2 border-gray-100 text-gray-600 group-hover:bg-brand-purple group-hover:border-brand-purple group-hover:text-white rounded-xl font-bold text-sm text-center transition-all duration-300 shadow-sm">
-                                    Mở bài <i class="fa-solid fa-arrow-right ml-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1"></i>
-                                </a>
-                                ${IS_ADMIN ? `
-                                <div class="relative flex-shrink-0">
-                                    <button onclick="toggleTestMenu(event, ${folderIndex}, ${idx})" title="Tuỳ chọn" class="w-10 h-10 flex items-center justify-center rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
-                                        <i class="fa-solid fa-ellipsis-vertical"></i>
-                                    </button>
-                                    <div id="test-menu-${folderIndex}-${idx}" class="hidden absolute right-0 top-12 z-20 bg-white rounded-xl shadow-floating border border-gray-100 py-1 min-w-[150px]">
-                                        <button onclick="confirmDeleteTest(${folderIndex}, ${idx})" class="w-full text-left px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 rounded-lg">
-                                            <i class="fa-solid fa-trash-can"></i> Xoá bài
-                                        </button>
-                                    </div>
-                                </div>` : ''}
-                            </div>
-                        </div>
-                    `;
-                });
-                html += `</div>`;
-            }
-            testsContainer.style.opacity = '0';
-            setTimeout(() => {
-                testsContainer.innerHTML = html;
-                testsContainer.style.transition = 'opacity 0.3s ease';
-                testsContainer.style.opacity = '1';
-            }, 50);
-        }
+/**
+ * INITIALIZATION & RESIZE
+ */
+function resize() {
+    gameWidth = canvas.parentElement.clientWidth;
+    gameHeight = canvas.parentElement.clientHeight - document.getElementById('controls').clientHeight; 
+    canvas.width = gameWidth;
+    canvas.height = gameHeight;
+    player.y = gameHeight - 60;
+}
+window.addEventListener('resize', resize);
+resize();
 
-        function changeFolder(index, clickedElement) {
-            if(currentFolderIndex === index) return;
-            currentFolderIndex = index;
-            const allTabs = document.querySelectorAll('.folder-tab');
-            const baseClass = "flex-shrink-0 px-6 py-3 rounded-full cursor-pointer transition-all duration-300 font-bold whitespace-nowrap flex items-center gap-2 text-sm sm:text-base border-2";
-            const inactiveClass = "bg-white border-transparent text-gray-500 hover:bg-purple-50 hover:text-brand-purple";
-            allTabs.forEach(tab => tab.className = `folder-tab ${baseClass} ${inactiveClass}`);
-            clickedElement.className = `folder-tab ${baseClass} bg-brand-purple border-brand-purple text-white shadow-md transform scale-105`;
-            renderTests(index);
-        }
-        renderFolders();
-
-        window.setAdminMode = function(isAdmin){
-            IS_ADMIN = isAdmin;
-            renderTests(currentFolderIndex);
-        };
-
-        // ==========================================
-        // GITHUB HELPERS (dùng để xoá bài trong Kho Lưu Trữ trực tiếp trên repo)
-        // ==========================================
-        var GH_CFG_KEY = 'nightIeltsGithubCfg';
-        function ghLoadCfg(){
-            try { return JSON.parse(localStorage.getItem(GH_CFG_KEY) || '{}'); } catch(e){ return {}; }
-        }
-        function ghSaveCfg(cfg){ localStorage.setItem(GH_CFG_KEY, JSON.stringify(cfg)); }
-        function utf8ToB64(str){
-            var bytes = new TextEncoder().encode(str);
-            var binary = '';
-            for(var i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
-            return btoa(binary);
-        }
-        function b64ToUtf8(b64){
-            var binary = atob(String(b64||'').replace(/\n/g,''));
-            var bytes = new Uint8Array(binary.length);
-            for(var i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
-            return new TextDecoder('utf-8').decode(bytes);
-        }
-        function ghApiBase(cfg){ return 'https://api.github.com/repos/' + cfg.owner + '/' + cfg.repo + '/contents/'; }
-        function ghGetFile(cfg, path){
-            return fetch(ghApiBase(cfg) + path + '?ref=' + encodeURIComponent(cfg.branch || 'main'), {
-                headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json' }
-            }).then(function(res){
-                if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub GET lỗi (' + res.status + '): ' + path + ' — ' + t); });
-                return res.json();
-            }).then(function(j){ return { sha: j.sha, text: b64ToUtf8(j.content) }; });
-        }
-        function ghPutFile(cfg, path, text, message, sha){
-            var body = { message: message, content: utf8ToB64(text), branch: cfg.branch || 'main' };
-            if(sha) body.sha = sha;
-            return fetch(ghApiBase(cfg) + path, {
-                method: 'PUT',
-                headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            }).then(function(res){
-                if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub PUT lỗi (' + res.status + '): ' + t); });
-                return res.json();
-            });
-        }
-        function ghDeleteFile(cfg, path, message, sha){
-            return fetch(ghApiBase(cfg) + path, {
-                method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message, sha: sha, branch: cfg.branch || 'main' })
-            }).then(function(res){
-                if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub DELETE lỗi (' + res.status + '): ' + t); });
-            });
-        }
-        function extractLessonDataArrayText(fullText){
-            var marker = 'const LESSON_DATA = ';
-            var startIdx = fullText.indexOf(marker);
-            if(startIdx === -1) throw new Error('Không tìm thấy LESSON_DATA trong index.html');
-            var i = startIdx + marker.length;
-            while(fullText[i] !== '[') i++;
-            var arrStart = i;
-            var depth = 0, inStr = false, strCh = '', esc = false;
-            for(; i < fullText.length; i++){
-                var c = fullText[i];
-                if(inStr){
-                    if(esc){ esc = false; }
-                    else if(c === '\\'){ esc = true; }
-                    else if(c === strCh){ inStr = false; }
-                    continue;
-                }
-                if(c === '"' || c === "'" || c === '`'){ inStr = true; strCh = c; continue; }
-                if(c === '[') depth++;
-                else if(c === ']'){ depth--; if(depth === 0){ i++; break; } }
-            }
-            var arrEnd = i;
-            return { marker: marker, startIdx: startIdx, arrStart: arrStart, arrEnd: arrEnd, arrayText: fullText.slice(arrStart, arrEnd) };
-        }
-        function parseLessonData(arrayText){ return (new Function('return ' + arrayText))(); }
-        function serializeLessonData(dataArray){ return JSON.stringify(dataArray, null, 4); }
-        function replaceLessonDataInFile(fullText, newArrayText){
-            var r = extractLessonDataArrayText(fullText);
-            return fullText.slice(0, r.arrStart) + newArrayText + fullText.slice(r.arrEnd);
-        }
-        function ghDeleteFolderTest(cfg, folderId, matchKey){
-            var idxPath = 'index.html';
-            return ghGetFile(cfg, idxPath).then(function(res){
-                var data = parseLessonData(extractLessonDataArrayText(res.text).arrayText);
-                var folder = data.find(function(f){ return f.id === folderId; });
-                if(!folder) throw new Error('Không tìm thấy folder: ' + folderId);
-                var idx = folder.tests.findIndex(function(t){ return (t.gen && t.gen === matchKey) || t.link === matchKey; });
-                if(idx === -1) throw new Error('Không tìm thấy bài để xoá trong folder này.');
-                var removed = folder.tests[idx];
-                folder.tests.splice(idx, 1);
-                var newFullText = replaceLessonDataInFile(res.text, serializeLessonData(data));
-                return ghPutFile(cfg, idxPath, newFullText, 'Night IELTS: xoá bài "' + removed.title + '"', res.sha).then(function(){
-                    if(removed.gen){
-                        return ghGetFile(cfg, removed.link).then(function(f){
-                            return ghDeleteFile(cfg, removed.link, 'Night IELTS: xoá file bài "' + removed.title + '"', f.sha);
-                        }).catch(function(){ /* file có thể không còn tồn tại — bỏ qua */ });
-                    }
-                }).then(function(){ return removed; });
-            });
-        }
-
-        // ==========================================
-        // GIAO BÀI: chuyển đổi giữa "nhập từ vựng mới" và "chọn bài có sẵn trong thư mục"
-        // ==========================================
-        var currentTaskMode = 'typed';
-        function setTaskMode(mode){
-            currentTaskMode = mode;
-            var typedBtn = document.getElementById('mode-typed-btn');
-            var linkBtn = document.getElementById('mode-link-btn');
-            var typedFields = document.getElementById('mode-typed-fields');
-            var linkFields = document.getElementById('mode-link-fields');
-            if(mode === 'link'){
-                typedBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500';
-                linkBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm';
-                typedFields.classList.add('hidden');
-                linkFields.classList.remove('hidden');
-                populateTaskFolderSelect();
-            } else {
-                typedBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm';
-                linkBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500';
-                typedFields.classList.remove('hidden');
-                linkFields.classList.add('hidden');
-            }
-        }
-        function populateTaskFolderSelect(){
-            var sel = document.getElementById('task-folder-select');
-            sel.innerHTML = LESSON_DATA.filter(function(f){ return f.id !== 'MY_TASKS' && f.tests.length > 0; }).map(function(f, i){
-                return '<option value="' + f.id.replace(/"/g,'&quot;') + '">' + f.name + ' (' + f.tests.length + ' bài)</option>';
-            }).join('');
-            onTaskFolderChange();
-        }
-        function onTaskFolderChange(){
-            var folderId = document.getElementById('task-folder-select').value;
-            var folder = LESSON_DATA.find(function(f){ return f.id === folderId; });
-            var fileSel = document.getElementById('task-file-select');
-            if(!folder){ fileSel.innerHTML = ''; return; }
-            fileSel.innerHTML = folder.tests.map(function(t, i){
-                return '<option value="' + i + '">' + t.title + '</option>';
-            }).join('');
-        }
-
-        // Menu "..." (3 chấm) cho mỗi bài trong Kho Lưu Trữ
-        function toggleTestMenu(evt, folderIndex, testIdx){
-            evt.stopPropagation();
-            var targetId = 'test-menu-' + folderIndex + '-' + testIdx;
-            document.querySelectorAll('[id^="test-menu-"]').forEach(function(m){
-                if(m.id !== targetId) m.classList.add('hidden');
-            });
-            var menu = document.getElementById(targetId);
-            if(menu) menu.classList.toggle('hidden');
-        }
-        document.addEventListener('click', function(){
-            document.querySelectorAll('[id^="test-menu-"]').forEach(function(m){ m.classList.add('hidden'); });
+function initStars() {
+    state.stars = [];
+    for(let i=0; i<50; i++) {
+        state.stars.push({
+            x: Math.random() * gameWidth,
+            y: Math.random() * gameHeight,
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 0.5 + 0.1
         });
+    }
+}
 
-        // ==========================================
-        // XOÁ BÀI TRONG KHO LƯU TRỮ (admin, có xác nhận)
-        // ==========================================
-        function confirmDeleteTest(folderIndex, testIdx){
-            var folder = LESSON_DATA[folderIndex];
-            var test = folder.tests[testIdx];
-            if(!test) return;
-            var cfg = ghLoadCfg();
-            if(!cfg.owner || !cfg.repo || !cfg.token){
-                alert('Chưa cấu hình GitHub. Bấm nút ⚙️ ở góc trên bên phải để nhập trước.');
-                return;
-            }
-            var ok = confirm('Xoá bài "' + test.title + '" khỏi thư mục "' + folder.name + '"?\nHành động này KHÔNG thể hoàn tác.');
-            if(!ok) return;
-            var matchKey = test.gen || test.link;
-            ghDeleteFolderTest(cfg, folder.id, matchKey).then(function(){
-                folder.tests.splice(testIdx, 1);
-                updateStats();
-                renderTests(folderIndex);
-                alert('Đã xoá bài thành công.');
-            }).catch(function(e){
-                alert('Lỗi khi xoá: ' + e.message);
-            });
+/**
+ * AUDIO / SPEECH
+ */
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    if (type === 'shoot') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    } else if (type === 'explosion') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+    } else if (type === 'wrong') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+}
+
+/**
+ * CHỌN GIỌNG ĐỌC TIẾNG ANH (text-to-speech)
+ * Trên iPhone/iPad, nếu không chỉ định rõ 1 "voice" cụ thể, hệ thống có thể tự đọc
+ * tiếng Anh bằng giọng tiếng Việt mặc định của máy (nghe rất sai/kỳ) — nên phải chọn
+ * đúng 1 giọng tiếng Anh thật và gán thẳng vào utterance.voice. Cho phép học sinh/giáo
+ * viên tự đổi giọng qua ô chọn trên màn hình bắt đầu, có ghi nhớ lựa chọn cho lần sau.
+ */
+const VOICE_STORAGE_KEY = 'nightIeltsGameVoiceURI';
+let englishVoices = [];
+let selectedVoice = null;
+
+function pickBestDefaultVoice(voices) {
+    const savedURI = localStorage.getItem(VOICE_STORAGE_KEY);
+    if (savedURI) {
+        const saved = voices.find(v => v.voiceURI === savedURI);
+        if (saved) return saved;
+    }
+    const byNameIncludes = (needle) => voices.find(v => v.name.toLowerCase().includes(needle));
+    // Ưu tiên: Karen (giọng Anh mượt nhất trên iOS/macOS) > giọng Google tiếng Anh
+    // (máy Android/Chrome/macOS có Google TTS) > bất kỳ giọng en-US/en-GB nào khác.
+    return byNameIncludes('karen')
+        || byNameIncludes('google us english')
+        || byNameIncludes('google uk english')
+        || voices.find(v => /^en-US$/i.test(v.lang))
+        || voices.find(v => /^en-GB$/i.test(v.lang))
+        || voices[0]
+        || null;
+}
+
+function refreshVoiceList() {
+    if (!('speechSynthesis' in window)) return;
+    const all = window.speechSynthesis.getVoices();
+    if (!all || all.length === 0) return; // danh sách giọng chưa load xong, đợi voiceschanged
+    englishVoices = all.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+    if (englishVoices.length === 0) englishVoices = all; // máy không có giọng Anh nào — vẫn cho chọn tạm
+
+    const sel = document.getElementById('voiceSelect');
+    const row = document.getElementById('voiceSelectRow');
+    if (sel) {
+        sel.innerHTML = englishVoices.map((v, i) => '<option value="' + i + '">' + v.name + ' (' + v.lang + ')</option>').join('');
+    }
+    if (row) row.style.display = englishVoices.length > 0 ? 'block' : 'none';
+
+    if (!selectedVoice || englishVoices.indexOf(selectedVoice) === -1) {
+        selectedVoice = pickBestDefaultVoice(englishVoices);
+    }
+    if (sel && selectedVoice) {
+        const idx = englishVoices.indexOf(selectedVoice);
+        if (idx > -1) sel.value = String(idx);
+    }
+}
+
+if ('speechSynthesis' in window) {
+    refreshVoiceList();
+    // Danh sách giọng đọc thường load bất đồng bộ (đặc biệt trên iOS/Chrome) — phải
+    // đợi sự kiện này rồi mới có đủ danh sách giọng thật để chọn.
+    window.speechSynthesis.onvoiceschanged = refreshVoiceList;
+}
+
+function speakWord(word) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // tránh chồng giọng khi bấm loa nhiều lần liên tiếp
+        const utterance = new SpeechSynthesisUtterance(word);
+        utterance.lang = (selectedVoice && selectedVoice.lang) || 'en-US';
+        if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+/**
+ * UTILS
+ */
+function shuffle(array) {
+    let arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function getLaneCenter(laneIndex) {
+    const laneWidth = gameWidth / LANE_COUNT;
+    return (laneIndex * laneWidth) + (laneWidth / 2);
+}
+
+/**
+ * GAMEPLAY LOGIC
+ */
+function startNewGame() {
+    initAudio();
+    state.vocabQueue = shuffle(rawVocabulary);
+    state.activeEnemies = [];
+    state.lasers = [];
+    state.particles = [];
+    state.score = 0;
+    state.lives = LIVES_COUNT;
+    state.combo = 0;
+    state.maxCombo = 0;
+    state.completed = 0;
+    state.missedWords = [];
+    state.masteredWords = [];
+    state.targetWord = null;
+    state.spawnTimer = 0;
+    state.difficultyMultiplier = 1;
+    player.lane = 3.5;
+    player.targetLane = 3.5;
+    
+    initStars();
+    updateHUD();
+    setScreen('playing');
+    
+    if (state.animFrame) cancelAnimationFrame(state.animFrame);
+    state.lastTime = performance.now();
+    gameLoop(state.lastTime);
+}
+
+function spawnEnemy() {
+    if (state.vocabQueue.length === 0) return;
+    
+    let availableLanes = [0,1,2,3,4,5,6,7];
+    state.activeEnemies.forEach(e => {
+        availableLanes = availableLanes.filter(l => l !== e.lane);
+    });
+    
+    if (availableLanes.length === 0) return;
+    
+    const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+    const wordData = state.vocabQueue.pop();
+    
+    state.activeEnemies.push({
+        wordData: wordData,
+        lane: lane,
+        y: -50,
+        speed: 30 + (Math.random() * 10) + (state.difficultyMultiplier * 10),
+        wobbleOffset: Math.random() * Math.PI * 2,
+        wobbleSpeed: 2 + Math.random() * 2,
+        flashing: 0
+    });
+    
+    assignTarget();
+}
+
+function assignTarget() {
+    if (!state.targetWord && state.activeEnemies.length > 0) {
+        const potentialTargets = state.activeEnemies;
+        if (potentialTargets.length > 0) {
+            const targetEnemy = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
+            state.targetWord = targetEnemy.wordData;
+            document.getElementById('target-meaning').innerText = `Target: ${state.targetWord.vi.toUpperCase()} 🔊`;
+            speakWord(state.targetWord.en);
         }
+    }
+}
 
-        // Nút cấu hình GitHub
-        var ghSettingsBtn = document.getElementById('admin-gh-settings-btn');
-        var ghSettingsModal = document.getElementById('gh-settings-modal');
-        if(ghSettingsBtn){
-            ghSettingsBtn.addEventListener('click', function(){
-                var cfg = ghLoadCfg();
-                document.getElementById('gh-owner').value = cfg.owner || '';
-                document.getElementById('gh-repo').value = cfg.repo || '';
-                document.getElementById('gh-branch').value = cfg.branch || 'main';
-                document.getElementById('gh-token').value = cfg.token || '';
-                document.getElementById('gh-settings-msg').innerHTML = '';
-                ghSettingsModal.classList.remove('hidden');
-                ghSettingsModal.classList.add('flex');
-            });
+function fireLaser() {
+    playSound('shoot');
+    state.lasers.push({
+        x: getLaneCenter(player.lane),
+        y: player.y,
+        speed: 800
+    });
+}
+
+function createExplosion(x, y, color) {
+    for(let i=0; i<15; i++) {
+        state.particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 200,
+            vy: (Math.random() - 0.5) * 200,
+            life: 0.5 + Math.random() * 0.5,
+            maxLife: 1,
+            color: color
+        });
+    }
+}
+
+function createTextPopup(text, x, y, color) {
+    state.particles.push({
+        x: x, y: y,
+        vx: 0, vy: -50,
+        life: 1, maxLife: 1,
+        color: color,
+        text: text
+    });
+}
+
+function updateHUD() {
+    let hearts = '';
+    for(let i=0; i<LIVES_COUNT; i++) hearts += i < state.lives ? '❤️' : '🖤';
+    document.getElementById('lives').innerText = hearts;
+    document.getElementById('progress').innerText = `Words: ${state.completed}/${rawVocabulary.length}`;
+    document.getElementById('score').innerText = `Score: ${state.score}`;
+    
+    const comboEl = document.getElementById('combo-display');
+    if (state.combo > 1) {
+        comboEl.innerText = `COMBO x${state.combo}`;
+        comboEl.classList.add('active');
+    } else {
+        comboEl.classList.remove('active');
+    }
+}
+
+function handleInput(laneIndex) {
+    if (state.screen !== 'playing') return;
+    
+    document.querySelectorAll('.control-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.control-btn[data-lane="${laneIndex}"]`).classList.add('active');
+    setTimeout(() => {
+        document.querySelector(`.control-btn[data-lane="${laneIndex}"]`).classList.remove('active');
+    }, 150);
+
+    player.targetLane = laneIndex;
+    fireLaser();
+}
+
+/**
+ * MAIN UPDATE LOOP
+ */
+function update(dt) {
+    player.lane += (player.targetLane - player.lane) * 15 * dt;
+    
+    if (state.activeEnemies.length < 4 && state.vocabQueue.length > 0) {
+        state.spawnTimer -= dt;
+        if (state.spawnTimer <= 0) {
+            spawnEnemy();
+            state.spawnTimer = 2 - (state.difficultyMultiplier * 0.5); 
         }
-        var btnCloseGhSettings = document.getElementById('btn-close-gh-settings');
-        if(btnCloseGhSettings){
-            btnCloseGhSettings.addEventListener('click', function(){
-                ghSettingsModal.classList.add('hidden');
-                ghSettingsModal.classList.remove('flex');
-            });
+    }
+    
+    for (let i = state.lasers.length - 1; i >= 0; i--) {
+        let l = state.lasers[i];
+        l.y -= l.speed * dt;
+        
+        if (l.y < -10) {
+            state.lasers.splice(i, 1);
+            continue;
         }
-        var btnSaveGhSettings = document.getElementById('btn-save-gh-settings');
-        if(btnSaveGhSettings){
-            btnSaveGhSettings.addEventListener('click', function(){
-                var cfg = {
-                    owner: document.getElementById('gh-owner').value.trim(),
-                    repo: document.getElementById('gh-repo').value.trim(),
-                    branch: document.getElementById('gh-branch').value.trim() || 'main',
-                    token: document.getElementById('gh-token').value.trim()
-                };
-                ghSaveCfg(cfg);
-                document.getElementById('gh-settings-msg').innerHTML = '<span class="text-emerald-600">Đã lưu.</span>';
-                setTimeout(function(){
-                    ghSettingsModal.classList.add('hidden');
-                    ghSettingsModal.classList.remove('flex');
-                }, 700);
-            });
-        }
-    </script>
-
-    <!-- SCRIPT FIREBASE -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
-            authDomain: "night-ielts-land.firebaseapp.com",
-            databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
-            projectId: "night-ielts-land",
-            storageBucket: "night-ielts-land.firebasestorage.app",
-            messagingSenderId: "408519436407",
-            appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
-            measurementId: "G-H3P14NJR76"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const provider = new GoogleAuthProvider();
-
-        const loginBtn = document.getElementById('login-btn');
-        const userProfile = document.getElementById('user-profile');
-        const adminBtn = document.getElementById('admin-studio-btn');
-        const progressBtn = document.getElementById('admin-progress-btn');
-
-        loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
-        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
-
-        // Bài giao riêng cho học sinh tự động biến mất sau 20 ngày kể từ lúc giao
-        const ASSIGNMENT_TTL_MS = 20 * 24 * 60 * 60 * 1000;
-
-        // Hàm tải bài tập cho học sinh
-        async function fetchStudentTasks(uid) {
-            const q = query(collection(db, "assignments"), where("studentId", "==", uid));
-            const snap = await getDocs(q);
-            const myTasks = [];
-            const now = Date.now();
-
-            snap.forEach(docSnap => {
-                const data = docSnap.data();
-                const expiresAt = data.expiresAt || (data.createdAt ? data.createdAt + ASSIGNMENT_TTL_MS : null);
-                if (expiresAt && now > expiresAt) {
-                    // Bài đã quá 20 ngày — tự dọn dẹp, không hiện cho học sinh nữa
-                    deleteDoc(doc(db, "assignments", docSnap.id)).catch(() => {});
-                    return;
-                }
-                const isDone = data.link ? (data.completed === true) : false;
-                myTasks.push({
-                    title: (isDone ? '✅ ' : '') + data.title,
-                    date: new Date(data.createdAt).toLocaleDateString('vi-VN'),
-                    questions: data.vocabList ? data.vocabList.length : 0,
-                    link: data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`
-                });
-            });
-
-            if (myTasks.length > 0) {
-                const existingIdx = LESSON_DATA.findIndex(f => f.id === "MY_TASKS");
-                if (existingIdx > -1) {
-                    LESSON_DATA[existingIdx].tests = myTasks;
-                } else {
-                    LESSON_DATA.unshift({
-                        id: "MY_TASKS",
-                        name: "Bài Tập Được Giao",
-                        icon: "fa-solid fa-star text-yellow-500",
-                        description: "Bài tập Thầy Night giao riêng cho bạn.",
-                        tests: myTasks
-                    });
-                }
-                updateStats();
-                renderFolders();
-                scrollToMyTasks();
-            }
-        }
-
-        // Tự động cuộn xuống khu vực "Bài Tập Được Giao" sau khi học sinh đăng nhập,
-        // vì header + thẻ thống kê chiếm gần hết màn hình điện thoại nên phần thư mục
-        // bị trôi xuống dưới màn hình đầu tiên.
-        function scrollToMyTasks() {
-            setTimeout(() => {
-                const el = document.getElementById('folder-tabs-container');
-                if (!el) return;
-                const headerEl = document.querySelector('header');
-                const headerH = headerEl ? headerEl.offsetHeight : 80;
-                const y = el.getBoundingClientRect().top + window.scrollY - headerH - 16;
-                window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
-            }, 150);
-        }
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                loginBtn.classList.add('hidden');
-                userProfile.classList.remove('hidden');
-                userProfile.classList.add('flex');
+        
+        for (let j = state.activeEnemies.length - 1; j >= 0; j--) {
+            let e = state.activeEnemies[j];
+            let enemyX = getLaneCenter(e.lane) + Math.sin(performance.now()/1000 * e.wobbleSpeed + e.wobbleOffset) * 10;
+            
+            if (Math.abs(l.x - enemyX) < 35 && Math.abs(l.y - (e.y + 30)) < 45) {
+                state.lasers.splice(i, 1);
                 
-                document.getElementById('user-name').textContent = user.displayName;
-                document.getElementById('user-avatar').src = user.photoURL;
-
-                const userRef = doc(db, "users", user.uid);
-                const userSnap = await getDoc(userRef);
-
-                if (userSnap.exists()) {
-                    const role = userSnap.data().role;
-                    document.getElementById('user-role').textContent = role === 'admin' ? 'Teacher' : 'Student';
+                if (state.targetWord && e.wordData.en === state.targetWord.en) {
+                    playSound('explosion');
+                    createExplosion(enemyX, e.y, '#2ed573');
+                    state.completed++;
+                    state.combo++;
+                    if (state.combo > state.maxCombo) state.maxCombo = state.combo;
                     
-                    if (role === 'admin') {
-                        adminBtn.classList.remove('hidden');
-                        progressBtn.classList.remove('hidden');
-                        document.getElementById('admin-gh-settings-btn').classList.remove('hidden');
-                        document.getElementById('admin-gh-settings-btn').classList.add('flex');
-                        if (window.setAdminMode) window.setAdminMode(true);
-                    } else {
-                        fetchStudentTasks(user.uid);
-                    }
+                    let points = 100 + (state.combo > 1 ? state.combo * 10 : 0);
+                    state.score += points;
+                    createTextPopup(`+${points}`, enemyX, e.y, '#2ed573');
+                    
+                    state.masteredWords.push(e.wordData);
+                    state.activeEnemies.splice(j, 1);
+                    state.targetWord = null;
+                    state.difficultyMultiplier += 0.05;
+                    assignTarget();
                 } else {
-                    await setDoc(userRef, {
-                        email: user.email,
-                        name: user.displayName,
-                        role: "student",
-                        createdAt: Date.now()
-                    });
-                    document.getElementById('user-role').textContent = 'Student';
-                    fetchStudentTasks(user.uid);
+                    playSound('wrong');
+                    state.combo = 0;
+                    state.score = Math.max(0, state.score - 25);
+                    e.flashing = 0.5;
+                    createTextPopup("WRONG!", enemyX, e.y, '#ff4757');
+                    createExplosion(enemyX, e.y, '#ff4757');
                 }
-            } else {
-                loginBtn.classList.remove('hidden');
-                userProfile.classList.add('hidden');
-                userProfile.classList.remove('flex');
-                adminBtn.classList.add('hidden');
-                progressBtn.classList.add('hidden');
-                document.getElementById('admin-gh-settings-btn').classList.add('hidden');
-                document.getElementById('admin-gh-settings-btn').classList.remove('flex');
-                if (window.setAdminMode) window.setAdminMode(false);
-
-                // Xóa tab Bài Tập nếu đăng xuất
-                const idx = LESSON_DATA.findIndex(f => f.id === "MY_TASKS");
-                if(idx > -1) {
-                    LESSON_DATA.splice(idx, 1);
-                    updateStats();
-                    renderFolders();
-                }
+                updateHUD();
+                break;
             }
-        });
+        }
+    }
+    
+    for (let j = state.activeEnemies.length - 1; j >= 0; j--) {
+        let e = state.activeEnemies[j];
+        e.y += e.speed * dt;
+        if (e.flashing > 0) e.flashing -= dt;
+        
+        if (e.y > gameHeight - DANGER_ZONE_HEIGHT - 30) {
+            playSound('wrong');
+            state.lives--;
+            state.combo = 0;
+            state.score = Math.max(0, state.score - 100);
+            state.completed++;
+            state.missedWords.push(e.wordData);
+            createExplosion(getLaneCenter(e.lane), e.y, '#ff4757');
+            createTextPopup("MISSED!", getLaneCenter(e.lane), e.y, '#ff4757');
+            
+            if (state.targetWord && e.wordData.en === state.targetWord.en) {
+                state.targetWord = null;
+            }
+            state.activeEnemies.splice(j, 1);
+            assignTarget();
+            updateHUD();
+        }
+    }
+    
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+        let p = state.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) state.particles.splice(i, 1);
+    }
+    
+    state.stars.forEach(s => {
+        s.y += s.speed;
+        if (s.y > gameHeight) { s.y = 0; s.x = Math.random() * gameWidth; }
+    });
+    
+    if (state.lives <= 0 || state.completed >= rawVocabulary.length) {
+        endGame();
+    }
+}
 
-        // ==========================================
-        // LOGIC CHO ADMIN STUDIO
-        // ==========================================
-        const modal = document.getElementById('studio-modal');
-        const select = document.getElementById('student-select');
+/**
+ * Tính cỡ chữ / độ rộng thẻ bài (card) cho vừa với từ/cụm từ, để từ dài không
+ * bị tràn ra ngoài khung khiến học sinh không đọc được. Ưu tiên thu nhỏ cỡ chữ
+ * trước; nếu vẫn không vừa (cụm từ nhiều chữ) thì tách xuống 2 dòng.
+ */
+function fitCardText(ctx, text, maxWidth) {
+    const sizes = [12, 11, 10, 9, 8];
+    const paddingX = 14;
+    for (let i = 0; i < sizes.length; i++) {
+        ctx.font = 'bold ' + sizes[i] + 'px Nunito, sans-serif';
+        const w = ctx.measureText(text).width;
+        if (w + paddingX <= maxWidth) {
+            return { lines: [text], fontSize: sizes[i], width: Math.max(70, w + paddingX) };
+        }
+    }
+    // Vẫn không vừa dù đã thu nhỏ hết cỡ — nếu là cụm nhiều từ thì tách 2 dòng
+    const words = text.split(' ');
+    const minFont = 8;
+    ctx.font = 'bold ' + minFont + 'px Nunito, sans-serif';
+    if (words.length > 1) {
+        let bestIdx = 1, bestDiff = Infinity;
+        for (let k = 1; k < words.length; k++) {
+            const diff = Math.abs(words.slice(0, k).join(' ').length - words.slice(k).join(' ').length);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = k; }
+        }
+        const line1 = words.slice(0, bestIdx).join(' ');
+        const line2 = words.slice(bestIdx).join(' ');
+        const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
+        return { lines: [line1, line2], fontSize: minFont, width: Math.max(70, Math.min(w + paddingX, maxWidth * 1.3)) };
+    }
+    // 1 từ duy nhất quá dài, không có khoảng trắng để tách dòng — cho phép thẻ
+    // rộng hơn giới hạn một chút thay vì cắt mất chữ.
+    const w = ctx.measureText(text).width;
+    return { lines: [text], fontSize: minFont, width: Math.max(70, w + paddingX) };
+}
 
-        adminBtn.addEventListener('click', async () => {
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            if (window.setTaskMode) window.setTaskMode('typed');
-            select.innerHTML = '<option value="">-- Đang tải danh sách học sinh... --</option>';
+/**
+ * RENDERING
+ */
+function draw() {
+    ctx.clearRect(0, 0, gameWidth, gameHeight);
+    
+    // Background Stars
+    ctx.fillStyle = '#fff';
+    state.stars.forEach(s => {
+        ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    
+    // Danger Zone Line
+    ctx.strokeStyle = 'rgba(255, 71, 87, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(0, gameHeight - DANGER_ZONE_HEIGHT);
+    ctx.lineTo(gameWidth, gameHeight - DANGER_ZONE_HEIGHT);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255, 71, 87, 0.5)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText("DANGER ZONE", 10, gameHeight - DANGER_ZONE_HEIGHT + 15);
+    
+    // Lane lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for(let i=1; i<LANE_COUNT; i++) {
+        let lx = i * (gameWidth/LANE_COUNT);
+        ctx.beginPath();
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx, gameHeight);
+        ctx.stroke();
+    }
 
-            const q = query(collection(db, "users"), where("role", "==", "student"));
-            const snap = await getDocs(q);
-            select.innerHTML = '<option value="">-- Chọn học sinh --</option>';
-            snap.forEach(doc => {
-                const stu = doc.data();
-                select.innerHTML += `<option value="${doc.id}">${stu.name} (${stu.email})</option>`;
+    // Enemies
+    state.activeEnemies.forEach(e => {
+        let x = getLaneCenter(e.lane) + Math.sin(performance.now()/1000 * e.wobbleSpeed + e.wobbleOffset) * 10;
+        
+        ctx.save();
+        ctx.translate(x, e.y);
+        
+        if (state.targetWord && e.wordData.en === state.targetWord.en) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00f0ff';
+        }
+        
+        if (e.flashing > 0) {
+            ctx.filter = 'brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)';
+        }
+
+        // Draw Chicken body
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ff4757';
+        ctx.beginPath();
+        ctx.arc(-5, -16, 5, 0, Math.PI*2);
+        ctx.arc(0, -18, 6, 0, Math.PI*2);
+        ctx.arc(5, -16, 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ffa502';
+        ctx.beginPath();
+        ctx.moveTo(5, 0);
+        ctx.lineTo(15, 5);
+        ctx.lineTo(5, 8);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(5, -5, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#eee';
+        ctx.beginPath();
+        ctx.ellipse(-8, 5, 8, 4, Math.PI/4, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.filter = 'none';
+        ctx.shadowBlur = 0;
+
+        // Key Hint
+        const keyHint = laneLabels[e.lane];
+        ctx.fillStyle = '#ffa502'; 
+        ctx.beginPath();
+        ctx.roundRect(-12, 18, 24, 18, 4);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 14px "Fredoka One", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(keyHint, 0, 28);
+        
+        // Card — tự co giãn theo độ dài từ/cụm từ để không bị tràn/mất chữ
+        const wordText = e.wordData.en.toUpperCase();
+        const cardMaxWidth = Math.max(90, Math.min(gameWidth * 0.42, 200));
+        const fit = fitCardText(ctx, wordText, cardMaxWidth);
+        const cardHeight = fit.lines.length > 1 ? 34 : 24;
+        const cardTop = 38;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-fit.width / 2, cardTop, fit.width, cardHeight, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold ' + fit.fontSize + 'px Nunito, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (fit.lines.length === 1) {
+            ctx.fillText(fit.lines[0], 0, cardTop + cardHeight / 2);
+        } else {
+            ctx.fillText(fit.lines[0], 0, cardTop + cardHeight / 2 - fit.fontSize * 0.65);
+            ctx.fillText(fit.lines[1], 0, cardTop + cardHeight / 2 + fit.fontSize * 0.65);
+        }
+
+        ctx.restore();
+    });
+
+    // Lasers
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#00f0ff';
+    state.lasers.forEach(l => {
+        ctx.fillRect(l.x - 2, l.y - 15, 4, 30);
+    });
+    ctx.shadowBlur = 0;
+
+    // Player Ship
+    let px = getLaneCenter(player.lane);
+    ctx.save();
+    ctx.translate(px, player.y);
+    ctx.translate(0, Math.sin(performance.now()/200) * 3);
+    
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#00f0ff';
+    ctx.beginPath();
+    ctx.arc(0, 15, 10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    ctx.fillStyle = '#dcdde1';
+    ctx.beginPath();
+    ctx.moveTo(0, -20);
+    ctx.lineTo(15, 15);
+    ctx.lineTo(-15, 15);
+    ctx.fill();
+    
+    ctx.fillStyle = '#00f0ff';
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(6, 8);
+    ctx.lineTo(-6, 8);
+    ctx.fill();
+    ctx.restore();
+
+    // Particles
+    state.particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        if (p.text) {
+            ctx.fillStyle = p.color;
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.text, p.x, p.y);
+        } else {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+            ctx.fill();
+        }
+    });
+    ctx.globalAlpha = 1;
+}
+
+function gameLoop(time) {
+    if (state.screen !== 'playing') return;
+    
+    const dt = Math.min((time - state.lastTime) / 1000, 0.1); 
+    state.lastTime = time;
+    
+    update(dt);
+    draw();
+    
+    state.animFrame = requestAnimationFrame(gameLoop);
+}
+
+/**
+ * SCREEN MANAGEMENT
+ */
+function setScreen(screenName) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    state.screen = screenName;
+    if (screenName !== 'playing') {
+        document.getElementById(`screen-${screenName}`).classList.add('active');
+    }
+}
+
+function endGame() {
+    setScreen('results');
+    
+    // Protect against division by zero if game ends instantly
+    const totalWords = state.masteredWords.length + state.missedWords.length;
+    const accuracy = totalWords > 0 ? Math.round((state.masteredWords.length / totalWords) * 100) : 0;
+    
+    const passed = accuracy >= PASS_PERCENT && state.lives > 0;
+
+    // Báo kết quả về hệ thống chấm bài (nếu file này được nhúng script theo dõi tiến độ)
+    if (window.__reportGameResult) {
+        try {
+            window.__reportGameResult({
+                accuracy: accuracy,
+                passed: passed,
+                mastered: state.masteredWords.length,
+                missed: state.missedWords.length,
+                total: totalWords
             });
+        } catch (e) { console.error('reportGameResult error', e); }
+    }
+
+    document.getElementById('result-title').innerText = passed ? "🎉 NHIỆM VỤ HOÀN THÀNH" : "✗ THỬ LẠI NHÉ";
+    document.getElementById('result-title').style.color = passed ? "var(--success)" : "var(--danger)";
+    document.getElementById('result-percent').innerText = `Độ chính xác: ${accuracy}%`;
+    
+    document.getElementById('result-stats').innerHTML = `
+        Điểm: ${state.score} | Combo cao nhất: x${state.maxCombo} <br>
+        Từ đã thuộc: ${state.masteredWords.length}/${totalWords}
+    `;
+    
+    const reviewList = document.getElementById('review-list');
+    reviewList.innerHTML = '';
+    
+    // Helper function to render list
+    function renderWords(wordsArray, isMissed) {
+        wordsArray.forEach(w => {
+            const div = document.createElement('div');
+            div.className = 'review-item';
+            div.style.borderLeft = isMissed ? '4px solid var(--danger)' : '4px solid var(--success)';
+            
+            div.innerHTML = `
+                <div style="flex-grow: 1; margin-right: 15px;">
+                    <span class="review-word" style="color: ${isMissed ? 'var(--danger)' : 'var(--success)'}">
+                        ${w.en} ${isMissed ? '❌' : '✅'}
+                    </span><br>
+                    <span class="review-meaning">${w.vi}</span>
+                </div>
+                <button class="speaker-btn" onclick="speakWord('${w.en}')" title="Nghe phát âm">🔊</button>
+            `;
+            reviewList.appendChild(div);
         });
+    }
 
-        document.getElementById('btn-close-modal').addEventListener('click', () => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+    // Render missed words first (at the top), then mastered words
+    if (state.missedWords.length > 0) {
+        renderWords(state.missedWords, true);
+    }
+    if (state.masteredWords.length > 0) {
+        renderWords(state.masteredWords, false);
+    }
+}
+
+/**
+ * EVENTS
+ */
+document.getElementById('btn-start').addEventListener('click', () => {
+    initAudio();
+    setScreen('tutorial');
+});
+
+document.getElementById('btn-play').addEventListener('click', () => {
+    startNewGame();
+});
+
+document.getElementById('btn-replay').addEventListener('click', () => {
+    startNewGame();
+});
+
+document.getElementById('target-meaning').addEventListener('click', () => {
+    if (state.targetWord) speakWord(state.targetWord.en);
+});
+
+window.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (keysMap[key] !== undefined) {
+        handleInput(keysMap[key]);
+    }
+});
+
+document.querySelectorAll('.control-btn').forEach(btn => {
+    btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const lane = parseInt(btn.getAttribute('data-lane'));
+        handleInput(lane);
+    });
+});
+
+document.getElementById('voiceSelect').addEventListener('change', (e) => {
+    const idx = parseInt(e.target.value, 10);
+    const v = englishVoices[idx];
+    if (v) {
+        selectedVoice = v;
+        localStorage.setItem(VOICE_STORAGE_KEY, v.voiceURI);
+        speakWord('Hello, this is my voice.'); // đọc thử để nghe ngay giọng vừa chọn
+    }
+});
+
+/**
+ * CHỐNG ZOOM NGOÀI Ý MUỐN TRÊN ĐIỆN THOẠI/IPAD — nhiều lớp phòng thủ chồng lên nhau
+ * vì trên iOS/iPadOS, chỉ 1 kỹ thuật (viewport meta, hay touch-action) không phải lúc
+ * nào cũng chặn được hết, tuỳ đời máy/hệ điều hành.
+ */
+// Lớp 1: chặn cử chỉ pinch-zoom kiểu Safari (gesturestart/change/end)
+['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
+    document.addEventListener(evt, (e) => e.preventDefault());
+});
+// Lớp 2: chặn zoom bằng 2 ngón tay ngay từ gốc (touchmove có từ 2 điểm chạm trở lên)
+document.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+// Lớp 3: chặn double-tap-zoom khi bấm liên tục nhiều lần (vd bấm bắn dồn dập) —
+// bấm 2 lần trong vòng 350ms ở bất kỳ đâu trên trang đều bị chặn hành vi mặc định.
+let __lastTouchEndAt = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - __lastTouchEndAt <= 350) e.preventDefault();
+    __lastTouchEndAt = now;
+}, { passive: false });
+// Lớp 4 (lưới an toàn cuối): nếu vì lý do gì đó (bug hệ điều hành, cử chỉ lạ...) mà
+// trang vẫn bị phóng to, tự động phát hiện qua Visual Viewport API và ép trả về đúng
+// 100% ngay lập tức — không cần học sinh tự mò cách zoom tay ra lại.
+function __forceResetZoom() {
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const original = meta.getAttribute('content');
+    meta.setAttribute('content', original + ', maximum-scale=1.0, minimum-scale=1.0');
+    requestAnimationFrame(() => { meta.setAttribute('content', original); });
+}
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        if (window.visualViewport.scale && window.visualViewport.scale > 1.01) {
+            __forceResetZoom();
+        }
+    });
+}
+
+/**
+ * SỬA LỖI CHIỀU CAO MÀN HÌNH TRÊN SAFARI IOS/IPADOS
+ * 100vh trên Safari tính luôn cả phần bị thanh địa chỉ/thanh công cụ che, nên hàng
+ * phím A-K ở dưới cùng có thể bị đẩy khuất khỏi màn hình thấy được. Tính lại chiều
+ * cao thật bằng window.innerHeight và cập nhật mỗi khi xoay màn hình/resize.
+ */
+function __setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+}
+__setAppHeight();
+window.addEventListener('resize', __setAppHeight);
+window.addEventListener('orientationchange', () => setTimeout(__setAppHeight, 150));
+
+// --- dynamic text set from generator settings ---
+document.getElementById('game-title-h1').textContent = GAME_TITLE;
+document.getElementById('subtitle-text').textContent = GAME_SUBTITLE;
+document.getElementById('info-line').textContent = `🎯 ${rawVocabulary.length} Words | ❤️ ${LIVES_COUNT} Lives`;
+document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pass`;
+
+<\/script>
+</body>
+</html>
+</script>
+<script>
+(function(){
+  var tbody = document.getElementById('vocab-tbody');
+  var emptyState = document.getElementById('empty-state');
+  var wordCountEl = document.getElementById('word-count');
+  var dupWarningEl = document.getElementById('dup-warning');
+  var toastEl = document.getElementById('toast');
+  var previewFrame = document.getElementById('preview-frame');
+  var previewPlaceholder = document.getElementById('preview-placeholder');
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ toastEl.classList.remove('show'); }, 2400);
+  }
+
+  function slugify(str){
+    str = (str || '').toLowerCase();
+    var map = {
+      'à':'a','á':'a','ạ':'a','ả':'a','ã':'a','â':'a','ầ':'a','ấ':'a','ậ':'a','ẩ':'a','ẫ':'a','ă':'a','ằ':'a','ắ':'a','ặ':'a','ẳ':'a','ẵ':'a',
+      'è':'e','é':'e','ẹ':'e','ẻ':'e','ẽ':'e','ê':'e','ề':'e','ế':'e','ệ':'e','ể':'e','ễ':'e',
+      'ì':'i','í':'i','ị':'i','ỉ':'i','ĩ':'i',
+      'ò':'o','ó':'o','ọ':'o','ỏ':'o','õ':'o','ô':'o','ồ':'o','ố':'o','ộ':'o','ổ':'o','ỗ':'o','ơ':'o','ờ':'o','ớ':'o','ợ':'o','ở':'o','ỡ':'o',
+      'ù':'u','ú':'u','ụ':'u','ủ':'u','ũ':'u','ư':'u','ừ':'u','ứ':'u','ự':'u','ử':'u','ữ':'u',
+      'ỳ':'y','ý':'y','ỵ':'y','ỷ':'y','ỹ':'y',
+      'đ':'d'
+    };
+    str = str.replace(/[à-ỹđ]/g, function(c){ return map[c] || c; });
+    str = str.replace(/[^a-z0-9\s-]/g, '');
+    str = str.trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+    return str || 'vocabulary-game';
+  }
+
+  function stripAngles(s){ return (s || '').replace(/[<>]/g, '').trim(); }
+  function stripQuotesForJsString(s){ return (s || '').replace(/[<>]/g, '').replace(/["'\\]/g, '').trim(); }
+
+  function parseLine(line){
+    line = line.trim();
+    if (!line) return null;
+    line = line.replace(/^\d+[\.\)]\s*/, '');
+    var en, vi;
+    if (line.indexOf('\t') !== -1) {
+      var parts = line.split('\t');
+      en = parts[0]; vi = parts.slice(1).join(' ');
+    } else {
+      var dashMatch = line.match(/^(.*?)\s+[-–—]\s+(.*)$/);
+      if (dashMatch) {
+        en = dashMatch[1]; vi = dashMatch[2];
+      } else if (line.indexOf(':') !== -1) {
+        var idx = line.indexOf(':');
+        en = line.slice(0, idx); vi = line.slice(idx + 1);
+      } else if (line.indexOf(',') !== -1) {
+        var idx2 = line.indexOf(',');
+        en = line.slice(0, idx2); vi = line.slice(idx2 + 1);
+      } else {
+        en = line; vi = '';
+      }
+    }
+    en = stripAngles(en);
+    vi = stripAngles(vi);
+    if (!en) return null;
+    return { en: en, vi: vi };
+  }
+
+  function addRow(en, vi){
+    var tr = document.createElement('tr');
+    var idx = tbody.children.length + 1;
+    tr.innerHTML =
+      '<td class="row-num">' + idx + '</td>' +
+      '<td><input type="text" class="cell-en" value="' + (en || '').replace(/"/g,'&quot;') + '" placeholder="english word"></td>' +
+      '<td><input type="text" class="cell-vi" value="' + (vi || '').replace(/"/g,'&quot;') + '" placeholder="nghĩa tiếng việt"></td>' +
+      '<td><button class="del-btn" type="button" title="Xoá dòng">×</button></td>';
+    tr.querySelector('.del-btn').addEventListener('click', function(){
+      tr.remove();
+      renumberAndCheck();
+    });
+    tr.querySelector('.cell-en').addEventListener('input', renumberAndCheck);
+    tbody.appendChild(tr);
+  }
+
+  function renumberAndCheck(){
+    var rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.forEach(function(tr, i){
+      tr.querySelector('.row-num').textContent = i + 1;
+      tr.classList.remove('dup-warning');
+    });
+    var seen = {};
+    var dupCount = 0;
+    rows.forEach(function(tr){
+      var en = tr.querySelector('.cell-en').value.trim().toLowerCase();
+      if (!en) return;
+      if (seen[en]) {
+        dupCount++;
+        tr.classList.add('dup-warning');
+        rows.forEach(function(other){
+          if (other !== tr && other.querySelector('.cell-en').value.trim().toLowerCase() === en) {
+            other.classList.add('dup-warning');
+          }
         });
+      }
+      seen[en] = true;
+    });
+    var validCount = rows.filter(function(tr){ return tr.querySelector('.cell-en').value.trim(); }).length;
+    wordCountEl.textContent = validCount;
+    emptyState.style.display = rows.length === 0 ? 'block' : 'none';
+    if (dupCount > 0) {
+      dupWarningEl.style.display = 'block';
+      dupWarningEl.textContent = '⚠ Có ' + dupCount + ' từ tiếng Anh bị trùng — game chỉ chọn một bản.';
+    } else {
+      dupWarningEl.style.display = 'none';
+    }
+  }
 
-        document.getElementById('btn-submit-task').addEventListener('click', async () => {
-            const studentId = select.value;
-            if(!studentId) return alert('Vui lòng chọn học sinh!');
+  function getRows(){
+    return Array.from(tbody.querySelectorAll('tr')).map(function(tr){
+      return {
+        en: stripAngles(tr.querySelector('.cell-en').value),
+        vi: stripAngles(tr.querySelector('.cell-vi').value)
+      };
+    }).filter(function(r){ return r.en; });
+  }
 
-            const now = Date.now();
-            const deadlineStr = document.getElementById('task-deadline').value;
-            const deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
-            const btn = document.getElementById('btn-submit-task');
-            const mode = window.currentTaskMode || 'typed';
+  document.getElementById('btn-parse').addEventListener('click', function(){
+    var raw = document.getElementById('input-vocab').value;
+    var lines = raw.split(/\r?\n/);
+    tbody.innerHTML = '';
+    var added = 0;
+    lines.forEach(function(line){
+      var parsed = parseLine(line);
+      if (parsed) { addRow(parsed.en, parsed.vi); added++; }
+    });
+    renumberAndCheck();
+    if (added === 0) {
+      showToast('Không đọc được từ nào — kiểm tra lại định dạng danh sách.');
+    } else {
+      showToast('Đã phân tích ' + added + ' từ.');
+    }
+  });
 
-            let payload = null;
+  document.getElementById('btn-add-row').addEventListener('click', function(){
+    addRow('', '');
+    renumberAndCheck();
+  });
 
-            if (mode === 'link') {
-                const folderId = document.getElementById('task-folder-select').value;
-                const fileIdx = document.getElementById('task-file-select').value;
-                const folder = LESSON_DATA.find(f => f.id === folderId);
-                const test = folder ? folder.tests[fileIdx] : null;
-                if (!test) return alert('Vui lòng chọn một bài trong thư mục!');
-                payload = {
-                    title: test.title,
-                    studentId: studentId,
-                    link: test.link,
-                    createdAt: now,
-                    deadlineAt: deadlineAt,
-                    expiresAt: now + ASSIGNMENT_TTL_MS,
-                    completed: false,
-                    percent: 0,
-                    kind: 'manual'
-                };
-            } else {
-                const title = document.getElementById('task-title').value;
-                const rawData = document.getElementById('task-data').value;
-                if(!title || !rawData) return alert('Vui lòng điền đủ thông tin bài học!');
+  document.getElementById('input-title').addEventListener('input', function(){
+    var f = document.getElementById('input-filename');
+    var title = this.value.trim() || 'vocabulary chicken invaders';
+    f.value = slugify(title) + '.html';
+  });
 
-                const lines = rawData.split('\n').filter(l => l.trim() !== '');
-                const vocabList = [];
-                lines.forEach(line => {
-                    const parts = line.split(/[\t|]/).map(p => p.trim());
-                    if(parts.length >= 2) {
-                        vocabList.push({
-                            phrase: parts[0],
-                            meaningVi: parts[1],
-                            sentence: parts[2] || parts[0]
-                        });
-                    }
-                });
-                if(vocabList.length === 0) return alert('Dữ liệu từ vựng không đúng định dạng!');
+  function buildGameHTML(){
+    var rows = getRows();
+    if (rows.length === 0) {
+      showToast('Chưa có từ nào — hãy phân tích hoặc thêm ít nhất 1 từ.');
+      return null;
+    }
+    var title = stripQuotesForJsString(document.getElementById('input-title').value) || 'VOCABULARY CHICKEN INVADERS';
+    var subtitle = stripQuotesForJsString(document.getElementById('input-subtitle').value) || 'Listen. Think. Aim. Shoot.';
+    var lives = parseInt(document.getElementById('input-lives').value, 10);
+    if (!lives || lives < 1) lives = 3;
+    var passPercent = parseInt(document.getElementById('input-pass').value, 10);
+    if (!passPercent || passPercent < 10) passPercent = 80;
 
-                payload = {
-                    title: title,
-                    studentId: studentId,
-                    vocabList: vocabList,
-                    createdAt: now,
-                    deadlineAt: deadlineAt,
-                    expiresAt: now + ASSIGNMENT_TTL_MS,
-                    completedIndices: []
-                };
-            }
+    var raw = document.getElementById('game-template').textContent;
+    raw = raw.split('<\\/script>').join('<' + '/script>');
 
-            btn.innerText = 'Đang giao...'; btn.disabled = true;
-            await addDoc(collection(db, "assignments"), payload);
+    var vocabJson = JSON.stringify(rows, null, 4);
+    // defense in depth: neutralize any "</" inside vocab data so it can never
+    // prematurely close the generated file's own <script> tag. "\/" is a
+    // valid JSON/JS string escape for "/", so this is value-preserving.
+    vocabJson = vocabJson.split('<' + '/').join('<\\/');
 
-            alert('Đã giao bài thành công! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của học sinh sau 20 ngày)');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            btn.innerText = '🚀 Giao Bài'; btn.disabled = false;
+    raw = raw.split('__VOCAB_JSON__').join(vocabJson);
+    raw = raw.split('__GAME_TITLE__').join(title);
+    raw = raw.split('__GAME_SUBTITLE__').join(subtitle);
+    raw = raw.split('__LIVES__').join(String(lives));
+    raw = raw.split('__PASS_PERCENT__').join(String(passPercent));
+    return raw;
+  }
 
-            document.getElementById('task-title').value = '';
-            document.getElementById('task-data').value = '';
-            document.getElementById('task-deadline').value = '';
-        });
+  document.getElementById('btn-preview').addEventListener('click', function(){
+    var html = buildGameHTML();
+    if (!html) return;
+    previewFrame.srcdoc = html;
+    previewFrame.classList.add('active');
+    previewPlaceholder.style.display = 'none';
+    previewFrame.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 
-        // ==========================================
-        // TIẾN ĐỘ HỌC SINH (% câu đã gõ đúng, đọc từ assignments)
-        // ==========================================
-        const progressModal = document.getElementById('progress-modal');
-        const progressList = document.getElementById('progress-list');
+  document.getElementById('btn-download').addEventListener('click', function(){
+    var html = buildGameHTML();
+    if (!html) return;
+    var filename = document.getElementById('input-filename').value.trim() || 'vocabulary-chicken-invaders.html';
+    if (!filename.toLowerCase().endsWith('.html')) filename += '.html';
+    var blob = new Blob([html], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+    showToast('Đã tải file: ' + filename);
+  });
 
-        progressBtn.addEventListener('click', async () => {
-            progressModal.classList.remove('hidden');
-            progressModal.classList.add('flex');
-            progressList.innerHTML = '<p class="text-gray-400 text-sm font-bold">Đang tải...</p>';
+  document.getElementById('btn-copy').addEventListener('click', function(){
+    var html = buildGameHTML();
+    if (!html) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(html).then(function(){
+        showToast('Đã copy mã HTML — dán trực tiếp vào GitHub (Add file → Create new file).');
+      }).catch(function(){
+        showToast('Không copy được — trình duyệt chặn clipboard. Hãy dùng nút Tải file thay thế.');
+      });
+    } else {
+      showToast('Trình duyệt không hỗ trợ copy tự động — hãy dùng nút Tải file.');
+    }
+  });
 
-            try {
-                const studentsSnap = await getDocs(query(collection(db, "users"), where("role", "==", "student")));
-                const studentMap = {};
-                studentsSnap.forEach(d => { studentMap[d.id] = d.data(); });
+  // seed with the sample vocabulary from the original game as a starting example
+  document.getElementById('input-vocab').value =
+    "abandon - t\u1eeb b\u1ecf\nabundant - d\u1ed3i d\u00e0o\naccurate - ch\u00ednh x\u00e1c\nacquire - \u0111\u1ea1t \u0111\u01b0\u1ee3c / ti\u1ebfp thu\nadapt - th\u00edch nghi\nadequate - \u0111\u1ea7y \u0111\u1ee7 / th\u1ecfa \u0111\u00e1ng\napparent - r\u00f5 r\u00e0ng / hi\u1ec3n nhi\u00ean\nassess - \u0111\u00e1nh gi\u00e1\nbeneficial - c\u00f3 l\u1ee3i\nchallenge - th\u00e1ch th\u1ee9c\ncontribute - \u0111\u00f3ng g\u00f3p\ncrucial - then ch\u1ed1t / c\u1ef1c k\u1ef3 quan tr\u1ecdng\ndecline - suy gi\u1ea3m / t\u1eeb ch\u1ed1i\nenhance - n\u00e2ng cao / c\u1ea3i thi\u1ec7n\ninevitable - kh\u00f4ng th\u1ec3 tr\u00e1nh kh\u1ecfi\nmaintain - duy tr\u00ec\nsignificant - \u0111\u00e1ng k\u1ec3 / quan tr\u1ecdng\nsustainable - b\u1ec1n v\u1eefng\nwidespread - ph\u1ed5 bi\u1ebfn / lan r\u1ed9ng\nvulnerable - d\u1ec5 b\u1ecb t\u1ed5n th\u01b0\u01a1ng";
 
-                const assignSnap = await getDocs(collection(db, "assignments"));
-                const rows = [];
-                const now = Date.now();
-                const expiredIds = [];
-                assignSnap.forEach(d => {
-                    const a = d.data();
-                    const expiresAt = a.expiresAt || (a.createdAt ? a.createdAt + ASSIGNMENT_TTL_MS : null);
-                    if (expiresAt && now > expiresAt) {
-                        expiredIds.push(d.id);
-                        return; // đã quá 20 ngày — không hiện, sẽ tự dọn dẹp bên dưới
-                    }
-                    const total = (a.vocabList || []).length;
-                    const done = (a.completedIndices || []).length;
-                    const percent = (a.percent != null) ? a.percent : (total ? Math.round(done / total * 100) : 0);
-                    const stu = studentMap[a.studentId];
-                    rows.push({
-                        id: d.id,
-                        title: a.title || '(Không tên)',
-                        studentName: stu ? stu.name : (a.studentId || '?'),
-                        studentEmail: stu ? stu.email : '',
-                        percent, total, done,
-                        isLink: !!a.link,
-                        kind: a.kind || null,
-                        createdAt: a.createdAt || 0,
-                        deadlineAt: a.deadlineAt || null
-                    });
-                });
-                // Dọn dẹp âm thầm các bài đã hết hạn 20 ngày
-                expiredIds.forEach(id => { deleteDoc(doc(db, "assignments", id)).catch(() => {}); });
-                rows.sort((x, y) => y.createdAt - x.createdAt);
-                window.__lastProgressRows = rows;
+  document.getElementById('input-filename').value =
+    slugify(document.getElementById('input-title').value) + '.html';
 
-                if (rows.length === 0) {
-                    progressList.innerHTML = '<p class="text-gray-400 text-sm font-bold">Chưa có bài nào được giao.</p>';
-                    return;
-                }
+  // ============================================================================
+  // GITHUB PUBLISH HELPERS (đăng bài lên folder có sẵn, thẳng vào repo GitHub)
+  // Dùng chung 1 chỗ lưu cấu hình (localStorage) với các tool Night IELTS khác.
+  // ============================================================================
+  var GH_CFG_KEY = 'nightIeltsGithubCfg';
+  function ghLoadCfg(){
+    try { return JSON.parse(localStorage.getItem(GH_CFG_KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function ghSaveCfg(cfg){ localStorage.setItem(GH_CFG_KEY, JSON.stringify(cfg)); }
+  function utf8ToB64(str){
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for(var i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+  function b64ToUtf8(b64){
+    var binary = atob(String(b64||'').replace(/\n/g,''));
+    var bytes = new Uint8Array(binary.length);
+    for(var i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+  function ghApiBase(cfg){ return 'https://api.github.com/repos/' + cfg.owner + '/' + cfg.repo + '/contents/'; }
+  function ghGetFile(cfg, path){
+    return fetch(ghApiBase(cfg) + path + '?ref=' + encodeURIComponent(cfg.branch || 'main'), {
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json' }
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub GET lỗi (' + res.status + '): ' + path + ' — ' + t); });
+      return res.json();
+    }).then(function(j){ return { sha: j.sha, text: b64ToUtf8(j.content) }; });
+  }
+  function ghPutFile(cfg, path, text, message, sha){
+    var body = { message: message, content: utf8ToB64(text), branch: cfg.branch || 'main' };
+    if(sha) body.sha = sha;
+    return fetch(ghApiBase(cfg) + path, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub PUT lỗi (' + res.status + '): ' + t); });
+      return res.json();
+    });
+  }
+  function ghDeleteFile(cfg, path, message, sha){
+    return fetch(ghApiBase(cfg) + path, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message, sha: sha, branch: cfg.branch || 'main' })
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub DELETE lỗi (' + res.status + '): ' + t); });
+    });
+  }
+  function extractLessonDataArrayText(fullText){
+    var marker = 'const LESSON_DATA = ';
+    var startIdx = fullText.indexOf(marker);
+    if(startIdx === -1) throw new Error('Không tìm thấy LESSON_DATA trong index.html');
+    var i = startIdx + marker.length;
+    while(fullText[i] !== '[') i++;
+    var arrStart = i;
+    var depth = 0, inStr = false, strCh = '', esc = false;
+    for(; i < fullText.length; i++){
+      var c = fullText[i];
+      if(inStr){
+        if(esc){ esc = false; }
+        else if(c === '\\'){ esc = true; }
+        else if(c === strCh){ inStr = false; }
+        continue;
+      }
+      if(c === '"' || c === "'" || c === '`'){ inStr = true; strCh = c; continue; }
+      if(c === '[') depth++;
+      else if(c === ']'){ depth--; if(depth === 0){ i++; break; } }
+    }
+    var arrEnd = i;
+    return { marker: marker, startIdx: startIdx, arrStart: arrStart, arrEnd: arrEnd, arrayText: fullText.slice(arrStart, arrEnd) };
+  }
+  function parseLessonData(arrayText){ return (new Function('return ' + arrayText))(); }
+  function serializeLessonData(dataArray){ return JSON.stringify(dataArray, null, 4); }
+  function replaceLessonDataInFile(fullText, newArrayText){
+    var r = extractLessonDataArrayText(fullText);
+    return fullText.slice(0, r.arrStart) + newArrayText + fullText.slice(r.arrEnd);
+  }
 
-                progressList.innerHTML = rows.map(r => {
-                    const barColor = r.percent >= 100 ? 'bg-emerald-500' : (r.percent > 0 ? 'bg-brand-purple' : 'bg-gray-200');
-                    const percentColor = r.percent >= 100 ? 'text-emerald-600' : 'text-brand-purple';
-                    const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleDateString('vi-VN') : '';
-                    const isOverdue = r.deadlineAt && now > r.deadlineAt && r.percent < 100;
-                    let deadlineBadge = '';
-                    if (r.deadlineAt) {
-                        const dlStr = new Date(r.deadlineAt).toLocaleDateString('vi-VN');
-                        deadlineBadge = isOverdue
-                            ? `<span class="inline-flex items-center gap-1 text-[10px] font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-1.5"><i class="fa-solid fa-triangle-exclamation"></i> Quá hạn (${dlStr})</span>`
-                            : `<span class="inline-flex items-center gap-1 text-[10px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full mt-1.5"><i class="fa-regular fa-clock"></i> Hạn: ${dlStr}</span>`;
-                    }
-                    let doneLine;
-                    if (r.kind === 'game') {
-                        doneLine = r.percent > 0
-                            ? `🎯 Độ chính xác cao nhất: ${r.percent}% (tự động, bắn đúng từ)`
-                            : 'Học sinh chưa chơi lần nào';
-                    } else if (r.isLink) {
-                        doneLine = r.percent >= 100 ? '✅ Học sinh đã đánh dấu hoàn thành' : 'Chưa đánh dấu hoàn thành';
-                    } else {
-                        doneLine = `${r.done}/${r.total} câu đã gõ đúng`;
-                    }
-                    return `
-                        <div class="bg-gray-50/60 rounded-2xl p-4 border border-gray-100">
-                            <div class="flex justify-between items-start gap-3">
-                                <div class="min-w-0">
-                                    <p class="font-bold text-gray-800 text-sm truncate">${r.title}</p>
-                                    <p class="text-xs text-gray-400 font-semibold mt-0.5 truncate">${r.studentName}${r.studentEmail ? ' · ' + r.studentEmail : ''}${dateStr ? ' · ' + dateStr : ''}</p>
-                                    ${deadlineBadge}
-                                </div>
-                                <div class="flex items-center gap-2 shrink-0">
-                                    <span class="text-sm font-black ${percentColor}">${r.percent}%</span>
-                                    <button onclick="confirmDeleteAssignment('${r.id}')" title="Xoá bài đã giao này" class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors">
-                                        <i class="fa-solid fa-trash-can text-xs"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="w-full h-2 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                                <div class="h-full ${barColor} rounded-full transition-all" style="width:${r.percent}%"></div>
-                            </div>
-                            <p class="text-[11px] text-gray-400 font-semibold mt-1.5">${doneLine}</p>
-                        </div>
-                    `;
-                }).join('');
-            } catch (e) {
-                console.error(e);
-                progressList.innerHTML = '<p class="text-red-500 text-sm font-bold">Lỗi tải dữ liệu tiến độ.</p>';
-            }
-        });
+  // Chỉ commit file game lên repo, không đụng tới LESSON_DATA — dùng cho cả
+  // "đăng lên thư mục" (bước 1) lẫn "giao riêng cho học sinh" (không cần vào folder).
+  function ghCommitGameFile(cfg, title, html){
+    var genId = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var filePath = 'homework/generated/' + slugify(title) + '-' + genId + '.html';
+    return ghPutFile(cfg, filePath, html, 'Night IELTS: thêm game "' + title + '"', undefined)
+      .then(function(){ return { genId: genId, filePath: filePath }; });
+  }
 
-        window.confirmDeleteAssignment = function(assignmentId){
-            const row = (window.__lastProgressRows || []).find(r => r.id === assignmentId);
-            const title = row ? row.title : 'bài này';
-            const ok = confirm('Xoá bài đã giao "' + title + '"?\nHọc sinh sẽ không còn thấy bài này nữa. Hành động này không thể hoàn tác.');
-            if(!ok) return;
-            deleteDoc(doc(db, "assignments", assignmentId)).then(() => {
-                progressBtn.click();
-            }).catch(e => {
-                alert('Lỗi khi xoá: ' + e.message);
-            });
-        };
+  function ghPublishToFolder(cfg, folderId, title, wordCount, html){
+    return ghCommitGameFile(cfg, title, html).then(function(committed){
+      return ghGetFile(cfg, 'index.html').then(function(res){
+        var data = parseLessonData(extractLessonDataArrayText(res.text).arrayText);
+        var folder = data.find(function(f){ return f.id === folderId; });
+        if(!folder) throw new Error('Không tìm thấy folder: ' + folderId);
+        var d = new Date();
+        var dateStr = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+        folder.tests.unshift({ title: title, date: dateStr, questions: wordCount, link: committed.filePath, gen: committed.genId });
+        var newFullText = replaceLessonDataInFile(res.text, serializeLessonData(data));
+        return ghPutFile(cfg, 'index.html', newFullText, 'Night IELTS: đăng game "' + title + '" vào folder ' + folderId, res.sha);
+      }).then(function(){ return committed; });
+    });
+  }
 
-        document.getElementById('btn-close-progress').addEventListener('click', () => {
-            progressModal.classList.add('hidden');
-            progressModal.classList.remove('flex');
-        });
-    </script>
+  // Script theo dõi tiến độ, sẽ được nhúng thêm vào file game khi GIAO RIÊNG cho
+  // 1 học sinh (không nhúng khi đăng lên thư mục vĩnh viễn, vì bài thư mục không
+  // gắn với 1 assignment cụ thể nào). Game gọi window.__reportGameResult(...) mỗi
+  // khi kết thúc ván chơi (xem endGame() trong game-template) — script này lưu %
+  // chính xác CAO NHẤT qua các lần chơi lại vào đúng document assignments/{id}.
+  function buildAssignmentTrackingScript(assignmentId){
+    return '\n<script type="module">\n' +
+      'import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";\n' +
+      'import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";\n' +
+      'var firebaseConfig = ' + JSON.stringify({
+        apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+        authDomain: "night-ielts-land.firebaseapp.com",
+        databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+        projectId: "night-ielts-land",
+        storageBucket: "night-ielts-land.firebasestorage.app",
+        messagingSenderId: "408519436407",
+        appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+        measurementId: "G-H3P14NJR76"
+      }) + ';\n' +
+      'var app = initializeApp(firebaseConfig);\n' +
+      'var db = getFirestore(app);\n' +
+      'var assignmentRef = doc(db, "assignments", ' + JSON.stringify(assignmentId) + ');\n' +
+      'window.__reportGameResult = function(result){\n' +
+      '  getDoc(assignmentRef).then(function(snap){\n' +
+      '    var prevPercent = (snap.exists() && snap.data().percent) ? snap.data().percent : 0;\n' +
+      '    var bestPercent = Math.max(prevPercent, result.accuracy);\n' +
+      '    return updateDoc(assignmentRef, {\n' +
+      '      percent: bestPercent,\n' +
+      '      completed: bestPercent >= 100 || result.passed,\n' +
+      '      lastAccuracy: result.accuracy,\n' +
+      '      lastPassed: result.passed,\n' +
+      '      lastPlayedAt: Date.now()\n' +
+      '    });\n' +
+      '  }).catch(function(e){ console.error("Không lưu được tiến độ:", e); });\n' +
+      '};\n' +
+      '<' + '/script>\n';
+  }
+
+  // buildGameHTML() nhưng có nhúng thêm script theo dõi tiến độ (chèn ngay trước </body>)
+  function buildGameHTMLWithTracking(assignmentId){
+    var html = buildGameHTML();
+    if (!html) return html;
+    var trackingScript = buildAssignmentTrackingScript(assignmentId);
+    var idx = html.lastIndexOf('</body>');
+    if (idx === -1) return html + trackingScript;
+    return html.slice(0, idx) + trackingScript + html.slice(idx);
+  }
+
+  // ============================================================================
+  // PUBLISH-TO-FOLDER MODAL
+  // ============================================================================
+  var FALLBACK_FOLDERS = [
+    {id:"LINH TINH", name:"Linh Tinh"},
+    {id:"listening - cac giao trinh", name:"listening - các giáo trình"},
+    {id:"bai tap pre-listening", name:"pre-listening"},
+    {id:"Mindset-foundation", name:"Mindset0"},
+    {id:"mindset 2 - giáo trình - interactive lessons", name:"speaking mindset2"},
+    {id:"mindset0", name:"mindset foundation"},
+    {id:"nguphap", name:"ngữ pháp tổng hợp"},
+    {id:"Vocab Practice Mindset 2", name:"Vocab Practice Mindset 2"},
+    {id:"writing1", name:"Writing Task 1"},
+    {id:"Boya1", name:"Boya1"},
+    {id:"empty_demo", name:"Thư mục mới"}
+  ];
+
+  document.getElementById('btn-publish').addEventListener('click', function(){
+    if (getRows().length === 0) { showToast('Chưa có từ nào — hãy phân tích hoặc thêm ít nhất 1 từ.'); return; }
+    var sel = document.getElementById('publishFolderSelect');
+    sel.innerHTML = FALLBACK_FOLDERS.map(function(f){
+      return '<option value="' + f.id.replace(/"/g,'&quot;') + '">' + f.name + '</option>';
+    }).join('') + '<option value="__custom__">-- ID folder khác (gõ tay) --</option>';
+    document.getElementById('publishMsg').textContent = '';
+    document.getElementById('publishModal').classList.remove('hidden');
+  });
+  document.getElementById('publishCancel').addEventListener('click', function(){
+    document.getElementById('publishModal').classList.add('hidden');
+  });
+  document.getElementById('publishConfirm').addEventListener('click', function(){
+    var sel = document.getElementById('publishFolderSelect');
+    var folderId = sel.value;
+    var msgEl = document.getElementById('publishMsg');
+    if (folderId === '__custom__') {
+      folderId = prompt('Nhập chính xác ID folder (xem trong index.html, phân biệt hoa/thường):', '');
+      if (!folderId) return;
+    }
+    var html = buildGameHTML();
+    if (!html) return;
+    var cfg = ghLoadCfg();
+    if (!cfg.owner || !cfg.repo || !cfg.token) {
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Chưa cấu hình GitHub — bấm ⚙️ ở góc trên để nhập trước.';
+      return;
+    }
+    var title = document.getElementById('input-title').value.trim() || 'VOCABULARY CHICKEN INVADERS';
+    var btn = document.getElementById('publishConfirm');
+    btn.disabled = true; btn.textContent = 'Đang đăng...';
+    ghPublishToFolder(cfg, folderId, title, getRows().length, html).then(function(){
+      msgEl.className = 'modal-msg ok';
+      msgEl.textContent = 'Đã đăng game lên folder thành công! Vài giây sau sẽ hiện trên trang chủ.';
+      btn.disabled = false; btn.textContent = '🚀 Đăng bài';
+      setTimeout(function(){ document.getElementById('publishModal').classList.add('hidden'); }, 1500);
+    }).catch(function(e){
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Lỗi: ' + e.message;
+      btn.disabled = false; btn.textContent = '🚀 Đăng bài';
+    });
+  });
+
+  // ============================================================================
+  // ASSIGN-TO-STUDENT MODAL
+  // ============================================================================
+  document.getElementById('btn-assign').addEventListener('click', function(){
+    if (getRows().length === 0) { showToast('Chưa có từ nào — hãy phân tích hoặc thêm ít nhất 1 từ.'); return; }
+    document.getElementById('assignModal').classList.remove('hidden');
+    document.getElementById('assignMsg').textContent = '';
+    var sel = document.getElementById('assignStudentSelect');
+    sel.innerHTML = '<option value="">-- Đang tải học sinh... --</option>';
+    if (!window.__db) { sel.innerHTML = '<option value="">Chưa kết nối được hệ thống</option>'; return; }
+    window.__getDocs(window.__query(window.__collection(window.__db, 'users'), window.__where('role','==','student'))).then(function(snap){
+      var html = '<option value="">-- Chọn học sinh --</option>';
+      snap.forEach(function(d){
+        var s = d.data();
+        html += '<option value="' + d.id + '">' + (s.name || s.email || d.id) + (s.email ? ' (' + s.email + ')' : '') + '</option>';
+      });
+      sel.innerHTML = html;
+    }).catch(function(){ sel.innerHTML = '<option value="">Lỗi tải học sinh</option>'; });
+  });
+  document.getElementById('assignCancel').addEventListener('click', function(){
+    document.getElementById('assignModal').classList.add('hidden');
+  });
+  document.getElementById('assignConfirm').addEventListener('click', function(){
+    var studentId = document.getElementById('assignStudentSelect').value;
+    var deadlineStr = document.getElementById('assignDeadline').value;
+    var msgEl = document.getElementById('assignMsg');
+    if (!studentId) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chọn học sinh trước đã.'; return; }
+    var cfg = ghLoadCfg();
+    if (!cfg.owner || !cfg.repo || !cfg.token) {
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Chưa cấu hình GitHub — bấm ⚙️ ở góc trên để nhập trước.';
+      return;
+    }
+    if (!window.__db || !window.__newAssignmentRef) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chưa kết nối được hệ thống, thử tải lại trang.'; return; }
+    var title = document.getElementById('input-title').value.trim() || 'VOCABULARY CHICKEN INVADERS';
+    var btn = document.getElementById('assignConfirm');
+    btn.disabled = true; btn.textContent = 'Đang giao...';
+
+    // Cấp phát trước ID assignment (chưa ghi Firestore) để nhúng vào file game,
+    // giúp game tự báo % chính xác thẳng vào đúng bài đã giao khi học sinh chơi.
+    var assignmentRef = window.__newAssignmentRef();
+    var html = buildGameHTMLWithTracking(assignmentRef.id);
+    if (!html) { btn.disabled = false; btn.textContent = '🚀 Giao bài'; return; }
+
+    ghCommitGameFile(cfg, title, html).then(function(committed){
+      var now = Date.now();
+      var deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
+      return window.__setAssignmentDoc(assignmentRef, {
+        title: title,
+        studentId: studentId,
+        link: committed.filePath,
+        createdAt: now,
+        deadlineAt: deadlineAt,
+        expiresAt: now + 20*24*60*60*1000,
+        completed: false,
+        percent: 0,
+        kind: 'game'
+      });
+    }).then(function(){
+      msgEl.className = 'modal-msg ok';
+      msgEl.textContent = 'Đã giao game thành công! Điểm % sẽ tự cập nhật khi học sinh chơi. (Tự xoá sau 20 ngày)';
+      btn.disabled = false; btn.textContent = '🚀 Giao bài';
+      setTimeout(function(){ document.getElementById('assignModal').classList.add('hidden'); }, 1200);
+    }).catch(function(e){
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Lỗi: ' + e.message;
+      btn.disabled = false; btn.textContent = '🚀 Giao bài';
+    });
+  });
+
+  // ============================================================================
+  // GITHUB SETTINGS MODAL
+  // ============================================================================
+  document.getElementById('ghSettingsBtn').addEventListener('click', function(){
+    var cfg = ghLoadCfg();
+    document.getElementById('ghOwner').value = cfg.owner || '';
+    document.getElementById('ghRepo').value = cfg.repo || '';
+    document.getElementById('ghBranch').value = cfg.branch || 'main';
+    document.getElementById('ghToken').value = cfg.token || '';
+    document.getElementById('ghSettingsMsg').textContent = '';
+    document.getElementById('ghSettingsModal').classList.remove('hidden');
+  });
+  document.getElementById('ghSettingsCancel').addEventListener('click', function(){
+    document.getElementById('ghSettingsModal').classList.add('hidden');
+  });
+  document.getElementById('ghSettingsSave').addEventListener('click', function(){
+    var cfg = {
+      owner: document.getElementById('ghOwner').value.trim(),
+      repo: document.getElementById('ghRepo').value.trim(),
+      branch: document.getElementById('ghBranch').value.trim() || 'main',
+      token: document.getElementById('ghToken').value.trim()
+    };
+    ghSaveCfg(cfg);
+    var m = document.getElementById('ghSettingsMsg');
+    m.className = 'modal-msg ok';
+    m.textContent = 'Đã lưu.';
+    setTimeout(function(){ document.getElementById('ghSettingsModal').classList.add('hidden'); }, 700);
+  });
+
+  document.getElementById('genLogoutBtn').addEventListener('click', function(){
+    if (window.__signOut) window.__signOut();
+  });
+
+  document.getElementById('btn-parse').click();
+})();
+</script>
+
+<!-- ================= FIREBASE AUTH GATE (chỉ admin mới dùng được công cụ này) ================= -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+    authDomain: "night-ielts-land.firebaseapp.com",
+    databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+    projectId: "night-ielts-land",
+    storageBucket: "night-ielts-land.firebasestorage.app",
+    messagingSenderId: "408519436407",
+    appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+    measurementId: "G-H3P14NJR76"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // Bridge cho script chính phía trên dùng Firestore (giao bài / lấy học sinh)
+  window.__db = db;
+  window.__collection = collection;
+  window.__query = query;
+  window.__where = where;
+  window.__getDocs = getDocs;
+  window.__addDoc = addDoc;
+  // Cấp phát trước 1 document ref (chưa ghi) để lấy ID nhúng vào file game
+  // trước khi commit lên GitHub (bài toán "trứng - gà").
+  window.__newAssignmentRef = function(){ return doc(collection(db, 'assignments')); };
+  window.__setAssignmentDoc = function(ref, data){ return setDoc(ref, data); };
+  window.__signOut = function(){ signOut(auth); };
+
+  const authGate = document.getElementById('authGate');
+  const authGateMsg = document.getElementById('authGateMsg');
+  const authGateLoginBtn = document.getElementById('authGateLoginBtn');
+  const appRoot = document.getElementById('appRoot');
+
+  function doLogin(){
+    authGateLoginBtn.disabled = true;
+    authGateLoginBtn.textContent = 'Đang đăng nhập...';
+    signInWithPopup(auth, provider).catch(function(err){
+      authGateMsg.innerHTML = '<span style="color:var(--danger)">Đăng nhập lỗi: ' + err.message + '</span>';
+      authGateLoginBtn.disabled = false;
+      authGateLoginBtn.textContent = 'Đăng nhập bằng Google';
+    });
+  }
+  authGateLoginBtn.onclick = doLogin;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      authGate.classList.remove('hidden');
+      appRoot.classList.add('hidden');
+      authGateMsg.textContent = 'Công cụ này chỉ dành cho giáo viên. Vui lòng đăng nhập bằng tài khoản Google quản trị.';
+      authGateLoginBtn.disabled = false;
+      authGateLoginBtn.textContent = 'Đăng nhập bằng Google';
+      authGateLoginBtn.onclick = doLogin;
+      return;
+    }
+    authGateMsg.textContent = 'Đang kiểm tra quyền truy cập...';
+    try {
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      const role = userSnap.exists() ? userSnap.data().role : null;
+      if (role === 'admin') {
+        authGate.classList.add('hidden');
+        appRoot.classList.remove('hidden');
+        const badge = document.getElementById('authUserBadge');
+        if (badge) badge.textContent = user.displayName || user.email || '';
+      } else {
+        authGate.classList.remove('hidden');
+        appRoot.classList.add('hidden');
+        authGateMsg.innerHTML = '<span style="color:var(--danger)">Tài khoản (' + (user.email || '') + ') không có quyền giáo viên. Vui lòng đăng xuất và đăng nhập bằng tài khoản admin.</span>';
+        authGateLoginBtn.disabled = false;
+        authGateLoginBtn.textContent = 'Đăng xuất';
+        authGateLoginBtn.onclick = function(){ signOut(auth); };
+      }
+    } catch (e) {
+      authGateMsg.innerHTML = '<span style="color:var(--danger)">Lỗi kiểm tra quyền: ' + e.message + '</span>';
+    }
+  });
+</script>
 </body>
 </html>
