@@ -1,0 +1,1222 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>bắn gà - làm ngay đi</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #0b0f19;
+            --primary: #00f0ff;
+            --danger: #ff4757;
+            --success: #2ed573;
+            --warning: #ffa502;
+            --text-light: #ffffff;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --card-text: #2f3542;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            background-color: #000;
+            color: var(--text-light);
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 100%;
+            max-height: 1200px;
+            background: var(--bg-color);
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        /* UI Screens */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 15, 25, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            text-align: center;
+            padding: 20px;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        h1 { font-family: 'Fredoka One', cursive; font-size: 2.5rem; color: var(--primary); margin-bottom: 10px; text-shadow: 0 0 10px var(--primary); }
+        h2 { font-size: 1.8rem; margin-bottom: 20px; }
+        p { font-size: 1.2rem; margin-bottom: 15px; }
+        
+        .btn {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-family: 'Fredoka One', cursive;
+            transition: transform 0.1s, box-shadow 0.1s;
+            box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+        }
+        .btn:active { transform: scale(0.95); }
+
+        /* HUD */
+        #hud {
+            position: absolute;
+            top: 0; left: 0; width: 100%;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 5;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px #000;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .hud-left, .hud-right { display: flex; flex-direction: column; }
+        .hud-right { align-items: flex-end; }
+        #lives { color: var(--danger); font-size: 1.5rem; letter-spacing: 5px; }
+        #combo-display { color: var(--warning); font-size: 1.2rem; opacity: 0; transition: opacity 0.2s; }
+        #combo-display.active { opacity: 1; }
+
+        /* Controls */
+        #controls {
+            display: flex;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.5);
+            border-top: 2px solid rgba(0, 240, 255, 0.3);
+            z-index: 5;
+        }
+        .control-btn {
+            flex: 1;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.5);
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.1s, color 0.1s;
+        }
+        .control-btn:active, .control-btn.active {
+            background: rgba(0, 240, 255, 0.3);
+            color: #fff;
+        }
+
+        /* Review List */
+        .review-list {
+            max-height: 55vh;
+            overflow-y: auto;
+            width: 100%;
+            max-width: 450px;
+            margin: 15px 0;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 10px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        
+        /* Custom Scrollbar for review list */
+        .review-list::-webkit-scrollbar { width: 8px; }
+        .review-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        .review-list::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+
+        .review-item {
+            background: rgba(255,255,255,0.1);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+        .review-item:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        
+        .review-word { font-weight: bold; font-size: 1.2rem; margin-bottom: 5px; display: inline-block; }
+        .review-meaning { font-size: 0.95rem; color: #cbd5e1; }
+        
+        .speaker-btn {
+            background: rgba(0, 240, 255, 0.1); 
+            border: 1px solid var(--primary);
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            font-size: 1.3rem; 
+            cursor: pointer; 
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.1s, background 0.2s;
+        }
+        .speaker-btn:active { transform: scale(0.9); }
+        .speaker-btn:hover { background: rgba(0, 240, 255, 0.3); }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="hud">
+        <div class="hud-left">
+            <div id="lives">❤️❤️❤️</div>
+            <div id="progress">Words: 0/20</div>
+            <div id="target-meaning" style="color: var(--primary); font-size: 1.3rem; margin-top: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px; cursor: pointer; pointer-events: auto;"></div>
+        </div>
+        <div class="hud-right">
+            <div id="score">Score: 0</div>
+            <div id="combo-display">COMBO x2</div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="controls">
+        <div class="control-btn" data-lane="0">A</div>
+        <div class="control-btn" data-lane="1">S</div>
+        <div class="control-btn" data-lane="2">D</div>
+        <div class="control-btn" data-lane="3">F</div>
+        <div class="control-btn" data-lane="4">G</div>
+        <div class="control-btn" data-lane="5">H</div>
+        <div class="control-btn" data-lane="6">J</div>
+        <div class="control-btn" data-lane="7">K</div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="screen-start" class="screen active">
+        <h1 id="game-title-h1">VOCABULARY<br>CHICKEN INVADERS</h1>
+        <p id="subtitle-text">Listen. Think. Aim. Shoot.</p>
+        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 20px 0;">
+            <p id="info-line">🎯 20 Words | ❤️ 3 Lives</p>
+            <p id="pass-line">🏆 80% to Pass</p>
+        </div>
+        <p id="credit-line" style="font-size: 0.8rem; color: rgba(255,255,255,0.35); margin-top: -10px; margin-bottom: 15px;">Night IELTS · by Mr. Night</p>
+        <button class="btn" id="btn-start">🚀 START MISSION</button>
+    </div>
+
+    <!-- Tutorial Screen -->
+    <div id="screen-tutorial" class="screen">
+        <h2>HOW TO PLAY</h2>
+        <p>1. Read/listen to the Vietnamese meaning on the top left.</p>
+        <p>2. Find the matching English word on a chicken.</p>
+        <p>3. Press the lane button (A-K or tap) to move & shoot.</p>
+        <button class="btn" id="btn-play">LET'S PLAY</button>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="screen-results" class="screen">
+        <h1 id="result-title" style="margin-bottom: 5px;">MISSION COMPLETE</h1>
+        <h2 id="result-percent" style="margin-bottom: 5px;">90%</h2>
+        <p id="result-stats" style="margin-bottom: 10px; font-size: 1rem;"></p>
+        
+        <h3 style="color: var(--primary); text-transform: uppercase; font-size: 1rem; letter-spacing: 2px;">Tổng hợp từ vựng</h3>
+        
+        <div class="review-list" id="review-list">
+            <!-- Words will be dynamically injected here -->
+        </div>
+        
+        <button class="btn" id="btn-replay" style="margin-top: 10px;">PLAY AGAIN</button>
+    </div>
+</div>
+
+<script>
+/**
+ * VOCABULARY DATASET
+ */
+const rawVocabulary = [
+    {
+        "en": "social media platform",
+        "vi": "nền tảng mạng xã hội"
+    },
+    {
+        "en": "online friendship",
+        "vi": "tình bạn trên mạng"
+    },
+    {
+        "en": "go viral",
+        "vi": "trở nên nổi tiếng / lan truyền nhanh trên mạng"
+    },
+    {
+        "en": "share a post",
+        "vi": "chia sẻ một bài đăng"
+    },
+    {
+        "en": "tag someone",
+        "vi": "gắn thẻ ai đó"
+    },
+    {
+        "en": "block someone",
+        "vi": "chặn ai đó"
+    },
+    {
+        "en": "remove a post",
+        "vi": "xóa một bài đăng"
+    },
+    {
+        "en": "update a profile",
+        "vi": "cập nhật hồ sơ"
+    },
+    {
+        "en": "private message",
+        "vi": "tin nhắn riêng"
+    },
+    {
+        "en": "friend request",
+        "vi": "lời mời kết bạn"
+    },
+    {
+        "en": "post an apology",
+        "vi": "đăng lời xin lỗi"
+    },
+    {
+        "en": "comment on a post",
+        "vi": "bình luận về một bài đăng"
+    },
+    {
+        "en": "ignore something",
+        "vi": "phớt lờ điều gì đó"
+    },
+    {
+        "en": "delete a comment",
+        "vi": "xóa một bình luận"
+    },
+    {
+        "en": "get lots of likes",
+        "vi": "nhận được nhiều lượt thích"
+    },
+    {
+        "en": "get lots of shares",
+        "vi": "nhận được nhiều lượt chia sẻ"
+    },
+    {
+        "en": "share information",
+        "vi": "chia sẻ thông tin"
+    },
+    {
+        "en": "make new contacts",
+        "vi": "tạo các mối quan hệ mới"
+    },
+    {
+        "en": "follow your dreams",
+        "vi": "theo đuổi ước mơ"
+    },
+    {
+        "en": "believe in yourself",
+        "vi": "tin vào bản thân"
+    },
+    {
+        "en": "inspiring quote",
+        "vi": "câu nói truyền cảm hứng"
+    },
+    {
+        "en": "feel uncomfortable",
+        "vi": "cảm thấy không thoải mái"
+    },
+    {
+        "en": "supportive comment",
+        "vi": "bình luận mang tính động viên"
+    },
+    {
+        "en": "waste time",
+        "vi": "lãng phí thời gian"
+    },
+    {
+        "en": "make friends",
+        "vi": "kết bạn"
+    },
+    {
+        "en": "keep in touch",
+        "vi": "giữ liên lạc"
+    },
+    {
+        "en": "lose touch with someone",
+        "vi": "mất liên lạc với ai đó"
+    },
+    {
+        "en": "have a lot in common",
+        "vi": "có nhiều điểm chung"
+    },
+    {
+        "en": "get along with someone",
+        "vi": "hòa thuận với ai đó"
+    },
+    {
+        "en": "be close to someone",
+        "vi": "thân thiết với ai đó"
+    },
+    {
+        "en": "build a strong relationship",
+        "vi": "xây dựng một mối quan hệ bền chặt"
+    },
+    {
+        "en": "mutual respect",
+        "vi": "sự tôn trọng lẫn nhau"
+    },
+    {
+        "en": "trust each other",
+        "vi": "tin tưởng lẫn nhau"
+    },
+    {
+        "en": "emotional support",
+        "vi": "sự hỗ trợ về tinh thần"
+    },
+    {
+        "en": "be there for someone",
+        "vi": "ở bên và hỗ trợ ai đó"
+    },
+    {
+        "en": "fall out with someone",
+        "vi": "cãi nhau / mất hòa khí với ai đó"
+    },
+    {
+        "en": "make up with someone",
+        "vi": "làm lành với ai đó"
+    },
+    {
+        "en": "sort out a disagreement",
+        "vi": "giải quyết một bất đồng"
+    },
+    {
+        "en": "be on good terms with someone",
+        "vi": "có mối quan hệ tốt với ai đó"
+    },
+    {
+        "en": "meaningful relationship",
+        "vi": "mối quan hệ có ý nghĩa"
+    },
+    {
+        "en": "character",
+        "vi": "tính cách"
+    },
+    {
+        "en": "reliable",
+        "vi": "đáng tin cậy"
+    },
+    {
+        "en": "confident",
+        "vi": "tự tin"
+    },
+    {
+        "en": "anxious",
+        "vi": "lo lắng / bất an"
+    },
+    {
+        "en": "practical",
+        "vi": "thực tế"
+    },
+    {
+        "en": "creative",
+        "vi": "sáng tạo"
+    },
+    {
+        "en": "organized",
+        "vi": "ngăn nắp / có tổ chức"
+    },
+    {
+        "en": "competitive",
+        "vi": "có tính cạnh tranh"
+    },
+    {
+        "en": "personality trait",
+        "vi": "đặc điểm tính cách"
+    },
+    {
+        "en": "family environment",
+        "vi": "môi trường gia đình"
+    }
+];
+const GAME_TITLE = "bắn gà - làm ngay đi";
+const GAME_SUBTITLE = "Listen. Think. Aim. Shoot.";
+const LIVES_COUNT = 9;
+const PASS_PERCENT = 80;
+
+/**
+ * GAME ENGINE & STATE
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let gameWidth = 0;
+let gameHeight = 0;
+const LANE_COUNT = 8;
+const DANGER_ZONE_HEIGHT = 100;
+
+// Audio Context
+let audioCtx = null;
+
+// Game State
+let state = {
+    screen: 'start',
+    vocabQueue: [],
+    activeEnemies: [],
+    lasers: [],
+    particles: [],
+    stars: [],
+    score: 0,
+    lives: LIVES_COUNT,
+    combo: 0,
+    maxCombo: 0,
+    completed: 0,
+    missedWords: [],
+    masteredWords: [],
+    targetWord: null,
+    lastTime: 0,
+    animFrame: null,
+    spawnTimer: 0,
+    difficultyMultiplier: 1
+};
+
+// Player (Spaceship)
+let player = {
+    lane: 3.5,
+    targetLane: 3.5,
+    y: 0,
+    width: 40,
+    height: 40,
+    fireTimer: 0
+};
+
+// Controls Map & Labels
+const keysMap = {
+    'a': 0, 's': 1, 'd': 2, 'f': 3, 'g': 4, 'h': 5, 'j': 6, 'k': 7,
+    '1': 0, '2': 1, '3': 2, '4': 3, '5': 4, '6': 5, '7': 6, '8': 7
+};
+const laneLabels = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K'];
+
+/**
+ * INITIALIZATION & RESIZE
+ */
+function resize() {
+    gameWidth = canvas.parentElement.clientWidth;
+    gameHeight = canvas.parentElement.clientHeight - document.getElementById('controls').clientHeight; 
+    canvas.width = gameWidth;
+    canvas.height = gameHeight;
+    player.y = gameHeight - 60;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function initStars() {
+    state.stars = [];
+    for(let i=0; i<50; i++) {
+        state.stars.push({
+            x: Math.random() * gameWidth,
+            y: Math.random() * gameHeight,
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 0.5 + 0.1
+        });
+    }
+}
+
+/**
+ * AUDIO / SPEECH
+ */
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+}
+
+function playSound(type) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    if (type === 'shoot') {
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    } else if (type === 'explosion') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+    } else if (type === 'wrong') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(100, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+}
+
+function speakWord(word) {
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(word);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+/**
+ * UTILS
+ */
+function shuffle(array) {
+    let arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function getLaneCenter(laneIndex) {
+    const laneWidth = gameWidth / LANE_COUNT;
+    return (laneIndex * laneWidth) + (laneWidth / 2);
+}
+
+/**
+ * GAMEPLAY LOGIC
+ */
+function startNewGame() {
+    initAudio();
+    state.vocabQueue = shuffle(rawVocabulary);
+    state.activeEnemies = [];
+    state.lasers = [];
+    state.particles = [];
+    state.score = 0;
+    state.lives = LIVES_COUNT;
+    state.combo = 0;
+    state.maxCombo = 0;
+    state.completed = 0;
+    state.missedWords = [];
+    state.masteredWords = [];
+    state.targetWord = null;
+    state.spawnTimer = 0;
+    state.difficultyMultiplier = 1;
+    player.lane = 3.5;
+    player.targetLane = 3.5;
+    
+    initStars();
+    updateHUD();
+    setScreen('playing');
+    
+    if (state.animFrame) cancelAnimationFrame(state.animFrame);
+    state.lastTime = performance.now();
+    gameLoop(state.lastTime);
+}
+
+function spawnEnemy() {
+    if (state.vocabQueue.length === 0) return;
+    
+    let availableLanes = [0,1,2,3,4,5,6,7];
+    state.activeEnemies.forEach(e => {
+        availableLanes = availableLanes.filter(l => l !== e.lane);
+    });
+    
+    if (availableLanes.length === 0) return;
+    
+    const lane = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+    const wordData = state.vocabQueue.pop();
+    
+    state.activeEnemies.push({
+        wordData: wordData,
+        lane: lane,
+        y: -50,
+        speed: 30 + (Math.random() * 10) + (state.difficultyMultiplier * 10),
+        wobbleOffset: Math.random() * Math.PI * 2,
+        wobbleSpeed: 2 + Math.random() * 2,
+        flashing: 0
+    });
+    
+    assignTarget();
+}
+
+function assignTarget() {
+    if (!state.targetWord && state.activeEnemies.length > 0) {
+        const potentialTargets = state.activeEnemies;
+        if (potentialTargets.length > 0) {
+            const targetEnemy = potentialTargets[Math.floor(Math.random() * potentialTargets.length)];
+            state.targetWord = targetEnemy.wordData;
+            document.getElementById('target-meaning').innerText = `Target: ${state.targetWord.vi.toUpperCase()} 🔊`;
+            speakWord(state.targetWord.en);
+        }
+    }
+}
+
+function fireLaser() {
+    playSound('shoot');
+    state.lasers.push({
+        x: getLaneCenter(player.lane),
+        y: player.y,
+        speed: 800
+    });
+}
+
+function createExplosion(x, y, color) {
+    for(let i=0; i<15; i++) {
+        state.particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 200,
+            vy: (Math.random() - 0.5) * 200,
+            life: 0.5 + Math.random() * 0.5,
+            maxLife: 1,
+            color: color
+        });
+    }
+}
+
+function createTextPopup(text, x, y, color) {
+    state.particles.push({
+        x: x, y: y,
+        vx: 0, vy: -50,
+        life: 1, maxLife: 1,
+        color: color,
+        text: text
+    });
+}
+
+function updateHUD() {
+    let hearts = '';
+    for(let i=0; i<LIVES_COUNT; i++) hearts += i < state.lives ? '❤️' : '🖤';
+    document.getElementById('lives').innerText = hearts;
+    document.getElementById('progress').innerText = `Words: ${state.completed}/${rawVocabulary.length}`;
+    document.getElementById('score').innerText = `Score: ${state.score}`;
+    
+    const comboEl = document.getElementById('combo-display');
+    if (state.combo > 1) {
+        comboEl.innerText = `COMBO x${state.combo}`;
+        comboEl.classList.add('active');
+    } else {
+        comboEl.classList.remove('active');
+    }
+}
+
+function handleInput(laneIndex) {
+    if (state.screen !== 'playing') return;
+    
+    document.querySelectorAll('.control-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.control-btn[data-lane="${laneIndex}"]`).classList.add('active');
+    setTimeout(() => {
+        document.querySelector(`.control-btn[data-lane="${laneIndex}"]`).classList.remove('active');
+    }, 150);
+
+    player.targetLane = laneIndex;
+    fireLaser();
+}
+
+/**
+ * MAIN UPDATE LOOP
+ */
+function update(dt) {
+    player.lane += (player.targetLane - player.lane) * 15 * dt;
+    
+    if (state.activeEnemies.length < 4 && state.vocabQueue.length > 0) {
+        state.spawnTimer -= dt;
+        if (state.spawnTimer <= 0) {
+            spawnEnemy();
+            state.spawnTimer = 2 - (state.difficultyMultiplier * 0.5); 
+        }
+    }
+    
+    for (let i = state.lasers.length - 1; i >= 0; i--) {
+        let l = state.lasers[i];
+        l.y -= l.speed * dt;
+        
+        if (l.y < -10) {
+            state.lasers.splice(i, 1);
+            continue;
+        }
+        
+        for (let j = state.activeEnemies.length - 1; j >= 0; j--) {
+            let e = state.activeEnemies[j];
+            let enemyX = getLaneCenter(e.lane) + Math.sin(performance.now()/1000 * e.wobbleSpeed + e.wobbleOffset) * 10;
+            
+            if (Math.abs(l.x - enemyX) < 35 && Math.abs(l.y - (e.y + 30)) < 45) {
+                state.lasers.splice(i, 1);
+                
+                if (state.targetWord && e.wordData.en === state.targetWord.en) {
+                    playSound('explosion');
+                    createExplosion(enemyX, e.y, '#2ed573');
+                    state.completed++;
+                    state.combo++;
+                    if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+                    
+                    let points = 100 + (state.combo > 1 ? state.combo * 10 : 0);
+                    state.score += points;
+                    createTextPopup(`+${points}`, enemyX, e.y, '#2ed573');
+                    
+                    state.masteredWords.push(e.wordData);
+                    state.activeEnemies.splice(j, 1);
+                    state.targetWord = null;
+                    state.difficultyMultiplier += 0.05;
+                    assignTarget();
+                } else {
+                    playSound('wrong');
+                    state.combo = 0;
+                    state.score = Math.max(0, state.score - 25);
+                    e.flashing = 0.5;
+                    createTextPopup("WRONG!", enemyX, e.y, '#ff4757');
+                    createExplosion(enemyX, e.y, '#ff4757');
+                }
+                updateHUD();
+                break;
+            }
+        }
+    }
+    
+    for (let j = state.activeEnemies.length - 1; j >= 0; j--) {
+        let e = state.activeEnemies[j];
+        e.y += e.speed * dt;
+        if (e.flashing > 0) e.flashing -= dt;
+        
+        if (e.y > gameHeight - DANGER_ZONE_HEIGHT - 30) {
+            playSound('wrong');
+            state.lives--;
+            state.combo = 0;
+            state.score = Math.max(0, state.score - 100);
+            state.completed++;
+            state.missedWords.push(e.wordData);
+            createExplosion(getLaneCenter(e.lane), e.y, '#ff4757');
+            createTextPopup("MISSED!", getLaneCenter(e.lane), e.y, '#ff4757');
+            
+            if (state.targetWord && e.wordData.en === state.targetWord.en) {
+                state.targetWord = null;
+            }
+            state.activeEnemies.splice(j, 1);
+            assignTarget();
+            updateHUD();
+        }
+    }
+    
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+        let p = state.particles[i];
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+        if (p.life <= 0) state.particles.splice(i, 1);
+    }
+    
+    state.stars.forEach(s => {
+        s.y += s.speed;
+        if (s.y > gameHeight) { s.y = 0; s.x = Math.random() * gameWidth; }
+    });
+    
+    if (state.lives <= 0 || state.completed >= rawVocabulary.length) {
+        endGame();
+    }
+}
+
+/**
+ * Tính cỡ chữ / độ rộng thẻ bài (card) cho vừa với từ/cụm từ, để từ dài không
+ * bị tràn ra ngoài khung khiến học sinh không đọc được. Ưu tiên thu nhỏ cỡ chữ
+ * trước; nếu vẫn không vừa (cụm từ nhiều chữ) thì tách xuống 2 dòng.
+ */
+function fitCardText(ctx, text, maxWidth) {
+    const sizes = [12, 11, 10, 9, 8];
+    const paddingX = 14;
+    for (let i = 0; i < sizes.length; i++) {
+        ctx.font = 'bold ' + sizes[i] + 'px Nunito, sans-serif';
+        const w = ctx.measureText(text).width;
+        if (w + paddingX <= maxWidth) {
+            return { lines: [text], fontSize: sizes[i], width: Math.max(70, w + paddingX) };
+        }
+    }
+    // Vẫn không vừa dù đã thu nhỏ hết cỡ — nếu là cụm nhiều từ thì tách 2 dòng
+    const words = text.split(' ');
+    const minFont = 8;
+    ctx.font = 'bold ' + minFont + 'px Nunito, sans-serif';
+    if (words.length > 1) {
+        let bestIdx = 1, bestDiff = Infinity;
+        for (let k = 1; k < words.length; k++) {
+            const diff = Math.abs(words.slice(0, k).join(' ').length - words.slice(k).join(' ').length);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = k; }
+        }
+        const line1 = words.slice(0, bestIdx).join(' ');
+        const line2 = words.slice(bestIdx).join(' ');
+        const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
+        return { lines: [line1, line2], fontSize: minFont, width: Math.max(70, Math.min(w + paddingX, maxWidth * 1.3)) };
+    }
+    // 1 từ duy nhất quá dài, không có khoảng trắng để tách dòng — cho phép thẻ
+    // rộng hơn giới hạn một chút thay vì cắt mất chữ.
+    const w = ctx.measureText(text).width;
+    return { lines: [text], fontSize: minFont, width: Math.max(70, w + paddingX) };
+}
+
+/**
+ * RENDERING
+ */
+function draw() {
+    ctx.clearRect(0, 0, gameWidth, gameHeight);
+    
+    // Background Stars
+    ctx.fillStyle = '#fff';
+    state.stars.forEach(s => {
+        ctx.globalAlpha = Math.random() * 0.5 + 0.5;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
+        ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    
+    // Danger Zone Line
+    ctx.strokeStyle = 'rgba(255, 71, 87, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(0, gameHeight - DANGER_ZONE_HEIGHT);
+    ctx.lineTo(gameWidth, gameHeight - DANGER_ZONE_HEIGHT);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255, 71, 87, 0.5)';
+    ctx.font = '12px sans-serif';
+    ctx.fillText("DANGER ZONE", 10, gameHeight - DANGER_ZONE_HEIGHT + 15);
+    
+    // Lane lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for(let i=1; i<LANE_COUNT; i++) {
+        let lx = i * (gameWidth/LANE_COUNT);
+        ctx.beginPath();
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx, gameHeight);
+        ctx.stroke();
+    }
+
+    // Enemies
+    state.activeEnemies.forEach(e => {
+        let x = getLaneCenter(e.lane) + Math.sin(performance.now()/1000 * e.wobbleSpeed + e.wobbleOffset) * 10;
+        
+        ctx.save();
+        ctx.translate(x, e.y);
+        
+        if (state.targetWord && e.wordData.en === state.targetWord.en) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00f0ff';
+        }
+        
+        if (e.flashing > 0) {
+            ctx.filter = 'brightness(2) sepia(1) hue-rotate(-50deg) saturate(5)';
+        }
+
+        // Draw Chicken body
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ff4757';
+        ctx.beginPath();
+        ctx.arc(-5, -16, 5, 0, Math.PI*2);
+        ctx.arc(0, -18, 6, 0, Math.PI*2);
+        ctx.arc(5, -16, 5, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#ffa502';
+        ctx.beginPath();
+        ctx.moveTo(5, 0);
+        ctx.lineTo(15, 5);
+        ctx.lineTo(5, 8);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(5, -5, 2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#eee';
+        ctx.beginPath();
+        ctx.ellipse(-8, 5, 8, 4, Math.PI/4, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.filter = 'none';
+        ctx.shadowBlur = 0;
+
+        // Key Hint
+        const keyHint = laneLabels[e.lane];
+        ctx.fillStyle = '#ffa502'; 
+        ctx.beginPath();
+        ctx.roundRect(-12, 18, 24, 18, 4);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 14px "Fredoka One", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(keyHint, 0, 28);
+        
+        // Card — tự co giãn theo độ dài từ/cụm từ để không bị tràn/mất chữ
+        const wordText = e.wordData.en.toUpperCase();
+        const cardMaxWidth = Math.max(90, Math.min(gameWidth * 0.42, 200));
+        const fit = fitCardText(ctx, wordText, cardMaxWidth);
+        const cardHeight = fit.lines.length > 1 ? 34 : 24;
+        const cardTop = 38;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-fit.width / 2, cardTop, fit.width, cardHeight, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold ' + fit.fontSize + 'px Nunito, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (fit.lines.length === 1) {
+            ctx.fillText(fit.lines[0], 0, cardTop + cardHeight / 2);
+        } else {
+            ctx.fillText(fit.lines[0], 0, cardTop + cardHeight / 2 - fit.fontSize * 0.65);
+            ctx.fillText(fit.lines[1], 0, cardTop + cardHeight / 2 + fit.fontSize * 0.65);
+        }
+
+        ctx.restore();
+    });
+
+    // Lasers
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#00f0ff';
+    state.lasers.forEach(l => {
+        ctx.fillRect(l.x - 2, l.y - 15, 4, 30);
+    });
+    ctx.shadowBlur = 0;
+
+    // Player Ship
+    let px = getLaneCenter(player.lane);
+    ctx.save();
+    ctx.translate(px, player.y);
+    ctx.translate(0, Math.sin(performance.now()/200) * 3);
+    
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#00f0ff';
+    ctx.beginPath();
+    ctx.arc(0, 15, 10, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    ctx.fillStyle = '#dcdde1';
+    ctx.beginPath();
+    ctx.moveTo(0, -20);
+    ctx.lineTo(15, 15);
+    ctx.lineTo(-15, 15);
+    ctx.fill();
+    
+    ctx.fillStyle = '#00f0ff';
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(6, 8);
+    ctx.lineTo(-6, 8);
+    ctx.fill();
+    ctx.restore();
+
+    // Particles
+    state.particles.forEach(p => {
+        ctx.globalAlpha = p.life / p.maxLife;
+        if (p.text) {
+            ctx.fillStyle = p.color;
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.text, p.x, p.y);
+        } else {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+            ctx.fill();
+        }
+    });
+    ctx.globalAlpha = 1;
+}
+
+function gameLoop(time) {
+    if (state.screen !== 'playing') return;
+    
+    const dt = Math.min((time - state.lastTime) / 1000, 0.1); 
+    state.lastTime = time;
+    
+    update(dt);
+    draw();
+    
+    state.animFrame = requestAnimationFrame(gameLoop);
+}
+
+/**
+ * SCREEN MANAGEMENT
+ */
+function setScreen(screenName) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    state.screen = screenName;
+    if (screenName !== 'playing') {
+        document.getElementById(`screen-${screenName}`).classList.add('active');
+    }
+}
+
+function endGame() {
+    setScreen('results');
+    
+    // Protect against division by zero if game ends instantly
+    const totalWords = state.masteredWords.length + state.missedWords.length;
+    const accuracy = totalWords > 0 ? Math.round((state.masteredWords.length / totalWords) * 100) : 0;
+    
+    const passed = accuracy >= PASS_PERCENT && state.lives > 0;
+
+    // Báo kết quả về hệ thống chấm bài (nếu file này được nhúng script theo dõi tiến độ)
+    if (window.__reportGameResult) {
+        try {
+            window.__reportGameResult({
+                accuracy: accuracy,
+                passed: passed,
+                mastered: state.masteredWords.length,
+                missed: state.missedWords.length,
+                total: totalWords
+            });
+        } catch (e) { console.error('reportGameResult error', e); }
+    }
+
+    document.getElementById('result-title').innerText = passed ? "🎉 NHIỆM VỤ HOÀN THÀNH" : "✗ THỬ LẠI NHÉ";
+    document.getElementById('result-title').style.color = passed ? "var(--success)" : "var(--danger)";
+    document.getElementById('result-percent').innerText = `Độ chính xác: ${accuracy}%`;
+    
+    document.getElementById('result-stats').innerHTML = `
+        Điểm: ${state.score} | Combo cao nhất: x${state.maxCombo} <br>
+        Từ đã thuộc: ${state.masteredWords.length}/${totalWords}
+    `;
+    
+    const reviewList = document.getElementById('review-list');
+    reviewList.innerHTML = '';
+    
+    // Helper function to render list
+    function renderWords(wordsArray, isMissed) {
+        wordsArray.forEach(w => {
+            const div = document.createElement('div');
+            div.className = 'review-item';
+            div.style.borderLeft = isMissed ? '4px solid var(--danger)' : '4px solid var(--success)';
+            
+            div.innerHTML = `
+                <div style="flex-grow: 1; margin-right: 15px;">
+                    <span class="review-word" style="color: ${isMissed ? 'var(--danger)' : 'var(--success)'}">
+                        ${w.en} ${isMissed ? '❌' : '✅'}
+                    </span><br>
+                    <span class="review-meaning">${w.vi}</span>
+                </div>
+                <button class="speaker-btn" onclick="speakWord('${w.en}')" title="Nghe phát âm">🔊</button>
+            `;
+            reviewList.appendChild(div);
+        });
+    }
+
+    // Render missed words first (at the top), then mastered words
+    if (state.missedWords.length > 0) {
+        renderWords(state.missedWords, true);
+    }
+    if (state.masteredWords.length > 0) {
+        renderWords(state.masteredWords, false);
+    }
+}
+
+/**
+ * EVENTS
+ */
+document.getElementById('btn-start').addEventListener('click', () => {
+    initAudio();
+    setScreen('tutorial');
+});
+
+document.getElementById('btn-play').addEventListener('click', () => {
+    startNewGame();
+});
+
+document.getElementById('btn-replay').addEventListener('click', () => {
+    startNewGame();
+});
+
+document.getElementById('target-meaning').addEventListener('click', () => {
+    if (state.targetWord) speakWord(state.targetWord.en);
+});
+
+window.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (keysMap[key] !== undefined) {
+        handleInput(keysMap[key]);
+    }
+});
+
+document.querySelectorAll('.control-btn').forEach(btn => {
+    btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const lane = parseInt(btn.getAttribute('data-lane'));
+        handleInput(lane);
+    });
+});
+
+// --- dynamic text set from generator settings ---
+document.getElementById('game-title-h1').textContent = GAME_TITLE;
+document.getElementById('subtitle-text').textContent = GAME_SUBTITLE;
+document.getElementById('info-line').textContent = `🎯 ${rawVocabulary.length} Words | ❤️ ${LIVES_COUNT} Lives`;
+document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pass`;
+
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+var firebaseConfig = {"apiKey":"AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8","authDomain":"night-ielts-land.firebaseapp.com","databaseURL":"https://night-ielts-land-default-rtdb.firebaseio.com","projectId":"night-ielts-land","storageBucket":"night-ielts-land.firebasestorage.app","messagingSenderId":"408519436407","appId":"1:408519436407:web:a9f0b9ba23368b54427e72","measurementId":"G-H3P14NJR76"};
+var app = initializeApp(firebaseConfig);
+var db = getFirestore(app);
+var assignmentRef = doc(db, "assignments", "U51ZxOaKTwvOheprjeWs");
+window.__reportGameResult = function(result){
+  getDoc(assignmentRef).then(function(snap){
+    var prevPercent = (snap.exists() && snap.data().percent) ? snap.data().percent : 0;
+    var bestPercent = Math.max(prevPercent, result.accuracy);
+    return updateDoc(assignmentRef, {
+      percent: bestPercent,
+      completed: bestPercent >= 100 || result.passed,
+      lastAccuracy: result.accuracy,
+      lastPassed: result.passed,
+      lastPlayedAt: Date.now()
+    });
+  }).catch(function(e){ console.error("Không lưu được tiến độ:", e); });
+};
+</script>
+</body>
+</html>
