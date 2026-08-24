@@ -309,7 +309,7 @@ accurate: chính xác
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>__GAME_TITLE__</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
@@ -1424,20 +1424,43 @@ document.getElementById('voiceSelect').addEventListener('change', (e) => {
 });
 
 /**
- * CHỐNG ZOOM NGOÀI Ý MUỐN TRÊN ĐIỆN THOẠI/IPAD
- * touch-action CSS lo phần lớn, nhưng thêm 2 lớp phòng thủ này để chắc ăn trên mọi
- * đời iOS: chặn cử chỉ pinch-zoom kiểu Safari (gesturestart/change/end) và chặn
- * double-tap-zoom khi bấm liên tục nhiều lần vào cùng 1 chỗ (ví dụ bấm bắn liên tục).
+ * CHỐNG ZOOM NGOÀI Ý MUỐN TRÊN ĐIỆN THOẠI/IPAD — nhiều lớp phòng thủ chồng lên nhau
+ * vì trên iOS/iPadOS, chỉ 1 kỹ thuật (viewport meta, hay touch-action) không phải lúc
+ * nào cũng chặn được hết, tuỳ đời máy/hệ điều hành.
  */
+// Lớp 1: chặn cử chỉ pinch-zoom kiểu Safari (gesturestart/change/end)
 ['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
     document.addEventListener(evt, (e) => e.preventDefault());
 });
+// Lớp 2: chặn zoom bằng 2 ngón tay ngay từ gốc (touchmove có từ 2 điểm chạm trở lên)
+document.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+}, { passive: false });
+// Lớp 3: chặn double-tap-zoom khi bấm liên tục nhiều lần (vd bấm bắn dồn dập) —
+// bấm 2 lần trong vòng 350ms ở bất kỳ đâu trên trang đều bị chặn hành vi mặc định.
 let __lastTouchEndAt = 0;
 document.addEventListener('touchend', (e) => {
     const now = Date.now();
     if (now - __lastTouchEndAt <= 350) e.preventDefault();
     __lastTouchEndAt = now;
 }, { passive: false });
+// Lớp 4 (lưới an toàn cuối): nếu vì lý do gì đó (bug hệ điều hành, cử chỉ lạ...) mà
+// trang vẫn bị phóng to, tự động phát hiện qua Visual Viewport API và ép trả về đúng
+// 100% ngay lập tức — không cần học sinh tự mò cách zoom tay ra lại.
+function __forceResetZoom() {
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    const original = meta.getAttribute('content');
+    meta.setAttribute('content', original + ', maximum-scale=1.0, minimum-scale=1.0');
+    requestAnimationFrame(() => { meta.setAttribute('content', original); });
+}
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        if (window.visualViewport.scale && window.visualViewport.scale > 1.01) {
+            __forceResetZoom();
+        }
+    });
+}
 
 /**
  * SỬA LỖI CHIỀU CAO MÀN HÌNH TRÊN SAFARI IOS/IPADOS
