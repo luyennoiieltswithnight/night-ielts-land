@@ -373,6 +373,7 @@ accurate: chính xác
             display: block;
             width: 100%;
             flex-grow: 1;
+            touch-action: none;
         }
 
         /* UI Screens */
@@ -1436,14 +1437,26 @@ document.getElementById('voiceSelect').addEventListener('change', (e) => {
 document.addEventListener('touchmove', (e) => {
     if (e.touches && e.touches.length > 1) e.preventDefault();
 }, { passive: false });
-// Lớp 3: chặn double-tap-zoom khi bấm liên tục nhiều lần (vd bấm bắn dồn dập) —
-// bấm 2 lần trong vòng 350ms ở bất kỳ đâu trên trang đều bị chặn hành vi mặc định.
+// Lớp 3: chặn double-tap-zoom khi bấm liên tục nhiều lần ở NGOÀI vùng chơi game (vd
+// các nút Start/Play/Speaker...) — 2 lần bấm trong 350ms mới chặn, để không phá mất
+// sự kiện "click" bình thường của các nút đó (chúng vẫn cần click để hoạt động).
 let __lastTouchEndAt = 0;
 document.addEventListener('touchend', (e) => {
     const now = Date.now();
     if (now - __lastTouchEndAt <= 350) e.preventDefault();
     __lastTouchEndAt = now;
 }, { passive: false });
+// Lớp 3b: RIÊNG vùng chơi game (canvas + hàng nút bắn A-K) — khoá zoom TUYỆT ĐỐI,
+// 0ms, không chờ gì cả, chặn mọi lần chạm dù chỉ 1 cái. Vùng này không dùng sự kiện
+// "click" của trình duyệt (bắn bằng pointerdown riêng ở trên) nên chặn thẳng tay
+// touchstart/touchmove/touchend không sợ ảnh hưởng thao tác chơi — đây là nơi học
+// sinh bấm dồn dập nhất nên cần khoá chắc nhất.
+[canvas, document.getElementById('controls')].forEach(el => {
+    if (!el) return;
+    ['touchstart', 'touchmove', 'touchend'].forEach(evt => {
+        el.addEventListener(evt, (e) => e.preventDefault(), { passive: false });
+    });
+});
 // Lớp 4 (lưới an toàn cuối): nếu vì lý do gì đó (bug hệ điều hành, cử chỉ lạ...) mà
 // trang vẫn bị phóng to, tự động phát hiện qua Visual Viewport API và ép trả về đúng
 // 100% ngay lập tức — không cần học sinh tự mò cách zoom tay ra lại.
