@@ -120,12 +120,93 @@ tbody input{padding:8px 9px; font-size:0.86rem;}
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
 .empty-state{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:24px 10px;}
+
+.hidden{display:none!important;}
+.modal-overlay{position:fixed; inset:0; z-index:900; background:rgba(5,7,12,0.85); display:flex; align-items:center; justify-content:center; padding:16px;}
+.modal-card{background:#0d1220; border:1px solid var(--panel-border); border-radius:18px; padding:24px; max-width:420px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,0.5);}
+.modal-card h3{font-family:'Fredoka One', cursive; font-size:1.15rem; margin:0 0 6px;}
+.modal-card p.desc{color:var(--text-dim); font-size:0.82rem; margin:0 0 16px; line-height:1.5;}
+.modal-actions{display:flex; gap:10px; margin-top:18px;}
+.modal-actions .btn{flex:1; justify-content:center;}
+.modal-msg{font-size:0.8rem; min-height:18px; margin-top:6px;}
+.modal-msg.ok{color:var(--success);}
+.modal-msg.err{color:var(--danger);}
+select.gg-select{
+  width:100%; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.12); color:var(--text);
+  border-radius:10px; padding:10px 12px; font-family:inherit; font-size:0.9rem; outline:none;
+}
+#authGate{position:fixed; inset:0; z-index:999; background:rgba(5,7,12,0.97); display:flex; align-items:center; justify-content:center; padding:24px;}
+#authGate .modal-card{max-width:420px; text-align:center;}
+#authGate .eyebrow{font-size:0.8rem; letter-spacing:2px; color:var(--primary); font-weight:700; text-transform:uppercase;}
+#authGate h1{font-family:'Fredoka One', cursive; font-size:1.4rem; margin:8px 0 6px;}
 </style>
 </head>
 <body>
-<div class="wrap">
+
+<!-- ================= AUTH GATE (chỉ giáo viên/admin mới vào được) ================= -->
+<div id="authGate">
+  <div class="modal-card">
+    <div class="eyebrow">NIGHT IELTS</div>
+    <h1>Vocabulary Game Generator</h1>
+    <p id="authGateMsg" class="desc">Công cụ này chỉ dành cho giáo viên. Vui lòng đăng nhập bằng tài khoản Google quản trị.</p>
+    <button id="authGateLoginBtn" class="btn btn-primary" style="width:100%;justify-content:center;">Đăng nhập bằng Google</button>
+  </div>
+</div>
+
+<!-- ================= GITHUB SETTINGS MODAL ================= -->
+<div id="ghSettingsModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>⚙️ Cấu hình GitHub</h3>
+    <p class="desc">Dùng để đăng bài trực tiếp lên repo GitHub Pages của web. Token chỉ lưu trên trình duyệt này (localStorage) — dùng chung với các tool khác của Night IELTS.</p>
+    <div class="field"><label>Owner (username GitHub)</label><input type="text" id="ghOwner"></div>
+    <div class="field"><label>Repo</label><input type="text" id="ghRepo"></div>
+    <div class="field"><label>Branch</label><input type="text" id="ghBranch" value="main"></div>
+    <div class="field" style="margin-bottom:0;"><label>Personal Access Token</label><input type="text" id="ghToken"></div>
+    <div id="ghSettingsMsg" class="modal-msg"></div>
+    <div class="modal-actions">
+      <button id="ghSettingsCancel" class="btn btn-secondary">Đóng</button>
+      <button id="ghSettingsSave" class="btn btn-primary">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= PUBLISH TO FOLDER MODAL ================= -->
+<div id="publishModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>📁 Đăng lên thư mục có sẵn</h3>
+    <p class="desc">Game sẽ nằm vĩnh viễn trong thư mục này trên trang chủ, cho tới khi thầy bấm xoá.</p>
+    <div class="field" style="margin-bottom:0;"><label>Chọn thư mục</label><select id="publishFolderSelect" class="gg-select"></select></div>
+    <div id="publishMsg" class="modal-msg"></div>
+    <div class="modal-actions">
+      <button id="publishCancel" class="btn btn-secondary">Huỷ</button>
+      <button id="publishConfirm" class="btn btn-primary">🚀 Đăng bài</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ASSIGN TO STUDENT MODAL ================= -->
+<div id="assignModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3>🎯 Giao cho học sinh</h3>
+    <p class="desc">Game giao riêng sẽ tự động biến mất khỏi mục bài tập của học sinh sau 20 ngày. Vì đây là game (không phải Listening Type), học sinh sẽ tự bấm "Đánh dấu đã hoàn thành" sau khi chơi xong.</p>
+    <div class="field"><label>Học sinh</label><select id="assignStudentSelect" class="gg-select"></select></div>
+    <div class="field" style="margin-bottom:0;"><label>Hạn nộp (không bắt buộc)</label><input type="date" id="assignDeadline"></div>
+    <div id="assignMsg" class="modal-msg"></div>
+    <div class="modal-actions">
+      <button id="assignCancel" class="btn btn-secondary">Huỷ</button>
+      <button id="assignConfirm" class="btn btn-primary">🚀 Giao bài</button>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" class="wrap hidden">
 
 <header>
+  <div style="display:flex; justify-content:flex-end; gap:8px; margin-bottom:10px;">
+    <span id="authUserBadge" style="color:var(--text-dim); font-size:0.78rem; align-self:center;"></span>
+    <button id="ghSettingsBtn" class="btn-ghost" title="Cấu hình GitHub" style="border-radius:50%; width:36px; height:36px; padding:0;">⚙️</button>
+    <button id="genLogoutBtn" class="btn-ghost">Đăng xuất</button>
+  </div>
   <div class="eyebrow">Night IELTS · Internal Tool</div>
   <h1>🐔 Vocabulary Game Generator</h1>
   <p>Dán danh sách từ vựng, chỉnh vài thiết lập, rồi tải về (hoặc copy) file game HTML để gửi cho học sinh hoặc đăng lên trang Night IELTS.</p>
@@ -207,6 +288,8 @@ accurate: chính xác
         <button class="btn btn-primary" id="btn-preview">🧪 Xem thử ngay tại đây</button>
         <button class="btn btn-secondary" id="btn-download">⬇️ Tải file HTML</button>
         <button class="btn btn-secondary" id="btn-copy">📋 Copy mã HTML</button>
+        <button class="btn btn-secondary" id="btn-publish">📁 Đăng lên thư mục</button>
+        <button class="btn btn-secondary" id="btn-assign">🎯 Giao cho học sinh</button>
       </div>
       <div class="hint" style="margin-top:12px;">Tải file về rồi kéo thả (hoặc upload) vào repo GitHub Pages của Night IELTS — mở trực tiếp bằng trình duyệt là chạy ngay, không cần build gì thêm. Cũng có thể gửi thẳng file <code>.html</code> này cho học sinh qua Zalo/Messenger để các em tự mở chơi.</div>
       <div style="margin-top:16px;">
@@ -1389,8 +1472,350 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
   document.getElementById('input-filename').value =
     slugify(document.getElementById('input-title').value) + '.html';
 
+  // ============================================================================
+  // GITHUB PUBLISH HELPERS (đăng bài lên folder có sẵn, thẳng vào repo GitHub)
+  // Dùng chung 1 chỗ lưu cấu hình (localStorage) với các tool Night IELTS khác.
+  // ============================================================================
+  var GH_CFG_KEY = 'nightIeltsGithubCfg';
+  function ghLoadCfg(){
+    try { return JSON.parse(localStorage.getItem(GH_CFG_KEY) || '{}'); } catch(e){ return {}; }
+  }
+  function ghSaveCfg(cfg){ localStorage.setItem(GH_CFG_KEY, JSON.stringify(cfg)); }
+  function utf8ToB64(str){
+    var bytes = new TextEncoder().encode(str);
+    var binary = '';
+    for(var i=0;i<bytes.length;i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+  function b64ToUtf8(b64){
+    var binary = atob(String(b64||'').replace(/\n/g,''));
+    var bytes = new Uint8Array(binary.length);
+    for(var i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+  function ghApiBase(cfg){ return 'https://api.github.com/repos/' + cfg.owner + '/' + cfg.repo + '/contents/'; }
+  function ghGetFile(cfg, path){
+    return fetch(ghApiBase(cfg) + path + '?ref=' + encodeURIComponent(cfg.branch || 'main'), {
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json' }
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub GET lỗi (' + res.status + '): ' + path + ' — ' + t); });
+      return res.json();
+    }).then(function(j){ return { sha: j.sha, text: b64ToUtf8(j.content) }; });
+  }
+  function ghPutFile(cfg, path, text, message, sha){
+    var body = { message: message, content: utf8ToB64(text), branch: cfg.branch || 'main' };
+    if(sha) body.sha = sha;
+    return fetch(ghApiBase(cfg) + path, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub PUT lỗi (' + res.status + '): ' + t); });
+      return res.json();
+    });
+  }
+  function ghDeleteFile(cfg, path, message, sha){
+    return fetch(ghApiBase(cfg) + path, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + cfg.token, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: message, sha: sha, branch: cfg.branch || 'main' })
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error('GitHub DELETE lỗi (' + res.status + '): ' + t); });
+    });
+  }
+  function extractLessonDataArrayText(fullText){
+    var marker = 'const LESSON_DATA = ';
+    var startIdx = fullText.indexOf(marker);
+    if(startIdx === -1) throw new Error('Không tìm thấy LESSON_DATA trong index.html');
+    var i = startIdx + marker.length;
+    while(fullText[i] !== '[') i++;
+    var arrStart = i;
+    var depth = 0, inStr = false, strCh = '', esc = false;
+    for(; i < fullText.length; i++){
+      var c = fullText[i];
+      if(inStr){
+        if(esc){ esc = false; }
+        else if(c === '\\'){ esc = true; }
+        else if(c === strCh){ inStr = false; }
+        continue;
+      }
+      if(c === '"' || c === "'" || c === '`'){ inStr = true; strCh = c; continue; }
+      if(c === '[') depth++;
+      else if(c === ']'){ depth--; if(depth === 0){ i++; break; } }
+    }
+    var arrEnd = i;
+    return { marker: marker, startIdx: startIdx, arrStart: arrStart, arrEnd: arrEnd, arrayText: fullText.slice(arrStart, arrEnd) };
+  }
+  function parseLessonData(arrayText){ return (new Function('return ' + arrayText))(); }
+  function serializeLessonData(dataArray){ return JSON.stringify(dataArray, null, 4); }
+  function replaceLessonDataInFile(fullText, newArrayText){
+    var r = extractLessonDataArrayText(fullText);
+    return fullText.slice(0, r.arrStart) + newArrayText + fullText.slice(r.arrEnd);
+  }
+
+  // Chỉ commit file game lên repo, không đụng tới LESSON_DATA — dùng cho cả
+  // "đăng lên thư mục" (bước 1) lẫn "giao riêng cho học sinh" (không cần vào folder).
+  function ghCommitGameFile(cfg, title, html){
+    var genId = 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+    var filePath = 'homework/generated/' + slugify(title) + '-' + genId + '.html';
+    return ghPutFile(cfg, filePath, html, 'Night IELTS: thêm game "' + title + '"', undefined)
+      .then(function(){ return { genId: genId, filePath: filePath }; });
+  }
+
+  function ghPublishToFolder(cfg, folderId, title, wordCount, html){
+    return ghCommitGameFile(cfg, title, html).then(function(committed){
+      return ghGetFile(cfg, 'index.html').then(function(res){
+        var data = parseLessonData(extractLessonDataArrayText(res.text).arrayText);
+        var folder = data.find(function(f){ return f.id === folderId; });
+        if(!folder) throw new Error('Không tìm thấy folder: ' + folderId);
+        var d = new Date();
+        var dateStr = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+        folder.tests.unshift({ title: title, date: dateStr, questions: wordCount, link: committed.filePath, gen: committed.genId });
+        var newFullText = replaceLessonDataInFile(res.text, serializeLessonData(data));
+        return ghPutFile(cfg, 'index.html', newFullText, 'Night IELTS: đăng game "' + title + '" vào folder ' + folderId, res.sha);
+      }).then(function(){ return committed; });
+    });
+  }
+
+  // ============================================================================
+  // PUBLISH-TO-FOLDER MODAL
+  // ============================================================================
+  var FALLBACK_FOLDERS = [
+    {id:"LINH TINH", name:"Linh Tinh"},
+    {id:"listening - cac giao trinh", name:"listening - các giáo trình"},
+    {id:"bai tap pre-listening", name:"pre-listening"},
+    {id:"Mindset-foundation", name:"Mindset0"},
+    {id:"mindset 2 - giáo trình - interactive lessons", name:"speaking mindset2"},
+    {id:"mindset0", name:"mindset foundation"},
+    {id:"nguphap", name:"ngữ pháp tổng hợp"},
+    {id:"Vocab Practice Mindset 2", name:"Vocab Practice Mindset 2"},
+    {id:"writing1", name:"Writing Task 1"},
+    {id:"Boya1", name:"Boya1"},
+    {id:"empty_demo", name:"Thư mục mới"}
+  ];
+
+  document.getElementById('btn-publish').addEventListener('click', function(){
+    if (getRows().length === 0) { showToast('Chưa có từ nào — hãy phân tích hoặc thêm ít nhất 1 từ.'); return; }
+    var sel = document.getElementById('publishFolderSelect');
+    sel.innerHTML = FALLBACK_FOLDERS.map(function(f){
+      return '<option value="' + f.id.replace(/"/g,'&quot;') + '">' + f.name + '</option>';
+    }).join('') + '<option value="__custom__">-- ID folder khác (gõ tay) --</option>';
+    document.getElementById('publishMsg').textContent = '';
+    document.getElementById('publishModal').classList.remove('hidden');
+  });
+  document.getElementById('publishCancel').addEventListener('click', function(){
+    document.getElementById('publishModal').classList.add('hidden');
+  });
+  document.getElementById('publishConfirm').addEventListener('click', function(){
+    var sel = document.getElementById('publishFolderSelect');
+    var folderId = sel.value;
+    var msgEl = document.getElementById('publishMsg');
+    if (folderId === '__custom__') {
+      folderId = prompt('Nhập chính xác ID folder (xem trong index.html, phân biệt hoa/thường):', '');
+      if (!folderId) return;
+    }
+    var html = buildGameHTML();
+    if (!html) return;
+    var cfg = ghLoadCfg();
+    if (!cfg.owner || !cfg.repo || !cfg.token) {
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Chưa cấu hình GitHub — bấm ⚙️ ở góc trên để nhập trước.';
+      return;
+    }
+    var title = document.getElementById('input-title').value.trim() || 'VOCABULARY CHICKEN INVADERS';
+    var btn = document.getElementById('publishConfirm');
+    btn.disabled = true; btn.textContent = 'Đang đăng...';
+    ghPublishToFolder(cfg, folderId, title, getRows().length, html).then(function(){
+      msgEl.className = 'modal-msg ok';
+      msgEl.textContent = 'Đã đăng game lên folder thành công! Vài giây sau sẽ hiện trên trang chủ.';
+      btn.disabled = false; btn.textContent = '🚀 Đăng bài';
+      setTimeout(function(){ document.getElementById('publishModal').classList.add('hidden'); }, 1500);
+    }).catch(function(e){
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Lỗi: ' + e.message;
+      btn.disabled = false; btn.textContent = '🚀 Đăng bài';
+    });
+  });
+
+  // ============================================================================
+  // ASSIGN-TO-STUDENT MODAL
+  // ============================================================================
+  document.getElementById('btn-assign').addEventListener('click', function(){
+    if (getRows().length === 0) { showToast('Chưa có từ nào — hãy phân tích hoặc thêm ít nhất 1 từ.'); return; }
+    document.getElementById('assignModal').classList.remove('hidden');
+    document.getElementById('assignMsg').textContent = '';
+    var sel = document.getElementById('assignStudentSelect');
+    sel.innerHTML = '<option value="">-- Đang tải học sinh... --</option>';
+    if (!window.__db) { sel.innerHTML = '<option value="">Chưa kết nối được hệ thống</option>'; return; }
+    window.__getDocs(window.__query(window.__collection(window.__db, 'users'), window.__where('role','==','student'))).then(function(snap){
+      var html = '<option value="">-- Chọn học sinh --</option>';
+      snap.forEach(function(d){
+        var s = d.data();
+        html += '<option value="' + d.id + '">' + (s.name || s.email || d.id) + (s.email ? ' (' + s.email + ')' : '') + '</option>';
+      });
+      sel.innerHTML = html;
+    }).catch(function(){ sel.innerHTML = '<option value="">Lỗi tải học sinh</option>'; });
+  });
+  document.getElementById('assignCancel').addEventListener('click', function(){
+    document.getElementById('assignModal').classList.add('hidden');
+  });
+  document.getElementById('assignConfirm').addEventListener('click', function(){
+    var studentId = document.getElementById('assignStudentSelect').value;
+    var deadlineStr = document.getElementById('assignDeadline').value;
+    var msgEl = document.getElementById('assignMsg');
+    if (!studentId) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chọn học sinh trước đã.'; return; }
+    var html = buildGameHTML();
+    if (!html) return;
+    var cfg = ghLoadCfg();
+    if (!cfg.owner || !cfg.repo || !cfg.token) {
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Chưa cấu hình GitHub — bấm ⚙️ ở góc trên để nhập trước.';
+      return;
+    }
+    if (!window.__db) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chưa kết nối được hệ thống, thử tải lại trang.'; return; }
+    var title = document.getElementById('input-title').value.trim() || 'VOCABULARY CHICKEN INVADERS';
+    var btn = document.getElementById('assignConfirm');
+    btn.disabled = true; btn.textContent = 'Đang giao...';
+    ghCommitGameFile(cfg, title, html).then(function(committed){
+      var now = Date.now();
+      var deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
+      return window.__addDoc(window.__collection(window.__db, 'assignments'), {
+        title: title,
+        studentId: studentId,
+        link: committed.filePath,
+        createdAt: now,
+        deadlineAt: deadlineAt,
+        expiresAt: now + 20*24*60*60*1000,
+        completed: false,
+        percent: 0
+      });
+    }).then(function(){
+      msgEl.className = 'modal-msg ok';
+      msgEl.textContent = 'Đã giao game thành công! (Tự xoá sau 20 ngày)';
+      btn.disabled = false; btn.textContent = '🚀 Giao bài';
+      setTimeout(function(){ document.getElementById('assignModal').classList.add('hidden'); }, 1200);
+    }).catch(function(e){
+      msgEl.className = 'modal-msg err';
+      msgEl.textContent = 'Lỗi: ' + e.message;
+      btn.disabled = false; btn.textContent = '🚀 Giao bài';
+    });
+  });
+
+  // ============================================================================
+  // GITHUB SETTINGS MODAL
+  // ============================================================================
+  document.getElementById('ghSettingsBtn').addEventListener('click', function(){
+    var cfg = ghLoadCfg();
+    document.getElementById('ghOwner').value = cfg.owner || '';
+    document.getElementById('ghRepo').value = cfg.repo || '';
+    document.getElementById('ghBranch').value = cfg.branch || 'main';
+    document.getElementById('ghToken').value = cfg.token || '';
+    document.getElementById('ghSettingsMsg').textContent = '';
+    document.getElementById('ghSettingsModal').classList.remove('hidden');
+  });
+  document.getElementById('ghSettingsCancel').addEventListener('click', function(){
+    document.getElementById('ghSettingsModal').classList.add('hidden');
+  });
+  document.getElementById('ghSettingsSave').addEventListener('click', function(){
+    var cfg = {
+      owner: document.getElementById('ghOwner').value.trim(),
+      repo: document.getElementById('ghRepo').value.trim(),
+      branch: document.getElementById('ghBranch').value.trim() || 'main',
+      token: document.getElementById('ghToken').value.trim()
+    };
+    ghSaveCfg(cfg);
+    var m = document.getElementById('ghSettingsMsg');
+    m.className = 'modal-msg ok';
+    m.textContent = 'Đã lưu.';
+    setTimeout(function(){ document.getElementById('ghSettingsModal').classList.add('hidden'); }, 700);
+  });
+
+  document.getElementById('genLogoutBtn').addEventListener('click', function(){
+    if (window.__signOut) window.__signOut();
+  });
+
   document.getElementById('btn-parse').click();
 })();
+</script>
+
+<!-- ================= FIREBASE AUTH GATE (chỉ admin mới dùng được công cụ này) ================= -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+    authDomain: "night-ielts-land.firebaseapp.com",
+    databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+    projectId: "night-ielts-land",
+    storageBucket: "night-ielts-land.firebasestorage.app",
+    messagingSenderId: "408519436407",
+    appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+    measurementId: "G-H3P14NJR76"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // Bridge cho script chính phía trên dùng Firestore (giao bài / lấy học sinh)
+  window.__db = db;
+  window.__collection = collection;
+  window.__query = query;
+  window.__where = where;
+  window.__getDocs = getDocs;
+  window.__addDoc = addDoc;
+  window.__signOut = function(){ signOut(auth); };
+
+  const authGate = document.getElementById('authGate');
+  const authGateMsg = document.getElementById('authGateMsg');
+  const authGateLoginBtn = document.getElementById('authGateLoginBtn');
+  const appRoot = document.getElementById('appRoot');
+
+  function doLogin(){
+    authGateLoginBtn.disabled = true;
+    authGateLoginBtn.textContent = 'Đang đăng nhập...';
+    signInWithPopup(auth, provider).catch(function(err){
+      authGateMsg.innerHTML = '<span style="color:var(--danger)">Đăng nhập lỗi: ' + err.message + '</span>';
+      authGateLoginBtn.disabled = false;
+      authGateLoginBtn.textContent = 'Đăng nhập bằng Google';
+    });
+  }
+  authGateLoginBtn.onclick = doLogin;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      authGate.classList.remove('hidden');
+      appRoot.classList.add('hidden');
+      authGateMsg.textContent = 'Công cụ này chỉ dành cho giáo viên. Vui lòng đăng nhập bằng tài khoản Google quản trị.';
+      authGateLoginBtn.disabled = false;
+      authGateLoginBtn.textContent = 'Đăng nhập bằng Google';
+      authGateLoginBtn.onclick = doLogin;
+      return;
+    }
+    authGateMsg.textContent = 'Đang kiểm tra quyền truy cập...';
+    try {
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      const role = userSnap.exists() ? userSnap.data().role : null;
+      if (role === 'admin') {
+        authGate.classList.add('hidden');
+        appRoot.classList.remove('hidden');
+        const badge = document.getElementById('authUserBadge');
+        if (badge) badge.textContent = user.displayName || user.email || '';
+      } else {
+        authGate.classList.remove('hidden');
+        appRoot.classList.add('hidden');
+        authGateMsg.innerHTML = '<span style="color:var(--danger)">Tài khoản (' + (user.email || '') + ') không có quyền giáo viên. Vui lòng đăng xuất và đăng nhập bằng tài khoản admin.</span>';
+        authGateLoginBtn.disabled = false;
+        authGateLoginBtn.textContent = 'Đăng xuất';
+        authGateLoginBtn.onclick = function(){ signOut(auth); };
+      }
+    } catch (e) {
+      authGateMsg.innerHTML = '<span style="color:var(--danger)">Lỗi kiểm tra quyền: ' + e.message + '</span>';
+    }
+  });
 </script>
 </body>
 </html>
