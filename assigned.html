@@ -44,7 +44,7 @@ tailwind.config={theme:{extend:{colors:{primary:{50:'#f0f9ff',100:'#e0f2fe',200:
 
       <a id="openLinkBtn" href="#" target="_blank" rel="noopener"
          class="mt-6 inline-flex items-center justify-center gap-2 w-full px-6 py-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-sm shadow-lg transition">
-        <i class="fa-solid fa-arrow-up-right-from-square"></i> Mở bài tập
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> <span id="openLinkBtnLabel">Mở bài tập</span>
       </a>
 
       <div id="notDoneBox" class="mt-4">
@@ -57,6 +57,11 @@ tailwind.config={theme:{extend:{colors:{primary:{50:'#f0f9ff',100:'#e0f2fe',200:
       <div id="doneBox" class="hidden mt-4 bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4">
         <p class="text-emerald-700 font-extrabold text-sm"><i class="fa-solid fa-circle-check mr-1"></i> Đã hoàn thành!</p>
         <button id="unmarkDoneBtn" class="mt-2 text-[11px] font-bold text-slate-400 hover:text-slate-600 underline">Bỏ đánh dấu (nếu bấm nhầm)</button>
+      </div>
+
+      <div id="gameProgressBox" class="hidden mt-4 bg-primary-50 border-2 border-primary-100 rounded-2xl p-4">
+        <p class="text-primary-800 font-extrabold text-sm" id="gameProgressText">🎯 Độ chính xác cao nhất: 0%</p>
+        <p class="text-[11px] text-slate-400 font-semibold mt-1">Chơi lại để cải thiện % chính xác — hệ thống tự lưu điểm cao nhất, không cần đánh dấu tay.</p>
       </div>
     </div>
   </div>
@@ -101,6 +106,18 @@ tailwind.config={theme:{extend:{colors:{primary:{50:'#f0f9ff',100:'#e0f2fe',200:
     document.getElementById('doneBox').classList.toggle('hidden', !isDone);
   }
 
+  // Bài dạng "game" (ví dụ game bắn từ vựng) tự báo % chính xác khi chơi —
+  // không cần học sinh tự đánh dấu hoàn thành như bài thường.
+  function renderGameState(percent){
+    document.getElementById('notDoneBox').classList.add('hidden');
+    document.getElementById('doneBox').classList.add('hidden');
+    document.getElementById('gameProgressBox').classList.remove('hidden');
+    const p = percent || 0;
+    document.getElementById('gameProgressText').textContent =
+      p > 0 ? ('🎯 Độ chính xác cao nhất: ' + p + '%') : '🎯 Chưa chơi lần nào — bấm "Chơi ngay" để bắt đầu!';
+    document.getElementById('openLinkBtnLabel').textContent = p > 0 ? 'Chơi lại' : 'Chơi ngay';
+  }
+
   (async function boot(){
     if(!docRef){ showError('Không tìm thấy ID bài tập trong đường dẫn.'); return; }
     let snap;
@@ -135,7 +152,12 @@ tailwind.config={theme:{extend:{colors:{primary:{50:'#f0f9ff',100:'#e0f2fe',200:
       badge.innerHTML = (overdue ? '<i class="fa-solid fa-triangle-exclamation"></i> Đã quá hạn nộp (' + dlStr + ')' : '<i class="fa-regular fa-clock"></i> Hạn nộp: ' + dlStr);
     }
 
-    renderDoneState(data.completed === true);
+    const isGame = data.kind === 'game';
+    if (isGame) {
+      renderGameState(data.percent || 0);
+    } else {
+      renderDoneState(data.completed === true);
+    }
 
     document.getElementById('loadingBox').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
