@@ -956,6 +956,42 @@ function update(dt) {
 }
 
 /**
+ * Tính cỡ chữ / độ rộng thẻ bài (card) cho vừa với từ/cụm từ, để từ dài không
+ * bị tràn ra ngoài khung khiến học sinh không đọc được. Ưu tiên thu nhỏ cỡ chữ
+ * trước; nếu vẫn không vừa (cụm từ nhiều chữ) thì tách xuống 2 dòng.
+ */
+function fitCardText(ctx, text, maxWidth) {
+    const sizes = [12, 11, 10, 9, 8];
+    const paddingX = 14;
+    for (let i = 0; i < sizes.length; i++) {
+        ctx.font = 'bold ' + sizes[i] + 'px Nunito, sans-serif';
+        const w = ctx.measureText(text).width;
+        if (w + paddingX <= maxWidth) {
+            return { lines: [text], fontSize: sizes[i], width: Math.max(70, w + paddingX) };
+        }
+    }
+    // Vẫn không vừa dù đã thu nhỏ hết cỡ — nếu là cụm nhiều từ thì tách 2 dòng
+    const words = text.split(' ');
+    const minFont = 8;
+    ctx.font = 'bold ' + minFont + 'px Nunito, sans-serif';
+    if (words.length > 1) {
+        let bestIdx = 1, bestDiff = Infinity;
+        for (let k = 1; k < words.length; k++) {
+            const diff = Math.abs(words.slice(0, k).join(' ').length - words.slice(k).join(' ').length);
+            if (diff < bestDiff) { bestDiff = diff; bestIdx = k; }
+        }
+        const line1 = words.slice(0, bestIdx).join(' ');
+        const line2 = words.slice(bestIdx).join(' ');
+        const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
+        return { lines: [line1, line2], fontSize: minFont, width: Math.max(70, Math.min(w + paddingX, maxWidth * 1.3)) };
+    }
+    // 1 từ duy nhất quá dài, không có khoảng trắng để tách dòng — cho phép thẻ
+    // rộng hơn giới hạn một chút thay vì cắt mất chữ.
+    const w = ctx.measureText(text).width;
+    return { lines: [text], fontSize: minFont, width: Math.max(70, w + paddingX) };
+}
+
+/**
  * RENDERING
  */
 function draw() {
@@ -1052,20 +1088,31 @@ function draw() {
         ctx.textBaseline = 'middle';
         ctx.fillText(keyHint, 0, 28);
         
-        // Card
+        // Card — tự co giãn theo độ dài từ/cụm từ để không bị tràn/mất chữ
+        const wordText = e.wordData.en.toUpperCase();
+        const cardMaxWidth = Math.max(90, Math.min(gameWidth * 0.42, 200));
+        const fit = fitCardText(ctx, wordText, cardMaxWidth);
+        const cardHeight = fit.lines.length > 1 ? 34 : 24;
+        const cardTop = 38;
+
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.strokeStyle = '#00f0ff';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.roundRect(-45, 38, 90, 24, 4);
+        ctx.roundRect(-fit.width / 2, cardTop, fit.width, cardHeight, 4);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = '#000';
-        ctx.font = 'bold 12px Nunito, sans-serif';
+        ctx.font = 'bold ' + fit.fontSize + 'px Nunito, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(e.wordData.en.toUpperCase(), 0, 50);
+        if (fit.lines.length === 1) {
+            ctx.fillText(fit.lines[0], 0, cardTop + cardHeight / 2);
+        } else {
+            ctx.fillText(fit.lines[0], 0, cardTop + cardHeight / 2 - fit.fontSize * 0.65);
+            ctx.fillText(fit.lines[1], 0, cardTop + cardHeight / 2 + fit.fontSize * 0.65);
+        }
 
         ctx.restore();
     });
@@ -1157,7 +1204,20 @@ function endGame() {
     const accuracy = totalWords > 0 ? Math.round((state.masteredWords.length / totalWords) * 100) : 0;
     
     const passed = accuracy >= PASS_PERCENT && state.lives > 0;
-    
+
+    // Báo kết quả về hệ thống chấm bài (nếu file này được nhúng script theo dõi tiến độ)
+    if (window.__reportGameResult) {
+        try {
+            window.__reportGameResult({
+                accuracy: accuracy,
+                passed: passed,
+                mastered: state.masteredWords.length,
+                missed: state.missedWords.length,
+                total: totalWords
+            });
+        } catch (e) { console.error('reportGameResult error', e); }
+    }
+
     document.getElementById('result-title').innerText = passed ? "🎉 NHIỆM VỤ HOÀN THÀNH" : "✗ THỬ LẠI NHÉ";
     document.getElementById('result-title').style.color = passed ? "var(--success)" : "var(--danger)";
     document.getElementById('result-percent').innerText = `Độ chính xác: ${accuracy}%`;
@@ -1577,6 +1637,54 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
     });
   }
 
+  // Script theo dõi tiến độ, sẽ được nhúng thêm vào file game khi GIAO RIÊNG cho
+  // 1 học sinh (không nhúng khi đăng lên thư mục vĩnh viễn, vì bài thư mục không
+  // gắn với 1 assignment cụ thể nào). Game gọi window.__reportGameResult(...) mỗi
+  // khi kết thúc ván chơi (xem endGame() trong game-template) — script này lưu %
+  // chính xác CAO NHẤT qua các lần chơi lại vào đúng document assignments/{id}.
+  function buildAssignmentTrackingScript(assignmentId){
+    return '\n<script type="module">\n' +
+      'import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";\n' +
+      'import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";\n' +
+      'var firebaseConfig = ' + JSON.stringify({
+        apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+        authDomain: "night-ielts-land.firebaseapp.com",
+        databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+        projectId: "night-ielts-land",
+        storageBucket: "night-ielts-land.firebasestorage.app",
+        messagingSenderId: "408519436407",
+        appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+        measurementId: "G-H3P14NJR76"
+      }) + ';\n' +
+      'var app = initializeApp(firebaseConfig);\n' +
+      'var db = getFirestore(app);\n' +
+      'var assignmentRef = doc(db, "assignments", ' + JSON.stringify(assignmentId) + ');\n' +
+      'window.__reportGameResult = function(result){\n' +
+      '  getDoc(assignmentRef).then(function(snap){\n' +
+      '    var prevPercent = (snap.exists() && snap.data().percent) ? snap.data().percent : 0;\n' +
+      '    var bestPercent = Math.max(prevPercent, result.accuracy);\n' +
+      '    return updateDoc(assignmentRef, {\n' +
+      '      percent: bestPercent,\n' +
+      '      completed: bestPercent >= 100 || result.passed,\n' +
+      '      lastAccuracy: result.accuracy,\n' +
+      '      lastPassed: result.passed,\n' +
+      '      lastPlayedAt: Date.now()\n' +
+      '    });\n' +
+      '  }).catch(function(e){ console.error("Không lưu được tiến độ:", e); });\n' +
+      '};\n' +
+      '<' + '/script>\n';
+  }
+
+  // buildGameHTML() nhưng có nhúng thêm script theo dõi tiến độ (chèn ngay trước </body>)
+  function buildGameHTMLWithTracking(assignmentId){
+    var html = buildGameHTML();
+    if (!html) return html;
+    var trackingScript = buildAssignmentTrackingScript(assignmentId);
+    var idx = html.lastIndexOf('</body>');
+    if (idx === -1) return html + trackingScript;
+    return html.slice(0, idx) + trackingScript + html.slice(idx);
+  }
+
   // ============================================================================
   // PUBLISH-TO-FOLDER MODAL
   // ============================================================================
@@ -1664,22 +1772,27 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
     var deadlineStr = document.getElementById('assignDeadline').value;
     var msgEl = document.getElementById('assignMsg');
     if (!studentId) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chọn học sinh trước đã.'; return; }
-    var html = buildGameHTML();
-    if (!html) return;
     var cfg = ghLoadCfg();
     if (!cfg.owner || !cfg.repo || !cfg.token) {
       msgEl.className = 'modal-msg err';
       msgEl.textContent = 'Chưa cấu hình GitHub — bấm ⚙️ ở góc trên để nhập trước.';
       return;
     }
-    if (!window.__db) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chưa kết nối được hệ thống, thử tải lại trang.'; return; }
+    if (!window.__db || !window.__newAssignmentRef) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chưa kết nối được hệ thống, thử tải lại trang.'; return; }
     var title = document.getElementById('input-title').value.trim() || 'VOCABULARY CHICKEN INVADERS';
     var btn = document.getElementById('assignConfirm');
     btn.disabled = true; btn.textContent = 'Đang giao...';
+
+    // Cấp phát trước ID assignment (chưa ghi Firestore) để nhúng vào file game,
+    // giúp game tự báo % chính xác thẳng vào đúng bài đã giao khi học sinh chơi.
+    var assignmentRef = window.__newAssignmentRef();
+    var html = buildGameHTMLWithTracking(assignmentRef.id);
+    if (!html) { btn.disabled = false; btn.textContent = '🚀 Giao bài'; return; }
+
     ghCommitGameFile(cfg, title, html).then(function(committed){
       var now = Date.now();
       var deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
-      return window.__addDoc(window.__collection(window.__db, 'assignments'), {
+      return window.__setAssignmentDoc(assignmentRef, {
         title: title,
         studentId: studentId,
         link: committed.filePath,
@@ -1687,11 +1800,12 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
         deadlineAt: deadlineAt,
         expiresAt: now + 20*24*60*60*1000,
         completed: false,
-        percent: 0
+        percent: 0,
+        kind: 'game'
       });
     }).then(function(){
       msgEl.className = 'modal-msg ok';
-      msgEl.textContent = 'Đã giao game thành công! (Tự xoá sau 20 ngày)';
+      msgEl.textContent = 'Đã giao game thành công! Điểm % sẽ tự cập nhật khi học sinh chơi. (Tự xoá sau 20 ngày)';
       btn.disabled = false; btn.textContent = '🚀 Giao bài';
       setTimeout(function(){ document.getElementById('assignModal').classList.add('hidden'); }, 1200);
     }).catch(function(e){
@@ -1742,7 +1856,7 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-  import { getFirestore, doc, getDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
@@ -1767,6 +1881,10 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
   window.__where = where;
   window.__getDocs = getDocs;
   window.__addDoc = addDoc;
+  // Cấp phát trước 1 document ref (chưa ghi) để lấy ID nhúng vào file game
+  // trước khi commit lên GitHub (bài toán "trứng - gà").
+  window.__newAssignmentRef = function(){ return doc(collection(db, 'assignments')); };
+  window.__setAssignmentDoc = function(ref, data){ return setDoc(ref, data); };
   window.__signOut = function(){ signOut(auth); };
 
   const authGate = document.getElementById('authGate');
