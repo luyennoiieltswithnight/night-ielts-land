@@ -309,7 +309,7 @@ accurate: chính xác
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>__GAME_TITLE__</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
@@ -323,10 +323,23 @@ accurate: chính xác
             --text-light: #ffffff;
             --card-bg: rgba(255, 255, 255, 0.9);
             --card-text: #2f3542;
+            /* Cập nhật bằng JS = window.innerHeight thật, tránh lỗi 100vh trên Safari iOS
+               (thanh địa chỉ ẩn/hiện làm 100vh tính dư ra, đẩy hàng phím A-K xuống khuất). */
+            --app-height: 100vh;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
+        html, body {
+            /* Chặn pinch-zoom/double-tap-zoom ở mức trình duyệt — quan trọng trên iOS vì
+               Safari không còn tôn trọng user-scalable=no cho pinch-zoom từ iOS 10 trở đi,
+               nên phải chặn bằng touch-action ở đây mới ăn chắc. */
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            overscroll-behavior: none;
+        }
+
         body {
             background-color: #000;
             color: var(--text-light);
@@ -336,7 +349,10 @@ accurate: chính xác
             justify-content: center;
             align-items: center;
             height: 100vh;
-            touch-action: none;
+            height: var(--app-height, 100vh);
+        }
+        @supports (height: 100dvh) {
+            body { height: 100dvh; }
         }
 
         #game-container {
@@ -350,6 +366,7 @@ accurate: chính xác
             box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
             display: flex;
             flex-direction: column;
+            touch-action: none;
         }
 
         canvas {
@@ -396,6 +413,7 @@ accurate: chính xác
             font-family: 'Fredoka One', cursive;
             transition: transform 0.1s, box-shadow 0.1s;
             box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+            touch-action: manipulation;
         }
         .btn:active { transform: scale(0.95); }
 
@@ -423,9 +441,14 @@ accurate: chính xác
         #controls {
             display: flex;
             height: 80px;
+            /* Chừa khoảng an toàn cho vùng home-indicator/viền cong ở dưới iPhone & iPad,
+               nếu không hàng phím A-K có thể bị vùng đó che mất một phần. */
+            padding-bottom: env(safe-area-inset-bottom, 0px);
             background: rgba(0, 0, 0, 0.5);
             border-top: 2px solid rgba(0, 240, 255, 0.3);
             z-index: 5;
+            touch-action: none;
+            flex-shrink: 0;
         }
         .control-btn {
             flex: 1;
@@ -439,6 +462,7 @@ accurate: chính xác
             align-items: center;
             cursor: pointer;
             user-select: none;
+            touch-action: none;
             transition: background 0.1s, color 0.1s;
         }
         .control-btn:active, .control-btn.active {
@@ -446,10 +470,11 @@ accurate: chính xác
             color: #fff;
         }
 
-        /* Review List */
+        /* Review List — cho phép cuộn dọc bình thường, chỉ chặn zoom */
         .review-list {
             max-height: 55vh;
             overflow-y: auto;
+            touch-action: pan-y;
             width: 100%;
             max-width: 450px;
             margin: 15px 0;
@@ -483,21 +508,50 @@ accurate: chính xác
         .review-meaning { font-size: 0.95rem; color: #cbd5e1; }
         
         .speaker-btn {
-            background: rgba(0, 240, 255, 0.1); 
+            background: rgba(0, 240, 255, 0.1);
             border: 1px solid var(--primary);
             border-radius: 50%;
             width: 45px;
             height: 45px;
-            font-size: 1.3rem; 
-            cursor: pointer; 
+            font-size: 1.3rem;
+            cursor: pointer;
             color: white;
             display: flex;
             justify-content: center;
             align-items: center;
             transition: transform 0.1s, background 0.2s;
+            touch-action: manipulation;
         }
         .speaker-btn:active { transform: scale(0.9); }
         .speaker-btn:hover { background: rgba(0, 240, 255, 0.3); }
+
+        /* Voice picker (chọn giọng đọc tiếng Anh) */
+        .voice-select-row {
+            margin: 8px 0 5px;
+            text-align: left;
+            width: 100%;
+            max-width: 320px;
+        }
+        .voice-select-row label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.45);
+        }
+        #voiceSelect {
+            width: 100%;
+            background: rgba(0,0,0,0.4);
+            color: #fff;
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            padding: 9px 10px;
+            font-size: 0.9rem;
+            font-family: 'Nunito', sans-serif;
+            touch-action: manipulation;
+        }
+        #voiceSelect option { color: #000; }
 
     </style>
 </head>
@@ -538,6 +592,10 @@ accurate: chính xác
             <p id="pass-line">🏆 80% to Pass</p>
         </div>
         <p id="credit-line" style="font-size: 0.8rem; color: rgba(255,255,255,0.35); margin-top: -10px; margin-bottom: 15px;">Night IELTS · by Mr. Night</p>
+        <div class="voice-select-row" id="voiceSelectRow" style="display:none;">
+            <label for="voiceSelect">🔊 Chọn giọng đọc tiếng Anh</label>
+            <select id="voiceSelect"></select>
+        </div>
         <button class="btn" id="btn-start">🚀 START MISSION</button>
     </div>
 
@@ -697,10 +755,71 @@ function playSound(type) {
     }
 }
 
+/**
+ * CHỌN GIỌNG ĐỌC TIẾNG ANH (text-to-speech)
+ * Trên iPhone/iPad, nếu không chỉ định rõ 1 "voice" cụ thể, hệ thống có thể tự đọc
+ * tiếng Anh bằng giọng tiếng Việt mặc định của máy (nghe rất sai/kỳ) — nên phải chọn
+ * đúng 1 giọng tiếng Anh thật và gán thẳng vào utterance.voice. Cho phép học sinh/giáo
+ * viên tự đổi giọng qua ô chọn trên màn hình bắt đầu, có ghi nhớ lựa chọn cho lần sau.
+ */
+const VOICE_STORAGE_KEY = 'nightIeltsGameVoiceURI';
+let englishVoices = [];
+let selectedVoice = null;
+
+function pickBestDefaultVoice(voices) {
+    const savedURI = localStorage.getItem(VOICE_STORAGE_KEY);
+    if (savedURI) {
+        const saved = voices.find(v => v.voiceURI === savedURI);
+        if (saved) return saved;
+    }
+    const byNameIncludes = (needle) => voices.find(v => v.name.toLowerCase().includes(needle));
+    // Ưu tiên: Karen (giọng Anh mượt nhất trên iOS/macOS) > giọng Google tiếng Anh
+    // (máy Android/Chrome/macOS có Google TTS) > bất kỳ giọng en-US/en-GB nào khác.
+    return byNameIncludes('karen')
+        || byNameIncludes('google us english')
+        || byNameIncludes('google uk english')
+        || voices.find(v => /^en-US$/i.test(v.lang))
+        || voices.find(v => /^en-GB$/i.test(v.lang))
+        || voices[0]
+        || null;
+}
+
+function refreshVoiceList() {
+    if (!('speechSynthesis' in window)) return;
+    const all = window.speechSynthesis.getVoices();
+    if (!all || all.length === 0) return; // danh sách giọng chưa load xong, đợi voiceschanged
+    englishVoices = all.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+    if (englishVoices.length === 0) englishVoices = all; // máy không có giọng Anh nào — vẫn cho chọn tạm
+
+    const sel = document.getElementById('voiceSelect');
+    const row = document.getElementById('voiceSelectRow');
+    if (sel) {
+        sel.innerHTML = englishVoices.map((v, i) => '<option value="' + i + '">' + v.name + ' (' + v.lang + ')</option>').join('');
+    }
+    if (row) row.style.display = englishVoices.length > 0 ? 'block' : 'none';
+
+    if (!selectedVoice || englishVoices.indexOf(selectedVoice) === -1) {
+        selectedVoice = pickBestDefaultVoice(englishVoices);
+    }
+    if (sel && selectedVoice) {
+        const idx = englishVoices.indexOf(selectedVoice);
+        if (idx > -1) sel.value = String(idx);
+    }
+}
+
+if ('speechSynthesis' in window) {
+    refreshVoiceList();
+    // Danh sách giọng đọc thường load bất đồng bộ (đặc biệt trên iOS/Chrome) — phải
+    // đợi sự kiện này rồi mới có đủ danh sách giọng thật để chọn.
+    window.speechSynthesis.onvoiceschanged = refreshVoiceList;
+}
+
 function speakWord(word) {
     if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // tránh chồng giọng khi bấm loa nhiều lần liên tiếp
         const utterance = new SpeechSynthesisUtterance(word);
-        utterance.lang = 'en-US';
+        utterance.lang = (selectedVoice && selectedVoice.lang) || 'en-US';
+        if (selectedVoice) utterance.voice = selectedVoice;
         utterance.rate = 0.9;
         window.speechSynthesis.speak(utterance);
     }
@@ -1293,6 +1412,45 @@ document.querySelectorAll('.control-btn').forEach(btn => {
         handleInput(lane);
     });
 });
+
+document.getElementById('voiceSelect').addEventListener('change', (e) => {
+    const idx = parseInt(e.target.value, 10);
+    const v = englishVoices[idx];
+    if (v) {
+        selectedVoice = v;
+        localStorage.setItem(VOICE_STORAGE_KEY, v.voiceURI);
+        speakWord('Hello, this is my voice.'); // đọc thử để nghe ngay giọng vừa chọn
+    }
+});
+
+/**
+ * CHỐNG ZOOM NGOÀI Ý MUỐN TRÊN ĐIỆN THOẠI/IPAD
+ * touch-action CSS lo phần lớn, nhưng thêm 2 lớp phòng thủ này để chắc ăn trên mọi
+ * đời iOS: chặn cử chỉ pinch-zoom kiểu Safari (gesturestart/change/end) và chặn
+ * double-tap-zoom khi bấm liên tục nhiều lần vào cùng 1 chỗ (ví dụ bấm bắn liên tục).
+ */
+['gesturestart', 'gesturechange', 'gestureend'].forEach(evt => {
+    document.addEventListener(evt, (e) => e.preventDefault());
+});
+let __lastTouchEndAt = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - __lastTouchEndAt <= 350) e.preventDefault();
+    __lastTouchEndAt = now;
+}, { passive: false });
+
+/**
+ * SỬA LỖI CHIỀU CAO MÀN HÌNH TRÊN SAFARI IOS/IPADOS
+ * 100vh trên Safari tính luôn cả phần bị thanh địa chỉ/thanh công cụ che, nên hàng
+ * phím A-K ở dưới cùng có thể bị đẩy khuất khỏi màn hình thấy được. Tính lại chiều
+ * cao thật bằng window.innerHeight và cập nhật mỗi khi xoay màn hình/resize.
+ */
+function __setAppHeight() {
+    document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+}
+__setAppHeight();
+window.addEventListener('resize', __setAppHeight);
+window.addEventListener('orientationchange', () => setTimeout(__setAppHeight, 150));
 
 // --- dynamic text set from generator settings ---
 document.getElementById('game-title-h1').textContent = GAME_TITLE;
