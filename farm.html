@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Nông Trại Từ Vựng | Night IELTS</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌾</text></svg>">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="farm-core.js"></script>
+<style>
+  :root{ --grass-a:#a7e08a; --grass-b:#93d574; --path:#e8d3a4; }
+  *{ font-family:'Plus Jakarta Sans', sans-serif; }
+  body{ margin:0; background:#eef7e9; overscroll-behavior:none; }
+  .noselect{ user-select:none; -webkit-user-select:none; }
+
+  /* ---------- HUD chip ---------- */
+  .hud-chip{ background:rgba(255,255,255,.92); border:1px solid rgba(0,0,0,.06); box-shadow:0 2px 8px rgba(0,0,0,.06); }
+
+  /* ---------- Game viewport / camera ---------- */
+  #viewport{ position:relative; overflow:hidden; touch-action:none; background:linear-gradient(180deg,#bfe8ff,#eaf7ff 40%); }
+  #world{ position:absolute; left:0; top:0; will-change:transform; }
+  .world-bg{ position:absolute; inset:0;
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(255,255,255,.15) 0, transparent 40%),
+      repeating-linear-gradient(45deg, var(--grass-a) 0 40px, var(--grass-b) 40px 80px);
+  }
+  .path-strip{ position:absolute; background:var(--path); border-radius:18px; box-shadow:inset 0 0 0 3px rgba(255,255,255,.35); }
+
+  /* ---------- Buildings ---------- */
+  .building{ position:absolute; }
+  .building .roof{ position:absolute; left:0; right:0; top:0; height:46%; border-radius:10px 10px 4px 4px; }
+  .building .wall{ position:absolute; left:6%; right:6%; bottom:0; top:40%; border-radius:4px 4px 8px 8px; box-shadow:inset 0 -6px 0 rgba(0,0,0,.08); }
+  .building .door{ position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:22%; height:38%; background:#8a5a34; border-radius:6px 6px 0 0; }
+  .building .win{ position:absolute; width:14%; height:16%; background:#dff3ff; border:2px solid #fff; border-radius:3px; }
+  .building .sign{ position:absolute; left:50%; transform:translateX(-50%); top:-14px; background:#fff; font-weight:800; font-size:11px; padding:3px 10px; border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.15); white-space:nowrap; }
+
+  /* ---------- Trees ---------- */
+  .tree{ position:absolute; }
+  .tree .trunk{ position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:12px; height:22px; background:#8a5a34; border-radius:3px; }
+  .tree .leaf{ position:absolute; border-radius:50%; background:radial-gradient(circle at 32% 28%, #7bd66a, #4bab3d); }
+
+  /* ---------- Fence ---------- */
+  .fence{ position:absolute; background-image:repeating-linear-gradient(90deg,#b78a52 0 6px, transparent 6px 16px); border-top:4px solid #8a5a34; height:16px; }
+  .fence.vert{ background-image:repeating-linear-gradient(0deg,#b78a52 0 6px, transparent 6px 16px); border-top:none; border-left:4px solid #8a5a34; width:16px; height:auto; }
+
+  /* ---------- Locked gate ---------- */
+  .gate-zone{ position:absolute; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; border-radius:14px; backdrop-filter: blur(1px); }
+  .gate-zone .badge{ background:rgba(255,255,255,.95); padding:6px 12px; border-radius:999px; font-weight:700; font-size:12px; box-shadow:0 2px 8px rgba(0,0,0,.15); display:flex; align-items:center; gap:6px; }
+
+  /* ---------- Plot ---------- */
+  .plot{ position:absolute; border-radius:10px; background:#8a5a3a; box-shadow:inset 0 0 0 3px rgba(0,0,0,.12), 0 3px 0 rgba(0,0,0,.12); cursor:pointer; transition:transform .12s; }
+  .plot:active{ transform:scale(.95); }
+  .plot .soil{ position:absolute; inset:4px; border-radius:7px; background:repeating-linear-gradient(0deg,#6b4326 0 4px, #7a4c2c 4px 8px); }
+  .plot .crop-layer{ position:absolute; inset:0; display:flex; align-items:flex-end; justify-content:center; pointer-events:none; }
+  .plot .crop-layer svg{ width:88%; height:88%; overflow:visible; }
+  .plot .water-flag{ position:absolute; top:-14px; left:50%; transform:translateX(-50%); font-size:16px; animation:bob 1.1s ease-in-out infinite; filter:drop-shadow(0 2px 2px rgba(0,0,0,.25)); }
+  .plot .ready-flag{ position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:18px; animation:pop 1s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateX(-50%) translateY(0);} 50%{ transform:translateX(-50%) translateY(-5px);} }
+  @keyframes pop{ 0%,100%{ transform:translateX(-50%) scale(1);} 50%{ transform:translateX(-50%) scale(1.18);} }
+  .plot .timer{ position:absolute; bottom:-18px; left:50%; transform:translateX(-50%); font-size:10px; font-weight:700; color:#3a5a2a; background:rgba(255,255,255,.85); padding:1px 6px; border-radius:8px; white-space:nowrap; }
+
+  /* ---------- Character ---------- */
+  /* pointer-events:none — the avatar is never itself a click target, and
+     its bounding box slightly overlaps the plot above its standing spot;
+     without this it silently steals clicks meant for that plot. */
+  #character{ position:absolute; width:46px; height:64px; transform-origin:50% 100%; z-index:50; transition:transform .08s linear; pointer-events:none; }
+  #character .shadow{ position:absolute; bottom:-2px; left:50%; transform:translateX(-50%); width:30px; height:9px; background:rgba(0,0,0,.25); border-radius:50%; filter:blur(1px); }
+  #character .body{ position:absolute; bottom:8px; left:50%; transform:translateX(-50%); width:24px; height:24px; border-radius:9px; }
+  #character .head{ position:absolute; bottom:26px; left:50%; transform:translateX(-50%); width:24px; height:24px; border-radius:50%; background:#ffd9b3; box-shadow:inset -3px -3px 0 rgba(0,0,0,.06); }
+  #character .hair{ position:absolute; bottom:38px; left:50%; transform:translateX(-50%); width:26px; height:16px; border-radius:14px 14px 4px 4px; }
+  #character .eye{ position:absolute; bottom:32px; width:3px; height:3px; background:#2b2b2b; border-radius:50%; }
+  #character .eye.l{ left:calc(50% - 6px); } #character .eye.r{ left:calc(50% + 3px); }
+  #character .leg{ position:absolute; bottom:0; width:8px; height:12px; background:#4b3b2a; border-radius:3px; }
+  #character .leg.l{ left:calc(50% - 8px); transform-origin:top center; } #character .leg.r{ left:calc(50% + 1px); transform-origin:top center; }
+  #character.walking .leg.l{ animation:legL .38s linear infinite; }
+  #character.walking .leg.r{ animation:legR .38s linear infinite; }
+  #character.walking .body{ animation:bodyBob .38s linear infinite; }
+  @keyframes legL{ 0%,100%{ transform:rotate(24deg);} 50%{ transform:rotate(-24deg);} }
+  @keyframes legR{ 0%,100%{ transform:rotate(-24deg);} 50%{ transform:rotate(24deg);} }
+  @keyframes bodyBob{ 0%,50%,100%{ transform:translateX(-50%) translateY(0);} 25%,75%{ transform:translateX(-50%) translateY(-2px);} }
+  #character.face-left{ transform:scaleX(-1); }
+
+  /* ---------- Toasts ---------- */
+  #toast-container{ position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
+  .toast{ background:rgba(20,20,20,.88); color:#fff; padding:8px 16px; border-radius:999px; font-weight:600; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,.25); animation:toastIn .25s ease-out, toastOut .3s ease-in 1.8s forwards; }
+  @keyframes toastIn{ from{ opacity:0; transform:translateY(-8px);} to{ opacity:1; transform:translateY(0);} }
+  @keyframes toastOut{ to{ opacity:0; transform:translateY(-8px);} }
+  .coin-float{ position:absolute; font-weight:800; font-size:14px; color:#b45309; text-shadow:0 1px 0 #fff; animation:coinFloat 1.1s ease-out forwards; pointer-events:none; z-index:60; }
+  @keyframes coinFloat{ 0%{ opacity:0; transform:translate(-50%,0) scale(.7);} 15%{ opacity:1; transform:translate(-50%,-6px) scale(1);} 100%{ opacity:0; transform:translate(-50%,-46px) scale(1);} }
+
+  /* ---------- Modal ---------- */
+  /* NOTE: no unconditional `display:flex` here on purpose — Tailwind's
+     `.hidden{display:none}` and this rule are both single-class
+     selectors, and Tailwind's CDN stylesheet loads before this block,
+     so an unconditional flex here would win the cascade and make
+     "hidden" modals invisible-but-still-click-capturing. Layout comes
+     from the `flex` Tailwind utility class instead, toggled in JS
+     alongside `hidden` (see openModal/closeModals). */
+  .modal-backdrop{ position:fixed; inset:0; background:rgba(20,30,15,.45); backdrop-filter:blur(2px); z-index:150; }
+  .modal-card{ background:#fff; width:100%; max-width:480px; border-radius:22px 22px 0 0; padding:20px; box-shadow:0 -8px 30px rgba(0,0,0,.2); max-height:85vh; overflow-y:auto; }
+  @media(min-width:640px){ .modal-card{ border-radius:22px; } }
+
+  .seed-card{ border:2px solid #eef0e6; border-radius:16px; padding:10px; text-align:center; cursor:pointer; transition:.15s; }
+  .seed-card:hover{ border-color:#7bd66a; transform:translateY(-2px); }
+  .seed-card.disabled{ opacity:.45; cursor:not-allowed; }
+  .tab-btn{ padding:8px 16px; border-radius:999px; font-weight:700; font-size:13px; cursor:pointer; }
+  .tab-btn.active{ background:#166534; color:#fff; }
+  .tab-btn:not(.active){ background:#f1f5f0; color:#4b5563; }
+
+  .spinner{ width:36px; height:36px; border:4px solid #d1e7c8; border-top-color:#22c55e; border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+</style>
+</head>
+<body class="noselect">
+
+<div id="toast-container"></div>
+
+<!-- ================= LOADING ================= -->
+<div id="loading-screen" class="fixed inset-0 z-[300] flex flex-col items-center justify-center gap-4 bg-[#eef7e9]">
+  <div class="spinner"></div>
+  <p class="text-green-800 font-semibold">Đang tải nông trại...</p>
+</div>
+
+<!-- ================= LOGIN ================= -->
+<div id="login-screen" class="hidden fixed inset-0 z-[290] flex items-center justify-center bg-gradient-to-b from-sky-200 to-green-100 p-6">
+  <div class="bg-white/95 rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center">
+    <div class="text-6xl mb-2">🌾</div>
+    <h1 class="text-2xl font-extrabold text-green-800 mb-1">Nông Trại Từ Vựng</h1>
+    <p class="text-gray-500 text-sm mb-6">Đăng nhập để bắt đầu chăm sóc nông trại của riêng bạn.</p>
+    <button id="login-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 transition">
+      <i class="fa-brands fa-google"></i> Đăng nhập bằng Google
+    </button>
+    <a href="index.html" class="block mt-4 text-xs text-gray-400 hover:text-gray-600">← Quay lại trang chính</a>
+  </div>
+</div>
+
+<!-- ================= CHARACTER CREATION ================= -->
+<div id="create-screen" class="hidden fixed inset-0 z-[280] flex items-center justify-center bg-gradient-to-b from-sky-200 to-green-100 p-6">
+  <div class="bg-white/95 rounded-3xl shadow-2xl p-7 max-w-sm w-full">
+    <h2 class="text-xl font-extrabold text-green-800 text-center mb-1">Tạo nhân vật</h2>
+    <p class="text-gray-500 text-sm text-center mb-5">Chọn nhân vật của bạn để bắt đầu nông trại!</p>
+    <div class="grid grid-cols-2 gap-3 mb-5">
+      <button data-gender="boy" class="gender-btn border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition">
+        <div class="w-14 h-14 rounded-full bg-[#ffd9b3] relative overflow-hidden flex items-end justify-center"><div class="absolute top-0 w-full h-5 bg-[#3b2a1a] rounded-t-full"></div></div>
+        <span class="font-bold text-sm">Nam</span>
+      </button>
+      <button data-gender="girl" class="gender-btn border-2 rounded-2xl p-4 flex flex-col items-center gap-2 transition">
+        <div class="w-14 h-14 rounded-full bg-[#ffd9b3] relative overflow-hidden flex items-end justify-center"><div class="absolute top-0 w-full h-7 bg-[#7a3b2e] rounded-t-full"></div></div>
+        <span class="font-bold text-sm">Nữ</span>
+      </button>
+    </div>
+    <label class="text-xs font-bold text-gray-500 uppercase">Tên nông trại</label>
+    <input id="create-name" maxlength="24" placeholder="VD: Nông trại của Minh" class="w-full mt-1 mb-5 border-2 border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-green-500">
+    <button id="create-confirm-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-2xl transition">Bắt đầu! 🌱</button>
+  </div>
+</div>
+
+<!-- ================= GAME ================= -->
+<div id="game-root" class="hidden h-[100dvh] flex flex-col">
+
+  <!-- HUD -->
+  <header class="flex items-center justify-between gap-2 px-3 py-2 bg-white/80 backdrop-blur border-b border-black/5 z-20">
+    <div class="flex items-center gap-2 min-w-0">
+      <a href="index.html" class="w-9 h-9 rounded-full hud-chip flex items-center justify-center text-gray-500 shrink-0"><i class="fa-solid fa-arrow-left"></i></a>
+      <img id="hud-avatar" src="" class="w-9 h-9 rounded-full border-2 border-white shadow shrink-0">
+      <div class="min-w-0">
+        <p id="hud-name" class="font-bold text-sm text-gray-800 truncate leading-tight"></p>
+        <div class="flex items-center gap-1">
+          <span id="hud-level" class="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 rounded-full leading-tight">Lv.1</span>
+          <div class="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden"><div id="hud-xp-bar" class="h-full bg-green-500" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="hud-chip rounded-full px-3 py-1.5 flex items-center gap-1.5 font-extrabold text-amber-600 text-sm"><span>🪙</span><span id="hud-coins">0</span></div>
+      <button id="logout-btn" class="w-9 h-9 rounded-full hud-chip flex items-center justify-center text-gray-400 hover:text-red-500"><i class="fa-solid fa-right-from-bracket"></i></button>
+    </div>
+  </header>
+
+  <!-- Viewport -->
+  <div id="viewport" class="flex-1 relative">
+    <div id="world">
+      <div class="world-bg"></div>
+      <div id="world-decor"></div>
+      <div id="plots-layer"></div>
+      <div id="character">
+        <div class="shadow"></div>
+        <div class="leg l"></div><div class="leg r"></div>
+        <div class="body"></div>
+        <div class="head"></div>
+        <div class="eye l"></div><div class="eye r"></div>
+        <div class="hair"></div>
+      </div>
+    </div>
+    <div id="dev-hud" class="hidden absolute top-2 left-2 z-40 bg-black/70 text-white text-[11px] rounded-xl p-2 flex flex-col gap-1">
+      <span class="font-bold text-amber-300">⚡ DEV MODE (localhost)</span>
+      <div class="flex gap-1">
+        <button data-warp="600" class="bg-white/20 hover:bg-white/30 rounded px-2 py-1">+10p</button>
+        <button data-warp="3600" class="bg-white/20 hover:bg-white/30 rounded px-2 py-1">+1h</button>
+        <button data-warp="10800" class="bg-white/20 hover:bg-white/30 rounded px-2 py-1">+3h</button>
+        <button data-warp="21600" class="bg-white/20 hover:bg-white/30 rounded px-2 py-1">+6h</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inventory strip -->
+  <div class="bg-white/90 backdrop-blur border-t border-black/5 px-3 py-2 flex items-center gap-2 overflow-x-auto z-20" id="inventory-strip">
+    <span class="text-[11px] font-bold text-gray-400 shrink-0">TÚI ĐỒ</span>
+  </div>
+</div>
+
+<!-- ================= PLANT MODAL ================= -->
+<div id="modal-plant" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-extrabold text-green-800">🌱 Trồng gì đây?</h3>
+      <button class="modal-close-btn w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="plant-seed-list" class="grid grid-cols-3 gap-3"></div>
+    <p class="text-xs text-gray-400 mt-4 text-center">Chưa có hạt giống? Ghé <b>Cửa Hàng</b> để mua nhé!</p>
+  </div>
+</div>
+
+<!-- ================= SHOP MODAL ================= -->
+<div id="modal-shop" class="modal-backdrop hidden">
+  <div class="modal-card">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-lg font-extrabold text-green-800">🏪 Cửa Hàng</h3>
+      <button class="modal-close-btn w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="flex gap-2 mb-4">
+      <div id="tab-buy" class="tab-btn active">Mua hạt giống</div>
+      <div id="tab-sell" class="tab-btn">Bán nông sản</div>
+    </div>
+    <div id="shop-buy-list" class="grid grid-cols-3 gap-3"></div>
+    <div id="shop-sell-list" class="hidden flex flex-col gap-2"></div>
+  </div>
+</div>
+
+<!-- ================= LOCKED AREA MODAL ================= -->
+<div id="modal-locked" class="modal-backdrop hidden">
+  <div class="modal-card text-center">
+    <div class="text-5xl mb-2">🔒</div>
+    <h3 class="text-lg font-extrabold text-gray-700 mb-1" id="locked-title">Khu vực chưa mở khoá</h3>
+    <p class="text-sm text-gray-500 mb-5" id="locked-desc">Khu vực này sẽ mở ở phiên bản sau nhé!</p>
+    <button class="modal-close-btn w-full bg-gray-800 text-white font-bold py-3 rounded-2xl">Đã hiểu</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp, increment }
+  from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+const { CONFIG, deriveCropView, secondsToNextStage, levelFromXp } = window.FarmCore;
+
+/* =========================================================================
+ * FIREBASE (same project/config already used across the site — see
+ * index.html / game.html. Only adding a new `farmStates` collection;
+ * `users` / `assignments` are read-only from this page, never written.)
+ * ========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+  authDomain: "night-ielts-land.firebaseapp.com",
+  databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+  projectId: "night-ielts-land",
+  storageBucket: "night-ielts-land.firebasestorage.app",
+  messagingSenderId: "408519436407",
+  appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+  measurementId: "G-H3P14NJR76"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
+
+/* =========================================================================
+ * DEV / TEST MODE — only ever active on localhost, never on the deployed
+ * GitHub Pages site, so it can't leak into production. Bypasses Google
+ * auth + Firestore with an in-memory fake farm, and exposes a small
+ * "time warp" HUD so growth/harvest can be exercised without waiting
+ * real hours. See /test/farm-core.test.js for the pure-logic unit tests.
+ * ========================================================================= */
+const params = new URLSearchParams(location.search);
+const TEST_MODE = location.hostname === "localhost" && params.get("test") === "1";
+let testTimeOffsetMs = 0;
+function now() { return Date.now() + testTimeOffsetMs; }
+
+/* =========================================================================
+ * WORLD LAYOUT — grid-based, in world pixels. cellSize defines the
+ * pathfinding grid used for click-to-move obstacle avoidance.
+ * ========================================================================= */
+const CELL = 40;
+const COLS = 34, ROWS = 22;
+const WORLD_W = COLS * CELL, WORLD_H = ROWS * CELL;
+
+const HOUSE = { x: 40, y: 40, w: 200, h: 150 };
+const SHOP  = { x: 300, y: 50, w: 170, h: 140 };
+const FENCE_RECT = { x: 560, y: 260, w: 320, h: 240 }; // plot cluster border
+const POND_GATE = { x: WORLD_W - 130, y: 0, w: 130, h: WORLD_H };
+const PIG_GATE  = { x: 0, y: WORLD_H - 130, w: WORLD_W, h: 130 };
+
+const TREES = [
+  { x: 250, y: 210, s: 46 }, { x: 500, y: 120, s: 56 }, { x: 950, y: 150, s: 50 },
+  { x: 1010, y: 400, s: 60 }, { x: 120, y: 520, s: 48 }, { x: 700, y: 560, s: 44 }
+];
+
+const PLOT_COLS = 4, PLOT_ROWS = 3, PLOT_SIZE = 68, PLOT_GAP = 12;
+const PLOTS_ORIGIN = { x: FENCE_RECT.x + 20, y: FENCE_RECT.y + 20 };
+function plotRect(i) {
+  const col = i % PLOT_COLS, row = Math.floor(i / PLOT_COLS);
+  return {
+    x: PLOTS_ORIGIN.x + col * (PLOT_SIZE + PLOT_GAP),
+    y: PLOTS_ORIGIN.y + row * (PLOT_SIZE + PLOT_GAP),
+    w: PLOT_SIZE, h: PLOT_SIZE
+  };
+}
+function plotStandSpot(i) {
+  const r = plotRect(i);
+  return { x: r.x + r.w / 2, y: r.y + r.h + 26 };
+}
+const SHOP_STAND = { x: SHOP.x + SHOP.w / 2, y: SHOP.y + SHOP.h + 26 };
+const START_POS = { x: HOUSE.x + HOUSE.w + 40, y: HOUSE.y + HOUSE.h + 30 };
+
+/* ---- Pathfinding grid ---- */
+let blocked; // Set of "col,row"
+function cellKey(c, r) { return c + "," + r; }
+function rectToCells(rect, pad = 0) {
+  const c0 = Math.max(0, Math.floor((rect.x - pad) / CELL));
+  const c1 = Math.min(COLS - 1, Math.ceil((rect.x + rect.w + pad) / CELL));
+  const r0 = Math.max(0, Math.floor((rect.y - pad) / CELL));
+  const r1 = Math.min(ROWS - 1, Math.ceil((rect.y + rect.h + pad) / CELL));
+  const cells = [];
+  for (let c = c0; c <= c1; c++) for (let r = r0; r <= r1; r++) cells.push([c, r]);
+  return cells;
+}
+function buildGrid() {
+  blocked = new Set();
+  [HOUSE, SHOP].forEach(rect => rectToCells(rect).forEach(([c, r]) => blocked.add(cellKey(c, r))));
+  // fence border only (interior stays open path-wise conceptually, but plots themselves block standing)
+  for (let i = 0; i < CONFIG.totalPlots; i++) rectToCells(plotRect(i)).forEach(([c, r]) => blocked.add(cellKey(c, r)));
+  rectToCells(POND_GATE).forEach(([c, r]) => blocked.add(cellKey(c, r)));
+  rectToCells(PIG_GATE).forEach(([c, r]) => blocked.add(cellKey(c, r)));
+  TREES.forEach(t => rectToCells({ x: t.x - t.s * 0.35, y: t.y - t.s * 0.1, w: t.s * 0.7, h: t.s * 0.5 })
+    .forEach(([c, r]) => blocked.add(cellKey(c, r))));
+}
+function worldToCell(pos) { return [Math.max(0, Math.min(COLS - 1, Math.floor(pos.x / CELL))), Math.max(0, Math.min(ROWS - 1, Math.floor(pos.y / CELL)))]; }
+function cellToWorld([c, r]) { return { x: c * CELL + CELL / 2, y: r * CELL + CELL / 2 }; }
+function nearestFreeCell([c, r]) {
+  if (!blocked.has(cellKey(c, r))) return [c, r];
+  for (let radius = 1; radius < 6; radius++) {
+    for (let dc = -radius; dc <= radius; dc++) for (let dr = -radius; dr <= radius; dr++) {
+      const cc = c + dc, rr = r + dr;
+      if (cc < 0 || rr < 0 || cc >= COLS || rr >= ROWS) continue;
+      if (!blocked.has(cellKey(cc, rr))) return [cc, rr];
+    }
+  }
+  return [c, r];
+}
+function bfsPath(start, goal) {
+  start = nearestFreeCell(start); goal = nearestFreeCell(goal);
+  const startK = cellKey(...start), goalK = cellKey(...goal);
+  if (startK === goalK) return [start];
+  const q = [start]; const cameFrom = new Map([[startK, null]]);
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  while (q.length) {
+    const cur = q.shift(); const curK = cellKey(...cur);
+    if (curK === goalK) break;
+    for (const [dc, dr] of dirs) {
+      const nc = cur[0] + dc, nr = cur[1] + dr;
+      if (nc < 0 || nr < 0 || nc >= COLS || nr >= ROWS) continue;
+      const nk = cellKey(nc, nr);
+      if (blocked.has(nk) || cameFrom.has(nk)) continue;
+      // avoid cutting diagonally through two blocked corners
+      if (dc !== 0 && dr !== 0 && (blocked.has(cellKey(cur[0]+dc, cur[1])) || blocked.has(cellKey(cur[0], cur[1]+dr)))) continue;
+      cameFrom.set(nk, cur); q.push([nc, nr]);
+    }
+  }
+  if (!cameFrom.has(goalK)) return null;
+  const path = []; let cur = goal;
+  while (cur) { path.unshift(cur); cur = cameFrom.get(cellKey(...cur)); }
+  return path;
+}
+
+/* =========================================================================
+ * STATE
+ * ========================================================================= */
+let uid = null;
+let farmState = null;    // authoritative-ish local mirror of farmStates/{uid}
+let unsubSnapshot = null;
+let charPos = { ...START_POS };
+let charFacing = "right";
+let isMoving = false;
+let selectedPlot = null;
+
+const $ = (sel) => document.querySelector(sel);
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+
+function toast(msg) {
+  const t = el("div", "toast"); t.textContent = msg;
+  $("#toast-container").appendChild(t);
+  setTimeout(() => t.remove(), 2200);
+}
+function floatCoin(worldX, worldY, text, color) {
+  const f = el("div", "coin-float"); f.style.left = worldX + "px"; f.style.top = worldY + "px";
+  f.style.color = color || "#b45309"; f.textContent = text;
+  $("#world").appendChild(f);
+  setTimeout(() => f.remove(), 1150);
+}
+
+/* =========================================================================
+ * INITIAL STATE FACTORY
+ * ========================================================================= */
+function makeInitialPlots() {
+  const plots = {};
+  for (let i = 0; i < CONFIG.totalPlots; i++) {
+    plots["p" + i] = { cropId: null, plantedAt: null, growthDurationSec: null, watered: false };
+  }
+  return plots;
+}
+function makeInitialFarmState(profile) {
+  return {
+    profile,
+    coins: CONFIG.startingCoins,
+    xp: 0,
+    plots: makeInitialPlots(),
+    inventory: {},
+    unlockedAreas: ["main"],
+    updatedAt: Date.now()
+  };
+}
+function toMillis(ts) {
+  if (ts == null) return null;
+  if (typeof ts === "number") return ts;
+  if (typeof ts.toMillis === "function") return ts.toMillis();
+  return null;
+}
+
+/* =========================================================================
+ * FIREBASE PERSISTENCE
+ * ========================================================================= */
+function farmRef() { return doc(db, "farmStates", uid); }
+
+async function loadOrCreateFarmState() {
+  const snap = await getDoc(farmRef());
+  if (snap.exists()) {
+    farmState = normalizeSnapshot(snap.data());
+    enterGame();
+  } else {
+    showCreateScreen();
+  }
+}
+function normalizeSnapshot(data) {
+  const plots = {};
+  for (let i = 0; i < CONFIG.totalPlots; i++) {
+    const raw = (data.plots && data.plots["p" + i]) || {};
+    plots["p" + i] = {
+      cropId: raw.cropId || null,
+      plantedAt: toMillis(raw.plantedAt),
+      growthDurationSec: raw.growthDurationSec || null,
+      watered: !!raw.watered
+    };
+  }
+  return {
+    profile: data.profile || {},
+    coins: typeof data.coins === "number" ? data.coins : CONFIG.startingCoins,
+    xp: typeof data.xp === "number" ? data.xp : 0,
+    plots,
+    inventory: data.inventory || {},
+    unlockedAreas: data.unlockedAreas || ["main"]
+  };
+}
+
+function subscribeRealtime() {
+  if (unsubSnapshot) unsubSnapshot();
+  unsubSnapshot = onSnapshot(farmRef(), (snap) => {
+    if (!snap.exists()) return;
+    farmState = normalizeSnapshot(snap.data());
+    renderHUD(); renderInventory(); renderAllPlots();
+  }, (err) => console.warn("farmState onSnapshot error:", err));
+}
+
+async function createCharacter(gender, name) {
+  const profile = {
+    name: name || "Nông dân nhỏ", gender, characterSkin: "default",
+    createdAt: Date.now()
+  };
+  farmState = makeInitialFarmState(profile);
+  if (!TEST_MODE) {
+    await setDoc(farmRef(), {
+      profile, coins: farmState.coins, xp: 0,
+      plots: farmState.plots, inventory: {}, unlockedAreas: ["main"],
+      updatedAt: serverTimestamp()
+    });
+    subscribeRealtime();
+  }
+  enterGame();
+}
+
+/** Small helper: apply a partial patch to Firestore via dot-paths, and
+ *  optimistically mirror it locally so the UI feels instant even before
+ *  the onSnapshot echo comes back (which then reconciles with the real
+ *  server timestamp). In TEST_MODE we just apply locally, no network. */
+function applyPatch(patch, optimisticLocal) {
+  if (optimisticLocal) Object.assign(farmState, optimisticLocal);
+  if (TEST_MODE) { renderHUD(); renderInventory(); renderAllPlots(); return; }
+  updateDoc(farmRef(), patch).catch(err => { console.error(err); toast("⚠️ Lỗi lưu dữ liệu, thử lại nhé!"); });
+}
+
+/* =========================================================================
+ * AUTH
+ * ========================================================================= */
+function showScreen(id) {
+  ["loading-screen","login-screen","create-screen","game-root"].forEach(s => {
+    $("#" + s).classList.toggle("hidden", s !== id);
+  });
+}
+function showCreateScreen() { showScreen("create-screen"); }
+
+function enterGame() {
+  showScreen("game-root");
+  buildGrid();
+  renderWorldStatic();
+  renderCharacterAppearance();
+  renderAllPlots();
+  renderHUD();
+  renderInventory();
+  placeCharacter(START_POS, true);
+  setInterval(() => { renderAllPlots(); renderHUD(); }, 1000);
+}
+function renderCharacterAppearance() {
+  const isGirl = farmState.profile.gender === "girl";
+  const hair = $("#character .hair");
+  hair.style.background = isGirl ? "#7a3b2e" : "#3b2a1a";
+  hair.style.height = isGirl ? "20px" : "14px";
+  hair.style.bottom = isGirl ? "36px" : "38px";
+  const body = $("#character .body");
+  body.style.background = isGirl ? "#ec4899" : "#3b82f6";
+}
+
+if (TEST_MODE) {
+  $("#dev-hud").classList.remove("hidden");
+  uid = "test-uid-local";
+  showScreen("loading-screen");
+  // Same character-creation screen a real first-time student sees —
+  // dev mode only skips Google auth + Firestore, not the game flow.
+  setTimeout(() => showCreateScreen(), 50);
+} else {
+  $("#login-btn").addEventListener("click", () => signInWithPopup(auth, provider).catch(err => toast("Đăng nhập lỗi: " + err.message)));
+  $("#logout-btn").addEventListener("click", () => signOut(auth));
+  onAuthStateChanged(auth, async (user) => {
+    if (unsubSnapshot) { unsubSnapshot(); unsubSnapshot = null; }
+    if (!user) { showScreen("login-screen"); return; }
+    uid = user.uid;
+    $("#hud-avatar").src = user.photoURL || "";
+    showScreen("loading-screen");
+    // Keep the site's existing `users/{uid}` doc as-is (reuse, never duplicate).
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) {
+      await setDoc(userRef, { email: user.email, name: user.displayName, role: "student", createdAt: Date.now() });
+    }
+    await loadOrCreateFarmState();
+    subscribeRealtime();
+  });
+}
+
+document.querySelectorAll(".gender-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".gender-btn").forEach(b => b.classList.remove("border-green-500","bg-green-50"));
+    btn.classList.add("border-green-500", "bg-green-50");
+    btn.dataset.selected = "1";
+  });
+});
+$("#create-confirm-btn").addEventListener("click", () => {
+  const genderBtn = document.querySelector(".gender-btn[data-selected='1']") || document.querySelector(".gender-btn");
+  const gender = genderBtn.dataset.gender;
+  const name = $("#create-name").value.trim() || "Nông trại của tôi";
+  createCharacter(gender, name);
+});
+
+/* =========================================================================
+ * STATIC WORLD RENDER (buildings, trees, fence, gates) — built once.
+ * ========================================================================= */
+function renderWorldStatic() {
+  const world = $("#world");
+  world.style.width = WORLD_W + "px";
+  world.style.height = WORLD_H + "px";
+  const decor = $("#world-decor");
+  decor.innerHTML = "";
+
+  // Path connecting house -> shop -> plots
+  decor.appendChild(rectDiv("path-strip", { x: HOUSE.x + HOUSE.w - 10, y: HOUSE.y + HOUSE.h + 10, w: 30, h: 200 }));
+  decor.appendChild(rectDiv("path-strip", { x: HOUSE.x + HOUSE.w, y: HOUSE.y + HOUSE.h + 40, w: 280, h: 30 }));
+  decor.appendChild(rectDiv("path-strip", { x: SHOP.x + 60, y: SHOP.y + SHOP.h, w: 30, h: 260 }));
+
+  // Fence around the plot cluster
+  const f = FENCE_RECT;
+  decor.appendChild(rectDiv("fence", { x: f.x - 10, y: f.y - 10, w: f.w + 20, h: 16 }));
+  decor.appendChild(rectDiv("fence", { x: f.x - 10, y: f.y + f.h - 4, w: f.w + 20, h: 16 }));
+  decor.appendChild(rectDiv("fence vert", { x: f.x - 10, y: f.y - 10, w: 16, h: f.h + 20 }));
+  decor.appendChild(rectDiv("fence vert", { x: f.x + f.w - 4, y: f.y - 10, w: 16, h: f.h + 20 }));
+
+  // House
+  decor.appendChild(building(HOUSE, "#f4b183", "#fde9d9", "Nhà của bạn"));
+  // Shop
+  decor.appendChild(building(SHOP, "#7bb8e8", "#eaf5ff", "CỬA HÀNG"));
+
+  // Trees
+  TREES.forEach(t => decor.appendChild(tree(t)));
+
+  // Locked gates
+  decor.appendChild(gateZone(POND_GATE, "🐟", "Ao Cá", "vertical"));
+  decor.appendChild(gateZone(PIG_GATE, "🐷", "Trại Heo", "horizontal"));
+
+  // Interactive click targets
+  const shopHit = rectDiv("", SHOP); shopHit.style.cursor = "pointer"; shopHit.id = "shop-entrance";
+  shopHit.addEventListener("click", (e) => { e.stopPropagation(); walkThenAct(SHOP_STAND, openShop); });
+  decor.appendChild(shopHit);
+}
+function rectDiv(cls, r) {
+  const d = el("div", cls);
+  d.style.left = r.x + "px"; d.style.top = r.y + "px"; d.style.width = r.w + "px"; d.style.height = r.h + "px"; d.style.position = "absolute";
+  return d;
+}
+function building(rect, roofColor, wallColor, label) {
+  const wrap = rectDiv("building", rect);
+  const roof = el("div", "roof"); roof.style.background = `linear-gradient(180deg, ${roofColor}, ${shade(roofColor,-15)})`;
+  const wall = el("div", "wall"); wall.style.background = wallColor;
+  const door = el("div", "door");
+  const w1 = el("div", "win"); w1.style.left = "14%"; w1.style.top = "52%";
+  const w2 = el("div", "win"); w2.style.right = "14%"; w2.style.top = "52%";
+  const sign = el("div", "sign"); sign.textContent = label;
+  wrap.append(roof, wall, door, w1, w2, sign);
+  return wrap;
+}
+function tree(t) {
+  const wrap = rectDiv("tree", { x: t.x - t.s/2, y: t.y - t.s, w: t.s, h: t.s + 22 });
+  const trunk = el("div", "trunk");
+  const leafPositions = [[0.5,0.32,1],[0.25,0.45,0.72],[0.75,0.45,0.72]];
+  wrap.appendChild(trunk);
+  leafPositions.forEach(([lx,ly,scale]) => {
+    const leaf = el("div", "leaf");
+    const size = t.s * scale;
+    leaf.style.width = size + "px"; leaf.style.height = size + "px";
+    leaf.style.left = (lx * t.s - size/2) + "px"; leaf.style.top = (ly * t.s - size/2) + "px";
+    wrap.appendChild(leaf);
+  });
+  return wrap;
+}
+function gateZone(rect, emoji, label, orientation) {
+  const zone = rectDiv("gate-zone", rect);
+  zone.style.background = "rgba(120,150,190,.28)";
+  zone.style.border = "3px dashed rgba(255,255,255,.7)";
+  const badge = el("div", "badge");
+  badge.innerHTML = `<span>${emoji}</span><span>${label}</span> <i class="fa-solid fa-lock text-gray-500 text-[10px]"></i>`;
+  zone.appendChild(badge);
+  zone.style.cursor = "pointer";
+  zone.addEventListener("click", () => {
+    $("#locked-title").textContent = `${emoji} ${label} — chưa mở khoá`;
+    $("#locked-desc").textContent = "Khu vực này sẽ xuất hiện ở phiên bản tiếp theo của nông trại. Hãy phát triển khu chính trước nhé!";
+    openModal("modal-locked");
+  });
+  return zone;
+}
+function shade(hex, amt) {
+  const c = hex.replace("#",""); const num = parseInt(c,16);
+  let r = (num>>16)+amt, g=((num>>8)&0xff)+amt, b=(num&0xff)+amt;
+  r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
+  return "#" + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+/* =========================================================================
+ * PLOTS
+ * ========================================================================= */
+function renderAllPlots() {
+  const layer = $("#plots-layer");
+  if (!layer.childElementCount) {
+    for (let i = 0; i < CONFIG.totalPlots; i++) layer.appendChild(makePlotEl(i));
+  }
+  for (let i = 0; i < CONFIG.totalPlots; i++) updatePlotEl(i);
+}
+function makePlotEl(i) {
+  const r = plotRect(i);
+  const d = rectDiv("plot", r);
+  d.dataset.plotId = i;
+  d.innerHTML = `<div class="soil"></div><div class="crop-layer"></div>`;
+  d.addEventListener("click", () => onPlotClick(i));
+  return d;
+}
+function updatePlotEl(i) {
+  const plotData = farmState.plots["p" + i];
+  const view = deriveCropView(plotData, now());
+  const d = document.querySelector(`.plot[data-plot-id="${i}"]`);
+  if (!d) return;
+  const cropLayer = d.querySelector(".crop-layer");
+  d.querySelectorAll(".water-flag,.ready-flag,.timer").forEach(x => x.remove());
+
+  if (view.stage === "empty") {
+    cropLayer.innerHTML = "";
+    return;
+  }
+  const crop = CONFIG.crops[plotData.cropId];
+  cropLayer.innerHTML = renderCropSVG(crop, view.stage, view.ratio);
+
+  if (view.readyToHarvest) {
+    const flag = el("div", "ready-flag"); flag.textContent = "✨"; d.appendChild(flag);
+  } else if (view.needsWater) {
+    const flag = el("div", "water-flag"); flag.textContent = "💧"; d.appendChild(flag);
+  } else if (view.stage !== "mature") {
+    const secs = secondsToNextStage(plotData, now());
+    const t = el("div", "timer"); t.textContent = fmtDuration(secs); d.appendChild(t);
+  }
+}
+function fmtDuration(sec) {
+  if (sec <= 0) return "";
+  const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
+/** Generative SVG plant art shared by every crop — only color / fruit
+ *  shape / count differ per crop, so we get visual variety without
+ *  needing hand-authored art per crop per stage (none exists in this
+ *  repo, and copying the reference screenshots' art is off the table). */
+function renderCropSVG(crop, stage, ratio) {
+  const t = CONFIG.stageThresholds;
+  if (stage === "seed") {
+    return `<svg viewBox="0 0 64 64"><ellipse cx="32" cy="56" rx="10" ry="5" fill="#6b4326"/><ellipse cx="32" cy="54" rx="4" ry="3" fill="#8a5a3a"/></svg>`;
+  }
+  const stemRatio = Math.min(1, (ratio - t.seed) / (t.growing - t.seed));
+  const stemH = 6 + 32 * Math.max(0, Math.min(1, stemRatio));
+  const leafScale = Math.max(0, Math.min(1, (ratio - t.sprout) / (t.growing - t.sprout)));
+  const fruitScale = Math.max(0, Math.min(1, (ratio - t.budding) / (1 - t.budding)));
+  const topY = 58 - stemH;
+
+  let leaves = "";
+  if (leafScale > 0) {
+    const lw = 16 * leafScale, lh = 9 * leafScale;
+    leaves = `
+      <ellipse cx="${32 - lw*0.55}" cy="${topY + stemH*0.55}" rx="${lw}" ry="${lh}" fill="${crop.leafColor}" transform="rotate(-25 ${32-lw*0.55} ${topY+stemH*0.55})"/>
+      <ellipse cx="${32 + lw*0.55}" cy="${topY + stemH*0.4}" rx="${lw}" ry="${lh}" fill="${crop.leafColor}" transform="rotate(25 ${32+lw*0.55} ${topY+stemH*0.4})"/>`;
+  }
+
+  let fruit = "";
+  if (fruitScale > 0 || stage === "mature") {
+    const s = stage === "mature" ? 1 : Math.max(0.35, fruitScale);
+    fruit = fruitCluster(crop, topY, s);
+  }
+
+  return `<svg viewBox="0 0 64 64">
+    <ellipse cx="32" cy="58" rx="12" ry="4" fill="#6b4326" opacity=".5"/>
+    <rect x="30" y="${topY}" width="4" height="${stemH}" rx="2" fill="${crop.leafColor}"/>
+    ${leaves}
+    ${fruit}
+  </svg>`;
+}
+function fruitCluster(crop, topY, scale) {
+  const cx = 32, cy = topY - 2;
+  const baseR = 7 * crop.fruitScale * scale;
+  const n = crop.fruitCount;
+  let shapes = "";
+  if (crop.fruitShape === "flower") {
+    const petals = 5;
+    for (let i = 0; i < petals; i++) {
+      const ang = (i / petals) * Math.PI * 2;
+      const px = cx + Math.cos(ang) * baseR * 0.7, py = cy + Math.sin(ang) * baseR * 0.7;
+      shapes += `<circle cx="${px}" cy="${py}" r="${baseR*0.62}" fill="${crop.themeColor}"/>`;
+    }
+    shapes += `<circle cx="${cx}" cy="${cy}" r="${baseR*0.5}" fill="#fde68a"/>`;
+  } else {
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + 0.4;
+      const dist = baseR * 0.55;
+      const px = cx + Math.cos(ang) * dist, py = cy + Math.sin(ang) * dist * 0.7;
+      if (crop.fruitShape === "circle") {
+        shapes += `<circle cx="${px}" cy="${py}" r="${baseR*0.55}" fill="${crop.themeColor}"/>`;
+      } else if (crop.fruitShape === "oval") {
+        shapes += `<ellipse cx="${px}" cy="${py}" rx="${baseR*0.3}" ry="${baseR*0.6}" fill="${crop.themeColor}" transform="rotate(${ang*40} ${px} ${py})"/>`;
+      } else if (crop.fruitShape === "triangle") {
+        const s = baseR * 0.65;
+        shapes += `<polygon points="${px},${py-s} ${px-s*0.8},${py+s*0.6} ${px+s*0.8},${py+s*0.6}" fill="${crop.themeColor}"/>`;
+      }
+    }
+  }
+  return `<g opacity="${Math.max(.3, scale)}">${shapes}</g>`;
+}
+
+/* =========================================================================
+ * MOVEMENT
+ * ========================================================================= */
+function placeCharacter(pos, instant) {
+  charPos = { ...pos };
+  const c = $("#character");
+  c.style.transform = `translate(${pos.x - 23}px, ${pos.y - 60}px)` + (charFacing === "left" ? " scaleX(-1)" : "");
+  updateCamera();
+}
+function updateCamera() {
+  const vp = $("#viewport");
+  const vw = vp.clientWidth, vh = vp.clientHeight;
+  let camX = charPos.x - vw / 2, camY = charPos.y - vh / 2;
+  camX = Math.max(0, Math.min(WORLD_W - vw, camX));
+  camY = Math.max(0, Math.min(WORLD_H - vh, camY));
+  $("#world").style.transform = `translate(${-camX}px, ${-camY}px)`;
+}
+window.addEventListener("resize", updateCamera);
+
+let moveToken = 0;
+function walkTo(targetWorld, onArrive) {
+  const myToken = ++moveToken;
+  const path = bfsPath(worldToCell(charPos), worldToCell(targetWorld));
+  if (!path) { toast("Không tìm được đường đi 🤔"); return; }
+  const waypoints = path.map(cellToWorld);
+  waypoints.push(targetWorld); // fine-tune to exact interaction spot
+  const charEl = $("#character");
+  charEl.classList.add("walking");
+  isMoving = true;
+  const SPEED = 160; // px/sec
+
+  function stepTo(idx) {
+    if (myToken !== moveToken) return; // superseded by a newer click
+    if (idx >= waypoints.length) {
+      charEl.classList.remove("walking");
+      isMoving = false;
+      if (onArrive) onArrive();
+      return;
+    }
+    const from = { ...charPos };
+    const to = waypoints[idx];
+    const dist = Math.hypot(to.x - from.x, to.y - from.y);
+    if (dist < 1) { stepTo(idx + 1); return; }
+    charFacing = to.x < from.x ? "left" : (to.x > from.x ? "right" : charFacing);
+    const duration = Math.max(60, (dist / SPEED) * 1000);
+    const start = performance.now();
+    function frame(t) {
+      if (myToken !== moveToken) return;
+      const p = Math.min(1, (t - start) / duration);
+      charPos = { x: from.x + (to.x - from.x) * p, y: from.y + (to.y - from.y) * p };
+      placeCharacter(charPos);
+      if (p < 1) requestAnimationFrame(frame); else stepTo(idx + 1);
+    }
+    requestAnimationFrame(frame);
+  }
+  stepTo(0);
+}
+function walkThenAct(standSpot, action) { walkTo(standSpot, action); }
+
+$("#viewport").addEventListener("click", (e) => {
+  if (e.target.closest(".plot") || e.target.closest(".building") || e.target.closest(".gate-zone")) return;
+  const vp = $("#viewport"); const rect = vp.getBoundingClientRect();
+  const camX = charPos.x - vp.clientWidth/2, camY = charPos.y - vp.clientHeight/2;
+  const clampedCamX = Math.max(0, Math.min(WORLD_W - vp.clientWidth, camX));
+  const clampedCamY = Math.max(0, Math.min(WORLD_H - vp.clientHeight, camY));
+  const worldX = e.clientX - rect.left + clampedCamX;
+  const worldY = e.clientY - rect.top + clampedCamY;
+  walkTo({ x: worldX, y: worldY });
+});
+
+/* =========================================================================
+ * PLOT INTERACTION
+ * ========================================================================= */
+function onPlotClick(i) {
+  const stand = plotStandSpot(i);
+  walkThenAct(stand, () => handlePlotArrival(i));
+}
+function handlePlotArrival(i) {
+  const plotData = farmState.plots["p" + i];
+  const view = deriveCropView(plotData, now());
+  if (view.stage === "empty") { openPlantModal(i); return; }
+  if (view.readyToHarvest) { harvestPlot(i); return; }
+  if (view.needsWater) { waterPlot(i); return; }
+  toast("🌱 Đang lớn... quay lại sau nhé!");
+}
+
+function openPlantModal(plotId) {
+  selectedPlot = plotId;
+  const list = $("#plant-seed-list"); list.innerHTML = "";
+  Object.values(CONFIG.crops).forEach(crop => {
+    const have = farmState.inventory["seed_" + crop.id] || 0;
+    const card = el("div", "seed-card" + (have <= 0 ? " disabled" : ""));
+    card.innerHTML = `<div class="text-2xl mb-1">${cropEmoji(crop)}</div><div class="text-xs font-bold">${crop.name}</div><div class="text-[10px] text-gray-400">Có: ${have}</div>`;
+    if (have > 0) card.addEventListener("click", () => plantCrop(plotId, crop.id));
+    list.appendChild(card);
+  });
+  openModal("modal-plant");
+}
+function cropEmoji(crop) {
+  return { flower: "🌸", circle: "🍅", oval: "🌾", triangle: "🥕" }[crop.fruitShape] || "🌱";
+}
+
+function plantCrop(plotId, cropId) {
+  const crop = CONFIG.crops[cropId];
+  const have = farmState.inventory["seed_" + cropId] || 0;
+  if (have <= 0) { toast("Bạn chưa có hạt giống này!"); return; }
+  const nowMs = now();
+  const patch = {};
+  patch["plots.p" + plotId + ".cropId"] = cropId;
+  patch["plots.p" + plotId + ".plantedAt"] = TEST_MODE ? nowMs : serverTimestamp();
+  patch["plots.p" + plotId + ".growthDurationSec"] = crop.growthDurationSec;
+  patch["plots.p" + plotId + ".watered"] = false;
+  patch["inventory.seed_" + cropId] = increment(-1);
+
+  const local = { ...farmState };
+  local.plots = { ...farmState.plots, ["p" + plotId]: { cropId, plantedAt: nowMs, growthDurationSec: crop.growthDurationSec, watered: false } };
+  local.inventory = { ...farmState.inventory, ["seed_" + cropId]: have - 1 };
+  applyPatch(patch, local);
+  closeModals();
+  toast(`🌱 Đã trồng ${crop.name}!`);
+}
+
+function waterPlot(plotId) {
+  const patch = {};
+  patch["plots.p" + plotId + ".watered"] = true;
+  patch["plots.p" + plotId + ".lastWateredAt"] = TEST_MODE ? now() : serverTimestamp();
+  const local = { ...farmState };
+  local.plots = { ...farmState.plots, ["p" + plotId]: { ...farmState.plots["p" + plotId], watered: true } };
+  applyPatch(patch, local);
+  toast("💧 Đã tưới nước!");
+}
+
+function harvestPlot(plotId) {
+  const plotData = farmState.plots["p" + plotId];
+  const crop = CONFIG.crops[plotData.cropId];
+  const qty = 1 + Math.floor(Math.random() * 3); // 1-3 units
+  const patch = {};
+  patch["plots.p" + plotId + ".cropId"] = null;
+  patch["plots.p" + plotId + ".plantedAt"] = null;
+  patch["plots.p" + plotId + ".growthDurationSec"] = null;
+  patch["plots.p" + plotId + ".watered"] = false;
+  patch["inventory.product_" + crop.id] = increment(qty);
+  patch["xp"] = increment(crop.xpReward);
+
+  const local = { ...farmState };
+  local.plots = { ...farmState.plots, ["p" + plotId]: { cropId: null, plantedAt: null, growthDurationSec: null, watered: false } };
+  local.inventory = { ...farmState.inventory, ["product_" + crop.id]: (farmState.inventory["product_" + crop.id] || 0) + qty };
+  local.xp = (farmState.xp || 0) + crop.xpReward;
+  applyPatch(patch, local);
+
+  const r = plotRect(plotId);
+  floatCoin(r.x + r.w/2, r.y, `+${qty} ${crop.name}`, "#166534");
+  toast(`🎉 Thu hoạch ${qty} ${crop.name}!`);
+}
+
+/* =========================================================================
+ * SHOP
+ * ========================================================================= */
+function openShop() {
+  renderShopBuyList();
+  renderShopSellList();
+  openModal("modal-shop");
+}
+function renderShopBuyList() {
+  const list = $("#shop-buy-list"); list.innerHTML = "";
+  Object.values(CONFIG.crops).forEach(crop => {
+    const affordable = farmState.coins >= crop.seedCost;
+    const card = el("div", "seed-card" + (affordable ? "" : " disabled"));
+    card.innerHTML = `<div class="text-2xl mb-1">${cropEmoji(crop)}</div><div class="text-xs font-bold">${crop.seedName}</div><div class="text-[11px] font-bold text-amber-600 mt-1">🪙 ${crop.seedCost}</div>`;
+    if (affordable) card.addEventListener("click", () => buySeed(crop.id));
+    list.appendChild(card);
+  });
+}
+function buySeed(cropId) {
+  const crop = CONFIG.crops[cropId];
+  if (farmState.coins < crop.seedCost) { toast("Không đủ tiền!"); return; }
+  const patch = { coins: increment(-crop.seedCost) };
+  patch["inventory.seed_" + cropId] = increment(1);
+  const local = { ...farmState, coins: farmState.coins - crop.seedCost };
+  local.inventory = { ...farmState.inventory, ["seed_" + cropId]: (farmState.inventory["seed_" + cropId] || 0) + 1 };
+  applyPatch(patch, local);
+  toast(`Đã mua ${crop.seedName}!`);
+  renderShopBuyList();
+}
+function renderShopSellList() {
+  const list = $("#shop-sell-list"); list.innerHTML = "";
+  let any = false;
+  Object.values(CONFIG.crops).forEach(crop => {
+    const qty = farmState.inventory["product_" + crop.id] || 0;
+    if (qty <= 0) return;
+    any = true;
+    const row = el("div", "flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3");
+    row.innerHTML = `<div class="flex items-center gap-2"><span class="text-xl">${cropEmoji(crop)}</span><div><div class="font-bold text-sm">${crop.productName}</div><div class="text-[11px] text-gray-400">Có ${qty} · 🪙${crop.sellPrice}/cái</div></div></div>`;
+    const btn = el("button", "bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-3 py-2 rounded-xl");
+    btn.textContent = `Bán tất cả (+${qty * crop.sellPrice})`;
+    btn.addEventListener("click", () => sellProduct(crop.id, qty));
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+  if (!any) list.innerHTML = `<p class="text-center text-sm text-gray-400 py-6">Chưa có nông sản để bán. Đi thu hoạch nào! 🌾</p>`;
+}
+function sellProduct(cropId, qty) {
+  const crop = CONFIG.crops[cropId];
+  const have = farmState.inventory["product_" + cropId] || 0;
+  if (have < qty || qty <= 0) return;
+  const earned = qty * crop.sellPrice;
+  const patch = { coins: increment(earned) };
+  patch["inventory.product_" + cropId] = increment(-qty);
+  const local = { ...farmState, coins: farmState.coins + earned };
+  local.inventory = { ...farmState.inventory, ["product_" + cropId]: have - qty };
+  applyPatch(patch, local);
+  toast(`💰 Đã bán ${qty} ${crop.productName} (+${earned})`);
+  renderShopSellList();
+}
+
+$("#tab-buy").addEventListener("click", () => {
+  $("#tab-buy").classList.add("active"); $("#tab-sell").classList.remove("active");
+  $("#shop-buy-list").classList.remove("hidden"); $("#shop-sell-list").classList.add("hidden");
+});
+$("#tab-sell").addEventListener("click", () => {
+  $("#tab-sell").classList.add("active"); $("#tab-buy").classList.remove("active");
+  $("#shop-sell-list").classList.remove("hidden"); $("#shop-buy-list").classList.add("hidden");
+});
+
+/* =========================================================================
+ * MODALS
+ * ========================================================================= */
+const MODAL_LAYOUT_CLASSES = ["flex", "items-end", "sm:items-center", "justify-center"];
+function openModal(id) { $("#" + id).classList.remove("hidden"); $("#" + id).classList.add(...MODAL_LAYOUT_CLASSES); }
+function closeModals() {
+  document.querySelectorAll(".modal-backdrop").forEach(m => { m.classList.add("hidden"); m.classList.remove(...MODAL_LAYOUT_CLASSES); });
+}
+document.querySelectorAll(".modal-close-btn").forEach(b => b.addEventListener("click", closeModals));
+document.querySelectorAll(".modal-backdrop").forEach(m => m.addEventListener("click", (e) => { if (e.target === m) closeModals(); }));
+
+/* =========================================================================
+ * HUD + INVENTORY
+ * ========================================================================= */
+function renderHUD() {
+  if (!farmState) return;
+  $("#hud-name").textContent = farmState.profile.name || "Nông dân";
+  $("#hud-coins").textContent = (farmState.coins || 0).toLocaleString("vi-VN");
+  const level = levelFromXp(farmState.xp);
+  $("#hud-level").textContent = "Lv." + level;
+  const pct = ((farmState.xp || 0) % CONFIG.xpPerLevel) / CONFIG.xpPerLevel * 100;
+  $("#hud-xp-bar").style.width = pct + "%";
+}
+function renderInventory() {
+  const strip = $("#inventory-strip");
+  strip.querySelectorAll(".inv-chip").forEach(c => c.remove());
+  const inv = farmState.inventory || {};
+  Object.keys(inv).forEach(key => {
+    if (!inv[key]) return;
+    const [kind, cropId] = key.split("_");
+    const crop = CONFIG.crops[cropId];
+    if (!crop) return;
+    const chip = el("div", "inv-chip hud-chip rounded-xl px-2.5 py-1.5 flex items-center gap-1.5 shrink-0");
+    chip.innerHTML = `<span>${kind === "seed" ? "🌱" : cropEmoji(crop)}</span><span class="text-xs font-bold">${inv[key]}</span>`;
+    chip.title = (kind === "seed" ? crop.seedName : crop.productName);
+    strip.appendChild(chip);
+  });
+}
+
+/* Dev time-warp buttons */
+document.querySelectorAll("[data-warp]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    testTimeOffsetMs += parseInt(btn.dataset.warp, 10) * 1000;
+    renderAllPlots();
+    toast("⏩ Đã tua thời gian!");
+  });
+});
+</script>
+</body>
+</html>
