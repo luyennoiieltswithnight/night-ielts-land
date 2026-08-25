@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Night IELTS | Test Repository</title>
     
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><defs><linearGradient id=%22g%22 x1=%220%25%22 y1=%220%25%22 x2=%22100%25%22 y2=%22100%25%22><stop offset=%220%25%22 stop-color=%22%239b87f5%22/><stop offset=%22100%25%22 stop-color=%22%23f9a8d4%22/></linearGradient></defs><rect width=%22100%22 height=%22100%22 rx=%2225%22 fill=%22url(%23g)%22/><g transform=%22translate(27, 20) scale(0.12)%22><path d=%22M223.5 32C100 32 0 132.3 0 256S100 480 223.5 480c60.6 0 115.5-24.2 155.8-63.4c5-4.9 6.3-12.5 3.1-18.7s-10.1-9.7-17-8.5c-9.8 1.7-19.8 2.6-30.1 2.6c-96.9 0-175.5-78.8-175.5-176c0-65.8 36-123.1 89.3-153.3c6.1-3.5 9.2-10.5 7.7-17.3s-7.3-11.9-14.3-12.5c-6.3-.5-12.6-.8-19-.8z%22 fill=%22%23fff%22/></g></svg>" type="image/svg+xml">
@@ -582,6 +585,11 @@
                         <i class="fa-solid fa-chart-simple mr-1"></i> Tiến Độ
                     </button>
 
+                    <!-- Nút Lớp Học (Chỉ admin mới thấy) -->
+                    <button id="admin-classes-btn" class="hidden px-5 py-2.5 bg-indigo-500 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2">
+                        <i class="fa-solid fa-people-group mr-1"></i> Lớp Học
+                    </button>
+
                     <!-- Nút cấu hình GitHub, dùng để đăng/xoá bài trong Kho Lưu Trữ (Chỉ admin mới thấy) -->
                     <button id="admin-gh-settings-btn" title="Cấu hình GitHub" class="hidden w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold rounded-full shadow-sm transition-shadow text-sm mr-2 items-center justify-center">
                         <i class="fa-solid fa-gear"></i>
@@ -625,10 +633,21 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Chọn học sinh</label>
-                    <select id="student-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
-                        <option value="">Đang tải danh sách...</option>
-                    </select>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Giao cho</label>
+                    <div class="flex gap-2 bg-gray-100 rounded-xl p-1 mb-2">
+                        <button type="button" id="task-target-single-btn" onclick="setTaskTargetMode('single')" class="flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors bg-white text-brand-purple shadow-sm">👤 1 học sinh</button>
+                        <button type="button" id="task-target-class-btn" onclick="setTaskTargetMode('class')" class="flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors text-gray-500">👥 Cả lớp</button>
+                    </div>
+                    <div id="task-target-single-field">
+                        <select id="student-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                            <option value="">Đang tải danh sách...</option>
+                        </select>
+                    </div>
+                    <div id="task-target-class-field" class="hidden">
+                        <select id="task-class-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                            <option value="">-- Đang tải danh sách lớp... --</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- CHẾ ĐỘ: nhập từ vựng mới -->
@@ -709,6 +728,58 @@
             </div>
             <div id="progress-list" class="mt-6 space-y-3 overflow-y-auto hide-scrollbar flex-1">
                 <p class="text-gray-400 text-sm font-bold">Đang tải...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL QUẢN LÝ LỚP HỌC (Ẩn mặc định, chỉ admin) -->
+    <div id="classes-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-floating transform transition-all max-h-[85vh] flex flex-col">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-2xl font-black text-indigo-600 mb-1">👥 Lớp Học</h2>
+                    <p class="text-sm text-gray-500 font-bold">Gom nhóm học sinh để giao bài 1 lần cho cả lớp</p>
+                </div>
+                <button id="btn-close-classes" class="text-gray-400 hover:text-gray-600 text-xl leading-none mt-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Màn hình danh sách lớp -->
+            <div id="classes-list-view" class="mt-6 flex-1 overflow-y-auto hide-scrollbar">
+                <button id="btn-new-class" class="w-full mb-4 px-5 py-3 bg-indigo-50 text-indigo-600 font-bold rounded-2xl border-2 border-dashed border-indigo-200 hover:bg-indigo-100 transition-colors">
+                    <i class="fa-solid fa-plus mr-1"></i> Tạo lớp mới
+                </button>
+                <div id="classes-list" class="space-y-3">
+                    <p class="text-gray-400 text-sm font-bold">Đang tải...</p>
+                </div>
+            </div>
+
+            <!-- Màn hình tạo/sửa 1 lớp -->
+            <div id="classes-form-view" class="hidden mt-6 flex-1 overflow-y-auto hide-scrollbar">
+                <button id="btn-classes-back" class="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:underline mb-4">
+                    <i class="fa-solid fa-arrow-left"></i> Quay lại danh sách lớp
+                </button>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tên lớp</label>
+                        <input id="class-name-input" type="text" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-indigo-400 transition-colors" placeholder="Ví dụ: Mindset 2 - Tối T3T5">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Học sinh trong lớp</label>
+                        <div id="class-student-checklist" class="border-2 border-gray-100 rounded-xl p-3 max-h-64 overflow-y-auto hide-scrollbar space-y-1">
+                            <p class="text-gray-400 text-sm font-bold">Đang tải danh sách học sinh...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="classes-form-msg" class="text-xs mt-3 min-h-[16px] font-bold"></div>
+                <div class="flex justify-between gap-3 mt-6">
+                    <button id="btn-delete-class" class="hidden px-5 py-2.5 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 transition-colors">Xoá lớp</button>
+                    <div class="flex gap-3 ml-auto">
+                        <button id="btn-cancel-class-form" class="px-5 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Huỷ</button>
+                        <button id="btn-save-class" class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 shadow-md transition-colors">💾 Lưu lớp</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1077,11 +1148,24 @@
             var ok = confirm('Xoá bài "' + test.title + '" khỏi thư mục "' + folder.name + '"?\nHành động này KHÔNG thể hoàn tác.');
             if(!ok) return;
             var matchKey = test.gen || test.link;
-            ghDeleteFolderTest(cfg, folder.id, matchKey).then(function(){
+            var folderId = folder.id;
+            ghDeleteFolderTest(cfg, folderId, matchKey).then(function(){
                 folder.tests.splice(testIdx, 1);
                 updateStats();
                 renderTests(folderIndex);
                 alert('Đã xoá bài thành công.');
+                // Ghi thêm overlay tạm thời để bài biến mất NGAY trên trang chủ (của mọi
+                // người khác đang mở web), không cần chờ GitHub Pages build lại.
+                if (window.__db && window.__addDoc && window.__collection) {
+                    var now = Date.now();
+                    window.__addDoc(window.__collection(window.__db, 'folderOverrides'), {
+                        op: 'remove',
+                        folderId: folderId,
+                        matchKey: matchKey,
+                        createdAt: now,
+                        expiresAt: now + 24 * 60 * 60 * 1000
+                    }).catch(function(e){ console.error('Không ghi được overlay xoá tức thời:', e); });
+                }
             }).catch(function(e){
                 alert('Lỗi khi xoá: ' + e.message);
             });
@@ -1149,6 +1233,52 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         const provider = new GoogleAuthProvider();
+
+        // Bridge cho các <script> cổ điển phía trên (ví dụ confirmDeleteTest, dùng để
+        // xoá bài trực tiếp trên GitHub) dùng được Firestore — vốn chỉ import được ở
+        // đây (script type="module").
+        window.__db = db;
+        window.__collection = collection;
+        window.__addDoc = addDoc;
+
+        // ==========================================
+        // OVERLAY TỨC THỜI CHO THƯ MỤC (folderOverrides)
+        // ==========================================
+        // Đăng/xoá bài trong thư mục hiện commit thẳng vào index.html trên GitHub, nên
+        // phải chờ GitHub Pages build lại (thường 30s–2 phút) mới thấy thay đổi. Để bài
+        // mới đăng/xoá hiện ra NGAY khi tải trang, mỗi lần đăng/xoá cũng ghi kèm 1 bản
+        // ghi nhỏ vào collection "folderOverrides". Ở đây, ngay khi tải trang, ta gộp
+        // các bản ghi này vào LESSON_DATA (chỉ trong bộ nhớ trình duyệt) rồi render lại.
+        // File trên GitHub vẫn là nguồn lưu trữ vĩnh viễn — các bản ghi overlay chỉ là
+        // lớp phủ tạm thời và tự hết hạn sau 24 giờ (thừa thời gian để GitHub Pages chắc
+        // chắn đã build xong bản mới nhất, lúc đó overlay trở nên dư thừa nhưng vô hại).
+        const FOLDER_OVERRIDE_TTL_MS = 24 * 60 * 60 * 1000;
+        async function applyFolderOverrides() {
+            try {
+                const now = Date.now();
+                const snap = await getDocs(collection(db, 'folderOverrides'));
+                const overrides = [];
+                snap.forEach(d => overrides.push(Object.assign({ id: d.id }, d.data())));
+                overrides.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                let changed = false;
+                overrides.forEach(ov => {
+                    if (ov.expiresAt && ov.expiresAt < now) return; // đã hết hạn, chắc chắn bản build mới đã lên
+                    const folder = LESSON_DATA.find(f => f.id === ov.folderId);
+                    if (!folder) return;
+                    if (ov.op === 'add' && ov.test) {
+                        const already = folder.tests.some(t => t.link === ov.test.link);
+                        if (!already) { folder.tests.unshift(ov.test); changed = true; }
+                    } else if (ov.op === 'remove' && ov.matchKey) {
+                        const idx = folder.tests.findIndex(t => (t.gen && t.gen === ov.matchKey) || t.link === ov.matchKey);
+                        if (idx !== -1) { folder.tests.splice(idx, 1); changed = true; }
+                    }
+                });
+                if (changed) { updateStats(); renderFolders(); }
+            } catch (e) {
+                console.error('Không tải được overlay cập nhật tức thời (không ảnh hưởng dữ liệu chính):', e);
+            }
+        }
+        applyFolderOverrides();
 
         const loginBtn = document.getElementById('login-btn');
         const userProfile = document.getElementById('user-profile');
@@ -1253,6 +1383,7 @@
                     if (role === 'admin') {
                         adminBtn.classList.remove('hidden');
                         progressBtn.classList.remove('hidden');
+                        document.getElementById('admin-classes-btn').classList.remove('hidden');
                         document.getElementById('admin-gh-settings-btn').classList.remove('hidden');
                         document.getElementById('admin-gh-settings-btn').classList.add('flex');
                         if (window.setAdminMode) window.setAdminMode(true);
@@ -1275,6 +1406,7 @@
                 userProfile.classList.remove('flex');
                 adminBtn.classList.add('hidden');
                 progressBtn.classList.add('hidden');
+                document.getElementById('admin-classes-btn').classList.add('hidden');
                 document.getElementById('admin-gh-settings-btn').classList.add('hidden');
                 document.getElementById('admin-gh-settings-btn').classList.remove('flex');
                 if (window.setAdminMode) window.setAdminMode(false);
@@ -1294,12 +1426,36 @@
         // ==========================================
         const modal = document.getElementById('studio-modal');
         const select = document.getElementById('student-select');
+        const classSelect = document.getElementById('task-class-select');
+        let __taskTargetMode = 'single';
+        window.__lastTaskClassesMap = {};
+
+        window.setTaskTargetMode = function(mode) {
+            __taskTargetMode = mode;
+            const singleBtn = document.getElementById('task-target-single-btn');
+            const classBtn = document.getElementById('task-target-class-btn');
+            const singleField = document.getElementById('task-target-single-field');
+            const classField = document.getElementById('task-target-class-field');
+            if (mode === 'class') {
+                classBtn.className = 'flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors bg-white text-brand-purple shadow-sm';
+                singleBtn.className = 'flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors text-gray-500';
+                classField.classList.remove('hidden');
+                singleField.classList.add('hidden');
+            } else {
+                singleBtn.className = 'flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors bg-white text-brand-purple shadow-sm';
+                classBtn.className = 'flex-1 py-1.5 rounded-lg font-bold text-xs transition-colors text-gray-500';
+                singleField.classList.remove('hidden');
+                classField.classList.add('hidden');
+            }
+        };
 
         adminBtn.addEventListener('click', async () => {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             if (window.setTaskMode) window.setTaskMode('typed');
+            window.setTaskTargetMode('single');
             select.innerHTML = '<option value="">-- Đang tải danh sách học sinh... --</option>';
+            classSelect.innerHTML = '<option value="">-- Đang tải danh sách lớp... --</option>';
 
             const q = query(collection(db, "users"), where("role", "==", "student"));
             const snap = await getDocs(q);
@@ -1308,6 +1464,19 @@
                 const stu = doc.data();
                 select.innerHTML += `<option value="${doc.id}">${stu.name} (${stu.email})</option>`;
             });
+
+            const classSnap = await getDocs(collection(db, "classes"));
+            window.__lastTaskClassesMap = {};
+            const classRows = [];
+            classSnap.forEach(d => {
+                const c = d.data();
+                window.__lastTaskClassesMap[d.id] = c.studentIds || [];
+                classRows.push({ id: d.id, name: c.name || '(Lớp không tên)', count: (c.studentIds || []).length });
+            });
+            classRows.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+            classSelect.innerHTML = classRows.length === 0
+                ? '<option value="">-- Chưa có lớp nào --</option>'
+                : '<option value="">-- Chọn lớp --</option>' + classRows.map(c => `<option value="${c.id}">${c.name} (${c.count} học sinh)</option>`).join('');
         });
 
         document.getElementById('btn-close-modal').addEventListener('click', () => {
@@ -1316,8 +1485,17 @@
         });
 
         document.getElementById('btn-submit-task').addEventListener('click', async () => {
-            const studentId = select.value;
-            if(!studentId) return alert('Vui lòng chọn học sinh!');
+            let targetStudentIds = [];
+            if (__taskTargetMode === 'class') {
+                const classId = classSelect.value;
+                if (!classId) return alert('Vui lòng chọn một lớp!');
+                targetStudentIds = window.__lastTaskClassesMap[classId] || [];
+                if (targetStudentIds.length === 0) return alert('Lớp này chưa có học sinh nào!');
+            } else {
+                const studentId = select.value;
+                if(!studentId) return alert('Vui lòng chọn học sinh!');
+                targetStudentIds = [studentId];
+            }
 
             const now = Date.now();
             const deadlineStr = document.getElementById('task-deadline').value;
@@ -1335,7 +1513,6 @@
                 if (!test) return alert('Vui lòng chọn một bài trong thư mục!');
                 payload = {
                     title: test.title,
-                    studentId: studentId,
                     link: test.link,
                     createdAt: now,
                     deadlineAt: deadlineAt,
@@ -1365,7 +1542,6 @@
 
                 payload = {
                     title: title,
-                    studentId: studentId,
                     vocabList: vocabList,
                     createdAt: now,
                     deadlineAt: deadlineAt,
@@ -1375,16 +1551,25 @@
             }
 
             btn.innerText = 'Đang giao...'; btn.disabled = true;
-            await addDoc(collection(db, "assignments"), payload);
+            try {
+                await Promise.all(targetStudentIds.map(sid =>
+                    addDoc(collection(db, "assignments"), Object.assign({ studentId: sid }, payload))
+                ));
 
-            alert('Đã giao bài thành công! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của học sinh sau 20 ngày)');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            btn.innerText = '🚀 Giao Bài'; btn.disabled = false;
+                alert(targetStudentIds.length > 1
+                    ? `Đã giao bài thành công cho ${targetStudentIds.length} học sinh trong lớp! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của mỗi học sinh sau 20 ngày)`
+                    : 'Đã giao bài thành công! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của học sinh sau 20 ngày)');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
 
-            document.getElementById('task-title').value = '';
-            document.getElementById('task-data').value = '';
-            document.getElementById('task-deadline').value = '';
+                document.getElementById('task-title').value = '';
+                document.getElementById('task-data').value = '';
+                document.getElementById('task-deadline').value = '';
+            } catch (e) {
+                alert('Lỗi khi giao bài: ' + e.message);
+            } finally {
+                btn.innerText = '🚀 Giao Bài'; btn.disabled = false;
+            }
         });
 
         // ==========================================
@@ -1604,6 +1789,130 @@
         document.getElementById('btn-close-progress').addEventListener('click', () => {
             progressModal.classList.add('hidden');
             progressModal.classList.remove('flex');
+        });
+
+        // ==========================================
+        // LỚP HỌC (gom nhóm học sinh để giao bài 1 lần cho cả lớp)
+        // ==========================================
+        const classesBtn = document.getElementById('admin-classes-btn');
+        const classesModal = document.getElementById('classes-modal');
+        const classesListView = document.getElementById('classes-list-view');
+        const classesFormView = document.getElementById('classes-form-view');
+        const classesList = document.getElementById('classes-list');
+        let __editingClassId = null;
+        let __allStudentsCache = null;
+
+        async function loadClassesList() {
+            classesList.innerHTML = '<p class="text-gray-400 text-sm font-bold">Đang tải...</p>';
+            const snap = await getDocs(collection(db, 'classes'));
+            const rows = [];
+            snap.forEach(d => rows.push(Object.assign({ id: d.id }, d.data())));
+            rows.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi'));
+            window.__lastClassesList = rows;
+            if (rows.length === 0) {
+                classesList.innerHTML = '<p class="text-gray-400 text-sm font-bold">Chưa có lớp nào. Bấm "Tạo lớp mới" để bắt đầu.</p>';
+                return;
+            }
+            classesList.innerHTML = rows.map(r => `
+                <button onclick="openClassForm('${r.id}')" class="w-full text-left bg-gray-50/60 hover:bg-white rounded-2xl p-4 border border-gray-100 hover:border-indigo-300 hover:shadow-md transition-all flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="font-bold text-gray-800 text-sm truncate">${r.name || '(Lớp không tên)'}</p>
+                        <p class="text-xs text-gray-400 font-semibold mt-0.5">${(r.studentIds || []).length} học sinh</p>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-gray-300 text-xs"></i>
+                </button>
+            `).join('');
+        }
+
+        async function ensureStudentsCache() {
+            if (__allStudentsCache) return __allStudentsCache;
+            const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
+            const list = [];
+            snap.forEach(d => list.push(Object.assign({ id: d.id }, d.data())));
+            list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi'));
+            __allStudentsCache = list;
+            return list;
+        }
+
+        window.openClassForm = async function(classId) {
+            __editingClassId = classId || null;
+            const msgEl = document.getElementById('classes-form-msg');
+            msgEl.textContent = '';
+            const existing = classId ? (window.__lastClassesList || []).find(c => c.id === classId) : null;
+            document.getElementById('class-name-input').value = existing ? (existing.name || '') : '';
+            document.getElementById('btn-delete-class').classList.toggle('hidden', !classId);
+
+            classesListView.classList.add('hidden');
+            classesFormView.classList.remove('hidden');
+
+            const checklistEl = document.getElementById('class-student-checklist');
+            checklistEl.innerHTML = '<p class="text-gray-400 text-sm font-bold">Đang tải danh sách học sinh...</p>';
+            const students = await ensureStudentsCache();
+            const selectedIds = new Set(existing ? (existing.studentIds || []) : []);
+            if (students.length === 0) {
+                checklistEl.innerHTML = '<p class="text-gray-400 text-sm font-bold">Chưa có học sinh nào đăng nhập vào web.</p>';
+                return;
+            }
+            checklistEl.innerHTML = students.map(s => `
+                <label class="flex items-center gap-2.5 py-1.5 px-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <input type="checkbox" class="class-student-checkbox w-4 h-4 accent-indigo-600" value="${s.id}" ${selectedIds.has(s.id) ? 'checked' : ''}>
+                    <span class="text-sm font-semibold text-gray-700">${s.name || s.email || s.id}${s.email ? ' <span class="text-gray-400 font-normal">(' + s.email + ')</span>' : ''}</span>
+                </label>
+            `).join('');
+        };
+
+        function backToClassesList() {
+            __editingClassId = null;
+            classesFormView.classList.add('hidden');
+            classesListView.classList.remove('hidden');
+            loadClassesList();
+        }
+
+        classesBtn.addEventListener('click', () => {
+            classesModal.classList.remove('hidden');
+            classesModal.classList.add('flex');
+            classesListView.classList.remove('hidden');
+            classesFormView.classList.add('hidden');
+            __allStudentsCache = null; // nạp lại danh sách học sinh mỗi lần mở, tránh dữ liệu cũ
+            loadClassesList();
+        });
+        document.getElementById('btn-close-classes').addEventListener('click', () => {
+            classesModal.classList.add('hidden');
+            classesModal.classList.remove('flex');
+        });
+        document.getElementById('btn-new-class').addEventListener('click', () => window.openClassForm(null));
+        document.getElementById('btn-classes-back').addEventListener('click', backToClassesList);
+        document.getElementById('btn-cancel-class-form').addEventListener('click', backToClassesList);
+
+        document.getElementById('btn-save-class').addEventListener('click', async () => {
+            const name = document.getElementById('class-name-input').value.trim();
+            const msgEl = document.getElementById('classes-form-msg');
+            if (!name) { msgEl.className = 'text-xs mt-3 min-h-[16px] font-bold text-red-500'; msgEl.textContent = 'Vui lòng nhập tên lớp.'; return; }
+            const checkedIds = Array.from(document.querySelectorAll('.class-student-checkbox:checked')).map(el => el.value);
+            if (checkedIds.length === 0) { msgEl.className = 'text-xs mt-3 min-h-[16px] font-bold text-red-500'; msgEl.textContent = 'Chọn ít nhất 1 học sinh cho lớp.'; return; }
+            const btn = document.getElementById('btn-save-class');
+            btn.disabled = true; btn.textContent = 'Đang lưu...';
+            try {
+                if (__editingClassId) {
+                    await setDoc(doc(db, 'classes', __editingClassId), { name, studentIds: checkedIds, updatedAt: Date.now() }, { merge: true });
+                } else {
+                    await addDoc(collection(db, 'classes'), { name, studentIds: checkedIds, createdAt: Date.now() });
+                }
+                backToClassesList();
+            } catch (e) {
+                msgEl.className = 'text-xs mt-3 min-h-[16px] font-bold text-red-500';
+                msgEl.textContent = 'Lỗi khi lưu: ' + e.message;
+            } finally {
+                btn.disabled = false; btn.textContent = '💾 Lưu lớp';
+            }
+        });
+
+        document.getElementById('btn-delete-class').addEventListener('click', async () => {
+            if (!__editingClassId) return;
+            const ok = confirm('Xoá lớp này? Học sinh trong lớp không bị ảnh hưởng gì, chỉ nhóm lớp bị xoá.');
+            if (!ok) return;
+            await deleteDoc(doc(db, 'classes', __editingClassId));
+            backToClassesList();
         });
     </script>
 </body>
