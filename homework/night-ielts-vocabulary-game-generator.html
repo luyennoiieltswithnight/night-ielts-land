@@ -188,8 +188,16 @@ select.gg-select{
 <div id="assignModal" class="modal-overlay hidden">
   <div class="modal-card">
     <h3>🎯 Giao cho học sinh</h3>
-    <p class="desc">Game giao riêng sẽ tự động biến mất khỏi mục bài tập của học sinh sau 20 ngày. Vì đây là game (không phải Listening Type), học sinh sẽ tự bấm "Đánh dấu đã hoàn thành" sau khi chơi xong.</p>
-    <div class="field"><label>Học sinh</label><select id="assignStudentSelect" class="gg-select"></select></div>
+    <p class="desc">Game giao riêng sẽ tự động biến mất khỏi mục bài tập của học sinh sau 20 ngày. % chính xác cao nhất tự cập nhật ngay khi học sinh chơi, không cần tự đánh dấu hoàn thành.</p>
+    <div class="field">
+      <label>Giao cho</label>
+      <div style="display:flex;gap:8px;background:rgba(0,0,0,0.3);padding:4px;border-radius:10px;">
+        <button type="button" id="assignTargetSingleBtn" class="btn btn-primary" style="flex:1;padding:8px;">🧑 1 học sinh</button>
+        <button type="button" id="assignTargetClassBtn" class="btn btn-secondary" style="flex:1;padding:8px;">👥 Cả lớp</button>
+      </div>
+    </div>
+    <div class="field" id="assignSingleField"><label>Học sinh</label><select id="assignStudentSelect" class="gg-select"></select></div>
+    <div class="field hidden" id="assignClassField"><label>Lớp</label><select id="assignClassSelect" class="gg-select"></select></div>
     <div class="field" style="margin-bottom:0;"><label>Hạn nộp (không bắt buộc)</label><input type="date" id="assignDeadline"></div>
     <div id="assignMsg" class="modal-msg"></div>
     <div class="modal-actions">
@@ -891,7 +899,9 @@ function spawnEnemy() {
         wordData: wordData,
         lane: lane,
         y: -50,
-        speed: 30 + (Math.random() * 10) + (state.difficultyMultiplier * 10),
+        // Giảm 50% tốc độ gà rơi xuống so với trước, để học sinh có đủ thời gian nghe/đọc
+        // và xử lý từ vựng trước khi bài phải bắn.
+        speed: (30 + (Math.random() * 10) + (state.difficultyMultiplier * 10)) * 0.5,
         wobbleOffset: Math.random() * Math.PI * 2,
         wobbleSpeed: 2 + Math.random() * 2,
         flashing: 0
@@ -1824,23 +1834,50 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
         if(!folder) throw new Error('Không tìm thấy folder: ' + folderId);
         var d = new Date();
         var dateStr = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
-        folder.tests.unshift({ title: title, date: dateStr, questions: wordCount, link: committed.filePath, gen: committed.genId });
+        var newTest = { title: title, date: dateStr, questions: wordCount, link: committed.filePath, gen: committed.genId };
+        folder.tests.unshift(newTest);
         var newFullText = replaceLessonDataInFile(res.text, serializeLessonData(data));
-        return ghPutFile(cfg, 'index.html', newFullText, 'Night IELTS: đăng game "' + title + '" vào folder ' + folderId, res.sha);
-      }).then(function(){ return committed; });
+        return ghPutFile(cfg, 'index.html', newFullText, 'Night IELTS: đăng game "' + title + '" vào folder ' + folderId, res.sha)
+          .then(function(){ return { committed: committed, folderId: folderId, test: newTest }; });
+      });
     });
   }
 
-  // Script theo dõi tiến độ, sẽ được nhúng thêm vào file game khi GIAO RIÊNG cho
-  // 1 học sinh (không nhúng khi đăng lên thư mục vĩnh viễn, vì bài thư mục không
-  // gắn với 1 assignment cụ thể nào). Game gọi window.__reportGameResult(...) mỗi
+  // Ghi thêm 1 bản ghi "overlay" tạm thời vào Firestore ngay sau khi đăng/xoá bài
+  // trong thư mục thành công, để bài mới hiện NGAY trên trang chủ (của mọi người đang
+  // mở web) thay vì phải chờ GitHub Pages build lại (thường 30s–2 phút). File gốc
+  // trên GitHub (đã commit ở bước trên) vẫn là nguồn lưu trữ vĩnh viễn như cũ — bản
+  // ghi này chỉ là lớp phủ tạm thời, tự hết hạn sau 24 giờ.
+  function writeFolderOverride(payload){
+    if (!window.__db || !window.__addDoc || !window.__collection) return;
+    var now = Date.now();
+    window.__addDoc(window.__collection(window.__db, 'folderOverrides'), Object.assign({
+      createdAt: now,
+      expiresAt: now + 24 * 60 * 60 * 1000
+    }, payload)).catch(function(e){ console.error('Không ghi được overlay tức thời:', e); });
+  }
+
+  // Script theo dõi tiến độ — nhúng vào MỌI file game xuất ra (cả đăng thư mục lẫn
+  // giao học sinh), nhưng chỉ thật sự chạy khi URL có ?aid=<id assignment>. Nhờ vậy
+  // 1 file game DUY NHẤT có thể được giao cho nhiều học sinh (cả lớp) cùng lúc — chỉ
+  // cần commit file 1 lần lên GitHub, mỗi học sinh có 1 link riêng với ?aid= khác
+  // nhau trỏ về đúng document assignments/{id} của mình, không cần tạo lại file cho
+  // từng em. Bài đăng thư mục (không có ?aid=) thì đoạn này tự thoát ngay, không tải
+  // Firebase làm gì cho tốn thời gian. Game gọi window.__reportGameResult(...) mỗi
   // khi kết thúc ván chơi (xem endGame() trong game-template) — script này lưu %
   // chính xác CAO NHẤT qua các lần chơi lại vào đúng document assignments/{id}.
-  function buildAssignmentTrackingScript(assignmentId){
-    return '\n<script type="module">\n' +
-      'import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";\n' +
-      'import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";\n' +
-      'var firebaseConfig = ' + JSON.stringify({
+  function buildAssignmentTrackingScript(){
+    return '\n<script>\n' +
+      '(function(){\n' +
+      '  var __aid = new URLSearchParams(window.location.search).get("aid");\n' +
+      '  if (!__aid) return;\n' +
+      '  Promise.all([\n' +
+      '    import("https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"),\n' +
+      '    import("https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js")\n' +
+      '  ]).then(function(mods){\n' +
+      '    var initializeApp = mods[0].initializeApp;\n' +
+      '    var getFirestore = mods[1].getFirestore, doc = mods[1].doc, getDoc = mods[1].getDoc, updateDoc = mods[1].updateDoc;\n' +
+      '    var firebaseConfig = ' + JSON.stringify({
         apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
         authDomain: "night-ielts-land.firebaseapp.com",
         databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
@@ -1850,30 +1887,34 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
         appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
         measurementId: "G-H3P14NJR76"
       }) + ';\n' +
-      'var app = initializeApp(firebaseConfig);\n' +
-      'var db = getFirestore(app);\n' +
-      'var assignmentRef = doc(db, "assignments", ' + JSON.stringify(assignmentId) + ');\n' +
-      'window.__reportGameResult = function(result){\n' +
-      '  getDoc(assignmentRef).then(function(snap){\n' +
-      '    var prevPercent = (snap.exists() && snap.data().percent) ? snap.data().percent : 0;\n' +
-      '    var bestPercent = Math.max(prevPercent, result.accuracy);\n' +
-      '    return updateDoc(assignmentRef, {\n' +
-      '      percent: bestPercent,\n' +
-      '      completed: bestPercent >= 100 || result.passed,\n' +
-      '      lastAccuracy: result.accuracy,\n' +
-      '      lastPassed: result.passed,\n' +
-      '      lastPlayedAt: Date.now()\n' +
-      '    });\n' +
-      '  }).catch(function(e){ console.error("Không lưu được tiến độ:", e); });\n' +
-      '};\n' +
+      '    var app = initializeApp(firebaseConfig);\n' +
+      '    var db = getFirestore(app);\n' +
+      '    var assignmentRef = doc(db, "assignments", __aid);\n' +
+      '    window.__reportGameResult = function(result){\n' +
+      '      getDoc(assignmentRef).then(function(snap){\n' +
+      '        var prevPercent = (snap.exists() && snap.data().percent) ? snap.data().percent : 0;\n' +
+      '        var bestPercent = Math.max(prevPercent, result.accuracy);\n' +
+      '        return updateDoc(assignmentRef, {\n' +
+      '          percent: bestPercent,\n' +
+      '          completed: bestPercent >= 100 || result.passed,\n' +
+      '          lastAccuracy: result.accuracy,\n' +
+      '          lastPassed: result.passed,\n' +
+      '          lastPlayedAt: Date.now()\n' +
+      '        });\n' +
+      '      }).catch(function(e){ console.error("Không lưu được tiến độ:", e); });\n' +
+      '    };\n' +
+      '  }).catch(function(e){ console.error("Không tải được hệ thống theo dõi tiến độ:", e); });\n' +
+      '})();\n' +
       '<' + '/script>\n';
   }
 
-  // buildGameHTML() nhưng có nhúng thêm script theo dõi tiến độ (chèn ngay trước </body>)
-  function buildGameHTMLWithTracking(assignmentId){
+  // buildGameHTML() nhưng có nhúng thêm script theo dõi tiến độ (chèn ngay trước </body>).
+  // Dùng cho MỌI luồng xuất file (đăng thư mục lẫn giao học sinh) — script tự vô hại
+  // (no-op) nếu không có ?aid= trên URL.
+  function buildExportableGameHTML(){
     var html = buildGameHTML();
     if (!html) return html;
-    var trackingScript = buildAssignmentTrackingScript(assignmentId);
+    var trackingScript = buildAssignmentTrackingScript();
     var idx = html.lastIndexOf('</body>');
     if (idx === -1) return html + trackingScript;
     return html.slice(0, idx) + trackingScript + html.slice(idx);
@@ -1916,7 +1957,7 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
       folderId = prompt('Nhập chính xác ID folder (xem trong index.html, phân biệt hoa/thường):', '');
       if (!folderId) return;
     }
-    var html = buildGameHTML();
+    var html = buildExportableGameHTML();
     if (!html) return;
     var cfg = ghLoadCfg();
     if (!cfg.owner || !cfg.repo || !cfg.token) {
@@ -1927,9 +1968,10 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
     var title = document.getElementById('input-title').value.trim() || 'VOCABULARY CHICKEN INVADERS';
     var btn = document.getElementById('publishConfirm');
     btn.disabled = true; btn.textContent = 'Đang đăng...';
-    ghPublishToFolder(cfg, folderId, title, getRows().length, html).then(function(){
+    ghPublishToFolder(cfg, folderId, title, getRows().length, html).then(function(result){
+      writeFolderOverride({ op: 'add', folderId: result.folderId, test: result.test });
       msgEl.className = 'modal-msg ok';
-      msgEl.textContent = 'Đã đăng game lên folder thành công! Vài giây sau sẽ hiện trên trang chủ.';
+      msgEl.textContent = 'Đã đăng game lên folder thành công! Bài đã hiện ngay trên trang chủ.';
       btn.disabled = false; btn.textContent = '🚀 Đăng bài';
       setTimeout(function(){ document.getElementById('publishModal').classList.add('hidden'); }, 1500);
     }).catch(function(e){
@@ -1942,13 +1984,38 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
   // ============================================================================
   // ASSIGN-TO-STUDENT MODAL
   // ============================================================================
+  var assignTargetMode = 'single'; // 'single' | 'class'
+  function setAssignTargetMode(mode){
+    assignTargetMode = mode;
+    var singleBtn = document.getElementById('assignTargetSingleBtn');
+    var classBtn = document.getElementById('assignTargetClassBtn');
+    var singleField = document.getElementById('assignSingleField');
+    var classField = document.getElementById('assignClassField');
+    if (mode === 'class') {
+      classBtn.className = 'btn btn-primary'; singleBtn.className = 'btn btn-secondary';
+      classField.classList.remove('hidden'); singleField.classList.add('hidden');
+    } else {
+      singleBtn.className = 'btn btn-primary'; classBtn.className = 'btn btn-secondary';
+      singleField.classList.remove('hidden'); classField.classList.add('hidden');
+    }
+  }
+  document.getElementById('assignTargetSingleBtn').addEventListener('click', function(){ setAssignTargetMode('single'); });
+  document.getElementById('assignTargetClassBtn').addEventListener('click', function(){ setAssignTargetMode('class'); });
+
   document.getElementById('btn-assign').addEventListener('click', function(){
     if (getRows().length === 0) { showToast('Chưa có từ nào — hãy phân tích hoặc thêm ít nhất 1 từ.'); return; }
     document.getElementById('assignModal').classList.remove('hidden');
     document.getElementById('assignMsg').textContent = '';
+    setAssignTargetMode('single');
     var sel = document.getElementById('assignStudentSelect');
+    var classSel = document.getElementById('assignClassSelect');
     sel.innerHTML = '<option value="">-- Đang tải học sinh... --</option>';
-    if (!window.__db) { sel.innerHTML = '<option value="">Chưa kết nối được hệ thống</option>'; return; }
+    classSel.innerHTML = '<option value="">-- Đang tải lớp... --</option>';
+    if (!window.__db) {
+      sel.innerHTML = '<option value="">Chưa kết nối được hệ thống</option>';
+      classSel.innerHTML = '<option value="">Chưa kết nối được hệ thống</option>';
+      return;
+    }
     window.__getDocs(window.__query(window.__collection(window.__db, 'users'), window.__where('role','==','student'))).then(function(snap){
       var html = '<option value="">-- Chọn học sinh --</option>';
       snap.forEach(function(d){
@@ -1957,15 +2024,38 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
       });
       sel.innerHTML = html;
     }).catch(function(){ sel.innerHTML = '<option value="">Lỗi tải học sinh</option>'; });
+    window.__getDocs(window.__collection(window.__db, 'classes')).then(function(snap){
+      var rows = [];
+      window.__lastLoadedClasses = {};
+      snap.forEach(function(d){ rows.push({ id: d.id, data: d.data() }); window.__lastLoadedClasses[d.id] = d.data().studentIds || []; });
+      if (rows.length === 0) { classSel.innerHTML = '<option value="">-- Chưa có lớp nào, tạo lớp ở trang chủ trước --</option>'; return; }
+      var html = '<option value="">-- Chọn lớp --</option>';
+      rows.forEach(function(r){
+        var count = (r.data.studentIds || []).length;
+        html += '<option value="' + r.id + '">' + (r.data.name || '(Lớp không tên)') + ' (' + count + ' học sinh)</option>';
+      });
+      classSel.innerHTML = html;
+    }).catch(function(){ classSel.innerHTML = '<option value="">Lỗi tải lớp</option>'; });
   });
   document.getElementById('assignCancel').addEventListener('click', function(){
     document.getElementById('assignModal').classList.add('hidden');
   });
   document.getElementById('assignConfirm').addEventListener('click', function(){
-    var studentId = document.getElementById('assignStudentSelect').value;
     var deadlineStr = document.getElementById('assignDeadline').value;
     var msgEl = document.getElementById('assignMsg');
-    if (!studentId) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chọn học sinh trước đã.'; return; }
+
+    var targetStudentIds = [];
+    if (assignTargetMode === 'class') {
+      var classId = document.getElementById('assignClassSelect').value;
+      if (!classId) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chọn lớp trước đã.'; return; }
+      targetStudentIds = (window.__lastLoadedClasses && window.__lastLoadedClasses[classId]) || [];
+      if (targetStudentIds.length === 0) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Lớp này chưa có học sinh nào.'; return; }
+    } else {
+      var studentId = document.getElementById('assignStudentSelect').value;
+      if (!studentId) { msgEl.className = 'modal-msg err'; msgEl.textContent = 'Chọn học sinh trước đã.'; return; }
+      targetStudentIds = [studentId];
+    }
+
     var cfg = ghLoadCfg();
     if (!cfg.owner || !cfg.repo || !cfg.token) {
       msgEl.className = 'modal-msg err';
@@ -1977,29 +2067,35 @@ document.getElementById('pass-line').textContent = `🏆 ${PASS_PERCENT}% to Pas
     var btn = document.getElementById('assignConfirm');
     btn.disabled = true; btn.textContent = 'Đang giao...';
 
-    // Cấp phát trước ID assignment (chưa ghi Firestore) để nhúng vào file game,
-    // giúp game tự báo % chính xác thẳng vào đúng bài đã giao khi học sinh chơi.
-    var assignmentRef = window.__newAssignmentRef();
-    var html = buildGameHTMLWithTracking(assignmentRef.id);
+    var html = buildExportableGameHTML();
     if (!html) { btn.disabled = false; btn.textContent = '🚀 Giao bài'; return; }
 
+    // Chỉ commit file game lên GitHub 1 LẦN duy nhất, dù giao cho 1 học sinh hay cả
+    // lớp — mỗi học sinh có 1 link riêng dạng "...html?aid=<id riêng>" trỏ về cùng
+    // 1 file đó, nên không cần tạo lại file nhiều lần (nhanh hơn nhiều khi giao cả lớp).
     ghCommitGameFile(cfg, title, html).then(function(committed){
       var now = Date.now();
       var deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
-      return window.__setAssignmentDoc(assignmentRef, {
-        title: title,
-        studentId: studentId,
-        link: committed.filePath,
-        createdAt: now,
-        deadlineAt: deadlineAt,
-        expiresAt: now + 20*24*60*60*1000,
-        completed: false,
-        percent: 0,
-        kind: 'game'
-      });
+      return Promise.all(targetStudentIds.map(function(studentId){
+        var assignmentRef = window.__newAssignmentRef();
+        var link = committed.filePath + '?aid=' + assignmentRef.id;
+        return window.__setAssignmentDoc(assignmentRef, {
+          title: title,
+          studentId: studentId,
+          link: link,
+          createdAt: now,
+          deadlineAt: deadlineAt,
+          expiresAt: now + 20*24*60*60*1000,
+          completed: false,
+          percent: 0,
+          kind: 'game'
+        });
+      }));
     }).then(function(){
       msgEl.className = 'modal-msg ok';
-      msgEl.textContent = 'Đã giao game thành công! Điểm % sẽ tự cập nhật khi học sinh chơi. (Tự xoá sau 20 ngày)';
+      msgEl.textContent = targetStudentIds.length > 1
+        ? 'Đã giao game cho ' + targetStudentIds.length + ' học sinh trong lớp! % chính xác tự cập nhật khi từng em chơi. (Tự xoá sau 20 ngày)'
+        : 'Đã giao game thành công! Điểm % sẽ tự cập nhật khi học sinh chơi. (Tự xoá sau 20 ngày)';
       btn.disabled = false; btn.textContent = '🚀 Giao bài';
       setTimeout(function(){ document.getElementById('assignModal').classList.add('hidden'); }, 1200);
     }).catch(function(e){
