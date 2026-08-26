@@ -57,6 +57,11 @@
     <!-- Tesseract.js (AI Nhận diện hình ảnh thành chữ OCR) -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
+    <!-- pdf-lib (tạo file PDF mới) + html2canvas (chụp lại đúng khung 1 trang gồm cả nét vẽ/text
+         box) — dùng cho tính năng "Xuất PDF" (xuất tất cả hoặc chỉ các trang đã chọn). -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
         html, body {
             height: 100%;
@@ -797,7 +802,7 @@
         });
 
         // --- PDF THUMBNAIL (FLOATING WINDOW) ---
-        const PdfThumbnail = React.memo(function PdfThumbnail({ pdf, pageNum, onClick }) {
+        const PdfThumbnail = React.memo(function PdfThumbnail({ pdf, pageNum, onClick, selected }) {
             const canvasRef = useRef(null);
             const containerRef = useRef(null);
             const [isVisible, setIsVisible] = useState(false);
@@ -848,14 +853,20 @@
             }, [pdf, pageNum, isVisible]);
 
             return (
-                <div 
-                    ref={containerRef} 
-                    onClick={onClick} 
-                    className="cursor-pointer border border-slate-200 hover:border-indigo-500 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all flex flex-col relative group transform hover:-translate-y-1"
+                <div
+                    ref={containerRef}
+                    onClick={onClick}
+                    className={"cursor-pointer border-2 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all flex flex-col relative group transform hover:-translate-y-1 " + (selected ? 'border-indigo-500 ring-2 ring-indigo-300' : 'border-slate-200 hover:border-indigo-500')}
                 >
                     <div className="bg-slate-100 w-full aspect-[1/1.4] flex items-center justify-center relative overflow-hidden">
                         {isVisible ? <canvas ref={canvasRef} className="w-full h-full object-cover" /> : <i className="fas fa-file-pdf text-slate-300 text-3xl absolute"></i>}
-                        <div className="absolute inset-0 bg-indigo-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className={"absolute inset-0 transition-opacity " + (selected ? 'bg-indigo-600/20 opacity-100' : 'bg-indigo-600/10 opacity-0 group-hover:opacity-100')}></div>
+                        {/* Dấu tích chọn — chỉ hiện khi ở chế độ chọn trang để Xuất PDF (selected !== undefined) */}
+                        {selected !== undefined && (
+                            <div className={"absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 shadow " + (selected ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white/80 border-slate-300 text-transparent')}>
+                                <i className="fas fa-check text-xs"></i>
+                            </div>
+                        )}
                     </div>
                     <div className="absolute bottom-0 w-full bg-slate-900/70 backdrop-blur-sm text-center py-1.5">
                         <span className="text-xs font-extrabold text-white tracking-widest uppercase">Trang {pageNum}</span>
@@ -1014,14 +1025,20 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup }) {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, pencilShapeMode, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, forceVisible, onRenderedForExport }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
-            
+
             const [strokes, setStrokes] = useState([]);
             const [texts, setTexts] = useState([]);
-            const [isVisible, setIsVisible] = useState(false);
+            const [observedVisible, setIsVisible] = useState(false);
+            // QUAN TRỌNG (tính năng Xuất PDF): "isVisible" thật sự dùng trong component này giờ là
+            // observedVisible HOẶC forceVisible — forceVisible do App bật tạm thời (ép trang này phải
+            // render + hiện canvas thật ra) khi cần chụp ảnh (html2canvas) 1 trang đang ở NGOÀI vùng
+            // nhìn thấy / chưa từng cuộn qua bao giờ. Không đổi tên biến isVisible ở khắp nơi bên dưới
+            // để không phải sửa lại toàn bộ các chỗ đã dùng nó — chỉ cần đổi ĐÚNG 1 chỗ định nghĩa này.
+            const isVisible = observedVisible || !!forceVisible;
             const containerRef = useRef(null);
 
             const isDrawingRef = useRef(false);
@@ -1063,7 +1080,13 @@
             // thật sự khi đổi scale (zoom) hoặc đổi sang file khác — 2 trường hợp bắt buộc phải vẽ lại.
             useEffect(() => {
                 if (!pdf || !isVisible) return;
-                if (renderedRef.current.pdf === pdf && renderedRef.current.scale === scale) return; // đã render đúng file+scale này rồi — khỏi làm lại
+                if (renderedRef.current.pdf === pdf && renderedRef.current.scale === scale) {
+                    // đã render đúng file+scale này rồi — khỏi làm lại, nhưng vẫn phải báo cho App biết
+                    // (dùng cho Xuất PDF: App đang chờ trang này "sẵn sàng" để chụp ảnh) là trang NÀY
+                    // đã sẵn sàng ngay lập tức, không cần đợi thêm.
+                    if (onRenderedForExport) onRenderedForExport(pageNum);
+                    return;
+                }
                 let cancelled = false;
                 let realRenderTask = null;
 
@@ -1089,6 +1112,7 @@
                             if (!cancelled) {
                                 redrawStrokes();
                                 renderedRef.current = { pdf, scale };
+                                if (onRenderedForExport) onRenderedForExport(pageNum);
                             }
                         });
                     });
@@ -1245,11 +1269,13 @@
                 isDrawingRef.current = true;
 
                 // Chế độ khoanh vùng "Hình chữ nhật" (kéo-thả): bút Magic khi bật chế độ hình chữ
-                // nhật (tiện dùng chuột/trackpad trên Mac), và LUÔN LUÔN với bút IPA / tra ảnh (2 bút
+                // nhật (tiện dùng chuột/trackpad trên Mac), LUÔN LUÔN với bút IPA / tra ảnh (2 bút
                 // này giờ chỉ còn 1 cơ chế chọn vùng duy nhất — kéo-thả ô chữ nhật — thay cho kiểu bút
-                // highlight quét ngang trước đây, để chọn trúng khít đúng phần chữ cần, không mất nét).
-                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo') {
-                    currentStrokeRef.current = { id: Date.now(), tool, shape: 'rect', points: [coords, coords] };
+                // highlight quét ngang trước đây, để chọn trúng khít đúng phần chữ cần, không mất nét),
+                // và giờ thêm cả bút chì khi bật chế độ "Hình chữ nhật" (pencilShapeMode) — dùng
+                // CHUNG code vẽ khung chữ nhật này, chỉ khác ở bước lưu strokeRef không phục vụ OCR.
+                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
+                    currentStrokeRef.current = { id: Date.now(), tool, color, shape: 'rect', points: [coords, coords] };
                     return;
                 }
 
@@ -1286,7 +1312,7 @@
 
                 if (!currentStrokeRef.current) return;
 
-                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo') {
+                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
                     // Cập nhật góc đối diện của khung chữ nhật và vẽ lại toàn bộ canvas — chi phí
                     // rẻ vì số nét lưu trên 1 trang thường ít, vẫn mượt ở cả Mac lẫn iPad.
                     currentStrokeRef.current.points[1] = coords;
@@ -1358,7 +1384,9 @@
                     return;
                 }
 
-                // Bút chì / bút bi: lưu nét vẽ như bình thường
+                // Bút chì / bút bi: lưu nét vẽ như bình thường — currentStrokeRef.current đã đúng
+                // hình dạng sẵn (tự do hoặc "shape: 'rect'" nếu bút chì đang bật chế độ hình chữ
+                // nhật, xử lý ở 2 nhánh phía trên trong handlePointerDown/Move), không cần thêm gì.
                 const strokeToSave = { ...currentStrokeRef.current };
                 setStrokes(prev => [...prev, strokeToSave]);
                 currentStrokeRef.current = null;
@@ -1569,6 +1597,11 @@
             // trường hợp quét chữ; vẫn có thể đổi sang "Tự do" (vẽ tay/khoanh vùng bất kỳ) qua nút
             // chọn kiểu khoanh vùng trên thanh công cụ khi cần.
             const [magicShapeMode, setMagicShapeMode] = useState('rect'); // 'rect' (hình chữ nhật, mặc định) | 'lasso' (tự do)
+            // Chế độ vẽ cho bút chì: 'freehand' (vẽ tay, mặc định — giữ nguyên như trước giờ) hoặc
+            // 'rect' (kéo-thả khung hình chữ nhật, dùng chung logic với bút Magic/IPA/tra ảnh —
+            // xem redrawStrokes/handlePointerDown/Move trong PdfPage, đều xử lý "shape: 'rect'" theo
+            // đúng màu/độ dày của bút chì như bình thường, không cần thêm code vẽ riêng).
+            const [pencilShapeMode, setPencilShapeMode] = useState('freehand');
             const [color, setColor] = useState('#4F46E5');
             const [fontSize, setFontSize] = useState(10); // Mặc định 10
             // Độ dày bút chì: 3 mức, mặc định là mức nhỏ nhất (giữ nguyên độ dày cũ), 2 mức còn lại
@@ -1597,6 +1630,37 @@
             const [photoLookup, setPhotoLookup] = useState(null); // { text } — bút tra ảnh minh hoạ
 
             const [showTOC, setShowTOC] = useState(false);
+            // --- TÍNH NĂNG XUẤT PDF (xuất tất cả trang hoặc chỉ các trang được chọn trong mục lục) ---
+            // tocExportMode: khi true, mở mục lục để CHỌN TRANG xuất (bấm vào ô = tích chọn, không
+            // chuyển trang nữa) thay vì mở mục lục bình thường để điều hướng.
+            const [tocExportMode, setTocExportMode] = useState(false);
+            const [selectedExportPages, setSelectedExportPages] = useState(() => new Set());
+            // Hộp thoại nhỏ hỏi "Xuất tất cả" hay "Chọn trang cụ thể" khi bấm nút Xuất PDF.
+            const [showExportChoice, setShowExportChoice] = useState(false);
+            // { done, total } trong lúc đang xuất nhiều trang (chụp ảnh + ghép PDF) — null khi không xuất.
+            const [exportProgress, setExportProgress] = useState(null);
+            // App tạm thời ép ĐÚNG 1 trang phải "hiện ra thật" (forceVisible) để html2canvas chụp được
+            // nội dung của trang đó dù trang chưa từng lọt vào vùng nhìn thấy / chưa từng được cuộn qua.
+            const [forcedVisiblePage, setForcedVisiblePage] = useState(null);
+            // Nhớ lại NHỮNG TRANG nào đã từng render xong ít nhất 1 lần trong phiên này (dùng Set vì
+            // chỉ cần biết có/không, không cần thứ tự) — KHÔNG BAO GIỜ xoá trong suốt phiên, vì canvas
+            // của PdfPage vẫn giữ nguyên nội dung khi ẩn đi (visibility, không unmount) nên trang đã
+            // render 1 lần rồi thì luôn "sẵn sàng" ngay lập tức cho các lượt xuất PDF sau đó.
+            const renderedPagesForExportRef = useRef(new Set());
+            const handlePageRenderedForExport = useCallback((pageNum) => {
+                renderedPagesForExportRef.current.add(pageNum);
+            }, []);
+            // Chờ tới khi 1 trang được báo là "đã render xong" (qua renderedPagesForExportRef), tối đa
+            // timeoutMs rồi TỰ BỎ QUA (không treo mãi) — phòng trường hợp hiếm khi trang lỗi không bao
+            // giờ render xong (vd file PDF hỏng 1 trang) thì vẫn tiếp tục xuất các trang còn lại được.
+            const waitForPageRendered = useCallback(async (pageNum, timeoutMs) => {
+                const start = Date.now();
+                while (!renderedPagesForExportRef.current.has(pageNum)) {
+                    if (Date.now() - start > timeoutMs) return false;
+                    await new Promise(r => setTimeout(r, 60));
+                }
+                return true;
+            }, []);
             // Số ô mục lục đang được dựng trong modal — bắt đầu từ 1 đợt nhỏ (TOC_BATCH_SIZE), tự
             // tăng dần khi cuộn gần tới cuối (qua handleTocScroll). Xem giải thích chi tiết ở khai
             // báo TOC_BATCH_SIZE phía trên (sửa lỗi "mở mục lục file nặng tải rất lâu").
@@ -1613,6 +1677,92 @@
             // true trong lúc app TỰ cuộn bằng lệnh (vd bấm mục lục) — cho phép bộ khống chế tốc độ
             // cuộn bên dưới bỏ qua, không chặn nhầm cú cuộn mượt do chính app gây ra.
             const isProgrammaticScrollRef = useRef(false);
+            // Hẹn giờ tự tắt cờ isProgrammaticScrollRef ở trên — tách riêng thành 1 ref chung (thay
+            // vì tạo setTimeout rời rạc mỗi lần) để có thể clearTimeout đúng lượt cũ khi gọi liên
+            // tiếp thật nhanh (vd đang kéo thanh điều hướng dạng chấm) — tránh 1 lượt gọi CŨ tự ý tắt
+            // cờ SỚM hơn lượt MỚI vẫn đang cần cờ này còn bật.
+            const progScrollTimerRef = useRef(null);
+
+            // QUAN TRỌNG — THANH ĐIỀU HƯỚNG DẠNG CHẤM DỌC (mỗi trang = 1 chấm): thêm mới theo yêu
+            // cầu, có nút nhỏ để bật/tắt (mặc định ẩn, đỡ chiếm diện tích màn hình). Dùng lại đúng
+            // cách tính "delta rồi scrollTo" đã dùng ổn định cho việc bấm mục lục — không đụng gì tới
+            // cơ chế cuộn bằng wheel/trackpad đã sửa rất kỹ ở các bản trước, nên không có rủi ro làm
+            // lại đúng mấy lỗi "nhảy trang" từng gặp. Cuộn qua thanh này CỐ TÌNH dùng behavior:'auto'
+            // (tức thời, không animation) thay vì 'smooth' — giống hệt cảm giác kéo thanh cuộn thật
+            // của hệ điều hành: kéo tới đâu, trang cập nhật NGAY tới đó, không có animation nào chạy
+            // ngầm để mà chồng chéo/xung đột nhau khi kéo nhanh liên tục — đây chính là cách tránh
+            // "giật/nhảy" khi kéo mà người dùng yêu cầu, thay vì cố gắng làm mượt bằng animation.
+            const [showPageNav, setShowPageNav] = useState(false);
+            const pageNavRailRef = useRef(null);
+            const isDraggingNavRef = useRef(false);
+            const [currentPageForNav, setCurrentPageForNav] = useState(1);
+
+            // Cuộn thẳng tới đúng trang pageNum trong khung đọc PDF chính — dùng chung cho cả bấm
+            // VÀ kéo trên thanh điều hướng dạng chấm.
+            const scrollToPage = useCallback((pageNum) => {
+                const container = pdfContentAreaRef.current;
+                const target = document.getElementById(`pdf-page-${pageNum}`);
+                if (!container || !target) return;
+                const containerRect = container.getBoundingClientRect();
+                const targetRect = target.getBoundingClientRect();
+                const delta = targetRect.top - containerRect.top;
+                isProgrammaticScrollRef.current = true;
+                container.scrollTo({ top: container.scrollTop + delta - 16, behavior: 'auto' });
+                clearTimeout(progScrollTimerRef.current);
+                progScrollTimerRef.current = setTimeout(() => { isProgrammaticScrollRef.current = false; }, 200);
+            }, []);
+
+            // Quy đổi vị trí Y của con trỏ/ngón tay trên thanh điều hướng thành số trang tương ứng
+            // (0 ở đỉnh thanh = trang 1, cuối thanh = trang cuối) rồi cuộn thẳng tới đó.
+            const handleNavPointerToPage = useCallback((clientY) => {
+                const rail = pageNavRailRef.current;
+                if (!rail || !numPages) return;
+                const rect = rail.getBoundingClientRect();
+                const fraction = rect.height > 0 ? Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)) : 0;
+                const pageNum = Math.max(1, Math.min(numPages, Math.round(fraction * (numPages - 1)) + 1));
+                scrollToPage(pageNum);
+            }, [numPages, scrollToPage]);
+
+            const handleNavPointerDown = useCallback((e) => {
+                isDraggingNavRef.current = true;
+                try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+                handleNavPointerToPage(e.clientY);
+            }, [handleNavPointerToPage]);
+
+            const handleNavPointerMove = useCallback((e) => {
+                if (!isDraggingNavRef.current) return;
+                handleNavPointerToPage(e.clientY);
+            }, [handleNavPointerToPage]);
+
+            const handleNavPointerUp = useCallback((e) => {
+                isDraggingNavRef.current = false;
+                try { e.target.releasePointerCapture(e.pointerId); } catch (err) {}
+            }, []);
+
+            // Theo dõi trang đang xem để tô sáng đúng chấm tương ứng trên thanh điều hướng — dùng 1
+            // IntersectionObserver DUY NHẤT theo dõi TẤT CẢ khung trang, thu hẹp vùng "tính là đang
+            // xem" về đúng dải giữa màn hình (rootMargin âm cả trên lẫn dưới) để chỉ 1 trang khớp tại
+            // 1 thời điểm. Đây CHỈ để tô sáng (hiển thị), hoàn toàn tách biệt khỏi mọi observer khác
+            // của từng PdfPage (dùng để lazy-render) — không ảnh hưởng gì tới cơ chế render/cuộn hiện có.
+            useEffect(() => {
+                if (!pdfDoc || !numPages) return;
+                const observer = new IntersectionObserver((entries) => {
+                    let best = null;
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && (!best || entry.intersectionRatio > best.intersectionRatio)) {
+                            best = entry;
+                        }
+                    });
+                    if (best) {
+                        const match = best.target.id.match(/pdf-page-(\d+)/);
+                        if (match) setCurrentPageForNav(Number(match[1]));
+                    }
+                }, { rootMargin: '-45% 0px -45% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+                const els = document.querySelectorAll('[id^="pdf-page-"]');
+                els.forEach(el => observer.observe(el));
+                return () => observer.disconnect();
+            }, [pdfDoc, numPages]);
 
             // QUAN TRỌNG — LỊCH SỬ sửa lỗi "lướt lùi về trang trước bị nhảy vọt": đã thử rất nhiều lớp
             // can thiệp trực tiếp vào wheel/scrollTop (giảm tốc 1 chiều, tự bù mỗi rAF, chặn hẳn wheel
@@ -1709,6 +1859,107 @@
                     handleTocLoadMore();
                 }
             }, [showTOC, tocVisibleCount, numPages, handleTocLoadMore]);
+
+            // --- LOGIC XUẤT PDF ---
+            // Đổi 1 canvas thành bytes JPEG thô (Uint8Array) qua canvas.toBlob + arrayBuffer() — nhanh/
+            // nhẹ hơn hẳn so với đường vòng canvas.toDataURL() (base64 text, tốn thêm ~33% dung lượng
+            // và phải decode lại) rồi mới convert ngược lại thành bytes cho pdf-lib.
+            const canvasToJpegBytes = useCallback((canvas, quality) => {
+                return new Promise((resolve, reject) => {
+                    canvas.toBlob((blob) => {
+                        if (!blob) { reject(new Error('Không tạo được ảnh từ canvas')); return; }
+                        blob.arrayBuffer().then(buf => resolve(new Uint8Array(buf))).catch(reject);
+                    }, 'image/jpeg', quality);
+                });
+            }, []);
+
+            // Chụp lại đúng khung hiển thị của 1 trang (gồm cả nội dung PDF gốc + nét bút vẽ tay +
+            // các ô ghi chú/text box) bằng html2canvas — vì strokes/texts chỉ tồn tại dưới dạng state
+            // cục bộ bên trong từng PdfPage (không có ở đâu khác để "vẽ lại" theo cách khác), nên chụp
+            // ảnh trực tiếp phần DOM đang hiển thị là cách duy nhất chắc chắn lấy đủ mọi thứ đang thấy
+            // trên màn hình, kể cả trên các trang KHÔNG dùng font/canvas giống hệt nhau.
+            const capturePageImage = useCallback(async (pageNum) => {
+                const pageEl = document.getElementById(`pdf-page-${pageNum}`);
+                if (!pageEl) return null;
+                // Ép trang này "hiện thật" (canvas không còn visibility:hidden) rồi đợi tới khi render xong.
+                setForcedVisiblePage(pageNum);
+                // Nhường 1 nhịp cho React thực sự áp dụng prop forceVisible mới trước khi bắt đầu chờ.
+                await new Promise(r => setTimeout(r, 30));
+                await waitForPageRendered(pageNum, 8000);
+                // Thêm 1 nhịp nhỏ nữa để chắc chắn redrawStrokes() (chạy trong effect riêng, bắn ra
+                // ngay sau khi isVisible/render xong) đã kịp vẽ xong các nét bút lên canvas nét vẽ.
+                await new Promise(r => setTimeout(r, 60));
+                const canvas = await window.html2canvas(pageEl, { backgroundColor: '#ffffff', useCORS: true, scale: 2, logging: false });
+                return canvas;
+            }, [waitForPageRendered]);
+
+            const exportPagesToPdf = useCallback(async (pageNumbers) => {
+                if (!pageNumbers || pageNumbers.length === 0 || !window.PDFLib || !window.html2canvas) return;
+                setExportProgress({ done: 0, total: pageNumbers.length });
+                try {
+                    const { PDFDocument } = window.PDFLib;
+                    const outDoc = await PDFDocument.create();
+                    const pageW = basePageSize ? basePageSize.width : 595;
+                    const pageH = basePageSize ? basePageSize.height : 842;
+                    for (let i = 0; i < pageNumbers.length; i++) {
+                        const pageNum = pageNumbers[i];
+                        const canvas = await capturePageImage(pageNum);
+                        if (canvas) {
+                            const jpgBytes = await canvasToJpegBytes(canvas, 0.9);
+                            const jpgImage = await outDoc.embedJpg(jpgBytes);
+                            const outPage = outDoc.addPage([pageW, pageH]);
+                            outPage.drawImage(jpgImage, { x: 0, y: 0, width: pageW, height: pageH });
+                        }
+                        setExportProgress({ done: i + 1, total: pageNumbers.length });
+                    }
+                    setForcedVisiblePage(null);
+                    const pdfBytes = await outDoc.save();
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'tai-lieu' + (pageNumbers.length === numPages ? '' : '-trang-chon') + '.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                } catch (err) {
+                    console.error('Lỗi xuất PDF:', err);
+                    alert('Xuất PDF thất bại: ' + (err && err.message ? err.message : 'lỗi không xác định'));
+                } finally {
+                    setForcedVisiblePage(null);
+                    setExportProgress(null);
+                }
+            }, [basePageSize, capturePageImage, canvasToJpegBytes, numPages]);
+
+            const handleExportAll = useCallback(() => {
+                setShowExportChoice(false);
+                const all = Array.from(new Array(numPages), (el, i) => i + 1);
+                exportPagesToPdf(all);
+            }, [numPages, exportPagesToPdf]);
+
+            const handleOpenExportPicker = useCallback(() => {
+                setShowExportChoice(false);
+                setSelectedExportPages(new Set());
+                setTocExportMode(true);
+                setShowTOC(true);
+            }, []);
+
+            const toggleExportPageSelected = useCallback((pageNum) => {
+                setSelectedExportPages(prev => {
+                    const next = new Set(prev);
+                    if (next.has(pageNum)) next.delete(pageNum); else next.add(pageNum);
+                    return next;
+                });
+            }, []);
+
+            const handleConfirmExportSelected = useCallback(() => {
+                const sorted = Array.from(selectedExportPages).sort((a, b) => a - b);
+                if (sorted.length === 0) return;
+                setTocExportMode(false);
+                setShowTOC(false);
+                exportPagesToPdf(sorted);
+            }, [selectedExportPages, exportPagesToPdf]);
 
             const handleTocScroll = useCallback((e) => {
                 const el = e.target;
@@ -1808,15 +2059,17 @@
                         </div>
                     )}
 
-                    {/* FLOATING WINDOW: MỤC LỤC TRANG DẠNG GRID */}
+                    {/* FLOATING WINDOW: MỤC LỤC TRANG DẠNG GRID — dùng chung cho cả điều hướng thường
+                        VÀ chế độ chọn trang để Xuất PDF (tocExportMode) */}
                     {showTOC && pdfDoc && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 sm:p-8" onClick={() => setShowTOC(false)}>
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 sm:p-8" onClick={() => { setShowTOC(false); setTocExportMode(false); }}>
                             <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-5xl max-h-full flex flex-col overflow-hidden animate-modal-pop" onClick={e => e.stopPropagation()}>
                                 <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white shadow-sm z-10">
                                     <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">
-                                        <i className="fas fa-th-large text-indigo-500 mr-3"></i> Chọn trang nhanh
+                                        <i className={"fas mr-3 " + (tocExportMode ? 'fa-file-export text-emerald-500' : 'fa-th-large text-indigo-500')}></i>
+                                        {tocExportMode ? 'Chọn trang để xuất PDF' : 'Chọn trang nhanh'}
                                     </h3>
-                                    <button onClick={() => setShowTOC(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                    <button onClick={() => { setShowTOC(false); setTocExportMode(false); }} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
                                         <i className="fas fa-times"></i>
                                     </button>
                                 </div>
@@ -1824,10 +2077,18 @@
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6">
                                         {Array.from(new Array(Math.min(numPages, tocVisibleCount)), (el, index) => (
                                             <PdfThumbnail
-                                                key={index} 
-                                                pdf={pdfDoc} 
-                                                pageNum={index + 1} 
+                                                key={index}
+                                                pdf={pdfDoc}
+                                                pageNum={index + 1}
+                                                selected={tocExportMode ? selectedExportPages.has(index + 1) : undefined}
                                                 onClick={() => {
+                                                    // Ở chế độ chọn trang xuất PDF: bấm vào ô chỉ tích/bỏ tích chọn, KHÔNG
+                                                    // đóng mục lục cũng không cuộn trang — người dùng chọn xong mới bấm nút
+                                                    // "Xuất" ở thanh nổi phía dưới.
+                                                    if (tocExportMode) {
+                                                        toggleExportPageSelected(index + 1);
+                                                        return;
+                                                    }
                                                     // QUAN TRỌNG — sửa lỗi "bấm chuyển trang từ mục lục làm nguyên trang bị kéo lên,
                                                     // khuất mất thanh công cụ, kéo xuống lại không được": trước đây dùng
                                                     // el.scrollIntoView() — hàm này để TRÌNH DUYỆT TỰ CHỌN cuộn ancestor scroll
@@ -1860,6 +2121,58 @@
                                         </div>
                                     )}
                                 </div>
+                                {/* Thanh nổi hiện số trang đã chọn + nút Xuất/Huỷ — chỉ hiện ở chế độ chọn trang xuất PDF */}
+                                {tocExportMode && (
+                                    <div className="px-6 py-3 border-t border-slate-200 bg-white flex items-center justify-between gap-4 shrink-0">
+                                        <span className="text-sm font-bold text-slate-600">
+                                            Đã chọn <span className="text-emerald-600">{selectedExportPages.size}</span> trang
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => { setShowTOC(false); setTocExportMode(false); }} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors">Huỷ</button>
+                                            <button
+                                                onClick={handleConfirmExportSelected}
+                                                disabled={selectedExportPages.size === 0}
+                                                className={"px-5 py-2 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center gap-2 " + (selectedExportPages.size === 0 ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-emerald-500 hover:bg-emerald-600 active:scale-95 shadow-emerald-200')}
+                                            >
+                                                <i className="fas fa-file-export"></i> Xuất {selectedExportPages.size > 0 ? selectedExportPages.size + ' trang' : ''}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* HỘP THOẠI CHỌN "Xuất tất cả" hay "Chọn trang cụ thể" khi bấm nút Xuất PDF */}
+                    {showExportChoice && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setShowExportChoice(false)}>
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-modal-pop" onClick={e => e.stopPropagation()}>
+                                <h3 className="text-lg font-extrabold text-slate-800 mb-1 flex items-center gap-2">
+                                    <i className="fas fa-file-pdf text-emerald-500"></i> Xuất PDF
+                                </h3>
+                                <p className="text-sm text-slate-500 mb-5">Bạn muốn xuất toàn bộ tài liệu hay chỉ vài trang cụ thể?</p>
+                                <div className="flex flex-col gap-3">
+                                    <button onClick={handleExportAll} className="w-full px-4 py-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold flex items-center gap-3 transition-colors border border-indigo-100">
+                                        <i className="fas fa-copy text-lg w-5 text-center"></i> Xuất tất cả ({numPages} trang)
+                                    </button>
+                                    <button onClick={handleOpenExportPicker} className="w-full px-4 py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold flex items-center gap-3 transition-colors border border-emerald-100">
+                                        <i className="fas fa-list-check text-lg w-5 text-center"></i> Chọn trang cụ thể
+                                    </button>
+                                </div>
+                                <button onClick={() => setShowExportChoice(false)} className="w-full mt-4 text-center text-sm font-bold text-slate-400 hover:text-slate-600 py-2">Huỷ</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* CHỈ BÁO TIẾN TRÌNH khi đang xuất nhiều trang (chụp ảnh từng trang + ghép PDF) */}
+                    {exportProgress && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-7 flex flex-col items-center gap-4">
+                                <i className="fas fa-circle-notch fa-spin text-emerald-500 text-3xl"></i>
+                                <p className="text-sm font-bold text-slate-700">Đang xuất PDF… ({exportProgress.done}/{exportProgress.total} trang)</p>
+                                <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-emerald-500 transition-all duration-200" style={{ width: (exportProgress.total > 0 ? (exportProgress.done / exportProgress.total) * 100 : 0) + '%' }}></div>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -1883,6 +2196,11 @@
                                 {pdfUrl && (
                                     <button onClick={() => setShowTOC(true)} className="w-10 h-10 flex items-center justify-center bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-colors border border-indigo-100 shadow-sm" title="Mở mục lục">
                                         <i className="fas fa-list-ul"></i>
+                                    </button>
+                                )}
+                                {pdfUrl && (
+                                    <button onClick={() => setShowExportChoice(true)} className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors border border-emerald-100 shadow-sm shrink-0" title="Xuất PDF (tất cả hoặc trang đã chọn)">
+                                        <i className="fas fa-file-export"></i>
                                     </button>
                                 )}
                                 <div className="font-extrabold text-xl text-slate-800 tracking-tight truncate flex items-center gap-3">
@@ -1990,6 +2308,24 @@
                                             </React.Fragment>
                                         )}
 
+                                        {/* Chọn kiểu vẽ cho bút chì: Tự do (mặc định, vẽ tay như trước giờ) hoặc Hình
+                                            chữ nhật (kéo-thả — giống hệt cơ chế của bút Magic) — dùng lại đúng
+                                            redrawStrokes/handlePointerDown/Move đã xử lý sẵn "shape: 'rect'" theo
+                                            đúng màu/độ dày bút chì đang chọn, không cần thêm code vẽ riêng. */}
+                                        {tool === 'pencil' && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kiểu vẽ">
+                                                    <button onClick={() => setPencilShapeMode('freehand')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'freehand' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
+                                                        <i className="fas fa-signature text-xs"></i>
+                                                    </button>
+                                                    <button onClick={() => setPencilShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'rect' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — tiện cho Mac/trackpad)">
+                                                        <i className="fas fa-vector-square text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </React.Fragment>
+                                        )}
+
                                         {/* Chọn kiểu khoanh vùng cho bút Magic: Tự do (freehand) hoặc Hình chữ nhật (kéo-thả, tiện cho Mac/trackpad) */}
                                         {tool === 'magic' && (
                                             <React.Fragment>
@@ -2081,6 +2417,7 @@
                                         isDrawingMode={isDrawingMode}
                                         tool={tool}
                                         magicShapeMode={magicShapeMode}
+                                        pencilShapeMode={pencilShapeMode}
                                         pencilSize={pencilSize}
                                         color={color}
                                         fontSize={fontSize}
@@ -2088,10 +2425,56 @@
                                         onExtractText={onExtractText}
                                         onIPALookup={onIPALookup}
                                         onPhotoLookup={onPhotoLookup}
+                                        forceVisible={forcedVisiblePage === index + 1}
+                                        onRenderedForExport={handlePageRenderedForExport}
                                     />
                                 ))
                             )}
                         </div>
+
+                        {/* THANH ĐIỀU HƯỚNG DẠNG CHẤM DỌC — mặc định ẩn, bấm nút nhỏ ở mép phải để
+                            hiện/ẩn. Chỉ hiện khi đã có file PDF và có nhiều hơn 1 trang (1 trang thì
+                            thanh này không có tác dụng gì). QUAN TRỌNG: mỗi chấm được định vị bằng
+                            % (top tính theo tỉ lệ trang / tổng số trang) thay vì xếp flex bình thường
+                            — nhờ vậy dù sách có VÀI TRĂM trang, các chấm vẫn luôn gói gọn đúng trong
+                            chiều cao cố định của thanh (không bị tràn/vỡ layout như xếp flex thường
+                            sẽ gặp khi số chấm nhân với kích thước tối thiểu vượt quá chiều cao thanh). */}
+                        {pdfUrl && numPages > 1 && (
+                            <div className="fixed right-3 top-1/2 transform -translate-y-1/2 z-40 flex items-center gap-2">
+                                {showPageNav && (
+                                    <div
+                                        ref={pageNavRailRef}
+                                        onPointerDown={handleNavPointerDown}
+                                        onPointerMove={handleNavPointerMove}
+                                        onPointerUp={handleNavPointerUp}
+                                        onPointerCancel={handleNavPointerUp}
+                                        className="glass-panel rounded-full shadow-xl border border-slate-200 relative cursor-pointer animate-fade-in touch-none"
+                                        style={{ height: 'min(70vh, 640px)', width: '16px' }}
+                                        title={`Trang ${currentPageForNav}/${numPages} — kéo hoặc bấm để tới trang`}
+                                    >
+                                        {Array.from(new Array(numPages), (el, i) => i + 1).map(p => (
+                                            <span
+                                                key={p}
+                                                className={"absolute left-1/2 rounded-full pointer-events-none transition-all " + (p === currentPageForNav ? 'bg-indigo-600' : 'bg-slate-300')}
+                                                style={{
+                                                    top: (numPages > 1 ? (p - 1) / (numPages - 1) : 0) * 100 + '%',
+                                                    transform: 'translate(-50%, -50%)',
+                                                    width: p === currentPageForNav ? '7px' : '4px',
+                                                    height: p === currentPageForNav ? '7px' : '4px'
+                                                }}
+                                            ></span>
+                                        ))}
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => setShowPageNav(v => !v)}
+                                    className={"w-8 h-8 rounded-full flex items-center justify-center shadow-lg border transition-colors " + (showPageNav ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-400 border-slate-200 hover:text-indigo-600')}
+                                    title={showPageNav ? 'Ẩn thanh điều hướng trang' : 'Hiện thanh điều hướng trang'}
+                                >
+                                    <i className="fas fa-grip-lines-vertical text-xs"></i>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
