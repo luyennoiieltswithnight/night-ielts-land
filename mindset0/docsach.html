@@ -198,7 +198,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef, useCallback } = React;
+        const { useState, useEffect, useLayoutEffect, useRef, useCallback } = React;
 
         // --- BỘ GIỚI HẠN SỐ LƯỢT RENDER PDF.JS CHẠY ĐỒNG THỜI ---
         // QUAN TRỌNG — sửa lỗi "mở mục lục tải lâu, lag khi hiện thị/lướt": page.render() của
@@ -1829,6 +1829,113 @@
                 };
             }, [zoomLocked]);
 
+            // --- GIỮ NGUYÊN VỊ TRÍ ĐANG XEM KHI ĐỔI ĐỘ PHÓNG (SCALE) ---
+            // QUAN TRỌNG — sửa lỗi "bấm +/- % làm nhảy tới trang khác rất xa": mỗi trang PdfPage có
+            // chiều cao = basePageSize.height * scale (xem style trong PdfPage) — khi scale đổi, TẤT
+            // CẢ các trang (kể cả những trang đã cuộn qua từ lâu, ở rất xa phía trên) đều đổi chiều cao
+            // CÙNG LÚC. Nếu không tự bù lại vị trí cuộn, trình duyệt vẫn giữ nguyên scrollTop (tính bằng
+            // pixel tuyệt đối) — nhưng cùng 1 giá trị scrollTop đó giờ ứng với 1 vị trí nội dung hoàn
+            // toàn khác (vì tổng chiều cao các trang phía trên đã đổi), sách càng dài thì càng lệch xa,
+            // đúng như hiện tượng "nhảy đi trang khác rất rất xa" người dùng gặp phải.
+            // Cách sửa: trước khi đổi scale, "neo" lại đúng trang + vị trí tương đối bên trong trang đó
+            // đang nằm ở 1 điểm mốc cố định trên màn hình (giữa khung nhìn khi bấm nút +/-, hoặc đúng
+            // điểm 2 ngón tay đang chụm khi pinch) — sau khi scale đổi xong (layout đã cập nhật), đo lại
+            // vị trí THẬT của đúng trang đó (getBoundingClientRect — không đoán/tính theo tỉ lệ vì
+            // margin cố định 10px/30px giữa các trang không co giãn theo scale, tính theo tỉ lệ sẽ bị
+            // lệch dần khi sách nhiều trang) rồi chỉnh scrollTop sao cho điểm mốc đó vẫn nằm nguyên tại
+            // vị trí đã neo trên màn hình — không còn "nhảy" đi đâu nữa.
+            const zoomAnchorRef = useRef(null);
+            const scaleRef = useRef(scale);
+            useEffect(() => { scaleRef.current = scale; }, [scale]);
+            const zoomLockedRef = useRef(zoomLocked);
+            useEffect(() => { zoomLockedRef.current = zoomLocked; }, [zoomLocked]);
+
+            const captureZoomAnchor = useCallback((anchorClientY) => {
+                const container = pdfContentAreaRef.current;
+                if (!container || !numPages) { zoomAnchorRef.current = null; return; }
+                let target = null;
+                for (let p = 1; p <= numPages; p++) {
+                    const el = document.getElementById(`pdf-page-${p}`);
+                    if (!el) continue;
+                    const r = el.getBoundingClientRect();
+                    if (anchorClientY <= r.bottom) { target = { pageNum: p, r }; break; }
+                }
+                if (!target) {
+                    const lastEl = document.getElementById(`pdf-page-${numPages}`);
+                    if (!lastEl) { zoomAnchorRef.current = null; return; }
+                    target = { pageNum: numPages, r: lastEl.getBoundingClientRect() };
+                }
+                const fraction = target.r.height > 0 ? (anchorClientY - target.r.top) / target.r.height : 0;
+                zoomAnchorRef.current = { pageNum: target.pageNum, fraction, anchorClientY };
+            }, [numPages]);
+
+            const getContentAreaCenterY = useCallback(() => {
+                const container = pdfContentAreaRef.current;
+                if (!container) return 0;
+                const r = container.getBoundingClientRect();
+                return r.top + r.height / 2;
+            }, []);
+
+            // Chạy NGAY SAU KHI layout đã cập nhật theo scale mới (useLayoutEffect, không phải
+            // useEffect thường) để tránh 1 khung hình bị "chớp" lệch vị trí trước khi kịp bù lại.
+            useLayoutEffect(() => {
+                const anchor = zoomAnchorRef.current;
+                const container = pdfContentAreaRef.current;
+                if (!anchor || !container) return;
+                const el = document.getElementById(`pdf-page-${anchor.pageNum}`);
+                if (!el) return;
+                const r = el.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const desiredViewportY = anchor.anchorClientY - containerRect.top;
+                const currentAnchorOffsetFromContainerTop = (r.top - containerRect.top) + anchor.fraction * r.height;
+                const delta = currentAnchorOffsetFromContainerTop - desiredViewportY;
+                if (Math.abs(delta) > 0.5) container.scrollTop = container.scrollTop + delta;
+            }, [scale]);
+
+            // --- PINCH 2 NGÓN TAY ĐỂ PHÓNG TO/THU NHỎ — CHỈ TRÊN VÙNG NỘI DUNG PDF ---
+            // QUAN TRỌNG: KHÔNG đụng tới thẻ <meta viewport> (vẫn giữ user-scalable=no như cũ) — nhờ
+            // vậy pinch ở bất kỳ đâu KHÁC vùng nội dung PDF (thanh công cụ, mục lục, các nút bấm...)
+            // hoàn toàn không bị ảnh hưởng, không có nguy cơ bị phóng to lệch layout ngoài ý muốn. Thay
+            // vào đó, tự nhận diện cử chỉ chụm/mở 2 ngón NGAY TRÊN vùng cuộn nội dung PDF (Safari bắn ra
+            // sự kiện gesturestart/gesturechange/gestureend riêng cho việc này) và map trực tiếp sang
+            // state `scale` của app — giống hệt hiệu ứng khi bấm nút +/-, dùng chung luôn cơ chế "neo vị
+            // trí" ở trên nên pinch cũng không bị nhảy trang. Tôn trọng luôn nút "Khoá zoom" đã có sẵn:
+            // khi đang khoá thì pinch cũng không đổi scale (đúng như ý nghĩa của việc khoá).
+            useEffect(() => {
+                const container = pdfContentAreaRef.current;
+                if (!container) return;
+                let pinching = false;
+                let pinchStartScale = 1;
+
+                const onGestureStart = (e) => {
+                    e.preventDefault();
+                    if (zoomLockedRef.current) return;
+                    pinching = true;
+                    pinchStartScale = scaleRef.current;
+                    captureZoomAnchor(e.clientY);
+                };
+                const onGestureChange = (e) => {
+                    e.preventDefault();
+                    if (!pinching || zoomLockedRef.current) return;
+                    const next = Math.max(0.5, Math.min(3, pinchStartScale * e.scale));
+                    setScale(next);
+                };
+                const onGestureEnd = (e) => {
+                    e.preventDefault();
+                    pinching = false;
+                    zoomAnchorRef.current = null;
+                };
+
+                container.addEventListener('gesturestart', onGestureStart, { passive: false });
+                container.addEventListener('gesturechange', onGestureChange, { passive: false });
+                container.addEventListener('gestureend', onGestureEnd, { passive: false });
+                return () => {
+                    container.removeEventListener('gesturestart', onGestureStart);
+                    container.removeEventListener('gesturechange', onGestureChange);
+                    container.removeEventListener('gestureend', onGestureEnd);
+                };
+            }, [captureZoomAnchor]);
+
             // useCallback: giữ nguyên "địa chỉ" hàm giữa các lần render, để các PdfPage đã
             // memo hoá (React.memo) không phải render lại toàn bộ mỗi khi App có state khác
             // đổi (vd: đang gõ chữ trong 1 ô note) — giúp phản hồi nhanh & mượt hơn, nhất là
@@ -2364,9 +2471,9 @@
 
                                 {pdfUrl && (
                                     <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 border border-slate-200 shadow-sm">
-                                        <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-minus"></i></button>
+                                        <button onClick={() => { captureZoomAnchor(getContentAreaCenterY()); setScale(s => Math.max(0.5, s - 0.2)); }} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-minus"></i></button>
                                         <span className="text-sm font-bold text-slate-600 w-12 text-center">{Math.round(scale * 100)}%</span>
-                                        <button onClick={() => setScale(s => Math.min(3, s + 0.2))} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-plus"></i></button>
+                                        <button onClick={() => { captureZoomAnchor(getContentAreaCenterY()); setScale(s => Math.min(3, s + 0.2)); }} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-plus"></i></button>
                                     </div>
                                 )}
 
