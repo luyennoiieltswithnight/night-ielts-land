@@ -648,13 +648,14 @@ button,input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;outline:
 .char-error{color:#fff;background-color:#ef4444;border-radius:6px;border-bottom:3px solid #b91c1c;transform:translateY(-2px);box-shadow:0 4px 10px rgba(239,68,68,.3);animation:shake .3s ease-in-out;}
 .char-hint{color:#d97706;background-color:#fef3c7;border-radius:6px;font-weight:800;border-bottom:3px solid transparent;transform:translateY(-2px);box-shadow:0 4px 10px rgba(251,191,36,.15);opacity:.8;}
 @keyframes shake{0%,100%{transform:translateX(0) translateY(-2px);}25%{transform:translateX(-4px) translateY(-2px);}75%{transform:translateX(4px) translateY(-2px);}}
-.hanzi-slot{display:inline-flex;align-items:center;justify-content:center;width:1.7em;height:1.7em;margin:3px;border-radius:12px;font-size:1.5em;vertical-align:middle;}
+.hanzi-slot{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;margin:5px;border-radius:16px;font-size:2.6em;vertical-align:middle;line-height:1;}
 .hanzi-slot.idle{background:#fff;border:2px dashed %%CHAR_UNTYPED_BORDER%%;color:transparent;}
-.hanzi-slot.revealed{background:%%CHAR_UNTYPED_BORDER%%22;color:%%CHAR_TYPED_COLOR%%;border:2px solid %%CHAR_TYPED_BORDER%%;}
+.hanzi-slot.revealed{background:%%CHAR_UNTYPED_BORDER%%22;color:%%CHAR_TYPED_COLOR%%;border:2px solid %%CHAR_TYPED_BORDER%%;font-weight:700;text-shadow:0 0 .02em currentColor,0 1px 0 currentColor;}
 .hanzi-slot.revealed.pop{animation:hanziPop .38s cubic-bezier(.34,1.56,.64,1) both;}
 @keyframes hanziPop{0%{transform:scale(.4) rotate(-8deg);opacity:0;}60%{transform:scale(1.15) rotate(3deg);opacity:1;}100%{transform:scale(1) rotate(0);}}
-.hanzi-lit{display:inline-flex;align-items:center;justify-content:center;min-width:1em;height:1.7em;margin:0 1px;font-size:1.4em;color:#94a3b8;vertical-align:middle;}
-.leaf-idle{width:.85em;height:.85em;opacity:.35;}
+.hanzi-lit{display:inline-flex;align-items:center;justify-content:center;min-width:1em;height:1.5em;margin:0 2px;font-size:2em;color:#94a3b8;vertical-align:middle;}
+.leaf-idle{width:.5em;height:.5em;opacity:.35;}
+.pinyin-tone-row{letter-spacing:.02em;transition:opacity .25s ease;}
 </style>
 </head>
 <body class="bg-primary-50 text-slate-800 antialiased paper-texture">
@@ -995,12 +996,24 @@ function updateTyping(){
       var isRevealed = doneAll || typedStr.length >= sgm.end;
       if(isRevealed){
         var popCls = (state.justRevealedIdx === idx) ? ' pop' : '';
-        hhtml += '<span class="hanzi-slot revealed hanzi-font' + popCls + '">' + esc(sgm.char) + '</span>';
+        hhtml += '<span class="hanzi-slot revealed brush-font' + popCls + '">' + esc(sgm.char) + '</span>';
       }else{
         hhtml += '<span class="hanzi-slot idle"><span class="leaf-idle inline-block">' + ICON_LEAF + '</span></span>';
       }
     });
     hanziRow.innerHTML = hhtml;
+  }
+
+  var toneRow = document.getElementById('pinyinToneRow');
+  if(toneRow){
+    if(doneAll){
+      var toneLine = seg.segments.map(function(sgm){ return sgm.type==='han' ? sgm.pinyinRaw : sgm.char; }).join(' ');
+      toneRow.innerText = toneLine;
+      toneRow.classList.remove('hidden');
+    }else{
+      toneRow.innerText = '';
+      toneRow.classList.add('hidden');
+    }
   }
 
   var visualBox = document.getElementById('visualInputBox');
@@ -1196,6 +1209,7 @@ function typeView(){
         '<div class="mt-8 text-center">' +
           '<div class="text-[9px] font-extrabold tracking-widest uppercase text-slate-400 mb-2">汉字 &middot; chữ Hán sẽ hiện dần khi gõ đúng</div>' +
           '<div id="hanziRevealRow" class="flex flex-wrap justify-center items-center"></div>' +
+          '<div id="pinyinToneRow" class="hidden pinyin-tone-row mt-2 text-center text-sm md:text-base font-bold text-primary-600 mono"></div>' +
         '</div>' +
         '<div id="inputWrapper" class="relative w-full max-w-3xl mx-auto mt-5 bg-white border-2 border-primary-100 rounded-2xl shadow-sm cursor-text focus-within:border-primary-400 transition-all duration-300 overflow-hidden group" onclick="var el=document.getElementById(\\'hiddenInput\\');if(el)el.focus();">' +
           '<div class="text-[9px] font-extrabold tracking-widest uppercase text-slate-300 text-center pt-3">PINYIN (không dấu)</div>' +
