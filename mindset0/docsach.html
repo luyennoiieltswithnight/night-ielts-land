@@ -1205,19 +1205,42 @@
                 return () => task.cancel();
             }, [pdf, pageNum, scale, isVisible]);
 
-            // QUAN TRỌNG — sửa lỗi "viết vài nét là đứng/khựng màn hình iPad" (Drawing Freeze): cách cũ
-            // (đã revert bỏ) gắn listener touchstart/touchmove với { passive: false } thẳng vào canvas
-            // — Apple Pencil bắn pointermove tới 120-240 lần/giây, mà cờ passive:false buộc Safari phải
-            // DỪNG hẳn luồng chính ở MỖI LẦN bút nhúc nhích để đợi JS chạy xong vòng lặp e.touches rồi
-            // mới quyết định có cho cuộn/zoom hay không — chạy song song với việc Pointer Events cũng
-            // đang xử lý để vẽ nét cùng lúc tạo ra nút thắt cổ chai cực nặng trên luồng chính. Sửa TẬN
-            // GỐC: bỏ hẳn listener touch* nói trên, chỉ còn đúng 1 lần gán/gỡ CSS `touch-action` cho
-            // draw-canvas NGAY TẠI handlePointerDown/Up (không phải theo từng touchmove) — bật "none"
-            // đúng lúc đặt bút xuống NẾU là Apple Pencil (e.pointerType === 'pen'), trả lại "auto" ngay
-            // khi nhấc bút lên. Trình duyệt tự đọc thuộc tính CSS này ở tầng native (rất nhẹ, không tốn
-            // JS) ngay từ lúc chạm đầu tiên của lượt chạm đó để quyết định có cho cuộn hay không — vẫn
-            // phân biệt đúng ngón tay (không đụng gì, cuộn bình thường) với bút (chặn cuộn) y hệt cách
-            // cũ, chỉ khác là không còn phải chạy JS liên tục theo từng lần bút di chuyển nữa.
+            // QUAN TRỌNG — ĐÃ THỬ đổi sang toggle CSS `touch-action` động qua JS tại handlePointerDown/Up
+            // (bật "none" khi pointerType==='pen', trả "auto" khi nhấc bút) để thay cho listener touchmove
+            // { passive:false } bên dưới — về LÝ THUYẾT nhẹ hơn vì không cần chạy JS theo từng lần di
+            // chuyển. NHƯNG thực tế trên Safari/iPadOS, việc đổi `touch-action` ngay TRONG handler
+            // pointerdown/touchstart của CHÍNH lượt chạm đó không được áp dụng kịp cho lượt chạm đang xảy
+            // ra (WebKit chốt quyết định cuộn-hay-không gần như ngay từ đầu lượt chạm, trước khi JS set
+            // style kịp có hiệu lực) — kết quả là viết bị đứng/mất nét, thậm chí có lúc không viết được
+            // luôn. ĐÃ REVERT lại đúng cơ chế cũ, đã được kiểm chứng ổn định: listener touchstart/touchmove
+            // với { passive: false }, tự kiểm tra touchType để CHỈ preventDefault khi có Apple Pencil
+            // (ngón tay/tỳ tay vẫn cuộn trang bình thường). Không đổi lại cách này nữa nếu chưa có cách
+            // nào kiểm chứng được trên thiết bị thật.
+            useEffect(() => {
+                const canvas = drawCanvasRef.current;
+                if (!canvas || !isVisible) return;
+
+                const preventTouchScroll = (e) => {
+                    if (!isDrawingMode) return;
+                    let isStylus = false;
+                    if (e.touches && e.touches.length > 0) {
+                        for (let i = 0; i < e.touches.length; i++) {
+                            if (e.touches[i].touchType === 'stylus' || e.touches[i].touchType === 'pen') {
+                                isStylus = true;
+                            }
+                        }
+                    }
+                    if (isStylus) e.preventDefault();
+                };
+
+                canvas.addEventListener('touchstart', preventTouchScroll, { passive: false });
+                canvas.addEventListener('touchmove', preventTouchScroll, { passive: false });
+
+                return () => {
+                    canvas.removeEventListener('touchstart', preventTouchScroll);
+                    canvas.removeEventListener('touchmove', preventTouchScroll);
+                };
+            }, [isDrawingMode, isVisible]);
 
             const redrawStrokes = useCallback(() => {
                 const drawCanvas = drawCanvasRef.current;
@@ -1338,14 +1361,6 @@
             const handlePointerDown = (e) => {
                 if (!isDrawingMode) return;
                 if (e.pointerType === 'touch') return;
-
-                // Chặn Safari tự cuộn/zoom khi ĐANG viết bằng Apple Pencil — xem giải thích chi tiết ở
-                // effect phía trên (đã bỏ listener touch* nặng nề, giờ chỉ gán CSS đúng 1 lần tại đây).
-                // Ngón tay (pointerType 'touch') đã return sớm ở trên nên không bao giờ chạy tới đây —
-                // cuộn bằng ngón tay hoàn toàn không bị ảnh hưởng.
-                if (e.pointerType === 'pen' && drawCanvasRef.current) {
-                    drawCanvasRef.current.style.touchAction = 'none';
-                }
 
                 // Mở khoá audio ngay trong cử chỉ chạm thật gần nhất trước khi có thể cần đọc to
                 // văn bản (bút Magic/IPA) — giúp giọng đọc Online chắc chắn được Safari/iPadOS cho
@@ -1500,11 +1515,6 @@
             };
 
             const handlePointerUp = (e) => {
-                // Luôn trả lại touch-action bình thường ngay khi nhấc bút — đặt ở ĐẦU hàm (không phụ
-                // thuộc isDrawingRef) để chắc chắn được gỡ trong MỌI trường hợp, kể cả các nhánh công
-                // cụ (vd 'text') return sớm ở handlePointerDown mà chưa kịp bật isDrawingRef.
-                if (drawCanvasRef.current) drawCanvasRef.current.style.touchAction = 'auto';
-
                 if (!isDrawingRef.current) return;
                 isDrawingRef.current = false;
 
@@ -2088,7 +2098,7 @@
             // đúng 1 nhịp duy nhất, mắt thường không kịp thấy sai khác nào giữa 2 bước.
             useLayoutEffect(() => {
                 const container = pdfContentAreaRef.current;
-                if (container) { container.style.transform = 'none'; container.style.transformOrigin = ''; }
+                if (container) { container.style.transform = 'none'; container.style.transformOrigin = ''; container.style.willChange = ''; }
 
                 const anchor = zoomAnchorRef.current;
                 if (!anchor || !container) return;
@@ -2137,6 +2147,12 @@
                     // nghiệm pinch-zoom bản đồ/ảnh quen thuộc.
                     const rect = container.getBoundingClientRect();
                     container.style.transformOrigin = (e.clientX - rect.left) + 'px ' + (e.clientY - rect.top) + 'px';
+                    // Báo trước cho trình duyệt "sắp đổi transform liên tục" (will-change) để nó promote
+                    // vùng này thành 1 compositing layer riêng NGAY TỪ ĐẦU gesture thay vì đợi tới lần
+                    // transform đầu tiên mới quyết định — tránh 1 nhịp giật ở đúng lúc bắt đầu chụm ngón
+                    // tay (khi layer còn chưa kịp promote). Gỡ lại ở gestureend/useLayoutEffect để không
+                    // tốn bộ nhớ GPU giữ layer riêng này khi không còn pinch nữa.
+                    container.style.willChange = 'transform';
                 };
                 const onGestureChange = (e) => {
                     e.preventDefault();
