@@ -2139,10 +2139,20 @@
                     pinchStartScale = scaleRef.current;
                     startRect = container.getBoundingClientRect();
                     captureZoomAnchor(e.clientY);
-                    // Đặt gốc phóng to đúng tại điểm 2 ngón tay đang chụm (không phải giữa màn hình
-                    // mặc định của CSS) — preview phóng to/thu nhỏ đúng quanh điểm ngón tay, giống trải
-                    // nghiệm pinch-zoom bản đồ/ảnh quen thuộc.
-                    container.style.transformOrigin = (e.clientX - startRect.left) + 'px ' + (e.clientY - startRect.top) + 'px';
+                    // QUAN TRỌNG — sửa lỗi "zoom bằng tay bị nhảy lệch sang lề trái": bản trước đặt gốc
+                    // phóng to (transform-origin) đúng NGAY TẠI điểm X,Y 2 ngón tay đang chụm — nhưng
+                    // trang PDF trong layout THẬT luôn được canh giữa theo CHIỀU NGANG bằng flexbox
+                    // (items-center ở vùng nội dung), bất kể scale là bao nhiêu — nên khi buông tay,
+                    // scale mới được chốt (setScale) và layout THẬT luôn tự canh lại giữa trang theo
+                    // chiều ngang, HOÀN TOÀN không liên quan gì tới điểm ngón tay lúc nãy. Nếu ảnh xem
+                    // trước lại phóng to quanh đúng điểm ngón tay (thường lệch về 1 bên, ví dụ gần lề
+                    // trái khi người dùng chụm ở đó), lúc chốt xong ảnh sẽ "giật" từ chỗ lệch đó về đúng
+                    // giữa — đúng hiện tượng "nhảy lệch sang lề trái" người dùng gặp. Sửa: gốc phóng to
+                    // theo chiều NGANG luôn cố định ở "50%" (giữa vùng nội dung — khớp với việc trang
+                    // luôn canh giữa theo layout thật), CHỈ riêng chiều DỌC là theo đúng vị trí ngón tay
+                    // (khớp với cơ chế bù trừ scrollTop dọc đã có) — nhờ vậy ảnh xem trước và layout thật
+                    // lúc chốt luôn nhất quán về chiều ngang, không còn cú "giật" nào nữa.
+                    container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
                     // Báo trước cho trình duyệt "sắp đổi transform liên tục" (will-change) để nó promote
                     // vùng này thành 1 compositing layer riêng NGAY TỪ ĐẦU gesture thay vì đợi tới lần
                     // transform đầu tiên mới quyết định — tránh 1 nhịp giật ở đúng lúc bắt đầu chụm ngón
@@ -2153,17 +2163,15 @@
                 const onGestureChange = (e) => {
                     e.preventDefault();
                     if (!pinching || zoomLockedRef.current) return;
-                    // QUAN TRỌNG — sửa lỗi "hết rung nhưng zoom bị lệch vị trí, không đúng ngay tại chỗ
-                    // đang chụm": bản trước chỉ đo điểm neo + gốc phóng to ĐÚNG 1 LẦN lúc mới đặt 2 ngón
-                    // tay xuống (gesturestart) rồi giữ cố định suốt cả cử chỉ — nhưng khi pinch, tay người
-                    // dùng gần như luôn trôi dần theo hướng kéo dãn/thu ngón tay, nên tới lúc buông tay
-                    // (gestureend), vị trí ngón tay THỰC TẾ đã khác hẳn điểm đã neo từ đầu — kết quả là
-                    // ảnh phóng to xong lại lệch khỏi đúng chỗ đang xem. Sửa: cập nhật lại CẢ điểm neo
-                    // (captureZoomAnchor, phục vụ bù trừ scrollTop lúc chốt scale) LẪN gốc phóng to CSS
-                    // (transformOrigin, phục vụ hiển thị xem trước) theo vị trí 2 ngón tay HIỆN TẠI ở MỖI
-                    // lần gesturechange — vẫn không hề gọi setScale()/đụng React nên không làm rung lại.
+                    // Cập nhật lại điểm neo DỌC (captureZoomAnchor, phục vụ bù trừ scrollTop lúc chốt
+                    // scale) LẪN gốc phóng to DỌC (transformOrigin) theo vị trí ngón tay HIỆN TẠI ở MỖI
+                    // lần gesturechange — tay người dùng thường trôi dần trong lúc pinch nên cần theo sát
+                    // vị trí mới nhất, không giữ mãi điểm lúc mới bắt đầu chụm. Riêng chiều NGANG của
+                    // transform-origin CỐ ĐỊNH ở "50%" trong suốt cả cử chỉ (xem giải thích chi tiết ở
+                    // onGestureStart) để khớp với layout thật (luôn canh giữa theo chiều ngang) — vẫn
+                    // không hề gọi setScale()/đụng React nên không làm rung lại.
                     if (startRect) {
-                        container.style.transformOrigin = (e.clientX - startRect.left) + 'px ' + (e.clientY - startRect.top) + 'px';
+                        container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
                     }
                     captureZoomAnchor(e.clientY);
                     // CHỈ đổi CSS transform để xem trước — KHÔNG gọi setScale() ở đây (xem giải thích
