@@ -2084,6 +2084,16 @@
                 const container = pdfContentAreaRef.current;
                 if (!container) return;
 
+                // Xoá ảnh xem trước bằng CSS transform (nếu có, để lại từ lúc đang pinch — xem khối pinch
+                // bên dưới) — đúng thời điểm này (ngay sau khi state scale mới đã được React ghi xong
+                // kích thước THẬT vào DOM, nhưng TRƯỚC khi trình duyệt kịp vẽ khung hình kế tiếp) là lúc
+                // "bàn giao" từ ảnh xem trước sang kích thước thật diễn ra trong đúng 1 nhịp, mắt thường
+                // không kịp thấy sai khác. Không đụng gì nếu vốn dĩ không đang có transform nào (vd lúc
+                // bấm nút +/-, không qua pinch) — gán 'none'/rỗng khi vốn đã 'none'/rỗng là vô hại.
+                container.style.transform = 'none';
+                container.style.transformOrigin = '';
+                container.style.willChange = '';
+
                 // QUAN TRỌNG — sửa lỗi "zoom xong nội dung nhảy lệch sang lề trái" (vẫn còn xảy ra dù đã
                 // sửa lại cơ chế pinch giống hệt nút +/-%): hoá ra gốc vấn đề không nằm ở cách bắt cử chỉ
                 // pinch hay cách tính scale — nút +/- VÀ pinch giờ CÙNG đi qua đúng 1 đường setScale() —
@@ -2119,25 +2129,28 @@
             }, [scale]);
 
             // --- PINCH 2 NGÓN TAY ĐỂ PHÓNG TO/THU NHỎ — CHỈ TRÊN VÙNG NỘI DUNG PDF ---
-            // QUAN TRỌNG — LẦN 3 sửa cơ chế pinch-zoom, lần này dùng ĐÚNG CƠ CHẾ CỦA NÚT +/-% (theo yêu
-            // cầu trực tiếp): 2 lần sửa trước đều dùng CSS `transform: scale()` để "xem trước" trong lúc
-            // pinch (đẩy việc cho GPU, không đụng React) — hết được rung/giật thật, NHƯNG lại lộ ra 1 lỗi
-            // khác: layout THẬT luôn canh giữa trang theo chiều ngang (flexbox `items-center`), còn ảnh
-            // xem trước bằng transform lại phóng to quanh đúng điểm 2 ngón tay (dù đã thử ép cứng gốc
-            // ngang về "50%" ở lần sửa trước, vẫn còn bị lệch/giật về lề trái trên máy thật — có thể do
-            // cách Safari tự tính lại kích thước/toạ độ của 1 phần tử ĐANG cuộn (overflow-y-auto) mà lại
-            // bị áp transform, phức tạp hơn suy đoán). Nút +/-% thì KHÔNG hề có vấn đề này vì nó luôn đổi
-            // THẲNG state `scale` thật (không qua bước xem trước bằng CSS) nên layout luôn nhất quán.
-            // Cách sửa LẦN NÀY: bỏ hẳn CSS transform preview, gọi setScale() TRỰC TIẾP (y hệt cơ chế nút
-            // +/-: captureZoomAnchor() rồi setScale()) — NHƯNG gộp nhiều lần gesturechange bắn ra liên
-            // tiếp (hàng chục lần/giây) lại thành ĐÚNG 1 lần setScale() cho MỖI KHUNG HÌNH màn hình vẽ ra
-            // (dùng requestAnimationFrame làm hàng đợi) — đây chính là nguyên nhân gây rung ở bản đầu
-            // tiên: không phải "gọi setScale() là sai", mà là gọi setScale() NHIỀU LẦN HƠN tốc độ màn
-            // hình có thể vẽ ra, khiến các lần re-render/tính scrollTop chồng chéo lên nhau chưa xong lần
-            // trước đã bắt đầu lần sau. Gộp về đúng nhịp 1 lần/khung hình (60-120 lần/giây tuỳ máy) vẫn
-            // đủ mượt mắt thường, mà không còn chồng chéo công việc nữa — đồng thời dùng lại NGUYÊN VẸN
-            // cơ chế neo vị trí (captureZoomAnchor + useLayoutEffect) đã được kiểm chứng đúng 100% với
-            // nút +/-, nên không còn khả năng lệch vị trí/lệch lề trái nữa.
+            // QUAN TRỌNG — LẦN 4, kết hợp cả 2 lần sửa trước thay vì chọn 1 trong 2 (mỗi cách chỉ giải
+            // quyết được đúng 1 nửa vấn đề):
+            //   • Lần 2 (CSS transform preview khi đang pinch): giải quyết đúng vụ RUNG/GIẬT khung hình
+            //     (đẩy việc cho GPU compositor, không đụng React/layout trong lúc đang chụm ngón tay) —
+            //     nhưng lúc BUÔNG TAY, gọi setScale() để chốt scale thật lại đi qua useLayoutEffect ở
+            //     TRÊN — mà bản đó CHƯA có bước tự canh giữa lại `scrollLeft` khi trang tràn khỏi khung
+            //     nhìn, nên vẫn dính đúng lỗi "nhảy lệch lề trái" (gốc rễ thật sự, xem giải thích chi
+            //     tiết ở useLayoutEffect phía trên).
+            //   • Lần 3 (gọi thẳng setScale() qua rAF, y hệt cơ chế nút +/-): giải quyết đúng vụ LỆCH VỊ
+            //     TRÍ (luôn đi qua đúng 1 đường setScale() + useLayoutEffect nên được hưởng luôn phần sửa
+            //     `scrollLeft` mới) — nhưng đổi lại, MỖI khung hình trong lúc đang pinch đều phải chạy
+            //     lại 1 lượt setScale() thật (React re-render toàn bộ App + đo lại layout bằng
+            //     getBoundingClientRect trong useLayoutEffect) — với máy/sách nhiều trang, riêng phần
+            //     tính toán này có thể tốn hơn 1 khung hình (>16ms ở 60Hz, >8ms ở 120Hz ProMotion) khiến
+            //     bị "cắt khung hình"/giật khi đang chụm, dù vị trí cuối cùng luôn đúng.
+            // Sửa LẦN NÀY: dùng lại CSS transform để xem trước MƯỢT trong suốt lúc đang pinch (như lần
+            // 2, không hề gọi setScale() nào trong lúc này nên không có React re-render nào để mà giật)
+            // — nhưng giờ khi BUÔNG TAY (gestureend), chỉ gọi setScale() ĐÚNG 1 LẦN DUY NHẤT, và
+            // useLayoutEffect phía trên ĐÃ ĐƯỢC vá thêm bước tự canh giữa `scrollLeft` (từ lần sửa lệch
+            // lề trái) — nên lần chốt hạ duy nhất này giờ luôn ra đúng vị trí, không còn lệch nữa. Tóm
+            // lại: mượt trong lúc kéo (transform, không đụng React) + đúng vị trí lúc buông tay (chỉ 1
+            // lần setScale() duy nhất, hưởng trọn vẹn useLayoutEffect đã sửa đúng).
             // KHÔNG đụng tới thẻ <meta viewport> (vẫn giữ user-scalable=no như cũ) — nhờ vậy pinch ở bất
             // kỳ đâu KHÁC vùng nội dung PDF (thanh công cụ, mục lục, các nút bấm...) hoàn toàn không bị
             // ảnh hưởng. Tôn trọng luôn nút "Khoá zoom" đã có sẵn: khi đang khoá thì pinch cũng không
@@ -2147,48 +2160,48 @@
                 if (!container) return;
                 let pinching = false;
                 let pinchStartScale = 1;
-                let rafId = null;
-                let latestGestureScale = 1;
-                let latestClientY = 0;
-
-                // Chạy ĐÚNG 1 lần cho MỖI khung hình (được lên lịch bởi requestAnimationFrame trong
-                // onGestureChange bên dưới) — dù gesturechange có bắn ra bao nhiêu lần trong cùng 1 khung
-                // hình đó, chỉ giá trị MỚI NHẤT được áp dụng, y hệt cách nút +/- hoạt động (neo vị trí rồi
-                // chốt scale thật) chỉ khác là lặp lại tự động theo từng khung hình trong lúc đang pinch.
-                const commitPinchScale = () => {
-                    rafId = null;
-                    if (!pinching) return;
-                    captureZoomAnchor(latestClientY);
-                    const next = Math.max(0.5, Math.min(3, pinchStartScale * latestGestureScale));
-                    setScale(next);
-                };
+                // Toạ độ gốc (CHƯA áp transform) của vùng nội dung PDF, đo đúng 1 lần lúc bắt đầu chụm —
+                // dùng lại toạ độ này trong suốt cả cử chỉ để tính "gốc phóng to" cục bộ, vì lúc đang
+                // preview bằng transform thì getBoundingClientRect() sẽ trả về toạ độ ĐÃ scale, gọi lại
+                // giữa chừng sẽ tính sai. Container không cuộn dọc/đổi layout trong lúc preview (chỉ đổi
+                // transform) nên toạ độ gốc này không đổi suốt cả cử chỉ.
+                let startRect = null;
 
                 const onGestureStart = (e) => {
                     e.preventDefault();
                     if (zoomLockedRef.current) return;
                     pinching = true;
                     pinchStartScale = scaleRef.current;
-                    latestGestureScale = e.scale;
-                    latestClientY = e.clientY;
+                    startRect = container.getBoundingClientRect();
+                    captureZoomAnchor(e.clientY);
+                    // Gốc phóng to CỐ ĐỊNH "50%" theo chiều ngang (khớp với việc trang luôn canh giữa
+                    // theo layout thật, kể cả khi tràn — xem useLayoutEffect phía trên), CHỈ riêng chiều
+                    // dọc là theo đúng vị trí ngón tay (khớp với neo dọc đã có).
+                    container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
+                    // Báo trước cho trình duyệt "sắp đổi transform liên tục" để nó promote vùng này thành
+                    // 1 compositing layer riêng NGAY TỪ ĐẦU, tránh 1 nhịp giật lúc mới bắt đầu chụm.
+                    container.style.willChange = 'transform';
                 };
                 const onGestureChange = (e) => {
                     e.preventDefault();
                     if (!pinching || zoomLockedRef.current) return;
-                    latestGestureScale = e.scale;
-                    latestClientY = e.clientY;
-                    // Chỉ lên lịch 1 lần cho khung hình SẮP TỚI — nếu đã có 1 lần đang chờ (rafId khác
-                    // null) thì bỏ qua, để nhiều lần gesturechange dồn về cùng 1 lần commit duy nhất.
-                    if (rafId == null) {
-                        rafId = requestAnimationFrame(commitPinchScale);
+                    // Cập nhật lại điểm neo dọc + gốc phóng to dọc theo vị trí ngón tay HIỆN TẠI (tay
+                    // người dùng thường trôi dần trong lúc pinch) — CHỈ để phục vụ hiển thị xem trước và
+                    // chuẩn bị sẵn điểm neo, KHÔNG hề gọi setScale()/đụng React ở đây nên không rung.
+                    if (startRect) {
+                        container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
                     }
+                    captureZoomAnchor(e.clientY);
+                    container.style.transform = 'scale(' + e.scale + ')';
                 };
                 const onGestureEnd = (e) => {
                     e.preventDefault();
                     if (!pinching) return;
                     pinching = false;
-                    if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-                    // Luôn chốt lại đúng 1 lần cuối bằng giá trị scale THẬT SỰ cuối cùng lúc buông tay
-                    // (không chỉ dựa vào lần commit gần nhất của rAF, có thể đã hơi cũ 1 khung hình).
+                    // Chốt lại điểm neo + scale thật ĐÚNG 1 LẦN DUY NHẤT bằng giá trị cuối cùng lúc buông
+                    // tay — KHÔNG tự xoá transform CSS ở đây, cố ý để nguyên cho tới khi useLayoutEffect
+                    // (chạy ngay sau khi state scale mới đã áp dụng xong vào DOM) tự xoá đúng lúc, tránh
+                    // 1 khung hình bị "giật lùi" thoáng qua giữa ảnh xem trước và kích thước thật.
                     captureZoomAnchor(e.clientY);
                     const finalScale = Math.max(0.5, Math.min(3, pinchStartScale * e.scale));
                     setScale(finalScale);
@@ -2198,7 +2211,6 @@
                 container.addEventListener('gesturechange', onGestureChange, { passive: false });
                 container.addEventListener('gestureend', onGestureEnd, { passive: false });
                 return () => {
-                    if (rafId != null) cancelAnimationFrame(rafId);
                     container.removeEventListener('gesturestart', onGestureStart);
                     container.removeEventListener('gesturechange', onGestureChange);
                     container.removeEventListener('gestureend', onGestureEnd);
