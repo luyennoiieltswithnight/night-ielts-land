@@ -321,10 +321,15 @@
         // nên đã BỎ HẲN chế độ Online để gọn hơn — giờ chỉ còn đúng 1 nguồn giọng đọc duy nhất:
         // giọng có sẵn trên máy (window.speechSynthesis), chọn được qua ô dropdown trong box dịch.
 
-        // --- BOX PHIÊN ÂM (IPA) + TỪ LOẠI — hiện bên trái box dịch khi dùng bút IPA ---
+        // --- BOX HIỆN TỪ VỪA QUÉT — hiện bên trái box dịch khi dùng bút IPA ---
+        // QUAN TRỌNG: trước đây box này còn tự gọi thêm 1 API từ điển ngoài (dictionaryapi.dev) để tra
+        // phiên âm (IPA) + từ loại rồi hiện ra đây — theo yêu cầu, bỏ hẳn bước "truy xuất IPA" này vì
+        // không cần thiết: bút IPA giờ chỉ cần quét chữ, hiện đúng từ vừa quét được ở đây, rồi mở thẳng
+        // Cambridge Dictionary (đã tự mở sẵn ở nơi gọi onIPALookup — xem navigateIPALookupWindow) —
+        // không còn gọi API/tải/chờ gì thêm nữa, nhanh và gọn hơn hẳn.
         const IPAPanel = React.memo(function IPAPanel({ info, onClose }) {
             if (!info) return null;
-            const { word, phonetic, partOfSpeech, error, loading } = info;
+            const { word } = info;
 
             return (
                 <div className="w-[220px] shrink-0 glass-panel rounded-2xl shadow-2xl border-2 border-sky-100 overflow-hidden flex flex-col animate-slide-down-y">
@@ -337,33 +342,17 @@
                         </button>
                     </div>
                     <div className="p-4 bg-white flex-1 space-y-3">
-                        {loading ? (
-                            <div className="flex items-center justify-center gap-2 text-sky-500 py-4">
-                                <i className="fas fa-circle-notch fa-spin"></i>
-                                <span className="text-xs font-semibold">Đang tra từ điển…</span>
-                            </div>
-                        ) : error ? (
-                            <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>
-                        ) : (
-                            <div className="space-y-2">
-                                <p className="text-lg font-extrabold text-slate-800 tracking-tight">{word}</p>
-                                {phonetic && <p className="text-sky-600 font-semibold text-sm">{phonetic}</p>}
-                                {partOfSpeech && (
-                                    <span className="inline-block text-[11px] font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">
-                                        {partOfSpeech}
-                                    </span>
-                                )}
-                            </div>
-                        )}
+                        <p className="text-lg font-extrabold text-slate-800 tracking-tight">{word || '—'}</p>
+                        <p className="text-xs text-slate-400 leading-relaxed">Đã tự mở Cambridge Dictionary cho từ này ở cửa sổ/tab bên cạnh.</p>
 
-                        {/* Nút mở Cambridge Dictionary — nút bấm thật này LUÔN chắc chắn không bị
-                            trình duyệt chặn popup, dù cửa sổ tự mở lúc kéo-thả có bị chặn hay không. */}
-                        {!loading && word && (
+                        {/* Nút mở lại Cambridge Dictionary — phòng khi cửa sổ tự mở lúc quét bị trình
+                            duyệt chặn, nút bấm thật này LUÔN chắc chắn không bị chặn popup. */}
+                        {word && (
                             <button
                                 onClick={() => window.open('https://dictionary.cambridge.org/dictionary/english/' + encodeURIComponent(word), '_blank')}
                                 className="w-full px-3 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm shadow-sky-200"
                             >
-                                <i className="fas fa-up-right-from-square"></i> Mở Cambridge Dictionary
+                                <i className="fas fa-up-right-from-square"></i> Mở lại Cambridge Dictionary
                             </button>
                         )}
                     </div>
@@ -982,34 +971,13 @@
             return [{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }];
         };
 
-        // Tách chữ cái đầu tiên (1 từ) từ văn bản OCR ra được — dùng chung cho tra IPA lẫn mở Cambridge Dictionary.
+        // Tách chữ cái đầu tiên (1 từ) từ văn bản OCR ra được — dùng chung cho bút IPA lẫn mở Cambridge
+        // Dictionary. QUAN TRỌNG: đã bỏ hẳn bước gọi API từ điển ngoài (dictionaryapi.dev) để "tra IPA"
+        // (phiên âm + từ loại) trước đây làm ở đây — không cần thiết nữa, giờ chỉ cần tách được ĐÚNG từ
+        // vừa quét là đủ để hiện lên box và mở thẳng Cambridge Dictionary (xem onIPALookup).
         const extractFirstWord = (rawText) => {
             const match = (rawText || '').match(/[A-Za-z']+/);
             return match ? match[0].toLowerCase() : '';
-        };
-
-        // --- TRA CỨU PHIÊN ÂM (IPA) + TỪ LOẠI — Free Dictionary API, miễn phí, không cần khoá ---
-        const _dictCache = {}; // cache theo từ để tránh gọi lại API khi quét trùng 1 từ nhiều lần
-        const fetchIPAInfo = async (rawText) => {
-            const word = extractFirstWord(rawText);
-            if (!word) return { word: '', error: 'Không nhận diện được từ trong vùng đã quét.' };
-            if (_dictCache[word]) return _dictCache[word];
-
-            try {
-                const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
-                if (!res.ok) throw new Error('not found');
-                const data = await res.json();
-                const entry = data && data[0];
-                const phoneticObj = entry && (entry.phonetics || []).find(p => p.text) ;
-                const phonetic = (entry && entry.phonetic) || (phoneticObj && phoneticObj.text) || '';
-                const partOfSpeech = entry && entry.meanings && entry.meanings[0] ? entry.meanings[0].partOfSpeech : '';
-                const result = { word, phonetic, partOfSpeech, error: (!phonetic && !partOfSpeech) ? 'Không có dữ liệu phiên âm cho từ này.' : '' };
-                _dictCache[word] = result;
-                return result;
-            } catch (err) {
-                const result = { word, phonetic: '', partOfSpeech: '', error: 'Không tìm thấy từ "' + word + '" trong từ điển.' };
-                return result;
-            }
         };
 
         // --- BÚT TRA ẢNH MINH HOẠ: mở 1 cửa sổ Google Hình ảnh THẬT, đặt bên phải màn hình ---
@@ -1837,9 +1805,30 @@
             // tuỳ chọn đó không còn áp dụng cho bút đang chọn nữa.
             useEffect(() => { setExpandedToolOptions(null); }, [tool]);
 
+            // QUAN TRỌNG — sửa lỗi "trên iPad bấm 2 lần vào nút bút không hiện thanh tuỳ chọn": sự
+            // kiện `onDoubleClick` của React là sự kiện CHUỘT (mouse dblclick) — Safari trên iPad KHÔNG
+            // tự tổng hợp sự kiện này từ 2 lần chạm ngón tay/Apple Pencil liên tiếp (dblclick vốn chỉ
+            // dành cho chuột thật), nên double-tap trên iPad không bao giờ kích hoạt được onDoubleClick,
+            // dù trên Mac (dùng chuột thật) vẫn hoạt động bình thường — đây là lý do bug chỉ xảy ra
+            // trên iPad. Sửa bằng cách TỰ phát hiện double-tap dựa trên `onClick` (sự kiện này CÓ xảy
+            // ra nhất quán cho cả chuột lẫn chạm ngón tay/bút trên mọi nền tảng): tự đếm thời gian giữa
+            // 2 lần bấm liên tiếp VÀO ĐÚNG CÙNG 1 nút bút — nếu cách nhau dưới 400ms thì coi là double-
+            // tap và mở thanh tuỳ chọn, còn lại thì chỉ chọn công cụ như bình thường.
+            const lastToolTapRef = useRef({ tool: null, time: 0 });
+            const handleToolButtonClick = useCallback((toolName) => {
+                setTool(toolName);
+                const now = Date.now();
+                if (lastToolTapRef.current.tool === toolName && now - lastToolTapRef.current.time < 400) {
+                    toggleToolOptions(toolName);
+                    lastToolTapRef.current = { tool: null, time: 0 }; // reset để tránh bấm 3 lần liên tiếp lại tính thành double-tap lần nữa
+                } else {
+                    lastToolTapRef.current = { tool: toolName, time: now };
+                }
+            }, [toggleToolOptions]);
+
             const [magicText, setMagicText] = useState("");
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
-            const [ipaInfo, setIpaInfo] = useState(null); // { word, phonetic, partOfSpeech, error, loading }
+            const [ipaInfo, setIpaInfo] = useState(null); // { word } — chỉ còn đúng từ vừa quét, không tra IPA/API ngoài nữa
             const [photoLookup, setPhotoLookup] = useState(null); // { text } — bút tra ảnh minh hoạ
 
             const [showTOC, setShowTOC] = useState(false);
@@ -2135,18 +2124,25 @@
                 if (!container) return;
                 let pinching = false;
                 let pinchStartScale = 1;
+                // Toạ độ gốc (CHƯA áp transform) của vùng nội dung PDF, đo đúng 1 lần lúc bắt đầu chụm —
+                // dùng lại toạ độ này trong suốt cả cử chỉ để tính "gốc phóng to" ở toạ độ CỤC BỘ so với
+                // vùng nội dung, vì transform-origin cần toạ độ so với chính hộp CHƯA transform của phần
+                // tử, mà lúc đang preview transform lại làm getBoundingClientRect() trả về toạ độ ĐÃ scale
+                // — gọi lại giữa chừng sẽ tính sai. Container không cuộn/đổi layout trong lúc preview
+                // (chỉ đổi transform) nên toạ độ gốc này không đổi suốt cả cử chỉ.
+                let startRect = null;
 
                 const onGestureStart = (e) => {
                     e.preventDefault();
                     if (zoomLockedRef.current) return;
                     pinching = true;
                     pinchStartScale = scaleRef.current;
+                    startRect = container.getBoundingClientRect();
                     captureZoomAnchor(e.clientY);
                     // Đặt gốc phóng to đúng tại điểm 2 ngón tay đang chụm (không phải giữa màn hình
                     // mặc định của CSS) — preview phóng to/thu nhỏ đúng quanh điểm ngón tay, giống trải
                     // nghiệm pinch-zoom bản đồ/ảnh quen thuộc.
-                    const rect = container.getBoundingClientRect();
-                    container.style.transformOrigin = (e.clientX - rect.left) + 'px ' + (e.clientY - rect.top) + 'px';
+                    container.style.transformOrigin = (e.clientX - startRect.left) + 'px ' + (e.clientY - startRect.top) + 'px';
                     // Báo trước cho trình duyệt "sắp đổi transform liên tục" (will-change) để nó promote
                     // vùng này thành 1 compositing layer riêng NGAY TỪ ĐẦU gesture thay vì đợi tới lần
                     // transform đầu tiên mới quyết định — tránh 1 nhịp giật ở đúng lúc bắt đầu chụm ngón
@@ -2157,6 +2153,19 @@
                 const onGestureChange = (e) => {
                     e.preventDefault();
                     if (!pinching || zoomLockedRef.current) return;
+                    // QUAN TRỌNG — sửa lỗi "hết rung nhưng zoom bị lệch vị trí, không đúng ngay tại chỗ
+                    // đang chụm": bản trước chỉ đo điểm neo + gốc phóng to ĐÚNG 1 LẦN lúc mới đặt 2 ngón
+                    // tay xuống (gesturestart) rồi giữ cố định suốt cả cử chỉ — nhưng khi pinch, tay người
+                    // dùng gần như luôn trôi dần theo hướng kéo dãn/thu ngón tay, nên tới lúc buông tay
+                    // (gestureend), vị trí ngón tay THỰC TẾ đã khác hẳn điểm đã neo từ đầu — kết quả là
+                    // ảnh phóng to xong lại lệch khỏi đúng chỗ đang xem. Sửa: cập nhật lại CẢ điểm neo
+                    // (captureZoomAnchor, phục vụ bù trừ scrollTop lúc chốt scale) LẪN gốc phóng to CSS
+                    // (transformOrigin, phục vụ hiển thị xem trước) theo vị trí 2 ngón tay HIỆN TẠI ở MỖI
+                    // lần gesturechange — vẫn không hề gọi setScale()/đụng React nên không làm rung lại.
+                    if (startRect) {
+                        container.style.transformOrigin = (e.clientX - startRect.left) + 'px ' + (e.clientY - startRect.top) + 'px';
+                    }
+                    captureZoomAnchor(e.clientY);
                     // CHỈ đổi CSS transform để xem trước — KHÔNG gọi setScale() ở đây (xem giải thích
                     // chi tiết phía trên khối này).
                     container.style.transform = 'scale(' + e.scale + ')';
@@ -2349,11 +2358,13 @@
                 if (processing) setIpaInfo(null);
             }, []);
 
-            // Tra phiên âm (IPA) + từ loại cho bút IPA — chạy song song, không chặn luồng dịch/đọc.
-            const onIPALookup = useCallback(async (text) => {
-                setIpaInfo({ word: '', phonetic: '', partOfSpeech: '', error: '', loading: true });
-                const info = await fetchIPAInfo(text);
-                setIpaInfo({ ...info, loading: false });
+            // Bút IPA: KHÔNG còn tra cứu API từ điển ngoài nữa (theo yêu cầu — chỉ cần quét chữ, hiện
+            // từ vừa quét, rồi mở thẳng Cambridge Dictionary chứ không cần "truy xuất IPA" gì thêm) —
+            // Cambridge đã tự mở/điều hướng riêng ở navigateIPALookupWindow ngay khi quét xong, hàm này
+            // chỉ còn việc tách đúng từ để hiện lên box bên cạnh, không có bước chờ mạng nào cả.
+            const onIPALookup = useCallback((text) => {
+                const word = extractFirstWord(text);
+                setIpaInfo(word ? { word } : null);
             }, []);
 
             // Luôn hiện panel "Mở ảnh trên Google" khi quét được chữ — không phụ thuộc việc popup
@@ -2591,13 +2602,13 @@
                                     // hạn chiều cao cứng h-16, xem sửa ở "TOP HEADER" phía trên. Trả lại rounded-full
                                     // như cũ.
                                     <div className="flex items-center flex-wrap justify-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in max-w-full">
-                                        <button onClick={() => setTool('pencil')} onDoubleClick={() => toggleToolOptions('pencil')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì (bấm đúp để xem cỡ nét/kiểu vẽ/độ ổn định)"><i className="fas fa-pencil-alt text-md"></i></button>
+                                        <button onClick={() => handleToolButtonClick('pencil')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì (bấm đúp để xem cỡ nét/kiểu vẽ/độ ổn định)"><i className="fas fa-pencil-alt text-md"></i></button>
 
-                                        <button onClick={() => setTool('magic')} onDoubleClick={() => toggleToolOptions('magic')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch (bấm đúp để chọn kiểu khoanh vùng)">
+                                        <button onClick={() => handleToolButtonClick('magic')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch (bấm đúp để chọn kiểu khoanh vùng)">
                                             <i className="fas fa-wand-magic-sparkles text-md"></i>
                                         </button>
 
-                                        <button onClick={() => setTool('ipa')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'ipa' ? 'bg-sky-100 text-sky-600 shadow-inner' : 'text-sky-500 hover:bg-slate-200 hover:text-sky-600')} title="Bút IPA: Quét chữ để tra phiên âm & từ loại">
+                                        <button onClick={() => setTool('ipa')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'ipa' ? 'bg-sky-100 text-sky-600 shadow-inner' : 'text-sky-500 hover:bg-slate-200 hover:text-sky-600')} title="Bút IPA: Quét chữ, hiện từ vừa quét & mở thẳng Cambridge Dictionary">
                                             <i className="fas fa-spell-check text-md"></i>
                                         </button>
 
@@ -2605,9 +2616,9 @@
                                             <i className="fas fa-images text-md"></i>
                                         </button>
 
-                                        <button onClick={() => setTool('pen')} onDoubleClick={() => toggleToolOptions('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-rose-100 text-rose-600 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút Present: nét trắng viền glow màu, tự mờ dần và biến mất sau 1.5 giây — dùng để khoanh/nhấn mạnh tạm thời lúc giảng bài (bấm đúp để chọn màu glow/độ ổn định)"><i className="fas fa-highlighter text-md"></i></button>
-                                        <button onClick={() => setTool('text')} onDoubleClick={() => toggleToolOptions('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text (bấm đúp để chọn cỡ chữ)"><i className="fas fa-font text-md"></i></button>
-                                        <button onClick={() => setTool('eraser')} onDoubleClick={() => toggleToolOptions('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ (bấm đúp để chọn kiểu tẩy)"><i className="fas fa-eraser text-md"></i></button>
+                                        <button onClick={() => handleToolButtonClick('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-rose-100 text-rose-600 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút Present: nét trắng viền glow màu, tự mờ dần và biến mất sau 1.5 giây — dùng để khoanh/nhấn mạnh tạm thời lúc giảng bài (bấm đúp để chọn màu glow/độ ổn định)"><i className="fas fa-highlighter text-md"></i></button>
+                                        <button onClick={() => handleToolButtonClick('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text (bấm đúp để chọn cỡ chữ)"><i className="fas fa-font text-md"></i></button>
+                                        <button onClick={() => handleToolButtonClick('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ (bấm đúp để chọn kiểu tẩy)"><i className="fas fa-eraser text-md"></i></button>
 
                                         <div className="w-px h-5 bg-slate-300 mx-2"></div>
                                         {/* Bảng màu có sẵn — bấm 1 phát chọn màu ngay, thay cho việc phải mở bảng màu
