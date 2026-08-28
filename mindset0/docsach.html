@@ -2084,6 +2084,28 @@
                 const container = pdfContentAreaRef.current;
                 if (!container) return;
 
+                // QUAN TRỌNG — sửa lỗi "zoom xong nội dung nhảy lệch sang lề trái" (vẫn còn xảy ra dù đã
+                // sửa lại cơ chế pinch giống hệt nút +/-%): hoá ra gốc vấn đề không nằm ở cách bắt cử chỉ
+                // pinch hay cách tính scale — nút +/- VÀ pinch giờ CÙNG đi qua đúng 1 đường setScale() —
+                // mà nằm ở chính CSS: vùng nội dung PDF canh giữa trang theo chiều ngang bằng flexbox
+                // (`items-center`), nhưng cách canh giữa này CHỈ đáng tin cậy khi trang KHÔNG tràn khỏi
+                // bề ngang container. Ngay khi trang phóng to tới mức RỘNG HƠN vùng nhìn thấy (dễ xảy ra
+                // khi zoom cao), container tự đổi ngầm overflow-x thành "auto" (quy tắc CSS: 1 trục
+                // overflow non-visible sẽ buộc trục còn lại cũng hết "visible") — và trình duyệt mặc
+                // định lấy `scrollLeft = 0` làm điểm bắt đầu cho nội dung ĐANG được flexbox canh giữa mà
+                // lại tràn ra, cắt mất phần tràn bên TRÁI thay vì tự cuộn ra đúng giữa — nhìn giống hệt
+                // "nội dung nhảy sang lề trái". Bấm nút +/-% mỗi lần chỉ đổi 0.2 nên độ tràn tăng dần từ
+                // từ, hiếm khi nhảy rõ; còn pinch có thể đổi scale rất nhanh trong 1 cử chỉ (từ vừa khít
+                // tới tràn nhiều) nên lộ rõ hẳn — đây là lý do 2 cách bấm/pinch "nhìn" khác nhau dù cùng
+                // 1 cơ chế đổi scale. Sửa TẬN GỐC: sau MỌI lần đổi scale, LUÔN tự đặt lại `scrollLeft` để
+                // cuộn nội dung về đúng GIỮA theo chiều ngang — không trông chờ flexbox tự lo việc này
+                // khi đã tràn nữa (khi chưa tràn, phép tính dưới đây tự ra 0, không ảnh hưởng gì).
+                if (container.scrollWidth > container.clientWidth) {
+                    container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+                } else {
+                    container.scrollLeft = 0;
+                }
+
                 const anchor = zoomAnchorRef.current;
                 if (!anchor || !container) return;
                 const el = document.getElementById(`pdf-page-${anchor.pageNum}`);
