@@ -881,6 +881,10 @@
         // 3 mức độ dày cho bút chì: nhỏ nhất (mức cũ, mặc định) + 2 mức lớn hơn 1 chút.
         const PENCIL_SIZES = [2, 3.5, 5];
         const DEFAULT_PENCIL_SIZE = PENCIL_SIZES[0];
+        // 3 mức "Độ ổn định nét vẽ" (làm mượt run tay khi viết) — 0 = Tắt (giữ nguyên hành vi vẽ cũ,
+        // luôn là mặc định), 2 mức còn lại làm mượt tăng dần. Xem cách dùng ở handlePointerMove trong
+        // PdfPage (bộ lọc trung bình trượt theo cấp số nhân — EMA).
+        const PEN_STABILITY_LEVELS = [0, 0.4, 0.65];
 
         // Bảng màu bút có sẵn (bấm chọn nhanh) — thay cho việc phải bấm vào 1 chấm tròn nhỏ để
         // mở bảng màu của hệ điều hành mỗi lần muốn đổi màu. Vẫn giữ 1 ô "tuỳ chỉnh" (icon ống hút
@@ -905,7 +909,17 @@
             // Độ dày bút chì giờ lấy từ "pencilSize" (chọn được qua 3 nút chấm tròn trên thanh công
             // cụ khi đang dùng bút chì) thay vì cố định — mặc định vẫn y hệt độ dày cũ (2).
             pencil: { width: (s, pencilSizeVal) => (pencilSizeVal || DEFAULT_PENCIL_SIZE) * s, alpha: 0.6, dash: [], useColorProp: true },
-            pen: { width: (s) => 4 * s, alpha: 1.0, dash: [], useColorProp: true },
+            // "Bút Present": nét trắng có viền/glow màu đỏ toả ra ngoài — mô phỏng bút trình chiếu
+            // (như con trỏ laser/bút "present" trong PowerPoint), dùng để khoanh/nhấn mạnh tạm thời
+            // lúc giảng bài chứ không phải ghi chú vĩnh viễn — xem "fade" bên dưới (mờ dần rồi tự xoá
+            // sau 3 giây). Cố định màu trắng + viền đỏ (useColorProp:false) — không đổi theo bảng màu
+            // đang chọn, vì bản chất là 1 hiệu ứng cố định, không phải mực ghi chú tuỳ chỉnh màu.
+            // glow: dùng canvas shadowColor/shadowBlur — chỉ cần 1 lượt stroke() duy nhất là ra được
+            // hiệu ứng "lõi trắng + viền ngoài mờ dần sang đỏ" (giống hào quang), không cần vẽ 2 lượt.
+            pen: { color: '#FFFFFF', width: (s) => 4 * s, alpha: 1.0, dash: [], useColorProp: false, glow: { color: '#EF4444', blur: 5 }, fade: true },
+            // Viền xem trước khi kéo-thả chọn vùng để TẨY (eraserShapeMode 'rect') — nét đứt màu đỏ,
+            // cùng kiểu với viền xem trước của bút IPA/tra ảnh cho dễ nhận biết là đang ở chế độ chọn vùng.
+            eraser: { color: '#EF4444', width: () => 2, alpha: 0.9, dash: [6, 4], useColorProp: false },
         };
         const applyToolStyle = (ctx, toolName, colorProp, scaleVal, thicknessVal) => {
             const cfg = TOOL_STYLES[toolName];
@@ -914,6 +928,11 @@
             ctx.setLineDash(cfg.dash);
             ctx.lineWidth = cfg.width(scaleVal, thicknessVal);
             ctx.globalAlpha = cfg.alpha;
+            // Luôn set lại shadowBlur/shadowColor cho MỌI loại bút (kể cả reset về 0/'transparent' khi
+            // bút đó không có glow) — bắt buộc phải reset thế này vì ctx là dùng chung, nếu không glow
+            // của bút Present sẽ "dính" sang lây cả các nét vẽ sau nó trong cùng 1 lượt vẽ lại.
+            ctx.shadowBlur = cfg.glow ? cfg.glow.blur * scaleVal : 0;
+            ctx.shadowColor = cfg.glow ? cfg.glow.color : 'transparent';
         };
 
         // Chuyển 2 điểm chéo (kéo-thả kiểu marquee) thành 4 góc hình chữ nhật theo chiều kim đồng
@@ -1025,7 +1044,7 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, pencilShapeMode, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, forceVisible, onRenderedForExport }) {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, pencilShapeMode, eraserShapeMode, penStability, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, forceVisible, onRenderedForExport }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -1043,6 +1062,9 @@
 
             const isDrawingRef = useRef(false);
             const currentStrokeRef = useRef(null);
+            // Điểm đã "mượt hoá" gần nhất của nét đang vẽ — dùng cho tính năng "Độ ổn định nét vẽ"
+            // (penStability) trong handlePointerMove, reset về điểm bắt đầu mỗi khi đặt bút xuống.
+            const smoothedPointRef = useRef(null);
             // QUAN TRỌNG — nhớ đã render xong cho (pdf, scale) nào rồi: canvas giờ LUÔN nằm sẵn
             // trong DOM (chỉ ẩn/hiện bằng display, không hề unmount) nên nội dung đã vẽ vẫn còn
             // nguyên khi ẩn đi rồi hiện lại — KHÔNG cần render lại từ đầu mỗi lần isVisible bật lại
@@ -1097,23 +1119,41 @@
                         const vp = page.getViewport({ scale });
                         setViewport(vp);
 
-                        const canvas = canvasRef.current;
-                        const drawCanvas = drawCanvasRef.current;
-                        if (!canvas || !drawCanvas) return;
-
-                        canvas.height = vp.height;
-                        canvas.width = vp.width;
-                        drawCanvas.height = vp.height;
-                        drawCanvas.width = vp.width;
-
-                        const ctx = canvas.getContext('2d');
-                        realRenderTask = page.render({ canvasContext: ctx, viewport: vp });
+                        // QUAN TRỌNG — sửa lỗi "trang bị trắng ra 1 tý rồi mới trở lại khi zoom (đặc
+                        // biệt rõ trên iPad khi pinch)": trước đây đổi canvas.width/height của canvas
+                        // ĐANG HIỂN THỊ ngay lập tức — mà cứ đổi width/height của 1 canvas là trình
+                        // duyệt XOÁ TRẮNG nội dung cũ NGAY TỨC THÌ, còn phải đợi page.render() (việc bất
+                        // đồng bộ, tốn 1 khoảng thời gian) vẽ xong nội dung mới thì mới hết trắng — chính
+                        // là khoảng "trắng trang" người dùng thấy. Sửa: render vào 1 canvas TẠM (offscreen,
+                        // không nằm trong DOM, người dùng không nhìn thấy) trước — canvas đang hiển thị vẫn
+                        // giữ NGUYÊN nội dung cũ (chỉ tự động co giãn theo CSS 100% để khớp khung đã đổi
+                        // kích thước, hơi mờ 1 chút trong lúc chờ — coi như hiệu ứng xem trước khi zoom,
+                        // không hề bị trắng). Chỉ khi nào render xong hoàn toàn mới đổi width/height của
+                        // canvas thật rồi vẽ ảnh đã render sẵn qua NGAY LẬP TỨC (đồng bộ, cùng 1 nhịp) —
+                        // khoảng trắng chỉ tồn tại trong đúng 1 canvas tạm vô hình, không bao giờ lọt vào
+                        // khung hình mà người dùng thực sự nhìn thấy.
+                        const offCanvas = document.createElement('canvas');
+                        offCanvas.width = vp.width;
+                        offCanvas.height = vp.height;
+                        const offCtx = offCanvas.getContext('2d');
+                        realRenderTask = page.render({ canvasContext: offCtx, viewport: vp });
                         return realRenderTask.promise.then(() => {
-                            if (!cancelled) {
-                                redrawStrokes();
-                                renderedRef.current = { pdf, scale };
-                                if (onRenderedForExport) onRenderedForExport(pageNum);
-                            }
+                            if (cancelled) return;
+                            const canvas = canvasRef.current;
+                            const drawCanvas = drawCanvasRef.current;
+                            if (!canvas || !drawCanvas) return;
+
+                            canvas.height = vp.height;
+                            canvas.width = vp.width;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(offCanvas, 0, 0);
+
+                            drawCanvas.height = vp.height;
+                            drawCanvas.width = vp.width;
+
+                            redrawStrokes();
+                            renderedRef.current = { pdf, scale };
+                            if (onRenderedForExport) onRenderedForExport(pageNum);
                         });
                     });
                     return {
@@ -1175,6 +1215,23 @@
                     ctx.beginPath();
                     applyToolStyle(ctx, stroke.tool, stroke.color, scale, pencilSize);
 
+                    // QUAN TRỌNG — hiệu ứng "Bút Present" tự mờ dần rồi biến mất sau 3 giây: mỗi nét
+                    // của bút này có kèm createdAt (lúc lưu ở handlePointerUp) — mỗi lần vẽ lại, tính
+                    // tuổi của nét NGAY LÚC ĐANG VẼ (không lưu sẵn vào state, luôn tính mới từ Date.now()
+                    // để mờ dần mượt theo thời gian thực) rồi nhân thêm vào globalAlpha đã có. Bỏ hẳn
+                    // việc vẽ khi đã hết hạn (fadeFactor <= 0) — nét đó sẽ được dọn khỏi state ngay sau
+                    // (xem effect "hiệu ứng mờ dần" trong PdfPage) nên không cần lo tồn đọng.
+                    const cfgForFade = TOOL_STYLES[stroke.tool];
+                    if (cfgForFade && cfgForFade.fade && stroke.createdAt) {
+                        const age = Date.now() - stroke.createdAt;
+                        const FADE_TOTAL_MS = 3000, FADE_START_MS = 1700;
+                        let fadeFactor = 1;
+                        if (age >= FADE_TOTAL_MS) fadeFactor = 0;
+                        else if (age > FADE_START_MS) fadeFactor = 1 - (age - FADE_START_MS) / (FADE_TOTAL_MS - FADE_START_MS);
+                        if (fadeFactor <= 0) return;
+                        ctx.globalAlpha = ctx.globalAlpha * fadeFactor;
+                    }
+
                     // Chế độ "Hình chữ nhật" (kéo-thả): dùng chung cho bút Magic (khi bật chế độ hình
                     // chữ nhật) VÀ bút IPA / tra ảnh (giờ luôn dùng kéo-thả) — vẽ khung chữ nhật thay
                     // vì nối các điểm như nét vẽ tay thường.
@@ -1202,6 +1259,30 @@
             }, [strokes, scale, pencilSize]);
 
             useEffect(() => { if(isVisible) redrawStrokes(); }, [redrawStrokes, isVisible]);
+
+            // QUAN TRỌNG — vòng lặp riêng cho hiệu ứng "Bút Present" tự mờ dần rồi biến mất: CHỈ chạy
+            // khi trang đang hiện ra (isVisible) VÀ đang thực sự có ít nhất 1 nét bút Present còn "sống"
+            // — tránh tốn CPU chạy requestAnimationFrame vô ích ở các trang không liên quan. Mỗi khung
+            // hình gọi lại redrawStrokes() để mờ dần mượt theo thời gian thực, đồng thời dọn khỏi state
+            // những nét đã hết hạn (quá 3 giây) — dùng setStrokes trả về CHÍNH mảng cũ khi không có gì
+            // cần xoá (React sẽ bỏ qua, không re-render thừa) nên vòng lặp này rất nhẹ.
+            useEffect(() => {
+                if (!isVisible) return;
+                const hasFadingStrokes = strokes.some(s => s.tool === 'pen' && s.createdAt);
+                if (!hasFadingStrokes) return;
+                let rafId;
+                const tick = () => {
+                    redrawStrokes();
+                    const now = Date.now();
+                    setStrokes(prev => {
+                        const kept = prev.filter(s => !(s.tool === 'pen' && s.createdAt && now - s.createdAt >= 3000));
+                        return kept.length === prev.length ? prev : kept;
+                    });
+                    rafId = requestAnimationFrame(tick);
+                };
+                rafId = requestAnimationFrame(tick);
+                return () => cancelAnimationFrame(rafId);
+            }, [strokes, redrawStrokes, isVisible]);
 
             // QUAN TRỌNG — 1 trong 2 nguồn gây "viết vài nét là đứng màn hình iPad": mỗi lần
             // getCoordinates() chạy, canvas.getBoundingClientRect() buộc trình duyệt phải tính lại
@@ -1243,8 +1324,16 @@
                 const coords = getCoordinates(e, true);
 
                 if (tool === 'eraser') {
-                    handleErase(coords.x, coords.y);
                     isDrawingRef.current = true;
+                    // Chế độ tẩy "Chọn vùng" (kéo-thả hình chữ nhật, giống mấy cây bút khác) — thay vì
+                    // tẩy ngay theo bán kính quanh điểm chạm như trước, giờ chỉ bắt đầu vẽ khung xem
+                    // trước; việc xoá thật sự (những nét nằm trong khung) chỉ thực hiện ở handlePointerUp
+                    // khi đã biết đủ 2 góc của vùng chọn.
+                    if (eraserShapeMode === 'rect') {
+                        currentStrokeRef.current = { id: Date.now(), tool: 'eraser', shape: 'rect', points: [coords, coords] };
+                        return;
+                    }
+                    handleErase(coords.x, coords.y);
                     return;
                 }
 
@@ -1280,6 +1369,9 @@
                 }
 
                 currentStrokeRef.current = { id: Date.now(), tool, color, points: [coords] };
+                // Reset điểm "mượt hoá" (xem penStability/handlePointerMove) về đúng điểm bắt đầu nét —
+                // để nét mới luôn bắt đầu chính xác tại điểm đặt bút, không bị mượt hoá kéo lệch đi.
+                smoothedPointRef.current = coords;
 
                 // QUAN TRỌNG — nguồn thứ 2 gây "viết vài nét là đứng màn hình iPad": trước đây MỖI
                 // LẦN pointermove đều gọi lại applyToolStyle() (gán strokeStyle/lineWidth/globalAlpha
@@ -1305,6 +1397,15 @@
 
                 const coords = getCoordinates(e);
 
+                // Chế độ tẩy "Chọn vùng": cập nhật góc đối diện của khung xem trước, giống hệt cơ chế
+                // kéo-thả của bút Magic/IPA/tra ảnh — phải kiểm tra TRƯỚC nhánh tẩy theo điểm bên dưới.
+                if (tool === 'eraser' && eraserShapeMode === 'rect') {
+                    if (!currentStrokeRef.current) return;
+                    currentStrokeRef.current.points[1] = coords;
+                    redrawStrokes();
+                    return;
+                }
+
                 if (tool === 'eraser') {
                     handleErase(coords.x, coords.y);
                     return;
@@ -1323,15 +1424,29 @@
                 const canvas = drawCanvasRef.current;
                 if (!canvas) return;
 
+                // QUAN TRỌNG — "Độ ổn định nét vẽ" (penStability, 0 = tắt hẳn = giữ NGUYÊN hành vi cũ):
+                // làm mượt điểm chạm thô bằng bộ lọc trung bình trượt theo cấp số nhân (EMA) trước khi
+                // lưu/vẽ — điểm vẽ ra sẽ "đuổi theo" điểm chạm thật với 1 độ trễ nhỏ, giúp khử rung tay/
+                // Apple Pencil, nét viết mượt và tròn trịa hơn. penStability càng cao thì điểm vẽ càng
+                // "bám" chậm theo tay hơn (mượt hơn nhưng trễ hơn 1 chút) — đánh đổi hợp lý, y hệt thanh
+                // trượt "ổn định nét bút" ở các app vẽ chuyên nghiệp (Procreate, Photoshop...).
+                let point = coords;
+                if (penStability > 0) {
+                    const prevSmoothed = smoothedPointRef.current || coords;
+                    const factor = 1 - penStability;
+                    point = { x: prevSmoothed.x + (coords.x - prevSmoothed.x) * factor, y: prevSmoothed.y + (coords.y - prevSmoothed.y) * factor };
+                    smoothedPointRef.current = point;
+                }
+
                 const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
-                currentStrokeRef.current.points.push(coords);
+                currentStrokeRef.current.points.push(point);
 
                 // Style đã được set 1 lần lúc pointerDown — không gọi lại applyToolStyle() ở đây nữa
                 // (xem giải thích chi tiết ở handlePointerDown), chỉ còn vẽ đoạn nối ngắn giữa 2 điểm.
                 const ctx = canvas.getContext('2d');
                 ctx.beginPath();
                 ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
-                ctx.lineTo(coords.x * scale, coords.y * scale);
+                ctx.lineTo(point.x * scale, point.y * scale);
                 ctx.stroke();
             };
 
@@ -1340,6 +1455,24 @@
                 isDrawingRef.current = false;
 
                 try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
+
+                // Chế độ tẩy "Chọn vùng": đã đủ 2 góc khung chọn — xoá mọi nét có ÍT NHẤT 1 điểm rơi
+                // vào trong khung đó (cùng logic với tẩy theo bán kính ở handleErase, chỉ đổi điều
+                // kiện "khoảng cách < bán kính" thành "nằm trong hình chữ nhật đã kéo").
+                if (tool === 'eraser' && eraserShapeMode === 'rect' && currentStrokeRef.current) {
+                    const [p1, p2] = currentStrokeRef.current.points;
+                    const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+                    const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+                    currentStrokeRef.current = null;
+                    setStrokes(prev => prev.filter(stroke => {
+                        for (let pt of stroke.points) {
+                            if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) return false;
+                        }
+                        return true;
+                    }));
+                    setTimeout(() => redrawStrokes(), 0);
+                    return;
+                }
 
                 if (!currentStrokeRef.current || tool === 'eraser') return;
 
@@ -1384,12 +1517,15 @@
                     return;
                 }
 
-                // Bút chì / bút bi: lưu nét vẽ như bình thường — currentStrokeRef.current đã đúng
-                // hình dạng sẵn (tự do hoặc "shape: 'rect'" nếu bút chì đang bật chế độ hình chữ
-                // nhật, xử lý ở 2 nhánh phía trên trong handlePointerDown/Move), không cần thêm gì.
+                // Bút chì / bút bi (Present) / bút chì hình chữ nhật: lưu nét vẽ như bình thường —
+                // currentStrokeRef.current đã đúng hình dạng sẵn, không cần thêm gì, TRỪ bút Present
+                // (tool 'pen') cần đánh dấu thêm createdAt để hiệu ứng tự mờ dần sau 3 giây hoạt động
+                // (xem TOOL_STYLES.pen.fade + drawLine + effect "hiệu ứng mờ dần" phía trên).
                 const strokeToSave = { ...currentStrokeRef.current };
+                if (tool === 'pen') strokeToSave.createdAt = Date.now();
                 setStrokes(prev => [...prev, strokeToSave]);
                 currentStrokeRef.current = null;
+                smoothedPointRef.current = null;
             };
 
             const handleErase = (x, y) => {
@@ -1623,6 +1759,31 @@
                 document.addEventListener('pointerdown', handleClickOutside);
                 return () => document.removeEventListener('pointerdown', handleClickOutside);
             }, [showPencilSizeMenu]);
+
+            // "Độ ổn định nét vẽ" (làm mượt run tay) — áp dụng chung cho các bút vẽ tự do (bút chì,
+            // bút Present). Mặc định TẮT (0) để giữ nguyên y hệt cảm giác viết cũ — chỉ đổi khi người
+            // dùng chủ động bấm chọn mức khác. 3 mức giống hệt kiểu popover của "Độ dày bút chì".
+            const [penStability, setPenStability] = useState(PEN_STABILITY_LEVELS[0]);
+            const [showStabilityMenu, setShowStabilityMenu] = useState(false);
+            const stabilityMenuRef = useRef(null);
+            useEffect(() => {
+                if (tool !== 'pencil' && tool !== 'pen') setShowStabilityMenu(false);
+            }, [tool]);
+            useEffect(() => {
+                if (!showStabilityMenu) return;
+                const handleClickOutside = (e) => {
+                    if (stabilityMenuRef.current && !stabilityMenuRef.current.contains(e.target)) {
+                        setShowStabilityMenu(false);
+                    }
+                };
+                document.addEventListener('pointerdown', handleClickOutside);
+                return () => document.removeEventListener('pointerdown', handleClickOutside);
+            }, [showStabilityMenu]);
+
+            // Chế độ tẩy: 'point' (mặc định, giữ NGUYÊN hành vi cũ — tẩy theo bán kính quanh điểm chạm/
+            // kéo) hoặc 'rect' (kéo-thả chọn vùng hình chữ nhật rồi tẩy hết nét trong đó, giống cơ chế
+            // của bút Magic/IPA/tra ảnh/bút chì hình chữ nhật).
+            const [eraserShapeMode, setEraserShapeMode] = useState('point');
 
             const [magicText, setMagicText] = useState("");
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
@@ -2351,7 +2512,7 @@
                                             <i className="fas fa-images text-md"></i>
                                         </button>
 
-                                        <button onClick={() => setTool('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút bi"><i className="fas fa-pen-nib text-md"></i></button>
+                                        <button onClick={() => setTool('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-rose-100 text-rose-600 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút Present: nét trắng viền đỏ, tự mờ dần và biến mất sau 3 giây — dùng để khoanh/nhấn mạnh tạm thời lúc giảng bài"><i className="fas fa-highlighter text-md"></i></button>
                                         <button onClick={() => setTool('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text"><i className="fas fa-font text-md"></i></button>
                                         <button onClick={() => setTool('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ"><i className="fas fa-eraser text-md"></i></button>
 
@@ -2359,7 +2520,7 @@
                                         {/* Bảng màu có sẵn — bấm 1 phát chọn màu ngay, thay cho việc phải mở bảng màu
                                             của hệ điều hành. Ô cuối (icon ống hút) vẫn mở bảng màu tuỳ chỉnh khi cần
                                             màu ngoài 4 màu có sẵn — value/onChange/disabled giữ nguyên như cũ. */}
-                                        <div className={"flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm " + ((tool === 'magic' || tool === 'ipa' || tool === 'photo') ? 'opacity-40 pointer-events-none' : '')} title="Chọn màu bút">
+                                        <div className={"flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm " + ((tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'pen') ? 'opacity-40 pointer-events-none' : '')} title="Chọn màu bút">
                                             {PRESET_COLORS.map(c => (
                                                 <button
                                                     key={c}
@@ -2373,7 +2534,7 @@
                                             <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
                                             <label className="relative w-6 h-6 rounded-full shrink-0 cursor-pointer border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden" title="Màu tuỳ chỉnh">
                                                 <i className="fas fa-eye-dropper text-[9px] text-slate-400 pointer-events-none"></i>
-                                                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo'} />
+                                                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'pen'} />
                                             </label>
                                         </div>
 
@@ -2427,6 +2588,55 @@
                                                         <i className="fas fa-signature text-xs"></i>
                                                     </button>
                                                     <button onClick={() => setPencilShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'rect' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — tiện cho Mac/trackpad)">
+                                                        <i className="fas fa-vector-square text-xs"></i>
+                                                    </button>
+                                                </div>
+                                            </React.Fragment>
+                                        )}
+
+                                        {/* Độ ổn định nét vẽ (làm mượt run tay) — dùng chung cho cả bút chì lẫn bút
+                                            Present vì cả 2 đều vẽ tự do. Cùng kiểu popover với "Độ dày bút chì" ở
+                                            trên. Mặc định "Tắt" để giữ nguyên cảm giác viết cũ, chỉ mượt hơn khi
+                                            người dùng chủ động bật lên. */}
+                                        {(tool === 'pencil' || tool === 'pen') && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="relative" ref={stabilityMenuRef}>
+                                                    <button
+                                                        onClick={() => setShowStabilityMenu(v => !v)}
+                                                        className={"w-9 h-9 rounded-full flex items-center justify-center bg-white border transition-colors shadow-sm " + (showStabilityMenu ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50') + (penStability > 0 ? ' text-indigo-600' : ' text-slate-400')}
+                                                        title="Độ ổn định nét vẽ (làm mượt run tay)"
+                                                    >
+                                                        <i className="fas fa-wave-square text-sm"></i>
+                                                    </button>
+                                                    {showStabilityMenu && (
+                                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 flex items-center gap-1 bg-white border border-slate-200 rounded-full px-2 py-1.5 shadow-lg z-10 animate-fade-in">
+                                                            {PEN_STABILITY_LEVELS.map((lvl, i) => (
+                                                                <button
+                                                                    key={lvl}
+                                                                    onClick={() => { setPenStability(lvl); setShowStabilityMenu(false); }}
+                                                                    className={"px-3 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors whitespace-nowrap " + (penStability === lvl ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-100')}
+                                                                >
+                                                                    {['Tắt', 'Vừa', 'Cao'][i]}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </React.Fragment>
+                                        )}
+
+                                        {/* Chọn kiểu tẩy: theo điểm (mặc định, kéo tới đâu tẩy tới đó như cũ) hoặc
+                                            Chọn vùng (kéo-thả hình chữ nhật rồi tẩy hết trong đó — giống mấy cây
+                                            bút khác). */}
+                                        {tool === 'eraser' && (
+                                            <React.Fragment>
+                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kiểu tẩy">
+                                                    <button onClick={() => setEraserShapeMode('point')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (eraserShapeMode === 'point' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Theo điểm (kéo tới đâu tẩy tới đó)">
+                                                        <i className="fas fa-hand-pointer text-xs"></i>
+                                                    </button>
+                                                    <button onClick={() => setEraserShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (eraserShapeMode === 'rect' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Chọn vùng (kéo-thả hình chữ nhật)">
                                                         <i className="fas fa-vector-square text-xs"></i>
                                                     </button>
                                                 </div>
@@ -2525,6 +2735,8 @@
                                         tool={tool}
                                         magicShapeMode={magicShapeMode}
                                         pencilShapeMode={pencilShapeMode}
+                                        eraserShapeMode={eraserShapeMode}
+                                        penStability={penStability}
                                         pencilSize={pencilSize}
                                         color={color}
                                         fontSize={fontSize}
