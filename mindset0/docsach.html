@@ -658,6 +658,20 @@
                 setCopied(true); setTimeout(() => setCopied(false), 2000);
             };
 
+            // Gemini trả lời dạng Markdown đơn giản (**đậm**) — trước đây hiện thẳng ra chữ có
+            // dấu ** vì chỉ render text thô. Tách chuỗi theo cặp **...** để in đậm đúng phần đó,
+            // phần còn lại giữ nguyên (xuống dòng đã có whitespace-pre-wrap lo rồi).
+            const renderAnswerRich = (raw) => {
+                if (!raw) return null;
+                const segments = raw.split(/(\*\*[^*]+\*\*)/g);
+                return segments.map((seg, idx) => {
+                    if (seg.length > 4 && seg.startsWith('**') && seg.endsWith('**')) {
+                        return <strong key={idx} className="font-extrabold text-slate-900">{seg.slice(2, -2)}</strong>;
+                    }
+                    return <React.Fragment key={idx}>{seg}</React.Fragment>;
+                });
+            };
+
             return (
                 <div className="w-full glass-panel rounded-2xl flex flex-col overflow-hidden shadow-2xl border-2 border-violet-100">
                     <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 shrink-0 flex items-center justify-between gap-2">
@@ -738,7 +752,7 @@
                                         {error && <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>}
                                         {answer && !loading && (
                                             <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-4 pr-12">
-                                                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{answer}</p>
+                                                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{renderAnswerRich(answer)}</p>
                                                 <button onClick={handleCopyAnswer} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white transition-colors border border-violet-100">
                                                     <i className={copied ? "fas fa-check text-green-500" : "fas fa-copy"}></i>
                                                 </button>
@@ -1160,18 +1174,47 @@
                 buildPrompt: (t) => 'Bạn là gia sư IELTS. Hãy đặt 2 câu tiếng Anh trình độ band 6.5-7.5 có dùng từ/cụm từ sau, kèm dịch nghĩa tiếng Việt ngắn gọn cho mỗi câu:\n\n"' + t + '"',
             },
         ];
-        const callGeminiAPI = async (apiKey, promptText) => {
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        // 1 lần gọi API thật sự — tách riêng khỏi callGeminiAPI để dễ gọi lại (retry) khi máy chủ
+        // Gemini báo quá tải (503), thay vì lặp lại y hệt toàn bộ logic timeout/parse mỗi lần retry.
+        const callGeminiAPIOnce = async (apiKey, promptText) => {
             const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
-            });
+            // QUAN TRỌNG — sửa lỗi "AI đang trả lời... cứ load mãi không ra kết quả lẫn không báo lỗi":
+            // trước đây fetch() không có giới hạn thời gian nào cả — nếu request bị treo (mất mạng
+            // giữa chừng, mạng quá chậm, hoặc kết nối bị "đứng" mà trình duyệt không tự báo lỗi ngay)
+            // thì fetch() sẽ không bao giờ resolve/reject, khiến "loading" trong AIPanel treo vĩnh
+            // viễn dù code try/catch/finally đã đúng — vì có lỗi gì đâu mà catch, bản thân Promise
+            // của fetch() chưa từng settle. Sửa bằng AbortController: tự huỷ request sau 20 giây rồi
+            // báo lỗi rõ ràng, để người dùng biết đường thử lại thay vì đợi vô thời hạn. (Giảm từ 25
+            // xuống 20 giây/lần để dành thời gian cho các lần thử lại bên dưới khi bị lỗi 503.)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
+            let res;
+            try {
+                res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+                    signal: controller.signal,
+                });
+            } catch (err) {
+                if (err && err.name === 'AbortError') {
+                    throw new Error('Quá thời gian chờ phản hồi (20 giây) — kiểm tra kết nối mạng rồi thử lại.');
+                }
+                throw new Error('Không kết nối được tới Gemini — kiểm tra kết nối mạng rồi thử lại.');
+            } finally {
+                clearTimeout(timeoutId);
+            }
             if (!res.ok) {
                 let detail = '';
                 try { const errJson = await res.json(); detail = errJson && errJson.error && errJson.error.message ? errJson.error.message : ''; } catch (e) {}
                 if (res.status === 400 || res.status === 403) throw new Error('API key không hợp lệ hoặc chưa được cấp quyền. Kiểm tra lại key trong Cài đặt.');
                 if (res.status === 429) throw new Error('Đã vượt hạn mức miễn phí của Gemini trong khoảng thời gian này, thử lại sau ít phút nhé.');
+                if (res.status === 503) {
+                    const err503 = new Error('Máy chủ Gemini đang quá tải, đã thử lại vài lần nhưng vẫn chưa được — thử lại sau ít phút nhé.');
+                    err503.isOverloaded = true;
+                    throw err503;
+                }
                 throw new Error('Lỗi gọi Gemini API (HTTP ' + res.status + ')' + (detail ? ': ' + detail : '') + '.');
             }
             const data = await res.json();
@@ -1180,6 +1223,27 @@
             const answer = parts ? parts.map(p => p.text || '').join('').trim() : '';
             if (!answer) throw new Error('Gemini không trả về câu trả lời nào (có thể nội dung bị chặn bởi bộ lọc an toàn).');
             return answer;
+        };
+        // QUAN TRỌNG — sửa lỗi "HTTP 503: model is currently experiencing high demand": lỗi này của
+        // Google chỉ là quá tải TẠM THỜI (thường tự hết sau vài giây), không phải lỗi do code hay do
+        // API key sai — nên cách đúng là tự động thử lại vài lần với khoảng chờ ngắn tăng dần (thay
+        // vì bắt người dùng tự bấm lại), để "có câu trả lời nhanh nhất" ngay khi máy chủ rảnh trở lại.
+        // Chỉ retry cho đúng lỗi 503 (quá tải) — các lỗi khác (key sai, hết quota, mất mạng...) báo
+        // lỗi ngay lập tức, không mất thời gian retry vô ích.
+        const callGeminiAPI = async (apiKey, promptText) => {
+            const retryDelaysMs = [600, 1500];
+            for (let attempt = 0; ; attempt++) {
+                try {
+                    return await callGeminiAPIOnce(apiKey, promptText);
+                } catch (err) {
+                    const isLastAttempt = attempt >= retryDelaysMs.length;
+                    if (err && err.isOverloaded && !isLastAttempt) {
+                        await sleep(retryDelaysMs[attempt]);
+                        continue;
+                    }
+                    throw err;
+                }
+            }
         };
 
         // --- BÚT TRA ẢNH MINH HOẠ: mở 1 cửa sổ Google Hình ảnh THẬT, đặt bên phải màn hình ---
