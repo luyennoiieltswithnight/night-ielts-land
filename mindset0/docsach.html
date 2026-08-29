@@ -62,6 +62,12 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
+    <!-- marked (Markdown -> HTML) + DOMPurify (khử trùng HTML trước khi chèn vào trang) — dùng để
+         hiện đúng định dạng (in đậm, tiêu đề ###, bảng, gạch đầu dòng, blockquote...) của câu trả
+         lời từ AI (Groq), vốn hay trả lời kèm Markdown đầy đủ chứ không chỉ có mỗi **in đậm**. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.10/lib/marked.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.14/purify.min.js"></script>
+
     <style>
         html, body {
             height: 100%;
@@ -188,6 +194,54 @@
             50% { transform: translateY(-3px); }
         }
         .animate-gentle-bounce { animation: gentleBounce 1.6s ease-in-out infinite; }
+
+        /* --- Định dạng câu trả lời Markdown của Bút AI (Groq) --- */
+        /* QUAN TRỌNG: Tailwind bản Play CDN đang dùng KHÔNG có sẵn plugin "typography" (class
+           "prose"), nên phải tự viết CSS style cho HTML do marked.js sinh ra (từ Markdown AI trả
+           về: tiêu đề ###, bảng, gạch đầu dòng, in đậm, blockquote, hr...) — nếu không sẽ hiện ra
+           đúng ngữ nghĩa HTML nhưng xấu/rối (bảng không viền, heading không rõ cấp bậc...). */
+        .ai-markdown { font-size: 0.875rem; line-height: 1.6; color: #1e293b; }
+        .ai-markdown > *:first-child { margin-top: 0; }
+        .ai-markdown > *:last-child { margin-bottom: 0; }
+        .ai-markdown h1, .ai-markdown h2, .ai-markdown h3, .ai-markdown h4 {
+            font-weight: 800; color: #0f172a; margin: 1em 0 0.4em;
+        }
+        .ai-markdown h1 { font-size: 1.15rem; }
+        .ai-markdown h2 { font-size: 1.08rem; }
+        .ai-markdown h3 { font-size: 1rem; }
+        .ai-markdown h4 { font-size: 0.9rem; }
+        .ai-markdown p { margin: 0.5em 0; }
+        .ai-markdown strong { font-weight: 800; color: #0f172a; }
+        .ai-markdown em { font-style: italic; }
+        .ai-markdown ul, .ai-markdown ol { margin: 0.5em 0; padding-left: 1.4em; }
+        .ai-markdown ul { list-style: disc; }
+        .ai-markdown ol { list-style: decimal; }
+        .ai-markdown li { margin: 0.25em 0; }
+        .ai-markdown li > ul, .ai-markdown li > ol { margin: 0.25em 0; }
+        .ai-markdown hr { border: none; border-top: 1px solid #e2e8f0; margin: 1em 0; }
+        .ai-markdown blockquote {
+            border-left: 3px solid #a78bfa; margin: 0.6em 0; padding: 0.2em 0.9em;
+            color: #475569; background: #f5f3ff; border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .ai-markdown code {
+            background: #f1f5f9; color: #7c3aed; padding: 0.1em 0.4em; border-radius: 0.35em;
+            font-size: 0.85em; font-family: ui-monospace, monospace;
+        }
+        .ai-markdown pre {
+            background: #0f172a; color: #e2e8f0; padding: 0.8em 1em; border-radius: 0.6em;
+            overflow-x: auto; margin: 0.6em 0;
+        }
+        .ai-markdown pre code { background: transparent; color: inherit; padding: 0; }
+        .ai-markdown a { color: #7c3aed; font-weight: 600; text-decoration: underline; }
+        .ai-markdown table {
+            border-collapse: collapse; width: 100%; margin: 0.7em 0; font-size: 0.82rem;
+            display: block; overflow-x: auto; white-space: nowrap;
+        }
+        .ai-markdown th, .ai-markdown td {
+            border: 1px solid #e2e8f0; padding: 0.45em 0.7em; text-align: left; white-space: normal;
+        }
+        .ai-markdown th { background: #f5f3ff; color: #4c1d95; font-weight: 800; }
+        .ai-markdown tr:nth-child(even) td { background: #fafafa; }
     </style>
 </head>
 <body>
@@ -661,18 +715,26 @@
                 setCopied(true); setTimeout(() => setCopied(false), 2000);
             };
 
-            // AI trả lời dạng Markdown đơn giản (**đậm**) — trước đây hiện thẳng ra chữ có
-            // dấu ** vì chỉ render text thô. Tách chuỗi theo cặp **...** để in đậm đúng phần đó,
-            // phần còn lại giữ nguyên (xuống dòng đã có whitespace-pre-wrap lo rồi).
-            const renderAnswerRich = (raw) => {
-                if (!raw) return null;
-                const segments = raw.split(/(\*\*[^*]+\*\*)/g);
-                return segments.map((seg, idx) => {
-                    if (seg.length > 4 && seg.startsWith('**') && seg.endsWith('**')) {
-                        return <strong key={idx} className="font-extrabold text-slate-900">{seg.slice(2, -2)}</strong>;
-                    }
-                    return <React.Fragment key={idx}>{seg}</React.Fragment>;
-                });
+            // QUAN TRỌNG — sửa lỗi "table hay mấy ### định dạng nó vẫn chưa đọc được": AI (Groq)
+            // thường trả lời bằng Markdown ĐẦY ĐỦ (tiêu đề ###, bảng |...|, gạch đầu dòng, blockquote,
+            // hr...), không chỉ mỗi **in đậm**. Cách cũ tự tách chuỗi bằng tay chỉ xử lý được đúng
+            // **in đậm**, mọi ký hiệu Markdown khác (###, |, >, ---, - , 1.) đều hiện nguyên văn ra
+            // màn hình. Sửa TẬN GỐC bằng cách dùng marked.js để chuyển toàn bộ Markdown -> HTML thật
+            // sự (đúng nghĩa bảng/tiêu đề/danh sách...), rồi DOMPurify khử trùng HTML đó trước khi
+            // chèn vào trang qua dangerouslySetInnerHTML — vì đây là nội dung do AI ngoài tạo ra
+            // (không phải do chính mình viết), luôn phải khử trùng để phòng AI vô tình/bị dẫn dụ trả
+            // về HTML/script độc hại. CSS style cho các thẻ này nằm ở class ".ai-markdown" (xem phần
+            // <style> đầu file — Tailwind Play CDN không có sẵn plugin "typography").
+            const renderAnswerHtml = (raw) => {
+                if (!raw) return { __html: '' };
+                let html;
+                try {
+                    html = window.marked ? window.marked.parse(raw) : raw.replace(/\n/g, '<br/>');
+                } catch (e) {
+                    html = raw.replace(/\n/g, '<br/>');
+                }
+                const clean = window.DOMPurify ? window.DOMPurify.sanitize(html) : html;
+                return { __html: clean };
             };
 
             return (
@@ -755,7 +817,7 @@
                                         {error && <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>}
                                         {answer && !loading && (
                                             <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-4 pr-12">
-                                                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{renderAnswerRich(answer)}</p>
+                                                <div className="ai-markdown" dangerouslySetInnerHTML={renderAnswerHtml(answer)}></div>
                                                 <button onClick={handleCopyAnswer} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white transition-colors border border-violet-100">
                                                     <i className={copied ? "fas fa-check text-green-500" : "fas fa-copy"}></i>
                                                 </button>
