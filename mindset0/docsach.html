@@ -2426,36 +2426,39 @@
             // Sửa lại: CHỈ gắn các listener này khi "Khoá zoom" thực sự đang BẬT — mặc định (TẮT) sẽ
             // không có bất kỳ listener chặn cảm ứng nào chạy cả, viết bằng bút mượt như trước khi có
             // tính năng Khoá zoom này.
+            //
+            // QUAN TRỌNG (tái phát) — "đang viết thì màn hình đứng lại, phải đợi/thao tác gì đó mới
+            // trở lại bình thường": hoá ra fix ở trên CHỈ giải quyết được TRƯỜNG HỢP MẶC ĐỊNH (Khoá
+            // zoom đang TẮT). Khi người dùng chủ động BẬT "Khoá zoom" lên (đúng lúc đang cần viết/note
+            // ổn định, tránh lỡ tay tỳ làm zoom — tức là NGAY LÚC hay bị dính bug nhất!), 2 listener
+            // "onTouchMove" (chặn pinch 2 ngón) và "onTouchEnd" (chặn double-tap-zoom) bên dưới lại bị
+            // gắn vào NGAY document, vẫn là touchmove/touchend thô + passive:false — dựng lại NGUYÊN
+            // VẸN đúng kiểu xung đột với Pointer Events (vẽ bằng bút) đã mô tả ở trên, khiến bug tái
+            // phát đúng lúc "Khoá zoom" đang bật. Sửa: BỎ HẲN 2 listener touchmove/touchend thô này —
+            // không thực sự cần thiết nữa vì: (1) chặn pinch 2 ngón đã có "gesturestart/change/end"
+            // bên dưới lo rồi (đây là sự kiện pinch RIÊNG của Safari, không đụng tới luồng touch/pointer
+            // dùng để vẽ nên không xung đột với bút), và (2) chặn double-tap-to-zoom vốn dĩ KHÔNG CẦN
+            // THIẾT trên trang này nữa — meta viewport đầu file đã có "width=device-width" nên Safari
+            // hiện đại tự động BỎ HẲN cử chỉ double-tap-to-zoom cho trang kiểu này rồi (chỉ các trang
+            // không khai báo viewport mới còn giữ cử chỉ đó). Giữ lại ĐÚNG "gesturestart/change/end" —
+            // vẫn chặn được pinch-zoom cả trang khi 2 ngón chạm ngoài vùng PDF, mà không đụng gì tới
+            // việc viết bằng Apple Pencil.
             useEffect(() => {
                 if (!zoomLocked) return;
 
-                let lastTouchEnd = 0;
-
-                // Safari bắn các sự kiện "gesture*" riêng khi chụm/mở 2 ngón — chặn hẳn.
+                // Safari bắn các sự kiện "gesture*" riêng khi chụm/mở 2 ngón — chặn hẳn. Đây là sự
+                // kiện pinch RIÊNG của Safari (khác hẳn touchmove/touchend thô), không cạnh tranh với
+                // luồng Pointer Events dùng để vẽ nên an toàn để chặn ngay cả khi đang viết.
                 const onGesture = (e) => { e.preventDefault(); };
-                // Chặn pinch-zoom bằng 2 ngón tay (không ảnh hưởng cuộn/vẽ 1 ngón hay bút Apple Pencil).
-                const onTouchMove = (e) => {
-                    if (e.touches && e.touches.length > 1) e.preventDefault();
-                };
-                // Chặn double-tap-to-zoom (chạm nhanh 2 lần liên tiếp).
-                const onTouchEnd = (e) => {
-                    const now = Date.now();
-                    if (now - lastTouchEnd <= 300) e.preventDefault();
-                    lastTouchEnd = now;
-                };
 
                 document.addEventListener('gesturestart', onGesture, { passive: false });
                 document.addEventListener('gesturechange', onGesture, { passive: false });
                 document.addEventListener('gestureend', onGesture, { passive: false });
-                document.addEventListener('touchmove', onTouchMove, { passive: false });
-                document.addEventListener('touchend', onTouchEnd, { passive: false });
 
                 return () => {
                     document.removeEventListener('gesturestart', onGesture);
                     document.removeEventListener('gesturechange', onGesture);
                     document.removeEventListener('gestureend', onGesture);
-                    document.removeEventListener('touchmove', onTouchMove);
-                    document.removeEventListener('touchend', onTouchEnd);
                 };
             }, [zoomLocked]);
 
