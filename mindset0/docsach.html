@@ -610,6 +610,149 @@
             );
         };
 
+        // --- BOX BÚT AI: hiện chữ vừa quét + các nút prompt có sẵn + câu trả lời từ Gemini ---
+        // Không dùng React.memo cho component này (giống MagicTranslationBar ở trên) — nó có state nội
+        // bộ (câu trả lời, đang tải...) tự quản lý theo đúng prop `info` truyền vào, không cần tối ưu
+        // re-render vì chỉ có 1 bản duy nhất hiện tại 1 thời điểm (không lặp lại hàng chục lần như
+        // PdfPage/PdfThumbnail/PdfTextBox nên không cần React.memo).
+        const AIPanel = ({ info, apiKey, onClose, onOpenSettings }) => {
+            const [loading, setLoading] = useState(false);
+            const [answer, setAnswer] = useState('');
+            const [error, setError] = useState('');
+            const [activeLabel, setActiveLabel] = useState('');
+            const [showCustomInput, setShowCustomInput] = useState(false);
+            const [customQuestion, setCustomQuestion] = useState('');
+            const [copied, setCopied] = useState(false);
+
+            const text = info && info.text;
+            const ocrLoading = info && info.ocrLoading;
+
+            // Quét chữ MỚI (đoạn text đổi) -> dọn sạch câu trả lời/lựa chọn cũ, tránh hiểu nhầm câu trả
+            // lời cũ vẫn đang nói về đoạn chữ mới vừa quét.
+            useEffect(() => {
+                setAnswer(''); setError(''); setActiveLabel(''); setShowCustomInput(false); setCustomQuestion('');
+            }, [text]);
+
+            if (!info) return null;
+
+            const runPrompt = async (label, promptText) => {
+                if (!apiKey) { onOpenSettings(); return; }
+                setLoading(true); setError(''); setAnswer(''); setActiveLabel(label);
+                try {
+                    const result = await callGeminiAPI(apiKey, promptText);
+                    setAnswer(result);
+                } catch (err) {
+                    setError(err && err.message ? err.message : 'Có lỗi khi hỏi AI, thử lại nhé.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            const handlePreset = (opt) => runPrompt(opt.label, opt.buildPrompt(text));
+            const handleCustomAsk = () => {
+                const q = customQuestion.trim();
+                if (!q) return;
+                runPrompt('Khác', q + '\n\nNgữ cảnh liên quan (đoạn vừa quét được):\n"' + text + '"');
+            };
+            const handleCopyAnswer = () => {
+                navigator.clipboard.writeText(answer);
+                setCopied(true); setTimeout(() => setCopied(false), 2000);
+            };
+
+            return (
+                <div className="w-full glass-panel rounded-2xl flex flex-col overflow-hidden shadow-2xl border-2 border-violet-100">
+                    <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 shrink-0 flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-violet-600 tracking-wide flex items-center gap-1.5 uppercase">
+                            <i className="fas fa-robot"></i> Bút AI
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button onClick={onOpenSettings} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" title="Cài đặt API key Gemini">
+                                <i className="fas fa-gear text-sm"></i>
+                            </button>
+                            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors bg-white border border-slate-200">
+                                <i className="fas fa-times text-md"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="p-5 bg-white flex-1 space-y-4 max-h-[65vh] overflow-y-auto">
+                        {ocrLoading ? (
+                            <div className="flex items-center justify-center gap-3 text-violet-600 py-4">
+                                <i className="fas fa-circle-notch fa-spin text-2xl"></i>
+                                <span className="font-bold text-sm">Đang quét chữ (OCR)...</span>
+                            </div>
+                        ) : (
+                            <React.Fragment>
+                                <p className="font-bold text-slate-800 text-[16px] leading-relaxed">{text}</p>
+
+                                {!apiKey ? (
+                                    <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 text-sm text-violet-700 space-y-2">
+                                        <p>Chưa có API key Gemini. Nhập key (miễn phí, lấy ở Google AI Studio) để dùng bút AI.</p>
+                                        <button onClick={onOpenSettings} className="px-3 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95">
+                                            Nhập API key ngay
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <React.Fragment>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {AI_PRESET_OPTIONS.map(opt => (
+                                                <button
+                                                    key={opt.key}
+                                                    onClick={() => handlePreset(opt)}
+                                                    disabled={loading}
+                                                    className={"px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 justify-center transition-all active:scale-95 border " + (activeLabel === opt.label ? 'bg-violet-500 text-white border-violet-500' : 'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100') + (loading ? ' opacity-60 cursor-not-allowed' : '')}
+                                                >
+                                                    <i className={"fas " + opt.icon}></i> {opt.label}
+                                                </button>
+                                            ))}
+                                            <button
+                                                onClick={() => setShowCustomInput(v => !v)}
+                                                disabled={loading}
+                                                className={"px-3 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 justify-center transition-all active:scale-95 border " + (activeLabel === 'Khác' ? 'bg-violet-500 text-white border-violet-500' : 'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100') + (loading ? ' opacity-60 cursor-not-allowed' : '')}
+                                            >
+                                                <i className="fas fa-ellipsis"></i> Khác
+                                            </button>
+                                        </div>
+
+                                        {showCustomInput && (
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={customQuestion}
+                                                    onChange={(e) => setCustomQuestion(e.target.value)}
+                                                    onKeyDown={(e) => { if (e.key === 'Enter') handleCustomAsk(); }}
+                                                    placeholder="Nhập câu hỏi của bạn về đoạn này..."
+                                                    className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 outline-none focus:border-violet-400"
+                                                />
+                                                <button onClick={handleCustomAsk} disabled={loading || !customQuestion.trim()} className="px-3 py-2 bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all active:scale-95 shrink-0">
+                                                    Hỏi
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {loading && (
+                                            <div className="flex items-center justify-center gap-3 text-violet-600 py-4">
+                                                <i className="fas fa-circle-notch fa-spin text-2xl"></i>
+                                                <span className="font-bold text-sm">AI đang trả lời...</span>
+                                            </div>
+                                        )}
+                                        {error && <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>}
+                                        {answer && !loading && (
+                                            <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-4 pr-12">
+                                                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{answer}</p>
+                                                <button onClick={handleCopyAnswer} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white transition-colors border border-violet-100">
+                                                    <i className={copied ? "fas fa-check text-green-500" : "fas fa-copy"}></i>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </React.Fragment>
+                                )}
+                            </React.Fragment>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
         // --- COMPONENT TEXT BOX THÔNG MINH CÓ 3 NÚM RESIZE ---
         const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText }) {
             const [active, setActive] = useState(true);
@@ -902,6 +1045,9 @@
             // 1 viền mảnh để người dùng thấy rõ vùng mình đang chọn — không còn tô phủ dày trong suốt nữa.
             ipa: { color: '#38BDF8', width: () => 2, alpha: 0.95, dash: [6, 4], useColorProp: false },
             photo: { color: '#FB7185', width: () => 2, alpha: 0.95, dash: [6, 4], useColorProp: false },
+            // Bút AI: cùng kiểu viền mảnh đứt nét với Magic/IPA/tra ảnh (dễ phân biệt khỏi bút chì tô
+            // đặc), riêng màu tím để khớp với màu chủ đạo của Box Bút AI (violet).
+            ai: { color: '#8B5CF6', width: () => 2, alpha: 0.95, dash: [6, 4], useColorProp: false },
             // Độ dày bút chì giờ lấy từ "pencilSize" (chọn được qua 3 nút chấm tròn trên thanh công
             // cụ khi đang dùng bút chì) thay vì cố định — mặc định vẫn y hệt độ dày cũ (2).
             pencil: { width: (s, pencilSizeVal) => (pencilSizeVal || DEFAULT_PENCIL_SIZE) * s, alpha: 0.6, dash: [], useColorProp: true },
@@ -980,6 +1126,60 @@
             return match ? match[0].toLowerCase() : '';
         };
 
+        // --- BÚT AI: quét chữ xong, hiện các gợi ý prompt có sẵn, gọi Gemini API (Google AI Studio) ---
+        // QUAN TRỌNG: app này là 1 file HTML tĩnh, không có server riêng, nên API key được người dùng tự
+        // nhập 1 lần và LƯU THẲNG vào localStorage của trình duyệt (chỉ tồn tại trên đúng máy/trình duyệt
+        // đó — dùng cả Mac lẫn iPad thì mỗi máy phải nhập riêng 1 lần) — gọi Gemini TRỰC TIẾP từ trình
+        // duyệt bằng fetch(), không qua server trung gian nào (Gemini cho phép gọi kiểu này, khác OpenAI
+        // vốn khuyến cáo phải có backend riêng). Vì đây là công cụ dùng cá nhân, không chia sẻ/host công
+        // khai, nên chấp nhận đánh đổi này để đơn giản hoá tối đa (không cần dựng thêm server).
+        const AI_STORAGE_KEY = 'nightIeltsGeminiApiKey';
+        // gemini-2.0-flash: nằm trong gói MIỄN PHÍ của Google AI Studio (tính tới thời điểm code này
+        // được viết), tốc độ nhanh, đủ dùng cho các câu hỏi ngắn kiểu gia sư — có thể đổi sang model khác
+        // (vd gemini-2.5-flash) sau này nếu Google đổi chính sách, chỉ cần sửa đúng 1 dòng này.
+        const GEMINI_MODEL = 'gemini-2.0-flash';
+        // 5 prompt có sẵn theo đúng yêu cầu — bấm là chạy luôn, không cần gõ gì thêm (trừ "Khác").
+        // buildPrompt nhận vào đúng đoạn chữ vừa quét được, trả về câu prompt đầy đủ gửi cho Gemini.
+        const AI_PRESET_OPTIONS = [
+            {
+                key: 'explain', label: 'Giải thích sâu hơn', icon: 'fa-lightbulb',
+                buildPrompt: (t) => 'Bạn là gia sư IELTS giàu kinh nghiệm. Hãy giải thích ngắn gọn, dễ hiểu ý nghĩa/ngữ pháp/cách dùng của đoạn văn bản tiếng Anh sau, trả lời bằng tiếng Việt (có thể chèn ví dụ tiếng Anh ngắn nếu cần):\n\n"' + t + '"',
+            },
+            {
+                key: 'answer', label: 'Gợi ý trả lời', icon: 'fa-comment-dots',
+                buildPrompt: (t) => 'Bạn là gia sư IELTS. Đoạn sau có thể là 1 câu hỏi hoặc đề bài IELTS. Hãy gợi ý ngắn gọn hướng trả lời/cách tiếp cận (không cần viết đáp án đầy đủ), trả lời bằng tiếng Việt:\n\n"' + t + '"',
+            },
+            {
+                key: 'mnemonic', label: 'Mẹo nhớ', icon: 'fa-brain',
+                buildPrompt: (t) => 'Bạn là gia sư IELTS. Hãy đưa ra 1-2 mẹo hoặc cách liên tưởng thú vị để nhớ lâu từ/cụm từ/nội dung tiếng Anh sau, trả lời ngắn gọn bằng tiếng Việt:\n\n"' + t + '"',
+            },
+            {
+                key: 'sentence', label: 'Đặt câu ví dụ', icon: 'fa-pen-nib',
+                buildPrompt: (t) => 'Bạn là gia sư IELTS. Hãy đặt 2 câu tiếng Anh trình độ band 6.5-7.5 có dùng từ/cụm từ sau, kèm dịch nghĩa tiếng Việt ngắn gọn cho mỗi câu:\n\n"' + t + '"',
+            },
+        ];
+        const callGeminiAPI = async (apiKey, promptText) => {
+            const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+            });
+            if (!res.ok) {
+                let detail = '';
+                try { const errJson = await res.json(); detail = errJson && errJson.error && errJson.error.message ? errJson.error.message : ''; } catch (e) {}
+                if (res.status === 400 || res.status === 403) throw new Error('API key không hợp lệ hoặc chưa được cấp quyền. Kiểm tra lại key trong Cài đặt.');
+                if (res.status === 429) throw new Error('Đã vượt hạn mức miễn phí của Gemini trong khoảng thời gian này, thử lại sau ít phút nhé.');
+                throw new Error('Lỗi gọi Gemini API (HTTP ' + res.status + ')' + (detail ? ': ' + detail : '') + '.');
+            }
+            const data = await res.json();
+            const candidate = data && data.candidates && data.candidates[0];
+            const parts = candidate && candidate.content && candidate.content.parts;
+            const answer = parts ? parts.map(p => p.text || '').join('').trim() : '';
+            if (!answer) throw new Error('Gemini không trả về câu trả lời nào (có thể nội dung bị chặn bởi bộ lọc an toàn).');
+            return answer;
+        };
+
         // --- BÚT TRA ẢNH MINH HOẠ: mở 1 cửa sổ Google Hình ảnh THẬT, đặt bên phải màn hình ---
         // Vì Google chặn nhúng (iframe) trang kết quả của họ vào web khác, cách khả thi & đúng ý
         // "cửa sổ nằm bên phải, hình chữ nhật đứng to" là mở 1 popup window thật với kích thước/
@@ -1049,7 +1249,7 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, pencilShapeMode, eraserShapeMode, penStability, penGlowColor, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, forceVisible, onRenderedForExport }) {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, aiShapeMode, pencilShapeMode, eraserShapeMode, penStability, penGlowColor, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, onAILookup, forceVisible, onRenderedForExport }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -1378,9 +1578,10 @@
                 // nhật (tiện dùng chuột/trackpad trên Mac), LUÔN LUÔN với bút IPA / tra ảnh (2 bút
                 // này giờ chỉ còn 1 cơ chế chọn vùng duy nhất — kéo-thả ô chữ nhật — thay cho kiểu bút
                 // highlight quét ngang trước đây, để chọn trúng khít đúng phần chữ cần, không mất nét),
-                // và giờ thêm cả bút chì khi bật chế độ "Hình chữ nhật" (pencilShapeMode) — dùng
-                // CHUNG code vẽ khung chữ nhật này, chỉ khác ở bước lưu strokeRef không phục vụ OCR.
-                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
+                // và giờ thêm cả bút chì khi bật chế độ "Hình chữ nhật" (pencilShapeMode), cùng bút AI
+                // khi bật chế độ "Hình chữ nhật" (aiShapeMode, y hệt cơ chế của bút Magic) — dùng CHUNG
+                // code vẽ khung chữ nhật này, chỉ khác ở bước lưu strokeRef không phục vụ OCR.
+                if ((tool === 'magic' && magicShapeMode === 'rect') || (tool === 'ai' && aiShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
                     currentStrokeRef.current = { id: Date.now(), tool, color, shape: 'rect', points: [coords, coords] };
                     return;
                 }
@@ -1438,7 +1639,7 @@
 
                 if (!currentStrokeRef.current) return;
 
-                if ((tool === 'magic' && magicShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
+                if ((tool === 'magic' && magicShapeMode === 'rect') || (tool === 'ai' && aiShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
                     // Cập nhật góc đối diện của khung chữ nhật và vẽ lại toàn bộ canvas — chi phí
                     // rẻ vì số nét lưu trên 1 trang thường ít, vẫn mượt ở cả Mac lẫn iPad.
                     currentStrokeRef.current.points[1] = coords;
@@ -1517,6 +1718,22 @@
                     currentStrokeRef.current = null;
                     redrawStrokes();
                     performMagicOCR(strokeToOCR);
+                    return;
+                }
+
+                // Bút AI: y hệt cơ chế của bút Magic (hỗ trợ cả 2 kiểu chọn vùng — tự do lẫn hình chữ
+                // nhật, qua aiShapeMode), chỉ khác ở bước sau OCR: không dịch/không mở cửa sổ ngoài, mà
+                // báo kết quả về App qua onAILookup để hiện lên Box Bút AI (chọn prompt có sẵn rồi hỏi
+                // Gemini) — xem performAIOCR.
+                if (tool === 'ai') {
+                    if (aiShapeMode === 'rect') {
+                        const [p1, p2] = currentStrokeRef.current.points;
+                        currentStrokeRef.current.points = rectPointsFromDiagonal(p1, p2);
+                    }
+                    const strokeToOCR = currentStrokeRef.current;
+                    currentStrokeRef.current = null;
+                    redrawStrokes();
+                    performAIOCR(strokeToOCR);
                     return;
                 }
 
@@ -1621,6 +1838,16 @@
                 onExtractText("", true);
                 const text = await runOCROnBounds(bounds);
                 onExtractText(text, false);
+            };
+
+            // Bút AI: quét chữ y hệt bút Magic, chỉ khác ở việc báo kết quả về đúng state riêng của bút
+            // AI (onAILookup) thay vì onExtractText (state đó dành cho box dịch của bút Magic).
+            const performAIOCR = async (stroke) => {
+                const bounds = getStrokeBounds(stroke);
+                if (!bounds) return;
+                if (onAILookup) onAILookup("", true);
+                const text = await runOCROnBounds(bounds);
+                if (onAILookup) onAILookup(text, false);
             };
 
             const performIPAOCR = async (stroke, popupWin) => {
@@ -1765,6 +1992,9 @@
             // trường hợp quét chữ; vẫn có thể đổi sang "Tự do" (vẽ tay/khoanh vùng bất kỳ) qua nút
             // chọn kiểu khoanh vùng trên thanh công cụ khi cần.
             const [magicShapeMode, setMagicShapeMode] = useState('rect'); // 'rect' (hình chữ nhật, mặc định) | 'lasso' (tự do)
+            // Bút AI: y hệt kiểu chọn vùng của bút Magic (mặc định "Hình chữ nhật" cho nhanh, đổi được
+            // sang "Tự do" qua thanh tuỳ chọn phụ — bấm đúp vào nút bút AI).
+            const [aiShapeMode, setAiShapeMode] = useState('rect'); // 'rect' (mặc định) | 'lasso' (tự do)
             // Chế độ vẽ cho bút chì: 'freehand' (vẽ tay, mặc định — giữ nguyên như trước giờ) hoặc
             // 'rect' (kéo-thả khung hình chữ nhật, dùng chung logic với bút Magic/IPA/tra ảnh —
             // xem redrawStrokes/handlePointerDown/Move trong PdfPage, đều xử lý "shape: 'rect'" theo
@@ -1830,6 +2060,21 @@
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
             const [ipaInfo, setIpaInfo] = useState(null); // { word } — chỉ còn đúng từ vừa quét, không tra IPA/API ngoài nữa
             const [photoLookup, setPhotoLookup] = useState(null); // { text } — bút tra ảnh minh hoạ
+
+            // --- BÚT AI (Gemini) ---
+            // aiApiKey: đọc 1 lần từ localStorage lúc khởi tạo (lazy init qua callback trong useState,
+            // tránh phải đọc localStorage lại mỗi lần App render). Chỉ tồn tại trên đúng máy/trình duyệt
+            // này — dùng cả Mac lẫn iPad thì mỗi máy cần nhập riêng 1 lần (xem giải thích ở AI_STORAGE_KEY).
+            const [aiApiKey, setAiApiKey] = useState(() => {
+                try { return localStorage.getItem(AI_STORAGE_KEY) || ''; } catch (e) { return ''; }
+            });
+            const [showAiKeyModal, setShowAiKeyModal] = useState(false);
+            const [aiApiKeyDraft, setAiApiKeyDraft] = useState(''); // nội dung đang gõ dở trong modal, tách khỏi aiApiKey thật để bấm Huỷ không làm mất key cũ
+            const openAiSettings = useCallback(() => {
+                setAiApiKeyDraft(aiApiKey);
+                setShowAiKeyModal(true);
+            }, [aiApiKey]);
+            const [aiLookup, setAiLookup] = useState(null); // { text, ocrLoading } — box Bút AI
 
             const [showTOC, setShowTOC] = useState(false);
             // --- TÍNH NĂNG XUẤT PDF (xuất tất cả trang hoặc chỉ các trang được chọn trong mục lục) ---
@@ -2404,6 +2649,19 @@
                 setPhotoLookup({ text: clean });
             }, []);
 
+            // Bút AI: theo đúng dạng "onExtractText(text, processing)" đã quen thuộc trong app — gọi
+            // với processing=true ngay khi bắt đầu OCR (hiện spinner "Đang quét chữ..." trong Box Bút
+            // AI), rồi gọi lại với processing=false kèm text thật khi xong.
+            const onAILookup = useCallback((text, processing) => {
+                if (processing) { setAiLookup({ text: '', ocrLoading: true }); return; }
+                const clean = (text || '').trim();
+                if (!clean || clean === "Không tìm thấy chữ trong vùng chọn." || clean === "Lỗi nhận diện chữ.") {
+                    setAiLookup(null);
+                    return;
+                }
+                setAiLookup({ text: clean, ocrLoading: false });
+            }, []);
+
             return (
                 <div
                     className="flex h-screen w-full font-sans bg-slate-100 overflow-hidden"
@@ -2446,6 +2704,68 @@
                             <button onClick={() => setPhotoLookup(null)} className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors bg-white border border-slate-200">
                                 <i className="fas fa-times text-xs"></i>
                             </button>
+                        </div>
+                    )}
+
+                    {/* Box Bút AI — hiện chữ vừa quét + các nút prompt có sẵn (Gemini). Đặt cùng vị trí
+                        canh giữa/cách đỉnh với box dịch của bút Magic, vì cũng là 1 kết quả OCR hiện
+                        ngay sau khi quét — nhưng KHÔNG lồng chung khung với box dịch (2 bút độc lập,
+                        không bao giờ cùng hiện 1 lúc vì chỉ 1 tool đang được chọn tại 1 thời điểm). */}
+                    {aiLookup && (
+                        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-xl animate-slide-down">
+                            <AIPanel info={aiLookup} apiKey={aiApiKey} onClose={() => setAiLookup(null)} onOpenSettings={openAiSettings} />
+                        </div>
+                    )}
+
+                    {/* Modal nhập/xoá API key Gemini cho Bút AI — mở từ nút bánh răng trong Box Bút AI,
+                        hoặc từ thanh tuỳ chọn phụ của bút AI (bấm đúp vào nút bút AI). Key lưu thẳng vào
+                        localStorage của trình duyệt này (xem giải thích chi tiết ở AI_STORAGE_KEY). */}
+                    {showAiKeyModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={() => setShowAiKeyModal(false)}>
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-modal-pop" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                                        <i className="fas fa-key text-violet-500"></i> API Key Gemini
+                                    </h3>
+                                    <button onClick={() => setShowAiKeyModal(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <p className="text-sm text-slate-500 leading-relaxed">
+                                    Lấy API key miễn phí tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violet-600 font-semibold underline">Google AI Studio</a>, dán vào đây. Key được lưu ngay trên trình duyệt này, không gửi đi đâu ngoài Google — nếu dùng thêm trên máy khác (vd chuyển từ Mac sang iPad) cần dán lại key ở đó riêng.
+                                </p>
+                                <input
+                                    type="password"
+                                    value={aiApiKeyDraft}
+                                    onChange={(e) => setAiApiKeyDraft(e.target.value)}
+                                    placeholder="Dán API key vào đây..."
+                                    className="w-full text-sm border border-slate-300 rounded-xl px-4 py-3 outline-none focus:border-violet-400"
+                                />
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => {
+                                            const trimmed = aiApiKeyDraft.trim();
+                                            setAiApiKey(trimmed);
+                                            try { localStorage.setItem(AI_STORAGE_KEY, trimmed); } catch (e) {}
+                                            setShowAiKeyModal(false);
+                                        }}
+                                        className="flex-1 px-4 py-3 bg-violet-500 hover:bg-violet-600 text-white rounded-xl text-sm font-bold transition-all active:scale-95"
+                                    >
+                                        Lưu
+                                    </button>
+                                    {aiApiKey && (
+                                        <button
+                                            onClick={() => {
+                                                setAiApiKey(''); setAiApiKeyDraft('');
+                                                try { localStorage.removeItem(AI_STORAGE_KEY); } catch (e) {}
+                                            }}
+                                            className="px-4 py-3 bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 rounded-xl text-sm font-bold transition-all active:scale-95"
+                                        >
+                                            Xoá key
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -2642,6 +2962,10 @@
                                             <i className="fas fa-images text-md"></i>
                                         </button>
 
+                                        <button onClick={() => handleToolButtonClick('ai')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'ai' ? 'bg-violet-100 text-violet-600 shadow-inner' : 'text-violet-500 hover:bg-slate-200 hover:text-violet-600')} title="Bút AI: Quét chữ rồi hỏi Gemini (giải thích/gợi ý trả lời/mẹo nhớ/đặt câu...) — bấm đúp để chọn kiểu khoanh vùng & API key">
+                                            <i className="fas fa-robot text-md"></i>
+                                        </button>
+
                                         <button onClick={() => handleToolButtonClick('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-rose-100 text-rose-600 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút Present: nét trắng viền glow màu, tự mờ dần và biến mất sau 1.5 giây — dùng để khoanh/nhấn mạnh tạm thời lúc giảng bài (bấm đúp để chọn màu glow/độ ổn định)"><i className="fas fa-highlighter text-md"></i></button>
                                         <button onClick={() => handleToolButtonClick('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text (bấm đúp để chọn cỡ chữ)"><i className="fas fa-font text-md"></i></button>
                                         <button onClick={() => handleToolButtonClick('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ (bấm đúp để chọn kiểu tẩy)"><i className="fas fa-eraser text-md"></i></button>
@@ -2653,7 +2977,7 @@
                                             màu đang chọn (isCustomColorActive) mỗi khi đó là màu tuỳ chỉnh (không
                                             trùng 1 trong các màu có sẵn) — trước đây ô này luôn chỉ là viền chấm chấm
                                             trống, chọn màu xong không có phản hồi thị giác nào là đã áp dụng màu đó. */}
-                                        <div className={"flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm " + ((tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'pen') ? 'opacity-40 pointer-events-none' : '')} title="Chọn màu bút">
+                                        <div className={"flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm " + ((tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'pen' || tool === 'ai') ? 'opacity-40 pointer-events-none' : '')} title="Chọn màu bút">
                                             {PRESET_COLORS.map(c => (
                                                 <button
                                                     key={c}
@@ -2674,7 +2998,7 @@
                                                         title={isCustomColorActive ? ('Màu tuỳ chỉnh đang chọn: ' + color) : 'Màu tuỳ chỉnh'}
                                                     >
                                                         <i className={"fas fa-eye-dropper text-[9px] pointer-events-none " + (isCustomColorActive ? 'text-white drop-shadow' : 'text-slate-400')}></i>
-                                                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'pen'} />
+                                                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'pen' || tool === 'ai'} />
                                                     </label>
                                                 );
                                             })()}
@@ -2801,6 +3125,28 @@
                                             </div>
                                         )}
 
+                                        {tool === 'ai' && (
+                                            <React.Fragment>
+                                                <div className="flex items-center gap-1" title="Kiểu khoanh vùng">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Kiểu</span>
+                                                    <button onClick={() => setAiShapeMode('lasso')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (aiShapeMode === 'lasso' ? 'bg-violet-100 text-violet-600' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
+                                                        <i className="fas fa-signature text-xs"></i>
+                                                    </button>
+                                                    <button onClick={() => setAiShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (aiShapeMode === 'rect' ? 'bg-violet-100 text-violet-600' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — tiện cho Mac/trackpad)">
+                                                        <i className="fas fa-vector-square text-xs"></i>
+                                                    </button>
+                                                </div>
+                                                <div className="w-px h-5 bg-slate-200"></div>
+                                                <button
+                                                    onClick={openAiSettings}
+                                                    className={"px-3 h-8 rounded-full flex items-center gap-1.5 text-xs font-bold transition-colors whitespace-nowrap border " + (aiApiKey ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100')}
+                                                    title="Cài đặt API key Gemini cho Bút AI"
+                                                >
+                                                    <i className="fas fa-key text-[10px]"></i> {aiApiKey ? 'Đã có API key' : 'Chưa có API key'}
+                                                </button>
+                                            </React.Fragment>
+                                        )}
+
                                         {tool === 'text' && (
                                             <div className="flex items-center gap-1" title="Kích cỡ chữ Text">
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Cỡ chữ</span>
@@ -2831,7 +3177,7 @@
                                     <button
                                         onClick={() => {
                                             setIsDrawingMode(!isDrawingMode);
-                                            if(!isDrawingMode && (tool==='magic' || tool==='ipa' || tool==='photo')) setTool('pencil');
+                                            if(!isDrawingMode && (tool==='magic' || tool==='ipa' || tool==='photo' || tool==='ai')) setTool('pencil');
                                             unlockAudio();
                                         }}
                                         className={"px-5 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2 " + (isDrawingMode ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm')}
@@ -2874,6 +3220,7 @@
                                         isDrawingMode={isDrawingMode}
                                         tool={tool}
                                         magicShapeMode={magicShapeMode}
+                                        aiShapeMode={aiShapeMode}
                                         pencilShapeMode={pencilShapeMode}
                                         eraserShapeMode={eraserShapeMode}
                                         penStability={penStability}
@@ -2885,6 +3232,7 @@
                                         onExtractText={onExtractText}
                                         onIPALookup={onIPALookup}
                                         onPhotoLookup={onPhotoLookup}
+                                        onAILookup={onAILookup}
                                         forceVisible={forcedVisiblePage === index + 1}
                                         onRenderedForExport={handlePageRenderedForExport}
                                     />
