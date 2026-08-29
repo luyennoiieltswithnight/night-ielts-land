@@ -1160,10 +1160,16 @@
         // thích định dạng OpenAI (Authorization: Bearer <key>, body {model, messages}), khác hẳn Gemini
         // (key nằm trên query string, body {contents}) — nên toàn bộ hàm gọi API bên dưới đã viết lại.
         const AI_STORAGE_KEY = 'nightIeltsGroqApiKey';
-        // Model Llama miễn phí, chất lượng tốt cho việc hỏi-đáp/giải thích/gia sư — nếu sau này Groq đổi
-        // tên/khai tử model này, chỉ cần sửa đúng 1 dòng này (xem danh sách model mới nhất tại
-        // console.groq.com/docs/models).
-        const GROQ_MODEL = 'llama-3.3-70b-versatile';
+        // QUAN TRỌNG: khác với Gemini (có alias "gemini-flash-latest" tự trỏ tới model mới nhất), Groq
+        // KHÔNG có alias kiểu "latest" — mỗi model có 1 tên cố định và Groq công bố ngày "khai tử" cứng
+        // trên trang console.groq.com/docs/deprecations, hết hạn là gọi lỗi 404 luôn, không tự chuyển
+        // hướng. (Thực tế đã gặp: llama-3.3-70b-versatile bị khai tử khỏi gói miễn phí từ 16/8/2026.)
+        // Để đỡ phải sửa code mỗi lần Groq đổi model, liệt kê ở đây MỘT DÃY model theo thứ tự ưu tiên —
+        // callGroqAPI bên dưới sẽ tự động thử model kế tiếp trong danh sách nếu model hiện tại báo lỗi
+        // 404 "does not exist" (bị khai tử/đổi tên), không cần người dùng làm gì cả. Nếu sau này TẤT CẢ
+        // các model trong danh sách đều bị khai tử hết thì mới cần vào console.groq.com/docs/models coi
+        // model mới nhất rồi thêm/sửa vào danh sách này.
+        const GROQ_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
         // 5 prompt có sẵn theo đúng yêu cầu — bấm là chạy luôn, không cần gõ gì thêm (trừ "Khác").
         // buildPrompt nhận vào đúng đoạn chữ vừa quét được, trả về câu prompt đầy đủ gửi cho AI.
         const AI_PRESET_OPTIONS = [
@@ -1191,7 +1197,7 @@
         // "Authorization: Bearer <key>" (khác Gemini để key trên query string), body {model, messages:
         // [{role, content}]}, kết quả nằm ở data.choices[0].message.content (khác Gemini là
         // data.candidates[0].content.parts[...].text).
-        const callGroqAPIOnce = async (apiKey, promptText) => {
+        const callGroqAPIOnce = async (apiKey, promptText, model) => {
             const url = 'https://api.groq.com/openai/v1/chat/completions';
             // QUAN TRỌNG — sửa lỗi "AI đang trả lời... cứ load mãi không ra kết quả lẫn không báo lỗi":
             // trước đây fetch() không có giới hạn thời gian nào cả — nếu request bị treo (mất mạng
@@ -1213,7 +1219,7 @@
                         'Authorization': 'Bearer ' + apiKey,
                     },
                     body: JSON.stringify({
-                        model: GROQ_MODEL,
+                        model: model,
                         messages: [{ role: 'user', content: promptText }],
                     }),
                     signal: controller.signal,
@@ -1231,6 +1237,15 @@
                 try { const errJson = await res.json(); detail = errJson && errJson.error && errJson.error.message ? errJson.error.message : ''; } catch (e) {}
                 if (res.status === 401 || res.status === 403) throw new Error('API key Groq không hợp lệ hoặc chưa được cấp quyền. Kiểm tra lại key trong Cài đặt.');
                 if (res.status === 429) throw new Error('Đã vượt hạn mức miễn phí của Groq trong khoảng thời gian này, thử lại sau ít phút nhé.');
+                if (res.status === 404) {
+                    // QUAN TRỌNG — Groq hay "khai tử cứng" model (không có alias tự chuyển hướng như
+                    // Gemini): model bị gỡ là gọi thẳng lỗi 404 "does not exist" ngay lập tức, không tự
+                    // dùng model khác thay thế. Đánh dấu isModelMissing để callGroqAPI bên dưới tự động
+                    // thử model KẾ TIẾP trong danh sách GROQ_MODELS, không bắt người dùng phải biết/sửa.
+                    const errModelMissing = new Error('Model Groq "' + model + '" không còn khả dụng.');
+                    errModelMissing.isModelMissing = true;
+                    throw errModelMissing;
+                }
                 if (res.status >= 500) {
                     const errOverload = new Error('Máy chủ Groq đang quá tải, đã thử lại vài lần nhưng vẫn chưa được — thử lại sau ít phút nhé.');
                     errOverload.isOverloaded = true;
@@ -1253,17 +1268,33 @@
         // lập tức, không mất thời gian retry vô ích.
         // onRetry (tuỳ chọn): callback(lầnThửHiệnTại, tổngSốLần) — để UI hiện "đang thử lại lần X/Y"
         // thay vì chỉ hiện "AI đang trả lời..." im lìm suốt cả quãng chờ retry, tránh cảm giác treo.
+        // Ngoài việc thử lại khi máy chủ quá tải (5xx), hàm này còn tự động chuyển sang model KẾ TIẾP
+        // trong GROQ_MODELS nếu model hiện tại báo lỗi 404 (bị Groq khai tử/đổi tên) — xem giải thích
+        // chi tiết ở khai báo GROQ_MODELS phía trên. Chỉ khi TẤT CẢ model trong danh sách đều lỗi 404
+        // thì mới thật sự báo lỗi "hết model dùng được" cho người dùng.
         const callGroqAPI = async (apiKey, promptText, onRetry) => {
             const retryDelaysMs = [500, 1200, 2500];
-            for (let attempt = 0; ; attempt++) {
+            for (let modelIdx = 0; modelIdx < GROQ_MODELS.length; modelIdx++) {
+                const model = GROQ_MODELS[modelIdx];
+                const isLastModel = modelIdx === GROQ_MODELS.length - 1;
                 try {
-                    return await callGroqAPIOnce(apiKey, promptText);
+                    for (let attempt = 0; ; attempt++) {
+                        try {
+                            return await callGroqAPIOnce(apiKey, promptText, model);
+                        } catch (err) {
+                            const isLastAttempt = attempt >= retryDelaysMs.length;
+                            if (err && err.isOverloaded && !isLastAttempt) {
+                                if (onRetry) onRetry(attempt + 1, retryDelaysMs.length + 1);
+                                await sleep(retryDelaysMs[attempt]);
+                                continue;
+                            }
+                            throw err;
+                        }
+                    }
                 } catch (err) {
-                    const isLastAttempt = attempt >= retryDelaysMs.length;
-                    if (err && err.isOverloaded && !isLastAttempt) {
-                        if (onRetry) onRetry(attempt + 1, retryDelaysMs.length + 1);
-                        await sleep(retryDelaysMs[attempt]);
-                        continue;
+                    if (err && err.isModelMissing && !isLastModel) continue;
+                    if (err && err.isModelMissing && isLastModel) {
+                        throw new Error('Không còn model Groq nào khả dụng trong danh sách — Groq có thể vừa đổi/khai tử toàn bộ, cần cập nhật lại danh sách model trong code.');
                     }
                     throw err;
                 }
