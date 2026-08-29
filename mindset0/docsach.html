@@ -623,6 +623,9 @@
             const [showCustomInput, setShowCustomInput] = useState(false);
             const [customQuestion, setCustomQuestion] = useState('');
             const [copied, setCopied] = useState(false);
+            // Trạng thái đang thử lại (khi Gemini báo 503 quá tải) — để hiện "đang thử lại lần X/Y"
+            // thay vì chỉ hiện "AI đang trả lời..." im lìm suốt, dễ khiến tưởng nhầm là bị treo.
+            const [retryInfo, setRetryInfo] = useState(null);
 
             const text = info && info.text;
             const ocrLoading = info && info.ocrLoading;
@@ -630,21 +633,21 @@
             // Quét chữ MỚI (đoạn text đổi) -> dọn sạch câu trả lời/lựa chọn cũ, tránh hiểu nhầm câu trả
             // lời cũ vẫn đang nói về đoạn chữ mới vừa quét.
             useEffect(() => {
-                setAnswer(''); setError(''); setActiveLabel(''); setShowCustomInput(false); setCustomQuestion('');
+                setAnswer(''); setError(''); setActiveLabel(''); setShowCustomInput(false); setCustomQuestion(''); setRetryInfo(null);
             }, [text]);
 
             if (!info) return null;
 
             const runPrompt = async (label, promptText) => {
                 if (!apiKey) { onOpenSettings(); return; }
-                setLoading(true); setError(''); setAnswer(''); setActiveLabel(label);
+                setLoading(true); setError(''); setAnswer(''); setActiveLabel(label); setRetryInfo(null);
                 try {
-                    const result = await callGeminiAPI(apiKey, promptText);
+                    const result = await callGeminiAPI(apiKey, promptText, (attempt, total) => setRetryInfo({ attempt, total }));
                     setAnswer(result);
                 } catch (err) {
                     setError(err && err.message ? err.message : 'Có lỗi khi hỏi AI, thử lại nhé.');
                 } finally {
-                    setLoading(false);
+                    setLoading(false); setRetryInfo(null);
                 }
             };
             const handlePreset = (opt) => runPrompt(opt.label, opt.buildPrompt(text));
@@ -746,7 +749,7 @@
                                         {loading && (
                                             <div className="flex items-center justify-center gap-3 text-violet-600 py-4">
                                                 <i className="fas fa-circle-notch fa-spin text-2xl"></i>
-                                                <span className="font-bold text-sm">AI đang trả lời...</span>
+                                                <span className="font-bold text-sm">{retryInfo ? `Máy chủ Gemini đang hơi bận, đang thử lại (lần ${retryInfo.attempt}/${retryInfo.total})...` : 'AI đang trả lời...'}</span>
                                             </div>
                                         )}
                                         {error && <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>}
@@ -1149,11 +1152,16 @@
         // khai, nên chấp nhận đánh đổi này để đơn giản hoá tối đa (không cần dựng thêm server).
         const AI_STORAGE_KEY = 'nightIeltsGeminiApiKey';
         // QUAN TRỌNG: Google thường xuyên "khai tử" các model cũ (gemini-2.0-flash ban đầu dùng ở đây
-        // đã bị gỡ hẳn từ 6/2026, gọi vào sẽ báo lỗi 404 "model no longer available") — cập nhật sang
-        // gemini-3.7-flash (model flash mới nhất, nằm trong gói MIỄN PHÍ của Google AI Studio tính tới
-        // thời điểm sửa code này). Nếu sau này Google lại đổi tên model và gặp lỗi 404 tương tự, chỉ
-        // cần sửa đúng 1 dòng này thành tên model mới nhất mà Google báo trong thông báo lỗi.
-        const GEMINI_MODEL = 'gemini-3.7-flash';
+        // đã bị gỡ hẳn từ 6/2026 -> lỗi 404; sau đó đổi sang gemini-3.7-flash thì lại liên tục bị lỗi
+        // 503 "high demand" vì đây là model MỚI GA (~2 tuần tuổi), nhu cầu dùng đang vượt quá công
+        // suất Google cấp cho model mới. SỬA TẬN GỐC cả 2 vấn đề: dùng alias "gemini-flash-latest" mà
+        // Google CHÍNH THỨC hỗ trợ — alias này luôn tự động trỏ tới model flash hiện hành mới nhất,
+        // được Google "hot-swap" dần dần (không đổi đột ngột, có báo trước 2 tuần), nên: (1) không
+        // bao giờ bị lỗi 404 vì tên model bị khai tử nữa (không cần sửa code mỗi khi Google đổi tên
+        // model), và (2) không bị dính vào giai đoạn "mới ra mắt, quá tải" của riêng 1 phiên bản cụ
+        // thể. Vẫn giữ cơ chế thử lại (retry) bên dưới vì lỗi 503 vẫn có thể xảy ra ngẫu nhiên với
+        // BẤT KỲ model nào của Google (kể cả model đã ổn định lâu), không riêng gì model mới.
+        const GEMINI_MODEL = 'gemini-flash-latest';
         // 5 prompt có sẵn theo đúng yêu cầu — bấm là chạy luôn, không cần gõ gì thêm (trừ "Khác").
         // buildPrompt nhận vào đúng đoạn chữ vừa quét được, trả về câu prompt đầy đủ gửi cho Gemini.
         const AI_PRESET_OPTIONS = [
@@ -1230,14 +1238,17 @@
         // vì bắt người dùng tự bấm lại), để "có câu trả lời nhanh nhất" ngay khi máy chủ rảnh trở lại.
         // Chỉ retry cho đúng lỗi 503 (quá tải) — các lỗi khác (key sai, hết quota, mất mạng...) báo
         // lỗi ngay lập tức, không mất thời gian retry vô ích.
-        const callGeminiAPI = async (apiKey, promptText) => {
-            const retryDelaysMs = [600, 1500];
+        // onRetry (tuỳ chọn): callback(lầnThửHiệnTại, tổngSốLần) — để UI hiện "đang thử lại lần X/Y"
+        // thay vì chỉ hiện "AI đang trả lời..." im lìm suốt cả quãng chờ retry, tránh cảm giác treo.
+        const callGeminiAPI = async (apiKey, promptText, onRetry) => {
+            const retryDelaysMs = [500, 1200, 2500];
             for (let attempt = 0; ; attempt++) {
                 try {
                     return await callGeminiAPIOnce(apiKey, promptText);
                 } catch (err) {
                     const isLastAttempt = attempt >= retryDelaysMs.length;
                     if (err && err.isOverloaded && !isLastAttempt) {
+                        if (onRetry) onRetry(attempt + 1, retryDelaysMs.length + 1);
                         await sleep(retryDelaysMs[attempt]);
                         continue;
                     }
