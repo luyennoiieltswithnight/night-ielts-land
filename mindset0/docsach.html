@@ -1139,7 +1139,10 @@
             // này KHÔNG dùng applyToolStyle/1-lượt-stroke như các bút khác vì cần vẽ 2 lượt: viền glow
             // to bản trước, lõi trắng sắc nét đè lên sau — nổi bật/đậm hơn hẳn so với chỉ dùng 1 lớp
             // shadowBlur mờ nhạt).
-            pen: { color: '#FFFFFF', width: (s) => 4 * s, glow: { defaultColor: PEN_GLOW_COLORS[0], blur: 7 }, fade: true },
+            // Độ dày nét "Bút Present" đã được thu nhỏ thêm 3 lần theo yêu cầu (core width 4 -> 4/3,
+            // glow blur 7 -> 7/3) — vẫn giữ nguyên TỈ LỆ giữa lõi/viền glow (PEN_GLOW_WIDTH_FACTOR)
+            // nên hình dạng nét không đổi, chỉ nhỏ lại đồng đều toàn bộ.
+            pen: { color: '#FFFFFF', width: (s) => (4 / 3) * s, glow: { defaultColor: PEN_GLOW_COLORS[0], blur: 7 / 3 }, fade: true },
             // Viền xem trước khi kéo-thả chọn vùng để TẨY (eraserShapeMode 'rect') — nét đứt màu đỏ,
             // cùng kiểu với viền xem trước của bút IPA/tra ảnh cho dễ nhận biết là đang ở chế độ chọn vùng.
             eraser: { color: '#EF4444', width: () => 2, alpha: 0.9, dash: [6, 4], useColorProp: false },
@@ -1235,6 +1238,10 @@
         // 5 prompt có sẵn theo đúng yêu cầu — bấm là chạy luôn, không cần gõ gì thêm (trừ "Khác").
         // buildPrompt nhận vào đúng đoạn chữ vừa quét được, trả về câu prompt đầy đủ gửi cho AI.
         const AI_PRESET_OPTIONS = [
+            {
+                key: 'translate', label: 'Dịch', icon: 'fa-language',
+                buildPrompt: (t) => 'Hãy dịch đoạn tiếng Anh sau sang tiếng Việt, dịch chính xác nhưng tự nhiên (không dịch từng chữ máy móc), chỉ trả về bản dịch (không cần giải thích thêm):\n\n"' + t + '"',
+            },
             {
                 key: 'explain', label: 'Giải thích sâu hơn', icon: 'fa-lightbulb',
                 buildPrompt: (t) => 'Bạn là gia sư IELTS giàu kinh nghiệm. Hãy giải thích ngắn gọn, dễ hiểu ý nghĩa/ngữ pháp/cách dùng của đoạn văn bản tiếng Anh sau, trả lời bằng tiếng Việt (có thể chèn ví dụ tiếng Anh ngắn nếu cần):\n\n"' + t + '"',
@@ -2190,9 +2197,10 @@
             const [pencilSize, setPencilSize] = useState(DEFAULT_PENCIL_SIZE);
 
             // "Độ ổn định nét vẽ" (làm mượt run tay) — áp dụng chung cho các bút vẽ tự do (bút chì,
-            // bút Present). Mặc định TẮT (0) để giữ nguyên y hệt cảm giác viết cũ — chỉ đổi khi người
-            // dùng chủ động bấm chọn mức khác.
-            const [penStability, setPenStability] = useState(PEN_STABILITY_LEVELS[0]);
+            // bút Present). Mặc định luôn ở mức CAO (PEN_STABILITY_LEVELS[2]) theo yêu cầu — người
+            // dùng vẫn có thể tự đổi về Vừa/Tắt trong thanh tuỳ chọn nếu muốn, đây chỉ là giá trị
+            // khởi tạo ban đầu mỗi khi mở app.
+            const [penStability, setPenStability] = useState(PEN_STABILITY_LEVELS[2]);
             // Màu viền glow của "Bút Present" — mặc định đỏ, đổi được qua thanh tuỳ chọn riêng của bút
             // này (bấm đúp vào nút bút Present). Mỗi nét đã vẽ tự nhớ đúng màu lúc vẽ (stroke.glowColor)
             // nên đổi màu ở đây chỉ ảnh hưởng tới các nét vẽ MỚI sau đó.
@@ -3148,7 +3156,7 @@
                                             <i className="fas fa-images text-md"></i>
                                         </button>
 
-                                        <button onClick={() => handleToolButtonClick('ai')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'ai' ? 'bg-violet-100 text-violet-600 shadow-inner' : 'text-violet-500 hover:bg-slate-200 hover:text-violet-600')} title="Bút AI: Quét chữ rồi hỏi AI (giải thích/gợi ý trả lời/mẹo nhớ/đặt câu...) — bấm đúp để chọn kiểu khoanh vùng & API key">
+                                        <button onClick={() => handleToolButtonClick('ai')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'ai' ? 'bg-violet-100 text-violet-600 shadow-inner' : 'text-violet-500 hover:bg-slate-200 hover:text-violet-600')} title="Bút AI: Quét chữ rồi hỏi AI (dịch/giải thích/gợi ý trả lời/mẹo nhớ/đặt câu...) — bấm đúp để chọn kiểu khoanh vùng & API key">
                                             <i className="fas fa-robot text-md"></i>
                                         </button>
 
