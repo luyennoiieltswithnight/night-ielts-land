@@ -610,7 +610,7 @@
             );
         };
 
-        // --- BOX BÚT AI: hiện chữ vừa quét + các nút prompt có sẵn + câu trả lời từ Gemini ---
+        // --- BOX BÚT AI: hiện chữ vừa quét + các nút prompt có sẵn + câu trả lời từ Groq ---
         // Không dùng React.memo cho component này (giống MagicTranslationBar ở trên) — nó có state nội
         // bộ (câu trả lời, đang tải...) tự quản lý theo đúng prop `info` truyền vào, không cần tối ưu
         // re-render vì chỉ có 1 bản duy nhất hiện tại 1 thời điểm (không lặp lại hàng chục lần như
@@ -623,7 +623,7 @@
             const [showCustomInput, setShowCustomInput] = useState(false);
             const [customQuestion, setCustomQuestion] = useState('');
             const [copied, setCopied] = useState(false);
-            // Trạng thái đang thử lại (khi Gemini báo 503 quá tải) — để hiện "đang thử lại lần X/Y"
+            // Trạng thái đang thử lại (khi Groq báo quá tải) — để hiện "đang thử lại lần X/Y"
             // thay vì chỉ hiện "AI đang trả lời..." im lìm suốt, dễ khiến tưởng nhầm là bị treo.
             const [retryInfo, setRetryInfo] = useState(null);
 
@@ -642,7 +642,7 @@
                 if (!apiKey) { onOpenSettings(); return; }
                 setLoading(true); setError(''); setAnswer(''); setActiveLabel(label); setRetryInfo(null);
                 try {
-                    const result = await callGeminiAPI(apiKey, promptText, (attempt, total) => setRetryInfo({ attempt, total }));
+                    const result = await callGroqAPI(apiKey, promptText, (attempt, total) => setRetryInfo({ attempt, total }));
                     setAnswer(result);
                 } catch (err) {
                     setError(err && err.message ? err.message : 'Có lỗi khi hỏi AI, thử lại nhé.');
@@ -661,7 +661,7 @@
                 setCopied(true); setTimeout(() => setCopied(false), 2000);
             };
 
-            // Gemini trả lời dạng Markdown đơn giản (**đậm**) — trước đây hiện thẳng ra chữ có
+            // AI trả lời dạng Markdown đơn giản (**đậm**) — trước đây hiện thẳng ra chữ có
             // dấu ** vì chỉ render text thô. Tách chuỗi theo cặp **...** để in đậm đúng phần đó,
             // phần còn lại giữ nguyên (xuống dòng đã có whitespace-pre-wrap lo rồi).
             const renderAnswerRich = (raw) => {
@@ -682,7 +682,7 @@
                             <i className="fas fa-robot"></i> Bút AI
                         </span>
                         <div className="flex items-center gap-2">
-                            <button onClick={onOpenSettings} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" title="Cài đặt API key Gemini">
+                            <button onClick={onOpenSettings} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-violet-600 hover:bg-violet-50 transition-colors" title="Cài đặt API key Groq">
                                 <i className="fas fa-gear text-sm"></i>
                             </button>
                             <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors bg-white border border-slate-200">
@@ -703,7 +703,7 @@
 
                                 {!apiKey ? (
                                     <div className="bg-violet-50 border border-violet-100 rounded-xl p-4 text-sm text-violet-700 space-y-2">
-                                        <p>Chưa có API key Gemini. Nhập key (miễn phí, lấy ở Google AI Studio) để dùng bút AI.</p>
+                                        <p>Chưa có API key Groq. Nhập key (miễn phí, không cần thẻ ngân hàng, lấy ở Groq Console) để dùng bút AI.</p>
                                         <button onClick={onOpenSettings} className="px-3 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95">
                                             Nhập API key ngay
                                         </button>
@@ -749,7 +749,7 @@
                                         {loading && (
                                             <div className="flex items-center justify-center gap-3 text-violet-600 py-4">
                                                 <i className="fas fa-circle-notch fa-spin text-2xl"></i>
-                                                <span className="font-bold text-sm">{retryInfo ? `Máy chủ Gemini đang hơi bận, đang thử lại (lần ${retryInfo.attempt}/${retryInfo.total})...` : 'AI đang trả lời...'}</span>
+                                                <span className="font-bold text-sm">{retryInfo ? `Máy chủ Groq đang hơi bận, đang thử lại (lần ${retryInfo.attempt}/${retryInfo.total})...` : 'AI đang trả lời...'}</span>
                                             </div>
                                         )}
                                         {error && <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>}
@@ -1143,27 +1143,29 @@
             return match ? match[0].toLowerCase() : '';
         };
 
-        // --- BÚT AI: quét chữ xong, hiện các gợi ý prompt có sẵn, gọi Gemini API (Google AI Studio) ---
+        // --- BÚT AI: quét chữ xong, hiện các gợi ý prompt có sẵn, gọi Groq API ---
         // QUAN TRỌNG: app này là 1 file HTML tĩnh, không có server riêng, nên API key được người dùng tự
         // nhập 1 lần và LƯU THẲNG vào localStorage của trình duyệt (chỉ tồn tại trên đúng máy/trình duyệt
-        // đó — dùng cả Mac lẫn iPad thì mỗi máy phải nhập riêng 1 lần) — gọi Gemini TRỰC TIẾP từ trình
-        // duyệt bằng fetch(), không qua server trung gian nào (Gemini cho phép gọi kiểu này, khác OpenAI
-        // vốn khuyến cáo phải có backend riêng). Vì đây là công cụ dùng cá nhân, không chia sẻ/host công
-        // khai, nên chấp nhận đánh đổi này để đơn giản hoá tối đa (không cần dựng thêm server).
-        const AI_STORAGE_KEY = 'nightIeltsGeminiApiKey';
-        // QUAN TRỌNG: Google thường xuyên "khai tử" các model cũ (gemini-2.0-flash ban đầu dùng ở đây
-        // đã bị gỡ hẳn từ 6/2026 -> lỗi 404; sau đó đổi sang gemini-3.7-flash thì lại liên tục bị lỗi
-        // 503 "high demand" vì đây là model MỚI GA (~2 tuần tuổi), nhu cầu dùng đang vượt quá công
-        // suất Google cấp cho model mới. SỬA TẬN GỐC cả 2 vấn đề: dùng alias "gemini-flash-latest" mà
-        // Google CHÍNH THỨC hỗ trợ — alias này luôn tự động trỏ tới model flash hiện hành mới nhất,
-        // được Google "hot-swap" dần dần (không đổi đột ngột, có báo trước 2 tuần), nên: (1) không
-        // bao giờ bị lỗi 404 vì tên model bị khai tử nữa (không cần sửa code mỗi khi Google đổi tên
-        // model), và (2) không bị dính vào giai đoạn "mới ra mắt, quá tải" của riêng 1 phiên bản cụ
-        // thể. Vẫn giữ cơ chế thử lại (retry) bên dưới vì lỗi 503 vẫn có thể xảy ra ngẫu nhiên với
-        // BẤT KỲ model nào của Google (kể cả model đã ổn định lâu), không riêng gì model mới.
-        const GEMINI_MODEL = 'gemini-flash-latest';
+        // đó — dùng cả Mac lẫn iPad thì mỗi máy phải nhập riêng 1 lần) — gọi Groq TRỰC TIẾP từ trình
+        // duyệt bằng fetch(), không qua server trung gian nào (Groq cho phép gọi kiểu này y hệt Gemini,
+        // khác OpenAI vốn khuyến cáo phải có backend riêng). Vì đây là công cụ dùng cá nhân, không chia
+        // sẻ/host công khai, nên chấp nhận đánh đổi này để đơn giản hoá tối đa (không cần dựng thêm server).
+        //
+        // LỊCH SỬ ĐỔI PROVIDER (để hiểu vì sao code trông thế này): ban đầu dùng Gemini (Google AI
+        // Studio) — gemini-2.0-flash bị Google khai tử (lỗi 404) -> đổi gemini-3.7-flash -> vẫn liên tục
+        // bị lỗi 503 "high demand" vì tình trạng quá tải chung của gói MIỄN PHÍ bên Gemini (không riêng
+        // gì 1 model, đổi alias gemini-flash-latest cũng không hết). Nên ĐỔI HẲN sang Groq: cũng miễn phí
+        // hoàn toàn (không cần thẻ ngân hàng), tốc độ suy luận rất nhanh (chạy trên chip LPU riêng của
+        // Groq), và ổn định hơn hẳn Gemini free tier ở thời điểm sửa code này. Endpoint của Groq tương
+        // thích định dạng OpenAI (Authorization: Bearer <key>, body {model, messages}), khác hẳn Gemini
+        // (key nằm trên query string, body {contents}) — nên toàn bộ hàm gọi API bên dưới đã viết lại.
+        const AI_STORAGE_KEY = 'nightIeltsGroqApiKey';
+        // Model Llama miễn phí, chất lượng tốt cho việc hỏi-đáp/giải thích/gia sư — nếu sau này Groq đổi
+        // tên/khai tử model này, chỉ cần sửa đúng 1 dòng này (xem danh sách model mới nhất tại
+        // console.groq.com/docs/models).
+        const GROQ_MODEL = 'llama-3.3-70b-versatile';
         // 5 prompt có sẵn theo đúng yêu cầu — bấm là chạy luôn, không cần gõ gì thêm (trừ "Khác").
-        // buildPrompt nhận vào đúng đoạn chữ vừa quét được, trả về câu prompt đầy đủ gửi cho Gemini.
+        // buildPrompt nhận vào đúng đoạn chữ vừa quét được, trả về câu prompt đầy đủ gửi cho AI.
         const AI_PRESET_OPTIONS = [
             {
                 key: 'explain', label: 'Giải thích sâu hơn', icon: 'fa-lightbulb',
@@ -1183,68 +1185,79 @@
             },
         ];
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-        // 1 lần gọi API thật sự — tách riêng khỏi callGeminiAPI để dễ gọi lại (retry) khi máy chủ
-        // Gemini báo quá tải (503), thay vì lặp lại y hệt toàn bộ logic timeout/parse mỗi lần retry.
-        const callGeminiAPIOnce = async (apiKey, promptText) => {
-            const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent?key=' + encodeURIComponent(apiKey);
+        // 1 lần gọi API thật sự — tách riêng khỏi callGroqAPI để dễ gọi lại (retry) khi máy chủ
+        // báo quá tải/lỗi tạm thời, thay vì lặp lại y hệt toàn bộ logic timeout/parse mỗi lần retry.
+        // Endpoint của Groq tương thích định dạng chuẩn của OpenAI: key nằm trong header
+        // "Authorization: Bearer <key>" (khác Gemini để key trên query string), body {model, messages:
+        // [{role, content}]}, kết quả nằm ở data.choices[0].message.content (khác Gemini là
+        // data.candidates[0].content.parts[...].text).
+        const callGroqAPIOnce = async (apiKey, promptText) => {
+            const url = 'https://api.groq.com/openai/v1/chat/completions';
             // QUAN TRỌNG — sửa lỗi "AI đang trả lời... cứ load mãi không ra kết quả lẫn không báo lỗi":
             // trước đây fetch() không có giới hạn thời gian nào cả — nếu request bị treo (mất mạng
             // giữa chừng, mạng quá chậm, hoặc kết nối bị "đứng" mà trình duyệt không tự báo lỗi ngay)
             // thì fetch() sẽ không bao giờ resolve/reject, khiến "loading" trong AIPanel treo vĩnh
             // viễn dù code try/catch/finally đã đúng — vì có lỗi gì đâu mà catch, bản thân Promise
             // của fetch() chưa từng settle. Sửa bằng AbortController: tự huỷ request sau 20 giây rồi
-            // báo lỗi rõ ràng, để người dùng biết đường thử lại thay vì đợi vô thời hạn. (Giảm từ 25
-            // xuống 20 giây/lần để dành thời gian cho các lần thử lại bên dưới khi bị lỗi 503.)
+            // báo lỗi rõ ràng, để người dùng biết đường thử lại thay vì đợi vô thời hạn. (Groq vốn đã
+            // rất nhanh — bình thường trả lời trong 1-2 giây — nên 20 giây là dư sức cho trường hợp
+            // mạng chậm, không phải chờ lâu như trước.)
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 20000);
             let res;
             try {
                 res = await fetch(url, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey,
+                    },
+                    body: JSON.stringify({
+                        model: GROQ_MODEL,
+                        messages: [{ role: 'user', content: promptText }],
+                    }),
                     signal: controller.signal,
                 });
             } catch (err) {
                 if (err && err.name === 'AbortError') {
                     throw new Error('Quá thời gian chờ phản hồi (20 giây) — kiểm tra kết nối mạng rồi thử lại.');
                 }
-                throw new Error('Không kết nối được tới Gemini — kiểm tra kết nối mạng rồi thử lại.');
+                throw new Error('Không kết nối được tới Groq — kiểm tra kết nối mạng rồi thử lại.');
             } finally {
                 clearTimeout(timeoutId);
             }
             if (!res.ok) {
                 let detail = '';
                 try { const errJson = await res.json(); detail = errJson && errJson.error && errJson.error.message ? errJson.error.message : ''; } catch (e) {}
-                if (res.status === 400 || res.status === 403) throw new Error('API key không hợp lệ hoặc chưa được cấp quyền. Kiểm tra lại key trong Cài đặt.');
-                if (res.status === 429) throw new Error('Đã vượt hạn mức miễn phí của Gemini trong khoảng thời gian này, thử lại sau ít phút nhé.');
-                if (res.status === 503) {
-                    const err503 = new Error('Máy chủ Gemini đang quá tải, đã thử lại vài lần nhưng vẫn chưa được — thử lại sau ít phút nhé.');
-                    err503.isOverloaded = true;
-                    throw err503;
+                if (res.status === 401 || res.status === 403) throw new Error('API key Groq không hợp lệ hoặc chưa được cấp quyền. Kiểm tra lại key trong Cài đặt.');
+                if (res.status === 429) throw new Error('Đã vượt hạn mức miễn phí của Groq trong khoảng thời gian này, thử lại sau ít phút nhé.');
+                if (res.status >= 500) {
+                    const errOverload = new Error('Máy chủ Groq đang quá tải, đã thử lại vài lần nhưng vẫn chưa được — thử lại sau ít phút nhé.');
+                    errOverload.isOverloaded = true;
+                    throw errOverload;
                 }
-                throw new Error('Lỗi gọi Gemini API (HTTP ' + res.status + ')' + (detail ? ': ' + detail : '') + '.');
+                throw new Error('Lỗi gọi Groq API (HTTP ' + res.status + ')' + (detail ? ': ' + detail : '') + '.');
             }
             const data = await res.json();
-            const candidate = data && data.candidates && data.candidates[0];
-            const parts = candidate && candidate.content && candidate.content.parts;
-            const answer = parts ? parts.map(p => p.text || '').join('').trim() : '';
-            if (!answer) throw new Error('Gemini không trả về câu trả lời nào (có thể nội dung bị chặn bởi bộ lọc an toàn).');
+            const choice = data && data.choices && data.choices[0];
+            const answer = choice && choice.message && choice.message.content ? choice.message.content.trim() : '';
+            if (!answer) throw new Error('Groq không trả về câu trả lời nào (có thể nội dung bị chặn bởi bộ lọc an toàn).');
             return answer;
         };
-        // QUAN TRỌNG — sửa lỗi "HTTP 503: model is currently experiencing high demand": lỗi này của
-        // Google chỉ là quá tải TẠM THỜI (thường tự hết sau vài giây), không phải lỗi do code hay do
-        // API key sai — nên cách đúng là tự động thử lại vài lần với khoảng chờ ngắn tăng dần (thay
-        // vì bắt người dùng tự bấm lại), để "có câu trả lời nhanh nhất" ngay khi máy chủ rảnh trở lại.
-        // Chỉ retry cho đúng lỗi 503 (quá tải) — các lỗi khác (key sai, hết quota, mất mạng...) báo
-        // lỗi ngay lập tức, không mất thời gian retry vô ích.
+        // QUAN TRỌNG — sửa lỗi "HTTP 503: model is currently experiencing high demand" (hồi còn dùng
+        // Gemini): lỗi quá tải máy chủ chỉ là TẠM THỜI (thường tự hết sau vài giây), không phải lỗi do
+        // code hay do API key sai — nên cách đúng là tự động thử lại vài lần với khoảng chờ ngắn tăng
+        // dần (thay vì bắt người dùng tự bấm lại), để "có câu trả lời nhanh nhất" ngay khi máy chủ rảnh
+        // trở lại. Giữ nguyên cơ chế này khi chuyển sang Groq để phòng hờ (dù Groq ổn định hơn hẳn) —
+        // chỉ retry cho lỗi quá tải (5xx) — các lỗi khác (key sai, hết quota, mất mạng...) báo lỗi ngay
+        // lập tức, không mất thời gian retry vô ích.
         // onRetry (tuỳ chọn): callback(lầnThửHiệnTại, tổngSốLần) — để UI hiện "đang thử lại lần X/Y"
         // thay vì chỉ hiện "AI đang trả lời..." im lìm suốt cả quãng chờ retry, tránh cảm giác treo.
-        const callGeminiAPI = async (apiKey, promptText, onRetry) => {
+        const callGroqAPI = async (apiKey, promptText, onRetry) => {
             const retryDelaysMs = [500, 1200, 2500];
             for (let attempt = 0; ; attempt++) {
                 try {
-                    return await callGeminiAPIOnce(apiKey, promptText);
+                    return await callGroqAPIOnce(apiKey, promptText);
                 } catch (err) {
                     const isLastAttempt = attempt >= retryDelaysMs.length;
                     if (err && err.isOverloaded && !isLastAttempt) {
@@ -1801,7 +1814,7 @@
                 // Bút AI: y hệt cơ chế của bút Magic (hỗ trợ cả 2 kiểu chọn vùng — tự do lẫn hình chữ
                 // nhật, qua aiShapeMode), chỉ khác ở bước sau OCR: không dịch/không mở cửa sổ ngoài, mà
                 // báo kết quả về App qua onAILookup để hiện lên Box Bút AI (chọn prompt có sẵn rồi hỏi
-                // Gemini) — xem performAIOCR.
+                // AI qua Groq) — xem performAIOCR.
                 if (tool === 'ai') {
                     if (aiShapeMode === 'rect') {
                         const [p1, p2] = currentStrokeRef.current.points;
@@ -2138,7 +2151,7 @@
             const [ipaInfo, setIpaInfo] = useState(null); // { word } — chỉ còn đúng từ vừa quét, không tra IPA/API ngoài nữa
             const [photoLookup, setPhotoLookup] = useState(null); // { text } — bút tra ảnh minh hoạ
 
-            // --- BÚT AI (Gemini) ---
+            // --- BÚT AI (Groq) ---
             // aiApiKey: đọc 1 lần từ localStorage lúc khởi tạo (lazy init qua callback trong useState,
             // tránh phải đọc localStorage lại mỗi lần App render). Chỉ tồn tại trên đúng máy/trình duyệt
             // này — dùng cả Mac lẫn iPad thì mỗi máy cần nhập riêng 1 lần (xem giải thích ở AI_STORAGE_KEY).
@@ -2784,7 +2797,7 @@
                         </div>
                     )}
 
-                    {/* Box Bút AI — hiện chữ vừa quét + các nút prompt có sẵn (Gemini). Đặt cùng vị trí
+                    {/* Box Bút AI — hiện chữ vừa quét + các nút prompt có sẵn (Groq). Đặt cùng vị trí
                         canh giữa/cách đỉnh với box dịch của bút Magic, vì cũng là 1 kết quả OCR hiện
                         ngay sau khi quét — nhưng KHÔNG lồng chung khung với box dịch (2 bút độc lập,
                         không bao giờ cùng hiện 1 lúc vì chỉ 1 tool đang được chọn tại 1 thời điểm). */}
@@ -2794,7 +2807,7 @@
                         </div>
                     )}
 
-                    {/* Modal nhập/xoá API key Gemini cho Bút AI — mở từ nút bánh răng trong Box Bút AI,
+                    {/* Modal nhập/xoá API key Groq cho Bút AI — mở từ nút bánh răng trong Box Bút AI,
                         hoặc từ thanh tuỳ chọn phụ của bút AI (bấm đúp vào nút bút AI). Key lưu thẳng vào
                         localStorage của trình duyệt này (xem giải thích chi tiết ở AI_STORAGE_KEY). */}
                     {showAiKeyModal && (
@@ -2802,14 +2815,14 @@
                             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-modal-pop" onClick={e => e.stopPropagation()}>
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
-                                        <i className="fas fa-key text-violet-500"></i> API Key Gemini
+                                        <i className="fas fa-key text-violet-500"></i> API Key Groq
                                     </h3>
                                     <button onClick={() => setShowAiKeyModal(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
                                         <i className="fas fa-times"></i>
                                     </button>
                                 </div>
                                 <p className="text-sm text-slate-500 leading-relaxed">
-                                    Lấy API key miễn phí tại <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" className="text-violet-600 font-semibold underline">Google AI Studio</a>, dán vào đây. Key được lưu ngay trên trình duyệt này, không gửi đi đâu ngoài Google — nếu dùng thêm trên máy khác (vd chuyển từ Mac sang iPad) cần dán lại key ở đó riêng.
+                                    Lấy API key miễn phí (không cần thẻ ngân hàng) tại <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" className="text-violet-600 font-semibold underline">Groq Console</a>, dán vào đây. Key được lưu ngay trên trình duyệt này, không gửi đi đâu ngoài Groq — nếu dùng thêm trên máy khác (vd chuyển từ Mac sang iPad) cần dán lại key ở đó riêng.
                                 </p>
                                 <input
                                     type="password"
@@ -3039,7 +3052,7 @@
                                             <i className="fas fa-images text-md"></i>
                                         </button>
 
-                                        <button onClick={() => handleToolButtonClick('ai')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'ai' ? 'bg-violet-100 text-violet-600 shadow-inner' : 'text-violet-500 hover:bg-slate-200 hover:text-violet-600')} title="Bút AI: Quét chữ rồi hỏi Gemini (giải thích/gợi ý trả lời/mẹo nhớ/đặt câu...) — bấm đúp để chọn kiểu khoanh vùng & API key">
+                                        <button onClick={() => handleToolButtonClick('ai')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'ai' ? 'bg-violet-100 text-violet-600 shadow-inner' : 'text-violet-500 hover:bg-slate-200 hover:text-violet-600')} title="Bút AI: Quét chữ rồi hỏi AI (giải thích/gợi ý trả lời/mẹo nhớ/đặt câu...) — bấm đúp để chọn kiểu khoanh vùng & API key">
                                             <i className="fas fa-robot text-md"></i>
                                         </button>
 
@@ -3217,7 +3230,7 @@
                                                 <button
                                                     onClick={openAiSettings}
                                                     className={"px-3 h-8 rounded-full flex items-center gap-1.5 text-xs font-bold transition-colors whitespace-nowrap border " + (aiApiKey ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100')}
-                                                    title="Cài đặt API key Gemini cho Bút AI"
+                                                    title="Cài đặt API key Groq cho Bút AI"
                                                 >
                                                     <i className="fas fa-key text-[10px]"></i> {aiApiKey ? 'Đã có API key' : 'Chưa có API key'}
                                                 </button>
