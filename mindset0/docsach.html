@@ -689,8 +689,12 @@
         // bộ (câu trả lời, đang tải...) tự quản lý theo đúng prop `info` truyền vào, không cần tối ưu
         // re-render vì chỉ có 1 bản duy nhất hiện tại 1 thời điểm (không lặp lại hàng chục lần như
         // PdfPage/PdfThumbnail/PdfTextBox nên không cần React.memo).
-        // onAnswered (tuỳ chọn): báo cho App biết mỗi khi có 1 câu trả lời THÀNH CÔNG — App gom lại
-        // thành "lịch sử Bút AI trong phiên" để tính năng "Tóm tắt phiên dạy" dùng lại (xem App).
+        // onAnswered (tuỳ chọn): báo cho App biết khi người dùng chủ động bấm "Lưu" trên 1 câu trả lời —
+        // App gom lại thành "lịch sử Bút AI trong phiên" để tính năng "Tóm tắt phiên dạy" dùng lại (xem
+        // App). QUAN TRỌNG (sửa theo yêu cầu): KHÔNG tự động lưu MỌI câu trả lời nữa — trước đây cứ hỏi
+        // xong là tự thêm vào lịch sử tóm tắt, khiến bản tóm tắt cuối bị lẫn cả những câu hỏi/trả lời
+        // không thật sự cần thiết. Giờ chỉ những câu trả lời NGƯỜI DÙNG TỰ THẤY HAY và bấm nút "Lưu"
+        // (ngay cạnh nút Copy) mới được đưa vào — xem nút Lưu trong JSX bên dưới.
         const AIPanel = ({ info, apiKey, onClose, onOpenSettings, onAnswered }) => {
             const [loading, setLoading] = useState(false);
             const [answer, setAnswer] = useState('');
@@ -699,6 +703,9 @@
             const [showCustomInput, setShowCustomInput] = useState(false);
             const [customQuestion, setCustomQuestion] = useState('');
             const [copied, setCopied] = useState(false);
+            // Đã bấm "Lưu" cho đúng câu trả lời đang hiện hay chưa — reset về false mỗi khi có câu trả
+            // lời MỚI (xem effect dọn state theo "text" bên dưới VÀ ngay trong runPrompt khi có answer mới).
+            const [savedToHistory, setSavedToHistory] = useState(false);
             // Trạng thái đang thử lại (khi Groq báo quá tải) — để hiện "đang thử lại lần X/Y"
             // thay vì chỉ hiện "AI đang trả lời..." im lìm suốt, dễ khiến tưởng nhầm là bị treo.
             const [retryInfo, setRetryInfo] = useState(null);
@@ -709,18 +716,17 @@
             // Quét chữ MỚI (đoạn text đổi) -> dọn sạch câu trả lời/lựa chọn cũ, tránh hiểu nhầm câu trả
             // lời cũ vẫn đang nói về đoạn chữ mới vừa quét.
             useEffect(() => {
-                setAnswer(''); setError(''); setActiveLabel(''); setShowCustomInput(false); setCustomQuestion(''); setRetryInfo(null);
+                setAnswer(''); setError(''); setActiveLabel(''); setShowCustomInput(false); setCustomQuestion(''); setRetryInfo(null); setSavedToHistory(false);
             }, [text]);
 
             if (!info) return null;
 
             const runPrompt = async (label, promptText) => {
                 if (!apiKey) { onOpenSettings(); return; }
-                setLoading(true); setError(''); setAnswer(''); setActiveLabel(label); setRetryInfo(null);
+                setLoading(true); setError(''); setAnswer(''); setActiveLabel(label); setRetryInfo(null); setSavedToHistory(false);
                 try {
                     const result = await callGroqAPI(apiKey, promptText, (attempt, total) => setRetryInfo({ attempt, total }));
                     setAnswer(result);
-                    if (onAnswered) onAnswered({ scannedText: text, promptLabel: label, answer: result, timestamp: Date.now() });
                 } catch (err) {
                     setError(err && err.message ? err.message : 'Có lỗi khi hỏi AI, thử lại nhé.');
                 } finally {
@@ -736,6 +742,13 @@
             const handleCopyAnswer = () => {
                 navigator.clipboard.writeText(answer);
                 setCopied(true); setTimeout(() => setCopied(false), 2000);
+            };
+            // Bấm "Lưu" -> báo lên App để đưa câu trả lời này vào lịch sử dùng cho "Tóm tắt phiên dạy" —
+            // chỉ đúng lúc bấm mới lưu, không tự động.
+            const handleSaveToHistory = () => {
+                if (!answer || savedToHistory) return;
+                if (onAnswered) onAnswered({ scannedText: text, promptLabel: activeLabel, answer, timestamp: Date.now() });
+                setSavedToHistory(true);
             };
 
             return (
@@ -819,9 +832,17 @@
                                         {answer && !loading && (
                                             <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-4 pr-12">
                                                 <div className="ai-markdown" dangerouslySetInnerHTML={renderMarkdownAnswerHtml(answer)}></div>
-                                                <button onClick={handleCopyAnswer} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white transition-colors border border-violet-100">
-                                                    <i className={copied ? "fas fa-check text-green-500" : "fas fa-copy"}></i>
-                                                </button>
+                                                <div className="absolute top-3 right-3 flex flex-col gap-2">
+                                                    <button onClick={handleCopyAnswer} className="w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white transition-colors border border-violet-100" title="Sao chép">
+                                                        <i className={copied ? "fas fa-check text-green-500" : "fas fa-copy"}></i>
+                                                    </button>
+                                                    {/* Nút "Lưu" — MỚI theo yêu cầu: chỉ câu trả lời nào người dùng chủ động bấm lưu ở
+                                                        đây mới được đưa vào lịch sử dùng cho "Tóm tắt phiên dạy" (không tự động lưu hết
+                                                        mọi câu trả lời như trước, tránh bản tóm tắt cuối bị lẫn những câu không cần thiết). */}
+                                                    <button onClick={handleSaveToHistory} className={"w-8 h-8 flex items-center justify-center rounded-lg transition-colors border " + (savedToHistory ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white border-indigo-100')} title={savedToHistory ? 'Đã lưu vào Tóm tắt phiên dạy' : 'Lưu vào Tóm tắt phiên dạy'}>
+                                                        <i className={savedToHistory ? "fas fa-check" : "fas fa-bookmark"}></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
                                     </React.Fragment>
@@ -833,7 +854,7 @@
             );
         };
 
-        // Gom TẤT CẢ notes (text box, mọi trang) + lịch sử hỏi-đáp Bút AI trong phiên đang mở thành 1
+        // Gom TẤT CẢ notes (text box, mọi trang) + các câu trả lời Bút AI ĐÃ ĐƯỢC LƯU (bấm nút "Lưu" trong Bút AI) trong phiên đang mở thành 1
         // đoạn văn bản đưa cho Groq — đặt module-level (không phải hàm nội bộ SessionSummaryPanel) để dễ
         // test/đọc độc lập. allTextsRef.current dạng { [pageNum]: [{id,text,...}] }, aiHistoryRef.current
         // dạng mảng { scannedText, promptLabel, answer, timestamp }, cả 2 đều là REF (xem giải thích ở
@@ -886,7 +907,7 @@
                 if (!apiKey) { onOpenSettings(); return; }
                 const material = buildSessionMaterialText(allTextsRef, aiHistoryRef);
                 if (!material.trim()) {
-                    setError('Chưa có ghi chú (text box) hay lịch sử hỏi-đáp Bút AI nào trong phiên này để tóm tắt.');
+                    setError('Chưa có ghi chú (text box) hay câu trả lời Bút AI nào đã lưu trong phiên này để tóm tắt.');
                     return;
                 }
                 setLoading(true); setError(''); setSummary(''); setRetryInfo(null); setSavedJustNow(false);
@@ -944,7 +965,7 @@
                         ) : (
                             <React.Fragment>
                                 <p className="text-xs text-slate-500 leading-relaxed">
-                                    Gom tất cả ghi chú (Text Box) trên mọi trang + lịch sử hỏi-đáp Bút AI trong phiên đang mở này, nhờ AI tổng hợp thành 1 bản tóm tắt sẵn sàng để ôn luyện.
+                                    Gom tất cả ghi chú (Text Box) trên mọi trang + các câu trả lời Bút AI đã bấm "Lưu" trong phiên đang mở này, nhờ AI tổng hợp thành 1 bản tóm tắt sẵn sàng để ôn luyện.
                                 </p>
                                 <button
                                     onClick={runSummarize}
@@ -1038,6 +1059,20 @@
         // dung + cỡ chữ rồi.
         const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText, maxWidthPdf }) {
             const [active, setActive] = useState(true);
+            // QUAN TRỌNG (sửa lỗi "gõ bị nhảy giật giật nhẹ"): TRƯỚC ĐÂY viền đậm + nút Xoá + nắm kéo
+            // Move + 3 núm resize hiện ra NGAY khi vừa chạm 1 lần vào box (dùng chung điều kiện "active"
+            // với việc cho phép gõ chữ) — trong lúc gõ, box liên tục tự đổi kích thước (2 effect tự-giãn
+            // bên dưới), kéo theo viền + 5 phần tử điều khiển định vị tuyệt đối đó phải định vị lại theo
+            // MỌI lần đổi kích thước, tạo cảm giác "giật" nhẹ. Giờ TÁCH RIÊNG 2 khái niệm: "active" (cho
+            // phép gõ chữ — vẫn bật ngay từ 1 lần chạm, để gõ chữ mượt mà không đợi) và "controlsVisible"
+            // (hiện viền đậm + toàn bộ nút điều khiển — CHỈ bật khi chạm/click ĐÚP vào box, theo đúng yêu
+            // cầu) — lúc chỉ đang gõ (controlsVisible=false), không còn phần tử điều khiển nào phải định
+            // vị lại nữa nên hết giật.
+            const [controlsVisible, setControlsVisible] = useState(false);
+            // Mốc thời gian lần chạm gần nhất vào CHÍNH box này — dùng để tự bắt double-tap/double-click
+            // (giống cơ chế bắt double-tap tạo box mới ở PdfPage) thay vì dựa vào sự kiện "dblclick" có
+            // sẵn (không đáng tin cậy với Apple Pencil/chạm trên iPad).
+            const lastBoxTapRef = useRef(0);
             const containerRef = useRef(null);
             const textareaRef = useRef(null);
             // Đang kéo resize thủ công (đổi cỡ chữ) -> tạm ngưng 2 effect tự-giãn-theo-nội-dung bên
@@ -1056,11 +1091,12 @@
                 }
             }, [active]);
 
-            // Bấm ra ngoài -> Ẩn box viền (tàng hình)
+            // Bấm ra ngoài -> Ẩn box viền (tàng hình) + ẩn luôn các nút điều khiển nếu đang hiện.
             useEffect(() => {
                 const handleClickOutside = (e) => {
                     if (containerRef.current && !containerRef.current.contains(e.target)) {
                         setActive(false);
+                        setControlsVisible(false);
                     }
                 };
                 document.addEventListener('pointerdown', handleClickOutside);
@@ -1228,12 +1264,22 @@
                        con trỏ/ngón tay có độ trễ thay vì bám sát tức thời. Đổi sang "transition-colors"
                        để CHỈ hiệu ứng mượt cho phần đổi màu viền/nền khi bật/tắt active, còn vị trí và
                        kích thước luôn cập nhật NGAY LẬP TỨC, bám sát 100% theo thao tác kéo. */
-                    className={`group transition-colors ${active ? 'border-2 border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
-                    onPointerDown={(e) => { e.stopPropagation(); setActive(true); }}
+                    className={`group transition-colors ${controlsVisible ? 'border-2 border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
+                    onPointerDown={(e) => {
+                        e.stopPropagation();
+                        setActive(true);
+                        // Bắt double-tap/double-click NGAY TRÊN box (tự đo thời gian giữa 2 lần chạm
+                        // liên tiếp, giống cơ chế bắt double-tap tạo box mới trong PdfPage) — chỉ chạm
+                        // đúp mới hiện viền đậm + các nút điều khiển, chạm 1 lần chỉ để gõ chữ tiếp.
+                        const now = Date.now();
+                        const isDouble = now - lastBoxTapRef.current < 400;
+                        lastBoxTapRef.current = now;
+                        if (isDouble) setControlsVisible(true);
+                    }}
                 >
-                    {/* Nút Xóa */}
-                    {active && (
-                        <button 
+                    {/* Nút Xóa — chỉ hiện khi đã chạm đúp (controlsVisible) */}
+                    {controlsVisible && (
+                        <button
                             onPointerDown={(e) => { e.stopPropagation(); removeText(t.id); }}
                             className="absolute -top-3 -right-3 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md touch-none z-20 hover:scale-110 transition-transform"
                         >
@@ -1241,8 +1287,8 @@
                         </button>
                     )}
 
-                    {/* Nắm Kéo Move (Bên Trên) */}
-                    {active && (
+                    {/* Nắm Kéo Move (Bên Trên) — chỉ hiện khi đã chạm đúp */}
+                    {controlsVisible && (
                         <div
                             onPointerDown={startMove}
                             className="absolute -top-5 left-1/2 transform -translate-x-1/2 w-14 h-5 bg-indigo-500 text-white rounded-t-lg cursor-move shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600 transition-colors"
@@ -1251,19 +1297,19 @@
                         </div>
                     )}
 
-                    {/* 3 NÚM ĐIỀU KHIỂN RESIZE CHO IPAD */}
-                    {active && (
+                    {/* 3 NÚM ĐIỀU KHIỂN RESIZE CHO IPAD — chỉ hiện khi đã chạm đúp */}
+                    {controlsVisible && (
                         <>
                             {/* Núm ngang */}
-                            <div 
+                            <div
                                 onPointerDown={(e) => startResize(e, 'w')}
                                 className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-8 bg-indigo-500 text-white rounded-md cursor-e-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600"
                             >
                                 <i className="fas fa-ellipsis-v text-[8px]"></i>
                             </div>
-                            
+
                             {/* Núm dọc */}
-                            <div 
+                            <div
                                 onPointerDown={(e) => startResize(e, 'h')}
                                 className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-indigo-500 text-white rounded-md cursor-s-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600"
                             >
@@ -1271,7 +1317,7 @@
                             </div>
 
                             {/* Núm 2 chiều góc dưới */}
-                            <div 
+                            <div
                                 onPointerDown={(e) => startResize(e, 'both')}
                                 className="absolute -bottom-2 -right-2 w-5 h-5 bg-indigo-600 text-white rounded-full cursor-se-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-700 hover:scale-110 transition-transform"
                             >
@@ -1730,6 +1776,9 @@
 
             const [strokes, setStrokes] = useState([]);
             const [texts, setTexts] = useState([]);
+            // Khung tẩy "Chọn vùng" đã kéo xong, đang chờ bấm nút "Xoá" mới thực sự xoá (xem
+            // handlePointerUp) — { p1, p2 } đơn vị PDF-space (scale=1), hoặc null khi không có.
+            const [pendingErase, setPendingErase] = useState(null);
             const [observedVisible, setIsVisible] = useState(false);
             // QUAN TRỌNG (tính năng Xuất PDF): "isVisible" thật sự dùng trong component này giờ là
             // observedVisible HOẶC forceVisible — forceVisible do App bật tạm thời (ép trang này phải
@@ -1951,7 +2000,11 @@
 
                 strokes.forEach(drawLine);
                 if (currentStrokeRef.current) drawLine(currentStrokeRef.current);
-            }, [strokes, scale, pencilSize]);
+                // Khung tẩy đang chờ xác nhận (đã buông tay, đợi bấm nút "Xoá") — vẽ lại y hệt kiểu
+                // viền đứt đỏ như lúc đang kéo, để khung không biến mất trong lúc chờ người dùng quyết
+                // định xoá hay không.
+                if (pendingErase) drawLine({ tool: 'eraser', shape: 'rect', points: [pendingErase.p1, pendingErase.p2] });
+            }, [strokes, scale, pencilSize, pendingErase]);
 
             useEffect(() => { if(isVisible) redrawStrokes(); }, [redrawStrokes, isVisible]);
 
@@ -2020,11 +2073,13 @@
 
                 if (tool === 'eraser') {
                     isDrawingRef.current = true;
-                    // Chế độ tẩy "Chọn vùng" (kéo-thả hình chữ nhật, giống mấy cây bút khác) — thay vì
-                    // tẩy ngay theo bán kính quanh điểm chạm như trước, giờ chỉ bắt đầu vẽ khung xem
-                    // trước; việc xoá thật sự (những nét nằm trong khung) chỉ thực hiện ở handlePointerUp
-                    // khi đã biết đủ 2 góc của vùng chọn.
+                    // Chế độ tẩy "Chọn vùng" (kéo-thả hình chữ nhật, giống mấy cây bút khác) — KHÔNG
+                    // xoá ngay khi buông tay nữa (xem handlePointerUp): chỉ vẽ khung xem trước, đợi
+                    // người dùng bấm nút "Xoá" hiện ra phía trên khung mới thực sự xoá — tránh xoá nhầm
+                    // khi chỉ định kéo thử/chỉnh lại vùng chọn. Bắt đầu 1 lượt chọn MỚI thì dọn khung
+                    // "Xoá" cũ (nếu có) đi luôn.
                     if (eraserShapeMode === 'rect') {
+                        setPendingErase(null);
                         currentStrokeRef.current = { id: Date.now(), tool: 'eraser', shape: 'rect', points: [coords, coords] };
                         return;
                     }
@@ -2077,8 +2132,15 @@
                 // và giờ thêm cả bút chì khi bật chế độ "Hình chữ nhật" (pencilShapeMode), cùng bút AI
                 // khi bật chế độ "Hình chữ nhật" (aiShapeMode, y hệt cơ chế của bút Magic) — dùng CHUNG
                 // code vẽ khung chữ nhật này, chỉ khác ở bước lưu strokeRef không phục vụ OCR.
-                if ((tool === 'magic' && magicShapeMode === 'rect') || (tool === 'ai' && aiShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
-                    currentStrokeRef.current = { id: Date.now(), tool, color, shape: 'rect', points: [coords, coords] };
+                // Bút chì kiểu "Đường thẳng" (MỚI, phím tắt L) — dùng CHUNG cơ chế kéo-thả 2 điểm với
+                // "Hình chữ nhật" bên dưới (chỉ cập nhật điểm cuối khi rê chuột/bút, không nối nhiều
+                // điểm như vẽ tay), nhưng đánh dấu shape: 'line' (không phải 'rect') để drawLine() vẽ 1
+                // đường thẳng nối 2 điểm thay vì khung chữ nhật — drawLine vốn dĩ ĐÃ vẽ đúng vậy cho mọi
+                // stroke không phải shape 'rect' (nối các điểm bằng moveTo/lineTo), nên không cần thêm
+                // nhánh vẽ riêng nào cho 'line' cả.
+                if ((tool === 'magic' && magicShapeMode === 'rect') || (tool === 'ai' && aiShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && (pencilShapeMode === 'rect' || pencilShapeMode === 'line'))) {
+                    const shape = (tool === 'pencil' && pencilShapeMode === 'line') ? 'line' : 'rect';
+                    currentStrokeRef.current = { id: Date.now(), tool, color, shape, points: [coords, coords] };
                     return;
                 }
 
@@ -2135,9 +2197,10 @@
 
                 if (!currentStrokeRef.current) return;
 
-                if ((tool === 'magic' && magicShapeMode === 'rect') || (tool === 'ai' && aiShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && pencilShapeMode === 'rect')) {
-                    // Cập nhật góc đối diện của khung chữ nhật và vẽ lại toàn bộ canvas — chi phí
-                    // rẻ vì số nét lưu trên 1 trang thường ít, vẫn mượt ở cả Mac lẫn iPad.
+                if ((tool === 'magic' && magicShapeMode === 'rect') || (tool === 'ai' && aiShapeMode === 'rect') || tool === 'ipa' || tool === 'photo' || (tool === 'pencil' && (pencilShapeMode === 'rect' || pencilShapeMode === 'line'))) {
+                    // Cập nhật góc đối diện của khung chữ nhật (hoặc điểm cuối của đường thẳng) và vẽ
+                    // lại toàn bộ canvas — chi phí rẻ vì số nét lưu trên 1 trang thường ít, vẫn mượt ở
+                    // cả Mac lẫn iPad.
                     currentStrokeRef.current.points[1] = coords;
                     redrawStrokes();
                     return;
@@ -2185,21 +2248,20 @@
 
                 try { e.target.releasePointerCapture(e.pointerId); } catch(err) {}
 
-                // Chế độ tẩy "Chọn vùng": đã đủ 2 góc khung chọn — xoá mọi nét có ÍT NHẤT 1 điểm rơi
-                // vào trong khung đó (cùng logic với tẩy theo bán kính ở handleErase, chỉ đổi điều
-                // kiện "khoảng cách < bán kính" thành "nằm trong hình chữ nhật đã kéo").
+                // Chế độ tẩy "Chọn vùng": đã đủ 2 góc khung chọn — KHÔNG xoá ngay nữa, chỉ "chốt" lại
+                // khung này vào pendingErase để hiện nút "Xoá" phía trên (xem JSX render + confirmPendingErase
+                // bên dưới) — bấm vào nút đó mới thực sự xoá những nét nằm trong khung (cùng logic lọc
+                // như trước, chỉ dời thời điểm áp dụng). Bỏ qua nếu khung quá nhỏ (gần như 1 điểm, khả
+                // năng là bấm nhầm chứ không định kéo chọn vùng).
                 if (tool === 'eraser' && eraserShapeMode === 'rect' && currentStrokeRef.current) {
                     const [p1, p2] = currentStrokeRef.current.points;
-                    const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
-                    const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
                     currentStrokeRef.current = null;
-                    setStrokes(prev => prev.filter(stroke => {
-                        for (let pt of stroke.points) {
-                            if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) return false;
-                        }
-                        return true;
-                    }));
-                    setTimeout(() => redrawStrokes(), 0);
+                    const minSizePdf = 4 / scale;
+                    if (Math.abs(p2.x - p1.x) < minSizePdf && Math.abs(p2.y - p1.y) < minSizePdf) {
+                        redrawStrokes();
+                        return;
+                    }
+                    setPendingErase({ p1, p2 });
                     return;
                 }
 
@@ -2283,6 +2345,29 @@
                 }));
                 setTimeout(() => redrawStrokes(), 0);
             };
+
+            // Bấm nút "Xoá" hiện phía trên khung tẩy "Chọn vùng" -> xoá thật sự mọi nét có ít nhất 1
+            // điểm rơi vào trong khung đó (đúng logic lọc như bản cũ, chỉ dời thời điểm áp dụng sang
+            // lúc bấm nút thay vì xoá ngay khi vừa buông tay).
+            const confirmPendingErase = () => {
+                if (!pendingErase) return;
+                const { p1, p2 } = pendingErase;
+                const minX = Math.min(p1.x, p2.x), maxX = Math.max(p1.x, p2.x);
+                const minY = Math.min(p1.y, p2.y), maxY = Math.max(p1.y, p2.y);
+                setStrokes(prev => prev.filter(stroke => {
+                    for (let pt of stroke.points) {
+                        if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) return false;
+                    }
+                    return true;
+                }));
+                setPendingErase(null);
+            };
+
+            // Dọn khung "Xoá" đang chờ khi người dùng đổi sang tool khác hoặc đổi kiểu tẩy — tránh nút
+            // "Xoá" bị "mồ côi" nổi lơ lửng trên trang trong khi đang dùng bút khác.
+            useEffect(() => {
+                if (!(tool === 'eraser' && eraserShapeMode === 'rect')) setPendingErase(null);
+            }, [tool, eraserShapeMode]);
 
             // --- LÕI OCR DÙNG CHUNG CHO CẢ 3 BÚT (Magic / IPA / Tra ảnh) ---
             // Gộp về 1 chỗ để chắc chắn cả 3 bút hoạt động ổn định như nhau, tránh lặp code.
@@ -2473,6 +2558,25 @@
                             maxWidthPdf={basePageSize ? Math.max(TEXTBOX_MIN_WIDTH, basePageSize.width - t.x - 20) : undefined}
                         />
                     ))}
+
+                    {/* Nút "Xoá" nổi ngay phía trên khung tẩy "Chọn vùng" vừa kéo xong — bấm vào là xoá
+                        NGAY LẬP TỨC (không hỏi lại lần nữa), theo đúng yêu cầu. Toạ độ tính từ 2 góc đã
+                        kéo (pendingErase, đơn vị PDF-space) nhân với scale để ra đúng vị trí CSS pixel
+                        thật, canh giữa theo chiều ngang của khung, đặt hẳn lên phía trên mép trên khung
+                        (translateY -100% + cách thêm 1 chút) để không che mất nội dung bên trong khung. */}
+                    {pendingErase && (
+                        <button
+                            onPointerDown={(e) => { e.stopPropagation(); confirmPendingErase(); }}
+                            className="absolute z-30 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg flex items-center gap-1.5 transition-colors active:scale-95 touch-none"
+                            style={{
+                                left: ((Math.min(pendingErase.p1.x, pendingErase.p2.x) + Math.max(pendingErase.p1.x, pendingErase.p2.x)) / 2) * scale,
+                                top: Math.min(pendingErase.p1.y, pendingErase.p2.y) * scale,
+                                transform: 'translate(-50%, calc(-100% - 8px))',
+                            }}
+                        >
+                            <i className="fas fa-trash text-[10px]"></i> Xoá
+                        </button>
+                    )}
                 </div>
             );
         });
@@ -2587,7 +2691,7 @@
             const [aiLookup, setAiLookup] = useState(null); // { text, ocrLoading } — box Bút AI
 
             // --- TÍNH NĂNG "TÓM TẮT PHIÊN DẠY" ---
-            // Gom TẤT CẢ notes (text box) trên mọi trang + lịch sử hỏi-đáp Bút AI trong phiên đang mở,
+            // Gom TẤT CẢ notes (text box) trên mọi trang + các câu trả lời Bút AI ĐÃ LƯU trong phiên đang mở,
             // gửi cho Groq để tổng hợp thành 1 bản tóm tắt. Cố ý dùng REF (không phải state) cho 2 kho dữ
             // liệu nguồn này (allTextsRef, aiHistoryRef) vì chúng được ghi liên tục (mỗi lần gõ chữ note ở
             // BẤT KỲ trang nào, mỗi lần Bút AI trả lời) — nếu dùng state thì mỗi lần gõ 1 ký tự note ở 1
@@ -2595,7 +2699,7 @@
             // Dùng ref: chỉ ĐỌC ra đúng lúc người dùng bấm "Tóm tắt ngay", không hề ảnh hưởng hiệu năng gõ
             // chữ/hỏi AI bình thường.
             const allTextsRef = useRef({}); // { [pageNum]: [{id,text,...}] }
-            const aiHistoryRef = useRef([]); // [{ scannedText, promptLabel, answer, timestamp }]
+            const aiHistoryRef = useRef([]); // [{ scannedText, promptLabel, answer, timestamp }] — CHỈ những câu đã bấm "Lưu"
             const onPageTextsChange = useCallback((pageNum, texts) => {
                 allTextsRef.current[pageNum] = texts;
             }, []);
@@ -2810,6 +2914,34 @@
                     document.removeEventListener('gestureend', onGesture);
                 };
             }, [zoomLocked]);
+
+            // --- PHÍM TẮT CHỌN NHANH KIỂU VẼ CHO BÚT CHÌ (L = Đường thẳng, S = Hình chữ nhật) ---
+            // Chỉ áp dụng khi ĐANG chọn bút chì (tool === 'pencil') — bấm L/S lúc đang dùng bút khác thì
+            // không có tác dụng gì (tránh đổi nhầm kiểu vẽ của bút chì trong khi không hề định dùng nó).
+            // QUAN TRỌNG: phải tự kiểm tra xem đang gõ chữ ở đâu đó hay không (input/textarea/
+            // contentEditable, ví dụ đang gõ note trong Text Box hoặc gõ câu hỏi "Khác" ở Bút AI) rồi bỏ
+            // qua hoàn toàn trong trường hợp đó — nếu không, gõ chữ "l" hay "s" bình thường trong 1 note
+            // sẽ vô tình bị nuốt mất thành phím tắt đổi kiểu vẽ bút chì.
+            useEffect(() => {
+                const onKeyDown = (e) => {
+                    if (tool !== 'pencil') return;
+                    const target = e.target;
+                    const tag = target && target.tagName;
+                    const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || (target && target.isContentEditable);
+                    if (isTyping) return;
+                    if (e.metaKey || e.ctrlKey || e.altKey) return;
+                    const key = e.key.toLowerCase();
+                    if (key === 'l') {
+                        e.preventDefault();
+                        setPencilShapeMode('line');
+                    } else if (key === 's') {
+                        e.preventDefault();
+                        setPencilShapeMode('rect');
+                    }
+                };
+                document.addEventListener('keydown', onKeyDown);
+                return () => document.removeEventListener('keydown', onKeyDown);
+            }, [tool]);
 
             // --- GIỮ NGUYÊN VỊ TRÍ ĐANG XEM KHI ĐỔI ĐỘ PHÓNG (SCALE) ---
             // QUAN TRỌNG — sửa lỗi "bấm +/- % làm nhảy tới trang khác rất xa": mỗi trang PdfPage có
@@ -3469,11 +3601,11 @@
                                 {/* NÚT RIÊNG "TÓM TẮT PHIÊN DẠY" — theo đúng lựa chọn của người dùng, đặt
                                     thành 1 nút toolbar độc lập (KHÔNG lồng trong panel Bút AI) để luôn thấy
                                     ngay và bấm được bất kỳ lúc nào trong phiên, không phụ thuộc đang chọn
-                                    tool gì. Gom TẤT CẢ note (text box mọi trang) + lịch sử hỏi-đáp Bút AI
-                                    trong phiên đang mở thành 1 bản tóm tắt AI, có thể lưu tạm để tý gộp
-                                    thành bản cuối gửi học sinh. */}
+                                    tool gì. Gom TẤT CẢ note (text box mọi trang) + các câu trả lời Bút AI
+                                    ĐÃ LƯU trong phiên đang mở thành 1 bản tóm tắt AI, có thể lưu tạm để tý
+                                    gộp thành bản cuối gửi học sinh. */}
                                 {pdfUrl && (
-                                    <button onClick={() => setShowSessionSummary(true)} className="w-10 h-10 flex items-center justify-center bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl transition-colors border border-amber-100 shadow-sm shrink-0" title="Tóm tắt phiên dạy (gom notes + lịch sử Bút AI trong phiên này)">
+                                    <button onClick={() => setShowSessionSummary(true)} className="w-10 h-10 flex items-center justify-center bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl transition-colors border border-amber-100 shadow-sm shrink-0" title="Tóm tắt phiên dạy (gom notes + các câu trả lời Bút AI đã lưu trong phiên này)">
                                         <i className="fas fa-clipboard-list"></i>
                                     </button>
                                 )}
@@ -3593,12 +3725,17 @@
                                                     ))}
                                                 </div>
                                                 <div className="w-px h-5 bg-slate-200"></div>
-                                                <div className="flex items-center gap-1" title="Kiểu vẽ">
+                                                <div className="flex items-center gap-1" title="Kiểu vẽ (phím tắt: L = Đường thẳng, S = Hình chữ nhật)">
                                                     <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Kiểu</span>
                                                     <button onClick={() => setPencilShapeMode('freehand')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'freehand' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
                                                         <i className="fas fa-signature text-xs"></i>
                                                     </button>
-                                                    <button onClick={() => setPencilShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'rect' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — tiện cho Mac/trackpad)">
+                                                    {/* Kiểu "Đường thẳng" (kéo-thả 1 đường thẳng) — MỚI, chọn nhanh bằng phím tắt "L" khi
+                                                        đang dùng bút chì (xem useEffect lắng nghe bàn phím trong App). */}
+                                                    <button onClick={() => setPencilShapeMode('line')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'line' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Đường thẳng (kéo-thả — phím tắt L)">
+                                                        <i className="fas fa-slash text-xs"></i>
+                                                    </button>
+                                                    <button onClick={() => setPencilShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'rect' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — phím tắt S)">
                                                         <i className="fas fa-vector-square text-xs"></i>
                                                     </button>
                                                 </div>
