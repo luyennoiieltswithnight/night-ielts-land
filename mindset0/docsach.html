@@ -1083,6 +1083,14 @@
             // local, không đụng gì tới t/updateText, nên không có nguy cơ đọc phải closure t "cũ" từ
             // lúc bắt đầu kéo như khi cố tình gọi lại updateText ở đây).
             const [resizeTick, setResizeTick] = useState(0);
+            // Hiện/ẩn bảng chọn cỡ chữ nổi phía trên nắm kéo Move — bật bằng cách chạm/click ĐÚP vào
+            // chính nắm kéo đó (xem onMoveHandlePointerDown), tắt bằng cách chạm lại vào box hoặc chạm
+            // ra ngoài (theo đúng yêu cầu "bấm lại vào box thì nó mất đi").
+            const [showFontSizeControl, setShowFontSizeControl] = useState(false);
+            // Mốc thời gian lần chạm gần nhất vào ĐÚNG nắm kéo Move — tách riêng khỏi lastBoxTapRef
+            // (dùng cho double-tap vào THÂN box để hiện controlsVisible) vì đây là double-tap vào 1
+            // phần tử con khác, cần đếm nhịp độc lập.
+            const lastMoveHandleTapRef = useRef(0);
 
             // Focus tự động khi tạo mới
             useEffect(() => {
@@ -1097,6 +1105,7 @@
                     if (containerRef.current && !containerRef.current.contains(e.target)) {
                         setActive(false);
                         setControlsVisible(false);
+                        setShowFontSizeControl(false);
                     }
                 };
                 document.addEventListener('pointerdown', handleClickOutside);
@@ -1107,22 +1116,33 @@
             // đang hiển thị: fontPx = t.size * scale, y hệt style fontSize thật của textarea bên
             // dưới), giới hạn tối đa bằng maxWidthPdf (mép phải trang) — vượt quá thì tự đứng lại ở
             // mức tối đa, chữ sẽ tự xuống dòng bên trong (xử lý bởi effect đo chiều cao kế tiếp).
+            // QUAN TRỌNG (sửa theo yêu cầu "resize không đổi cỡ chữ nữa"): nếu người dùng đã từng tự
+            // kéo núm resize ngang/góc (t.manualWidth có giá trị — xem startResize), coi đó là bề rộng
+            // CỐ ĐỊNH người dùng muốn (ví dụ cố tình để box hẹp lại cho xuống dòng sớm, hoặc rộng ra
+            // thoáng hơn nội dung) — không còn tự co/giãn về đúng khít nội dung nữa, CHỈ vẫn tôn trọng
+            // trần mép trang (maxWidthPdf) để không tràn ra ngoài. Chưa từng tự kéo lần nào thì vẫn tự
+            // khít theo nội dung như trước (hành vi mặc định không đổi).
             useEffect(() => {
                 if (isManualResizingRef.current) return;
-                const fontPx = t.size * scale;
-                const maxLineWidthPx = measureMaxLineWidthPx(t.text, fontPx);
                 const maxAllowedPx = maxWidthPdf != null
                     ? Math.max(TEXTBOX_MIN_WIDTH * scale, maxWidthPdf * scale)
                     : Infinity;
-                const desiredPx = Math.min(maxAllowedPx, Math.max(TEXTBOX_MIN_WIDTH * scale, maxLineWidthPx + TEXTBOX_PADDING_PX));
+                let desiredPx;
+                if (t.manualWidth != null) {
+                    desiredPx = Math.min(maxAllowedPx, Math.max(TEXTBOX_MIN_WIDTH * scale, t.manualWidth * scale));
+                } else {
+                    const fontPx = t.size * scale;
+                    const maxLineWidthPx = measureMaxLineWidthPx(t.text, fontPx);
+                    desiredPx = Math.min(maxAllowedPx, Math.max(TEXTBOX_MIN_WIDTH * scale, maxLineWidthPx + TEXTBOX_PADDING_PX));
+                }
                 const desiredPdf = desiredPx / scale;
                 if (Math.abs(desiredPdf - (t.width || 150)) > 1) {
                     updateText(t.id, { ...t, width: desiredPdf });
                 }
-                // Cố ý CHỈ phụ thuộc vào nội dung/cỡ chữ/scale/giới hạn mép trang — KHÔNG phụ thuộc
-                // t.width/t (object đổi identity liên tục) để tránh vòng lặp effect vô hạn.
+                // Cố ý CHỈ phụ thuộc vào nội dung/cỡ chữ/scale/giới hạn mép trang/bề rộng tự đặt — KHÔNG
+                // phụ thuộc t.width/t (object đổi identity liên tục) để tránh vòng lặp effect vô hạn.
                 // eslint-disable-next-line react-hooks/exhaustive-deps
-            }, [t.text, t.size, scale, maxWidthPdf, resizeTick]);
+            }, [t.text, t.size, scale, maxWidthPdf, t.manualWidth, resizeTick]);
 
             // TỰ GIÃN CHIỀU CAO — chạy SAU khi chiều rộng ở effect trên đã áp dụng xong vào DOM
             // (useLayoutEffect, đồng bộ trước khi trình duyệt vẽ khung hình kế tiếp) để đo scrollHeight
@@ -1131,6 +1151,10 @@
             // nội dung thật, đọc scrollHeight, rồi trả lại như cũ — toàn bộ diễn ra TRƯỚC khi trình
             // duyệt vẽ hình (useLayoutEffect + setState đồng bộ) nên không hề có 1 khung hình nào bị
             // "nháy" giữa lúc đo và lúc áp dụng kích thước mới.
+            // QUAN TRỌNG: nếu người dùng đã tự kéo núm resize dọc/góc (t.manualHeight), coi đó là chiều
+            // cao TỐI THIỂU mong muốn (sàn) — vẫn LUÔN tự cao thêm nếu nội dung cần nhiều chỗ hơn (không
+            // bao giờ để chữ bị cắt/khuất), nhưng không tự thu nhỏ xuống dưới mức đã tự đặt nữa khi xoá
+            // bớt chữ (khác với chiều rộng — chiều cao luôn phải đủ để KHÔNG BAO GIỜ cắt mất chữ).
             useLayoutEffect(() => {
                 if (isManualResizingRef.current) return;
                 const ta = textareaRef.current;
@@ -1140,13 +1164,14 @@
                 const neededPx = ta.scrollHeight;
                 ta.style.height = prevHeight;
                 const minHeightPx = TEXTBOX_MIN_HEIGHT * scale;
-                const desiredPx = Math.max(minHeightPx, neededPx);
+                const manualHeightPx = t.manualHeight != null ? t.manualHeight * scale : 0;
+                const desiredPx = Math.max(minHeightPx, manualHeightPx, neededPx);
                 const desiredPdf = desiredPx / scale;
                 if (Math.abs(desiredPdf - (t.height || 40)) > 1) {
                     updateText(t.id, { ...t, height: desiredPdf });
                 }
                 // eslint-disable-next-line react-hooks/exhaustive-deps
-            }, [t.text, t.size, t.width, scale, resizeTick]);
+            }, [t.text, t.size, t.width, scale, t.manualHeight, resizeTick]);
 
             // THUẬT TOÁN KÉO DI CHUYỂN BOX (di chuyển vị trí)
             // SỬA LỖI "text box không di chuyển được": trước đây việc kéo-thả di chuyển được lập
@@ -1183,14 +1208,13 @@
                 window.addEventListener('pointerup', onUp);
             };
 
-            // THUẬT TOÁN KÉO RESIZE BOX — GIỜ ĐỒNG THỜI ĐỔI CỠ CHỮ theo yêu cầu: kéo núm resize vừa
-            // đổi kích thước khung (bám sát ngón tay/con trỏ như cũ) VỪA phóng to/thu nhỏ cỡ chữ
-            // (t.size) theo đúng tỉ lệ đã kéo — cả 2 diễn ra CÙNG LÚC, thấy chữ to/nhỏ dần ngay trong
-            // lúc đang kéo chứ không phải đợi buông tay. Tính tỉ lệ theo ĐÚNG chiều đang kéo (kéo
-            // ngang -> theo tỉ lệ rộng, kéo dọc -> theo tỉ lệ cao, kéo góc -> trung bình cả 2) rồi áp
-            // dụng tỉ lệ đó lên cỡ chữ gốc lúc bắt đầu kéo. Đặt cờ isManualResizingRef=true trong suốt
-            // lúc kéo để 2 effect "tự giãn theo nội dung" ở trên tạm đứng yên, không giằng co ngược lại
-            // kích thước đang kéo; effect sẽ tự chạy lại đúng theo cỡ chữ MỚI ngay khi buông tay.
+            // THUẬT TOÁN KÉO RESIZE BOX — theo yêu cầu MỚI: 3 núm resize (ngang/dọc/góc) giờ CHỈ đổi
+            // kích thước khung, KHÔNG còn kèm đổi cỡ chữ nữa (đổi cỡ chữ giờ có cách riêng — xem bảng
+            // chọn cỡ chữ nổi lên khi chạm đúp vào nắm kéo Move, bên dưới). Kích thước vừa kéo được ghi
+            // luôn vào t.manualWidth/t.manualHeight — 2 effect "tự giãn theo nội dung" ở trên đọc lại 2
+            // giá trị này để không tự ý ghi đè kích thước người dùng vừa tự đặt (xem giải thích chi tiết
+            // ở 2 effect đó). Đặt cờ isManualResizingRef=true trong suốt lúc kéo để 2 effect đó tạm đứng
+            // yên, không giằng co ngược lại kích thước đang kéo bằng tay.
             const startResize = (e, direction) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -1204,7 +1228,6 @@
                 const rect = containerRef.current.getBoundingClientRect();
                 const startW = rect.width / scale;
                 const startH = rect.height / scale;
-                const startSize = t.size || 10;
 
                 const onMove = (ev) => {
                     let w = startW;
@@ -1218,32 +1241,50 @@
                     w = Math.max(TEXTBOX_MIN_WIDTH, w);
                     h = Math.max(TEXTBOX_MIN_HEIGHT, h);
 
-                    let sizeFactor;
-                    if (direction === 'w') sizeFactor = w / startW;
-                    else if (direction === 'h') sizeFactor = h / startH;
-                    else sizeFactor = ((w / startW) + (h / startH)) / 2;
-                    const newSize = Math.max(8, Math.min(72, startSize * sizeFactor));
-
-                    updateText(t.id, { ...t, width: w, height: h, size: newSize });
+                    const next = { ...t, width: w, height: h };
+                    if (direction === 'w' || direction === 'both') next.manualWidth = w;
+                    if (direction === 'h' || direction === 'both') next.manualHeight = h;
+                    updateText(t.id, next);
                 };
 
                 const onUp = () => {
                     window.removeEventListener('pointermove', onMove);
                     window.removeEventListener('pointerup', onUp);
-                    // Buông tay xong mới cho 2 effect tự-giãn-theo-nội-dung chạy lại — chúng sẽ tự
-                    // khớp lại width/height CHÍNH XÁC theo cỡ chữ mới + nội dung hiện có (có thể hơi
-                    // khác 1 chút so với kích thước vừa kéo bằng tay, nhưng luôn khớp đúng chữ, không
-                    // bao giờ để chữ bị cắt/hụt khung). Dùng resizeTick (state LOCAL trong chính
-                    // component này) để ép effect chạy lại — KHÔNG gọi updateText({...t}) ở đây vì `t`
-                    // trong closure này là giá trị "cũ" chụp lại lúc BẮT ĐẦU kéo (trước khi có loạt
-                    // updateText mới trong onMove), gọi lại sẽ vô tình ghi ĐÈ mất kích thước/cỡ chữ vừa
-                    // kéo xong bằng giá trị cũ đó.
+                    // Buông tay xong mới cho 2 effect tự-giãn-theo-nội-dung chạy lại — chúng đọc lại
+                    // manualWidth/manualHeight vừa ghi ở trên để tôn trọng đúng kích thước vừa kéo (chỉ
+                    // vẫn tự cao thêm nếu nội dung cần nhiều chỗ hơn, không bao giờ để chữ bị cắt). Dùng
+                    // resizeTick (state LOCAL) để ép effect chạy lại — KHÔNG gọi updateText({...t}) ở
+                    // đây vì `t` trong closure này là giá trị "cũ" chụp lại lúc BẮT ĐẦU kéo, gọi lại sẽ
+                    // vô tình ghi ĐÈ mất kích thước vừa kéo xong bằng giá trị cũ đó.
                     isManualResizingRef.current = false;
                     setResizeTick(v => v + 1);
                 };
 
                 window.addEventListener('pointermove', onMove);
                 window.addEventListener('pointerup', onUp);
+            };
+
+            // Chạm/click ĐÚP vào nắm kéo Move -> bật/tắt bảng chọn cỡ chữ nổi phía trên (thay vì kéo di
+            // chuyển) — chạm/kéo 1 lần vẫn di chuyển box như bình thường. Tự đo thời gian giữa 2 lần
+            // chạm liên tiếp (giống mọi chỗ bắt double-tap khác trong file này) thay vì dùng "dblclick"
+            // có sẵn của trình duyệt, vì sự kiện đó không đáng tin cậy với Apple Pencil/chạm trên iPad.
+            const onMoveHandlePointerDown = (e) => {
+                const now = Date.now();
+                const isDouble = now - lastMoveHandleTapRef.current < 400;
+                lastMoveHandleTapRef.current = now;
+                if (isDouble) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setShowFontSizeControl(v => !v);
+                    return;
+                }
+                startMove(e);
+            };
+
+            // Đổi cỡ chữ qua bảng chọn nổi (nút -/+) — áp dụng ngay lập tức, thấy chữ to/nhỏ dần liền.
+            const adjustFontSize = (delta) => {
+                const newSize = Math.max(8, Math.min(72, (t.size || 10) + delta));
+                updateText(t.id, { ...t, size: newSize });
             };
 
             return (
@@ -1264,10 +1305,14 @@
                        con trỏ/ngón tay có độ trễ thay vì bám sát tức thời. Đổi sang "transition-colors"
                        để CHỈ hiệu ứng mượt cho phần đổi màu viền/nền khi bật/tắt active, còn vị trí và
                        kích thước luôn cập nhật NGAY LẬP TỨC, bám sát 100% theo thao tác kéo. */
-                    className={`group transition-colors ${controlsVisible ? 'border-2 border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
+                    className={`group transition-colors ${controlsVisible ? 'border-2 border-dashed border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
                     onPointerDown={(e) => {
                         e.stopPropagation();
                         setActive(true);
+                        // Bấm/chạm vào thân box -> ẩn bảng chọn cỡ chữ nổi nếu đang hiện (theo đúng yêu
+                        // cầu "bấm lại vào box thì nó mất đi"). Bảng chọn cỡ chữ tự chặn sự kiện này
+                        // (stopPropagation riêng) nên bấm NGAY TRÊN bảng đó không bị tính là "bấm vào box".
+                        setShowFontSizeControl(false);
                         // Bắt double-tap/double-click NGAY TRÊN box (tự đo thời gian giữa 2 lần chạm
                         // liên tiếp, giống cơ chế bắt double-tap tạo box mới trong PdfPage) — chỉ chạm
                         // đúp mới hiện viền đậm + các nút điều khiển, chạm 1 lần chỉ để gõ chữ tiếp.
@@ -1287,13 +1332,40 @@
                         </button>
                     )}
 
-                    {/* Nắm Kéo Move (Bên Trên) — chỉ hiện khi đã chạm đúp */}
+                    {/* Nắm Kéo Move (Bên Trên) — chỉ hiện khi đã chạm đúp vào box. Chạm/kéo 1 lần: di
+                        chuyển box (như cũ). Chạm/click ĐÚP vào chính nắm này: hiện/ẩn bảng chọn cỡ chữ
+                        nổi ngay phía trên (xem onMoveHandlePointerDown + bảng render bên dưới). */}
                     {controlsVisible && (
                         <div
-                            onPointerDown={startMove}
+                            onPointerDown={onMoveHandlePointerDown}
                             className="absolute -top-5 left-1/2 transform -translate-x-1/2 w-14 h-5 bg-indigo-500 text-white rounded-t-lg cursor-move shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600 transition-colors"
+                            title="Kéo để di chuyển — chạm/click đúp để đổi cỡ chữ"
                         >
                             <i className="fas fa-grip-lines text-[10px]"></i>
+                        </div>
+                    )}
+
+                    {/* Bảng chọn cỡ chữ nổi — hiện khi chạm đúp vào nắm kéo Move ở trên. Tự chặn sự
+                        kiện pointerdown của chính nó (stopPropagation) để bấm nút -/+ bên trong KHÔNG bị
+                        tính là "bấm vào box" (vốn dĩ sẽ tự ẩn bảng này đi, xem onPointerDown của container). */}
+                    {controlsVisible && showFontSizeControl && (
+                        <div
+                            onPointerDown={(e) => e.stopPropagation()}
+                            className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white rounded-xl shadow-xl px-1.5 py-1.5 flex items-center gap-1.5 z-30 touch-none whitespace-nowrap"
+                        >
+                            <button
+                                onPointerDown={(e) => { e.stopPropagation(); adjustFontSize(-1); }}
+                                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors active:scale-95"
+                            >
+                                <i className="fas fa-minus text-[10px]"></i>
+                            </button>
+                            <span className="text-xs font-bold w-8 text-center tabular-nums">{Math.round(t.size)}</span>
+                            <button
+                                onPointerDown={(e) => { e.stopPropagation(); adjustFontSize(1); }}
+                                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors active:scale-95"
+                            >
+                                <i className="fas fa-plus text-[10px]"></i>
+                            </button>
                         </div>
                     )}
 
@@ -2915,7 +2987,7 @@
                 };
             }, [zoomLocked]);
 
-            // --- PHÍM TẮT CHỌN NHANH KIỂU VẼ CHO BÚT CHÌ (L = Đường thẳng, S = Hình chữ nhật) ---
+            // --- PHÍM TẮT CHỌN NHANH KIỂU VẼ CHO BÚT CHÌ (F = Tự do/Free-writing, L = Đường thẳng, S = Hình chữ nhật) ---
             // Chỉ áp dụng khi ĐANG chọn bút chì (tool === 'pencil') — bấm L/S lúc đang dùng bút khác thì
             // không có tác dụng gì (tránh đổi nhầm kiểu vẽ của bút chì trong khi không hề định dùng nó).
             // QUAN TRỌNG: phải tự kiểm tra xem đang gõ chữ ở đâu đó hay không (input/textarea/
@@ -2931,7 +3003,10 @@
                     if (isTyping) return;
                     if (e.metaKey || e.ctrlKey || e.altKey) return;
                     const key = e.key.toLowerCase();
-                    if (key === 'l') {
+                    if (key === 'f') {
+                        e.preventDefault();
+                        setPencilShapeMode('freehand');
+                    } else if (key === 'l') {
                         e.preventDefault();
                         setPencilShapeMode('line');
                     } else if (key === 's') {
@@ -3725,9 +3800,9 @@
                                                     ))}
                                                 </div>
                                                 <div className="w-px h-5 bg-slate-200"></div>
-                                                <div className="flex items-center gap-1" title="Kiểu vẽ (phím tắt: L = Đường thẳng, S = Hình chữ nhật)">
+                                                <div className="flex items-center gap-1" title="Kiểu vẽ (phím tắt: F = Tự do, L = Đường thẳng, S = Hình chữ nhật)">
                                                     <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Kiểu</span>
-                                                    <button onClick={() => setPencilShapeMode('freehand')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'freehand' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
+                                                    <button onClick={() => setPencilShapeMode('freehand')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'freehand' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-400 hover:bg-slate-100')} title="Tự do / Free-writing (vẽ tay — phím tắt F)">
                                                         <i className="fas fa-signature text-xs"></i>
                                                     </button>
                                                     {/* Kiểu "Đường thẳng" (kéo-thả 1 đường thẳng) — MỚI, chọn nhanh bằng phím tắt "L" khi
