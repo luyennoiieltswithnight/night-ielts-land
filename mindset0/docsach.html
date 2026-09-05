@@ -1637,6 +1637,39 @@
         // các model trong danh sách đều bị khai tử hết thì mới cần vào console.groq.com/docs/models coi
         // model mới nhất rồi thêm/sửa vào danh sách này.
         const GROQ_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
+
+        // === PHỤ ĐỀ TRỰC TIẾP (Live Subtitles) — dùng Groq Whisper để chuyển giọng nói thành chữ theo
+        // thời gian thực. QUAN TRỌNG: sở dĩ không dùng Web Speech API (SpeechRecognition) có sẵn miễn
+        // phí trong trình duyệt là vì API đó CHỈ nhận đúng 1 nguồn cố định là micro hệ điều hành, không
+        // có cách nào đưa vào 1 MediaStream tuỳ ý (vd âm thanh trộn thêm từ tab/cửa sổ) — mà yêu cầu ở
+        // đây là phải nghe được CẢ mic LẪN âm thanh máy phát ra cùng lúc; ngoài ra Safari trên iPad hầu
+        // như không hỗ trợ SpeechRecognition. Nên dùng cách: tự ghi âm từng đoạn ngắn (MediaRecorder)
+        // rồi gửi cho Groq Whisper (dùng lại đúng API key Groq đã có sẵn cho Bút AI) — chạy được như
+        // nhau trên mọi trình duyệt/thiết bị, kể cả iPad.
+        // 3 model Whisper của Groq theo thứ tự ưu tiên: "distil-whisper-large-v3-en" nhanh & rẻ nhất
+        // nhưng CHỈ nhận tiếng Anh (đúng nhu cầu ở đây) — nếu model này bị khai tử/đổi tên (lỗi 404/400)
+        // thì tự rơi xuống 2 model Whisper đa ngôn ngữ còn lại, y hệt cơ chế GROQ_MODELS ở trên.
+        const GROQ_WHISPER_MODELS = ['distil-whisper-large-v3-en', 'whisper-large-v3-turbo', 'whisper-large-v3'];
+        // Độ dài mỗi đoạn ghi âm gửi đi (ms) — cân bằng giữa độ trễ hiển thị phụ đề (ngắn hơn thì hiện
+        // nhanh hơn) và số lượt gọi API/chi phí (dài hơn thì đỡ tốn request hơn). 4 giây là mức vừa phải.
+        const SUBTITLE_CHUNK_MS = 4000;
+        // Ngưỡng năng lượng âm thanh (RMS, tính trên dữ liệu waveform -1..1) để coi 1 đoạn ghi âm là
+        // "có tiếng nói thật" — nếu đoạn ghi âm gần như im lặng hoàn toàn (dưới ngưỡng này) thì BỎ QUA,
+        // không gửi cho Whisper: (1) đỡ tốn request/tiền vô ích, (2) tránh đúng lỗi "ảo giác" nổi tiếng
+        // của Whisper — hay tự bịa ra vài chữ vô nghĩa (kiểu "Thank you for watching") khi cho nó nghe
+        // toàn im lặng/tạp âm nhỏ.
+        const SUBTITLE_SILENCE_RMS = 0.008;
+        // Chọn định dạng ghi âm trình duyệt hỗ trợ — Chrome/Mac thường có 'audio/webm;codecs=opus',
+        // Safari/iPad thường chỉ có 'audio/mp4'; thử lần lượt, không có cái nào thì để trống (trình
+        // duyệt tự chọn định dạng mặc định của nó).
+        const pickSubtitleMimeType = () => {
+            const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+            for (const c of candidates) {
+                if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+            }
+            return '';
+        };
+
         // 5 prompt có sẵn theo đúng yêu cầu — bấm là chạy luôn, không cần gõ gì thêm (trừ "Khác").
         // buildPrompt nhận vào đúng đoạn chữ vừa quét được, trả về câu prompt đầy đủ gửi cho AI.
         const AI_PRESET_OPTIONS = [
@@ -2762,6 +2795,218 @@
             }, [aiApiKey]);
             const [aiLookup, setAiLookup] = useState(null); // { text, ocrLoading } — box Bút AI
 
+            // --- TÍNH NĂNG "PHỤ ĐỀ TRỰC TIẾP" (Live Subtitles) ---
+            // Bật lên hiện 1 thanh màu đen cố định dưới cùng màn hình, phiên âm giọng nói theo thời gian
+            // thực (xem GROQ_WHISPER_MODELS phía trên) — nghe qua mic máy, và có thể bấm thêm để lấy cả
+            // âm thanh phát ra từ 1 tab/cửa sổ khác trên máy (vd tab đang phát bài nghe) trộn chung vào
+            // cùng 1 luồng ghi âm duy nhất, gửi Groq Whisper phiên âm CHUNG cả 2 nguồn cùng lúc.
+            const [subtitleActive, setSubtitleActive] = useState(false);
+            const [subtitleStatus, setSubtitleStatus] = useState('idle'); // 'idle' | 'listening' | 'error'
+            const [subtitleError, setSubtitleError] = useState('');
+            const [subtitleLines, setSubtitleLines] = useState([]); // vài dòng phụ đề gần nhất, dạng [{id,text}]
+            const [subtitleHasTabAudio, setSubtitleHasTabAudio] = useState(false);
+            // subtitleActiveRef: dùng SONG SONG với state subtitleActive — vòng lặp ghi âm/gửi API chạy
+            // đệ quy qua setTimeout/await nên đọc state cũ (đóng gói lúc closure tạo ra) sẽ không thấy
+            // được lần setSubtitleActive(false) mới nhất khi người dùng bấm tắt giữa chừng; đọc ref thì
+            // luôn thấy giá trị mới nhất ngay lập tức, dừng vòng lặp đúng lúc.
+            const subtitleActiveRef = useRef(false);
+            const subtitleMicStreamRef = useRef(null);
+            const subtitleTabStreamRef = useRef(null);
+            const subtitleAudioCtxRef = useRef(null);
+            const subtitleDestRef = useRef(null); // MediaStreamDestination — nơi TRỘN mic + (có thể có) âm thanh tab thành 1 luồng duy nhất để ghi âm
+            const subtitleAnalyserRef = useRef(null); // đo năng lượng âm thanh — xem SUBTITLE_SILENCE_RMS
+            const subtitleEnergyPeakRef = useRef(0);
+            const subtitleEnergyIntervalRef = useRef(null);
+            const subtitleRecorderRef = useRef(null);
+
+            // Gửi 1 đoạn audio đã ghi cho Groq Whisper phiên âm ra chữ — tự thử lần lượt các model trong
+            // GROQ_WHISPER_MODELS nếu model hiện tại báo lỗi (giống hệt cơ chế callGroqAPI cho Bút AI).
+            const transcribeAudioBlob = useCallback(async (blob) => {
+                if (!aiApiKey) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Chưa có API key Groq — bấm vào đây để nhập (dùng chung với Bút AI).');
+                    return;
+                }
+                const ext = blob.type.includes('mp4') ? 'mp4' : (blob.type.includes('ogg') ? 'ogg' : 'webm');
+                for (let i = 0; i < GROQ_WHISPER_MODELS.length; i++) {
+                    const model = GROQ_WHISPER_MODELS[i];
+                    const isLastModel = i === GROQ_WHISPER_MODELS.length - 1;
+                    try {
+                        const form = new FormData();
+                        form.append('file', blob, 'chunk.' + ext);
+                        form.append('model', model);
+                        form.append('language', 'en');
+                        form.append('response_format', 'json');
+                        form.append('temperature', '0');
+                        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + aiApiKey },
+                            body: form,
+                        });
+                        if (res.status === 401) {
+                            setSubtitleStatus('error');
+                            setSubtitleError('API key Groq không hợp lệ — bấm vào đây để sửa lại.');
+                            return;
+                        }
+                        if (!res.ok) {
+                            if (!isLastModel && (res.status === 404 || res.status === 400)) continue; // model này lỗi -> thử model kế tiếp
+                            throw new Error('HTTP ' + res.status);
+                        }
+                        const data = await res.json();
+                        const text = ((data && data.text) || '').trim();
+                        if (text) {
+                            setSubtitleStatus('listening');
+                            setSubtitleError('');
+                            setSubtitleLines(prev => [...prev, { id: Date.now() + Math.random(), text }].slice(-3));
+                        }
+                        return;
+                    } catch (e) {
+                        if (isLastModel) {
+                            setSubtitleStatus('error');
+                            setSubtitleError('Lỗi kết nối tới Groq — đang tự thử lại...');
+                        }
+                    }
+                }
+            }, [aiApiKey]);
+
+            // Vòng lặp ghi âm: tạo 1 MediaRecorder MỚI cho mỗi đoạn (đơn giản/ổn định hơn nhiều so với
+            // dùng timeslice trên 1 recorder duy nhất — mỗi lần start() lại sinh ra 1 file audio ĐẦY ĐỦ
+            // header, Whisper đọc được ngay, không cần ghép nhiều mảnh timeslice lại với nhau). Đệ quy
+            // gọi lại chính nó cho tới khi subtitleActiveRef.current thành false (người dùng bấm tắt).
+            const subtitleRecordLoop = useCallback(async () => {
+                if (!subtitleActiveRef.current || !subtitleDestRef.current) return;
+                let recorder;
+                try {
+                    const mimeType = pickSubtitleMimeType();
+                    recorder = new MediaRecorder(subtitleDestRef.current.stream, mimeType ? { mimeType } : undefined);
+                } catch (e) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Trình duyệt này không hỗ trợ ghi âm (MediaRecorder).');
+                    return;
+                }
+                subtitleRecorderRef.current = recorder;
+                subtitleEnergyPeakRef.current = 0;
+                const chunks = [];
+                recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+                const stopped = new Promise(resolve => { recorder.onstop = resolve; });
+                recorder.start();
+                await new Promise(r => setTimeout(r, SUBTITLE_CHUNK_MS));
+                if (recorder.state !== 'inactive') recorder.stop();
+                await stopped;
+                if (!subtitleActiveRef.current) return; // đã bấm tắt trong lúc đang ghi đoạn này
+                const peak = subtitleEnergyPeakRef.current;
+                if (peak >= SUBTITLE_SILENCE_RMS && chunks.length > 0) {
+                    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+                    transcribeAudioBlob(blob); // KHÔNG await — chạy song song, không làm chậm vòng ghi âm kế tiếp
+                }
+                subtitleRecordLoop();
+            }, [transcribeAudioBlob]);
+
+            const startSubtitles = useCallback(async () => {
+                if (subtitleActiveRef.current) return;
+                if (!aiApiKey) { openAiSettings(); return; } // chưa có API key -> mở luôn modal nhập key (dùng chung Bút AI)
+                subtitleActiveRef.current = true;
+                setSubtitleActive(true);
+                setSubtitleStatus('listening');
+                setSubtitleError('');
+                setSubtitleLines([]);
+                setSubtitleHasTabAudio(false);
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Trình duyệt/kết nối hiện tại không hỗ trợ dùng micro (thử mở trang qua https hoặc localhost).');
+                    return;
+                }
+                try {
+                    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    const audioCtx = new AudioCtx();
+                    const destination = audioCtx.createMediaStreamDestination();
+                    const analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 512;
+                    const micSource = audioCtx.createMediaStreamSource(micStream);
+                    micSource.connect(destination);
+                    micSource.connect(analyser);
+
+                    subtitleMicStreamRef.current = micStream;
+                    subtitleAudioCtxRef.current = audioCtx;
+                    subtitleDestRef.current = destination;
+                    subtitleAnalyserRef.current = analyser;
+
+                    subtitleEnergyIntervalRef.current = setInterval(() => {
+                        const a = subtitleAnalyserRef.current;
+                        if (!a) return;
+                        const data = new Uint8Array(a.fftSize);
+                        a.getByteTimeDomainData(data);
+                        let sumSquares = 0;
+                        for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sumSquares += v * v; }
+                        const rms = Math.sqrt(sumSquares / data.length);
+                        if (rms > subtitleEnergyPeakRef.current) subtitleEnergyPeakRef.current = rms;
+                    }, 80);
+
+                    subtitleRecordLoop();
+                } catch (e) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Không lấy được quyền micro (kiểm tra đã cho phép trong trình duyệt/hệ thống chưa).');
+                }
+            }, [aiApiKey, openAiSettings, subtitleRecordLoop]);
+
+            // Thêm âm thanh phát ra từ 1 tab/cửa sổ khác trên máy (vd tab đang phát bài nghe) — bắt buộc
+            // phải qua hộp thoại "Chia sẻ tab/cửa sổ" của trình duyệt (getDisplayMedia), không có cách
+            // nào lấy được âm thanh hệ thống 1 cách "âm thầm" vì lý do bảo mật của trình duyệt. Track
+            // video lấy kèm theo (bắt buộc phải xin cả video mới xin được audio) bị TẮT ngay lập tức vì
+            // chỉ cần âm thanh — đỡ tốn tài nguyên máy.
+            const addTabAudioToSubtitles = useCallback(async () => {
+                if (!subtitleActiveRef.current || !subtitleAudioCtxRef.current || !subtitleDestRef.current) return;
+                try {
+                    const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    const audioTracks = displayStream.getAudioTracks();
+                    displayStream.getVideoTracks().forEach(t => t.stop());
+                    if (audioTracks.length === 0) {
+                        setSubtitleError('Tab/cửa sổ vừa chọn không có âm thanh — nhớ tick vào ô "Chia sẻ âm thanh" (Share audio) trong hộp thoại.');
+                        return;
+                    }
+                    const tabAudioOnlyStream = new MediaStream(audioTracks);
+                    subtitleTabStreamRef.current = tabAudioOnlyStream;
+                    const tabSource = subtitleAudioCtxRef.current.createMediaStreamSource(tabAudioOnlyStream);
+                    tabSource.connect(subtitleDestRef.current);
+                    if (subtitleAnalyserRef.current) tabSource.connect(subtitleAnalyserRef.current);
+                    setSubtitleHasTabAudio(true);
+                    // Người dùng có thể bấm "Dừng chia sẻ" ngay trên thanh chia sẻ riêng của trình duyệt
+                    // (không phải nút Tắt trong app) — lắng nghe để tự dọn dẹp trạng thái cho khớp.
+                    audioTracks[0].addEventListener('ended', () => {
+                        subtitleTabStreamRef.current = null;
+                        setSubtitleHasTabAudio(false);
+                    });
+                } catch (e) {
+                    // Người dùng bấm Huỷ ở hộp thoại chia sẻ — không phải lỗi thật sự, bỏ qua im lặng.
+                }
+            }, []);
+
+            const stopSubtitles = useCallback(() => {
+                subtitleActiveRef.current = false;
+                setSubtitleActive(false);
+                setSubtitleStatus('idle');
+                setSubtitleError('');
+                setSubtitleLines([]);
+                setSubtitleHasTabAudio(false);
+                if (subtitleEnergyIntervalRef.current) { clearInterval(subtitleEnergyIntervalRef.current); subtitleEnergyIntervalRef.current = null; }
+                if (subtitleRecorderRef.current && subtitleRecorderRef.current.state !== 'inactive') {
+                    try { subtitleRecorderRef.current.stop(); } catch (e) {}
+                }
+                subtitleRecorderRef.current = null;
+                if (subtitleMicStreamRef.current) { subtitleMicStreamRef.current.getTracks().forEach(t => t.stop()); subtitleMicStreamRef.current = null; }
+                if (subtitleTabStreamRef.current) { subtitleTabStreamRef.current.getTracks().forEach(t => t.stop()); subtitleTabStreamRef.current = null; }
+                if (subtitleAudioCtxRef.current) { try { subtitleAudioCtxRef.current.close(); } catch (e) {} subtitleAudioCtxRef.current = null; }
+                subtitleDestRef.current = null;
+                subtitleAnalyserRef.current = null;
+            }, []);
+
+            // Đảm bảo dọn dẹp mic/tab-audio/AudioContext nếu người dùng đóng tab/tải lại trang trong lúc
+            // phụ đề trực tiếp đang bật — tránh giữ mic mở "vô hình" sau khi rời trang.
+            useEffect(() => {
+                return () => { stopSubtitles(); };
+            }, [stopSubtitles]);
+
             // --- TÍNH NĂNG "TÓM TẮT PHIÊN DẠY" ---
             // Gom TẤT CẢ notes (text box) trên mọi trang + các câu trả lời Bút AI ĐÃ LƯU trong phiên đang mở,
             // gửi cho Groq để tổng hợp thành 1 bản tóm tắt. Cố ý dùng REF (không phải state) cho 2 kho dữ
@@ -3529,6 +3774,57 @@
                         </div>
                     )}
 
+                    {/* THANH PHỤ ĐỀ TRỰC TIẾP (Live Subtitles) — cố định dưới cùng màn hình, phủ hết
+                        chiều ngang, giống kiểu phụ đề của YouTube/Google Meet. Luôn hiện ra ngay khi bấm
+                        nút bật (subtitleActive), kể cả lúc đang lỗi/đang xin quyền micro, để người dùng
+                        luôn thấy phản hồi trạng thái thay vì tưởng nút không hoạt động. */}
+                    {subtitleActive && (
+                        <div className="fixed bottom-0 left-0 right-0 z-[250] bg-black/85 backdrop-blur-sm text-white px-4 sm:px-8 py-4 flex items-center gap-3 sm:gap-5 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] animate-fade-in">
+                            <div className="flex flex-col items-center gap-1 shrink-0 w-16 sm:w-20">
+                                <span className={"w-3 h-3 rounded-full " + (subtitleStatus === 'error' ? 'bg-red-500' : 'bg-emerald-400 animate-pulse')}></span>
+                                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-300 text-center leading-tight">
+                                    {subtitleStatus === 'error' ? 'Lỗi' : 'Đang nghe'}
+                                </span>
+                            </div>
+                            <div className="flex-1 min-w-0 text-center">
+                                {subtitleStatus === 'error' && subtitleError ? (
+                                    <button onClick={openAiSettings} className="text-sm sm:text-base font-bold text-rose-300 hover:text-rose-200 underline decoration-dotted">
+                                        {subtitleError}
+                                    </button>
+                                ) : subtitleLines.length === 0 ? (
+                                    <p className="text-sm text-slate-400 italic">Đang chờ giọng nói...</p>
+                                ) : (
+                                    subtitleLines.map((line, i) => (
+                                        <p
+                                            key={line.id}
+                                            className={"font-bold leading-snug transition-opacity " + (i === subtitleLines.length - 1 ? 'opacity-100 text-lg sm:text-xl' : 'opacity-45 text-sm sm:text-base')}
+                                        >
+                                            {line.text}
+                                        </p>
+                                    ))
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {!subtitleHasTabAudio ? (
+                                    <button
+                                        onClick={addTabAudioToSubtitles}
+                                        className="px-3 h-9 rounded-full bg-white/10 hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 whitespace-nowrap"
+                                        title="Lấy thêm âm thanh phát ra từ 1 tab/cửa sổ trên máy (vd tab đang phát bài nghe) — trình duyệt sẽ hỏi bạn chọn tab/cửa sổ nào, nhớ tick ô Chia sẻ âm thanh"
+                                    >
+                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Thêm âm thanh laptop</span>
+                                    </button>
+                                ) : (
+                                    <span className="px-3 h-9 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 border border-emerald-400/30 whitespace-nowrap">
+                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Đã thêm âm thanh laptop</span>
+                                    </span>
+                                )}
+                                <button onClick={stopSubtitles} className="w-9 h-9 rounded-full bg-white/10 hover:bg-red-500 flex items-center justify-center transition-colors shrink-0" title="Tắt phụ đề trực tiếp">
+                                    <i className="fas fa-times text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* FLOATING WINDOW: MỤC LỤC TRANG DẠNG GRID — dùng chung cho cả điều hướng thường
                         VÀ chế độ chọn trang để Xuất PDF (tocExportMode) */}
                     {showTOC && pdfDoc && (
@@ -3701,6 +3997,20 @@
                                 >
                                     <i className={"fas text-sm " + (zoomLocked ? 'fa-lock' : 'fa-lock-open')}></i>
                                 </button>
+
+                                {/* NÚT "PHỤ ĐỀ TRỰC TIẾP" — bật/tắt thanh phụ đề đen cố định dưới cùng màn
+                                    hình, phiên âm giọng nói qua mic (+ có thể thêm âm thanh 1 tab/cửa sổ
+                                    khác trên máy) theo thời gian thực bằng Groq Whisper — xem startSubtitles/
+                                    stopSubtitles/subtitleRecordLoop ở trên và thanh đen render ở cuối JSX. */}
+                                {pdfUrl && (
+                                    <button
+                                        onClick={() => { subtitleActive ? stopSubtitles() : startSubtitles(); }}
+                                        className={"w-9 h-9 shrink-0 rounded-xl flex items-center justify-center transition-colors border shadow-sm " + (subtitleActive ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-slate-600')}
+                                        title={subtitleActive ? 'Tắt phụ đề trực tiếp' : 'Bật phụ đề trực tiếp (nghe qua mic, phiên âm tiếng Anh theo thời gian thực — dùng chung API key với Bút AI)'}
+                                    >
+                                        <i className="fas fa-closed-captioning text-sm"></i>
+                                    </button>
+                                )}
                             </div>
                             
                             {/* DRAWING TOOLBAR */}
@@ -3971,7 +4281,7 @@
                             nhau giữa 2 lần thử. Kết luận: giữ nguyên mặc định (auto) của trình duyệt ở
                             đây, KHÔNG đụng vào nữa — gốc vấn đề nằm ở chỗ khác (xem PdfPage: bỏ re-render
                             thừa mỗi khi 1 trang cũ quay lại vùng nhìn thấy). */}
-                        <div ref={pdfContentAreaRef} className="flex-1 overflow-y-auto relative p-6 pb-32 flex flex-col items-center justify-start">
+                        <div ref={pdfContentAreaRef} className={"flex-1 overflow-y-auto relative p-6 flex flex-col items-center justify-start " + (subtitleActive ? 'pb-40' : 'pb-32')}>
                             
                             {!pdfUrl ? (
                                 <div className="flex-1 flex flex-col items-center justify-center p-8 w-full max-w-2xl text-center animate-fade-in">
