@@ -1651,8 +1651,10 @@
         // thì tự rơi xuống 2 model Whisper đa ngôn ngữ còn lại, y hệt cơ chế GROQ_MODELS ở trên.
         const GROQ_WHISPER_MODELS = ['distil-whisper-large-v3-en', 'whisper-large-v3-turbo', 'whisper-large-v3'];
         // Độ dài mỗi đoạn ghi âm gửi đi (ms) — cân bằng giữa độ trễ hiển thị phụ đề (ngắn hơn thì hiện
-        // nhanh hơn) và số lượt gọi API/chi phí (dài hơn thì đỡ tốn request hơn). 4 giây là mức vừa phải.
-        const SUBTITLE_CHUNK_MS = 4000;
+        // nhanh hơn) và số lượt gọi API/chi phí (dài hơn thì đỡ tốn request hơn). CHỈ áp dụng cho động
+        // cơ dự phòng 'whisper' (không có Web Speech API, hoặc đã bật thêm âm thanh laptop) — động cơ
+        // chính 'speech' hiện chữ theo thời gian thực, không qua cơ chế đoạn này. 3 giây là mức vừa phải.
+        const SUBTITLE_CHUNK_MS = 3000;
         // Ngưỡng năng lượng âm thanh (RMS, tính trên dữ liệu waveform -1..1) để coi 1 đoạn ghi âm là
         // "có tiếng nói thật" — nếu đoạn ghi âm gần như im lặng hoàn toàn (dưới ngưỡng này) thì BỎ QUA,
         // không gửi cho Whisper: (1) đỡ tốn request/tiền vô ích, (2) tránh đúng lỗi "ảo giác" nổi tiếng
@@ -2796,24 +2798,41 @@
             const [aiLookup, setAiLookup] = useState(null); // { text, ocrLoading } — box Bút AI
 
             // --- TÍNH NĂNG "PHỤ ĐỀ TRỰC TIẾP" (Live Subtitles) ---
-            // Bật lên hiện 1 thanh màu đen cố định dưới cùng màn hình, phiên âm giọng nói theo thời gian
-            // thực (xem GROQ_WHISPER_MODELS phía trên) — nghe qua mic máy, và có thể bấm thêm để lấy cả
-            // âm thanh phát ra từ 1 tab/cửa sổ khác trên máy (vd tab đang phát bài nghe) trộn chung vào
-            // cùng 1 luồng ghi âm duy nhất, gửi Groq Whisper phiên âm CHUNG cả 2 nguồn cùng lúc.
+            // Bật lên hiện 1 thanh màu đen cố định dưới cùng màn hình. Có 2 "động cơ" nhận diện giọng nói
+            // khác nhau, tự chọn theo tình huống:
+            //   • 'speech' (MẶC ĐỊNH, ưu tiên dùng): Web Speech API (SpeechRecognition) có sẵn miễn phí
+            //     trong Chrome — cho phép hiện chữ ra NGAY TỪNG TỪ một lúc đang nói (kết quả "interim"),
+            //     rồi khi hết câu (ngắt hơi) mới "chốt" thành 1 dòng phụ đề hoàn chỉnh và nhảy dòng mới —
+            //     đúng đúng cảm giác phụ đề trực tiếp kiểu YouTube/Google Meet. NHƯỢC ĐIỂM: chỉ nhận
+            //     được đúng 1 nguồn cố định là mic hệ điều hành, không có cách nào đưa thêm 1 MediaStream
+            //     tuỳ ý (vd âm thanh tab) vào được, và Safari/iPad hầu như không hỗ trợ API này.
+            //   • 'whisper' (dự phòng, TỰ ĐỘNG chuyển sang khi cần): ghi âm từng đoạn ngắn rồi gửi Groq
+            //     Whisper phiên âm (xem GROQ_WHISPER_MODELS) — dùng khi (a) trình duyệt không có Web
+            //     Speech API (vd Safari/iPad), hoặc (b) người dùng bấm "Thêm âm thanh laptop" (bắt buộc
+            //     phải trộn 2 nguồn mic+tab thành 1 luồng duy nhất qua AudioContext rồi ghi âm, việc mà
+            //     Web Speech API không làm được) — phụ đề khi đó hiện theo TỪNG ĐOẠN ngắn (~3 giây) thay
+            //     vì từng chữ, đây là đánh đổi kỹ thuật bắt buộc chứ không phải thiếu sót.
             const [subtitleActive, setSubtitleActive] = useState(false);
-            const [subtitleStatus, setSubtitleStatus] = useState('idle'); // 'idle' | 'listening' | 'error'
+            const [subtitlePaused, setSubtitlePaused] = useState(false);
+            const [subtitleStatus, setSubtitleStatus] = useState('idle'); // 'idle' | 'listening' | 'paused' | 'error'
             const [subtitleError, setSubtitleError] = useState('');
-            const [subtitleLines, setSubtitleLines] = useState([]); // vài dòng phụ đề gần nhất, dạng [{id,text}]
+            const [subtitleLines, setSubtitleLines] = useState([]); // vài dòng phụ đề ĐÃ CHỐT gần nhất, dạng [{id,text}]
+            // subtitleInterimText: dòng đang "gõ dở" hiện theo thời gian thực (CHỈ có ở động cơ 'speech'
+            // — bên 'whisper' luôn rỗng vì mỗi đoạn ghi âm chỉ trả về sau khi đã ghi xong cả đoạn).
+            const [subtitleInterimText, setSubtitleInterimText] = useState('');
             const [subtitleHasTabAudio, setSubtitleHasTabAudio] = useState(false);
-            // subtitleActiveRef: dùng SONG SONG với state subtitleActive — vòng lặp ghi âm/gửi API chạy
-            // đệ quy qua setTimeout/await nên đọc state cũ (đóng gói lúc closure tạo ra) sẽ không thấy
-            // được lần setSubtitleActive(false) mới nhất khi người dùng bấm tắt giữa chừng; đọc ref thì
-            // luôn thấy giá trị mới nhất ngay lập tức, dừng vòng lặp đúng lúc.
+            // subtitleActiveRef/subtitlePausedRef: dùng SONG SONG với state cùng tên — vòng lặp ghi âm/
+            // gửi API và các callback của SpeechRecognition (onend...) chạy bất đồng bộ nên đọc state cũ
+            // (đóng gói lúc closure tạo ra) sẽ không thấy được lần setState mới nhất khi người dùng bấm
+            // tắt/tạm dừng giữa chừng; đọc ref thì luôn thấy giá trị mới nhất ngay lập tức.
             const subtitleActiveRef = useRef(false);
+            const subtitlePausedRef = useRef(false);
+            const subtitleEngineRef = useRef('speech'); // 'speech' | 'whisper' — động cơ đang dùng
+            const recognitionRef = useRef(null); // SpeechRecognition instance (động cơ 'speech')
             const subtitleMicStreamRef = useRef(null);
             const subtitleTabStreamRef = useRef(null);
             const subtitleAudioCtxRef = useRef(null);
-            const subtitleDestRef = useRef(null); // MediaStreamDestination — nơi TRỘN mic + (có thể có) âm thanh tab thành 1 luồng duy nhất để ghi âm
+            const subtitleDestRef = useRef(null); // MediaStreamDestination — nơi TRỘN mic + (có thể có) âm thanh tab thành 1 luồng duy nhất để ghi âm (động cơ 'whisper')
             const subtitleAnalyserRef = useRef(null); // đo năng lượng âm thanh — xem SUBTITLE_SILENCE_RMS
             const subtitleEnergyPeakRef = useRef(0);
             const subtitleEnergyIntervalRef = useRef(null);
@@ -2869,12 +2888,13 @@
                 }
             }, [aiApiKey]);
 
-            // Vòng lặp ghi âm: tạo 1 MediaRecorder MỚI cho mỗi đoạn (đơn giản/ổn định hơn nhiều so với
-            // dùng timeslice trên 1 recorder duy nhất — mỗi lần start() lại sinh ra 1 file audio ĐẦY ĐỦ
-            // header, Whisper đọc được ngay, không cần ghép nhiều mảnh timeslice lại với nhau). Đệ quy
-            // gọi lại chính nó cho tới khi subtitleActiveRef.current thành false (người dùng bấm tắt).
+            // Vòng lặp ghi âm của động cơ 'whisper': tạo 1 MediaRecorder MỚI cho mỗi đoạn (đơn giản/ổn
+            // định hơn nhiều so với dùng timeslice trên 1 recorder duy nhất — mỗi lần start() lại sinh ra
+            // 1 file audio ĐẦY ĐỦ header, Whisper đọc được ngay). Đệ quy gọi lại chính nó cho tới khi
+            // subtitleActiveRef.current thành false (tắt hẳn) hoặc subtitlePausedRef.current thành true
+            // (tạm dừng — xem pauseSubtitles).
             const subtitleRecordLoop = useCallback(async () => {
-                if (!subtitleActiveRef.current || !subtitleDestRef.current) return;
+                if (!subtitleActiveRef.current || subtitlePausedRef.current || !subtitleDestRef.current) return;
                 let recorder;
                 try {
                     const mimeType = pickSubtitleMimeType();
@@ -2893,7 +2913,7 @@
                 await new Promise(r => setTimeout(r, SUBTITLE_CHUNK_MS));
                 if (recorder.state !== 'inactive') recorder.stop();
                 await stopped;
-                if (!subtitleActiveRef.current) return; // đã bấm tắt trong lúc đang ghi đoạn này
+                if (!subtitleActiveRef.current || subtitlePausedRef.current) return; // đã tắt/tạm dừng trong lúc đang ghi đoạn này
                 const peak = subtitleEnergyPeakRef.current;
                 if (peak >= SUBTITLE_SILENCE_RMS && chunks.length > 0) {
                     const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
@@ -2902,15 +2922,36 @@
                 subtitleRecordLoop();
             }, [transcribeAudioBlob]);
 
-            const startSubtitles = useCallback(async () => {
-                if (subtitleActiveRef.current) return;
-                if (!aiApiKey) { openAiSettings(); return; } // chưa có API key -> mở luôn modal nhập key (dùng chung Bút AI)
-                subtitleActiveRef.current = true;
-                setSubtitleActive(true);
-                setSubtitleStatus('listening');
-                setSubtitleError('');
-                setSubtitleLines([]);
-                setSubtitleHasTabAudio(false);
+            // Dựng "đồ thị âm thanh" cho động cơ 'whisper': mic -> (destination TRỘN chung + analyser đo
+            // năng lượng). Tách riêng thành hàm dùng chung vì cần gọi lại y hệt ở 2 chỗ: lúc khởi động
+            // động cơ whisper từ đầu (không có Web Speech API), và lúc đang dùng động cơ 'speech' mà bấm
+            // "Thêm âm thanh laptop" (buộc phải chuyển hẳn sang whisper để trộn được thêm nguồn tab).
+            const setupWhisperAudioGraph = useCallback((micStream) => {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const audioCtx = new AudioCtx();
+                const destination = audioCtx.createMediaStreamDestination();
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                const micSource = audioCtx.createMediaStreamSource(micStream);
+                micSource.connect(destination);
+                micSource.connect(analyser);
+                subtitleMicStreamRef.current = micStream;
+                subtitleAudioCtxRef.current = audioCtx;
+                subtitleDestRef.current = destination;
+                subtitleAnalyserRef.current = analyser;
+                subtitleEnergyIntervalRef.current = setInterval(() => {
+                    const a = subtitleAnalyserRef.current;
+                    if (!a) return;
+                    const data = new Uint8Array(a.fftSize);
+                    a.getByteTimeDomainData(data);
+                    let sumSquares = 0;
+                    for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sumSquares += v * v; }
+                    const rms = Math.sqrt(sumSquares / data.length);
+                    if (rms > subtitleEnergyPeakRef.current) subtitleEnergyPeakRef.current = rms;
+                }, 80);
+            }, []);
+
+            const startWhisperEngine = useCallback(async () => {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     setSubtitleStatus('error');
                     setSubtitleError('Trình duyệt/kết nối hiện tại không hỗ trợ dùng micro (thử mở trang qua https hoặc localhost).');
@@ -2918,37 +2959,93 @@
                 }
                 try {
                     const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    const audioCtx = new AudioCtx();
-                    const destination = audioCtx.createMediaStreamDestination();
-                    const analyser = audioCtx.createAnalyser();
-                    analyser.fftSize = 512;
-                    const micSource = audioCtx.createMediaStreamSource(micStream);
-                    micSource.connect(destination);
-                    micSource.connect(analyser);
-
-                    subtitleMicStreamRef.current = micStream;
-                    subtitleAudioCtxRef.current = audioCtx;
-                    subtitleDestRef.current = destination;
-                    subtitleAnalyserRef.current = analyser;
-
-                    subtitleEnergyIntervalRef.current = setInterval(() => {
-                        const a = subtitleAnalyserRef.current;
-                        if (!a) return;
-                        const data = new Uint8Array(a.fftSize);
-                        a.getByteTimeDomainData(data);
-                        let sumSquares = 0;
-                        for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sumSquares += v * v; }
-                        const rms = Math.sqrt(sumSquares / data.length);
-                        if (rms > subtitleEnergyPeakRef.current) subtitleEnergyPeakRef.current = rms;
-                    }, 80);
-
+                    setupWhisperAudioGraph(micStream);
                     subtitleRecordLoop();
                 } catch (e) {
                     setSubtitleStatus('error');
                     setSubtitleError('Không lấy được quyền micro (kiểm tra đã cho phép trong trình duyệt/hệ thống chưa).');
                 }
-            }, [aiApiKey, openAiSettings, subtitleRecordLoop]);
+            }, [setupWhisperAudioGraph, subtitleRecordLoop]);
+
+            // Khởi động động cơ 'speech' (Web Speech API) — trả về true nếu bật được, false nếu trình
+            // duyệt không hỗ trợ (gọi nơi dùng tự rơi xuống động cơ 'whisper'). continuous:true +
+            // interimResults:true là 2 tuỳ chọn mấu chốt cho đúng hiệu ứng "gõ tới đâu hiện tới đó, hết
+            // câu thì chốt dòng và nhảy xuống" mà người dùng yêu cầu.
+            const startSpeechRecognitionEngine = useCallback(() => {
+                const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognitionCtor) return false;
+                const recognition = new SpeechRecognitionCtor();
+                recognition.lang = 'en-US';
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.onresult = (event) => {
+                    let interim = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const result = event.results[i];
+                        const text = result[0].transcript;
+                        if (result.isFinal) {
+                            const clean = text.trim();
+                            if (clean) setSubtitleLines(prev => [...prev, { id: Date.now() + Math.random(), text: clean }].slice(-3));
+                        } else {
+                            interim += text;
+                        }
+                    }
+                    setSubtitleInterimText(interim.trim());
+                    setSubtitleStatus('listening');
+                    setSubtitleError('');
+                };
+                recognition.onerror = (event) => {
+                    // 'no-speech' (im lặng quá lâu) và 'aborted' (do chính app chủ động stop()) là bình
+                    // thường, KHÔNG phải lỗi thật — onend bên dưới sẽ tự khởi động lại nếu còn đang bật.
+                    if (event.error === 'no-speech' || event.error === 'aborted') return;
+                    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                        setSubtitleStatus('error');
+                        setSubtitleError('Không có quyền micro (kiểm tra đã cho phép trong trình duyệt chưa).');
+                    }
+                };
+                recognition.onend = () => {
+                    // QUAN TRỌNG: Web Speech API tự động dừng hẳn sau 1 khoảng im lặng dù đã đặt
+                    // continuous:true (giới hạn của chính trình duyệt, không phải bug ở đây) — phải tự
+                    // phát hiện việc này rồi start() lại để phụ đề không bị "chết" giữa buổi dạy dài.
+                    if (subtitleActiveRef.current && !subtitlePausedRef.current && subtitleEngineRef.current === 'speech') {
+                        try { recognition.start(); } catch (e) {}
+                    }
+                };
+                try {
+                    recognition.start();
+                } catch (e) {
+                    return false;
+                }
+                recognitionRef.current = recognition;
+                return true;
+            }, []);
+
+            const startSubtitles = useCallback(async () => {
+                if (subtitleActiveRef.current) return;
+                subtitleActiveRef.current = true;
+                subtitlePausedRef.current = false;
+                setSubtitleActive(true);
+                setSubtitlePaused(false);
+                setSubtitleStatus('listening');
+                setSubtitleError('');
+                setSubtitleLines([]);
+                setSubtitleInterimText('');
+                setSubtitleHasTabAudio(false);
+
+                const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognitionCtor) {
+                    subtitleEngineRef.current = 'speech';
+                    if (startSpeechRecognitionEngine()) return;
+                }
+                // Không có Web Speech API (vd Safari/iPad) -> tự rơi xuống động cơ Groq Whisper theo đoạn.
+                subtitleEngineRef.current = 'whisper';
+                if (!aiApiKey) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Trình duyệt này không hỗ trợ nhận diện giọng nói tức thời — cần API key Groq để dùng chế độ theo đoạn. Bấm vào đây để nhập.');
+                    return;
+                }
+                await startWhisperEngine();
+            }, [aiApiKey, startSpeechRecognitionEngine, startWhisperEngine]);
 
             // Thêm âm thanh phát ra từ 1 tab/cửa sổ khác trên máy (vd tab đang phát bài nghe) — bắt buộc
             // phải qua hộp thoại "Chia sẻ tab/cửa sổ" của trình duyệt (getDisplayMedia), không có cách
@@ -2956,7 +3053,8 @@
             // video lấy kèm theo (bắt buộc phải xin cả video mới xin được audio) bị TẮT ngay lập tức vì
             // chỉ cần âm thanh — đỡ tốn tài nguyên máy.
             const addTabAudioToSubtitles = useCallback(async () => {
-                if (!subtitleActiveRef.current || !subtitleAudioCtxRef.current || !subtitleDestRef.current) return;
+                if (!subtitleActiveRef.current) return;
+                if (subtitleEngineRef.current === 'whisper' && !aiApiKey) { openAiSettings(); return; }
                 try {
                     const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                     const audioTracks = displayStream.getAudioTracks();
@@ -2965,6 +3063,23 @@
                         setSubtitleError('Tab/cửa sổ vừa chọn không có âm thanh — nhớ tick vào ô "Chia sẻ âm thanh" (Share audio) trong hộp thoại.');
                         return;
                     }
+
+                    // Đang ở động cơ 'speech' (mic-only, hiện từng chữ) -> BẮT BUỘC chuyển sang 'whisper'
+                    // vì Web Speech API không có cách nào nhận thêm 1 MediaStream tuỳ ý. Xin lại quyền mic
+                    // riêng cho đồ thị AudioContext của whisper (mic cũ của SpeechRecognition không dùng
+                    // lại được vì trình duyệt tự quản lý luồng đó, không lộ MediaStream ra ngoài).
+                    if (subtitleEngineRef.current === 'speech') {
+                        if (!aiApiKey) { openAiSettings(); displayStream.getTracks().forEach(t => t.stop()); return; }
+                        if (recognitionRef.current) {
+                            try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch (e) {}
+                            recognitionRef.current = null;
+                        }
+                        subtitleEngineRef.current = 'whisper';
+                        setSubtitleInterimText('');
+                        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        setupWhisperAudioGraph(micStream);
+                    }
+
                     const tabAudioOnlyStream = new MediaStream(audioTracks);
                     subtitleTabStreamRef.current = tabAudioOnlyStream;
                     const tabSource = subtitleAudioCtxRef.current.createMediaStreamSource(tabAudioOnlyStream);
@@ -2977,18 +3092,89 @@
                         subtitleTabStreamRef.current = null;
                         setSubtitleHasTabAudio(false);
                     });
+
+                    if (!subtitlePausedRef.current && (!subtitleRecorderRef.current || subtitleRecorderRef.current.state === 'inactive')) {
+                        subtitleRecordLoop(); // vừa mới chuyển từ 'speech' sang 'whisper' -> tự khởi động vòng ghi âm
+                    }
                 } catch (e) {
                     // Người dùng bấm Huỷ ở hộp thoại chia sẻ — không phải lỗi thật sự, bỏ qua im lặng.
                 }
+            }, [aiApiKey, openAiSettings, setupWhisperAudioGraph, subtitleRecordLoop]);
+
+            // Tạm dừng: tắt HẲN mic phần cứng (đúng nghĩa "không nghe nữa") nhưng CỐ TÌNH không đụng tới
+            // subtitleLines — mọi phụ đề đang hiện được giữ nguyên trên thanh đen cho tới khi bấm tắt hẳn
+            // hoặc bấm tiếp tục nghe.
+            const pauseSubtitles = useCallback(() => {
+                if (!subtitleActiveRef.current || subtitlePausedRef.current) return;
+                subtitlePausedRef.current = true;
+                setSubtitlePaused(true);
+                setSubtitleStatus('paused');
+                setSubtitleInterimText('');
+                if (subtitleEngineRef.current === 'speech' && recognitionRef.current) {
+                    try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch (e) {}
+                    recognitionRef.current = null;
+                }
+                if (subtitleRecorderRef.current && subtitleRecorderRef.current.state !== 'inactive') {
+                    try { subtitleRecorderRef.current.stop(); } catch (e) {}
+                }
+                if (subtitleMicStreamRef.current) {
+                    subtitleMicStreamRef.current.getTracks().forEach(t => t.stop());
+                    subtitleMicStreamRef.current = null;
+                }
             }, []);
+
+            // Tiếp tục nghe sau khi tạm dừng — bật lại đúng động cơ đang dùng trước đó, KHÔNG xoá phụ đề
+            // cũ. Với động cơ 'whisper', mic đã bị tắt hẳn lúc pause nên phải xin quyền lại rồi nối vào
+            // ĐÚNG audio graph cũ (destination/analyser cũ vẫn còn nguyên nếu vẫn đang có âm thanh tab).
+            const resumeSubtitles = useCallback(async () => {
+                if (!subtitleActiveRef.current || !subtitlePausedRef.current) return;
+                subtitlePausedRef.current = false;
+                setSubtitlePaused(false);
+                setSubtitleStatus('listening');
+                setSubtitleError('');
+                if (subtitleEngineRef.current === 'speech') {
+                    if (!startSpeechRecognitionEngine()) {
+                        subtitlePausedRef.current = true;
+                        setSubtitlePaused(true);
+                        setSubtitleStatus('error');
+                        setSubtitleError('Không bật lại được micro.');
+                    }
+                    return;
+                }
+                try {
+                    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    subtitleMicStreamRef.current = micStream;
+                    if (subtitleAudioCtxRef.current && subtitleDestRef.current) {
+                        const micSource = subtitleAudioCtxRef.current.createMediaStreamSource(micStream);
+                        micSource.connect(subtitleDestRef.current);
+                        if (subtitleAnalyserRef.current) micSource.connect(subtitleAnalyserRef.current);
+                    } else {
+                        setupWhisperAudioGraph(micStream); // hiếm khi xảy ra: graph cũ đã mất hẳn, dựng lại từ đầu
+                    }
+                    subtitleRecordLoop();
+                } catch (e) {
+                    subtitlePausedRef.current = true;
+                    setSubtitlePaused(true);
+                    setSubtitleStatus('error');
+                    setSubtitleError('Không lấy lại được quyền micro.');
+                }
+            }, [startSpeechRecognitionEngine, setupWhisperAudioGraph, subtitleRecordLoop]);
 
             const stopSubtitles = useCallback(() => {
                 subtitleActiveRef.current = false;
+                subtitlePausedRef.current = false;
+                subtitleEngineRef.current = 'speech';
                 setSubtitleActive(false);
+                setSubtitlePaused(false);
                 setSubtitleStatus('idle');
                 setSubtitleError('');
                 setSubtitleLines([]);
+                setSubtitleInterimText('');
                 setSubtitleHasTabAudio(false);
+                if (recognitionRef.current) {
+                    try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch (e) {}
+                    recognitionRef.current = null;
+                }
                 if (subtitleEnergyIntervalRef.current) { clearInterval(subtitleEnergyIntervalRef.current); subtitleEnergyIntervalRef.current = null; }
                 if (subtitleRecorderRef.current && subtitleRecorderRef.current.state !== 'inactive') {
                     try { subtitleRecorderRef.current.stop(); } catch (e) {}
@@ -3001,8 +3187,8 @@
                 subtitleAnalyserRef.current = null;
             }, []);
 
-            // Đảm bảo dọn dẹp mic/tab-audio/AudioContext nếu người dùng đóng tab/tải lại trang trong lúc
-            // phụ đề trực tiếp đang bật — tránh giữ mic mở "vô hình" sau khi rời trang.
+            // Đảm bảo dọn dẹp mic/tab-audio/AudioContext/SpeechRecognition nếu người dùng đóng tab/tải
+            // lại trang trong lúc phụ đề trực tiếp đang bật — tránh giữ mic mở "vô hình" sau khi rời trang.
             useEffect(() => {
                 return () => { stopSubtitles(); };
             }, [stopSubtitles]);
@@ -3781,9 +3967,9 @@
                     {subtitleActive && (
                         <div className="fixed bottom-0 left-0 right-0 z-[250] bg-black/85 backdrop-blur-sm text-white px-4 sm:px-8 py-4 flex items-center gap-3 sm:gap-5 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] animate-fade-in">
                             <div className="flex flex-col items-center gap-1 shrink-0 w-16 sm:w-20">
-                                <span className={"w-3 h-3 rounded-full " + (subtitleStatus === 'error' ? 'bg-red-500' : 'bg-emerald-400 animate-pulse')}></span>
+                                <span className={"w-3 h-3 rounded-full " + (subtitleStatus === 'error' ? 'bg-red-500' : (subtitleStatus === 'paused' ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'))}></span>
                                 <span className="text-[10px] font-bold uppercase tracking-wide text-slate-300 text-center leading-tight">
-                                    {subtitleStatus === 'error' ? 'Lỗi' : 'Đang nghe'}
+                                    {subtitleStatus === 'error' ? 'Lỗi' : (subtitleStatus === 'paused' ? 'Tạm dừng' : 'Đang nghe')}
                                 </span>
                             </div>
                             <div className="flex-1 min-w-0 text-center">
@@ -3791,17 +3977,29 @@
                                     <button onClick={openAiSettings} className="text-sm sm:text-base font-bold text-rose-300 hover:text-rose-200 underline decoration-dotted">
                                         {subtitleError}
                                     </button>
-                                ) : subtitleLines.length === 0 ? (
-                                    <p className="text-sm text-slate-400 italic">Đang chờ giọng nói...</p>
                                 ) : (
-                                    subtitleLines.map((line, i) => (
-                                        <p
-                                            key={line.id}
-                                            className={"font-bold leading-snug transition-opacity " + (i === subtitleLines.length - 1 ? 'opacity-100 text-lg sm:text-xl' : 'opacity-45 text-sm sm:text-base')}
-                                        >
-                                            {line.text}
-                                        </p>
-                                    ))
+                                    <React.Fragment>
+                                        {subtitleLines.length === 0 && !subtitleInterimText && (
+                                            <p className="text-sm text-slate-400 italic">
+                                                {subtitleStatus === 'paused' ? 'Đã tạm dừng — bấm nút mic để nghe tiếp, phụ đề vẫn được giữ nguyên.' : 'Đang chờ giọng nói...'}
+                                            </p>
+                                        )}
+                                        {subtitleLines.map((line, i) => (
+                                            <p
+                                                key={line.id}
+                                                className={"font-bold leading-snug transition-opacity " + ((i === subtitleLines.length - 1 && !subtitleInterimText) ? 'opacity-100 text-lg sm:text-xl' : 'opacity-45 text-sm sm:text-base')}
+                                            >
+                                                {line.text}
+                                            </p>
+                                        ))}
+                                        {/* Dòng "đang gõ dở" — chỉ có ở động cơ 'speech', cập nhật theo thời gian thực
+                                            từng chữ một lúc đang nói, tô màu khác để phân biệt với dòng đã chốt. */}
+                                        {subtitleInterimText && (
+                                            <p className="font-bold leading-snug text-lg sm:text-xl text-sky-300">
+                                                {subtitleInterimText}
+                                            </p>
+                                        )}
+                                    </React.Fragment>
                                 )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -3809,7 +4007,7 @@
                                     <button
                                         onClick={addTabAudioToSubtitles}
                                         className="px-3 h-9 rounded-full bg-white/10 hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 whitespace-nowrap"
-                                        title="Lấy thêm âm thanh phát ra từ 1 tab/cửa sổ trên máy (vd tab đang phát bài nghe) — trình duyệt sẽ hỏi bạn chọn tab/cửa sổ nào, nhớ tick ô Chia sẻ âm thanh"
+                                        title="Lấy thêm âm thanh phát ra từ 1 tab/cửa sổ trên máy (vd tab đang phát bài nghe) — trình duyệt sẽ hỏi bạn chọn tab/cửa sổ nào, nhớ tick ô Chia sẻ âm thanh. Sẽ chuyển phụ đề sang hiện theo từng đoạn ngắn thay vì từng chữ."
                                     >
                                         <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Thêm âm thanh laptop</span>
                                     </button>
@@ -3818,7 +4016,16 @@
                                         <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Đã thêm âm thanh laptop</span>
                                     </span>
                                 )}
-                                <button onClick={stopSubtitles} className="w-9 h-9 rounded-full bg-white/10 hover:bg-red-500 flex items-center justify-center transition-colors shrink-0" title="Tắt phụ đề trực tiếp">
+                                {/* Nút Tạm dừng/Tiếp tục — tắt hẳn mic (không nghe nữa) nhưng GIỮ NGUYÊN mọi
+                                    phụ đề đang hiện, khác với nút Tắt (X) bên cạnh sẽ đóng hẳn thanh phụ đề. */}
+                                <button
+                                    onClick={() => { subtitlePaused ? resumeSubtitles() : pauseSubtitles(); }}
+                                    className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 " + (subtitlePaused ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white')}
+                                    title={subtitlePaused ? 'Tiếp tục nghe (bật lại mic)' : 'Tạm dừng (tắt mic, giữ nguyên phụ đề đang hiện)'}
+                                >
+                                    <i className={"fas text-xs " + (subtitlePaused ? 'fa-microphone' : 'fa-pause')}></i>
+                                </button>
+                                <button onClick={stopSubtitles} className="w-9 h-9 rounded-full bg-white/10 hover:bg-red-500 flex items-center justify-center transition-colors shrink-0" title="Tắt hẳn phụ đề trực tiếp">
                                     <i className="fas fa-times text-xs"></i>
                                 </button>
                             </div>
