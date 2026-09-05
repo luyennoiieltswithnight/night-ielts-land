@@ -664,12 +664,34 @@
             );
         };
 
+        // QUAN TRỌNG — sửa lỗi "table hay mấy ### định dạng nó vẫn chưa đọc được": AI (Groq) thường
+        // trả lời bằng Markdown ĐẦY ĐỦ (tiêu đề ###, bảng |...|, gạch đầu dòng, blockquote, hr...),
+        // không chỉ mỗi **in đậm**. Dùng marked.js để chuyển toàn bộ Markdown -> HTML thật sự (đúng
+        // nghĩa bảng/tiêu đề/danh sách...), rồi DOMPurify khử trùng HTML đó trước khi chèn vào trang
+        // qua dangerouslySetInnerHTML — vì đây là nội dung do AI ngoài tạo ra, luôn phải khử trùng để
+        // phòng AI vô tình/bị dẫn dụ trả về HTML/script độc hại. CSS style cho các thẻ này nằm ở class
+        // ".ai-markdown" (xem phần <style> đầu file). Đặt Ở MODULE-LEVEL (không nằm trong AIPanel nữa)
+        // vì "Tóm tắt phiên dạy" (SessionSummaryPanel) cũng cần dùng lại y hệt hàm này.
+        const renderMarkdownAnswerHtml = (raw) => {
+            if (!raw) return { __html: '' };
+            let html;
+            try {
+                html = window.marked ? window.marked.parse(raw) : raw.replace(/\n/g, '<br/>');
+            } catch (e) {
+                html = raw.replace(/\n/g, '<br/>');
+            }
+            const clean = window.DOMPurify ? window.DOMPurify.sanitize(html) : html;
+            return { __html: clean };
+        };
+
         // --- BOX BÚT AI: hiện chữ vừa quét + các nút prompt có sẵn + câu trả lời từ Groq ---
         // Không dùng React.memo cho component này (giống MagicTranslationBar ở trên) — nó có state nội
         // bộ (câu trả lời, đang tải...) tự quản lý theo đúng prop `info` truyền vào, không cần tối ưu
         // re-render vì chỉ có 1 bản duy nhất hiện tại 1 thời điểm (không lặp lại hàng chục lần như
         // PdfPage/PdfThumbnail/PdfTextBox nên không cần React.memo).
-        const AIPanel = ({ info, apiKey, onClose, onOpenSettings }) => {
+        // onAnswered (tuỳ chọn): báo cho App biết mỗi khi có 1 câu trả lời THÀNH CÔNG — App gom lại
+        // thành "lịch sử Bút AI trong phiên" để tính năng "Tóm tắt phiên dạy" dùng lại (xem App).
+        const AIPanel = ({ info, apiKey, onClose, onOpenSettings, onAnswered }) => {
             const [loading, setLoading] = useState(false);
             const [answer, setAnswer] = useState('');
             const [error, setError] = useState('');
@@ -698,6 +720,7 @@
                 try {
                     const result = await callGroqAPI(apiKey, promptText, (attempt, total) => setRetryInfo({ attempt, total }));
                     setAnswer(result);
+                    if (onAnswered) onAnswered({ scannedText: text, promptLabel: label, answer: result, timestamp: Date.now() });
                 } catch (err) {
                     setError(err && err.message ? err.message : 'Có lỗi khi hỏi AI, thử lại nhé.');
                 } finally {
@@ -713,28 +736,6 @@
             const handleCopyAnswer = () => {
                 navigator.clipboard.writeText(answer);
                 setCopied(true); setTimeout(() => setCopied(false), 2000);
-            };
-
-            // QUAN TRỌNG — sửa lỗi "table hay mấy ### định dạng nó vẫn chưa đọc được": AI (Groq)
-            // thường trả lời bằng Markdown ĐẦY ĐỦ (tiêu đề ###, bảng |...|, gạch đầu dòng, blockquote,
-            // hr...), không chỉ mỗi **in đậm**. Cách cũ tự tách chuỗi bằng tay chỉ xử lý được đúng
-            // **in đậm**, mọi ký hiệu Markdown khác (###, |, >, ---, - , 1.) đều hiện nguyên văn ra
-            // màn hình. Sửa TẬN GỐC bằng cách dùng marked.js để chuyển toàn bộ Markdown -> HTML thật
-            // sự (đúng nghĩa bảng/tiêu đề/danh sách...), rồi DOMPurify khử trùng HTML đó trước khi
-            // chèn vào trang qua dangerouslySetInnerHTML — vì đây là nội dung do AI ngoài tạo ra
-            // (không phải do chính mình viết), luôn phải khử trùng để phòng AI vô tình/bị dẫn dụ trả
-            // về HTML/script độc hại. CSS style cho các thẻ này nằm ở class ".ai-markdown" (xem phần
-            // <style> đầu file — Tailwind Play CDN không có sẵn plugin "typography").
-            const renderAnswerHtml = (raw) => {
-                if (!raw) return { __html: '' };
-                let html;
-                try {
-                    html = window.marked ? window.marked.parse(raw) : raw.replace(/\n/g, '<br/>');
-                } catch (e) {
-                    html = raw.replace(/\n/g, '<br/>');
-                }
-                const clean = window.DOMPurify ? window.DOMPurify.sanitize(html) : html;
-                return { __html: clean };
             };
 
             return (
@@ -817,7 +818,7 @@
                                         {error && <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>}
                                         {answer && !loading && (
                                             <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-4 pr-12">
-                                                <div className="ai-markdown" dangerouslySetInnerHTML={renderAnswerHtml(answer)}></div>
+                                                <div className="ai-markdown" dangerouslySetInnerHTML={renderMarkdownAnswerHtml(answer)}></div>
                                                 <button onClick={handleCopyAnswer} className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-lg text-violet-600 bg-violet-50 hover:bg-violet-600 hover:text-white transition-colors border border-violet-100">
                                                     <i className={copied ? "fas fa-check text-green-500" : "fas fa-copy"}></i>
                                                 </button>
@@ -832,11 +833,221 @@
             );
         };
 
+        // Gom TẤT CẢ notes (text box, mọi trang) + lịch sử hỏi-đáp Bút AI trong phiên đang mở thành 1
+        // đoạn văn bản đưa cho Groq — đặt module-level (không phải hàm nội bộ SessionSummaryPanel) để dễ
+        // test/đọc độc lập. allTextsRef.current dạng { [pageNum]: [{id,text,...}] }, aiHistoryRef.current
+        // dạng mảng { scannedText, promptLabel, answer, timestamp }, cả 2 đều là REF (xem giải thích ở
+        // khai báo trong App) nên hàm này chỉ ĐỌC 1 lần đúng lúc gọi, không cần re-render theo dõi.
+        const buildSessionMaterialText = (allTextsRef, aiHistoryRef) => {
+            const parts = [];
+
+            const pageNums = Object.keys(allTextsRef.current || {})
+                .map(n => parseInt(n, 10))
+                .filter(n => Array.isArray(allTextsRef.current[n]) && allTextsRef.current[n].some(t => t.text && t.text.trim()))
+                .sort((a, b) => a - b);
+            if (pageNums.length) {
+                let notesBlock = 'GHI CHÚ (TEXT BOX) NGƯỜI DÙNG ĐÃ VIẾT TRÊN TÀI LIỆU:\n';
+                for (const p of pageNums) {
+                    const notesOnPage = allTextsRef.current[p].map(t => t.text.trim()).filter(Boolean);
+                    if (!notesOnPage.length) continue;
+                    notesBlock += `- Trang ${p}: ` + notesOnPage.join(' | ') + '\n';
+                }
+                parts.push(notesBlock.trim());
+            }
+
+            const history = aiHistoryRef.current || [];
+            if (history.length) {
+                let historyBlock = 'LỊCH SỬ HỎI-ĐÁP VỚI BÚT AI TRONG PHIÊN NÀY:\n';
+                history.forEach((h, idx) => {
+                    historyBlock += `${idx + 1}. [${h.promptLabel}] Đoạn quét: "${h.scannedText}"\n   Trả lời AI: ${h.answer}\n`;
+                });
+                parts.push(historyBlock.trim());
+            }
+
+            return parts.join('\n\n');
+        };
+
+        // --- BOX "TÓM TẮT PHIÊN DẠY" ---
+        // Gom notes + lịch sử Bút AI trong phiên (xem buildSessionMaterialText ở trên), gửi Groq tổng
+        // hợp thành 1 bản tóm tắt sẵn sàng cho việc ôn luyện — có nút Copy (như Bút AI) VÀ nút Lưu riêng
+        // (lưu CHỈ trong phiên đang mở, không ghi localStorage — theo đúng lựa chọn của người dùng) để tý
+        // gộp thủ công với các note khác thành 1 bản tóm tắt cuối gửi học sinh. Không dùng React.memo —
+        // giống AIPanel, chỉ có 1 bản duy nhất hiện tại 1 thời điểm.
+        const SessionSummaryPanel = ({ apiKey, onOpenSettings, onClose, allTextsRef, aiHistoryRef, savedSummaries, onSave, onDeleteSaved }) => {
+            const [loading, setLoading] = useState(false);
+            const [summary, setSummary] = useState('');
+            const [error, setError] = useState('');
+            const [retryInfo, setRetryInfo] = useState(null);
+            const [copied, setCopied] = useState(false);
+            const [savedJustNow, setSavedJustNow] = useState(false);
+            const [copiedSavedId, setCopiedSavedId] = useState(null);
+
+            const runSummarize = async () => {
+                if (!apiKey) { onOpenSettings(); return; }
+                const material = buildSessionMaterialText(allTextsRef, aiHistoryRef);
+                if (!material.trim()) {
+                    setError('Chưa có ghi chú (text box) hay lịch sử hỏi-đáp Bút AI nào trong phiên này để tóm tắt.');
+                    return;
+                }
+                setLoading(true); setError(''); setSummary(''); setRetryInfo(null); setSavedJustNow(false);
+                const prompt = 'Bạn là trợ giảng IELTS. Dưới đây là ghi chú và lịch sử hỏi-đáp AI mà giáo viên đã thực hiện trong 1 buổi dạy '
+                    + '(dùng để ôn tập với học sinh sau buổi học). Hãy tổng hợp lại thành 1 bản tóm tắt bài học rõ ràng, mạch lạc, theo từng ý/'
+                    + 'chủ điểm (không lặp lại y nguyên từng dòng thô), phù hợp để gửi thẳng cho học sinh tự ôn — dùng tiếng Việt, có thể giữ '
+                    + 'nguyên các cụm từ/câu tiếng Anh quan trọng cần ghi nhớ. Chỉ trả về bản tóm tắt (không cần lời dẫn/giải thích thêm):\n\n'
+                    + material;
+                try {
+                    const result = await callGroqAPI(apiKey, prompt, (attempt, total) => setRetryInfo({ attempt, total }));
+                    setSummary(result);
+                } catch (err) {
+                    setError(err && err.message ? err.message : 'Có lỗi khi tóm tắt, thử lại nhé.');
+                } finally {
+                    setLoading(false); setRetryInfo(null);
+                }
+            };
+
+            const handleCopy = (text, markCopied) => {
+                navigator.clipboard.writeText(text);
+                markCopied();
+            };
+
+            const handleSave = () => {
+                if (!summary) return;
+                onSave({ id: Date.now(), text: summary, timestamp: Date.now() });
+                setSavedJustNow(true);
+                setTimeout(() => setSavedJustNow(false), 2000);
+            };
+
+            return (
+                <div className="w-full glass-panel rounded-2xl flex flex-col overflow-hidden shadow-2xl border-2 border-amber-100">
+                    <div className="bg-slate-100/80 px-4 py-2 border-b border-slate-200 shrink-0 flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-amber-600 tracking-wide flex items-center gap-1.5 uppercase">
+                            <i className="fas fa-clipboard-list"></i> Tóm tắt phiên dạy
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button onClick={onOpenSettings} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Cài đặt API key Groq">
+                                <i className="fas fa-gear text-sm"></i>
+                            </button>
+                            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors bg-white border border-slate-200">
+                                <i className="fas fa-times text-md"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="p-5 bg-white flex-1 space-y-4 max-h-[65vh] overflow-y-auto">
+                        {!apiKey ? (
+                            <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-amber-700 space-y-2">
+                                <p>Chưa có API key Groq. Nhập key (miễn phí, không cần thẻ ngân hàng, lấy ở Groq Console) để dùng tính năng này.</p>
+                                <button onClick={onOpenSettings} className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95">
+                                    Nhập API key ngay
+                                </button>
+                            </div>
+                        ) : (
+                            <React.Fragment>
+                                <p className="text-xs text-slate-500 leading-relaxed">
+                                    Gom tất cả ghi chú (Text Box) trên mọi trang + lịch sử hỏi-đáp Bút AI trong phiên đang mở này, nhờ AI tổng hợp thành 1 bản tóm tắt sẵn sàng để ôn luyện.
+                                </p>
+                                <button
+                                    onClick={runSummarize}
+                                    disabled={loading}
+                                    className={"w-full px-3 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 justify-center transition-all active:scale-95 border bg-amber-500 text-white border-amber-500 hover:bg-amber-600" + (loading ? ' opacity-60 cursor-not-allowed' : '')}
+                                >
+                                    <i className="fas fa-wand-magic-sparkles"></i> Tóm tắt ngay
+                                </button>
+
+                                {loading && (
+                                    <div className="flex items-center justify-center gap-3 text-amber-600 py-4">
+                                        <i className="fas fa-circle-notch fa-spin text-2xl"></i>
+                                        <span className="font-bold text-sm">{retryInfo ? `Máy chủ Groq đang hơi bận, đang thử lại (lần ${retryInfo.attempt}/${retryInfo.total})...` : 'AI đang tổng hợp...'}</span>
+                                    </div>
+                                )}
+                                {error && <p className="text-xs text-amber-600 font-semibold leading-relaxed">{error}</p>}
+                                {summary && !loading && (
+                                    <div className="relative bg-slate-50 border border-slate-200 rounded-xl p-4 pr-12">
+                                        <div className="ai-markdown" dangerouslySetInnerHTML={renderMarkdownAnswerHtml(summary)}></div>
+                                        <div className="absolute top-3 right-3 flex flex-col gap-2">
+                                            <button onClick={() => handleCopy(summary, () => { setCopied(true); setTimeout(() => setCopied(false), 2000); })} className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-600 bg-amber-50 hover:bg-amber-600 hover:text-white transition-colors border border-amber-100" title="Sao chép">
+                                                <i className={copied ? "fas fa-check text-green-500" : "fas fa-copy"}></i>
+                                            </button>
+                                            <button onClick={handleSave} className="w-8 h-8 flex items-center justify-center rounded-lg text-indigo-600 bg-indigo-50 hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100" title="Lưu (giữ trong phiên này)">
+                                                <i className={savedJustNow ? "fas fa-check text-green-500" : "fas fa-bookmark"}></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {savedSummaries && savedSummaries.length > 0 && (
+                                    <div className="pt-2 border-t border-slate-100 space-y-2">
+                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Đã lưu trong phiên này ({savedSummaries.length})</p>
+                                        {savedSummaries.map(s => (
+                                            <div key={s.id} className="relative bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 pr-20 text-xs">
+                                                <div className="ai-markdown" dangerouslySetInnerHTML={renderMarkdownAnswerHtml(s.text)}></div>
+                                                <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                                                    <button onClick={() => handleCopy(s.text, () => { setCopiedSavedId(s.id); setTimeout(() => setCopiedSavedId(null), 2000); })} className="w-7 h-7 flex items-center justify-center rounded-lg text-indigo-600 bg-white hover:bg-indigo-600 hover:text-white transition-colors border border-indigo-100" title="Sao chép">
+                                                        <i className={copiedSavedId === s.id ? "fas fa-check text-green-500" : "fas fa-copy text-[11px]"}></i>
+                                                    </button>
+                                                    <button onClick={() => onDeleteSaved(s.id)} className="w-7 h-7 flex items-center justify-center rounded-lg text-red-500 bg-white hover:bg-red-500 hover:text-white transition-colors border border-red-100" title="Xoá">
+                                                        <i className="fas fa-trash text-[11px]"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </React.Fragment>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Canvas dùng chung (tạo đúng 1 lần, không nằm trong DOM) để đo bề ngang chữ thật sự sẽ
+        // được vẽ ra — dùng cho tính năng Text Box "tự giãn theo chữ gõ" bên dưới. Đo bằng canvas
+        // 2D context (measureText) chính xác hơn hẳn cách đoán mò theo số ký tự, vì còn tính đúng
+        // cả chữ đậm/nhạt, khoảng trắng, ký tự rộng-hẹp khác nhau (i mảnh vs W rộng...).
+        const textBoxMeasureCanvas = document.createElement('canvas');
+        const textBoxMeasureCtx = textBoxMeasureCanvas.getContext('2d');
+        const measureMaxLineWidthPx = (text, fontPx) => {
+            textBoxMeasureCtx.font = fontPx + 'px "Plus Jakarta Sans", sans-serif';
+            const lines = (text || '').split('\n');
+            let maxW = 0;
+            for (const line of lines) {
+                const w = textBoxMeasureCtx.measureText(line.length ? line : ' ').width;
+                if (w > maxW) maxW = w;
+            }
+            return maxW;
+        };
+        // Kích thước tối thiểu của Text Box (đơn vị PDF-space, tức CHƯA nhân "scale" — khớp với
+        // t.x/t.y/t.width/t.height vốn dĩ đều đang lưu ở "scale 1").
+        const TEXTBOX_MIN_WIDTH = 60;
+        const TEXTBOX_MIN_HEIGHT = 30;
+        // Khoảng đệm ngang (px CSS thật, KHÔNG nhân theo scale — khớp đúng padding "p-2" của
+        // textarea, 8px mỗi bên = 16px, cộng thêm 1 chút cho con trỏ nhập khỏi bị che/xuống dòng
+        // hụt 1 nhịp ngay khi vừa gõ thêm ký tự).
+        const TEXTBOX_PADDING_PX = 24;
+
         // --- COMPONENT TEXT BOX THÔNG MINH CÓ 3 NÚM RESIZE ---
-        const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText }) {
+        // QUAN TRỌNG (viết lại theo yêu cầu "text box khó dùng"): TRƯỚC ĐÂY box có kích thước CỐ ĐỊNH
+        // (150x40) trừ khi tự kéo resize thủ công — gõ dài ra là chữ bị bó hẹp/xuống dòng chật chội
+        // trong khung cũ, phải tự kéo giãn ra mới thấy hết. GIỜ box tự "phình" ra theo đúng bề ngang
+        // chữ đang gõ (đo bằng canvas.measureText, khớp CHÍNH XÁC font đang hiển thị) cho tới khi
+        // chạm mép phải trang (maxWidthPdf, App tính từ basePageSize truyền xuống qua PdfPage) thì tự
+        // xuống dòng + tự cao thêm (đo bằng scrollHeight của chính textarea) — gõ/xoá bớt chữ thì box
+        // cũng tự thu nhỏ lại theo, không còn khoảng trống thừa. Việc kéo núm resize thủ công giờ có
+        // vai trò MỚI: phóng to/thu nhỏ CỠ CHỮ (đồng thời với việc box đổi kích thước theo đúng ngón
+        // tay/con trỏ) — thay vì tự đặt 1 kích thước khung cố định, vì khung giờ luôn tự khớp theo nội
+        // dung + cỡ chữ rồi.
+        const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText, maxWidthPdf }) {
             const [active, setActive] = useState(true);
             const containerRef = useRef(null);
             const textareaRef = useRef(null);
+            // Đang kéo resize thủ công (đổi cỡ chữ) -> tạm ngưng 2 effect tự-giãn-theo-nội-dung bên
+            // dưới, tránh 2 cơ chế "giằng co" kích thước với nhau ngay trong lúc đang kéo.
+            const isManualResizingRef = useRef(false);
+            // Đếm nhịp mỗi khi VỪA buông tay sau khi kéo resize xong — đưa vào deps của 2 effect tự
+            // giãn bên dưới để chúng CHẮC CHẮN được đánh giá lại đúng 1 lần ngay sau đó (dùng state
+            // local, không đụng gì tới t/updateText, nên không có nguy cơ đọc phải closure t "cũ" từ
+            // lúc bắt đầu kéo như khi cố tình gọi lại updateText ở đây).
+            const [resizeTick, setResizeTick] = useState(0);
 
             // Focus tự động khi tạo mới
             useEffect(() => {
@@ -855,6 +1066,51 @@
                 document.addEventListener('pointerdown', handleClickOutside);
                 return () => document.removeEventListener('pointerdown', handleClickOutside);
             }, []);
+
+            // TỰ GIÃN CHIỀU RỘNG theo đúng bề ngang chữ đang gõ (đo bằng canvas, khớp chính xác font
+            // đang hiển thị: fontPx = t.size * scale, y hệt style fontSize thật của textarea bên
+            // dưới), giới hạn tối đa bằng maxWidthPdf (mép phải trang) — vượt quá thì tự đứng lại ở
+            // mức tối đa, chữ sẽ tự xuống dòng bên trong (xử lý bởi effect đo chiều cao kế tiếp).
+            useEffect(() => {
+                if (isManualResizingRef.current) return;
+                const fontPx = t.size * scale;
+                const maxLineWidthPx = measureMaxLineWidthPx(t.text, fontPx);
+                const maxAllowedPx = maxWidthPdf != null
+                    ? Math.max(TEXTBOX_MIN_WIDTH * scale, maxWidthPdf * scale)
+                    : Infinity;
+                const desiredPx = Math.min(maxAllowedPx, Math.max(TEXTBOX_MIN_WIDTH * scale, maxLineWidthPx + TEXTBOX_PADDING_PX));
+                const desiredPdf = desiredPx / scale;
+                if (Math.abs(desiredPdf - (t.width || 150)) > 1) {
+                    updateText(t.id, { ...t, width: desiredPdf });
+                }
+                // Cố ý CHỈ phụ thuộc vào nội dung/cỡ chữ/scale/giới hạn mép trang — KHÔNG phụ thuộc
+                // t.width/t (object đổi identity liên tục) để tránh vòng lặp effect vô hạn.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+            }, [t.text, t.size, scale, maxWidthPdf, resizeTick]);
+
+            // TỰ GIÃN CHIỀU CAO — chạy SAU khi chiều rộng ở effect trên đã áp dụng xong vào DOM
+            // (useLayoutEffect, đồng bộ trước khi trình duyệt vẽ khung hình kế tiếp) để đo scrollHeight
+            // ĐÚNG theo bề ngang MỚI (chữ đã xuống dòng khớp bề ngang đó), tránh đo hụt/thừa 1 nhịp.
+            // Kỹ thuật chuẩn: tạm bỏ khoá "h-full" bằng style.height='auto' để textarea co theo đúng
+            // nội dung thật, đọc scrollHeight, rồi trả lại như cũ — toàn bộ diễn ra TRƯỚC khi trình
+            // duyệt vẽ hình (useLayoutEffect + setState đồng bộ) nên không hề có 1 khung hình nào bị
+            // "nháy" giữa lúc đo và lúc áp dụng kích thước mới.
+            useLayoutEffect(() => {
+                if (isManualResizingRef.current) return;
+                const ta = textareaRef.current;
+                if (!ta) return;
+                const prevHeight = ta.style.height;
+                ta.style.height = 'auto';
+                const neededPx = ta.scrollHeight;
+                ta.style.height = prevHeight;
+                const minHeightPx = TEXTBOX_MIN_HEIGHT * scale;
+                const desiredPx = Math.max(minHeightPx, neededPx);
+                const desiredPdf = desiredPx / scale;
+                if (Math.abs(desiredPdf - (t.height || 40)) > 1) {
+                    updateText(t.id, { ...t, height: desiredPdf });
+                }
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+            }, [t.text, t.size, t.width, scale, resizeTick]);
 
             // THUẬT TOÁN KÉO DI CHUYỂN BOX (di chuyển vị trí)
             // SỬA LỖI "text box không di chuyển được": trước đây việc kéo-thả di chuyển được lập
@@ -891,18 +1147,28 @@
                 window.addEventListener('pointerup', onUp);
             };
 
-            // THUẬT TOÁN KÉO RESIZE BOX
+            // THUẬT TOÁN KÉO RESIZE BOX — GIỜ ĐỒNG THỜI ĐỔI CỠ CHỮ theo yêu cầu: kéo núm resize vừa
+            // đổi kích thước khung (bám sát ngón tay/con trỏ như cũ) VỪA phóng to/thu nhỏ cỡ chữ
+            // (t.size) theo đúng tỉ lệ đã kéo — cả 2 diễn ra CÙNG LÚC, thấy chữ to/nhỏ dần ngay trong
+            // lúc đang kéo chứ không phải đợi buông tay. Tính tỉ lệ theo ĐÚNG chiều đang kéo (kéo
+            // ngang -> theo tỉ lệ rộng, kéo dọc -> theo tỉ lệ cao, kéo góc -> trung bình cả 2) rồi áp
+            // dụng tỉ lệ đó lên cỡ chữ gốc lúc bắt đầu kéo. Đặt cờ isManualResizingRef=true trong suốt
+            // lúc kéo để 2 effect "tự giãn theo nội dung" ở trên tạm đứng yên, không giằng co ngược lại
+            // kích thước đang kéo; effect sẽ tự chạy lại đúng theo cỡ chữ MỚI ngay khi buông tay.
             const startResize = (e, direction) => {
                 e.stopPropagation();
                 e.preventDefault();
-                
+
+                isManualResizingRef.current = true;
+
                 const startX = e.clientX;
                 const startY = e.clientY;
-                
+
                 // Lấy kích thước thực tế hiện tại
                 const rect = containerRef.current.getBoundingClientRect();
                 const startW = rect.width / scale;
                 const startH = rect.height / scale;
+                const startSize = t.size || 10;
 
                 const onMove = (ev) => {
                     let w = startW;
@@ -913,15 +1179,33 @@
                     if (direction === 'h' || direction === 'both') {
                         h = startH + (ev.clientY - startY) / scale;
                     }
-                    // Giới hạn chiều rộng/cao tối thiểu
-                    updateText(t.id, { ...t, width: Math.max(60, w), height: Math.max(30, h) });
+                    w = Math.max(TEXTBOX_MIN_WIDTH, w);
+                    h = Math.max(TEXTBOX_MIN_HEIGHT, h);
+
+                    let sizeFactor;
+                    if (direction === 'w') sizeFactor = w / startW;
+                    else if (direction === 'h') sizeFactor = h / startH;
+                    else sizeFactor = ((w / startW) + (h / startH)) / 2;
+                    const newSize = Math.max(8, Math.min(72, startSize * sizeFactor));
+
+                    updateText(t.id, { ...t, width: w, height: h, size: newSize });
                 };
-                
+
                 const onUp = () => {
                     window.removeEventListener('pointermove', onMove);
                     window.removeEventListener('pointerup', onUp);
+                    // Buông tay xong mới cho 2 effect tự-giãn-theo-nội-dung chạy lại — chúng sẽ tự
+                    // khớp lại width/height CHÍNH XÁC theo cỡ chữ mới + nội dung hiện có (có thể hơi
+                    // khác 1 chút so với kích thước vừa kéo bằng tay, nhưng luôn khớp đúng chữ, không
+                    // bao giờ để chữ bị cắt/hụt khung). Dùng resizeTick (state LOCAL trong chính
+                    // component này) để ép effect chạy lại — KHÔNG gọi updateText({...t}) ở đây vì `t`
+                    // trong closure này là giá trị "cũ" chụp lại lúc BẮT ĐẦU kéo (trước khi có loạt
+                    // updateText mới trong onMove), gọi lại sẽ vô tình ghi ĐÈ mất kích thước/cỡ chữ vừa
+                    // kéo xong bằng giá trị cũ đó.
+                    isManualResizingRef.current = false;
+                    setResizeTick(v => v + 1);
                 };
-                
+
                 window.addEventListener('pointermove', onMove);
                 window.addEventListener('pointerup', onUp);
             };
@@ -1439,7 +1723,7 @@
         };
 
         // --- SINGLE PDF PAGE ---
-        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, aiShapeMode, pencilShapeMode, eraserShapeMode, penStability, penGlowColor, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, onAILookup, forceVisible, onRenderedForExport }) {
+        const PdfPage = React.memo(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, aiShapeMode, pencilShapeMode, eraserShapeMode, penStability, penGlowColor, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, onAILookup, forceVisible, onRenderedForExport, onTextsChange }) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -1457,6 +1741,10 @@
 
             const isDrawingRef = useRef(false);
             const currentStrokeRef = useRef(null);
+            // Đếm thời điểm + vị trí lần chạm gần nhất bằng bút "text" — dùng để bắt "gõ đúp" (double
+            // tap/click) thay vì tạo box ngay từ lần chạm đầu tiên (yêu cầu: giảm tạo nhầm box khi chỉ
+            // định chạm 1 lần để làm việc khác, ví dụ chọn công cụ rồi lỡ chạm nhầm vào trang).
+            const lastTextTapRef = useRef({ time: 0, x: 0, y: 0 });
             // Điểm đã "mượt hoá" gần nhất của nét đang vẽ — dùng cho tính năng "Độ ổn định nét vẽ"
             // (penStability) trong handlePointerMove, reset về điểm bắt đầu mỗi khi đặt bút xuống.
             const smoothedPointRef = useRef(null);
@@ -1745,6 +2033,24 @@
                 }
 
                 if (tool === 'text') {
+                    // YÊU CẦU "gõ đúp mới tạo box" (thay vì chạm 1 lần) — tự bắt double-tap/double-click
+                    // ở đây thay vì dựa vào sự kiện "dblclick" có sẵn của trình duyệt, vì "dblclick" KHÔNG
+                    // hoạt động đáng tin cậy với Apple Pencil/chạm trên iPad (Safari không luôn bắn ra sự
+                    // kiện này cho pointerType 'pen'/'touch'), trong khi pointerdown thì luôn có. So khớp
+                    // cả thời gian (<450ms) LẪN vị trí (lệch không quá ~24px màn hình, quy đổi ra đơn vị
+                    // PDF-space bằng cách chia cho scale) để tránh 2 lần chạm ở 2 chỗ xa nhau trong lúc
+                    // đang cuộn/rê cũng bị tính là gõ đúp.
+                    const now = Date.now();
+                    const last = lastTextTapRef.current;
+                    const dtMs = now - last.time;
+                    const distPdf = Math.hypot(coords.x - last.x, coords.y - last.y);
+                    const isDoubleTap = dtMs < 450 && distPdf < (24 / scale);
+                    lastTextTapRef.current = { time: now, x: coords.x, y: coords.y };
+                    if (!isDoubleTap) return;
+                    // Đã xác nhận gõ đúp -> reset lại mốc để lần chạm kế tiếp không bị tính gộp luôn
+                    // vào làm "đúp" với chính box vừa tạo (ví dụ khi người dùng chạm thêm 1 lần nữa gần
+                    // đó ngay sau khi box mới xuất hiện).
+                    lastTextTapRef.current = { time: 0, x: 0, y: 0 };
                     setTexts(prev => [...prev, {
                         id: Date.now(), x: coords.x, y: coords.y, text: '', color, size: fontSize, width: 150, height: 40
                     }]);
@@ -2079,6 +2385,14 @@
                 setTexts(prev => prev.filter(t => t.id !== id));
             };
 
+            // Báo nội dung text box của TRANG NÀY lên App mỗi khi đổi — dùng cho tính năng "Tóm tắt
+            // phiên dạy" (App gom notes của TẤT CẢ các trang lại). Cố ý để App ghi vào 1 ref (không phải
+            // state) nên việc gõ chữ ở đây KHÔNG hề gây re-render toàn bộ App/các trang khác — chỉ đọc
+            // lại ref đó đúng lúc người dùng bấm "Tóm tắt ngay".
+            useEffect(() => {
+                if (onTextsChange) onTextsChange(pageNum, texts);
+            }, [texts, pageNum, onTextsChange]);
+
             return (
                 <div id={`pdf-page-${pageNum}`} ref={containerRef} className="pdf-page-container" style={
                     // QUAN TRỌNG — sửa dứt điểm lỗi "cuộn giật/nhảy trang", "bấm mục lục đến sai trang",
@@ -2152,6 +2466,11 @@
                             scale={scale}
                             updateText={updateText}
                             removeText={removeText}
+                            // Mép phải trang (đơn vị PDF-space, scale=1) tính từ basePageSize trừ đi vị
+                            // trí x của chính box đó và 1 khoảng lề nhỏ — dùng để effect tự-giãn-chiều-
+                            // rộng trong PdfTextBox biết dừng lại đúng lúc chạm mép trang rồi tự xuống
+                            // dòng, thay vì tràn ra ngoài trang.
+                            maxWidthPdf={basePageSize ? Math.max(TEXTBOX_MIN_WIDTH, basePageSize.width - t.x - 20) : undefined}
                         />
                     ))}
                 </div>
@@ -2266,6 +2585,28 @@
                 setShowAiKeyModal(true);
             }, [aiApiKey]);
             const [aiLookup, setAiLookup] = useState(null); // { text, ocrLoading } — box Bút AI
+
+            // --- TÍNH NĂNG "TÓM TẮT PHIÊN DẠY" ---
+            // Gom TẤT CẢ notes (text box) trên mọi trang + lịch sử hỏi-đáp Bút AI trong phiên đang mở,
+            // gửi cho Groq để tổng hợp thành 1 bản tóm tắt. Cố ý dùng REF (không phải state) cho 2 kho dữ
+            // liệu nguồn này (allTextsRef, aiHistoryRef) vì chúng được ghi liên tục (mỗi lần gõ chữ note ở
+            // BẤT KỲ trang nào, mỗi lần Bút AI trả lời) — nếu dùng state thì mỗi lần gõ 1 ký tự note ở 1
+            // trang bất kỳ sẽ làm re-render lại TOÀN BỘ App (và mọi PdfPage khác đang mount), rất tốn kém.
+            // Dùng ref: chỉ ĐỌC ra đúng lúc người dùng bấm "Tóm tắt ngay", không hề ảnh hưởng hiệu năng gõ
+            // chữ/hỏi AI bình thường.
+            const allTextsRef = useRef({}); // { [pageNum]: [{id,text,...}] }
+            const aiHistoryRef = useRef([]); // [{ scannedText, promptLabel, answer, timestamp }]
+            const onPageTextsChange = useCallback((pageNum, texts) => {
+                allTextsRef.current[pageNum] = texts;
+            }, []);
+            const onAIHistoryEntry = useCallback((entry) => {
+                aiHistoryRef.current = [...aiHistoryRef.current, entry];
+            }, []);
+            const [showSessionSummary, setShowSessionSummary] = useState(false);
+            // savedSummaries: CHỈ lưu trong phiên đang mở (state thường, KHÔNG ghi localStorage) — theo
+            // đúng yêu cầu người dùng, vì mục đích là để gộp thủ công với notes khác thành 1 bản tóm tắt
+            // cuối cùng gửi học sinh NGAY trong buổi dạy đó, không cần tồn tại lâu dài qua các lần mở lại.
+            const [savedSummaries, setSavedSummaries] = useState([]);
 
             const [showTOC, setShowTOC] = useState(false);
             // --- TÍNH NĂNG XUẤT PDF (xuất tất cả trang hoặc chỉ các trang được chọn trong mục lục) ---
@@ -2907,7 +3248,25 @@
                         không bao giờ cùng hiện 1 lúc vì chỉ 1 tool đang được chọn tại 1 thời điểm). */}
                     {aiLookup && (
                         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-xl animate-slide-down">
-                            <AIPanel info={aiLookup} apiKey={aiApiKey} onClose={() => setAiLookup(null)} onOpenSettings={openAiSettings} />
+                            <AIPanel info={aiLookup} apiKey={aiApiKey} onClose={() => setAiLookup(null)} onOpenSettings={openAiSettings} onAnswered={onAIHistoryEntry} />
+                        </div>
+                    )}
+
+                    {/* Box "Tóm tắt phiên dạy" — cùng vị trí canh giữa/cách đỉnh như Box Bút AI, mở từ
+                        nút riêng trên toolbar (không lồng trong Bút AI, theo đúng lựa chọn của người
+                        dùng khi được hỏi). */}
+                    {showSessionSummary && (
+                        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-xl animate-slide-down">
+                            <SessionSummaryPanel
+                                apiKey={aiApiKey}
+                                onOpenSettings={openAiSettings}
+                                onClose={() => setShowSessionSummary(false)}
+                                allTextsRef={allTextsRef}
+                                aiHistoryRef={aiHistoryRef}
+                                savedSummaries={savedSummaries}
+                                onSave={(item) => setSavedSummaries(prev => [...prev, item])}
+                                onDeleteSaved={(id) => setSavedSummaries(prev => prev.filter(s => s.id !== id))}
+                            />
                         </div>
                     )}
 
@@ -3105,6 +3464,17 @@
                                 {pdfUrl && (
                                     <button onClick={() => setShowExportChoice(true)} className="w-10 h-10 flex items-center justify-center bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl transition-colors border border-emerald-100 shadow-sm shrink-0" title="Xuất PDF (tất cả hoặc trang đã chọn)">
                                         <i className="fas fa-file-export"></i>
+                                    </button>
+                                )}
+                                {/* NÚT RIÊNG "TÓM TẮT PHIÊN DẠY" — theo đúng lựa chọn của người dùng, đặt
+                                    thành 1 nút toolbar độc lập (KHÔNG lồng trong panel Bút AI) để luôn thấy
+                                    ngay và bấm được bất kỳ lúc nào trong phiên, không phụ thuộc đang chọn
+                                    tool gì. Gom TẤT CẢ note (text box mọi trang) + lịch sử hỏi-đáp Bút AI
+                                    trong phiên đang mở thành 1 bản tóm tắt AI, có thể lưu tạm để tý gộp
+                                    thành bản cuối gửi học sinh. */}
+                                {pdfUrl && (
+                                    <button onClick={() => setShowSessionSummary(true)} className="w-10 h-10 flex items-center justify-center bg-amber-50 text-amber-600 hover:bg-amber-100 rounded-xl transition-colors border border-amber-100 shadow-sm shrink-0" title="Tóm tắt phiên dạy (gom notes + lịch sử Bút AI trong phiên này)">
+                                        <i className="fas fa-clipboard-list"></i>
                                     </button>
                                 )}
                                 <div className="font-extrabold text-xl text-slate-800 tracking-tight truncate flex items-center gap-3">
@@ -3429,6 +3799,7 @@
                                         onAILookup={onAILookup}
                                         forceVisible={forcedVisiblePage === index + 1}
                                         onRenderedForExport={handlePageRenderedForExport}
+                                        onTextsChange={onPageTextsChange}
                                     />
                                 ))
                             )}
