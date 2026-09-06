@@ -339,8 +339,26 @@
         // utterance mới nữa.
         let _audioUnlocked = false;
         let _sharedAudioCtx = null;
+        // QUAN TRỌNG — sửa lỗi Chrome "lâu lâu bật phụ đề xong bật Note viết nét đầu tiên thì đứng
+        // hình": unlockAudio() được gọi ở MỌI lần đặt bút xuống (handlePointerDown, xem bên dưới) —
+        // nhưng phần việc "nặng" bên trong (tạo mới AudioContext, phát oscillator, gọi
+        // speechSynthesis.speak) chỉ thực sự chạy ĐÚNG 1 LẦN DUY NHẤT cho cả phiên (nhờ cờ
+        // _audioUnlocked). Nếu lần duy nhất đó rơi vào ĐÚNG LÚC phụ đề (subtitle) đang thực sự nghe
+        // mic — dễ xảy ra nhất khi người dùng bật phụ đề trước rồi mới bật Note và viết nét đầu tiên
+        // trong cả phiên — việc tạo mới audio pipeline (AudioContext/oscillator/TTS) trong khi Chrome
+        // đang giữ 1 luồng mic sống cho Web Speech API/MediaRecorder có thể khiến tiến trình audio nội
+        // bộ của Chrome phải tái cấu hình thiết bị, gây đứng hình tạm thời cả trang — đúng kiểu lỗi
+        // "thỉnh thoảng" (chỉ đúng lần unlockAudio ĐẦU TIÊN + đúng lúc mic phụ đề đang bận) mà người
+        // dùng gặp phải. App bên dưới tự cập nhật cờ module-level "_subtitleMicBusy" này mỗi khi mic
+        // phụ đề bắt đầu/dừng nghe thật sự (xem startSubtitles/pauseSubtitles/resumeSubtitles/
+        // stopSubtitles) — unlockAudio() kiểm tra cờ này để HOÃN LẠI phần việc nặng nếu mic đang bận,
+        // KHÔNG đánh dấu _audioUnlocked (giữ nguyên "chưa mở khoá") để lần gọi kế tiếp (nét vẽ tiếp
+        // theo, luôn tự gọi lại hàm này) khi mic hết bận sẽ tự chạy bù — không mất tác dụng mở khoá,
+        // chỉ trễ lại đúng lúc có nguy cơ xung đột.
+        let _subtitleMicBusy = false;
         const unlockAudio = () => {
             if (_audioUnlocked) return;
+            if (_subtitleMicBusy) return;
             _audioUnlocked = true;
             try {
                 if (!_sharedAudioCtx) {
@@ -3131,6 +3149,7 @@
                 if (subtitleActiveRef.current) return;
                 subtitleActiveRef.current = true;
                 subtitlePausedRef.current = false;
+                _subtitleMicBusy = true;
                 setSubtitleActive(true);
                 setSubtitlePaused(false);
                 setSubtitleStatus('listening');
@@ -3265,6 +3284,7 @@
             const pauseSubtitles = useCallback(() => {
                 if (!subtitleActiveRef.current || subtitlePausedRef.current) return;
                 subtitlePausedRef.current = true;
+                _subtitleMicBusy = false; // mic phần cứng thực sự bị tắt hẳn ngay bên dưới — hết bận.
                 setSubtitlePaused(true);
                 setSubtitleStatus('paused');
                 setSubtitleInterimText('');
@@ -3294,6 +3314,7 @@
             const resumeSubtitles = useCallback(async () => {
                 if (!subtitleActiveRef.current || !subtitlePausedRef.current) return;
                 subtitlePausedRef.current = false;
+                _subtitleMicBusy = true;
                 setSubtitlePaused(false);
                 setSubtitleStatus('listening');
                 setSubtitleError('');
@@ -3305,6 +3326,7 @@
                 if (subtitleEngineRef.current === 'speech') {
                     if (!startSpeechRecognitionEngine()) {
                         subtitlePausedRef.current = true;
+                        _subtitleMicBusy = false;
                         setSubtitlePaused(true);
                         setSubtitleStatus('error');
                         setSubtitleError('Không bật lại được micro.');
@@ -3327,6 +3349,7 @@
                     subtitleRecordLoop();
                 } catch (e) {
                     subtitlePausedRef.current = true;
+                    _subtitleMicBusy = false;
                     setSubtitlePaused(true);
                     setSubtitleStatus('error');
                     setSubtitleError('Không lấy lại được quyền micro.');
@@ -3336,6 +3359,7 @@
             const stopSubtitles = useCallback(() => {
                 subtitleActiveRef.current = false;
                 subtitlePausedRef.current = false;
+                _subtitleMicBusy = false;
                 subtitleEngineRef.current = 'speech';
                 setSubtitleActive(false);
                 setSubtitlePaused(false);
@@ -3592,6 +3616,28 @@
                 };
             }, [zoomLocked]);
 
+            // --- CHẶN ZOOM TOÀN TRANG BẰNG WHEEL+CTRL (TRACKPAD PINCH TRÊN CHROME/FIREFOX) ---
+            // QUAN TRỌNG — lỗi MỚI phát hiện khi chuyển hẳn sang dùng Chrome (Safari không dính): pinch 2
+            // ngón trên trackpad Mac trong Chrome/Firefox KHÔNG bắn ra sự kiện "gesturestart/change/end"
+            // riêng như Safari — thay vào đó trình duyệt "giả lập" thành sự kiện "wheel" bình thường
+            // nhưng có kèm cờ `ctrlKey: true` (giống hệt Ctrl+lăn chuột để zoom trên Windows/Linux) rồi
+            // Chrome tự ý zoom TOÀN TRANG (kể cả thanh công cụ, mục lục...) — thẻ
+            // <meta viewport ... user-scalable=no> ở đầu file KHÔNG chặn được kiểu zoom này (nó chỉ chặn
+            // pinch-zoom trên MÀN HÌNH CẢM ỨNG, không đụng gì tới cử chỉ trackpad kiểu desktop này).
+            // Vì không có cách nào phân biệt "Ctrl + lăn chuột thật" với "pinch trackpad bị giả lập
+            // thành wheel", mà trang này vốn dĩ không dùng tổ hợp Ctrl+lăn-chuột để làm việc gì khác, nên
+            // preventDefault LUÔN cho MỌI sự kiện wheel có ctrlKey — bất kể "Khoá zoom" đang bật hay tắt
+            // (khác với việc chặn gesture của Safari ở trên chỉ chặn khi đang khoá) — để trình duyệt
+            // KHÔNG BAO GIỜ tự ý zoom toàn trang kiểu native nữa; việc có zoom được vùng PDF hay không
+            // (và zoom ra sao) do effect riêng gắn trên vùng nội dung PDF ngay bên dưới tự quyết định.
+            useEffect(() => {
+                const onWheelBlock = (e) => {
+                    if (e.ctrlKey) e.preventDefault();
+                };
+                document.addEventListener('wheel', onWheelBlock, { passive: false });
+                return () => document.removeEventListener('wheel', onWheelBlock);
+            }, []);
+
             // --- PHÍM TẮT CHỌN NHANH KIỂU VẼ CHO BÚT CHÌ (F = Tự do/Free-writing, L = Đường thẳng, S = Hình chữ nhật) ---
             // Chỉ áp dụng khi ĐANG chọn bút chì (tool === 'pencil') — bấm L/S lúc đang dùng bút khác thì
             // không có tác dụng gì (tránh đổi nhầm kiểu vẽ của bút chì trong khi không hề định dùng nó).
@@ -3806,6 +3852,72 @@
                     container.removeEventListener('gesturestart', onGestureStart);
                     container.removeEventListener('gesturechange', onGestureChange);
                     container.removeEventListener('gestureend', onGestureEnd);
+                };
+            }, [captureZoomAnchor]);
+
+            // --- PHÓNG TO/THU NHỎ BẰNG WHEEL+CTRL TRÊN VÙNG NỘI DUNG PDF (TRACKPAD CHROME/FIREFOX) ---
+            // Bản dành riêng cho Chrome/Firefox — mirror lại đúng cơ chế "xem trước bằng CSS transform,
+            // chốt scale thật đúng 1 lần lúc kết thúc cử chỉ" của khối pinch Safari ngay phía trên, chỉ
+            // khác ở chỗ: sự kiện "wheel" không có điểm "kết thúc" rõ ràng như "gestureend" của Safari,
+            // nên phải tự đoán lúc nào cử chỉ đã dừng bằng cách đặt hẹn giờ (debounce) — hết một khoảng
+            // lặng ngắn (~150ms) không có thêm sự kiện wheel+ctrlKey nào nữa thì coi như đã buông tay,
+            // chốt setScale() đúng 1 lần duy nhất (hưởng trọn useLayoutEffect canh giữa/neo vị trí ở
+            // trên, giống hệt đường đi của nút +/-% và của pinch Safari).
+            // Không phân biệt được "pinch trackpad" với "Ctrl+lăn chuột chuột thật" (cùng ra 1 kiểu sự
+            // kiện) — nhưng trang này vốn không dùng Ctrl+lăn-chuột để làm gì khác nên cho zoom nội dung
+            // luôn trong cả 2 trường hợp là hợp lý (đúng như kỳ vọng thông thường của người dùng).
+            useEffect(() => {
+                const container = pdfContentAreaRef.current;
+                if (!container) return;
+                let pinching = false;
+                let pinchStartScale = 1;
+                let currentScale = 1;
+                let startRect = null;
+                let endTimer = null;
+
+                const commitEnd = (clientY) => {
+                    pinching = false;
+                    captureZoomAnchor(clientY);
+                    const finalScale = Math.max(0.5, Math.min(3, currentScale));
+                    setScale(finalScale);
+                };
+
+                const onWheel = (e) => {
+                    if (!e.ctrlKey) return;
+                    e.preventDefault();
+                    if (zoomLockedRef.current) return;
+
+                    if (!pinching) {
+                        pinching = true;
+                        pinchStartScale = scaleRef.current;
+                        currentScale = pinchStartScale;
+                        startRect = container.getBoundingClientRect();
+                        captureZoomAnchor(e.clientY);
+                        container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
+                        container.style.willChange = 'transform';
+                    }
+
+                    // deltaY < 0 (chụm 2 ngón ra xa nhau / cuộn "lên") -> Chrome giả lập thành zoom in;
+                    // deltaY > 0 -> zoom out. Hệ số 0.01 cho tốc độ zoom vừa phải, dễ kiểm soát bằng
+                    // trackpad, tương tự các thư viện bản đồ/canvas quen thuộc dùng cùng công thức này.
+                    const factor = Math.exp(-e.deltaY * 0.01);
+                    currentScale = Math.max(0.5, Math.min(3, currentScale * factor));
+
+                    if (startRect) {
+                        container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
+                    }
+                    captureZoomAnchor(e.clientY);
+                    container.style.transform = 'scale(' + (currentScale / pinchStartScale) + ')';
+
+                    if (endTimer) clearTimeout(endTimer);
+                    const clientY = e.clientY;
+                    endTimer = setTimeout(() => { commitEnd(clientY); }, 150);
+                };
+
+                container.addEventListener('wheel', onWheel, { passive: false });
+                return () => {
+                    container.removeEventListener('wheel', onWheel);
+                    if (endTimer) clearTimeout(endTimer);
                 };
             }, [captureZoomAnchor]);
 
