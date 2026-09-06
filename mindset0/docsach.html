@@ -2821,6 +2821,18 @@
             // — bên 'whisper' luôn rỗng vì mỗi đoạn ghi âm chỉ trả về sau khi đã ghi xong cả đoạn).
             const [subtitleInterimText, setSubtitleInterimText] = useState('');
             const [subtitleHasTabAudio, setSubtitleHasTabAudio] = useState(false);
+            // subtitleHasTabAudioRef: bản sao qua ref của state trên — subtitleRecordLoop chỉ có đúng 1
+            // dependency ([transcribeAudioBlob]) nên đọc state trực tiếp sẽ bị "đóng băng" giá trị cũ lúc
+            // closure tạo ra; đọc ref thì luôn thấy giá trị mới nhất ngay cả trong vòng lặp đệ quy dài.
+            const subtitleHasTabAudioRef = useRef(false);
+            // subtitleSilenceHint: gợi ý nhẹ nhàng (KHÔNG phải lỗi cứng, vẫn giữ trạng thái "Đang nghe")
+            // hiện ra khi động cơ 'whisper' đã ghi được vài đoạn LIÊN TIẾP mà đoạn nào cũng gần như im
+            // lặng hoàn toàn — thường gặp nhất khi: (1) lỡ chọn "Cửa sổ/Tab" thay vì "Toàn bộ màn hình"
+            // nên công tắc "Also share system audio" không có tác dụng, (2) macOS chưa cấp quyền "Screen
+            // & System Audio Recording" cho trình duyệt trong System Settings, hoặc (3) âm lượng máy
+            // đang tắt/để rất nhỏ. Tự biến mất ngay khi phát hiện có âm thanh thật.
+            const [subtitleSilenceHint, setSubtitleSilenceHint] = useState('');
+            const subtitleSilentStreakRef = useRef(0);
             // subtitleActiveRef/subtitlePausedRef: dùng SONG SONG với state cùng tên — vòng lặp ghi âm/
             // gửi API và các callback của SpeechRecognition (onend...) chạy bất đồng bộ nên đọc state cũ
             // (đóng gói lúc closure tạo ra) sẽ không thấy được lần setState mới nhất khi người dùng bấm
@@ -2916,8 +2928,18 @@
                 if (!subtitleActiveRef.current || subtitlePausedRef.current) return; // đã tắt/tạm dừng trong lúc đang ghi đoạn này
                 const peak = subtitleEnergyPeakRef.current;
                 if (peak >= SUBTITLE_SILENCE_RMS && chunks.length > 0) {
+                    subtitleSilentStreakRef.current = 0;
+                    setSubtitleSilenceHint('');
                     const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
                     transcribeAudioBlob(blob); // KHÔNG await — chạy song song, không làm chậm vòng ghi âm kế tiếp
+                } else {
+                    // Im lặng (hoặc không ghi được chunk nào) — đếm dồn, sau vài đoạn liên tiếp thì gợi ý
+                    // (chỉ áp dụng ý nghĩa rõ ràng khi đang có nguồn âm thanh máy — mic-only im lặng đơn
+                    // giản là chưa ai nói, không cần cảnh báo gì thêm).
+                    subtitleSilentStreakRef.current += 1;
+                    if (subtitleHasTabAudioRef.current && subtitleSilentStreakRef.current >= 4) {
+                        setSubtitleSilenceHint('Chưa phát hiện âm thanh máy tính — kiểm tra lại: đã chọn "Toàn bộ màn hình" + bật "Also share system audio" chưa, và âm lượng máy có đang tắt tiếng không?');
+                    }
                 }
                 subtitleRecordLoop();
             }, [transcribeAudioBlob]);
@@ -2929,6 +2951,16 @@
             const setupWhisperAudioGraph = useCallback((micStream) => {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
                 const audioCtx = new AudioCtx();
+                // QUAN TRỌNG — sửa lỗi "share âm thanh xong nhưng phụ đề không bao giờ hiện": AudioContext
+                // MỚI tạo ra có thể ở trạng thái "suspended" (Chrome tự tạm ngưng xử lý audio graph nếu
+                // không chắc chắn đây là do 1 thao tác bấm chuột/chạm trực tiếp của người dùng — ở đây đã
+                // đi qua vài bước await getDisplayMedia/getUserMedia nên có thể rơi vào đúng trường hợp
+                // này) — nếu context bị suspended thì MediaStreamDestination vẫn tạo ra 1 MediaStream hợp
+                // lệ nhưng chỉ toàn im lặng (0), MediaRecorder ghi âm không lỗi gì cả nhưng Whisper mãi
+                // mãi nhận về audio câm, ngưỡng SUBTITLE_SILENCE_RMS không bao giờ vượt qua được -> không
+                // request nào được gửi đi, phụ đề đứng im vĩnh viễn dù người dùng nói/phát nhạc rõ ràng.
+                // Gọi resume() ngay để chắc chắn context luôn ở trạng thái "running".
+                if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); }
                 const destination = audioCtx.createMediaStreamDestination();
                 const analyser = audioCtx.createAnalyser();
                 analyser.fftSize = 512;
@@ -3031,6 +3063,9 @@
                 setSubtitleLines([]);
                 setSubtitleInterimText('');
                 setSubtitleHasTabAudio(false);
+                subtitleHasTabAudioRef.current = false;
+                subtitleSilentStreakRef.current = 0;
+                setSubtitleSilenceHint('');
 
                 const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
                 if (SpeechRecognitionCtor) {
@@ -3092,17 +3127,28 @@
                         setupWhisperAudioGraph(micStream);
                     }
 
+                    // Phòng khi context đã có sẵn từ trước (trường hợp đang ở động cơ 'whisper' rồi mới
+                    // bấm thêm âm thanh máy) mà vì lý do nào đó vẫn đang suspended — xem giải thích đầy
+                    // đủ ở setupWhisperAudioGraph phía trên, đây là nguyên nhân số 1 khiến "share xong mà
+                    // phụ đề không hiện".
+                    if (subtitleAudioCtxRef.current && subtitleAudioCtxRef.current.state === 'suspended') {
+                        subtitleAudioCtxRef.current.resume().catch(() => {});
+                    }
                     const tabAudioOnlyStream = new MediaStream(audioTracks);
                     subtitleTabStreamRef.current = tabAudioOnlyStream;
                     const tabSource = subtitleAudioCtxRef.current.createMediaStreamSource(tabAudioOnlyStream);
                     tabSource.connect(subtitleDestRef.current);
                     if (subtitleAnalyserRef.current) tabSource.connect(subtitleAnalyserRef.current);
                     setSubtitleHasTabAudio(true);
+                    subtitleHasTabAudioRef.current = true;
+                    subtitleSilentStreakRef.current = 0;
+                    setSubtitleSilenceHint('');
                     // Người dùng có thể bấm "Dừng chia sẻ" ngay trên thanh chia sẻ riêng của trình duyệt
                     // (không phải nút Tắt trong app) — lắng nghe để tự dọn dẹp trạng thái cho khớp.
                     audioTracks[0].addEventListener('ended', () => {
                         subtitleTabStreamRef.current = null;
                         setSubtitleHasTabAudio(false);
+                        subtitleHasTabAudioRef.current = false;
                     });
 
                     if (!subtitlePausedRef.current && (!subtitleRecorderRef.current || subtitleRecorderRef.current.state === 'inactive')) {
@@ -3153,10 +3199,13 @@
                     }
                     return;
                 }
+                subtitleSilentStreakRef.current = 0;
+                setSubtitleSilenceHint('');
                 try {
                     const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     subtitleMicStreamRef.current = micStream;
                     if (subtitleAudioCtxRef.current && subtitleDestRef.current) {
+                        if (subtitleAudioCtxRef.current.state === 'suspended') { subtitleAudioCtxRef.current.resume().catch(() => {}); }
                         const micSource = subtitleAudioCtxRef.current.createMediaStreamSource(micStream);
                         micSource.connect(subtitleDestRef.current);
                         if (subtitleAnalyserRef.current) micSource.connect(subtitleAnalyserRef.current);
@@ -3183,6 +3232,9 @@
                 setSubtitleLines([]);
                 setSubtitleInterimText('');
                 setSubtitleHasTabAudio(false);
+                subtitleHasTabAudioRef.current = false;
+                subtitleSilentStreakRef.current = 0;
+                setSubtitleSilenceHint('');
                 if (recognitionRef.current) {
                     try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch (e) {}
                     recognitionRef.current = null;
@@ -3992,8 +4044,10 @@
                                 ) : (
                                     <React.Fragment>
                                         {subtitleLines.length === 0 && !subtitleInterimText && (
-                                            <p className="text-sm text-slate-400 italic">
-                                                {subtitleStatus === 'paused' ? 'Đã tạm dừng — bấm nút mic để nghe tiếp, phụ đề vẫn được giữ nguyên.' : 'Đang chờ giọng nói...'}
+                                            <p className={"text-sm italic " + (subtitleSilenceHint ? 'text-amber-300 font-semibold not-italic' : 'text-slate-400')}>
+                                                {subtitleStatus === 'paused'
+                                                    ? 'Đã tạm dừng — bấm nút mic để nghe tiếp, phụ đề vẫn được giữ nguyên.'
+                                                    : (subtitleSilenceHint || 'Đang chờ giọng nói...')}
                                             </p>
                                         )}
                                         {subtitleLines.map((line, i) => (
