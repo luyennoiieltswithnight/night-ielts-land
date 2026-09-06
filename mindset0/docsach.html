@@ -3047,20 +3047,32 @@
                 await startWhisperEngine();
             }, [aiApiKey, startSpeechRecognitionEngine, startWhisperEngine]);
 
-            // Thêm âm thanh phát ra từ 1 tab/cửa sổ khác trên máy (vd tab đang phát bài nghe) — bắt buộc
-            // phải qua hộp thoại "Chia sẻ tab/cửa sổ" của trình duyệt (getDisplayMedia), không có cách
-            // nào lấy được âm thanh hệ thống 1 cách "âm thầm" vì lý do bảo mật của trình duyệt. Track
-            // video lấy kèm theo (bắt buộc phải xin cả video mới xin được audio) bị TẮT ngay lập tức vì
-            // chỉ cần âm thanh — đỡ tốn tài nguyên máy.
+            // Lấy âm thanh phát ra từ MÁY TÍNH (nhạc/video/Zoom/bất kỳ app nào đang phát, không riêng gì
+            // 1 tab) — bắt buộc phải qua hộp thoại chia sẻ màn hình của trình duyệt (getDisplayMedia),
+            // không có cách nào lấy được âm thanh hệ thống 1 cách "âm thầm" vì lý do bảo mật của trình
+            // duyệt/hệ điều hành. QUAN TRỌNG để bắt được ĐÚNG "âm thanh toàn hệ thống" (không chỉ 1 tab):
+            //   • constraint `audio: { systemAudio: 'include' }` — báo thẳng cho trình duyệt biết cần âm
+            //     thanh hệ thống, Chrome sẽ tự bật SẴN công tắc "Also share system audio" (đúng cái công
+            //     tắc trong ảnh chụp màn hình macOS mà người dùng đã thấy) khi có thể.
+            //   • constraint `video: { displaySurface: 'monitor' }` — gợi ý trình duyệt ưu tiên chọn sẵn
+            //     tab "Toàn bộ màn hình/Entire Screen" trong hộp thoại (chỉ tab NÀY mới có công tắc âm
+            //     thanh hệ thống nói trên — nếu người dùng lỡ chọn "Cửa sổ/Window" hoặc "Tab Chrome" thì
+            //     công tắc đó sẽ không xuất hiện, dù trình duyệt/hệ điều hành có hỗ trợ đi nữa).
+            // Track video lấy kèm theo (bắt buộc phải xin cả video mới xin được audio) bị TẮT ngay lập
+            // tức vì chỉ cần âm thanh — đỡ tốn tài nguyên máy.
             const addTabAudioToSubtitles = useCallback(async () => {
                 if (!subtitleActiveRef.current) return;
                 if (subtitleEngineRef.current === 'whisper' && !aiApiKey) { openAiSettings(); return; }
                 try {
-                    const displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { displaySurface: 'monitor' },
+                        audio: { systemAudio: 'include' },
+                        preferCurrentTab: false,
+                    });
                     const audioTracks = displayStream.getAudioTracks();
                     displayStream.getVideoTracks().forEach(t => t.stop());
                     if (audioTracks.length === 0) {
-                        setSubtitleError('Tab/cửa sổ vừa chọn không có âm thanh — nhớ tick vào ô "Chia sẻ âm thanh" (Share audio) trong hộp thoại.');
+                        setSubtitleError('Chưa lấy được âm thanh — trong hộp thoại vừa hiện, nhớ chọn mục "Toàn bộ màn hình" (Entire Screen) rồi bật công tắc "Also share system audio" trước khi bấm Share/Chia sẻ.');
                         return;
                     }
 
@@ -4007,13 +4019,13 @@
                                     <button
                                         onClick={addTabAudioToSubtitles}
                                         className="px-3 h-9 rounded-full bg-white/10 hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 whitespace-nowrap"
-                                        title="Lấy thêm âm thanh phát ra từ 1 tab/cửa sổ trên máy (vd tab đang phát bài nghe) — trình duyệt sẽ hỏi bạn chọn tab/cửa sổ nào, nhớ tick ô Chia sẻ âm thanh. Sẽ chuyển phụ đề sang hiện theo từng đoạn ngắn thay vì từng chữ."
+                                        title={'Nghe âm thanh máy tính (nhạc/video/Zoom...) — hộp thoại hiện ra thì chọn "Toàn bộ màn hình" (Entire Screen) rồi bật công tắc "Also share system audio", sau đó bấm Share/Chia sẻ. Sẽ chuyển phụ đề sang hiện theo từng đoạn ngắn thay vì từng chữ.'}
                                     >
-                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Thêm âm thanh laptop</span>
+                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Nghe âm thanh máy tính</span>
                                     </button>
                                 ) : (
                                     <span className="px-3 h-9 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 border border-emerald-400/30 whitespace-nowrap">
-                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Đã thêm âm thanh laptop</span>
+                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Đã nghe âm thanh máy tính</span>
                                     </span>
                                 )}
                                 {/* Nút Tạm dừng/Tiếp tục — tắt hẳn mic (không nghe nữa) nhưng GIỮ NGUYÊN mọi
