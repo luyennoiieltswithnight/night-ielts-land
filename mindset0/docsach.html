@@ -1627,6 +1627,14 @@
         // thích định dạng OpenAI (Authorization: Bearer <key>, body {model, messages}), khác hẳn Gemini
         // (key nằm trên query string, body {contents}) — nên toàn bộ hàm gọi API bên dưới đã viết lại.
         const AI_STORAGE_KEY = 'nightIeltsGroqApiKey';
+        // Đánh dấu người dùng ĐÃ ĐỌC cảnh báo về việc lần đầu bấm "Nghe âm thanh máy tính" trên Mac có
+        // thể khiến macOS bật hộp thoại xin quyền "Screen & System Audio Recording" cho Chrome, và sau
+        // khi cấp quyền, macOS/Chrome có thể yêu cầu KHỞI ĐỘNG LẠI hẳn trình duyệt để quyền có hiệu lực
+        // (hành vi của hệ điều hành, trang web không có cách nào tránh/bỏ qua được) — nếu Chrome khởi
+        // động lại giữa buổi dạy thì mọi ghi chú CHƯA XUẤT PDF trong phiên đang mở sẽ mất hết (app lưu
+        // toàn bộ trong bộ nhớ trình duyệt, không tự lưu ổ cứng). Chỉ hiện cảnh báo 1 LẦN DUY NHẤT trên
+        // mỗi trình duyệt (ghi nhớ qua localStorage), không làm phiền lại ở các lần bấm sau.
+        const SYSTEM_AUDIO_WARNING_KEY = 'nightIeltsSystemAudioWarningSeen';
         // QUAN TRỌNG: khác với Gemini (có alias "gemini-flash-latest" tự trỏ tới model mới nhất), Groq
         // KHÔNG có alias kiểu "latest" — mỗi model có 1 tên cố định và Groq công bố ngày "khai tử" cứng
         // trên trang console.groq.com/docs/deprecations, hết hạn là gọi lỗi 404 luôn, không tự chuyển
@@ -2825,6 +2833,9 @@
             // dependency ([transcribeAudioBlob]) nên đọc state trực tiếp sẽ bị "đóng băng" giá trị cũ lúc
             // closure tạo ra; đọc ref thì luôn thấy giá trị mới nhất ngay cả trong vòng lặp đệ quy dài.
             const subtitleHasTabAudioRef = useRef(false);
+            // Modal cảnh báo 1 lần trước khi thật sự gọi getDisplayMedia lấy âm thanh máy — xem
+            // SYSTEM_AUDIO_WARNING_KEY và handleClickAddTabAudio phía dưới.
+            const [showSystemAudioWarning, setShowSystemAudioWarning] = useState(false);
             // subtitleSilenceHint: gợi ý nhẹ nhàng (KHÔNG phải lỗi cứng, vẫn giữ trạng thái "Đang nghe")
             // hiện ra khi động cơ 'whisper' đã ghi được vài đoạn LIÊN TIẾP mà đoạn nào cũng gần như im
             // lặng hoàn toàn — thường gặp nhất khi: (1) lỡ chọn "Cửa sổ/Tab" thay vì "Toàn bộ màn hình"
@@ -3100,7 +3111,11 @@
                 if (subtitleEngineRef.current === 'whisper' && !aiApiKey) { openAiSettings(); return; }
                 try {
                     const displayStream = await navigator.mediaDevices.getDisplayMedia({
-                        video: { displaySurface: 'monitor' },
+                        // frameRate ép rất thấp: track video này chỉ tồn tại vì API bắt buộc phải xin
+                        // kèm mới xin được audio — KHÔNG dùng để hiển thị gì cả (tắt ngay dòng dưới), ép
+                        // khung hình thấp để đỡ tốn CPU/GPU chụp màn hình trong lúc chờ người dùng bấm
+                        // Share, nhất là với máy có màn hình độ phân giải cao.
+                        video: { displaySurface: 'monitor', frameRate: { ideal: 1, max: 5 } },
                         audio: { systemAudio: 'include' },
                         preferCurrentTab: false,
                     });
@@ -3158,6 +3173,21 @@
                     // Người dùng bấm Huỷ ở hộp thoại chia sẻ — không phải lỗi thật sự, bỏ qua im lặng.
                 }
             }, [aiApiKey, openAiSettings, setupWhisperAudioGraph, subtitleRecordLoop]);
+
+            // Bấm nút "Nghe âm thanh máy tính" đi qua hàm này trước, KHÔNG gọi thẳng addTabAudioToSubtitles
+            // — lần đầu tiên trên mỗi trình duyệt sẽ hiện 1 modal cảnh báo về việc macOS có thể yêu cầu
+            // cấp quyền + khởi động lại Chrome (xem SYSTEM_AUDIO_WARNING_KEY), tránh để người dùng bị bất
+            // ngờ giữa buổi dạy nếu trình duyệt thật sự phải khởi động lại. Các lần bấm sau (đã đọc rồi)
+            // thì vào thẳng luôn, không hỏi lại nữa.
+            const handleClickAddTabAudio = useCallback(() => {
+                let alreadySeen = false;
+                try { alreadySeen = localStorage.getItem(SYSTEM_AUDIO_WARNING_KEY) === '1'; } catch (e) {}
+                if (alreadySeen) {
+                    addTabAudioToSubtitles();
+                } else {
+                    setShowSystemAudioWarning(true);
+                }
+            }, [addTabAudioToSubtitles]);
 
             // Tạm dừng: tắt HẲN mic phần cứng (đúng nghĩa "không nghe nữa") nhưng CỐ TÌNH không đụng tới
             // subtitleLines — mọi phụ đề đang hiện được giữ nguyên trên thanh đen cho tới khi bấm tắt hẳn
@@ -4024,6 +4054,47 @@
                         </div>
                     )}
 
+                    {/* Modal cảnh báo 1 LẦN DUY NHẤT trước khi thật sự bấm chia sẻ âm thanh máy tính —
+                        xem SYSTEM_AUDIO_WARNING_KEY/handleClickAddTabAudio. Lý do cần cảnh báo trước: lần
+                        đầu dùng trên Mac, macOS có thể tự hiện hộp thoại xin quyền "Screen & System Audio
+                        Recording" cho Chrome — quyền này cần KHỞI ĐỘNG LẠI hẳn trình duyệt mới có hiệu
+                        lực (macOS yêu cầu, không phải Chrome hay app này cố ý), khiến trang có thể trông
+                        như "đứng hình 1 lúc rồi mất luôn" đúng như người dùng mô tả — về bản chất là Chrome
+                        đang tự đóng/mở lại, không phải app bị lỗi/crash. */}
+                    {showSystemAudioWarning && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={() => setShowSystemAudioWarning(false)}>
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-modal-pop" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                                        <i className="fas fa-triangle-exclamation text-amber-500"></i> Lưu ý trước khi chia sẻ
+                                    </h3>
+                                    <button onClick={() => setShowSystemAudioWarning(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <p className="text-sm text-slate-600 leading-relaxed">
+                                    Nếu đây là LẦN ĐẦU dùng tính năng này trên máy Mac này, hệ điều hành có thể tự hiện thêm 1 hộp thoại xin cấp quyền "Screen &amp; System Audio Recording" cho Chrome. Sau khi cấp quyền đó, <strong>macOS thường bắt Chrome phải khởi động lại</strong> mới dùng được — lúc đó trang sẽ trông như đứng hình 1 lúc rồi biến mất, đây là điều bình thường (Chrome tự tắt/mở lại), không phải app bị lỗi.
+                                </p>
+                                <p className="text-sm text-rose-600 font-semibold leading-relaxed bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
+                                    Chrome khởi động lại sẽ làm MẤT mọi ghi chú/nét vẽ chưa xuất PDF trong phiên đang mở! Nên xuất PDF lưu lại trước khi thử tính năng này lần đầu.
+                                </p>
+                                <p className="text-xs text-slate-400 leading-relaxed">
+                                    Cách tránh gián đoạn giữa buổi dạy: vào System Settings → Privacy &amp; Security → Screen &amp; System Audio Recording, bật sẵn quyền cho Chrome rồi khởi động lại Chrome MỘT LẦN trước khi bắt đầu dạy — các lần dùng sau sẽ không còn hộp thoại này nữa.
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        try { localStorage.setItem(SYSTEM_AUDIO_WARNING_KEY, '1'); } catch (e) {}
+                                        setShowSystemAudioWarning(false);
+                                        addTabAudioToSubtitles();
+                                    }}
+                                    className="w-full px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold transition-all active:scale-95"
+                                >
+                                    Đã hiểu, tiếp tục chia sẻ
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* THANH PHỤ ĐỀ TRỰC TIẾP (Live Subtitles) — cố định dưới cùng màn hình, phủ hết
                         chiều ngang, giống kiểu phụ đề của YouTube/Google Meet. Luôn hiện ra ngay khi bấm
                         nút bật (subtitleActive), kể cả lúc đang lỗi/đang xin quyền micro, để người dùng
@@ -4071,7 +4142,7 @@
                             <div className="flex items-center gap-2 shrink-0">
                                 {!subtitleHasTabAudio ? (
                                     <button
-                                        onClick={addTabAudioToSubtitles}
+                                        onClick={handleClickAddTabAudio}
                                         className="px-3 h-9 rounded-full bg-white/10 hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 whitespace-nowrap"
                                         title={'Nghe âm thanh máy tính (nhạc/video/Zoom...) — hộp thoại hiện ra thì chọn "Toàn bộ màn hình" (Entire Screen) rồi bật công tắc "Also share system audio", sau đó bấm Share/Chia sẻ. Sẽ chuyển phụ đề sang hiện theo từng đoạn ngắn thay vì từng chữ.'}
                                     >
