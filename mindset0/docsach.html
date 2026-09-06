@@ -2853,13 +2853,28 @@
             const subtitleEngineRef = useRef('speech'); // 'speech' | 'whisper' — động cơ đang dùng
             const recognitionRef = useRef(null); // SpeechRecognition instance (động cơ 'speech')
             const subtitleMicStreamRef = useRef(null);
-            const subtitleTabStreamRef = useRef(null);
             const subtitleAudioCtxRef = useRef(null);
-            const subtitleDestRef = useRef(null); // MediaStreamDestination — nơi TRỘN mic + (có thể có) âm thanh tab thành 1 luồng duy nhất để ghi âm (động cơ 'whisper')
-            const subtitleAnalyserRef = useRef(null); // đo năng lượng âm thanh — xem SUBTITLE_SILENCE_RMS
+            const subtitleDestRef = useRef(null); // MediaStreamDestination cho MIC (động cơ 'whisper' — chỉ dùng khi Web Speech API không có, vd Safari/iPad)
+            const subtitleAnalyserRef = useRef(null); // đo năng lượng âm thanh mic — xem SUBTITLE_SILENCE_RMS
             const subtitleEnergyPeakRef = useRef(0);
             const subtitleEnergyIntervalRef = useRef(null);
             const subtitleRecorderRef = useRef(null);
+            // --- Đồ thị/vòng ghi âm RIÊNG cho ÂM THANH MÁY TÍNH (tab audio) ---
+            // QUAN TRỌNG: tách hẳn thành 1 pipeline ĐỘC LẬP với mic, KHÔNG còn trộn chung vào 1 luồng như
+            // trước nữa. Lý do: hồi trước hễ bấm "Nghe âm thanh máy tính" là ép luôn cả mic phải chuyển
+            // từ động cơ 'speech' (hiện từng chữ tức thời) sang 'whisper' (chờ hết cả đoạn ~3 giây mới
+            // hiện) — người dùng phản ánh đúng: giọng nói của mình qua mic bị "chậm lại" oan uổng dù chỉ
+            // muốn nghe THÊM âm thanh máy. Giờ mic luôn được giữ nguyên ở động cơ nhanh nhất có thể
+            // (Web Speech API nếu trình duyệt hỗ trợ), còn âm thanh máy (vốn dĩ không phải giọng nói trực
+            // tiếp của người dùng nên độ trễ vài giây không quan trọng bằng) đi qua 1 pipeline Whisper
+            // theo đoạn HOÀN TOÀN RIÊNG — 2 nguồn chạy song song, không còn phụ thuộc lẫn nhau nữa.
+            const subtitleTabStreamRef = useRef(null);
+            const tabAudioCtxRef = useRef(null);
+            const tabDestRef = useRef(null);
+            const tabAnalyserRef = useRef(null);
+            const tabEnergyPeakRef = useRef(0);
+            const tabEnergyIntervalRef = useRef(null);
+            const tabRecorderRef = useRef(null);
 
             // Gửi 1 đoạn audio đã ghi cho Groq Whisper phiên âm ra chữ — tự thử lần lượt các model trong
             // GROQ_WHISPER_MODELS nếu model hiện tại báo lỗi (giống hệt cơ chế callGroqAPI cho Bút AI).
@@ -2939,21 +2954,70 @@
                 if (!subtitleActiveRef.current || subtitlePausedRef.current) return; // đã tắt/tạm dừng trong lúc đang ghi đoạn này
                 const peak = subtitleEnergyPeakRef.current;
                 if (peak >= SUBTITLE_SILENCE_RMS && chunks.length > 0) {
+                    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+                    transcribeAudioBlob(blob); // KHÔNG await — chạy song song, không làm chậm vòng ghi âm kế tiếp
+                }
+                // Im lặng (hoặc không ghi được chunk nào): bình thường, không cần cảnh báo gì — mic chỉ
+                // đơn giản là chưa ai nói. Xem tabRecordLoop bên dưới cho phần cảnh báo dành riêng cho
+                // pipeline âm thanh máy tính (ở đó im lặng kéo dài mới đáng ngờ, vì đang phát nội dung).
+                subtitleRecordLoop();
+            }, [transcribeAudioBlob]);
+
+            // Vòng lặp ghi âm RIÊNG cho pipeline âm thanh máy tính (tab audio) — y hệt cơ chế của
+            // subtitleRecordLoop ở trên nhưng đọc/ghi vào các ref tab*/subtitleHasTabAudioRef thay vì
+            // mic, và chạy HOÀN TOÀN SONG SONG với subtitleRecordLoop hoặc SpeechRecognition của mic (xem
+            // giải thích đầy đủ ở cụm khai báo ref tabAudioCtxRef/tabDestRef/... phía trên).
+            const tabRecordLoop = useCallback(async () => {
+                if (!subtitleActiveRef.current || subtitlePausedRef.current || !subtitleHasTabAudioRef.current || !tabDestRef.current) return;
+                let recorder;
+                try {
+                    const mimeType = pickSubtitleMimeType();
+                    recorder = new MediaRecorder(tabDestRef.current.stream, mimeType ? { mimeType } : undefined);
+                } catch (e) {
+                    return; // âm thanh máy chỉ là tính năng phụ — lỗi ở đây không cần chặn cả phụ đề mic chính
+                }
+                tabRecorderRef.current = recorder;
+                tabEnergyPeakRef.current = 0;
+                const chunks = [];
+                recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+                const stopped = new Promise(resolve => { recorder.onstop = resolve; });
+                recorder.start();
+                await new Promise(r => setTimeout(r, SUBTITLE_CHUNK_MS));
+                if (recorder.state !== 'inactive') recorder.stop();
+                await stopped;
+                if (!subtitleActiveRef.current || subtitlePausedRef.current || !subtitleHasTabAudioRef.current) return;
+                const peak = tabEnergyPeakRef.current;
+                if (peak >= SUBTITLE_SILENCE_RMS && chunks.length > 0) {
                     subtitleSilentStreakRef.current = 0;
                     setSubtitleSilenceHint('');
                     const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-                    transcribeAudioBlob(blob); // KHÔNG await — chạy song song, không làm chậm vòng ghi âm kế tiếp
+                    transcribeAudioBlob(blob);
                 } else {
-                    // Im lặng (hoặc không ghi được chunk nào) — đếm dồn, sau vài đoạn liên tiếp thì gợi ý
-                    // (chỉ áp dụng ý nghĩa rõ ràng khi đang có nguồn âm thanh máy — mic-only im lặng đơn
-                    // giản là chưa ai nói, không cần cảnh báo gì thêm).
+                    // Im lặng liên tục vài đoạn khi ĐANG chia sẻ âm thanh máy mới đáng ngờ (khác mic —
+                    // nội dung đang phát ra máy thường không im lặng lâu như vậy).
                     subtitleSilentStreakRef.current += 1;
-                    if (subtitleHasTabAudioRef.current && subtitleSilentStreakRef.current >= 4) {
+                    if (subtitleSilentStreakRef.current >= 4) {
                         setSubtitleSilenceHint('Chưa phát hiện âm thanh máy tính — kiểm tra lại: đã chọn "Toàn bộ màn hình" + bật "Also share system audio" chưa, và âm lượng máy có đang tắt tiếng không?');
                     }
                 }
-                subtitleRecordLoop();
+                tabRecordLoop();
             }, [transcribeAudioBlob]);
+
+            // Dọn dẹp toàn bộ pipeline âm thanh máy tính (dùng cả khi người dùng bấm "Dừng chia sẻ" trên
+            // thanh riêng của trình duyệt, lẫn khi bấm Tắt hẳn phụ đề — xem stopSubtitles).
+            const stopTabAudioPipeline = useCallback(() => {
+                subtitleHasTabAudioRef.current = false;
+                setSubtitleHasTabAudio(false);
+                if (tabEnergyIntervalRef.current) { clearInterval(tabEnergyIntervalRef.current); tabEnergyIntervalRef.current = null; }
+                if (tabRecorderRef.current && tabRecorderRef.current.state !== 'inactive') {
+                    try { tabRecorderRef.current.stop(); } catch (e) {}
+                }
+                tabRecorderRef.current = null;
+                if (subtitleTabStreamRef.current) { subtitleTabStreamRef.current.getTracks().forEach(t => t.stop()); subtitleTabStreamRef.current = null; }
+                if (tabAudioCtxRef.current) { try { tabAudioCtxRef.current.close(); } catch (e) {} tabAudioCtxRef.current = null; }
+                tabDestRef.current = null;
+                tabAnalyserRef.current = null;
+            }, []);
 
             // Dựng "đồ thị âm thanh" cho động cơ 'whisper': mic -> (destination TRỘN chung + analyser đo
             // năng lượng). Tách riêng thành hàm dùng chung vì cần gọi lại y hệt ở 2 chỗ: lúc khởi động
@@ -3106,15 +3170,23 @@
             //     công tắc đó sẽ không xuất hiện, dù trình duyệt/hệ điều hành có hỗ trợ đi nữa).
             // Track video lấy kèm theo (bắt buộc phải xin cả video mới xin được audio) bị TẮT ngay lập
             // tức vì chỉ cần âm thanh — đỡ tốn tài nguyên máy.
+            // QUAN TRỌNG: từ giờ hàm này KHÔNG còn đụng gì tới mic/động cơ 'speech' của mic nữa — trước
+            // đây bấm nút này sẽ ép luôn cả mic phải chuyển sang chế độ chờ-hết-đoạn (mất đúng cái cảm
+            // giác "hiện từng chữ" mà người dùng thích), giờ mic được giữ nguyên y hệt đang chạy, âm
+            // thanh máy tính đi qua 1 pipeline Whisper hoàn toàn riêng, chạy song song độc lập.
             const addTabAudioToSubtitles = useCallback(async () => {
                 if (!subtitleActiveRef.current) return;
-                if (subtitleEngineRef.current === 'whisper' && !aiApiKey) { openAiSettings(); return; }
+                if (!aiApiKey) { openAiSettings(); return; } // pipeline âm thanh máy LUÔN cần Groq Whisper, bất kể mic đang dùng động cơ nào
                 try {
                     const displayStream = await navigator.mediaDevices.getDisplayMedia({
                         // frameRate ép rất thấp: track video này chỉ tồn tại vì API bắt buộc phải xin
                         // kèm mới xin được audio — KHÔNG dùng để hiển thị gì cả (tắt ngay dòng dưới), ép
                         // khung hình thấp để đỡ tốn CPU/GPU chụp màn hình trong lúc chờ người dùng bấm
-                        // Share, nhất là với máy có màn hình độ phân giải cao.
+                        // Share, nhất là với máy có màn hình độ phân giải cao. LƯU Ý: trên Safari, việc
+                        // hộp thoại chia sẻ màn hình bị giật/xoay xoay con trỏ lúc đang chọn là hạn chế
+                        // của chính Safari/macOS khi dựng bản xem trước live của "Toàn bộ màn hình" — xảy
+                        // ra TRƯỚC khi trang này kịp nhận được stream nào cả, nên không có constraint nào
+                        // ở đây khắc phục được; nếu thấy khó chịu, thử Chrome cho riêng thao tác này.
                         video: { displaySurface: 'monitor', frameRate: { ideal: 1, max: 5 } },
                         audio: { systemAudio: 'include' },
                         preferCurrentTab: false,
@@ -3126,53 +3198,51 @@
                         return;
                     }
 
-                    // Đang ở động cơ 'speech' (mic-only, hiện từng chữ) -> BẮT BUỘC chuyển sang 'whisper'
-                    // vì Web Speech API không có cách nào nhận thêm 1 MediaStream tuỳ ý. Xin lại quyền mic
-                    // riêng cho đồ thị AudioContext của whisper (mic cũ của SpeechRecognition không dùng
-                    // lại được vì trình duyệt tự quản lý luồng đó, không lộ MediaStream ra ngoài).
-                    if (subtitleEngineRef.current === 'speech') {
-                        if (!aiApiKey) { openAiSettings(); displayStream.getTracks().forEach(t => t.stop()); return; }
-                        if (recognitionRef.current) {
-                            try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch (e) {}
-                            recognitionRef.current = null;
-                        }
-                        subtitleEngineRef.current = 'whisper';
-                        setSubtitleInterimText('');
-                        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        setupWhisperAudioGraph(micStream);
-                    }
+                    // Nếu bấm lại nút này lần 2 (vd đổi nguồn khác) mà pipeline cũ vẫn còn -> dọn trước.
+                    if (subtitleHasTabAudioRef.current) stopTabAudioPipeline();
 
-                    // Phòng khi context đã có sẵn từ trước (trường hợp đang ở động cơ 'whisper' rồi mới
-                    // bấm thêm âm thanh máy) mà vì lý do nào đó vẫn đang suspended — xem giải thích đầy
-                    // đủ ở setupWhisperAudioGraph phía trên, đây là nguyên nhân số 1 khiến "share xong mà
-                    // phụ đề không hiện".
-                    if (subtitleAudioCtxRef.current && subtitleAudioCtxRef.current.state === 'suspended') {
-                        subtitleAudioCtxRef.current.resume().catch(() => {});
-                    }
                     const tabAudioOnlyStream = new MediaStream(audioTracks);
                     subtitleTabStreamRef.current = tabAudioOnlyStream;
-                    const tabSource = subtitleAudioCtxRef.current.createMediaStreamSource(tabAudioOnlyStream);
-                    tabSource.connect(subtitleDestRef.current);
-                    if (subtitleAnalyserRef.current) tabSource.connect(subtitleAnalyserRef.current);
+
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    const audioCtx = new AudioCtx();
+                    // Xem giải thích đầy đủ ở setupWhisperAudioGraph (mic) — cùng 1 lý do: context mới
+                    // tạo có thể "suspended" khiến ghi âm ra toàn im lặng dù đang phát âm thanh thật.
+                    if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); }
+                    const destination = audioCtx.createMediaStreamDestination();
+                    const analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 512;
+                    const tabSource = audioCtx.createMediaStreamSource(tabAudioOnlyStream);
+                    tabSource.connect(destination);
+                    tabSource.connect(analyser);
+                    tabAudioCtxRef.current = audioCtx;
+                    tabDestRef.current = destination;
+                    tabAnalyserRef.current = analyser;
+                    tabEnergyIntervalRef.current = setInterval(() => {
+                        const a = tabAnalyserRef.current;
+                        if (!a) return;
+                        const data = new Uint8Array(a.fftSize);
+                        a.getByteTimeDomainData(data);
+                        let sumSquares = 0;
+                        for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sumSquares += v * v; }
+                        const rms = Math.sqrt(sumSquares / data.length);
+                        if (rms > tabEnergyPeakRef.current) tabEnergyPeakRef.current = rms;
+                    }, 80);
+
                     setSubtitleHasTabAudio(true);
                     subtitleHasTabAudioRef.current = true;
                     subtitleSilentStreakRef.current = 0;
                     setSubtitleSilenceHint('');
                     // Người dùng có thể bấm "Dừng chia sẻ" ngay trên thanh chia sẻ riêng của trình duyệt
-                    // (không phải nút Tắt trong app) — lắng nghe để tự dọn dẹp trạng thái cho khớp.
-                    audioTracks[0].addEventListener('ended', () => {
-                        subtitleTabStreamRef.current = null;
-                        setSubtitleHasTabAudio(false);
-                        subtitleHasTabAudioRef.current = false;
-                    });
+                    // (không phải nút Tắt trong app) — lắng nghe để tự dọn dẹp pipeline riêng này cho khớp
+                    // (KHÔNG đụng gì tới mic — mic vẫn tiếp tục chạy bình thường).
+                    audioTracks[0].addEventListener('ended', () => { stopTabAudioPipeline(); });
 
-                    if (!subtitlePausedRef.current && (!subtitleRecorderRef.current || subtitleRecorderRef.current.state === 'inactive')) {
-                        subtitleRecordLoop(); // vừa mới chuyển từ 'speech' sang 'whisper' -> tự khởi động vòng ghi âm
-                    }
+                    if (!subtitlePausedRef.current) tabRecordLoop();
                 } catch (e) {
                     // Người dùng bấm Huỷ ở hộp thoại chia sẻ — không phải lỗi thật sự, bỏ qua im lặng.
                 }
-            }, [aiApiKey, openAiSettings, setupWhisperAudioGraph, subtitleRecordLoop]);
+            }, [aiApiKey, openAiSettings, stopTabAudioPipeline, tabRecordLoop]);
 
             // Bấm nút "Nghe âm thanh máy tính" đi qua hàm này trước, KHÔNG gọi thẳng addTabAudioToSubtitles
             // — lần đầu tiên trên mỗi trình duyệt sẽ hiện 1 modal cảnh báo về việc macOS có thể yêu cầu
@@ -3209,6 +3279,13 @@
                     subtitleMicStreamRef.current.getTracks().forEach(t => t.stop());
                     subtitleMicStreamRef.current = null;
                 }
+                // Pipeline âm thanh máy (nếu có): chỉ dừng vòng ghi âm, KHÔNG huỷ luôn stream chia sẻ màn
+                // hình (huỷ hẳn sẽ phải hiện lại hộp thoại share khi tiếp tục — làm phiền hơn nhiều so với
+                // chỉ tạm ngưng gửi request). subtitlePausedRef đã true nên tabRecordLoop tự dừng lịch ghi
+                // tiếp theo, ở đây chỉ cần cắt ngay đoạn đang ghi dở.
+                if (tabRecorderRef.current && tabRecorderRef.current.state !== 'inactive') {
+                    try { tabRecorderRef.current.stop(); } catch (e) {}
+                }
             }, []);
 
             // Tiếp tục nghe sau khi tạm dừng — bật lại đúng động cơ đang dùng trước đó, KHÔNG xoá phụ đề
@@ -3220,6 +3297,11 @@
                 setSubtitlePaused(false);
                 setSubtitleStatus('listening');
                 setSubtitleError('');
+                // Pipeline âm thanh máy (nếu đang có, ĐỘC LẬP với động cơ mic bên dưới) — chỉ cần khởi
+                // động lại vòng ghi âm, graph/stream chia sẻ màn hình vẫn còn nguyên suốt lúc tạm dừng.
+                if (subtitleHasTabAudioRef.current && (!tabRecorderRef.current || tabRecorderRef.current.state === 'inactive')) {
+                    tabRecordLoop();
+                }
                 if (subtitleEngineRef.current === 'speech') {
                     if (!startSpeechRecognitionEngine()) {
                         subtitlePausedRef.current = true;
@@ -3249,7 +3331,7 @@
                     setSubtitleStatus('error');
                     setSubtitleError('Không lấy lại được quyền micro.');
                 }
-            }, [startSpeechRecognitionEngine, setupWhisperAudioGraph, subtitleRecordLoop]);
+            }, [startSpeechRecognitionEngine, setupWhisperAudioGraph, subtitleRecordLoop, tabRecordLoop]);
 
             const stopSubtitles = useCallback(() => {
                 subtitleActiveRef.current = false;
@@ -3261,8 +3343,6 @@
                 setSubtitleError('');
                 setSubtitleLines([]);
                 setSubtitleInterimText('');
-                setSubtitleHasTabAudio(false);
-                subtitleHasTabAudioRef.current = false;
                 subtitleSilentStreakRef.current = 0;
                 setSubtitleSilenceHint('');
                 if (recognitionRef.current) {
@@ -3275,11 +3355,11 @@
                 }
                 subtitleRecorderRef.current = null;
                 if (subtitleMicStreamRef.current) { subtitleMicStreamRef.current.getTracks().forEach(t => t.stop()); subtitleMicStreamRef.current = null; }
-                if (subtitleTabStreamRef.current) { subtitleTabStreamRef.current.getTracks().forEach(t => t.stop()); subtitleTabStreamRef.current = null; }
                 if (subtitleAudioCtxRef.current) { try { subtitleAudioCtxRef.current.close(); } catch (e) {} subtitleAudioCtxRef.current = null; }
                 subtitleDestRef.current = null;
                 subtitleAnalyserRef.current = null;
-            }, []);
+                stopTabAudioPipeline(); // dọn pipeline âm thanh máy tính (nếu có) — riêng biệt hoàn toàn với mic ở trên
+            }, [stopTabAudioPipeline]);
 
             // Đảm bảo dọn dẹp mic/tab-audio/AudioContext/SpeechRecognition nếu người dùng đóng tab/tải
             // lại trang trong lúc phụ đề trực tiếp đang bật — tránh giữ mic mở "vô hình" sau khi rời trang.
