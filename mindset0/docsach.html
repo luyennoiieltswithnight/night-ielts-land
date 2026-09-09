@@ -1308,13 +1308,25 @@
             return (
                 <div 
                     ref={containerRef}
-                    style={{ 
-                        position: 'absolute', 
-                        left: t.x * scale, 
+                    style={{
+                        position: 'absolute',
+                        left: t.x * scale,
                         top: t.y * scale,
                         width: (t.width || 150) * scale,
                         height: (t.height || 40) * scale,
-                        zIndex: active ? 100 : 10,
+                        // QUAN TRỌNG — sửa lỗi "chuyển qua bút chì thì không chọn được text box nữa,
+                        // vẽ/viết đè lên box luôn": trước đây khi KHÔNG active, z-index box = 10, TRÙNG
+                        // với z-index cố định (10) của canvas vẽ (.draw-canvas) — 2 phần tử này chỉ còn
+                        // phân biệt được nhờ đúng vào THỨ TỰ trong DOM (box vốn nằm sau canvas trong
+                        // JSX nên VỀ LÝ THUYẾT vẫn được vẽ đè lên trên), nhưng box khi không active lại
+                        // gần như trong suốt hoàn toàn (không viền, không nền — xem className bên dưới)
+                        // nên bất kỳ nét mực nào lỡ vẽ NGAY DƯỚI nó (canvas z=10, cùng mức) vẫn hiện rõ
+                        // xuyên qua như thể vẽ ĐÈ LÊN box — đúng hiện tượng người dùng gặp phải. Nâng
+                        // hẳn z-index box khi không active lên 15 (rõ ràng CAO HƠN canvas z=10, không
+                        // còn dựa vào thứ tự DOM để "may rủi" phân định nữa) — box giờ LUÔN nhận đúng
+                        // sự kiện chạm trước tiên để có thể chọn lại/di chuyển, bất kể đang ở chế độ vẽ
+                        // hay không.
+                        zIndex: active ? 100 : 15,
                     }}
                     /* QUAN TRỌNG — sửa lỗi kéo-thả/resize bị "ghì lại", không mượt: trước đây dùng
                        class "transition-all" ở đây, khiến MỌI thay đổi style (kể cả left/top/width/
@@ -2194,15 +2206,28 @@
                 if (!isDrawingMode) return;
                 if (e.pointerType === 'touch') return;
 
+                // refreshRect=true: đầu 1 nét vẽ mới — tính lại rect 1 lần, cache dùng cho cả nét.
+                const coords = getCoordinates(e, true);
+
+                // QUAN TRỌNG — chốt chặn thứ 2 (bên cạnh việc nâng z-index của text box ở trên) cho lỗi
+                // "chuyển qua bút chì thì vẽ/viết đè lên text box": phòng trường hợp điểm đặt bút NẰM
+                // TRÙNG đúng lên 1 text box đang có sẵn (kể cả khi trình duyệt vì lý do nào đó vẫn coi
+                // canvas là target, ví dụ đang rê 1 nét bắt đầu từ ngoài box rồi quét ngang qua nó) —
+                // huỷ hẳn, không bắt đầu nét vẽ nào cả, để tránh mực đè lên/xuyên qua đúng lúc box đang
+                // gần như trong suốt (không viền/không nền khi chưa active). Người dùng cần bấm lại
+                // ĐÚNG vào giữa box để chọn nó thay vì vẽ nhầm lên.
+                const hitTextBox = texts.some(t => {
+                    const w = t.width || 150, h = t.height || 40;
+                    return coords.x >= t.x && coords.x <= t.x + w && coords.y >= t.y && coords.y <= t.y + h;
+                });
+                if (hitTextBox) return;
+
                 // Mở khoá audio ngay trong cử chỉ chạm thật gần nhất trước khi có thể cần đọc to
                 // văn bản (bút Magic/IPA) — giúp giọng đọc Online chắc chắn được Safari/iPadOS cho
                 // phép phát thay vì âm thầm chặn. Gọi vô hại với các bút khác, không tốn kém.
                 unlockAudio();
 
                 try { e.target.setPointerCapture(e.pointerId); } catch(err) {}
-
-                // refreshRect=true: đầu 1 nét vẽ mới — tính lại rect 1 lần, cache dùng cho cả nét.
-                const coords = getCoordinates(e, true);
 
                 if (tool === 'eraser') {
                     isDrawingRef.current = true;
