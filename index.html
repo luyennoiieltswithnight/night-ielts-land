@@ -47,29 +47,16 @@
         "description": "Chứa các bài test nhỏ phục vụ giảng dạy cuốn sách Mindset 2.",
         "tests": [
             {
-                "title": "unit 6- ban ga",
-                "date": "25/08",
-                "questions": 72,
-                "link": "homework/generated/unit-6-ban-ga-gmt8klaiy0x8ya.html",
-                "gen": "gmt8klaiy0x8ya"
-            },
-            {
                 "title": "Vocab Shooter - Generator",
                 "date": "09/07",
                 "questions": 30,
                 "link": "homework/night-ielts-vocabulary-game-generator.html"
             },
             {
-                "title": "Tạo bài tập - Type - Listening",
+                "title": "Tạo bài tập",
                 "date": "09/07",
                 "questions": 30,
                 "link": "homework/listening-type-generator_2.html"
-            },
-            {
-                "title": "Tạo bài tập - Chinese",
-                "date": "09/07",
-                "questions": 30,
-                "link": "homework/listening_type_generator_chinese.html"
             },
             {
                 "title": "TRÌNH ĐỌC SÁCH",
@@ -385,13 +372,6 @@
         "description": "^^",
         "tests": [
             {
-                "title": "Chinese Listening Type Practice",
-                "date": "26/08",
-                "questions": 122,
-                "link": "homework/generated/chinese_listening_type_practice_gmt9nb0uslhhtx.html",
-                "gen": "gmt9nb0uslhhtx"
-            },
-            {
                 "title": "Bài 1: Bạn tên là gì?",
                 "date": "0",
                 "questions": 0,
@@ -640,10 +620,11 @@
             <h2 class="text-2xl font-black text-brand-purple mb-1">Giao Bài Tập Mới</h2>
             <p class="text-sm text-gray-500 font-bold mb-5">Chọn học sinh và nạp bài tập</p>
 
-            <!-- Chuyển đổi giữa 2 cách giao bài -->
+            <!-- Chuyển đổi giữa các cách giao bài -->
             <div class="flex gap-2 bg-gray-100 rounded-xl p-1 mb-5">
                 <button id="mode-typed-btn" onclick="setTaskMode('typed')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm">✍️ Nhập từ vựng mới</button>
                 <button id="mode-link-btn" onclick="setTaskMode('link')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📂 Chọn bài có sẵn</button>
+                <button id="mode-reading-btn" onclick="setTaskMode('reading')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📖 Đề Reading</button>
             </div>
 
             <div class="space-y-4">
@@ -687,6 +668,37 @@
                         <select id="task-file-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
                     </div>
                     <p class="text-[11px] text-gray-400 font-semibold">File vẫn nằm nguyên trong thư mục — chỉ giao 1 đường link riêng cho học sinh này. Vì đây là bài có sẵn (không phải Listening Type), học sinh cần tự bấm "Đánh dấu đã hoàn thành" sau khi làm xong.</p>
+                </div>
+
+                <!-- CHẾ ĐỘ: chọn đề Reading từ thư viện (reading/manifest.json) -->
+                <div id="mode-reading-fields" class="hidden space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Bộ đề</label>
+                            <select id="task-reading-source-select" onchange="onReadingSourceChange()" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Sách</label>
+                            <select id="task-reading-book-select" onchange="onReadingBookChange()" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Test</label>
+                            <select id="task-reading-test-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Phạm vi giao</label>
+                            <select id="task-reading-scope-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                                <option value="all">Cả đề (3 Passage)</option>
+                                <option value="1">Chỉ Passage 1</option>
+                                <option value="2">Chỉ Passage 2</option>
+                                <option value="3">Chỉ Passage 3</option>
+                            </select>
+                        </div>
+                    </div>
+                    <p id="task-reading-empty-msg" class="hidden text-[11px] text-amber-600 font-semibold">Chưa có đề Reading nào được đăng. Vào "Reading" ở trang chủ hoặc dùng công cụ Test Builder để tạo đề trước.</p>
+                    <p class="text-[11px] text-gray-400 font-semibold">Bài Reading được tự động chấm điểm và báo về mục Tiến Độ khi học sinh bấm "Nộp bài" — không cần tự đánh dấu hoàn thành.</p>
                 </div>
 
                 <div>
@@ -804,6 +816,24 @@
         </div>
     </div>
 
+    <!-- MODAL THƯ VIỆN ĐỀ READING (Ẩn mặc định) -->
+    <div id="reading-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-floating transform transition-all max-h-[85vh] flex flex-col">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-2xl font-black text-brand-purple mb-1">📖 Reading Materials</h2>
+                    <p class="text-sm text-gray-500 font-bold">Chọn bộ đề → sách → test để bắt đầu luyện tập</p>
+                </div>
+                <button id="btn-close-reading" class="text-gray-400 hover:text-gray-600 text-xl leading-none mt-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="reading-modal-list" class="mt-6 flex-1 overflow-y-auto hide-scrollbar space-y-4">
+                <p class="text-gray-400 text-sm font-bold">Đang tải danh sách đề...</p>
+            </div>
+        </div>
+    </div>
+
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <div class="grid grid-cols-2 gap-4 sm:gap-6 mt-4 max-w-2xl">
             <div class="bg-white p-5 rounded-3xl shadow-soft hover:shadow-md transition-shadow border border-gray-50 flex items-center gap-4">
@@ -823,6 +853,34 @@
                     <p class="text-sm font-bold text-gray-400">Tổng Test</p>
                     <p class="text-2xl font-black text-gray-800" id="total-tests">0</p>
                 </div>
+            </div>
+        </div>
+
+        <div class="mt-10">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-black text-gray-800 flex items-center gap-2">
+                    <span class="text-brand-purple"><i class="fa-solid fa-headphones-simple"></i></span>
+                    Luyện Đề Theo Kỹ Năng
+                </h3>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <button id="listening-hero-card" class="relative overflow-hidden text-left bg-gradient-to-br from-slate-400 to-slate-500 rounded-3xl p-6 shadow-soft hover:shadow-md transition-shadow text-white">
+                    <span class="absolute top-4 right-4 text-[10px] font-black uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full">Sắp ra mắt</span>
+                    <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-2xl mb-4">
+                        <i class="fa-solid fa-headphones-simple"></i>
+                    </div>
+                    <h4 class="text-2xl font-black mb-1.5">Listening</h4>
+                    <p class="text-sm font-semibold text-white/90 leading-relaxed">Khám phá kho tàng bài nghe đa dạng. Luyện chép chính tả và kỹ năng Take-note chuyên sâu.</p>
+                    <span class="absolute -bottom-6 -right-6 w-28 h-28 rounded-full bg-white/10"></span>
+                </button>
+                <button id="reading-hero-card" class="relative overflow-hidden text-left bg-gradient-to-br from-brand-purple to-indigo-500 rounded-3xl p-6 shadow-soft hover:shadow-md transition-shadow text-white">
+                    <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-2xl mb-4">
+                        <i class="fa-solid fa-book-open"></i>
+                    </div>
+                    <h4 class="text-2xl font-black mb-1.5">Reading</h4>
+                    <p class="text-sm font-semibold text-white/90 leading-relaxed">Bộ tài liệu được phân loại theo từng dạng bài, giúp bạn tối ưu hóa thời gian làm bài.</p>
+                    <span class="absolute -bottom-6 -right-6 w-28 h-28 rounded-full bg-white/10"></span>
+                </button>
             </div>
         </div>
 
@@ -1105,22 +1163,15 @@
         var currentTaskMode = 'typed';
         function setTaskMode(mode){
             currentTaskMode = mode;
-            var typedBtn = document.getElementById('mode-typed-btn');
-            var linkBtn = document.getElementById('mode-link-btn');
-            var typedFields = document.getElementById('mode-typed-fields');
-            var linkFields = document.getElementById('mode-link-fields');
-            if(mode === 'link'){
-                typedBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500';
-                linkBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm';
-                typedFields.classList.add('hidden');
-                linkFields.classList.remove('hidden');
-                populateTaskFolderSelect();
-            } else {
-                typedBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm';
-                linkBtn.className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500';
-                typedFields.classList.remove('hidden');
-                linkFields.classList.add('hidden');
-            }
+            var btns = { typed: document.getElementById('mode-typed-btn'), link: document.getElementById('mode-link-btn'), reading: document.getElementById('mode-reading-btn') };
+            var fields = { typed: document.getElementById('mode-typed-fields'), link: document.getElementById('mode-link-fields'), reading: document.getElementById('mode-reading-fields') };
+            Object.keys(btns).forEach(function(key){
+                var active = key === mode;
+                btns[key].className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors ' + (active ? 'bg-white text-brand-purple shadow-sm' : 'text-gray-500');
+                fields[key].classList.toggle('hidden', !active);
+            });
+            if (mode === 'link') populateTaskFolderSelect();
+            else if (mode === 'reading') populateTaskReadingSelects();
         }
         function populateTaskFolderSelect(){
             var sel = document.getElementById('task-folder-select');
@@ -1128,6 +1179,161 @@
                 return '<option value="' + f.id.replace(/"/g,'&quot;') + '">' + f.name + ' (' + f.tests.length + ' bài)</option>';
             }).join('');
             onTaskFolderChange();
+        }
+
+        // ==========================================
+        // THƯ VIỆN ĐỀ READING (đọc reading/manifest.json — do công cụ Test Builder tự cập
+        // nhật mỗi lần giáo viên xuất bản 1 đề mới). Đặt ở <script> cổ điển này (không phải
+        // <script type="module"> Firebase phía dưới) vì hoàn toàn không cần Firestore — chỉ
+        // fetch() 1 file tĩnh cùng domain — và để cả phần "Reading Materials" trên trang chủ
+        // lẫn dropdown chọn đề trong Studio (giao bài) đều dùng chung được.
+        // ==========================================
+        var SOURCE_LABELS = { cam: 'Bộ Cambridge', real: 'Bộ VOL' };
+        var BOOK_LABELS = { cam: 'Cambridge', real: 'VOL' };
+
+        // manifest.json nằm CÙNG repo, CÙNG domain với chính trang này (do GitHub Pages phục
+        // vụ) nên chỉ cần fetch tương đối — không cần token/API GitHub gì cả, học sinh chưa
+        // đăng nhập cũng đọc được, y hệt cách trình duyệt tải chính file index.html này.
+        function loadReadingManifest(forceReload){
+            if (window.__readingManifestCache && !forceReload) return Promise.resolve(window.__readingManifestCache);
+            return fetch('reading/manifest.json', { cache: 'no-cache' }).then(function(res){
+                if (!res.ok) { window.__readingManifestCache = { reading: {} }; return window.__readingManifestCache; }
+                return res.json();
+            }).then(function(data){
+                window.__readingManifestCache = (data && data.reading) ? data : { reading: {} };
+                return window.__readingManifestCache;
+            }).catch(function(e){
+                console.error('Không tải được reading/manifest.json:', e);
+                window.__readingManifestCache = { reading: {} };
+                return window.__readingManifestCache;
+            });
+        }
+
+        function sortedNumKeys(obj){
+            return Object.keys(obj || {}).sort(function(a, b){ return (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0); });
+        }
+
+        function openReadingModal(){
+            var modal = document.getElementById('reading-modal');
+            var listEl = document.getElementById('reading-modal-list');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            listEl.innerHTML = '<p class="text-gray-400 text-sm font-bold">Đang tải danh sách đề...</p>';
+            loadReadingManifest(true).then(function(manifest){
+                renderReadingList(listEl, manifest, function(testPath){ window.open(testPath, '_blank'); });
+            });
+        }
+
+        // renderReadingList() được tách riêng khỏi openReadingModal() để tái dùng được cho cả
+        // modal "Reading Materials" trên trang chủ (bấm Test -> mở bài luôn) LẪN dropdown chọn
+        // đề trong Studio khi giáo viên giao bài (bấm Test -> chọn đề đó, không mở bài).
+        function renderReadingList(container, manifest, onPickTest){
+            var readingData = (manifest && manifest.reading) || {};
+            var prefixes = ['cam', 'real'].filter(function(p){ return readingData[p] && Object.keys(readingData[p]).length > 0; });
+            if (prefixes.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-sm font-bold">Chưa có đề Reading nào được đăng. Thầy/cô dùng công cụ "Test Builder" để tạo đề đầu tiên.</p>';
+                return;
+            }
+            container.innerHTML = prefixes.map(function(prefix){
+                var books = readingData[prefix];
+                var bookKeys = sortedNumKeys(books);
+                var bookHtml = bookKeys.map(function(book){
+                    var tests = books[book];
+                    var testKeys = sortedNumKeys(tests);
+                    var testBtns = testKeys.map(function(t){
+                        return '<button type="button" class="reading-test-btn px-4 py-2.5 rounded-xl border-2 border-gray-100 hover:border-brand-purple hover:bg-purple-50 font-bold text-sm text-gray-700 transition-colors" data-path="' + tests[t] + '">Test ' + t + '</button>';
+                    }).join('');
+                    return '' +
+                        '<div class="reading-book-panel border border-gray-100 rounded-2xl p-3 mb-2">' +
+                            '<button type="button" class="reading-book-toggle w-full flex items-center justify-between px-2 py-1.5 font-bold text-gray-700">' +
+                                '<span><i class="fa-solid fa-book text-brand-purple mr-2"></i>' + BOOK_LABELS[prefix] + ' ' + book + '</span>' +
+                                '<i class="fa-solid fa-chevron-down text-xs text-gray-400 reading-book-chevron"></i>' +
+                            '</button>' +
+                            '<div class="reading-book-tests hidden flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-100">' + (testBtns || '<p class="text-gray-400 text-xs font-bold">Chưa có test nào.</p>') + '</div>' +
+                        '</div>';
+                }).join('');
+                return '' +
+                    '<div class="reading-source-panel border border-gray-100 rounded-2xl overflow-hidden">' +
+                        '<button type="button" class="reading-source-toggle w-full flex items-center justify-between px-4 py-3 bg-gray-50/60 font-black text-gray-800">' +
+                            '<span>📚 ' + SOURCE_LABELS[prefix] + '</span>' +
+                            '<i class="fa-solid fa-chevron-down text-xs text-gray-400 reading-source-chevron"></i>' +
+                        '</button>' +
+                        '<div class="reading-source-books hidden p-3">' + bookHtml + '</div>' +
+                    '</div>';
+            }).join('');
+
+            container.querySelectorAll('.reading-source-toggle').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    var panel = btn.nextElementSibling;
+                    var chevron = btn.querySelector('.reading-source-chevron');
+                    panel.classList.toggle('hidden');
+                    chevron.classList.toggle('fa-chevron-down');
+                    chevron.classList.toggle('fa-chevron-up');
+                });
+            });
+            container.querySelectorAll('.reading-book-toggle').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    var panel = btn.nextElementSibling;
+                    var chevron = btn.querySelector('.reading-book-chevron');
+                    panel.classList.toggle('hidden');
+                    chevron.classList.toggle('fa-chevron-down');
+                    chevron.classList.toggle('fa-chevron-up');
+                });
+            });
+            container.querySelectorAll('.reading-test-btn').forEach(function(btn){
+                btn.addEventListener('click', function(){ onPickTest(btn.dataset.path, btn); });
+            });
+        }
+
+        document.getElementById('reading-hero-card').addEventListener('click', openReadingModal);
+        document.getElementById('btn-close-reading').addEventListener('click', function(){
+            var modal = document.getElementById('reading-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        });
+        document.getElementById('listening-hero-card').addEventListener('click', function(){
+            alert('Phần Listening đang được xây dựng, sẽ sớm ra mắt! Trong lúc chờ, thầy/cô có thể dùng "Listening Type Generator" trong Kho Lưu Trữ để giao bài luyện nghe cho học sinh nhé.');
+        });
+
+        // ==========================================
+        // GIAO BÀI: chọn đề Reading từ thư viện (reading/manifest.json)
+        // ==========================================
+        async function populateTaskReadingSelects(){
+            var sourceSel = document.getElementById('task-reading-source-select');
+            sourceSel.innerHTML = '<option value="">Đang tải...</option>';
+            var manifest = await loadReadingManifest();
+            window.__taskReadingManifest = manifest;
+            var readingData = (manifest && manifest.reading) || {};
+            var prefixes = ['cam', 'real'].filter(function(p){ return readingData[p] && Object.keys(readingData[p]).length > 0; });
+            var emptyMsg = document.getElementById('task-reading-empty-msg');
+            if (prefixes.length === 0) {
+                sourceSel.innerHTML = '<option value="">-- Chưa có đề nào --</option>';
+                document.getElementById('task-reading-book-select').innerHTML = '';
+                document.getElementById('task-reading-test-select').innerHTML = '';
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+            emptyMsg.classList.add('hidden');
+            sourceSel.innerHTML = prefixes.map(function(p){ return '<option value="' + p + '">' + SOURCE_LABELS[p] + '</option>'; }).join('');
+            onReadingSourceChange();
+        }
+        function onReadingSourceChange(){
+            var prefix = document.getElementById('task-reading-source-select').value;
+            var bookSel = document.getElementById('task-reading-book-select');
+            var manifest = window.__taskReadingManifest || { reading: {} };
+            var books = (manifest.reading[prefix]) || {};
+            var bookKeys = sortedNumKeys(books);
+            bookSel.innerHTML = bookKeys.map(function(b){ return '<option value="' + b + '">' + BOOK_LABELS[prefix] + ' ' + b + '</option>'; }).join('');
+            onReadingBookChange();
+        }
+        function onReadingBookChange(){
+            var prefix = document.getElementById('task-reading-source-select').value;
+            var book = document.getElementById('task-reading-book-select').value;
+            var testSel = document.getElementById('task-reading-test-select');
+            var manifest = window.__taskReadingManifest || { reading: {} };
+            var tests = ((manifest.reading[prefix] || {})[book]) || {};
+            var testKeys = sortedNumKeys(tests);
+            testSel.innerHTML = testKeys.map(function(t){ return '<option value="' + t + '" data-path="' + tests[t] + '">Test ' + t + '</option>'; }).join('');
         }
         function onTaskFolderChange(){
             var folderId = document.getElementById('task-folder-select').value;
@@ -1337,11 +1543,20 @@
                     isDone = total > 0 && doneCount >= total;
                 }
                 const overdue = !!(data.deadlineAt && now > data.deadlineAt && !isDone);
+                // Bài Reading (kind: 'reading') đã tự mang sẵn ?assignmentId=&scope= trong
+                // chính data.link (do Studio ghép lúc giao bài) và đề Reading tự báo điểm/tự
+                // đánh dấu hoàn thành khi học sinh bấm "Nộp bài" (script theo dõi nhúng sẵn
+                // trong file đề, xem night-ielts-reading-test-builder.html) — nên mở THẲNG
+                // data.link, không đi qua assigned.html (trang đó dành cho bài "chọn bài có
+                // sẵn" cần học sinh tự bấm "Đánh dấu đã hoàn thành").
+                const openLink = data.kind === 'reading' && data.link
+                    ? data.link
+                    : (data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`);
                 myTasks.push({
                     title: data.title,
                     date: new Date(data.createdAt).toLocaleDateString('vi-VN'),
                     questions: data.vocabList ? data.vocabList.length : 0,
-                    link: data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`,
+                    link: openLink,
                     isDone: isDone,
                     overdue: overdue,
                     createdAt: data.createdAt || 0
@@ -1524,6 +1739,8 @@
             const mode = window.currentTaskMode || 'typed';
 
             let payload = null;
+            let readingTestPath = null;
+            let readingScope = null;
 
             if (mode === 'link') {
                 const folderId = document.getElementById('task-folder-select').value;
@@ -1540,6 +1757,29 @@
                     completed: false,
                     percent: 0,
                     kind: 'manual'
+                };
+            } else if (mode === 'reading') {
+                const testSel = document.getElementById('task-reading-test-select');
+                const testOpt = testSel.options[testSel.selectedIndex];
+                if (!testOpt || !testOpt.dataset.path) return alert('Vui lòng chọn một đề Reading!');
+                readingTestPath = testOpt.dataset.path;
+                readingScope = document.getElementById('task-reading-scope-select').value || 'all';
+                const sourcePrefix = document.getElementById('task-reading-source-select').value;
+                const bookNum = document.getElementById('task-reading-book-select').value;
+                const testNum = testSel.value;
+                const scopeLabel = (readingScope === '1' || readingScope === '2' || readingScope === '3') ? ('Passage ' + readingScope) : 'Cả đề';
+                const titleBase = BOOK_LABELS[sourcePrefix] + ' ' + bookNum + ' - Test ' + testNum + ' - ' + scopeLabel;
+                // link chưa có ở đây — mỗi học sinh cần 1 ?assignmentId= riêng trỏ đúng document
+                // của mình, nên link được ghép NGAY LÚC TẠO document (xem bước ghi bên dưới),
+                // không nằm chung trong payload dùng addDoc như 2 chế độ kia.
+                payload = {
+                    title: titleBase,
+                    createdAt: now,
+                    deadlineAt: deadlineAt,
+                    expiresAt: now + ASSIGNMENT_TTL_MS,
+                    completed: false,
+                    percent: 0,
+                    kind: 'reading'
                 };
             } else {
                 const title = document.getElementById('task-title').value;
@@ -1572,9 +1812,20 @@
 
             btn.innerText = 'Đang giao...'; btn.disabled = true;
             try {
-                await Promise.all(targetStudentIds.map(sid =>
-                    addDoc(collection(db, "assignments"), Object.assign({ studentId: sid }, payload))
-                ));
+                if (mode === 'reading') {
+                    // Cấp phát trước 1 document ref (chưa ghi) cho MỖI học sinh để lấy ID nhúng
+                    // vào link (?assignmentId=...) trước khi ghi — bài toán "trứng - gà" giống
+                    // hệt cách công cụ tạo game bắn gà đã làm với ?aid=.
+                    await Promise.all(targetStudentIds.map(sid => {
+                        const ref = doc(collection(db, 'assignments'));
+                        const link = readingTestPath + '?assignmentId=' + ref.id + '&scope=' + readingScope;
+                        return setDoc(ref, Object.assign({ studentId: sid, link: link }, payload));
+                    }));
+                } else {
+                    await Promise.all(targetStudentIds.map(sid =>
+                        addDoc(collection(db, "assignments"), Object.assign({ studentId: sid }, payload))
+                    ));
+                }
 
                 alert(targetStudentIds.length > 1
                     ? `Đã giao bài thành công cho ${targetStudentIds.length} học sinh trong lớp! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của mỗi học sinh sau 20 ngày)`
@@ -1632,6 +1883,7 @@
                     percent, total, done, isDone,
                     isLink: !!a.link,
                     kind: a.kind || null,
+                    scoreText: a.scoreText || null,
                     createdAt: a.createdAt || 0,
                     deadlineAt: a.deadlineAt || null
                 });
@@ -1724,6 +1976,10 @@
                     doneLine = r.percent > 0
                         ? `🎯 Độ chính xác cao nhất: ${r.percent}% (tự động, bắn đúng từ)`
                         : 'Học sinh chưa chơi lần nào';
+                } else if (r.kind === 'reading') {
+                    doneLine = r.isDone
+                        ? `📖 Đã nộp bài, đúng ${r.scoreText || (r.percent + '%')} (tự động chấm điểm)`
+                        : 'Học sinh chưa nộp bài';
                 } else if (r.isLink) {
                     doneLine = r.isDone ? '✅ Học sinh đã đánh dấu hoàn thành' : 'Chưa đánh dấu hoàn thành';
                 } else {
