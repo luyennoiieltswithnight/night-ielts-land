@@ -140,13 +140,44 @@
     <!-- TAB: QUICK TEXT INPUT -->
     <div class="tab-panel active" id="tab-quick">
       <h2>Nhập nhanh bằng văn bản</h2>
-      <p class="hint">Dán toàn bộ nội dung đề (đã soạn theo đúng định dạng mẫu) vào ô dưới rồi bấm "Phân tích &amp; Nạp vào form". Nếu chưa có nội dung, bấm nút đầu tiên để copy một prompt mẫu — đưa prompt đó cho ChatGPT/Gemini/AI khác kèm tên đề (vd "Cambridge 17 Test 2"), AI sẽ trả về đúng định dạng để dán vào đây.</p>
+      <p class="hint">Dán toàn bộ nội dung đề (đã soạn theo đúng định dạng mẫu) vào ô dưới rồi bấm "Phân tích &amp; Nạp vào form". Nếu chưa có nội dung, có 2 cách: (1) dùng AI ngay trong trang bằng Groq ở khung bên dưới, hoặc (2) bấm nút "Sao chép prompt mẫu" rồi đưa cho ChatGPT/Gemini/AI khác kèm tên đề (vd "Cambridge 17 Test 2").</p>
+
+      <div class="card" id="groq-ai-box">
+        <h3 style="margin-top:0;">🤖 Định dạng tự động bằng AI (Groq) — làm ngay trong trang, không cần copy qua lại</h3>
+        <p class="hint">Dán đề GỐC (nguyên văn, thô, y như trong sách/PDF — đoạn văn + câu hỏi + đáp án nếu có) vào ô bên dưới. AI sẽ tự nhận diện đúng dạng của từng nhóm câu hỏi (True/False/Not Given, trắc nghiệm, chọn nhiều đáp án, matching heading, matching thông tin/tên riêng, điền từ vào đoạn văn, điền bảng/ghi chú...) và xuất ra đúng định dạng mẫu để nạp vào form — vì đề IELTS Reading có khá nhiều dạng câu hỏi và biến thể, không phải khuôn nào cũng giống nhau.</p>
+
+        <details class="pat-help" style="cursor:default;">
+          <summary style="cursor:pointer; font-weight:700;">❓ Chưa có Groq API Key? Xem cách lấy (miễn phí, không cần thẻ)</summary>
+          <ol style="margin:10px 0 0 18px; padding:0; line-height:1.7;">
+            <li>Vào <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>, đăng nhập (có thể dùng tài khoản Google) — nếu chưa có tài khoản thì đăng ký miễn phí.</li>
+            <li>Bấm nút <b>"Create API Key"</b>, đặt tên bất kỳ (vd "Night IELTS"), bấm <b>Submit</b>.</li>
+            <li>Chuỗi key hiện ra (dạng <code>gsk_...</code>) — <b>chỉ hiện đúng 1 lần</b>, copy ngay và dán vào ô "Groq API Key" bên dưới.</li>
+            <li>Gói miễn phí của Groq có giới hạn tốc độ (rate limit) nhưng đủ dùng để soạn đề — không cần nhập thẻ tín dụng.</li>
+          </ol>
+        </details>
+
+        <div class="row">
+          <div class="field"><label>Groq API Key</label><input type="password" id="groq-api-key" placeholder="gsk_..."></div>
+          <div class="field"><label>Model</label><input type="text" id="groq-model" placeholder="openai/gpt-oss-120b" value="openai/gpt-oss-120b"></div>
+        </div>
+        <p class="hint" style="margin-top:-8px;">Key chỉ lưu trong trình duyệt của bạn (localStorage), không gửi đi đâu ngoài api.groq.com. Model mặc định là <code>openai/gpt-oss-120b</code> (context dài, phù hợp đề nhiều câu) — có thể đổi sang model khác trên <a href="https://console.groq.com/docs/models" target="_blank" rel="noopener">console.groq.com/docs/models</a> nếu muốn.</p>
+
+        <div class="field">
+          <label>Dán đề gốc (thô, chưa định dạng) vào đây</label>
+          <textarea id="groq-raw-input" rows="12" placeholder="Dán nguyên văn đoạn văn + toàn bộ câu hỏi (và đáp án nếu đề đã có sẵn đáp án) từ sách/PDF vào đây — càng đầy đủ, AI càng làm đúng..."></textarea>
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-primary" id="groq-format-btn">🤖 Định dạng bằng AI (Groq)</button>
+        </div>
+        <div id="groq-result-slot"></div>
+      </div>
+
       <div class="toolbar">
-        <button class="btn btn-accent" id="copy-prompt-btn">📋 Sao chép prompt mẫu (đưa cho AI khác điền)</button>
+        <button class="btn btn-accent" id="copy-prompt-btn">📋 Sao chép prompt mẫu (đưa cho AI khác điền thủ công)</button>
         <button class="btn" id="load-quick-sample-btn">👀 Xem ví dụ đã điền sẵn</button>
       </div>
       <div class="field">
-        <label>Dán nội dung đề theo định dạng mẫu vào đây</label>
+        <label>Dán nội dung đề theo định dạng mẫu vào đây (hoặc để AI Groq ở trên tự điền giúp)</label>
         <textarea id="quick-input-textarea" rows="20" style="font-family: monospace; font-size: 13px;" placeholder="[META]&#10;source: cambridge&#10;book: 10&#10;test: 1&#10;&#10;[PASSAGE 1]&#10;title: ...&#10;paragraphs:&#10;...&#10;&#10;[GROUP]&#10;type: tfng&#10;...&#10;&#10;[Q]&#10;text: ...&#10;answer: ...&#10;loc: ...&#10;exp: ...&#10;&#10;(xem prompt mẫu để biết đầy đủ cú pháp)"></textarea>
       </div>
       <div class="toolbar">
@@ -1464,6 +1495,101 @@ function showQuickResult(msg, kind) {
   slot.innerHTML = '';
   slot.appendChild(el('div', { class: cls }, [msg]));
 }
+
+// ============================================================================
+// AI AUTO-FORMAT VIA GROQ API (gọi thẳng trong trang, không cần copy/dán qua AI khác)
+// Dùng lại đúng QUICK_TEMPLATE_PROMPT ở trên làm system prompt, để kết quả AI trả về
+// luôn đúng cú pháp [META]/[PASSAGE]/[GROUP]/[Q] mà parseTemplate() đã hiểu sẵn.
+// ============================================================================
+const groqApiKeyEl = document.getElementById('groq-api-key');
+const groqModelEl = document.getElementById('groq-model');
+const groqRawInputEl = document.getElementById('groq-raw-input');
+const groqFormatBtn = document.getElementById('groq-format-btn');
+
+// Dùng key localStorage RIÊNG (nightIeltsGroqCfg) — không gộp chung với GitHub config,
+// vì đây là 2 dịch vụ khác nhau (Groq để soạn đề bằng AI, GitHub để xuất bản đề lên web).
+(function loadSavedGroqConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || 'null');
+    if (saved) {
+      if (saved.apiKey) groqApiKeyEl.value = saved.apiKey;
+      if (saved.model) groqModelEl.value = saved.model;
+    }
+  } catch (e) {}
+})();
+
+function saveGroqConfig() {
+  try {
+    localStorage.setItem('nightIeltsGroqCfg', JSON.stringify({
+      apiKey: groqApiKeyEl.value.trim(),
+      model: groqModelEl.value.trim() || 'openai/gpt-oss-120b'
+    }));
+  } catch (e) {}
+}
+groqApiKeyEl.addEventListener('change', saveGroqConfig);
+groqModelEl.addEventListener('change', saveGroqConfig);
+
+function showGroqResult(msg, kind) {
+  const slot = document.getElementById('groq-result-slot');
+  const cls = kind === 'ok' ? 'ok-box' : kind === 'warn' ? 'warn-box' : 'err-box';
+  slot.innerHTML = '';
+  slot.appendChild(el('div', { class: cls }, [msg]));
+}
+
+groqFormatBtn.addEventListener('click', async () => {
+  const apiKey = groqApiKeyEl.value.trim();
+  const model = groqModelEl.value.trim() || 'openai/gpt-oss-120b';
+  const rawText = groqRawInputEl.value.trim();
+  if (!apiKey) { showGroqResult('⚠️ Vui lòng nhập Groq API Key trước (xem hướng dẫn lấy key miễn phí ở khung trên).', 'err'); return; }
+  if (!rawText) { showGroqResult('⚠️ Ô "Dán đề gốc" đang trống — dán nguyên văn đề vào đó trước.', 'err'); return; }
+  saveGroqConfig();
+
+  groqFormatBtn.disabled = true;
+  const origLabel = groqFormatBtn.textContent;
+  groqFormatBtn.textContent = '⏳ Đang gọi AI, vui lòng đợi (đề dài có thể mất 30-60 giây)...';
+  showGroqResult('⏳ Đang gửi đề cho AI (Groq) để tự động định dạng — KHÔNG đóng tab hay bấm nút khác trong lúc chờ...', 'warn');
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: QUICK_TEMPLATE_PROMPT },
+          { role: 'user', content: `Đây là đề gốc cần chuyển sang đúng định dạng đã nêu (giữ nguyên 100% nguyên văn từng chữ của đoạn văn / câu hỏi / lựa chọn, KHÔNG paraphrase, KHÔNG tóm tắt, KHÔNG bịa thêm nội dung không có trong đề gốc):\n\n${rawText}` }
+        ],
+        temperature: 0.2,
+        max_completion_tokens: 16000
+      })
+    });
+
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      const errMsg = (j.error && j.error.message) || `HTTP ${res.status}`;
+      throw new Error(errMsg);
+    }
+    const data = await res.json();
+    const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (!content || !content.trim()) throw new Error('AI trả về nội dung rỗng — thử lại hoặc đổi sang model khác.');
+
+    document.getElementById('quick-input-textarea').value = content.trim();
+    showGroqResult('✅ AI đã định dạng xong — kết quả vừa được điền vào ô "Nhập nhanh" bên dưới.\n\n⚠️ HÃY ĐỌC LẠI KỸ trước khi bấm "Phân tích & Nạp vào form": AI đôi khi sai sót ở đề dài/phức tạp — kiểm tra kỹ nhất là phần đoạn văn có được chép NGUYÊN VĂN không, và các câu điền từ/điền bảng-ghi chú/đáp án có đúng không.', 'ok');
+  } catch (e) {
+    let msg = `❌ Lỗi khi gọi Groq: ${e.message}`;
+    if (/401|invalid api key|incorrect api key/i.test(e.message)) msg += '\n\n→ Kiểm tra lại API Key đã dán đúng chưa (dạng gsk_...), hoặc key đã bị thu hồi/hết hạn.';
+    if (/rate limit|429/i.test(e.message)) msg += '\n\n→ Đang bị giới hạn tốc độ (rate limit) của gói miễn phí — đợi 1 lát rồi thử lại, hoặc dán từng Passage một thay vì dán cả đề 1 lúc.';
+    if (/context|too large|maximum|token/i.test(e.message)) msg += '\n\n→ Có thể đề quá dài so với giới hạn model — thử dán từng Passage riêng (1 lần cho mỗi Passage) rồi ghép lại trong ô "Nhập nhanh".';
+    msg += '\n\n💡 Nếu vẫn không được, dùng cách thủ công: bấm nút "Sao chép prompt mẫu" bên dưới rồi dán cho ChatGPT/Gemini/Claude.';
+    showGroqResult(msg, 'err');
+  } finally {
+    groqFormatBtn.disabled = false;
+    groqFormatBtn.textContent = origLabel;
+  }
+});
 
 const QUICK_SAMPLE_TEXT = `[META]
 source: cambridge
