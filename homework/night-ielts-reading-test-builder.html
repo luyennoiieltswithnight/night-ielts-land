@@ -121,6 +121,11 @@
   .publish-log { font-family: monospace; font-size: 12.5px; white-space: pre-wrap; background: #111; color: #9ef29e; padding: 12px 14px; border-radius: 6px; max-height: 220px; overflow-y: auto; margin-top: 10px; }
   .checkbox-line { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 8px; }
   small.note { color: var(--muted); }
+  .note-preview { white-space: pre-wrap; line-height: 1.8; font-size: 14.5px; background: white; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 6px; cursor: text; }
+  .note-preview .note-select-run:hover { background: #eef4ff; }
+  .note-preview .note-existing { user-select: none; background: #fdf3e7; border-radius: 3px; padding: 0 1px; }
+  .note-preview .reading-note { color: var(--danger); font-weight: 700; font-size: 0.92em; }
+  .note-preview .note-empty-hint { color: var(--muted); font-style: italic; }
 </style>
 </head>
 <body>
@@ -313,6 +318,82 @@ function escapeHtml(str) {
   return (str || '').toString()
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// Dựng bản "xem trước" của đoạn văn thô (rawText, có thể chứa các dấu {{phrase|note}} đã note trước
+// đó) thành 1 khối DOM có thể bôi đen (chọn) được bằng chuột — dùng cho tính năng thêm note trong tab
+// Passage. Mỗi đoạn chữ THƯỜNG (chưa note) được bọc trong 1 <span class="note-select-run"
+// data-start="N"> chứa ĐÚNG 1 text-node, với data-start là vị trí ký tự của đầu đoạn đó trong rawText
+// gốc — nhờ vậy mapSelectionToRawRange() bên dưới có thể quy đổi ngược từ 1 vùng bôi đen trên màn hình
+// về đúng vị trí (start/end) trong chuỗi rawText để chèn dấu {{...}} vào đúng chỗ. Dùng textContent
+// (không phải innerHTML string) để gán chữ, tránh lệch độ dài do HTML entity (&amp; ...).
+function buildParagraphPreviewDOM(rawText) {
+  const wrap = document.createElement('div');
+  const text = rawText || '';
+  if (!text.trim()) {
+    const empty = document.createElement('span');
+    empty.className = 'note-empty-hint';
+    empty.textContent = '(Chưa có nội dung — gõ vào ô "Nội dung đoạn văn" phía trên trước)';
+    wrap.appendChild(empty);
+    return wrap;
+  }
+  const re = /\{\{([^{}|]*)\|([^{}]*)\}\}/g;
+  let lastIndex = 0, m;
+  const appendPlainRun = (str, start) => {
+    if (!str) return;
+    const span = document.createElement('span');
+    span.className = 'note-select-run';
+    span.dataset.start = String(start);
+    span.textContent = str;
+    wrap.appendChild(span);
+  };
+  while ((m = re.exec(text)) !== null) {
+    appendPlainRun(text.slice(lastIndex, m.index), lastIndex);
+    const noteWrap = document.createElement('span');
+    noteWrap.className = 'note-existing';
+    noteWrap.title = 'Đoạn này đã có note — không thể bôi đen để thêm note khác đè lên.';
+    const b = document.createElement('b');
+    b.textContent = m[1];
+    noteWrap.appendChild(b);
+    const noteSpan = document.createElement('span');
+    noteSpan.className = 'reading-note';
+    noteSpan.textContent = ` [${m[2]}]`;
+    noteWrap.appendChild(noteSpan);
+    wrap.appendChild(noteWrap);
+    lastIndex = m.index + m[0].length;
+  }
+  appendPlainRun(text.slice(lastIndex), lastIndex);
+  return wrap;
+}
+
+// Quy đổi vùng đang được bôi đen (window.getSelection()) bên trong previewEl (dựng bởi
+// buildParagraphPreviewDOM) ngược về {start, end} trong chuỗi rawText gốc. Trả về null nếu: chưa
+// chọn gì, chọn ngoài previewEl, hoặc vùng chọn bắt đầu/kết thúc lệch ra ngoài 1 đoạn ".note-select-run"
+// duy nhất (vd: đè lên 1 note đã có sẵn, hoặc chọn vắt qua ranh giới 2 đoạn bị ngăn bởi 1 note ở giữa).
+function mapSelectionToRawRange(previewEl) {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+  const range = sel.getRangeAt(0);
+  if (!previewEl.contains(range.commonAncestorContainer)) return null;
+  const findRun = (node) => {
+    while (node && node !== previewEl) {
+      if (node.nodeType === 1 && node.classList && node.classList.contains('note-select-run')) return node;
+      node = node.parentNode;
+    }
+    return null;
+  };
+  const startRun = findRun(range.startContainer);
+  const endRun = findRun(range.endContainer);
+  if (!startRun || !endRun || startRun !== endRun) return null;
+  const resolveOffset = (container, offset, run) => {
+    if (container.nodeType === Node.TEXT_NODE) return offset;
+    return offset === 0 ? 0 : run.textContent.length;
+  };
+  const base = parseInt(startRun.dataset.start, 10);
+  const rawStart = base + resolveOffset(range.startContainer, range.startOffset, startRun);
+  const rawEnd = base + resolveOffset(range.endContainer, range.endOffset, endRun);
+  if (rawStart === rawEnd) return null;
+  return { start: Math.min(rawStart, rawEnd), end: Math.max(rawStart, rawEnd) };
+}
 function slug(s) {
   return (s || '').toString().trim().toLowerCase()
     .replace(/đ/g, 'd').replace(/Đ/g, 'd')
@@ -416,28 +497,45 @@ function renderPassageTab(pIdx) {
   paraField.appendChild(paraTextarea);
   container.appendChild(paraField);
 
-  // Thêm "note" (chú thích) ngay trong bài đọc: bôi đen 1 đoạn chữ trong ô đoạn văn ở trên rồi bấm
-  // nút này — đoạn đã chọn sẽ IN ĐẬM, note nhập vào hiện chữ ĐỎ trong ngoặc [ ] ngay bên phải lúc
-  // học sinh làm bài (cả chế độ Luyện tập lẫn Thi Thật). Lưu dưới dạng {{đoạn chữ|nội dung note}}
-  // ngay trong ô đoạn văn — có thể gõ tay trực tiếp nếu muốn, xem cách xử lý ở buildTestHTML().
-  const paraNoteToolbar = el('div', { class: 'toolbar', style: { marginTop: '-8px' } });
+  // Thêm "note" (chú thích) ngay trong bài đọc. QUAN TRỌNG: việc bôi đen để chọn đoạn chữ cần note
+  // PHẢI làm trên khung "Xem trước bài đọc" bên dưới (bản đã dựng thành văn bản thật, không phải ô
+  // gõ chữ thô có lẫn cú pháp {{...}}) — không làm trên ô "Nội dung đoạn văn" phía trên vì ô đó là nơi
+  // GÕ/dán nội dung thô, càng nhiều note thì càng lẫn cú pháp {{ }} gây khó bôi đen chính xác.
+  // Đoạn đã chọn sẽ IN ĐẬM, note nhập vào hiện chữ ĐỎ trong ngoặc [ ] ngay bên phải lúc học sinh làm
+  // bài (cả chế độ Luyện tập lẫn Thi Thật). Lưu dưới dạng {{đoạn chữ|nội dung note}} trong dữ liệu thô
+  // (passage.paragraphs) — xem cách xử lý khi xuất bản ở buildTestHTML().
+  container.appendChild(el('label', { style: { display: 'block', fontSize: '13px', fontWeight: '600', marginTop: '10px', marginBottom: '5px', color: 'var(--muted)' } }, [
+    '📖 Xem trước bài đọc — bôi đen (chọn) chữ TRONG KHUNG NÀY rồi bấm nút để thêm note'
+  ]));
+  const previewBox = el('div', { class: 'note-preview' });
+  container.appendChild(previewBox);
+
+  function refreshNotePreview() {
+    previewBox.innerHTML = '';
+    previewBox.appendChild(buildParagraphPreviewDOM(passage.paragraphs));
+  }
+  refreshNotePreview();
+  // Giữ khung xem trước luôn khớp với ô gõ chữ thô mỗi khi bạn gõ/dán/sửa nội dung.
+  paraTextarea.addEventListener('input', refreshNotePreview);
+
+  const paraNoteToolbar = el('div', { class: 'toolbar' });
   const addNoteBtn = el('button', { class: 'btn btn-sm btn-accent', type: 'button' }, ['📝 Thêm note cho đoạn đã bôi đen']);
   paraNoteToolbar.appendChild(addNoteBtn);
   container.appendChild(paraNoteToolbar);
   container.appendChild(el('p', { class: 'hint', style: { marginTop: '-8px' } }, [
-    'Bôi đen (chọn) 1 đoạn chữ trong ô "Nội dung đoạn văn" ở trên rồi bấm nút này — đoạn đã chọn sẽ được IN ĐẬM, note bạn nhập hiện chữ ĐỎ trong ngoặc [ ] ngay bên phải khi học sinh làm bài. Lưu dạng {{đoạn chữ|nội dung note}} trong ô đoạn văn — có thể gõ tay trực tiếp nếu muốn (tránh dùng ký tự { } | trong nội dung).'
+    'Bôi đen (chọn) 1 đoạn chữ TRONG KHUNG XEM TRƯỚC ở trên (không phải ô nhập liệu bên dưới nó) rồi bấm nút này. Vùng chọn phải nằm gọn trong 1 đoạn chưa có note khác (không được đè lên phần đã note — nền vàng nhạt). Đoạn đã chọn sẽ được IN ĐẬM, note bạn nhập hiện chữ ĐỎ trong ngoặc [ ] ngay bên phải khi học sinh làm bài.'
   ]));
   const noteFormSlot = el('div', {});
   container.appendChild(noteFormSlot);
 
   addNoteBtn.onclick = () => {
-    const start = paraTextarea.selectionStart;
-    const end = paraTextarea.selectionEnd;
-    if (start === end) {
-      alert('Hãy bôi đen (chọn) 1 đoạn chữ trong ô "Nội dung đoạn văn" trước, rồi bấm nút này.');
+    const selRange = mapSelectionToRawRange(previewBox);
+    if (!selRange) {
+      alert('Hãy bôi đen (chọn) 1 đoạn chữ TRONG KHUNG "Xem trước bài đọc" ở trên trước, rồi bấm nút này. Lưu ý: vùng chọn phải nằm gọn trong 1 đoạn văn bản chưa có note khác (không được bắt đầu/kết thúc trong phần đã tô nền vàng).');
       return;
     }
-    const selectedText = paraTextarea.value.slice(start, end);
+    const { start, end } = selRange;
+    const selectedText = passage.paragraphs.slice(start, end);
     noteFormSlot.innerHTML = '';
     const formRow = el('div', { class: 'row' });
     const noteInputField = el('div', { class: 'field' }, [el('label', {}, [
@@ -460,11 +558,12 @@ function renderPassageTab(pIdx) {
         alert('Đoạn chữ đã chọn hoặc nội dung note có chứa ký tự { } | — đây là ký tự dùng để đánh dấu note nên không dùng được trong nội dung, vui lòng bỏ ra.');
         return;
       }
-      const before = paraTextarea.value.slice(0, start);
-      const after = paraTextarea.value.slice(end);
+      const before = passage.paragraphs.slice(0, start);
+      const after = passage.paragraphs.slice(end);
       const newValue = `${before}{{${selectedText}|${noteText}}}${after}`;
-      paraTextarea.value = newValue;
       passage.paragraphs = newValue;
+      paraTextarea.value = newValue;
+      refreshNotePreview();
       noteFormSlot.innerHTML = '';
     };
     cancelBtn.onclick = () => { noteFormSlot.innerHTML = ''; };
