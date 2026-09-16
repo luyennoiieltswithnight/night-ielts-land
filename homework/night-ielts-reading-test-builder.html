@@ -417,6 +417,10 @@ function renderPassageTab(pIdx) {
   paraField.appendChild(paraTextarea);
   container.appendChild(paraField);
 
+  container.appendChild(el('p', { class: 'hint', style: { marginTop: '-8px' } }, [
+    '✍️ Đoạn nào có câu dẫn/subheading ngắn ở đầu (không đi vào chi tiết, chỉ giới thiệu ý sắp nói): gõ tay bao quanh câu đó bằng dấu ngoặc kép thẳng "như thế này" NGAY TRONG cùng khối đoạn văn (không để dòng trống tách ra) — khi xuất bản sẽ tự in nghiêng, bỏ dấu ngoặc kép, và KHÔNG bị tính thành 1 đoạn riêng (tránh làm lệch A/B/C của Matching Headings/Information). Tuỳ đoạn có câu dẫn hay không, không bắt buộc. Lưu ý: chỉ gõ ngoặc kép thẳng ("), KHÔNG áp dụng cho dấu ngoặc kép cong “ ” (trích dẫn thật copy từ sách/PDF gốc) — nhớ xem lại bản xem trước để kiểm tra đúng ý trước khi xuất bản.'
+  ]));
+
   // Ghi chú/note: KHÔNG làm ở đây nữa — bôi đen để thêm note giờ nằm ngay TRONG bài test đã xuất bản
   // (thanh công cụ nổi có sẵn màu/gạch chân/gạch ngang/dịch, giờ có thêm nút "📝 Note"), dùng được ngay
   // lúc giáo viên/học sinh đang LÀM BÀI ở chế độ Luyện tập lẫn Thi Thật — xem #annot-note-btn /
@@ -940,6 +944,13 @@ function buildTestHTML(state) {
     }
     const htmlParas = paras.map((paraRaw, paraIdx) => {
       let paraEsc = escapeHtml(paraRaw);
+      // Câu dẫn/subheading đầu đoạn (gõ tay, đánh dấu bằng dấu ngoặc kép THẲNG "..." — vd đoạn có
+      // câu dẫn thì gõ: "Rising sea levels threaten coastal cities." Some studies suggest that...) ->
+      // in nghiêng, bỏ luôn dấu ngoặc kép khi hiển thị. Xử lý TRƯỚC {{note}}/loc bên dưới. Chỉ áp dụng
+      // dấu " THẲNG (") gõ từ bàn phím — 1 câu trích dẫn CÓ THẬT copy từ sách/PDF gốc thường dính dấu
+      // ngoặc kép CONG “ ” (smart quotes) nên KHÔNG bị đụng tới, tránh biến trích dẫn thật thành in
+      // nghiêng ngoài ý muốn. Đây là đánh dấu THỦ CÔNG — tuỳ đoạn có câu dẫn hay không, giáo viên tự gõ.
+      paraEsc = paraEsc.replace(/"([^"]+)"/g, (m, lead) => `<em>${lead}</em>`);
       // Note giáo viên thêm (chọn đoạn -> in đậm + note đỏ trong ngoặc [ ] bên phải), cú pháp
       // {{đoạn chữ|nội dung note}} do "📝 Thêm note cho đoạn đã bôi đen" ở tab Passage tạo ra (hoặc
       // gõ tay). Xử lý TRƯỚC khi tìm "loc" bên dưới vì escapeHtml() không đụng tới { } |.
@@ -1485,7 +1496,6 @@ QUY TẮC ĐỊNH DẠNG:
 - Mỗi section bắt đầu bằng 1 dòng riêng chứa đúng ký hiệu: [META], [PASSAGE 1], [PASSAGE 2], [PASSAGE 3], [GROUP], [Q]
 - Sau mỗi section là các dòng "key: value".
 - Riêng "paragraphs", "instruction", "reference", "notes", "text", "exp" được phép xuống dòng nhiều dòng — chỉ dừng khi gặp dòng đánh dấu section mới hoặc key mới. Với "paragraphs": để 1 dòng trống giữa các đoạn văn để tool tự tách đoạn (paragraph).
-- CÂU DẪN/SUBHEADING ĐẦU ĐOẠN (rất hay bị nhận nhầm thành 1 đoạn riêng): nhiều đoạn văn trong đề gốc có 1-3 câu NGẮN đứng ngay ĐẦU đoạn, mang tính giới thiệu/tóm tắt ý sắp nói (không đi vào chi tiết như phần thân đoạn) — trong bản gốc (PDF/sách) câu này thường được IN NGHIÊNG để phân biệt, nhưng khi copy ra thành văn bản thường (plain text) thì dấu in nghiêng biến mất, KHÔNG còn cách nào để nhận ra bằng mắt ngoài vị trí và độ ngắn của nó. Câu dẫn này KHÔNG phải là 1 đoạn văn độc lập — TUYỆT ĐỐI KHÔNG được tách nó ra để 1 dòng trống ngăn với phần nội dung chính ngay sau, mà phải viết LIỀN, GỘP CHUNG vào ĐÚNG 1 khối đoạn văn đó trong "paragraphs:" (câu dẫn + nội dung chính theo sau = 1 đoạn văn duy nhất, không chèn dòng trống ở giữa, không bỏ sót chữ nào của câu dẫn). Tách nhầm câu dẫn thành 1 đoạn riêng sẽ làm SAI số thứ tự đoạn văn (đoạn A/B/C...) — ảnh hưởng dây chuyền đến các câu hỏi dạng Matching Headings/Matching Information (chọn sai đoạn, lệch hết các câu phía sau). Nếu phân vân 1 câu có phải câu dẫn hay là câu mở đầu bình thường của đoạn, cứ GIỮ NGUYÊN nó trong cùng đoạn văn (không tách riêng) — an toàn hơn nhiều so với tách nhầm.
 - type của [GROUP] nhận 1 trong các giá trị sau:
    - tfng = True/False/Not Given hoặc Yes/No/Not Given (thêm dòng "labels: TRUE/FALSE/NOT GIVEN" hoặc "labels: YES/NO/NOT GIVEN")
    - mcq = trắc nghiệm chọn 1 đáp án — dùng được cho CẢ "chọn 1 từ 3" lẫn A/B/C/D thường (mỗi [Q] cần các dòng A:/B:/C:/D: tương ứng số lựa chọn thật sự có — nếu chỉ có 3 lựa chọn thì chỉ ghi A:/B:/C:, không cần ghi D: ; "answer:" chỉ ghi 1 chữ cái)
@@ -1515,13 +1525,11 @@ test: 1
 [PASSAGE 1]
 title: <tên bài đọc 1>
 paragraphs:
-A   Rising sea levels pose one of the greatest threats to coastal cities. Some studies suggest that by 2100, over 400 million people could be displaced by flooding linked to climate change.
+<đoạn văn 1>
 
-B   Bangladesh may be the country most affected. Much of its land lies less than five metres above sea level, and its dense population means...
+<đoạn văn 2>
 
 <đoạn văn 3...>
-
-(Lưu ý: câu đầu tiên của mỗi đoạn ở trên — "Rising sea levels pose one of the greatest threats to coastal cities." và "Bangladesh may be the country most affected." — là CÂU DẪN ngắn, giới thiệu ý chính sắp nói, rất có thể được IN NGHIÊNG trong bản gốc. Viết LIỀN vào chung đoạn văn đó như trên, TUYỆT ĐỐI không tách ra thành 1 đoạn riêng — nếu tách nhầm sẽ đẩy lệch hết số thứ tự đoạn A/B/C... dùng cho Matching Headings/Information phía sau.)
 
 [GROUP]
 type: tfng
