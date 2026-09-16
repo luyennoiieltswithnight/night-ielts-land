@@ -338,7 +338,12 @@ function getFirebaseStorageHandle() {
       import('https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js')
     ]).then(([appMod, storageMod]) => {
       const app = appMod.initializeApp(IMG_UPLOAD_FB_CONFIG, 'night-ielts-builder-upload-' + Date.now());
-      return { storageMod, storage: storageMod.getStorage(app) };
+      const storage = storageMod.getStorage(app);
+      // Mặc định SDK sẽ tự retry lỗi mạng/transient trong tối đa 2-10 phút trước khi báo lỗi — quá
+      // lâu so với 1 thao tác upload ảnh, khiến nút cứ đứng yên ở "0%..." như treo máy. Rút ngắn lại
+      // còn ~15s để nếu bị chặn (CORS/rules) thì báo lỗi RÕ RÀNG sớm thay vì im lặng "treo" cả phút.
+      try { storage.maxUploadRetryTime = 15000; storage.maxOperationRetryTime = 15000; } catch (e) {}
+      return { storageMod, storage };
     }).catch(e => { _fbStorageReadyPromise = null; throw e; }); // cho phép thử lại nếu mạng chập chờn
   }
   return _fbStorageReadyPromise;
@@ -361,11 +366,12 @@ async function uploadImageToFirebaseStorage(file, onProgress) {
   const path = `test-images/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safeName}`;
   const storageRef = storageMod.ref(storage, path);
   const task = storageMod.uploadBytesResumable(storageRef, file);
-  return new Promise((resolve, reject) => {
+
+  const uploadPromise = new Promise((resolve, reject) => {
     task.on('state_changed',
       (snap) => { if (onProgress) onProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100)); },
       (err) => {
-        let msg = (err && err.message) ? err.message : String(err);
+        let msg = (err && err.code) ? `[${err.code}] ${err.message || ''}` : ((err && err.message) ? err.message : String(err));
         if (/unauthorized|permission/i.test(msg)) {
           msg += '\n\n→ Firebase Storage đang chặn upload chưa đăng nhập — vào Firebase Console (project night-ielts-land) > Storage > Rules, cho phép ghi vào đường dẫn "test-images/" (giống cách project đã mở ghi Firestore cho việc báo điểm bài làm).';
         }
@@ -379,6 +385,23 @@ async function uploadImageToFirebaseStorage(file, onProgress) {
       }
     );
   });
+
+  // Belt-and-suspenders: nếu vì lý do gì đó (thường là CORS chặn request mà KHÔNG trả về lỗi rõ
+  // ràng cho SDK, chỉ có ở dạng "network error" chung chung khiến SDK cứ âm thầm retry) mà sau 20s
+  // vẫn chưa xong/chưa báo lỗi, tự huỷ và báo lỗi rõ ràng thay vì để nút đứng yên ở "0%..." mãi.
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      try { task.cancel(); } catch (e) {}
+      reject(new Error('Hết thời gian chờ (20s) mà chưa tải lên được — thường do 1 trong 2 nguyên nhân:\n1) Firebase Storage Rules chưa mở quyền ghi (vào Console > Storage > Rules).\n2) CORS của bucket chưa cho phép nguồn đang mở tool này (đặc biệt nếu mở file .html trực tiếp từ máy thay vì từ 1 trang web) — cần chạy lệnh "gsutil cors set" để cấu hình CORS cho bucket "night-ielts-land.firebasestorage.app".\n\n💡 Trong lúc chờ sửa, có thể dán link ảnh có sẵn (vd Google Drive) vào ô bên trên thay thế.'));
+    }, 20000);
+  });
+
+  try {
+    return await Promise.race([uploadPromise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function slug(s) {
