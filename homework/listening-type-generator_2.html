@@ -755,11 +755,32 @@ function normalizeSpaces(str){
     .replace(/\\s+/g, ' ');
 }
 
+// Gõ dấu ' (vd trong "don't") hoặc các ký tự có dấu khác trên bàn phím KHÔNG PHẢI iOS (Windows —
+// nhất là layout "US International" hay coi dấu ' là "dead key" chờ ký tự kế tiếp để ghép thành
+// á/é/ñ..., và bàn phím ảo Android/Gboard cũng gộp cả từ đang gõ vào 1 "composition" đang chờ commit)
+// đi qua các sự kiện compositionstart/compositionupdate/compositionend TRƯỚC KHI input value ổn định.
+// Trước đây hàm này xử lý (và có lúc còn GHI ĐÈ e.target.value để cắt bớt khi sai) ngay trong lúc
+// đang composition dở dang — làm gãy composition đang chạy dở của trình duyệt, khiến từ đó gõ lung
+// tung/kẹt không gõ tiếp được. Giờ: trong lúc đang composition (isComposing) thì CHỜ, không xử lý gì
+// cả — chỉ xử lý sau khi compositionend báo ký tự đã gõ xong hẳn. Bàn phím vật lý Mỹ thường (không
+// composition) thì isComposing luôn false nên chạy y như cũ, không đổi hành vi.
+var __isComposingNow = false;
+function handleCompositionStart(){
+  __isComposingNow = true;
+}
+function handleCompositionEnd(e){
+  __isComposingNow = false;
+  processTypedValue(e.target);
+}
 function handleKeyInput(e){
+  if(e.isComposing || __isComposingNow) return; // đang gõ dở 1 ký tự ghép -> đợi compositionend
+  processTypedValue(e.target);
+}
+function processTypedValue(inputEl){
   if(state.completed || state.revealed) return;
   var c = current();
   var targetStr = normalizeSpaces(c.target);
-  var typedStr = normalizeSpaces(e.target.value);
+  var typedStr = normalizeSpaces(inputEl.value);
 
   var isValid = true, errIdx = -1;
   for(var i=0;i<typedStr.length;i++){
@@ -767,8 +788,8 @@ function handleKeyInput(e){
   }
   if(!isValid){
     errorSound();
-    e.target.value = typedStr.substring(0, errIdx);
-    state.input = e.target.value;
+    inputEl.value = typedStr.substring(0, errIdx);
+    state.input = inputEl.value;
     state.errorIndex = errIdx;
     updateTyping();
     clearTimeout(window.errorTimer);
@@ -781,7 +802,7 @@ function handleKeyInput(e){
   if(typedStr.length > 0) beep(620+Math.min(typedStr.length,12)*24, 0.055, 0.022);
 
   if(typedStr.toLowerCase() === targetStr.toLowerCase()){
-    state.completed = true; state.revealed = true; state.input = c.target; e.target.value = c.target;
+    state.completed = true; state.revealed = true; state.input = c.target; inputEl.value = c.target;
     completeSound();
     setTimeout(fireworks, 60);
   }
@@ -1019,6 +1040,14 @@ function render(scrollTop){
       '</main>' +
     '</div>';
   loadVoices();
+  // compositionstart/compositionend KHÔNG tự gắn được qua thuộc tính HTML nội tuyến kiểu
+  // oncompositionend="..." (không giống oninput/onclick) trên nhiều trình duyệt — phải gắn bằng
+  // addEventListener sau khi phần tử #hiddenInput vừa được innerHTML tạo lại ở trên.
+  var hiddenInputEl = document.getElementById('hiddenInput');
+  if(hiddenInputEl){
+    hiddenInputEl.addEventListener('compositionstart', handleCompositionStart);
+    hiddenInputEl.addEventListener('compositionend', handleCompositionEnd);
+  }
   requestAnimationFrame(function(){
     var m = document.querySelector('main');
     if(m) m.scrollTop = old;
