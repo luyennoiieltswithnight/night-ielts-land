@@ -587,8 +587,9 @@
                     </button>
 
                     <!-- Nút Tiến Độ (Chỉ admin mới thấy) -->
-                    <button id="admin-progress-btn" class="hidden px-5 py-2.5 bg-emerald-500 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2">
+                    <button id="admin-progress-btn" class="hidden relative px-5 py-2.5 bg-emerald-500 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2">
                         <i class="fa-solid fa-chart-simple mr-1"></i> Tiến Độ
+                        <span id="admin-progress-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black items-center justify-center">0</span>
                     </button>
 
                     <!-- Nút Lớp Học (Chỉ admin mới thấy) -->
@@ -600,6 +601,12 @@
                     <button id="admin-gh-settings-btn" title="Cấu hình GitHub" class="hidden w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold rounded-full shadow-sm transition-shadow text-sm mr-2 items-center justify-center">
                         <i class="fa-solid fa-gear"></i>
                     </button>
+
+                    <!-- Nút Writing (Chỉ học sinh mới thấy) — mở trang writing.html xem đề đã giao / bài đã chấm -->
+                    <a id="student-writing-btn" href="writing.html" class="hidden relative px-5 py-2.5 bg-amber-500 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2 items-center">
+                        <i class="fa-solid fa-pen-nib mr-1"></i> Writing
+                        <span id="student-writing-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">0</span>
+                    </a>
 
                     <button id="login-btn" class="px-5 py-2.5 bg-brand-purple text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow">
                         <i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail
@@ -631,6 +638,7 @@
                 <button id="mode-typed-btn" onclick="setTaskMode('typed')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm">✍️ Nhập từ vựng mới</button>
                 <button id="mode-link-btn" onclick="setTaskMode('link')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📂 Chọn bài có sẵn</button>
                 <button id="mode-reading-btn" onclick="setTaskMode('reading')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📖 Đề Reading</button>
+                <button id="mode-writing-btn" onclick="setTaskMode('writing')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📝 Đề Writing</button>
             </div>
 
             <div class="space-y-4">
@@ -707,10 +715,26 @@
                     <p class="text-[11px] text-gray-400 font-semibold">Bài Reading được tự động chấm điểm và báo về mục Tiến Độ khi học sinh bấm "Nộp bài" — không cần tự đánh dấu hoàn thành.</p>
                 </div>
 
+                <!-- CHẾ ĐỘ: giao đề Writing (giáo viên gõ/paste đề + ảnh nếu cần, học sinh viết bài, giáo viên sửa) -->
+                <div id="mode-writing-fields" class="hidden space-y-2">
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Đề bài Writing (có thể chèn ảnh)</label>
+                    <div class="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1.5 flex-wrap">
+                        <button type="button" onclick="wrEditorCmd('task-writing-prompt-editor','bold')" title="In đậm" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white shadow-sm hover:bg-gray-50 font-black text-sm text-gray-600">B</button>
+                        <button type="button" onclick="wrEditorCmd('task-writing-prompt-editor','italic')" title="In nghiêng" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white shadow-sm hover:bg-gray-50 italic font-bold text-sm text-gray-600">I</button>
+                        <button type="button" onclick="wrEditorCmd('task-writing-prompt-editor','underline')" title="Gạch chân" class="w-8 h-8 flex items-center justify-center rounded-lg bg-white shadow-sm hover:bg-gray-50 underline font-bold text-sm text-gray-600">U</button>
+                        <label title="Chèn ảnh (đề bài, biểu đồ...)" class="h-8 px-3 flex items-center justify-center rounded-lg bg-white shadow-sm hover:bg-gray-50 font-bold text-xs text-gray-600 cursor-pointer">
+                            <i class="fa-solid fa-image mr-1.5 text-brand-purple"></i> Chèn ảnh
+                            <input type="file" accept="image/*" class="hidden" onchange="wrInsertImageFromInput(this,'task-writing-prompt-editor')">
+                        </label>
+                    </div>
+                    <div id="task-writing-prompt-editor" contenteditable="true" class="w-full min-h-[110px] border-2 border-gray-100 rounded-xl p-3 text-sm text-gray-700 outline-none focus:border-brand-purple transition-colors" data-placeholder="Gõ hoặc paste đề bài Writing vào đây..."></div>
+                    <p class="text-[11px] text-gray-400 font-semibold">Học sinh sẽ viết bài ngay bên cạnh đề này. Sau khi học sinh nộp, vào mục "Tiến Độ" để mở bài và sửa (gạch ngang, gạch chân, tô màu, ghi chú [trong ngoặc vuông]) rồi gửi lại.</p>
+                </div>
+
                 <div>
                     <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Hạn nộp (không bắt buộc)</label>
                     <input id="task-deadline" type="date" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
-                    <p class="text-[11px] text-gray-400 font-semibold mt-1.5">Bài giao riêng sẽ tự động biến mất sau 20 ngày kể từ lúc giao, bất kể có đặt hạn nộp hay không.</p>
+                    <p id="task-deadline-ttl-note" class="text-[11px] text-gray-400 font-semibold mt-1.5">Bài giao riêng sẽ tự động biến mất sau 20 ngày kể từ lúc giao, bất kể có đặt hạn nộp hay không.</p>
                 </div>
             </div>
 
@@ -1169,8 +1193,8 @@
         var currentTaskMode = 'typed';
         function setTaskMode(mode){
             currentTaskMode = mode;
-            var btns = { typed: document.getElementById('mode-typed-btn'), link: document.getElementById('mode-link-btn'), reading: document.getElementById('mode-reading-btn') };
-            var fields = { typed: document.getElementById('mode-typed-fields'), link: document.getElementById('mode-link-fields'), reading: document.getElementById('mode-reading-fields') };
+            var btns = { typed: document.getElementById('mode-typed-btn'), link: document.getElementById('mode-link-btn'), reading: document.getElementById('mode-reading-btn'), writing: document.getElementById('mode-writing-btn') };
+            var fields = { typed: document.getElementById('mode-typed-fields'), link: document.getElementById('mode-link-fields'), reading: document.getElementById('mode-reading-fields'), writing: document.getElementById('mode-writing-fields') };
             Object.keys(btns).forEach(function(key){
                 var active = key === mode;
                 btns[key].className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors ' + (active ? 'bg-white text-brand-purple shadow-sm' : 'text-gray-500');
@@ -1178,7 +1202,96 @@
             });
             if (mode === 'link') populateTaskFolderSelect();
             else if (mode === 'reading') populateTaskReadingSelects();
+            var ttlNote = document.getElementById('task-deadline-ttl-note');
+            if (ttlNote) {
+                ttlNote.textContent = mode === 'writing'
+                    ? 'Bài Writing (đã sửa hoặc chưa) sẽ tự động biến mất sau 6 tháng kể từ lúc giao.'
+                    : 'Bài giao riêng sẽ tự động biến mất sau 20 ngày kể từ lúc giao, bất kể có đặt hạn nộp hay không.';
+            }
         }
+
+        // ==========================================
+        // TIỆN ÍCH DÙNG CHUNG CHO Ô SOẠN WRITING (đề bài của giáo viên, bài làm của học
+        // sinh, bài sửa của giáo viên) — nén ảnh trước khi nhúng base64 vì dự án đang dùng
+        // Firestore (gói Spark miễn phí, KHÔNG bật Cloud Storage trả phí), mỗi document tối
+        // đa ~1MB nên ảnh phải được resize + nén trước khi lưu.
+        // ==========================================
+        function wrCompressImageFile(file, maxW) {
+            return new Promise(function(resolve, reject){
+                var reader = new FileReader();
+                reader.onload = function(e){
+                    var img = new Image();
+                    img.onload = function(){
+                        var scale = Math.min(1, (maxW || 900) / img.width);
+                        var w = Math.max(1, Math.round(img.width * scale));
+                        var h = Math.max(1, Math.round(img.height * scale));
+                        var canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        var ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.65));
+                    };
+                    img.onerror = function(){ reject(new Error('Không đọc được ảnh')); };
+                    img.src = e.target.result;
+                };
+                reader.onerror = function(){ reject(new Error('Không đọc được file')); };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Chèn HTML vào đúng vị trí con trỏ trong 1 ô contenteditable; nếu không xác định
+        // được vị trí con trỏ (ví dụ vừa quay lại từ hộp thoại chọn file) thì nối vào cuối.
+        function wrInsertHtmlIntoEditor(editorEl, html) {
+            editorEl.focus();
+            var sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && editorEl.contains(sel.anchorNode)) {
+                document.execCommand('insertHTML', false, html);
+            } else {
+                editorEl.innerHTML += html;
+            }
+        }
+
+        function wrEditorCmd(editorId, cmd, val) {
+            var editorEl = document.getElementById(editorId);
+            if (editorEl) editorEl.focus();
+            document.execCommand(cmd, false, val || null);
+        }
+
+        function wrInsertImageFromInput(inputEl, editorId) {
+            var file = inputEl.files && inputEl.files[0];
+            if (!file) return;
+            var editorEl = document.getElementById(editorId);
+            wrCompressImageFile(file, 900).then(function(dataUrl){
+                wrInsertHtmlIntoEditor(editorEl, '<br><img src="' + dataUrl + '" style="max-width:100%;border-radius:10px;margin:6px 0;display:block;"><br>');
+                inputEl.value = '';
+            }).catch(function(e){
+                alert('Không chèn được ảnh: ' + e.message);
+                inputEl.value = '';
+            });
+        }
+
+        // Giáo viên có thể PASTE thẳng ảnh (ví dụ ảnh chụp màn hình) vào ô soạn đề Writing
+        // thay vì phải bấm "Chèn ảnh" — vẫn nén lại giống hệt trước khi nhúng base64.
+        function wrAttachPasteImageHandler(editorEl) {
+            editorEl.addEventListener('paste', function(e){
+                var items = (e.clipboardData && e.clipboardData.items) || [];
+                var imageItem = null;
+                for (var i = 0; i < items.length; i++) {
+                    if (items[i].type && items[i].type.indexOf('image/') === 0) { imageItem = items[i]; break; }
+                }
+                if (!imageItem) return; // không phải ảnh — để trình duyệt tự dán chữ bình thường
+                e.preventDefault();
+                var file = imageItem.getAsFile();
+                if (!file) return;
+                wrCompressImageFile(file, 900).then(function(dataUrl){
+                    wrInsertHtmlIntoEditor(editorEl, '<br><img src="' + dataUrl + '" style="max-width:100%;border-radius:10px;margin:6px 0;display:block;"><br>');
+                }).catch(function(err){ console.error('Không dán được ảnh:', err); });
+            });
+        }
+        (function(){
+            var el = document.getElementById('task-writing-prompt-editor');
+            if (el) wrAttachPasteImageHandler(el);
+        })();
         function populateTaskFolderSelect(){
             var sel = document.getElementById('task-folder-select');
             sel.innerHTML = LESSON_DATA.filter(function(f){ return f.id !== 'MY_TASKS' && f.tests.length > 0; }).map(function(f, i){
@@ -1522,6 +1635,9 @@
 
         // Bài giao riêng cho học sinh tự động biến mất sau 20 ngày kể từ lúc giao
         const ASSIGNMENT_TTL_MS = 20 * 24 * 60 * 60 * 1000;
+        // Riêng bài Writing (đã sửa hay chưa) được giữ lâu hơn hẳn — 6 tháng — vì học sinh
+        // và giáo viên có thể cần xem/ôn lại bài đã sửa sau một thời gian dài.
+        const WRITING_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
         // Hàm tải bài tập cho học sinh
         async function fetchStudentTasks(uid) {
@@ -1532,16 +1648,20 @@
 
             snap.forEach(docSnap => {
                 const data = docSnap.data();
-                const expiresAt = data.expiresAt || (data.createdAt ? data.createdAt + ASSIGNMENT_TTL_MS : null);
+                const ttl = data.kind === 'writing' ? WRITING_TTL_MS : ASSIGNMENT_TTL_MS;
+                const expiresAt = data.expiresAt || (data.createdAt ? data.createdAt + ttl : null);
                 if (expiresAt && now > expiresAt) {
-                    // Bài đã quá 20 ngày — tự dọn dẹp, không hiện cho học sinh nữa
+                    // Bài đã quá hạn lưu trữ (20 ngày, hoặc 6 tháng với bài Writing) — tự dọn
+                    // dẹp, không hiện cho học sinh nữa
                     deleteDoc(doc(db, "assignments", docSnap.id)).catch(() => {});
                     return;
                 }
                 // Xác định hoàn thành hay chưa cho MỌI loại bài tập (gõ từ mới, chọn file
-                // có sẵn, hay game bắn từ) để tô màu đúng trạng thái ở dưới.
+                // có sẵn, game bắn từ, hay Writing) để tô màu đúng trạng thái ở dưới.
                 let isDone;
-                if (data.link) {
+                if (data.kind === 'writing') {
+                    isDone = data.status === 'graded';
+                } else if (data.link) {
                     isDone = data.completed === true;
                 } else {
                     const total = (data.vocabList || []).length;
@@ -1555,11 +1675,24 @@
                 // trong file đề, xem night-ielts-reading-test-builder.html) — nên mở THẲNG
                 // data.link, không đi qua assigned.html (trang đó dành cho bài "chọn bài có
                 // sẵn" cần học sinh tự bấm "Đánh dấu đã hoàn thành").
-                const openLink = data.kind === 'reading' && data.link
-                    ? data.link
-                    : (data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`);
+                // Bài Writing (kind: 'writing') mở qua writing.html?id=... — trang đó tự hiện
+                // đúng giao diện (viết bài / xem đã nộp / xem bài đã sửa) theo status hiện tại.
+                const openLink = data.kind === 'writing'
+                    ? `writing.html?id=${docSnap.id}`
+                    : (data.kind === 'reading' && data.link
+                        ? data.link
+                        : (data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`));
+                // Gắn nhãn trạng thái vào tên bài Writing ngay trên trang chủ, vì bài Writing
+                // trải qua nhiều bước (giao -> nộp -> chấm) chứ không chỉ "xong/chưa xong".
+                let displayTitle = data.title;
+                if (data.kind === 'writing') {
+                    const statusLabel = data.status === 'graded' ? ' — ✅ Đã chấm, bấm xem'
+                        : data.status === 'submitted' ? ' — 📩 Đã nộp, đang chờ chấm'
+                        : ' — 📝 Chưa làm';
+                    displayTitle = '[Writing] ' + data.title + statusLabel;
+                }
                 myTasks.push({
-                    title: data.title,
+                    title: displayTitle,
                     date: new Date(data.createdAt).toLocaleDateString('vi-VN'),
                     questions: data.vocabList ? data.vocabList.length : 0,
                     link: openLink,
@@ -1605,6 +1738,51 @@
             }, 150);
         }
 
+        // Đếm số bài Writing "cần chú ý" của học sinh (chưa làm, hoặc vừa được chấm nhưng
+        // chưa xem) để hiện chấm đỏ trên nút Writing ở trang chủ.
+        async function refreshStudentWritingBadge(uid) {
+            try {
+                const q = query(collection(db, "assignments"), where("studentId", "==", uid), where("kind", "==", "writing"));
+                const snap = await getDocs(q);
+                let count = 0;
+                const now = Date.now();
+                snap.forEach(d => {
+                    const data = d.data();
+                    // Bỏ qua bài đã hết hạn 6 tháng — fetchStudentTasks() sẽ tự dọn dẹp
+                    // các bài này, tránh đếm nhầm 1 bài sắp biến mất vào huy hiệu.
+                    const expiresAt = data.expiresAt || (data.createdAt ? data.createdAt + WRITING_TTL_MS : null);
+                    if (expiresAt && now > expiresAt) return;
+                    if (data.status === 'assigned' || (data.status === 'graded' && data.studentSeenGraded === false)) count++;
+                });
+                const badge = document.getElementById('student-writing-badge');
+                if (badge) {
+                    badge.textContent = String(count);
+                    badge.classList.toggle('hidden', count === 0);
+                }
+            } catch (e) {
+                console.error('Không đếm được số bài Writing cần chú ý:', e);
+            }
+        }
+
+        // Đếm số bài Writing học sinh đã nộp mà giáo viên chưa xem/chấm, để hiện chấm đỏ
+        // trên nút "Tiến Độ".
+        async function refreshTeacherWritingBadge() {
+            try {
+                const q = query(collection(db, "assignments"), where("kind", "==", "writing"), where("status", "==", "submitted"));
+                const snap = await getDocs(q);
+                let count = 0;
+                snap.forEach(d => { if (d.data().teacherSeenSubmission === false) count++; });
+                const badge = document.getElementById('admin-progress-badge');
+                if (badge) {
+                    badge.textContent = String(count);
+                    badge.classList.toggle('hidden', count === 0);
+                    badge.classList.toggle('flex', count > 0);
+                }
+            } catch (e) {
+                console.error('Không đếm được số bài Writing chờ chấm:', e);
+            }
+        }
+
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 loginBtn.classList.add('hidden');
@@ -1628,8 +1806,12 @@
                         document.getElementById('admin-gh-settings-btn').classList.remove('hidden');
                         document.getElementById('admin-gh-settings-btn').classList.add('flex');
                         if (window.setAdminMode) window.setAdminMode(true);
+                        refreshTeacherWritingBadge();
                     } else {
+                        document.getElementById('student-writing-btn').classList.remove('hidden');
+                        document.getElementById('student-writing-btn').classList.add('flex');
                         fetchStudentTasks(user.uid);
+                        refreshStudentWritingBadge(user.uid);
                     }
                 } else {
                     await setDoc(userRef, {
@@ -1639,7 +1821,10 @@
                         createdAt: Date.now()
                     });
                     document.getElementById('user-role').textContent = 'Student';
+                    document.getElementById('student-writing-btn').classList.remove('hidden');
+                    document.getElementById('student-writing-btn').classList.add('flex');
                     fetchStudentTasks(user.uid);
+                    refreshStudentWritingBadge(user.uid);
                 }
             } else {
                 loginBtn.classList.remove('hidden');
@@ -1650,6 +1835,8 @@
                 document.getElementById('admin-classes-btn').classList.add('hidden');
                 document.getElementById('admin-gh-settings-btn').classList.add('hidden');
                 document.getElementById('admin-gh-settings-btn').classList.remove('flex');
+                document.getElementById('student-writing-btn').classList.add('hidden');
+                document.getElementById('student-writing-btn').classList.remove('flex');
                 if (window.setAdminMode) window.setAdminMode(false);
 
                 // Xóa tab Bài Tập nếu đăng xuất
@@ -1695,6 +1882,8 @@
             modal.classList.add('flex');
             if (window.setTaskMode) window.setTaskMode('typed');
             window.setTaskTargetMode('single');
+            const wrEditor = document.getElementById('task-writing-prompt-editor');
+            if (wrEditor) wrEditor.innerHTML = '';
             select.innerHTML = '<option value="">-- Đang tải danh sách học sinh... --</option>';
             classSelect.innerHTML = '<option value="">-- Đang tải danh sách lớp... --</option>';
 
@@ -1787,6 +1976,29 @@
                     percent: 0,
                     kind: 'reading'
                 };
+            } else if (mode === 'writing') {
+                const title = document.getElementById('task-title').value;
+                const promptEditor = document.getElementById('task-writing-prompt-editor');
+                const promptHtml = (promptEditor.innerHTML || '').trim();
+                const promptText = (promptEditor.textContent || '').trim();
+                if (!title) return alert('Vui lòng đặt tên cho bài Writing!');
+                if (!promptText && promptHtml.indexOf('<img') === -1) return alert('Vui lòng nhập hoặc paste đề bài Writing!');
+                if (promptHtml.length > 900000) return alert('Đề bài (kể cả ảnh) đang quá nặng để lưu. Vui lòng bớt ảnh hoặc dùng ảnh nhỏ/nét thấp hơn.');
+                payload = {
+                    title: title,
+                    kind: 'writing',
+                    promptHtml: promptHtml,
+                    submissionHtml: null,
+                    submittedAt: null,
+                    gradedHtml: null,
+                    gradedAt: null,
+                    status: 'assigned',
+                    teacherSeenSubmission: false,
+                    studentSeenGraded: false,
+                    createdAt: now,
+                    deadlineAt: deadlineAt,
+                    expiresAt: now + WRITING_TTL_MS
+                };
             } else {
                 const title = document.getElementById('task-title').value;
                 const rawData = document.getElementById('task-data').value;
@@ -1833,15 +2045,17 @@
                     ));
                 }
 
+                const ttlDaysLabel = mode === 'writing' ? '6 tháng' : '20 ngày';
                 alert(targetStudentIds.length > 1
-                    ? `Đã giao bài thành công cho ${targetStudentIds.length} học sinh trong lớp! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của mỗi học sinh sau 20 ngày)`
-                    : 'Đã giao bài thành công! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của học sinh sau 20 ngày)');
+                    ? `Đã giao bài thành công cho ${targetStudentIds.length} học sinh trong lớp! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của mỗi học sinh sau ${ttlDaysLabel})`
+                    : `Đã giao bài thành công! (Bài sẽ tự động biến mất khỏi mục "Bài Tập Được Giao" của học sinh sau ${ttlDaysLabel})`);
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
 
                 document.getElementById('task-title').value = '';
                 document.getElementById('task-data').value = '';
                 document.getElementById('task-deadline').value = '';
+                document.getElementById('task-writing-prompt-editor').innerHTML = '';
             } catch (e) {
                 alert('Lỗi khi giao bài: ' + e.message);
             } finally {
@@ -1867,10 +2081,11 @@
             const expiredIds = [];
             assignSnap.forEach(d => {
                 const a = d.data();
-                const expiresAt = a.expiresAt || (a.createdAt ? a.createdAt + ASSIGNMENT_TTL_MS : null);
+                const ttl = a.kind === 'writing' ? WRITING_TTL_MS : ASSIGNMENT_TTL_MS;
+                const expiresAt = a.expiresAt || (a.createdAt ? a.createdAt + ttl : null);
                 if (expiresAt && now > expiresAt) {
                     expiredIds.push(d.id);
-                    return; // đã quá 20 ngày — không hiện, sẽ tự dọn dẹp bên dưới
+                    return; // đã quá hạn lưu trữ — không hiện, sẽ tự dọn dẹp bên dưới
                 }
                 const total = (a.vocabList || []).length;
                 const done = (a.completedIndices || []).length;
@@ -1878,7 +2093,8 @@
                 // Bài dạng game có thể "đạt" (completed=true) dù % chính xác dưới 100 (ví dụ
                 // đạt 92% mà mốc qua bài là 80%) — nên KHÔNG thể chỉ dựa vào percent>=100 để
                 // biết bài đã xong hay chưa, phải đọc đúng field completed cho các bài có link.
-                const isDone = a.link ? (a.completed === true) : (total > 0 && done >= total);
+                // Bài Writing coi là "xong" khi đã được giáo viên chấm (status === 'graded').
+                const isDone = a.kind === 'writing' ? (a.status === 'graded') : (a.link ? (a.completed === true) : (total > 0 && done >= total));
                 const stu = studentMap[a.studentId];
                 rows.push({
                     id: d.id,
@@ -1889,12 +2105,14 @@
                     percent, total, done, isDone,
                     isLink: !!a.link,
                     kind: a.kind || null,
+                    status: a.status || null,
+                    teacherSeenSubmission: a.teacherSeenSubmission,
                     scoreText: a.scoreText || null,
                     createdAt: a.createdAt || 0,
                     deadlineAt: a.deadlineAt || null
                 });
             });
-            // Dọn dẹp âm thầm các bài đã hết hạn 20 ngày
+            // Dọn dẹp âm thầm các bài đã hết hạn lưu trữ
             expiredIds.forEach(id => { deleteDoc(doc(db, "assignments", id)).catch(() => {}); });
             rows.sort((x, y) => y.createdAt - x.createdAt);
             window.__lastProgressRows = rows;
@@ -1978,7 +2196,24 @@
                         : `<span class="inline-flex items-center gap-1 text-[10px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full mt-1.5"><i class="fa-regular fa-clock"></i> Hạn: ${dlStr}</span>`;
                 }
                 let doneLine;
-                if (r.kind === 'game') {
+                let writingActionBtn = '';
+                let cardPercent = r.percent;
+                let cardBarColor = barColor;
+                if (r.kind === 'writing') {
+                    if (r.status === 'graded') {
+                        doneLine = '✅ Đã chấm — đã gửi lại cho học sinh';
+                        cardPercent = 100; cardBarColor = 'bg-emerald-500';
+                        writingActionBtn = `<a href="writing.html?id=${r.id}" target="_blank" class="text-[11px] font-black text-brand-purple hover:underline">Xem/Sửa lại</a>`;
+                    } else if (r.status === 'submitted') {
+                        doneLine = r.teacherSeenSubmission === false ? '📩 Học sinh vừa nộp — chưa chấm' : '📩 Đã nộp — chưa chấm';
+                        cardPercent = 60; cardBarColor = 'bg-amber-500';
+                        writingActionBtn = `<a href="writing.html?id=${r.id}" target="_blank" class="text-[11px] font-black text-amber-600 hover:underline">✏️ Chấm bài</a>`;
+                    } else {
+                        doneLine = '📝 Học sinh chưa nộp bài Writing';
+                        cardPercent = 0; cardBarColor = 'bg-gray-200';
+                        writingActionBtn = `<a href="writing.html?id=${r.id}" target="_blank" class="text-[11px] font-black text-gray-400 hover:underline">Xem đề</a>`;
+                    }
+                } else if (r.kind === 'game') {
                     doneLine = r.percent > 0
                         ? `🎯 Độ chính xác cao nhất: ${r.percent}% (tự động, bắn đúng từ)`
                         : 'Học sinh chưa chơi lần nào';
@@ -2000,14 +2235,14 @@
                                 ${deadlineBadge}
                             </div>
                             <div class="flex items-center gap-2 shrink-0">
-                                <span class="text-sm font-black ${percentColor}">${r.percent}%</span>
+                                ${writingActionBtn ? writingActionBtn : `<span class="text-sm font-black ${percentColor}">${r.percent}%</span>`}
                                 <button onclick="confirmDeleteAssignment('${r.id}')" title="Xoá bài đã giao này" class="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors">
                                     <i class="fa-solid fa-trash-can text-xs"></i>
                                 </button>
                             </div>
                         </div>
                         <div class="w-full h-2 bg-gray-100 rounded-full mt-3 overflow-hidden">
-                            <div class="h-full ${barColor} rounded-full transition-all" style="width:${r.percent}%"></div>
+                            <div class="h-full ${cardBarColor} rounded-full transition-all" style="width:${cardPercent}%"></div>
                         </div>
                         <p class="text-[11px] text-gray-400 font-semibold mt-1.5">${doneLine}</p>
                     </div>
