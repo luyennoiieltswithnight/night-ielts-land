@@ -40,15 +40,35 @@ html,body{
   font-family:'Inter',sans-serif;
 }
 
+/* ---- Khung ứng dụng cố định theo chiều cao màn hình, giống hệt engine Reading (body
+   height:100vh) — để panel "Đề bài" luôn đứng yên, chỉ panel bài làm/bài sửa cuộn riêng. ---- */
+.ni-shell{height:100vh;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;}
+.ni-shell main{flex:1;min-height:0;}
+
 /* ---- Header / nav / nút bấm, phong cách y hệt engine Reading ---- */
-.ni-header{background:var(--panel-bg);border:2px solid var(--border-color);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);}
+.ni-header{background:var(--panel-bg);border:2px solid var(--border-color);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);flex-shrink:0;}
 .ni-nav-btn{background:none;border:2px solid var(--border-color);border-radius:6px;padding:7px 16px;font-weight:700;cursor:pointer;color:var(--text-color);text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;}
 .ni-nav-btn:hover{background:var(--hover-bg);}
-.ni-part-pill{background:var(--border-color);color:#fff;padding:6px 14px;border-radius:6px;font-weight:800;font-size:11px;letter-spacing:.06em;white-space:nowrap;}
 .ni-submit-btn{background:var(--primary-button);border:2px solid var(--border-color);border-radius:6px;padding:11px 24px;font-weight:800;cursor:pointer;transition:filter .15s, transform .1s;font-family:'Inter',sans-serif;font-size:14px;}
 .ni-submit-btn:hover{filter:brightness(1.08);}
 .ni-submit-btn:active{transform:scale(.98);}
 .ni-submit-btn:disabled{opacity:.55;cursor:default;filter:none;}
+
+/* ---- View 2 cột: panel bên trái (đề bài) và phải (bài làm/bài sửa) cao bằng nhau, mỗi
+   panel tự cuộn riêng bên trong — cuộn bên phải không làm đề bài bên trái nhúc nhích. ---- */
+.split-view{height:100%;display:grid;grid-template-columns:1fr;gap:1rem;min-height:0;}
+@media (min-width:768px){ .split-view{grid-template-columns:1fr 1fr;} }
+.split-view > .ni-panel{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+.split-panel-label{padding:16px 20px 0;flex-shrink:0;}
+.split-panel-scroll{flex:1;overflow-y:auto;min-height:0;padding:12px 20px 20px;display:flex;flex-direction:column;}
+.ni-submit-sticky{position:sticky;bottom:0;background:var(--panel-bg);padding-top:12px;margin-top:auto;border-top:1px solid rgba(44,62,45,.15);}
+
+/* ---- View đơn giản (đăng nhập / lỗi / đang tải / hub giáo viên): căn giữa trong khung ---- */
+.view-center{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+
+/* ---- Dashboard: khối giới thiệu đứng yên, danh sách bài tự cuộn riêng ---- */
+.view-fill{height:100%;display:flex;flex-direction:column;min-height:0;}
+.dash-scroll{flex:1;overflow-y:auto;min-height:0;}
 
 /* ---- Panel / thẻ nội dung ---- */
 .ni-panel{background:var(--panel-bg);border:2px solid var(--border-color);border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,.1);}
@@ -95,132 +115,154 @@ html,body{
 .ni-dash-item{display:block;padding:16px 18px;margin-bottom:12px;}
 </style>
 </head>
-<body class="antialiased min-h-screen flex flex-col" style="font-family:'Inter',sans-serif;">
+<body class="antialiased" style="font-family:'Inter',sans-serif;">
 
-<div class="w-full max-w-5xl mx-auto p-4 md:p-6 flex-1 flex flex-col">
+<div class="ni-shell w-full max-w-5xl mx-auto">
 
-  <header class="ni-header px-4 md:px-6 py-3 flex items-center gap-3 mb-5">
+  <header class="ni-header px-4 md:px-6 py-3 flex items-center gap-3 mb-4">
     <a href="index.html" class="ni-nav-btn"><i class="fa-solid fa-arrow-left"></i> Trang chủ</a>
     <div class="min-w-0 flex-1">
-      <div class="ni-part-pill inline-block" style="font-size:9px;">NIGHT IELTS · WRITING</div>
-      <h1 id="pageTitle" class="text-base md:text-lg font-extrabold mt-1 truncate" style="color:var(--border-color);">Đang tải...</h1>
+      <h1 id="pageTitle" class="text-base md:text-lg font-extrabold truncate" style="color:var(--border-color);">Đang tải...</h1>
     </div>
   </header>
 
-  <main class="flex-1">
+  <main>
 
-    <div id="loadingBox" class="text-center py-16">
+    <div id="loadingBox" class="view-center text-center">
       <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-4" style="color:var(--border-color);"></i>
       <p class="font-bold" style="color:var(--border-color);">Đang tải...</p>
     </div>
 
-    <div id="loginBox" class="hidden ni-panel text-center py-16 px-6">
-      <div class="text-4xl mb-4">📝</div>
-      <p class="font-bold mb-4" style="color:var(--border-color);">Đăng nhập để xem bài Writing của bạn.</p>
-      <button id="loginBtn" class="ni-submit-btn"><i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail</button>
+    <div id="loginBox" class="hidden view-center text-center">
+      <div class="ni-panel text-center py-16 px-10">
+        <div class="text-4xl mb-4">📝</div>
+        <p class="font-bold mb-4" style="color:var(--border-color);">Đăng nhập để xem bài Writing của bạn.</p>
+        <button id="loginBtn" class="ni-submit-btn"><i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail</button>
+      </div>
     </div>
 
-    <div id="errorBox" class="hidden ni-panel text-center px-6 py-16">
-      <i class="fa-solid fa-triangle-exclamation text-4xl mb-4" style="color:var(--incorrect-color);"></i>
-      <p id="errorMsg" class="font-bold" style="color:var(--incorrect-color);">Có lỗi xảy ra.</p>
-      <a href="index.html" class="ni-nav-btn inline-flex mt-5">Quay lại trang chủ</a>
+    <div id="errorBox" class="hidden view-center text-center">
+      <div class="ni-panel text-center px-10 py-16">
+        <i class="fa-solid fa-triangle-exclamation text-4xl mb-4" style="color:var(--incorrect-color);"></i>
+        <p id="errorMsg" class="font-bold" style="color:var(--incorrect-color);">Có lỗi xảy ra.</p>
+        <a href="index.html" class="ni-nav-btn inline-flex mt-5">Quay lại trang chủ</a>
+      </div>
     </div>
 
     <!-- ================= DASHBOARD (học sinh, không có ?id=) ================= -->
-    <div id="dashboardView" class="hidden">
-      <p class="ni-instruction mb-4">Tất cả bài Writing Thầy Night đã giao cho bạn — được lưu trong hệ thống 6 tháng.</p>
-      <div id="dashboardList"></div>
+    <div id="dashboardView" class="hidden view-fill">
+      <p class="ni-instruction mb-4" style="flex-shrink:0;">Tất cả bài Writing Thầy Night đã giao cho bạn — được lưu trong hệ thống 6 tháng.</p>
+      <div class="dash-scroll"><div id="dashboardList"></div></div>
     </div>
 
     <!-- ================= TEACHER: KHÔNG CÓ ?id= ================= -->
-    <div id="teacherHubView" class="hidden ni-panel text-center py-16 px-6">
-      <div class="text-4xl mb-4">🧑‍🏫</div>
-      <p class="font-bold mb-1" style="color:var(--border-color);">Trang này dùng để chấm 1 bài Writing cụ thể.</p>
-      <p class="ni-instruction inline-block mb-5 text-left">Vào mục "Tiến Độ" ở trang chủ để xem danh sách bài Writing học sinh đã nộp và bấm "✏️ Chấm bài".</p>
-      <div><a href="index.html" class="ni-nav-btn inline-flex">Quay lại trang chủ</a></div>
+    <div id="teacherHubView" class="hidden view-center text-center">
+      <div class="ni-panel text-center py-16 px-10">
+        <div class="text-4xl mb-4">🧑‍🏫</div>
+        <p class="font-bold mb-1" style="color:var(--border-color);">Trang này dùng để chấm 1 bài Writing cụ thể.</p>
+        <p class="ni-instruction inline-block mb-5 text-left">Vào mục "Tiến Độ" ở trang chủ để xem danh sách bài Writing học sinh đã nộp và bấm "✏️ Chấm bài".</p>
+        <div><a href="index.html" class="ni-nav-btn inline-flex">Quay lại trang chủ</a></div>
+      </div>
     </div>
 
     <!-- ================= HỌC SINH: SOẠN BÀI (status=assigned) ================= -->
-    <div id="composeView" class="hidden grid md:grid-cols-2 gap-4 items-start">
-      <div class="ni-panel p-5 md:p-6">
-        <p class="ni-panel-label">Đề bài</p>
-        <div id="composePromptBox" class="ni-passage"></div>
-        <div id="composeDeadlineBadge" class="hidden ni-badge mt-4"></div>
-      </div>
-      <div class="ni-panel p-5 md:p-6">
-        <p class="ni-panel-label">Bài làm của bạn</p>
-        <div class="ni-toolbar">
-          <button type="button" title="In đậm" onclick="wrCmd('answerEditor','bold')"><b>B</b></button>
-          <button type="button" title="In nghiêng" onclick="wrCmd('answerEditor','italic')"><i>I</i></button>
-          <button type="button" title="Gạch chân" onclick="wrCmd('answerEditor','underline')"><u>U</u></button>
-          <button type="button" title="Danh sách" onclick="wrCmd('answerEditor','insertUnorderedList')">☰</button>
+    <div id="composeView" class="hidden split-view">
+      <div class="ni-panel">
+        <p class="ni-panel-label split-panel-label">Đề bài</p>
+        <div class="split-panel-scroll">
+          <div id="composePromptBox" class="ni-passage"></div>
+          <div id="composeDeadlineBadge" class="hidden ni-badge mt-4" style="align-self:flex-start;"></div>
         </div>
-        <div id="answerEditor" contenteditable="true" class="ni-editor" data-placeholder="Viết bài của bạn vào đây..."></div>
-        <button id="submitAnswerBtn" onclick="submitAnswer()" class="ni-submit-btn w-full mt-4">
-          <i class="fa-solid fa-paper-plane mr-1"></i> Nộp bài
-        </button>
+      </div>
+      <div class="ni-panel">
+        <p class="ni-panel-label split-panel-label">Bài làm của bạn</p>
+        <div class="split-panel-scroll">
+          <div class="ni-toolbar" style="flex-shrink:0;">
+            <button type="button" title="In đậm" onclick="wrCmd('answerEditor','bold')"><b>B</b></button>
+            <button type="button" title="In nghiêng" onclick="wrCmd('answerEditor','italic')"><i>I</i></button>
+            <button type="button" title="Gạch chân" onclick="wrCmd('answerEditor','underline')"><u>U</u></button>
+            <button type="button" title="Danh sách" onclick="wrCmd('answerEditor','insertUnorderedList')">☰</button>
+          </div>
+          <div id="answerEditor" contenteditable="true" class="ni-editor" style="flex:1;" data-placeholder="Viết bài của bạn vào đây..."></div>
+          <div class="ni-submit-sticky">
+            <button id="submitAnswerBtn" onclick="submitAnswer()" class="ni-submit-btn w-full">
+              <i class="fa-solid fa-paper-plane mr-1"></i> Nộp bài
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- ================= HỌC SINH: ĐÃ NỘP, CHỜ CHẤM ================= -->
-    <div id="submittedView" class="hidden grid md:grid-cols-2 gap-4 items-start">
-      <div class="ni-panel p-5 md:p-6">
-        <p class="ni-panel-label">Đề bài</p>
-        <div id="submittedPromptBox" class="ni-passage"></div>
+    <div id="submittedView" class="hidden split-view">
+      <div class="ni-panel">
+        <p class="ni-panel-label split-panel-label">Đề bài</p>
+        <div class="split-panel-scroll"><div id="submittedPromptBox" class="ni-passage"></div></div>
       </div>
-      <div class="ni-panel p-5 md:p-6">
-        <p class="ni-badge ni-badge-amber mb-3"><i class="fa-regular fa-clock"></i> Đã nộp — đang chờ Thầy chấm</p>
-        <div id="submittedAnswerBox" class="ni-passage"></div>
+      <div class="ni-panel">
+        <p class="split-panel-label" style="padding-bottom:0;"><span class="ni-badge ni-badge-amber"><i class="fa-regular fa-clock"></i> Đã nộp — đang chờ Thầy chấm</span></p>
+        <div class="split-panel-scroll"><div id="submittedAnswerBox" class="ni-passage"></div></div>
       </div>
     </div>
 
     <!-- ================= HỌC SINH: ĐÃ ĐƯỢC CHẤM ================= -->
-    <div id="gradedView" class="hidden">
-      <div class="ni-card p-4 mb-4 flex items-center gap-2" style="background:#dcf3df;">
-        <span class="text-xl">✅</span>
-        <p class="font-extrabold text-sm" style="color:#256b32;">Thầy đã chấm và gửi lại bài này!</p>
+    <div id="gradedView" class="hidden split-view">
+      <div class="ni-panel">
+        <p class="split-panel-label" style="padding-bottom:0;">
+          <span class="ni-badge ni-badge-green">✅ Thầy đã chấm và gửi lại bài này!</span>
+        </p>
+        <div class="split-panel-scroll">
+          <p class="ni-instruction mb-3">Chú thích: <s>gạch ngang</s> = bỏ, <u>gạch chân</u>/<mark style="background:var(--highlight-color);padding:0 2px;">tô màu</mark> = chú ý, <span class="note-mark">[ghi chú]</span> = nhận xét của Thầy.</p>
+          <details class="mb-3">
+            <summary class="ni-panel-label" style="display:inline;cursor:pointer;">Xem lại đề bài</summary>
+            <div id="gradedPromptBox" class="ni-passage mt-3"></div>
+          </details>
+          <details>
+            <summary class="ni-panel-label" style="display:inline;cursor:pointer;">Xem lại bài gốc bạn đã nộp</summary>
+            <div id="gradedOriginalBox" class="ni-passage mt-3"></div>
+          </details>
+        </div>
       </div>
-      <p class="ni-instruction mb-4">Chú thích: <s>gạch ngang</s> = bỏ, <u>gạch chân</u>/<mark style="background:var(--highlight-color);padding:0 2px;">tô màu</mark> = chú ý, <span class="note-mark">[ghi chú]</span> = nhận xét của Thầy.</p>
-      <div class="ni-panel p-5 md:p-6 mb-4">
-        <p class="ni-panel-label">Bài đã sửa</p>
-        <div id="gradedAnswerBox" class="ni-passage"></div>
+      <div class="ni-panel">
+        <p class="ni-panel-label split-panel-label">Bài đã sửa</p>
+        <div class="split-panel-scroll"><div id="gradedAnswerBox" class="ni-passage"></div></div>
       </div>
-      <details class="ni-panel p-5 md:p-6 mb-4">
-        <summary class="ni-panel-label" style="display:inline;cursor:pointer;">Xem lại đề bài</summary>
-        <div id="gradedPromptBox" class="ni-passage mt-3"></div>
-      </details>
-      <details class="ni-panel p-5 md:p-6">
-        <summary class="ni-panel-label" style="display:inline;cursor:pointer;">Xem lại bài gốc bạn đã nộp</summary>
-        <div id="gradedOriginalBox" class="ni-passage mt-3"></div>
-      </details>
     </div>
 
     <!-- ================= GIÁO VIÊN: HỌC SINH CHƯA NỘP ================= -->
-    <div id="teacherWaitingView" class="hidden">
-      <div class="ni-panel p-5 md:p-6 mb-4">
-        <p class="ni-panel-label">Đề bài</p>
-        <div id="teacherWaitingPromptBox" class="ni-passage"></div>
+    <div id="teacherWaitingView" class="hidden split-view">
+      <div class="ni-panel">
+        <p class="ni-panel-label split-panel-label">Đề bài</p>
+        <div class="split-panel-scroll"><div id="teacherWaitingPromptBox" class="ni-passage"></div></div>
       </div>
-      <p id="teacherWaitingMsg" class="text-center font-bold py-6" style="color:var(--border-color);"></p>
+      <div class="ni-panel">
+        <p id="teacherWaitingMsg" class="text-center font-bold py-6 m-auto" style="color:var(--border-color);"></p>
+      </div>
     </div>
 
     <!-- ================= GIÁO VIÊN: CHẤM BÀI ================= -->
-    <div id="teacherGradeView" class="hidden grid md:grid-cols-2 gap-4 items-start">
-      <div class="ni-panel p-5 md:p-6">
-        <p class="ni-panel-label">Đề bài</p>
-        <div id="teacherGradePromptBox" class="ni-passage mb-4"></div>
-        <details>
-          <summary class="ni-panel-label" style="display:inline;cursor:pointer;">Bài gốc học sinh nộp (chưa sửa)</summary>
-          <div id="teacherOriginalBox" class="ni-passage mt-3" style="opacity:.75;"></div>
-        </details>
+    <div id="teacherGradeView" class="hidden split-view">
+      <div class="ni-panel">
+        <p class="ni-panel-label split-panel-label">Đề bài</p>
+        <div class="split-panel-scroll">
+          <div id="teacherGradePromptBox" class="ni-passage mb-4"></div>
+          <details>
+            <summary class="ni-panel-label" style="display:inline;cursor:pointer;">Bài gốc học sinh nộp (chưa sửa)</summary>
+            <div id="teacherOriginalBox" class="ni-passage mt-3" style="opacity:.75;"></div>
+          </details>
+        </div>
       </div>
-      <div class="ni-panel p-5 md:p-6">
-        <p class="ni-panel-label">Sửa bài</p>
-        <p class="annot-hint">👆 Bôi đen 1 đoạn chữ để hiện thanh công cụ sửa bài</p>
-        <div id="gradeEditor" contenteditable="true" class="ni-editor" data-placeholder="Bài học sinh sẽ hiện ở đây để bạn sửa..."></div>
-        <button id="sendGradedBtn" onclick="sendGradedBack()" class="ni-submit-btn w-full mt-4">
-          <i class="fa-solid fa-paper-plane mr-1"></i> Gửi lại cho học sinh
-        </button>
+      <div class="ni-panel">
+        <p class="ni-panel-label split-panel-label" style="margin-bottom:0;">Sửa bài</p>
+        <div class="split-panel-scroll">
+          <p class="annot-hint" style="flex-shrink:0;">👆 Bôi đen 1 đoạn chữ để hiện thanh công cụ sửa bài</p>
+          <div id="gradeEditor" contenteditable="true" class="ni-editor" style="flex:1;" data-placeholder="Bài học sinh sẽ hiện ở đây để bạn sửa..."></div>
+          <div class="ni-submit-sticky">
+            <button id="sendGradedBtn" onclick="sendGradedBack()" class="ni-submit-btn w-full">
+              <i class="fa-solid fa-paper-plane mr-1"></i> Gửi lại cho học sinh
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -303,16 +345,47 @@ html,body{
     const el = document.getElementById(editorId);
     if (!el) return;
     el.focus();
-    const html = '<span class="note-mark">&nbsp;[ghi chú]&nbsp;</span>&nbsp;';
     const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+    if (!sel) return;
+
+    let range;
+    if (sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+      range = sel.getRangeAt(0);
       // Thu gọn vùng chọn về cuối trước khi chèn — để ghi chú được thêm NGAY SAU đoạn chữ
-      // vừa bôi đen (ví dụ vừa gạch ngang/tô màu), thay vì thay thế mất đoạn đó.
-      sel.collapseToEnd();
-      document.execCommand('insertHTML', false, html);
+      // vừa bôi đen (ví dụ vừa gạch ngang/tô màu), thay vì thay thế mất đoạn đó. Đây chỉ
+      // là thao tác trên đối tượng Range, KHÔNG xoá nội dung đã chọn trong DOM.
+      range.collapse(false);
     } else {
-      el.innerHTML += html;
+      // Không có con trỏ/selection nào trong editor -> chèn vào cuối cùng.
+      range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
     }
+
+    // Chèn trực tiếp bằng DOM Range (không dùng execCommand('insertHTML', ...)) để có thể
+    // tự tay đặt con trỏ vào ĐÚNG GIỮA hai dấu ngoặc vuông, sẵn sàng cho việc gõ chữ vào.
+    const space1 = document.createTextNode(' ');
+    const span = document.createElement('span');
+    span.className = 'note-mark';
+    const openBracket = document.createTextNode('[');
+    const closeBracket = document.createTextNode(']');
+    span.appendChild(openBracket);
+    span.appendChild(closeBracket);
+    const space2 = document.createTextNode(' ');
+
+    const frag = document.createDocumentFragment();
+    frag.appendChild(space1);
+    frag.appendChild(span);
+    frag.appendChild(space2);
+    range.insertNode(frag);
+
+    // Đặt con trỏ vào giữa openBracket và closeBracket (chính giữa "[" và "]").
+    const caretRange = document.createRange();
+    caretRange.setStart(closeBracket, 0);
+    caretRange.setEnd(closeBracket, 0);
+    sel.removeAllRanges();
+    sel.addRange(caretRange);
+    el.focus();
   };
 
   // ==========================================
@@ -332,7 +405,11 @@ html,body{
       const tbWidth = toolbar.offsetWidth || 220;
       const tbHeight = toolbar.offsetHeight || 44;
       let top = rect.top - tbHeight - 10;
-      if (top < 4) top = rect.bottom + 10; // không đủ chỗ phía trên -> đặt xuống dưới
+      // Ngưỡng lấy theo chiều cao thực tế của header (thay vì số cứng 4px) để thanh công cụ
+      // không bị đè lên/khuất sau header khi bôi đen gần đầu khung soạn thảo.
+      const header = document.querySelector('.ni-header');
+      const minTop = (header ? header.getBoundingClientRect().bottom : 0) + 6;
+      if (top < minTop) top = rect.bottom + 10; // không đủ chỗ phía trên -> đặt xuống dưới
       let left = rect.left + (rect.width / 2) - (tbWidth / 2);
       left = Math.max(8, Math.min(left, window.innerWidth - tbWidth - 8));
       toolbar.style.top = top + 'px';
