@@ -1578,6 +1578,71 @@ async function deletePublishedTest(prefix, book, testNum, testPath, logFn) {
   }
 }
 
+// Cập nhật lại 1 đề ĐÃ có trên GitHub bằng cách nạp bản lưu cục bộ (testState) của nó vào biến
+// toàn cục testState rồi gọi lại đúng doPublish() — nhờ vậy bản HTML build ra luôn dùng
+// ENGINE_TEMPLATE_B64 MỚI NHẤT của công cụ (đã có tính năng "Làm chung" real-time), dù đề đó được
+// lưu/tạo từ trước khi tính năng này tồn tại. Chỉ áp dụng được cho đề đã có bản lưu cục bộ.
+async function republishOneFromGithubList(row, logFn) {
+  const snap = loadSavedTestsMap()[row.testPath];
+  if (!snap) {
+    logFn(`❌ Không có bản lưu trên máy này cho ${row.testPath} — không thể tự cập nhật.`);
+    return false;
+  }
+  testState = JSON.parse(JSON.stringify(snap.testState));
+  const result = await doPublish({ skipWarningsConfirm: true });
+  if (result && result.ok) {
+    logFn(`✅ Đã cập nhật ${row.label} ${row.book} - Test ${row.testNum}.`);
+    return true;
+  }
+  logFn(`❌ Lỗi khi cập nhật ${row.label} ${row.book} - Test ${row.testNum}: ${result ? result.error : 'không rõ lỗi'}`);
+  return false;
+}
+
+// Xuất bản lại TẤT CẢ đề đang có trong danh sách GitHub mà có bản lưu cục bộ — dùng để thêm hàng
+// loạt tính năng mới của công cụ (vd "Làm chung" real-time) vào những đề đã xuất bản từ trước, mà
+// không cần mở/dán lại nội dung từng đề một. Đề nào KHÔNG có bản lưu cục bộ (tạo từ trước khi có
+// mục "Quản lý đề đã lưu", hoặc từ máy/trình duyệt khác) sẽ bị bỏ qua và được liệt kê rõ trong log.
+async function bulkRepublishAll(rows) {
+  const savedMap = loadSavedTestsMap();
+  const targets = rows.filter(r => savedMap[r.testPath]);
+  const skipped = rows.filter(r => !savedMap[r.testPath]);
+  if (targets.length === 0) {
+    alert('Không có đề nào trong danh sách này có bản lưu trên máy này để tự xuất bản lại.\n\nCần mở lại nội dung gốc (dán lại prompt/nội dung) rồi xuất bản lại thủ công cho từng đề.');
+    return;
+  }
+  const warnSkip = skipped.length ? `\n\n⚠️ ${skipped.length} đề khác không có bản lưu trên máy này sẽ bị BỎ QUA (không thể tự cập nhật).` : '';
+  if (!confirm(`Xuất bản lại ${targets.length} đề để thêm tính năng mới (vd "Làm chung" real-time)?${warnSkip}\n\nQuá trình này ghi đè trực tiếp lên GitHub Pages, không dễ hoàn tác.`)) return;
+
+  const btn = document.getElementById('republish-all-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang xuất bản lại...'; }
+  const logSlot = document.getElementById('github-tests-log-slot');
+  function log(msg) {
+    if (!logSlot) return;
+    logSlot.textContent += (logSlot.textContent ? '\n' : '') + msg;
+    logSlot.scrollTop = logSlot.scrollHeight;
+  }
+
+  // doPublish() thao tác trên biến toàn cục testState — lưu lại đúng đề giáo viên đang soạn dở
+  // trước khi bắt đầu vòng lặp, để trả lại y nguyên sau khi xuất bản lại xong tất cả (tránh làm
+  // "biến mất" đề đang làm ở tab Meta/Passage khỏi màn hình).
+  const originalTestState = JSON.parse(JSON.stringify(testState));
+
+  skipped.forEach(row => log(`⚠️ Bỏ qua ${row.label} ${row.book} - Test ${row.testNum} (${row.testPath}): chưa có bản lưu trên máy này.`));
+
+  let okCount = 0, failCount = 0;
+  for (const row of targets) {
+    log(`⏳ Đang xuất bản lại ${row.label} ${row.book} - Test ${row.testNum} ...`);
+    const ok = await republishOneFromGithubList(row, log);
+    if (ok) okCount++; else failCount++;
+  }
+
+  testState = originalTestState;
+  renderAll();
+
+  log(`\n🏁 Hoàn tất: ${okCount} thành công, ${failCount} lỗi, ${skipped.length} bị bỏ qua (không có bản lưu).`);
+  if (btn) { btn.disabled = false; btn.textContent = `🔄 Xuất bản lại TẤT CẢ (thêm tính năng mới) — ${targets.length}/${rows.length} đề có thể tự cập nhật`; }
+}
+
 function renderGithubTestsList(manifest, owner, repo, branch) {
   const slot = document.getElementById('github-tests-slot');
   slot.innerHTML = '';
@@ -1595,23 +1660,54 @@ function renderGithubTestsList(manifest, owner, repo, branch) {
     slot.appendChild(el('div', { class: 'hint' }, ['Chưa có đề nào trong manifest.json.']));
     return;
   }
+  const savedMap = loadSavedTestsMap();
+  const updatableCount = rows.filter(r => savedMap[r.testPath]).length;
+
+  slot.appendChild(el('div', { style: { marginBottom: '10px' } }, [
+    el('button', { class: 'btn btn-primary', id: 'republish-all-btn', onclick: () => bulkRepublishAll(rows) },
+      [`🔄 Xuất bản lại TẤT CẢ (thêm tính năng mới) — ${updatableCount}/${rows.length} đề có thể tự cập nhật`])
+  ]));
+  if (updatableCount < rows.length) {
+    slot.appendChild(el('div', { class: 'hint', style: { marginBottom: '10px' } }, [
+      `⚠️ ${rows.length - updatableCount} đề không có bản lưu trên máy này (tạo từ trước khi có mục "Quản lý đề đã lưu", hoặc từ máy/trình duyệt khác) nên không tự cập nhật được — cần mở lại nội dung gốc, dán vào công cụ rồi xuất bản lại thủ công cho từng đề đó.`
+    ]));
+  }
+
   const itemStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', marginBottom: '8px', flexWrap: 'wrap' };
   rows.forEach(row => {
     const liveUrl = `https://${owner}.github.io/${repo}/${row.testPath}`;
+    const hasSnapshot = !!savedMap[row.testPath];
+    const actionBtns = [];
+    if (hasSnapshot) {
+      actionBtns.push(el('button', { class: 'btn btn-sm btn-primary', onclick: async (e) => {
+        const btn = e.target;
+        btn.disabled = true;
+        const logSlot = document.getElementById('github-tests-log-slot');
+        const ok = await republishOneFromGithubList(row, msg => {
+          if (logSlot) { logSlot.textContent += (logSlot.textContent ? '\n' : '') + msg; logSlot.scrollTop = logSlot.scrollHeight; }
+        });
+        btn.disabled = false;
+        if (ok) loadGithubTestsList();
+      } }, ['🔄 Cập nhật']));
+    } else {
+      actionBtns.push(el('span', { class: 'hint', style: { alignSelf: 'center' } }, ['⚠️ Không có bản lưu']));
+    }
+    actionBtns.push(el('button', { class: 'btn btn-sm', style: { background: '#c0392b', color: '#fff', borderColor: '#a5311f' }, onclick: async () => {
+      if (!confirm(`Xoá VĨNH VIỄN "${row.label} ${row.book} - Test ${row.testNum}" (${row.testPath}) khỏi GitHub Pages?\n\nKHÔNG THỂ HOÀN TÁC — học sinh đang có link tới đề này sẽ không mở được nữa.`)) return;
+      const logSlot = document.getElementById('github-tests-log-slot');
+      const ok = await deletePublishedTest(row.prefix, row.book, row.testNum, row.testPath, msg => {
+        if (logSlot) logSlot.textContent += (logSlot.textContent ? '\n' : '') + msg;
+      });
+      if (ok) loadGithubTestsList();
+    } }, ['🗑 Xoá vĩnh viễn']));
+
     const item = el('div', { class: 'saved-test-item', style: itemStyle }, [
       el('div', {}, [
         el('b', {}, [`${row.label} ${row.book} - Test ${row.testNum}`]),
         el('br'),
         el('a', { href: liveUrl, target: '_blank' }, [row.testPath])
       ]),
-      el('button', { class: 'btn btn-sm', style: { background: '#c0392b', color: '#fff', borderColor: '#a5311f' }, onclick: async () => {
-        if (!confirm(`Xoá VĨNH VIỄN "${row.label} ${row.book} - Test ${row.testNum}" (${row.testPath}) khỏi GitHub Pages?\n\nKHÔNG THỂ HOÀN TÁC — học sinh đang có link tới đề này sẽ không mở được nữa.`)) return;
-        const logSlot = document.getElementById('github-tests-log-slot');
-        const ok = await deletePublishedTest(row.prefix, row.book, row.testNum, row.testPath, msg => {
-          if (logSlot) logSlot.textContent += (logSlot.textContent ? '\n' : '') + msg;
-        });
-        if (ok) loadGithubTestsList();
-      } }, ['🗑 Xoá vĩnh viễn'])
+      el('div', { style: { display: 'flex', gap: '6px', flexShrink: '0', flexWrap: 'wrap' } }, actionBtns)
     ]);
     slot.appendChild(item);
   });
@@ -1621,7 +1717,8 @@ function renderGithubTestsList(manifest, owner, repo, branch) {
 // Tách thành hàm riêng (thay vì giấu thẳng trong addEventListener) để nút "🚀 Xuất bản lại" ở tab
 // "Quản lý đề đã lưu" có thể gọi LẠI đúng 100% logic xuất bản này (kiểm tra/ghi đè file, gộp+ghi
 // manifest có retry khi xung đột...) thay vì phải chép lại 1 bản riêng dễ lệch nhau về sau.
-async function doPublish() {
+async function doPublish(opts = {}) {
+  const { skipWarningsConfirm = false } = opts;
   const owner = ghOwnerEl.value.trim();
   const repo = ghRepoEl.value.trim();
   const branch = ghBranchEl.value.trim() || 'main';
@@ -1629,13 +1726,15 @@ async function doPublish() {
 
   if (!owner || !repo || !token) {
     logPublish('❌ Vui lòng nhập đủ Owner, Repo và Token.', false);
-    return;
+    return { ok: false, error: 'Thiếu Owner, Repo hoặc Token.' };
   }
 
   const build = doGenerate();
-  if (build.warnings.length) {
+  // Chế độ "xuất bản lại hàng loạt" (bulkRepublishAll) bỏ qua hộp confirm() này cho từng đề — nếu
+  // không, cứ mỗi đề có cảnh báo là cả vòng lặp bị treo chờ giáo viên bấm OK/Cancel thủ công.
+  if (build.warnings.length && !skipWarningsConfirm) {
     const proceed = confirm(`Đề có ${build.warnings.length} cảnh báo (xem chi tiết phía trên trang). Vẫn muốn xuất bản?`);
-    if (!proceed) return;
+    if (!proceed) return { ok: false, error: 'Đã huỷ do có cảnh báo.' };
   }
 
   if (ghRememberEl.checked) {
@@ -1706,10 +1805,12 @@ async function doPublish() {
     const slot = document.getElementById('publish-log-slot');
     slot.innerHTML = '';
     slot.appendChild(el('div', { class: 'ok-box' }, [`✅ Xuất bản thành công!\n\n📄 Bài test: ${liveUrl}\n\nVào lại trang chủ, mục Reading → ${testState.meta.source === 'cambridge' ? 'Bộ Cambridge' : 'Bộ VOL'} → ${testState.meta.source === 'cambridge' ? 'Cambridge' : 'VOL'} ${testState.meta.book} → Test ${testState.meta.testNum} sẽ tự bấm được (F5 lại trang nếu chưa thấy, GitHub Pages có thể mất 1-2 phút để cập nhật).\n\n💾 Đề này đã được lưu vào tab "Quản lý đề đã lưu" — lần sau sửa nhỏ rồi xuất bản lại không cần dán lại nội dung.`]));
+    return { ok: true, url: liveUrl };
   } catch (err) {
     const slot = document.getElementById('publish-log-slot');
     slot.innerHTML = '';
     slot.appendChild(el('div', { class: 'err-box' }, [`❌ Lỗi: ${err.message}`]));
+    return { ok: false, error: err.message };
   }
 }
 document.getElementById('publish-btn').addEventListener('click', doPublish);
