@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writing — Night IELTS</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{primary:{50:'#f0f9ff',100:'#e0f2fe',200:'#99f6e4',300:'#7dd3fc',400:'#38bdf8',500:'#0ea5e9',600:'#0d9488',700:'#0369a1',800:'#075985',900:'#134e4a'}}}}};
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;background:#f8fafc;color:#1e293b;font-family:'Plus Jakarta Sans',sans-serif;}
+.editable-box{min-height:260px;}
+.editable-box[contenteditable="true"]:empty:before{content:attr(data-placeholder);color:#94a3b8;font-weight:600;}
+.editable-box img{max-width:100%;border-radius:10px;}
+.toolbar-btn{width:2.25rem;height:2.25rem;display:flex;align-items:center;justify-content:center;border-radius:0.6rem;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.06);font-weight:800;font-size:.85rem;color:#475569;}
+.toolbar-btn:hover{background:#f1f5f9;}
+.note-mark{color:#b45309;background:#fef3c7;padding:0 4px;border-radius:4px;font-weight:800;}
+</style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+<header class="border-b border-slate-200 bg-white/90 backdrop-blur-md sticky top-0 z-20 px-5 md:px-8 py-4 flex items-center gap-3">
+  <a href="index.html" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition shrink-0">
+    <i class="fa-solid fa-arrow-left"></i>
+  </a>
+  <div class="min-w-0">
+    <div class="text-[9px] font-extrabold tracking-widest text-primary-500 uppercase">NIGHT IELTS &middot; WRITING</div>
+    <h1 id="pageTitle" class="text-lg md:text-xl font-extrabold text-slate-800 mt-0.5 truncate">Đang tải...</h1>
+  </div>
+</header>
+
+<main class="flex-1 w-full max-w-5xl mx-auto p-4 md:p-6">
+
+  <div id="loadingBox" class="text-center py-16">
+    <i class="fa-solid fa-circle-notch fa-spin text-4xl text-primary-500 mb-4"></i>
+    <p class="font-bold text-slate-500">Đang tải...</p>
+  </div>
+
+  <div id="loginBox" class="hidden text-center py-16">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-primary-50 text-primary-500 flex items-center justify-center text-2xl mb-4">
+      <i class="fa-solid fa-pen-nib"></i>
+    </div>
+    <p class="font-bold text-slate-600 mb-4">Đăng nhập để xem bài Writing của bạn.</p>
+    <button id="loginBtn" class="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-2xl shadow-md text-sm">
+      <i class="fa-brands fa-google mr-2"></i> Đăng nhập Gmail
+    </button>
+  </div>
+
+  <div id="errorBox" class="hidden text-center px-6 py-16">
+    <i class="fa-solid fa-triangle-exclamation text-4xl text-rose-500 mb-4"></i>
+    <p id="errorMsg" class="font-bold text-rose-600">Có lỗi xảy ra.</p>
+    <a href="index.html" class="inline-block mt-5 px-6 py-2.5 bg-slate-800 text-white rounded-full font-bold text-sm">Quay lại trang chủ</a>
+  </div>
+
+  <!-- ================= DASHBOARD (học sinh, không có ?id=) ================= -->
+  <div id="dashboardView" class="hidden">
+    <p class="text-sm text-slate-400 font-semibold mb-4">Tất cả bài Writing Thầy Night đã giao cho bạn (lưu trong hệ thống 6 tháng).</p>
+    <div id="dashboardList"></div>
+  </div>
+
+  <!-- ================= TEACHER: KHÔNG CÓ ?id= ================= -->
+  <div id="teacherHubView" class="hidden text-center py-16">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center text-2xl mb-4">
+      <i class="fa-solid fa-chalkboard-user"></i>
+    </div>
+    <p class="font-bold text-slate-600 mb-1">Trang này dùng để chấm 1 bài Writing cụ thể.</p>
+    <p class="text-sm text-slate-400 font-semibold mb-4">Vào mục "Tiến Độ" ở trang chủ để xem danh sách bài Writing học sinh đã nộp và bấm chấm bài.</p>
+    <a href="index.html" class="inline-block px-6 py-2.5 bg-slate-800 text-white rounded-full font-bold text-sm">Quay lại trang chủ</a>
+  </div>
+
+  <!-- ================= HỌC SINH: SOẠN BÀI (status=assigned) ================= -->
+  <div id="composeView" class="hidden grid md:grid-cols-2 gap-4 items-start">
+    <div class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6">
+      <p class="text-[11px] font-black text-primary-500 uppercase tracking-wider mb-2">Đề bài</p>
+      <div id="composePromptBox" class="text-slate-700 text-sm leading-relaxed"></div>
+      <div id="composeDeadlineBadge" class="hidden inline-flex items-center gap-1 text-[11px] font-black px-3 py-1 rounded-full mt-4"></div>
+    </div>
+    <div class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6">
+      <p class="text-[11px] font-black text-primary-500 uppercase tracking-wider mb-2">Bài làm của bạn</p>
+      <div class="flex items-center gap-1.5 bg-slate-100 rounded-xl p-1.5 mb-3 flex-wrap">
+        <button type="button" class="toolbar-btn" title="In đậm" onclick="wrCmd('answerEditor','bold')">B</button>
+        <button type="button" class="toolbar-btn italic" title="In nghiêng" onclick="wrCmd('answerEditor','italic')">I</button>
+        <button type="button" class="toolbar-btn underline" title="Gạch chân" onclick="wrCmd('answerEditor','underline')">U</button>
+        <button type="button" class="toolbar-btn" title="Danh sách" onclick="wrCmd('answerEditor','insertUnorderedList')"><i class="fa-solid fa-list-ul"></i></button>
+      </div>
+      <div id="answerEditor" contenteditable="true" class="editable-box border-2 border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-primary-400 transition-colors" data-placeholder="Viết bài của bạn vào đây..."></div>
+      <button id="submitAnswerBtn" onclick="submitAnswer()" class="mt-4 w-full px-6 py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-sm shadow-md transition">
+        <i class="fa-solid fa-paper-plane mr-1"></i> Nộp bài
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= HỌC SINH: ĐÃ NỘP, CHỜ CHẤM ================= -->
+  <div id="submittedView" class="hidden grid md:grid-cols-2 gap-4 items-start">
+    <div class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6">
+      <p class="text-[11px] font-black text-primary-500 uppercase tracking-wider mb-2">Đề bài</p>
+      <div id="submittedPromptBox" class="text-slate-700 text-sm leading-relaxed"></div>
+    </div>
+    <div class="bg-white border-2 border-amber-100 rounded-[24px] p-5 md:p-6">
+      <p class="inline-flex items-center gap-1.5 text-[11px] font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full mb-3"><i class="fa-regular fa-clock"></i> Đã nộp — đang chờ Thầy chấm</p>
+      <div id="submittedAnswerBox" class="text-sm leading-relaxed"></div>
+    </div>
+  </div>
+
+  <!-- ================= HỌC SINH: ĐÃ ĐƯỢC CHẤM ================= -->
+  <div id="gradedView" class="hidden">
+    <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 mb-4 flex items-center gap-2">
+      <i class="fa-solid fa-circle-check text-emerald-500"></i>
+      <p class="text-emerald-700 font-extrabold text-sm">Thầy đã chấm và gửi lại bài này!</p>
+    </div>
+    <p class="text-[11px] text-slate-400 font-semibold mb-3">Chú thích: <s>gạch ngang</s> = bỏ, <u>gạch chân</u>/<mark class="bg-yellow-200 px-0.5">tô màu</mark> = chú ý, <span class="note-mark">[ghi chú]</span> = nhận xét của Thầy.</p>
+    <div class="bg-white border-2 border-emerald-100 rounded-[24px] p-5 md:p-6 mb-4">
+      <p class="text-[11px] font-black text-emerald-600 uppercase tracking-wider mb-2">Bài đã sửa</p>
+      <div id="gradedAnswerBox" class="text-sm leading-relaxed"></div>
+    </div>
+    <details class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6 mb-4">
+      <summary class="text-[11px] font-black text-slate-400 uppercase tracking-wider cursor-pointer">Xem lại đề bài</summary>
+      <div id="gradedPromptBox" class="text-slate-700 text-sm leading-relaxed mt-3"></div>
+    </details>
+    <details class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6">
+      <summary class="text-[11px] font-black text-slate-400 uppercase tracking-wider cursor-pointer">Xem lại bài gốc bạn đã nộp</summary>
+      <div id="gradedOriginalBox" class="text-sm leading-relaxed mt-3"></div>
+    </details>
+  </div>
+
+  <!-- ================= GIÁO VIÊN: HỌC SINH CHƯA NỘP ================= -->
+  <div id="teacherWaitingView" class="hidden">
+    <div class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6 mb-4">
+      <p class="text-[11px] font-black text-primary-500 uppercase tracking-wider mb-2">Đề bài</p>
+      <div id="teacherWaitingPromptBox" class="text-slate-700 text-sm leading-relaxed"></div>
+    </div>
+    <p id="teacherWaitingMsg" class="text-center text-slate-400 font-bold py-6"></p>
+  </div>
+
+  <!-- ================= GIÁO VIÊN: CHẤM BÀI ================= -->
+  <div id="teacherGradeView" class="hidden grid md:grid-cols-2 gap-4 items-start">
+    <div class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6">
+      <p class="text-[11px] font-black text-primary-500 uppercase tracking-wider mb-2">Đề bài</p>
+      <div id="teacherGradePromptBox" class="text-slate-700 text-sm leading-relaxed mb-4"></div>
+      <details class="mt-2">
+        <summary class="text-[11px] font-black text-slate-400 uppercase tracking-wider cursor-pointer">Bài gốc học sinh nộp (chưa sửa)</summary>
+        <div id="teacherOriginalBox" class="text-sm leading-relaxed mt-3 text-slate-500"></div>
+      </details>
+    </div>
+    <div class="bg-white border-2 border-slate-100 rounded-[24px] p-5 md:p-6">
+      <p class="text-[11px] font-black text-primary-500 uppercase tracking-wider mb-2">Sửa bài (bôi đen chữ rồi chọn kiểu)</p>
+      <div class="flex items-center gap-1.5 bg-slate-100 rounded-xl p-1.5 mb-3 flex-wrap">
+        <button type="button" class="toolbar-btn" title="In đậm" onclick="wrCmd('gradeEditor','bold')">B</button>
+        <button type="button" class="toolbar-btn italic" title="In nghiêng" onclick="wrCmd('gradeEditor','italic')">I</button>
+        <button type="button" class="toolbar-btn underline" title="Gạch chân" onclick="wrCmd('gradeEditor','underline')">U</button>
+        <button type="button" class="toolbar-btn line-through" title="Gạch ngang (bỏ)" onclick="wrCmd('gradeEditor','strikeThrough')">S</button>
+        <button type="button" class="toolbar-btn" title="Tô màu (highlight)" onclick="wrCmd('gradeEditor','hiliteColor','#fef08a')"><i class="fa-solid fa-highlighter" style="color:#eab308;"></i></button>
+        <button type="button" class="toolbar-btn text-amber-600" title="Thêm ghi chú [trong ngoặc vuông]" onclick="wrInsertNote('gradeEditor')">[+]</button>
+        <button type="button" class="toolbar-btn text-rose-500" title="Xoá định dạng vùng đã bôi đen" onclick="wrCmd('gradeEditor','removeFormat')"><i class="fa-solid fa-eraser"></i></button>
+      </div>
+      <div id="gradeEditor" contenteditable="true" class="editable-box border-2 border-slate-100 rounded-xl p-3 text-sm outline-none focus:border-primary-400 transition-colors" data-placeholder="Bài học sinh sẽ hiện ở đây để bạn sửa..."></div>
+      <button id="sendGradedBtn" onclick="sendGradedBack()" class="mt-4 w-full px-6 py-3.5 rounded-2xl bg-primary-600 hover:bg-primary-700 text-white font-extrabold text-sm shadow-md transition">
+        <i class="fa-solid fa-paper-plane mr-1"></i> Gửi lại cho học sinh
+      </button>
+    </div>
+  </div>
+
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+    authDomain: "night-ielts-land.firebaseapp.com",
+    databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+    projectId: "night-ielts-land",
+    storageBucket: "night-ielts-land.firebasestorage.app",
+    messagingSenderId: "408519436407",
+    appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+    measurementId: "G-H3P14NJR76"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const provider = new GoogleAuthProvider();
+
+  // Bài Writing (đã sửa hay chưa) tự động biến mất sau 6 tháng — giống hằng số cùng tên
+  // trong index.html.
+  const WRITING_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+
+  const taskId = new URLSearchParams(window.location.search).get('id');
+
+  const ALL_VIEWS = ['loadingBox','loginBox','errorBox','dashboardView','teacherHubView','composeView','submittedView','gradedView','teacherWaitingView','teacherGradeView'];
+  function showOnly(id) {
+    ALL_VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // Xoá bỏ thẻ <script> khỏi HTML do người dùng tự soạn (đề bài / bài làm / bài sửa) trước
+  // khi lưu — một lớp phòng vệ đơn giản, rẻ tiền, dù hệ thống này vốn chỉ dùng nội bộ cho
+  // 1 giáo viên + học sinh của mình.
+  function wrStripScripts(html) {
+    return String(html || '').replace(/<script[\s\S]*?<\/script>/gi, '');
+  }
+
+  function showError(msg) {
+    document.getElementById('errorMsg').textContent = msg;
+    showOnly('errorBox');
+  }
+
+  // ==========================================
+  // TOOLBAR DÙNG CHUNG (gọi được từ onclick="" vì gắn thẳng vào window — các nút bấm được
+  // chèn bằng innerHTML nên không tự tìm được biến trong scope của module này).
+  // ==========================================
+  window.wrCmd = function(editorId, cmd, val) {
+    const el = document.getElementById(editorId);
+    if (el) el.focus();
+    document.execCommand(cmd, false, val || null);
+  };
+  window.wrInsertNote = function(editorId) {
+    const el = document.getElementById(editorId);
+    if (!el) return;
+    el.focus();
+    const html = '<span class="note-mark">&nbsp;[ghi chú]&nbsp;</span>&nbsp;';
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+      // Thu gọn vùng chọn về cuối trước khi chèn — để ghi chú được thêm NGAY SAU đoạn chữ
+      // vừa bôi đen (ví dụ vừa gạch ngang/tô màu), thay vì thay thế mất đoạn đó.
+      sel.collapseToEnd();
+      document.execCommand('insertHTML', false, html);
+    } else {
+      el.innerHTML += html;
+    }
+  };
+
+  function fmtDate(ts) { return ts ? new Date(ts).toLocaleDateString('vi-VN') : ''; }
+  function fmtDateTime(ts) { return ts ? new Date(ts).toLocaleString('vi-VN') : ''; }
+
+  document.getElementById('loginBtn').addEventListener('click', () => signInWithPopup(auth, provider));
+
+  // ==========================================
+  // DASHBOARD HỌC SINH (không có ?id=)
+  // ==========================================
+  async function renderStudentDashboard(uid) {
+    document.getElementById('pageTitle').textContent = 'Bài Writing của bạn';
+    const now = Date.now();
+    const q = query(collection(db, 'assignments'), where('studentId', '==', uid), where('kind', '==', 'writing'));
+    const snap = await getDocs(q);
+    const items = [];
+    snap.forEach(d => {
+      const a = d.data();
+      const expiresAt = a.expiresAt || (a.createdAt ? a.createdAt + WRITING_TTL_MS : null);
+      if (expiresAt && now > expiresAt) { deleteDoc(doc(db, 'assignments', d.id)).catch(() => {}); return; }
+      items.push(Object.assign({ id: d.id }, a));
+    });
+    items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const listEl = document.getElementById('dashboardList');
+    if (items.length === 0) {
+      listEl.innerHTML = '<p class="text-slate-400 font-semibold text-sm text-center py-14">Chưa có bài Writing nào được giao cho bạn.</p>';
+    } else {
+      listEl.innerHTML = items.map(renderDashboardCard).join('');
+    }
+    showOnly('dashboardView');
+  }
+
+  function renderDashboardCard(a) {
+    let statusBadge;
+    if (a.status === 'graded') {
+      statusBadge = '<span class="inline-flex items-center gap-1 text-[11px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">✅ Đã chấm' + (a.studentSeenGraded === false ? ' — xem ngay!' : '') + '</span>';
+    } else if (a.status === 'submitted') {
+      statusBadge = '<span class="inline-flex items-center gap-1 text-[11px] font-black text-amber-600 bg-amber-50 px-3 py-1 rounded-full">📩 Đã nộp — chờ chấm</span>';
+    } else {
+      statusBadge = '<span class="inline-flex items-center gap-1 text-[11px] font-black text-slate-500 bg-slate-100 px-3 py-1 rounded-full">📝 Chưa làm</span>';
+    }
+    let deadlineHtml = '';
+    if (a.deadlineAt) {
+      const overdue = Date.now() > a.deadlineAt && a.status === 'assigned';
+      deadlineHtml = '<span class="inline-flex items-center gap-1 text-[11px] font-black ' + (overdue ? 'text-red-500 bg-red-50' : 'text-slate-400 bg-slate-100') + ' px-2.5 py-1 rounded-full">' +
+        (overdue ? '<i class="fa-solid fa-triangle-exclamation"></i> Quá hạn ' : '<i class="fa-regular fa-clock"></i> Hạn: ') + fmtDate(a.deadlineAt) + '</span>';
+    }
+    return '<a href="writing.html?id=' + a.id + '" class="block bg-white border-2 border-slate-100 rounded-2xl p-4 mb-3 hover:border-primary-300 hover:shadow-md transition-all">' +
+      '<div class="flex justify-between items-start gap-3 flex-wrap">' +
+        '<p class="font-extrabold text-slate-800">' + escapeHtml(a.title || '(Không tên)') + '</p>' +
+        statusBadge +
+      '</div>' +
+      '<div class="mt-2 flex gap-2 flex-wrap">' + deadlineHtml + '</div>' +
+    '</a>';
+  }
+
+  // ==========================================
+  // HỌC SINH: CHI TIẾT 1 BÀI
+  // ==========================================
+  async function renderStudentDetail(ref, data) {
+    document.getElementById('pageTitle').textContent = data.title || 'Bài Writing';
+
+    if (data.status === 'graded') {
+      document.getElementById('gradedPromptBox').innerHTML = data.promptHtml || '';
+      document.getElementById('gradedOriginalBox').innerHTML = data.submissionHtml || '';
+      document.getElementById('gradedAnswerBox').innerHTML = data.gradedHtml || '';
+      showOnly('gradedView');
+      if (data.studentSeenGraded !== true) {
+        updateDoc(ref, { studentSeenGraded: true }).catch(() => {});
+      }
+      return;
+    }
+
+    if (data.status === 'submitted') {
+      document.getElementById('submittedPromptBox').innerHTML = data.promptHtml || '';
+      document.getElementById('submittedAnswerBox').innerHTML = data.submissionHtml || '';
+      showOnly('submittedView');
+      return;
+    }
+
+    // status === 'assigned' -> soạn bài
+    document.getElementById('composePromptBox').innerHTML = data.promptHtml || '';
+    if (data.deadlineAt) {
+      const overdue = Date.now() > data.deadlineAt;
+      const badge = document.getElementById('composeDeadlineBadge');
+      badge.classList.remove('hidden');
+      badge.classList.add(overdue ? 'bg-red-50' : 'bg-slate-100', overdue ? 'text-red-500' : 'text-slate-500');
+      badge.innerHTML = (overdue ? '<i class="fa-solid fa-triangle-exclamation"></i> Đã quá hạn nộp (' : '<i class="fa-regular fa-clock"></i> Hạn nộp: ') + fmtDate(data.deadlineAt) + (overdue ? ')' : '');
+    }
+    window.__currentRef = ref;
+    showOnly('composeView');
+  }
+
+  window.submitAnswer = async function() {
+    const editor = document.getElementById('answerEditor');
+    const html = wrStripScripts(editor.innerHTML || '').trim();
+    const text = (editor.textContent || '').trim();
+    if (!text && html.indexOf('<img') === -1) { alert('Vui lòng viết bài trước khi nộp nhé.'); return; }
+    if (html.length > 900000) { alert('Bài viết đang quá nặng để lưu (có thể do ảnh dán vào). Vui lòng rút gọn.'); return; }
+    const ok = confirm('Nộp bài này? Sau khi nộp bạn sẽ không sửa được nữa cho đến khi Thầy chấm và gửi lại.');
+    if (!ok) return;
+    const btn = document.getElementById('submitAnswerBtn');
+    btn.disabled = true; btn.innerText = 'Đang nộp...';
+    try {
+      await updateDoc(window.__currentRef, {
+        submissionHtml: html,
+        submittedAt: Date.now(),
+        status: 'submitted',
+        teacherSeenSubmission: false
+      });
+      alert('Đã nộp bài thành công! Thầy sẽ chấm và gửi lại cho bạn sớm nhất.');
+      const freshSnap = await getDoc(window.__currentRef);
+      await renderStudentDetail(freshSnap.ref, freshSnap.data());
+    } catch (e) {
+      alert('Lỗi khi nộp bài: ' + e.message);
+      btn.disabled = false; btn.innerText = 'Nộp bài';
+    }
+  };
+
+  // ==========================================
+  // GIÁO VIÊN: CHI TIẾT 1 BÀI
+  // ==========================================
+  async function renderTeacherDetail(ref, data) {
+    document.getElementById('pageTitle').textContent = data.title || 'Bài Writing';
+    let studentName = data.studentId || '';
+    try {
+      const stuSnap = await getDoc(doc(db, 'users', data.studentId));
+      if (stuSnap.exists()) studentName = stuSnap.data().name || studentName;
+    } catch (e) { /* không chặn luồng chính nếu lỗi */ }
+
+    if (data.status === 'assigned') {
+      document.getElementById('teacherWaitingPromptBox').innerHTML = data.promptHtml || '';
+      document.getElementById('teacherWaitingMsg').textContent = '📝 ' + studentName + ' chưa nộp bài này.';
+      showOnly('teacherWaitingView');
+      return;
+    }
+
+    // status === 'submitted' hoặc 'graded'
+    document.getElementById('teacherGradePromptBox').innerHTML = data.promptHtml || '';
+    document.getElementById('teacherOriginalBox').innerHTML = data.submissionHtml || '';
+    document.getElementById('gradeEditor').innerHTML = data.gradedHtml || data.submissionHtml || '';
+    window.__currentRef = ref;
+    window.__currentStudentName = studentName;
+    showOnly('teacherGradeView');
+
+    if (data.status === 'submitted' && data.teacherSeenSubmission !== true) {
+      updateDoc(ref, { teacherSeenSubmission: true }).catch(() => {});
+    }
+  }
+
+  window.sendGradedBack = async function() {
+    const editor = document.getElementById('gradeEditor');
+    const html = wrStripScripts(editor.innerHTML || '').trim();
+    if (!html) { alert('Chưa có nội dung để gửi lại.'); return; }
+    if (html.length > 900000) { alert('Bài sửa đang quá nặng để lưu. Vui lòng rút gọn.'); return; }
+    const ok = confirm('Gửi bài đã sửa lại cho ' + (window.__currentStudentName || 'học sinh') + '?');
+    if (!ok) return;
+    const btn = document.getElementById('sendGradedBtn');
+    btn.disabled = true; btn.innerText = 'Đang gửi...';
+    try {
+      await updateDoc(window.__currentRef, {
+        gradedHtml: html,
+        gradedAt: Date.now(),
+        status: 'graded',
+        teacherSeenSubmission: true,
+        studentSeenGraded: false
+      });
+      alert('Đã gửi bài sửa lại cho học sinh!');
+      const freshSnap = await getDoc(window.__currentRef);
+      await renderTeacherDetail(freshSnap.ref, freshSnap.data());
+    } catch (e) {
+      alert('Lỗi khi gửi bài sửa: ' + e.message);
+      btn.disabled = false; btn.innerText = 'Gửi lại cho học sinh';
+    }
+  };
+
+  // ==========================================
+  // BOOT
+  // ==========================================
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { showOnly('loginBox'); return; }
+    showOnly('loadingBox');
+
+    let role = 'student';
+    try {
+      const userSnap = await getDoc(doc(db, 'users', user.uid));
+      if (userSnap.exists()) role = userSnap.data().role || 'student';
+    } catch (e) {
+      showError('Lỗi kết nối máy chủ. Kiểm tra lại mạng và thử tải lại trang.');
+      return;
+    }
+
+    if (!taskId) {
+      if (role === 'admin') { document.getElementById('pageTitle').textContent = 'Writing'; showOnly('teacherHubView'); }
+      else { await renderStudentDashboard(user.uid); }
+      return;
+    }
+
+    let snap;
+    try {
+      snap = await getDoc(doc(db, 'assignments', taskId));
+    } catch (e) {
+      showError('Lỗi kết nối máy chủ. Kiểm tra lại mạng và thử tải lại trang.');
+      return;
+    }
+    if (!snap.exists()) { showError('Bài Writing không tồn tại hoặc đã bị xoá.'); return; }
+    const data = snap.data();
+    if (data.kind !== 'writing') { showError('Đây không phải bài Writing.'); return; }
+
+    if (role === 'admin') {
+      await renderTeacherDetail(snap.ref, data);
+    } else {
+      if (data.studentId !== user.uid) { showError('Bạn không có quyền xem bài này.'); return; }
+      await renderStudentDetail(snap.ref, data);
+    }
+  });
+</script>
+</body>
+</html>
