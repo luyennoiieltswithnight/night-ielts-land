@@ -324,7 +324,10 @@ Is it better to read a physical book or an e-book?"></textarea>
               <div class="band-chip" style="background:#fff;"><span id="resOverallBand">-</span><small>OVERALL</small></div>
               <p class="text-xs" style="color:var(--border-color);opacity:.7;">Điểm ước tính bởi AI — chỉ mang tính tham khảo, không thay thế giám khảo thật.</p>
             </div>
-            <p class="ni-label">Bài nói của bạn (chuyển từ giọng nói)</p>
+            <p class="ni-label">Bài nói của bạn</p>
+            <audio id="resAudioPlayback" controls class="w-full mb-2 hidden"></audio>
+            <p id="resAudioMissingNote" class="text-xs font-semibold mb-3 hidden" style="color:var(--border-color);opacity:.7;">🔇 Bản ghi âm quá dài nên chỉ lưu được văn bản chuyển giọng nói, không lưu được file âm thanh.</p>
+            <p class="ni-label" style="margin-top:0;">Văn bản chuyển từ giọng nói</p>
             <p id="resTranscript" class="ni-instruction mb-4" style="font-style:normal;"></p>
             <div id="resCriteria"></div>
             <p class="ni-label mt-4">✍️ Bài trả lời được nâng cấp — dựa trên chính câu trả lời của bạn, không viết lại thành bài hoàn toàn khác</p>
@@ -364,7 +367,14 @@ Is it better to read a physical book or an e-book?"></textarea>
   // đề Reading. Chỉ 2 thứ có hạn: bản ghi "đã giao cho ai" (assignments) và "kết quả từng câu"
   // (speakingAttempts) — cùng quy ước TTL với các tính năng khác trong site.
   const SPEAKING_ASSIGN_TTL_MS = 60 * 24 * 60 * 60 * 1000;   // 60 ngày, giống ASSIGNMENT_TTL_MS ở index.html
-  const ATTEMPT_TTL_MS = 120 * 24 * 60 * 60 * 1000;          // 120 ngày lưu kết quả luyện tập
+  const ATTEMPT_TTL_MS = 90 * 24 * 60 * 60 * 1000;           // 3 tháng lưu kết quả luyện tập (kèm file ghi âm)
+  // Firestore (gói Spark miễn phí, không có Cloud Storage) giới hạn ~1MB/document, nên file ghi âm
+  // phải được nhúng base64 ngay trong document speakingAttempts và phải tự giới hạn dung lượng:
+  // ghi âm tối đa 150 giây (2.5 phút, dư so với Part 2 tối đa 2 phút) ở bitrate thấp (24kbps, đủ
+  // nghe rõ giọng nói) để dữ liệu base64 luôn nằm dưới ngưỡng an toàn AUDIO_MAX_BASE64_CHARS.
+  const REC_MAX_SECONDS = 150;
+  const REC_AUDIO_BITS_PER_SECOND = 24000;
+  const AUDIO_MAX_BASE64_CHARS = 800000;
   const PROGRESS_LOG_TTL_MS = 365 * 24 * 60 * 60 * 1000;     // giống hệt index.html
 
   const PART_LABELS = { '1': 'Part 1', '2': 'Part 2 — Cue Card', '3': 'Part 3', '2-3': 'Part 2 + 3' };
@@ -841,7 +851,10 @@ Is it better to read a physical book or an e-book?"></textarea>
             '</div>' +
             '<div class="band-chip" style="width:44px;height:44px;font-size:15px;">' + (a.scores ? a.scores.overall : '-') + '</div>' +
           '</div>' +
-          '<details class="mt-2"><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Xem transcript &amp; nhận xét</summary>' +
+          '<details class="mt-2"><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Nghe ghi âm &amp; xem transcript</summary>' +
+            (a.audioBase64
+              ? '<audio controls class="w-full mt-2" src="data:' + (a.audioMime || 'audio/webm') + ';base64,' + a.audioBase64 + '"></audio>'
+              : '<p class="text-xs font-semibold mt-2" style="opacity:.6;">🔇 Không có file ghi âm (bản ghi quá dài hoặc học sinh dùng trình duyệt cũ).</p>') +
             '<p class="text-sm mt-2 italic">"' + escapeHtml(a.transcript || '') + '"</p>' +
           '</details>' +
         '</div>'
@@ -915,6 +928,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   let __recChunks = [];
   let __recBlob = null;
   let __recTimerInterval = null;
+  let __recAutoStopTimeout = null;
   let __recSeconds = 0;
 
   async function loadPracticeAttempts(uid) {
@@ -1004,12 +1018,18 @@ Is it better to read a physical book or an e-book?"></textarea>
       return;
     }
     __recChunks = [];
-    __mediaRecorder = new MediaRecorder(__mediaStream);
+    let recorderOpts = { audioBitsPerSecond: REC_AUDIO_BITS_PER_SECOND };
+    try {
+      __mediaRecorder = new MediaRecorder(__mediaStream, recorderOpts);
+    } catch (e) {
+      __mediaRecorder = new MediaRecorder(__mediaStream); // trình duyệt không hỗ trợ audioBitsPerSecond -> dùng mặc định
+    }
     __mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) __recChunks.push(e.data); };
     __mediaRecorder.onstop = () => {
-      __recBlob = new Blob(__recChunks, { type: 'audio/webm' });
+      __recBlob = new Blob(__recChunks, { type: __mediaRecorder.mimeType || 'audio/webm' });
       __mediaStream.getTracks().forEach(t => t.stop());
       clearInterval(__recTimerInterval);
+      clearTimeout(__recAutoStopTimeout);
       document.getElementById('recBtn').classList.remove('recording');
       document.getElementById('recBtn').classList.add('hidden');
       document.getElementById('recTimer').classList.add('hidden');
@@ -1031,12 +1051,22 @@ Is it better to read a physical book or an e-book?"></textarea>
       const s = String(__recSeconds % 60).padStart(2, '0');
       timerEl.textContent = m + ':' + s;
     }, 1000);
+    // Tự động dừng ghi âm sau REC_MAX_SECONDS để đảm bảo file base64 luôn nằm trong giới hạn
+    // ~1MB/document của Firestore — Part 2 (dài nhất) chỉ tối đa 2 phút nên 2.5 phút vẫn dư dả.
+    clearTimeout(__recAutoStopTimeout);
+    __recAutoStopTimeout = setTimeout(() => {
+      if (__mediaRecorder && __mediaRecorder.state === 'recording') {
+        __mediaRecorder.stop();
+        alert('Đã ghi âm tối đa ' + Math.round(REC_MAX_SECONDS / 60 * 10) / 10 + ' phút nên tự động dừng lại.');
+      }
+    }, REC_MAX_SECONDS * 1000);
   };
 
   window.discardRecording = function () {
     __recBlob = null;
     __recChunks = [];
     clearInterval(__recTimerInterval);
+    clearTimeout(__recAutoStopTimeout);
     document.getElementById('recBtn').classList.remove('hidden', 'recording');
     document.getElementById('recStatus').classList.remove('hidden');
     document.getElementById('recStatus').textContent = 'Bấm để bắt đầu ghi âm câu trả lời';
@@ -1044,6 +1074,21 @@ Is it better to read a physical book or an e-book?"></textarea>
     document.getElementById('recPreviewBox').classList.add('hidden');
     document.getElementById('resultBox').classList.add('hidden');
   };
+
+  // Chuyển Blob ghi âm thành chuỗi base64 THUẦN (đã bỏ tiền tố "data:...;base64,") để nhúng
+  // gọn vào document Firestore.
+  function blobToBase64Payload(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result || '';
+        const commaIdx = result.indexOf(',');
+        resolve(commaIdx !== -1 ? result.slice(commaIdx + 1) : result);
+      };
+      reader.onerror = () => reject(new Error('Không đọc được file ghi âm'));
+      reader.readAsDataURL(blob);
+    });
+  }
 
   window.scoreRecording = async function () {
     if (!__recBlob) return;
@@ -1078,12 +1123,26 @@ Is it better to read a physical book or an e-book?"></textarea>
         pronunciation: parsed.criteria.pronunciation.band,
         overall: overall
       };
+      // Kèm luôn file ghi âm (base64) để học sinh nghe lại và giáo viên nghe được giọng nói
+      // thật, không chỉ đọc transcript. Nếu vì lý do nào đó (trình duyệt lạ, ghi âm dài bất
+      // thường...) mà base64 vượt ngưỡng an toàn cho 1 document Firestore thì bỏ qua phần âm
+      // thanh, vẫn lưu transcript + điểm bình thường thay vì làm hỏng cả lần chấm điểm.
+      let audioBase64 = null, audioMime = null;
+      try {
+        const payload = await blobToBase64Payload(__recBlob);
+        if (payload.length <= AUDIO_MAX_BASE64_CHARS) {
+          audioBase64 = payload;
+          audioMime = __recBlob.type || 'audio/webm';
+        }
+      } catch (e) { /* bỏ qua audio, vẫn lưu transcript + điểm */ }
+
       const record = {
         studentId: window.__currentUid, packageId: __pkg.id, packageTitle: __pkg.title,
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: scores, criteria: parsed.criteria,
         refinedAnswer: parsed.refinedAnswer || '',
         refinementNotes: parsed.refinementNotes || [],
+        audioBase64: audioBase64, audioMime: audioMime,
         createdAt: Date.now(), expiresAt: Date.now() + ATTEMPT_TTL_MS
       };
       await setDoc(doc(db, 'speakingAttempts', window.__currentUid + '_' + __pkg.id + '_' + q.id), record);
@@ -1118,6 +1177,17 @@ Is it better to read a physical book or an e-book?"></textarea>
   function showResult(record) {
     document.getElementById('resultBox').classList.remove('hidden');
     document.getElementById('resOverallBand').textContent = record.scores.overall;
+    const audioPlayer = document.getElementById('resAudioPlayback');
+    const audioMissingNote = document.getElementById('resAudioMissingNote');
+    if (record.audioBase64) {
+      audioPlayer.src = 'data:' + (record.audioMime || 'audio/webm') + ';base64,' + record.audioBase64;
+      audioPlayer.classList.remove('hidden');
+      audioMissingNote.classList.add('hidden');
+    } else {
+      audioPlayer.removeAttribute('src');
+      audioPlayer.classList.add('hidden');
+      audioMissingNote.classList.remove('hidden');
+    }
     document.getElementById('resTranscript').textContent = '"' + record.transcript + '"';
     const CRIT_LABELS = { fluency: 'Fluency & Coherence', lexical: 'Lexical Resource', grammar: 'Grammatical Range & Accuracy', pronunciation: 'Pronunciation (ước tính qua văn bản)' };
     document.getElementById('resCriteria').innerHTML = Object.keys(CRIT_LABELS).map(k => {
