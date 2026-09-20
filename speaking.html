@@ -66,14 +66,21 @@ textarea.ni-input{font-weight:500;line-height:1.5;}
 .ni-target-toggle button.active{background:var(--panel-bg);opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 .ni-dash-item{display:block;padding:16px 18px;margin-bottom:12px;}
 
-/* ---- Hộp cấu hình Groq API key (dùng chung với công cụ Test Builder — cùng 1 localStorage) ---- */
-.groq-box{background:#fff;border:1px solid #e5decb;border-radius:10px;padding:14px 16px;margin:12px 0;}
-.groq-box summary{cursor:pointer;font-weight:800;font-size:12.5px;color:var(--border-color);}
-.groq-box ol{font-size:12px;color:#555;padding-left:18px;margin:8px 0;}
-.groq-missing{background:#fdecea;border:1px solid #f5b3ac;color:#9a3226;border-radius:10px;padding:10px 14px;font-size:12.5px;font-weight:700;margin:10px 0;}
+/* ---- Cấu hình Groq API key: 1 nút bánh răng nhỏ ở góc trên bên phải header, mở modal —
+   thay vì 1 khung to luôn hiện chiếm diện tích ngay trong nội dung trang (dùng chung 1
+   localStorage với công cụ Test Builder). ---- */
+.groq-gear-btn{position:relative;margin-left:auto;flex-shrink:0;}
+.groq-gear-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:999px;background:var(--incorrect-color);border:2px solid var(--panel-bg);}
+.groq-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px;}
+.groq-modal{background:var(--panel-bg);border:2px solid var(--border-color);border-radius:14px;padding:20px;max-width:420px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.3);}
+.groq-modal ol{font-size:12px;color:#555;padding-left:18px;margin:8px 0 14px;}
+.groq-missing{background:#fdecea;border:1px solid #f5b3ac;color:#9a3226;border-radius:10px;padding:10px 14px;font-size:12.5px;font-weight:700;margin:10px 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 
 /* ---- Part / package chip ---- */
 .part-chip{display:inline-flex;align-items:center;font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;background:#eadcc2;color:var(--border-color);}
+.ipa{font-family:'Plus Jakarta Sans',sans-serif;color:#8a6416;font-style:italic;}
+.refine-note{background:#fff;border:1px solid #e5decb;border-radius:10px;padding:10px 12px;}
+.refine-note b{color:var(--border-color);}
 
 /* ---- Danh sách câu hỏi trong 1 gói (điều hướng luyện tập) ---- */
 .q-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
@@ -105,7 +112,28 @@ textarea.ni-input{font-weight:500;line-height:1.5;}
     <div class="min-w-0 flex-1">
       <h1 id="pageTitle" class="text-base md:text-lg font-extrabold truncate" style="color:var(--border-color);">Đang tải...</h1>
     </div>
+    <button type="button" id="groqSettingsBtn" onclick="openGroqSettingsModal()" class="ni-nav-btn groq-gear-btn" title="Cấu hình Groq API Key">
+      <i class="fa-solid fa-gear"></i>
+      <span id="groqGearDot" class="hidden groq-gear-dot"></span>
+    </button>
   </header>
+
+  <div id="groqSettingsModal" class="hidden groq-modal-overlay" onclick="if(event.target===this) closeGroqSettingsModal()">
+    <div class="groq-modal">
+      <div class="flex items-center justify-between mb-3">
+        <p class="font-extrabold" style="color:var(--border-color);">⚙️ Cấu hình Groq API Key</p>
+        <button type="button" onclick="closeGroqSettingsModal()" class="ni-nav-btn" style="padding:4px 10px;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <ol>
+        <li>Vào <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--border-color);text-decoration:underline;">console.groq.com/keys</a> (miễn phí, không cần thẻ).</li>
+        <li>Tạo API Key mới, copy chuỗi bắt đầu bằng <code>gsk_...</code> (chỉ hiện 1 lần).</li>
+        <li>Dán vào ô bên dưới — key chỉ lưu trên trình duyệt này, chỉ gửi tới api.groq.com.</li>
+      </ol>
+      <input type="password" id="groqModalKeyInput" class="ni-input mb-2" placeholder="gsk_...">
+      <button type="button" onclick="saveGroqKeyFromModal()" class="ni-submit-btn w-full">💾 Lưu key</button>
+      <p id="groqModalSaveMsg" class="text-xs font-bold mt-2 text-center" style="color:var(--correct-color);min-height:16px;"></p>
+    </div>
+  </div>
 
   <main>
 
@@ -157,17 +185,30 @@ textarea.ni-input{font-weight:500;line-height:1.5;}
             </div>
             <div>
               <label class="ni-label">Thuộc phần thi</label>
-              <select id="spPkgPart" class="ni-input">
+              <select id="spPkgPart" class="ni-input" onchange="onSpPkgPartChange()">
                 <option value="1">Part 1 (câu hỏi ngắn, quen thuộc)</option>
-                <option value="2">Part 2 (Cue Card — nói dài 1-2 phút)</option>
-                <option value="3">Part 3 (thảo luận mở rộng)</option>
+                <option value="2-3">Part 2 + Part 3 (nhập chung 1 lần — vì 2 phần này thường liên quan chủ đề với nhau)</option>
+                <option value="2">Chỉ Part 2 (Cue Card)</option>
+                <option value="3">Chỉ Part 3 (thảo luận mở rộng)</option>
               </select>
             </div>
-            <div>
+            <div id="spPkgSingleFields">
               <label class="ni-label">Câu hỏi (mỗi câu 1 dòng)</label>
               <textarea id="spPkgQuestions" rows="5" class="ni-input" placeholder="Do you like your hometown?
 What do you usually do in your free time?
 Describe a book you recently read."></textarea>
+            </div>
+            <div id="spPkgCombinedFields" class="hidden space-y-3">
+              <div>
+                <label class="ni-label">Part 2 — Cue Card (1 đề, có thể nhiều dòng gợi ý)</label>
+                <textarea id="spPkgPart2Card" rows="4" class="ni-input" placeholder="Describe a book you recently read. You should say: what the book was about, why you decided to read it, what you learned from it, and explain whether you would recommend it to others."></textarea>
+              </div>
+              <div>
+                <label class="ni-label">Part 3 — Câu hỏi thảo luận liên quan đến đề Part 2 ở trên (mỗi câu 1 dòng)</label>
+                <textarea id="spPkgPart3Questions" rows="4" class="ni-input" placeholder="Do you think reading habits have changed in the last 10 years?
+What are the benefits of reading for children?
+Is it better to read a physical book or an e-book?"></textarea>
+              </div>
             </div>
             <div id="spGroqBoxCreate"></div>
             <button id="spCreatePkgBtn" onclick="createPackage()" class="ni-submit-btn w-full">➕ Tạo bộ câu hỏi (AI sẽ tự tạo gợi ý)</button>
@@ -236,7 +277,10 @@ Describe a book you recently read."></textarea>
         <div id="qNav" class="q-nav mt-4"></div>
 
         <div id="qContentBox">
-          <p class="ni-label">Câu hỏi</p>
+          <div class="flex items-center gap-2 mb-1">
+            <p class="ni-label" style="margin-bottom:0;">Câu hỏi</p>
+            <span id="qPartChip" class="hidden part-chip" style="transform:scale(.85);"></span>
+          </div>
           <p id="qText" class="text-lg font-bold mb-3" style="color:#222;"></p>
 
           <button type="button" id="qHintToggleBtn" onclick="toggleHint()" class="ni-nav-btn mb-3">💡 Xem gợi ý</button>
@@ -283,8 +327,10 @@ Describe a book you recently read."></textarea>
             <p class="ni-label">Bài nói của bạn (chuyển từ giọng nói)</p>
             <p id="resTranscript" class="ni-instruction mb-4" style="font-style:normal;"></p>
             <div id="resCriteria"></div>
-            <p class="ni-label mt-4">💪 Gợi ý nâng band (không phải bài mẫu — chỉ là vài gợi ý để bạn tự chỉnh câu trả lời)</p>
-            <ul id="resSuggestions" class="text-sm font-semibold space-y-1.5" style="color:#333;"></ul>
+            <p class="ni-label mt-4">✍️ Bài trả lời được nâng cấp — dựa trên chính câu trả lời của bạn, không viết lại thành bài hoàn toàn khác</p>
+            <p id="resRefinedAnswer" class="ni-instruction mb-3" style="font-style:normal;background:#fbf3df;border-left-color:var(--primary-button);"></p>
+            <p class="ni-label mt-3">💡 Vì sao nâng cấp như vậy</p>
+            <div id="resRefinementNotes" class="text-sm space-y-2" style="color:#333;"></div>
             <button type="button" onclick="discardRecording()" class="ni-nav-btn mt-4">🔁 Luyện lại câu này</button>
           </div>
         </div>
@@ -321,7 +367,7 @@ Describe a book you recently read."></textarea>
   const ATTEMPT_TTL_MS = 120 * 24 * 60 * 60 * 1000;          // 120 ngày lưu kết quả luyện tập
   const PROGRESS_LOG_TTL_MS = 365 * 24 * 60 * 60 * 1000;     // giống hệt index.html
 
-  const PART_LABELS = { '1': 'Part 1', '2': 'Part 2 — Cue Card', '3': 'Part 3' };
+  const PART_LABELS = { '1': 'Part 1', '2': 'Part 2 — Cue Card', '3': 'Part 3', '2-3': 'Part 2 + 3' };
 
   const params = new URLSearchParams(window.location.search);
   const packageId = params.get('packageId');
@@ -362,30 +408,46 @@ Describe a book you recently read."></textarea>
     try { localStorage.setItem('nightIeltsGroqCfg', JSON.stringify(cfg)); } catch (e) {}
   }
 
-  function groqKeyBoxHtml(idPrefix) {
+  // Khung to hiển thị ngay trong nội dung trang đã bị thay bằng 1 nút bánh răng nhỏ ở góc trên
+  // bên phải header (mở modal) — groqMissingHint() chỉ còn in ra 1 dòng cảnh báo ngắn kèm nút
+  // "Cấu hình ngay" khi CHƯA có key, để không chiếm diện tích khi đã cấu hình xong.
+  function groqMissingHint() {
     const cfg = getGroqConfig();
-    return '' +
-      '<div class="groq-box">' +
-        '<details' + (cfg.apiKey ? '' : ' open') + '>' +
-          '<summary>⚙️ Cấu hình Groq API Key ' + (cfg.apiKey ? '(đã lưu trên máy này)' : '(chưa có — bấm để nhập)') + '</summary>' +
-          '<ol>' +
-            '<li>Vào <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:var(--border-color);text-decoration:underline;">console.groq.com/keys</a> (miễn phí, không cần thẻ).</li>' +
-            '<li>Tạo API Key mới, copy chuỗi bắt đầu bằng <code>gsk_...</code> (chỉ hiện 1 lần).</li>' +
-            '<li>Dán vào ô bên dưới — key chỉ lưu trên trình duyệt này, chỉ gửi tới api.groq.com.</li>' +
-          '</ol>' +
-          '<input type="password" id="' + idPrefix + 'GroqKey" class="ni-input mb-2" placeholder="gsk_..." value="' + escapeHtml(cfg.apiKey || '') + '">' +
-          '<button type="button" class="ni-nav-btn" onclick="saveGroqKeyFromBox(\'' + idPrefix + '\')">💾 Lưu key</button>' +
-          '<span id="' + idPrefix + 'GroqSaveMsg" class="text-xs font-bold ml-2" style="color:var(--correct-color);"></span>' +
-        '</details>' +
-      '</div>';
+    if (cfg.apiKey) return '';
+    return '<div class="groq-missing"><i class="fa-solid fa-circle-exclamation"></i> Chưa cấu hình Groq API Key.' +
+      '<button type="button" class="ni-nav-btn" style="padding:4px 10px;font-size:11px;" onclick="openGroqSettingsModal()">⚙️ Cấu hình ngay</button></div>';
   }
-  window.saveGroqKeyFromBox = function (idPrefix) {
-    const input = document.getElementById(idPrefix + 'GroqKey');
+
+  function updateGroqGearIndicator() {
+    const cfg = getGroqConfig();
+    const dot = document.getElementById('groqGearDot');
+    if (dot) dot.classList.toggle('hidden', !!cfg.apiKey);
+  }
+
+  window.openGroqSettingsModal = function () {
+    const cfg = getGroqConfig();
+    document.getElementById('groqModalKeyInput').value = cfg.apiKey || '';
+    document.getElementById('groqModalSaveMsg').textContent = '';
+    document.getElementById('groqSettingsModal').classList.remove('hidden');
+  };
+  window.closeGroqSettingsModal = function () {
+    document.getElementById('groqSettingsModal').classList.add('hidden');
+  };
+  window.saveGroqKeyFromModal = function () {
+    const input = document.getElementById('groqModalKeyInput');
     const cfg = getGroqConfig();
     cfg.apiKey = (input.value || '').trim();
     saveGroqConfig(cfg);
-    const msg = document.getElementById(idPrefix + 'GroqSaveMsg');
-    if (msg) { msg.textContent = '✅ Đã lưu!'; setTimeout(() => { msg.textContent = ''; }, 2000); }
+    updateGroqGearIndicator();
+    // Cập nhật lại dòng cảnh báo (nếu đang hiện) ở 2 nơi dùng groqMissingHint(), để nó tự ẩn
+    // đi ngay khi vừa lưu key thành công mà không cần tải lại trang.
+    const createBox = document.getElementById('spGroqBoxCreate');
+    if (createBox) createBox.innerHTML = groqMissingHint();
+    const practiceBox = document.getElementById('spGroqBoxPractice');
+    if (practiceBox) practiceBox.innerHTML = groqMissingHint();
+    const msg = document.getElementById('groqModalSaveMsg');
+    msg.textContent = '✅ Đã lưu!';
+    setTimeout(() => { closeGroqSettingsModal(); }, 700);
   };
 
   async function callGroqChat(messages, opts) {
@@ -485,34 +547,37 @@ Describe a book you recently read."></textarea>
       title: 'Part 1 — Hobbies & Free time (mẫu có sẵn)',
       part: '1',
       questions: [
-        'Do you have a hobby? What is it?',
-        'How often do you do this hobby?',
-        'Did your hobbies change since you were a child?',
-        'What do you usually do in your free time?',
-        'Do you prefer spending free time alone or with friends?'
+        { part: '1', text: 'Do you have a hobby? What is it?' },
+        { part: '1', text: 'How often do you do this hobby?' },
+        { part: '1', text: 'Did your hobbies change since you were a child?' },
+        { part: '1', text: 'What do you usually do in your free time?' },
+        { part: '1', text: 'Do you prefer spending free time alone or with friends?' }
       ]
     },
     {
-      title: 'Part 2 — Describe a book (mẫu có sẵn)',
-      part: '2',
+      // Part 2 + 3 nhập/gán CHUNG 1 gói vì 2 phần này luôn xoay quanh cùng 1 chủ đề trong đề
+      // thi thật — Part 3 là phần giám khảo mở rộng thảo luận dựa trên đúng chủ đề của Part 2.
+      title: 'Part 2 + 3 — Reading (mẫu có sẵn)',
+      part: '2-3',
       questions: [
-        'Describe a book you recently read. You should say: what the book was about, why you decided to read it, what you learned from it, and explain whether you would recommend it to others.'
-      ]
-    },
-    {
-      title: 'Part 3 — Reading habits (mẫu có sẵn)',
-      part: '3',
-      questions: [
-        'Do you think reading habits have changed in the last 10 years?',
-        'What are the benefits of reading for children?',
-        'Is it better to read a physical book or an e-book? Why?',
-        'Should schools encourage students to read more?'
+        { part: '2', text: 'Describe a book you recently read. You should say: what the book was about, why you decided to read it, what you learned from it, and explain whether you would recommend it to others.' },
+        { part: '3', text: 'Do you think reading habits have changed in the last 10 years?' },
+        { part: '3', text: 'What are the benefits of reading for children?' },
+        { part: '3', text: 'Is it better to read a physical book or an e-book? Why?' },
+        { part: '3', text: 'Should schools encourage students to read more?' }
       ]
     }
   ];
 
   let __spComposeLoaded = false;
   let __spAllPackages = [];
+
+  window.onSpPkgPartChange = function () {
+    const part = document.getElementById('spPkgPart').value;
+    const isCombined = part === '2-3';
+    document.getElementById('spPkgSingleFields').classList.toggle('hidden', isCombined);
+    document.getElementById('spPkgCombinedFields').classList.toggle('hidden', !isCombined);
+  };
 
   window.seedBuiltInPackages = async function () {
     const btn = document.getElementById('spSeedBtn');
@@ -524,11 +589,11 @@ Describe a book you recently read."></textarea>
           title: pkg.title,
           part: pkg.part,
           ownerId: 'built-in',
-          questions: pkg.questions.map((t, i) => ({ id: 'q' + i, text: t, tipHtml: '' })),
+          questions: pkg.questions.map((q, i) => ({ id: 'q' + i, part: q.part, text: q.text, tipHtml: '' })),
           createdAt: Date.now()
         });
       }
-      msg.textContent = '✅ Đã nạp 3 bộ câu hỏi mẫu! Bấm "Tạo gợi ý AI" ở mỗi bộ nếu muốn có gợi ý.';
+      msg.textContent = '✅ Đã nạp 2 bộ câu hỏi mẫu! Bấm "Tạo gợi ý AI" ở mỗi bộ nếu muốn có gợi ý.';
       await loadAllPackages();
       renderTeacherPkgList();
     } catch (e) {
@@ -542,15 +607,25 @@ Describe a book you recently read."></textarea>
   window.createPackage = async function () {
     const title = document.getElementById('spPkgTitle').value.trim();
     const part = document.getElementById('spPkgPart').value;
-    const rawQuestions = document.getElementById('spPkgQuestions').value;
-    const lines = rawQuestions.split('\n').map(l => l.trim()).filter(l => l);
     if (!title) { alert('Vui lòng đặt tên cho bộ câu hỏi!'); return; }
-    if (lines.length === 0) { alert('Vui lòng nhập ít nhất 1 câu hỏi!'); return; }
+
+    let questions = [];
+    if (part === '2-3') {
+      const card = document.getElementById('spPkgPart2Card').value.trim();
+      const part3Lines = document.getElementById('spPkgPart3Questions').value.split('\n').map(l => l.trim()).filter(l => l);
+      if (!card) { alert('Vui lòng nhập đề Cue Card cho Part 2!'); return; }
+      if (part3Lines.length === 0) { alert('Vui lòng nhập ít nhất 1 câu hỏi Part 3 liên quan!'); return; }
+      questions.push({ id: 'q0', part: '2', text: card, tipHtml: '' });
+      part3Lines.forEach((t, i) => questions.push({ id: 'q' + (i + 1), part: '3', text: t, tipHtml: '' }));
+    } else {
+      const lines = document.getElementById('spPkgQuestions').value.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length === 0) { alert('Vui lòng nhập ít nhất 1 câu hỏi!'); return; }
+      questions = lines.map((t, i) => ({ id: 'q' + i, part: part, text: t, tipHtml: '' }));
+    }
 
     const btn = document.getElementById('spCreatePkgBtn');
     const msg = document.getElementById('spCreatePkgMsg');
     btn.disabled = true; btn.innerText = 'Đang tạo...';
-    const questions = lines.map((t, i) => ({ id: 'q' + i, text: t, tipHtml: '' }));
 
     let pkgRef;
     try {
@@ -565,6 +640,8 @@ Describe a book you recently read."></textarea>
 
     document.getElementById('spPkgTitle').value = '';
     document.getElementById('spPkgQuestions').value = '';
+    document.getElementById('spPkgPart2Card').value = '';
+    document.getElementById('spPkgPart3Questions').value = '';
     msg.textContent = '✅ Đã tạo bộ câu hỏi!';
     await loadAllPackages();
     renderTeacherPkgList();
@@ -574,6 +651,13 @@ Describe a book you recently read."></textarea>
     generateTipsForPackage(pkgRef.id, questions).catch(() => {});
   };
 
+  // Gợi ý AI cho mỗi câu hỏi: PHẢI có (1) mẹo trả lời ngắn bằng tiếng Việt, và (2) danh sách
+  // cụm từ tiếng Anh hữu ích kèm PHIÊN ÂM IPA + NGHĨA TIẾNG VIỆT — học sinh cần cả 3 thứ này để
+  // dùng được cụm từ (biết đọc, biết nghĩa), không chỉ liệt kê cụm từ tiếng Anh suông.
+  const TIP_SYSTEM_PROMPT = 'You are an IELTS Speaking coach writing study notes for a Vietnamese-speaking student. Given an IELTS Speaking question, respond as a compact HTML snippet (only <p> and <ul><li> tags — no markdown, no code fences, no other tags) with exactly this structure: ' +
+    'one <p> in VIETNAMESE (2-3 sentences) briefly explaining how to structure a strong answer to this specific question; then a <ul> of 4-6 useful English words/collocations for this topic, where EACH <li> follows EXACTLY this format: <b>English phrase</b> <span class="ipa">/IPA transcription/</span> — Vietnamese meaning. ' +
+    'Example of one correct <li>: <li><b>a great way to unwind</b> <span class="ipa">/ə ɡreɪt weɪ tʊ ʌnˈwaɪnd/</span> — một cách tuyệt vời để thư giãn</li>. Always include the IPA and the Vietnamese meaning for every single phrase, never skip them.';
+
   async function generateTipsForPackage(pkgId, questions) {
     const cfg = getGroqConfig();
     if (!cfg.apiKey) return; // không có key -> bỏ qua, gợi ý để trống, có thể tạo sau
@@ -581,10 +665,10 @@ Describe a book you recently read."></textarea>
     for (const q of questions) {
       try {
         const raw = await callGroqChat([
-          { role: 'system', content: 'You are an IELTS Speaking coach. Given an IELTS Speaking question, write a SHORT, practical tip in Vietnamese (2-4 sentences) on how to structure a good answer, plus 3-5 useful English words/collocations for this topic. Respond as a compact HTML snippet using only <p> and <ul><li> tags, no markdown, no code fences.' },
+          { role: 'system', content: TIP_SYSTEM_PROMPT },
           { role: 'user', content: 'IELTS Speaking question: ' + q.text }
-        ], { temperature: 0.4, maxTokens: 500 });
-        updated.push({ id: q.id, text: q.text, tipHtml: wrStripScripts(raw.trim()) });
+        ], { temperature: 0.4, maxTokens: 700 });
+        updated.push(Object.assign({}, q, { tipHtml: wrStripScripts(raw.trim()) }));
       } catch (e) {
         updated.push(q);
       }
@@ -769,7 +853,7 @@ Describe a book you recently read."></textarea>
 
   async function enterTeacherView() {
     document.getElementById('pageTitle').textContent = 'Speaking — Quản lý';
-    document.getElementById('spGroqBoxCreate').innerHTML = groqKeyBoxHtml('spCreate');
+    document.getElementById('spGroqBoxCreate').innerHTML = groqMissingHint();
     switchSpTab('pkg');
     showOnly('teacherView');
     await loadAllPackages();
@@ -877,12 +961,19 @@ Describe a book you recently read."></textarea>
   function renderQuestion() {
     const q = __pkg.questions[__qIdx];
     document.getElementById('qText').textContent = q.text;
+    const partChip = document.getElementById('qPartChip');
+    if (__pkg.part === '2-3' && q.part) {
+      partChip.textContent = PART_LABELS[q.part] || q.part;
+      partChip.classList.remove('hidden');
+    } else {
+      partChip.classList.add('hidden');
+    }
     document.getElementById('qHintBox').innerHTML = q.tipHtml || '<p>Chưa có gợi ý cho câu này.</p>';
     document.getElementById('qHintBox').classList.add('hidden');
     document.getElementById('qHintToggleBtn').textContent = '💡 Xem gợi ý';
     document.getElementById('quickViInput').value = '';
     document.getElementById('quickEnResult').classList.add('hidden');
-    document.getElementById('spGroqBoxPractice').innerHTML = groqKeyBoxHtml('spPractice');
+    document.getElementById('spGroqBoxPractice').innerHTML = groqMissingHint();
     discardRecording();
 
     const existing = __doneQIds[q.id];
@@ -991,7 +1082,8 @@ Describe a book you recently read."></textarea>
         studentId: window.__currentUid, packageId: __pkg.id, packageTitle: __pkg.title,
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: scores, criteria: parsed.criteria,
-        suggestions: parsed.upgradeSuggestions || [],
+        refinedAnswer: parsed.refinedAnswer || '',
+        refinementNotes: parsed.refinementNotes || [],
         createdAt: Date.now(), expiresAt: Date.now() + ATTEMPT_TTL_MS
       };
       await setDoc(doc(db, 'speakingAttempts', window.__currentUid + '_' + __pkg.id + '_' + q.id), record);
@@ -1009,12 +1101,19 @@ Describe a book you recently read."></textarea>
     }
   };
 
-  const SCORING_SYSTEM_PROMPT = 'You are an experienced, encouraging IELTS Speaking examiner AND coach. You receive an IELTS Speaking question and a transcript of a student\'s spoken answer (produced by speech-to-text, so ignore minor transcription artifacts). ' +
+  const SCORING_SYSTEM_PROMPT = 'You are an experienced, calibrated IELTS Speaking examiner AND coach. You receive an IELTS Speaking question and a transcript of a student\'s spoken answer (produced by speech-to-text, so ignore obvious transcription artifacts like missing punctuation, but do NOT ignore genuine grammar/word-choice errors). ' +
     'Score the answer against the 4 official IELTS Speaking criteria: Fluency and Coherence, Lexical Resource, Grammatical Range and Accuracy, and Pronunciation. ' +
-    'For Pronunciation specifically you cannot hear audio — infer only an approximate estimate from indirect textual signals (natural phrasing vs simple/halting phrasing in the transcript) and clearly say in the feedback that this is an approximation, not a real pronunciation assessment. ' +
-    'For each criterion give a band 0-9 (0.5 increments) and 1-2 sentences of specific feedback referencing the student\'s actual words. Then give one overall band (rounded to nearest 0.5). ' +
-    'Then give 3-5 short "upgrade" suggestions (specific phrases/collocations/grammar structures) that would help the student sound about 1.0 band higher than their current level. Do NOT rewrite their full answer and do NOT provide a complete model answer — only short, targeted phrase-level suggestions they can slot into their own answer themselves. Always be encouraging, never harsh. ' +
-    'Respond with STRICT JSON only, no markdown, no code fences, exactly in this shape: {"overallBand": number, "criteria": {"fluency": {"band": number, "feedback": string}, "lexical": {"band": number, "feedback": string}, "grammar": {"band": number, "feedback": string}, "pronunciation": {"band": number, "feedback": string}}, "upgradeSuggestions": [string, ...]}';
+    'Use these condensed official IELTS Speaking band descriptor anchors to calibrate — do NOT score more harshly or more leniently than these descriptors imply, and do NOT default to a "safe" middle score; commit to the band the evidence actually supports: ' +
+    'Band 8-9: speaks fluently with only rare, natural hesitation; wide, precise, natural vocabulary with rare inaccuracies; wide range of grammar used flexibly with only occasional slips; easy to understand throughout. ' +
+    'Band 6.5-7: speaks at length without noticeable effort, some hesitation/repetition/self-correction tied to content, not language; flexible vocabulary to discuss topics, some inappropriate word choice; mix of simple and complex structures with some errors that rarely impede communication; generally easy to understand despite some mispronunciation. ' +
+    'Band 5-6: keeps going but relies on repetition/self-correction/slow speech, limited range of connectives; enough vocabulary for the topic but limited flexibility, noticeable errors when discussing unfamiliar topics; mix of basic and complex structures but complex ones often contain errors; generally understood but mispronunciation reduces clarity at times. ' +
+    'Band 3.5-4.5: frequent, sometimes lengthy pauses; only basic vocabulary to convey personal information, frequent inappropriate word choice; only basic sentence forms and some subordinate structures, frequent errors that sometimes cause difficulty for the listener; overall understanding requires effort at times. ' +
+    'Give each criterion a band 0-9 in 0.5 steps that genuinely matches the evidence in the transcript (it is normal and expected for the 4 bands to differ from each other by 0.5-1.5 — do not force them to match). Then give one overall band = arithmetic mean of the 4 criterion bands rounded to the nearest 0.5 (standard IELTS rounding: .25 and above rounds up). ' +
+    'IMPORTANT — feedback language and depth: write ALL feedback text (every "feedback" field and every "reason" field) in Vietnamese (tiếng Việt), natural and clear, as if explaining to a Vietnamese IELTS student. Each criterion feedback must be 3-5 sentences long, and must directly quote or closely paraphrase specific words/phrases the student actually said (in English, inside the Vietnamese sentence), explicitly naming: (a) what exactly was good, (b) what exactly was weak or wrong (with a concrete example from the transcript), and (c) precisely why that pulled the band up or down according to the descriptors above. Avoid generic filler like "cần cải thiện thêm" without specifics — always anchor to the actual transcript. ' +
+    'For Pronunciation specifically you cannot hear audio — infer only an approximate estimate from indirect textual signals in the transcript (natural idiomatic phrasing, sentence complexity, absence of transcription confusion vs simple/halting/garbled phrasing that suggests unclear speech) and explicitly say in the Vietnamese feedback that this is only an estimate based on the transcript, not real audio pronunciation analysis. ' +
+    'Then produce "refinedAnswer": a single coherent English paragraph that is the STUDENT\'S OWN answer, lightly upgraded — reuse their actual ideas, structure, and as much of their original wording as possible, only replacing or adding the specific words/phrases/grammar needed to sound naturally about 1.0 band higher than their estimated current overall band (relative to THEIR level, not a generic advanced answer). It must still sound like something that student would plausibly say — do NOT introduce sophisticated vocabulary, ideas, or sentence structures far beyond their demonstrated level, do NOT change the content/meaning/opinions they expressed, and do NOT split it into a list — it must read as one natural spoken-style paragraph a real person would say. If the student\'s answer was very short or off-topic, keep the refined answer similarly modest in length/scope, just cleaner. ' +
+    'Then produce "refinementNotes": an array of 3-6 objects, each {"change": short quote or description in English of the specific word/phrase changed (e.g. \'"very good" → "genuinely impressive"\'), "reason": 1-2 Vietnamese sentences explaining precisely why this specific change helps raise the band (referencing the relevant criterion and descriptor, e.g. "mở rộng vốn từ vựng (Lexical Resource) và tránh lặp từ rất nhiều lần")}. Every note must correspond to an actual difference between the transcript and refinedAnswer. ' +
+    'Respond with STRICT JSON only, no markdown, no code fences, exactly in this shape: {"overallBand": number, "criteria": {"fluency": {"band": number, "feedback": string}, "lexical": {"band": number, "feedback": string}, "grammar": {"band": number, "feedback": string}, "pronunciation": {"band": number, "feedback": string}}, "refinedAnswer": string, "refinementNotes": [{"change": string, "reason": string}, ...]}';
 
   function showResult(record) {
     document.getElementById('resultBox').classList.remove('hidden');
@@ -1025,7 +1124,10 @@ Describe a book you recently read."></textarea>
       const c = record.criteria[k] || {};
       return '<div class="criteria-row"><div class="band-chip" style="width:44px;height:44px;font-size:15px;">' + (c.band != null ? c.band : '-') + '</div><div><p class="font-extrabold text-sm" style="color:var(--border-color);">' + CRIT_LABELS[k] + '</p><p class="text-sm">' + escapeHtml(c.feedback || '') + '</p></div></div>';
     }).join('');
-    document.getElementById('resSuggestions').innerHTML = (record.suggestions || []).map(s => '<li>💡 ' + escapeHtml(s) + '</li>').join('');
+    document.getElementById('resRefinedAnswer').textContent = record.refinedAnswer ? ('"' + record.refinedAnswer + '"') : '';
+    document.getElementById('resRefinementNotes').innerHTML = (record.refinementNotes || []).map(n =>
+      '<div class="refine-note"><b>' + escapeHtml(n.change || '') + '</b><br>' + escapeHtml(n.reason || '') + '</div>'
+    ).join('');
   }
 
   async function maybeCompleteAssignment() {
@@ -1053,6 +1155,7 @@ Describe a book you recently read."></textarea>
     if (!user) { showOnly('loginBox'); return; }
     showOnly('loadingBox');
     window.__currentUid = user.uid;
+    updateGroqGearIndicator();
 
     let role = 'student';
     try {
