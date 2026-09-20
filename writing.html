@@ -131,16 +131,19 @@ html,body{
 .ni-target-toggle button.active{background:var(--panel-bg);opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 /* Bố cục 2 cột cân đối cho form "Giao bài mới" — 1 cột trên mobile, 2 cột (thông tin | đề bài)
    trên màn hình rộng, để form không bị dồn lệch hẳn sang 1 bên như thiết kế 1 cột hẹp trước đó. */
-.th-compose-grid{display:grid;grid-template-columns:1fr;gap:24px;}
-@media (min-width:860px){ .th-compose-grid{grid-template-columns:320px 1fr;} }
+.th-compose-grid{display:grid;grid-template-columns:1fr;gap:24px;height:100%;}
+@media (min-width:860px){ .th-compose-grid{grid-template-columns:minmax(280px,32%) 1fr;} }
 /* Ô soạn đề bài của GIÁO VIÊN là 1 field trong form (không phải văn bản đọc kiểu bài đọc), nên
    dùng font chính Plus Jakarta Sans giống mọi nhãn/field khác quanh nó — tránh vừa có chữ serif
    nghiêng (placeholder) vừa có chữ sans-serif đứng cạnh nhau nhìn rối mắt, không đồng bộ. */
 .ni-editor-plain, .ni-editor-plain[contenteditable="true"]:empty:before{font-family:'Plus Jakarta Sans',sans-serif;font-style:normal;}
 .ni-editor-plain{font-size:14.5px;}
-/* Danh sách "Bài đã giao" cũng căn giữa cùng độ rộng với form bên tab kia, để chuyển qua lại
-   giữa 2 tab không bị nhảy lệch bố cục. */
-#thTabList{max-width:1040px;margin:0 auto;}
+/* Cả 2 tab đều CHIẾM TRỌN chiều rộng khung (không giới hạn max-width nữa) — trên màn hình
+   rộng (laptop/monitor lớn), khung hẹp trước đó chỉ chiếm 1 góc bên trái, để trống cả mảng
+   lớn bên phải trông rất lệch/bé, nên bỏ hẳn giới hạn để cân đối với cỡ màn hình thực tế. */
+#thTabCompose > .ni-panel{width:100%;}
+#thTabList{width:100%;}
+.th-back-link{display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
 </style>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -149,6 +152,7 @@ html,body{
 
   <header class="ni-header px-4 md:px-6 py-3 flex items-center gap-3 mb-4">
     <a href="index.html" class="ni-nav-btn"><i class="fa-solid fa-arrow-left"></i> Trang chủ</a>
+    <a id="backToWritingListLink" href="writing.html?view=list" class="hidden ni-nav-btn"><i class="fa-solid fa-list"></i> <span class="hidden sm:inline">Danh sách</span> bài đã giao</a>
     <div class="min-w-0 flex-1">
       <h1 id="pageTitle" class="text-base md:text-lg font-extrabold truncate" style="color:var(--border-color);">Đang tải...</h1>
     </div>
@@ -194,8 +198,8 @@ html,body{
       <div class="dash-scroll">
         <!-- TAB: Giao bài Writing mới — bố cục 2 cột cân đối, không dồn lệch sang 1 bên -->
         <div id="thTabCompose">
-          <div class="ni-panel p-5 md:p-6" style="max-width:1040px;margin:0 auto;">
-            <div class="th-compose-grid">
+          <div class="ni-panel p-5 md:p-6">
+            <div class="th-compose-grid" style="min-height:460px;">
               <div class="space-y-4">
                 <div>
                   <label class="ni-label">Tên bài Writing</label>
@@ -389,8 +393,13 @@ html,body{
   const taskId = new URLSearchParams(window.location.search).get('id');
 
   const ALL_VIEWS = ['loadingBox','loginBox','errorBox','dashboardView','teacherHubView','composeView','submittedView','gradedView','teacherWaitingView','teacherGradeView'];
+  // Các view mở 1 bài Writing cụ thể của GIÁO VIÊN (chưa nộp / đang chấm) — chỉ ở đây mới cần
+  // nút "Danh sách bài đã giao" để quay lại đúng danh sách, thay vì phải quay hẳn về trang chủ.
+  const TEACHER_DETAIL_VIEWS = ['teacherWaitingView', 'teacherGradeView'];
   function showOnly(id) {
     ALL_VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
+    const backLink = document.getElementById('backToWritingListLink');
+    if (backLink) backLink.classList.toggle('hidden', TEACHER_DETAIL_VIEWS.indexOf(id) === -1);
   }
 
   function escapeHtml(s) {
@@ -978,14 +987,19 @@ html,body{
 
   async function enterTeacherHub() {
     document.getElementById('pageTitle').textContent = 'Writing — Quản lý';
-    switchTeacherTab('compose');
+    // Mặc định mở tab "Giao bài mới" — TRỪ khi đến đây từ nút "Danh sách bài đã giao" bên
+    // trong 1 bài đang xem/chấm (writing.html?view=list) — lúc đó phải quay thẳng lại đúng
+    // danh sách, không được bắt giáo viên bấm lại tab từ đầu.
+    const wantsList = new URLSearchParams(window.location.search).get('view') === 'list';
+    switchTeacherTab(wantsList ? 'list' : 'compose');
     setThTargetMode('single');
     document.getElementById('thTaskTitle').value = '';
     document.getElementById('thPromptEditor').innerHTML = '';
     document.getElementById('thDeadline').value = '';
     showOnly('teacherHubView');
+    history.replaceState(null, '', window.location.pathname);
     await loadTeacherComposeData();
-    loadWritingSubmissionsList(); // tải trước để chấm đỏ trên tab hiện đúng ngay cả khi chưa bấm qua tab đó
+    if (!wantsList) loadWritingSubmissionsList(); // tải trước để chấm đỏ trên tab hiện đúng ngay cả khi chưa bấm qua tab đó
   }
 
   // ==========================================
