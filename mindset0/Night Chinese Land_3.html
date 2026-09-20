@@ -1211,6 +1211,24 @@
         // hụt 1 nhịp ngay khi vừa gõ thêm ký tự).
         const TEXTBOX_PADDING_PX = 24;
 
+        // --- TRÌNH PHÁT FILE ÂM THANH NỔI (kéo-thả được) — hằng số dùng chung — port từ bản Night
+        // IELTS Land. ---
+        // Các mức tốc độ phát cho phép, bấm nút "1x" để đổi vòng qua từng mức theo đúng thứ tự này.
+        const AUDIO_SPEED_STEPS = [0.5, 0.75, 1, 1.25];
+        // Số "cột" (bucket) biên độ đỉnh tính trước cho CẢ file — cố định, không đổi theo mức zoom.
+        // Zoom chỉ đổi cách VẼ lại (mỗi cột màn hình ứng với ít/nhiều bucket hơn), không tính lại từ
+        // đầu — xem drawWaveform trong AudioPlayerBar. 4000 bucket đủ mịn để zoom sâu vẫn rõ nét với
+        // hầu hết file (bài nghe thường 2-5 phút).
+        const AUDIO_WAVEFORM_PEAKS = 4000;
+        // Số pixel/giây tối đa khi zoom hết cỡ (giới hạn trên, tránh canvas quá khổ với file dài).
+        const AUDIO_MAX_PX_PER_SEC = 600;
+        const formatAudioTime = (s) => {
+            if (!isFinite(s) || s < 0) s = 0;
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return m + ':' + String(sec).padStart(2, '0');
+        };
+
         // --- COMPONENT TEXT BOX THÔNG MINH CÓ 3 NÚM RESIZE ---
         // QUAN TRỌNG (viết lại theo yêu cầu "text box khó dùng" — port từ bản Night IELTS Land):
         // TRƯỚC ĐÂY box có kích thước CỐ ĐỊNH (150x40) trừ khi tự kéo resize thủ công — gõ dài ra là
@@ -1461,7 +1479,19 @@
                         top: t.y * scale,
                         width: (t.width || 150) * scale,
                         height: (t.height || 40) * scale,
-                        zIndex: active ? 100 : 10,
+                        // QUAN TRỌNG — sửa lỗi "chuyển qua bút chì thì không chọn được text box nữa,
+                        // vẽ/viết đè lên box luôn": trước đây khi KHÔNG active, z-index box = 10, TRÙNG
+                        // với z-index cố định (10) của canvas vẽ (.draw-canvas) — 2 phần tử này chỉ còn
+                        // phân biệt được nhờ đúng vào THỨ TỰ trong DOM (box vốn nằm sau canvas trong
+                        // JSX nên VỀ LÝ THUYẾT vẫn được vẽ đè lên trên), nhưng box khi không active lại
+                        // gần như trong suốt hoàn toàn (không viền, không nền — xem className bên dưới)
+                        // nên bất kỳ nét mực nào lỡ vẽ NGAY DƯỚI nó (canvas z=10, cùng mức) vẫn hiện rõ
+                        // xuyên qua như thể vẽ ĐÈ LÊN box — đúng hiện tượng người dùng gặp phải. Nâng
+                        // hẳn z-index box khi không active lên 15 (rõ ràng CAO HƠN canvas z=10, không
+                        // còn dựa vào thứ tự DOM để "may rủi" phân định nữa) — box giờ LUÔN nhận đúng
+                        // sự kiện chạm trước tiên để có thể chọn lại/di chuyển, bất kể đang ở chế độ vẽ
+                        // hay không.
+                        zIndex: active ? 100 : 15,
                     }}
                     /* QUAN TRỌNG — sửa lỗi kéo-thả/resize bị "ghì lại", không mượt: trước đây dùng
                        class "transition-all" ở đây, khiến MỌI thay đổi style (kể cả left/top/width/
@@ -2070,15 +2100,28 @@
                 if (!isDrawingMode) return;
                 if (e.pointerType === 'touch') return;
 
+                // refreshRect=true: đầu 1 nét vẽ mới — tính lại rect 1 lần, cache dùng cho cả nét.
+                const coords = getCoordinates(e, true);
+
+                // QUAN TRỌNG — chốt chặn thứ 2 (bên cạnh việc nâng z-index của text box ở trên) cho lỗi
+                // "chuyển qua bút chì thì vẽ/viết đè lên text box": phòng trường hợp điểm đặt bút NẰM
+                // TRÙNG đúng lên 1 text box đang có sẵn (kể cả khi trình duyệt vì lý do nào đó vẫn coi
+                // canvas là target, ví dụ đang rê 1 nét bắt đầu từ ngoài box rồi quét ngang qua nó) —
+                // huỷ hẳn, không bắt đầu nét vẽ nào cả, để tránh mực đè lên/xuyên qua đúng lúc box đang
+                // gần như trong suốt (không viền/không nền khi chưa active). Người dùng cần bấm lại
+                // ĐÚNG vào giữa box để chọn nó thay vì vẽ nhầm lên.
+                const hitTextBox = texts.some(t => {
+                    const w = t.width || 150, h = t.height || 40;
+                    return coords.x >= t.x && coords.x <= t.x + w && coords.y >= t.y && coords.y <= t.y + h;
+                });
+                if (hitTextBox) return;
+
                 // Mở khoá audio ngay trong cử chỉ chạm thật gần nhất trước khi có thể cần đọc to
                 // văn bản (bút Magic/IPA) — giúp giọng đọc Online chắc chắn được Safari/iPadOS cho
                 // phép phát thay vì âm thầm chặn. Gọi vô hại với các bút khác, không tốn kém.
                 unlockAudio();
 
                 try { e.target.setPointerCapture(e.pointerId); } catch(err) {}
-
-                // refreshRect=true: đầu 1 nét vẽ mới — tính lại rect 1 lần, cache dùng cho cả nét.
-                const coords = getCoordinates(e, true);
 
                 if (tool === 'eraser') {
                     isDrawingRef.current = true;
@@ -2625,6 +2668,455 @@
             );
         }));
 
+        // --- TRÌNH PHÁT FILE ÂM THANH NỔI (kéo-thả được) ---
+        // Tính năng MỚI: chọn 1 file âm thanh bất kỳ từ máy (mp3/m4a/wav...), hiện 1 thanh điều khiển
+        // nổi (giống 1 "cửa sổ" nhỏ, độc lập với trang PDF đang xem) có phân tích sóng âm (waveform)
+        // trực quan, kéo-thả được tới bất kỳ đâu trên màn hình, chỉnh tốc độ phát, bấm/chạm thẳng vào
+        // sóng âm để tua tới đúng vị trí, và zoom 2 ngón tay (hoặc kéo thanh trượt) để phóng to/thu
+        // nhỏ sóng âm khi cần tua chính xác vào 1 đoạn ngắn. Tách hẳn thành 1 component riêng
+        // (React.memo) — mọi state cập nhật liên tục lúc đang phát (thời gian, vị trí playhead...) chỉ
+        // khiến component NHỎ này tự vẽ lại, hoàn toàn không đụng tới/làm App hay các trang PDF (vốn
+        // có thể rất nặng với sách nhiều trang) phải render lại theo.
+        const AudioPlayerBar = React.memo(function AudioPlayerBar({ src, fileName, onClose }) {
+            // Phát tiếng bằng 1 thẻ <audio> thuần (không gắn vào DOM hiển thị — chỉ dùng làm "động cơ"
+            // phát/tua/đổi tốc độ, đơn giản và ổn định hơn hẳn tự dựng lại bằng Web Audio API). Tạo
+            // đúng 1 lần duy nhất cho mỗi lần mount (component được gắn key=src ở App -> đổi file khác
+            // sẽ tự unmount/mount lại component MỚI, không cần tự tay reset từng state một).
+            const audioElRef = useRef(null);
+            if (!audioElRef.current) audioElRef.current = new Audio();
+
+            const barRef = useRef(null);
+            const scrollRef = useRef(null);
+            const canvasRef = useRef(null);
+
+            const [playing, setPlaying] = useState(false);
+            const [duration, setDuration] = useState(0);
+            const [displayTime, setDisplayTime] = useState(0);
+            const [rateIdx, setRateIdx] = useState(2); // mặc định trỏ vào AUDIO_SPEED_STEPS[2] = 1x
+            const [peaks, setPeaks] = useState(null); // Float32Array biên độ đỉnh, null = chưa xong/lỗi
+            const [waveformError, setWaveformError] = useState('');
+            const [analyzing, setAnalyzing] = useState(true);
+            const [fitPxPerSec, setFitPxPerSec] = useState(50);
+            const [pxPerSec, setPxPerSec] = useState(50);
+            const [dragPos, setDragPos] = useState(null); // null = dùng vị trí mặc định (căn giữa trên)
+
+            // Refs "gương" của vài state — để các listener sự kiện gốc (gesture/wheel, gắn 1 lần duy
+            // nhất) luôn đọc được giá trị MỚI NHẤT mà không cần gỡ-gắn lại listener mỗi khi state đổi
+            // (giống hệt kiểu scaleRef/zoomLockedRef đã dùng cho pinch-zoom trang PDF ở trên).
+            const currentTimeRef = useRef(0);
+            const pxPerSecRef = useRef(pxPerSec);
+            useEffect(() => { pxPerSecRef.current = pxPerSec; }, [pxPerSec]);
+            const fitPxPerSecRef = useRef(fitPxPerSec);
+            useEffect(() => { fitPxPerSecRef.current = fitPxPerSec; }, [fitPxPerSec]);
+            const durationRef = useRef(duration);
+            useEffect(() => { durationRef.current = duration; }, [duration]);
+            const zoomInitedRef = useRef(false);
+            const pendingAnchorRef = useRef(null);
+            const rafRef = useRef(null);
+
+            // Nạp file: lấy duration NGAY qua metadata của thẻ audio (nhanh, không cần đợi giải mã
+            // toàn bộ) để phần khung/thời lượng hiện ra liền — việc phân tích sóng âm (nặng hơn) chạy
+            // riêng, xong tới đâu tự cập nhật hình sóng tới đó.
+            useEffect(() => {
+                const audio = audioElRef.current;
+                audio.pause();
+                audio.src = src;
+                audio.playbackRate = AUDIO_SPEED_STEPS[rateIdx];
+                const onLoadedMeta = () => setDuration(audio.duration || 0);
+                const onTimeUpdate = () => {
+                    currentTimeRef.current = audio.currentTime;
+                    setDisplayTime(audio.currentTime);
+                };
+                const onPlay = () => setPlaying(true);
+                const onPause = () => setPlaying(false);
+                const onEnded = () => setPlaying(false);
+                audio.addEventListener('loadedmetadata', onLoadedMeta);
+                audio.addEventListener('timeupdate', onTimeUpdate);
+                audio.addEventListener('play', onPlay);
+                audio.addEventListener('pause', onPause);
+                audio.addEventListener('ended', onEnded);
+                return () => {
+                    audio.pause();
+                    audio.removeEventListener('loadedmetadata', onLoadedMeta);
+                    audio.removeEventListener('timeupdate', onTimeUpdate);
+                    audio.removeEventListener('play', onPlay);
+                    audio.removeEventListener('pause', onPause);
+                    audio.removeEventListener('ended', onEnded);
+                };
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+            }, [src]);
+
+            // Phân tích sóng âm: giải mã toàn bộ file (Web Audio API) rồi rút gọn thành đúng
+            // AUDIO_WAVEFORM_PEAKS "cột" biên độ đỉnh (lấy kênh đầu tiên — đủ đại diện cho hình dạng
+            // sóng, nhanh gấp đôi so với gộp cả 2 kênh stereo). Việc này CÓ THỂ mất vài giây với file
+            // dài — không chặn phần phát/tua (đã chạy độc lập ở effect trên qua thẻ <audio>), chỉ ảnh
+            // hưởng riêng phần hình vẽ sóng. Lỗi giải mã (định dạng lạ trình duyệt không đọc được bằng
+            // Web Audio, dù thẻ <audio> vẫn phát được) không chặn phát nhạc — chỉ hiện thanh trơn thay
+            // cho hình sóng.
+            useEffect(() => {
+                let cancelled = false;
+                setAnalyzing(true);
+                setWaveformError('');
+                setPeaks(null);
+                (async () => {
+                    try {
+                        const res = await fetch(src);
+                        const buf = await res.arrayBuffer();
+                        const Ctx = window.AudioContext || window.webkitAudioContext;
+                        const ctx = new Ctx();
+                        let audioBuffer;
+                        try {
+                            audioBuffer = await ctx.decodeAudioData(buf);
+                        } finally {
+                            ctx.close().catch(() => {});
+                        }
+                        if (cancelled) return;
+                        const data = audioBuffer.getChannelData(0);
+                        const total = data.length;
+                        const bucketSize = Math.max(1, Math.floor(total / AUDIO_WAVEFORM_PEAKS));
+                        const result = new Float32Array(AUDIO_WAVEFORM_PEAKS);
+                        for (let i = 0; i < AUDIO_WAVEFORM_PEAKS; i++) {
+                            const start = i * bucketSize;
+                            const end = Math.min(total, start + bucketSize);
+                            let peak = 0;
+                            for (let j = start; j < end; j++) {
+                                const av = data[j] < 0 ? -data[j] : data[j];
+                                if (av > peak) peak = av;
+                            }
+                            result[i] = peak;
+                        }
+                        if (cancelled) return;
+                        setPeaks(result);
+                        if (!durationRef.current) setDuration(audioBuffer.duration || 0);
+                    } catch (err) {
+                        if (!cancelled) setWaveformError('Không phân tích được hình sóng — vẫn phát/tua bình thường.');
+                    } finally {
+                        if (!cancelled) setAnalyzing(false);
+                    }
+                })();
+                return () => { cancelled = true; };
+            }, [src]);
+
+            // Zoom mặc định = "vừa khít" toàn bộ chiều dài audio trong đúng bề ngang khung nhìn thấy
+            // (giống hệt hình mẫu — thấy trọn cả bài ngay khi mở, không cần cuộn). Chỉ tự đặt lại
+            // ĐÚNG 1 LẦN khi vừa biết duration; sau đó nếu cửa sổ đổi kích thước, chỉ nâng lại mức
+            // TỐI THIỂU (fitPxPerSec) chứ không ép zoom hiện tại của người dùng về lại mức khít nữa.
+            useEffect(() => {
+                const computeFit = () => {
+                    const el = scrollRef.current;
+                    if (!el || !duration) return;
+                    const fit = Math.max(4, el.clientWidth / duration);
+                    setFitPxPerSec(fit);
+                    if (!zoomInitedRef.current) {
+                        zoomInitedRef.current = true;
+                        setPxPerSec(fit);
+                    } else {
+                        setPxPerSec(p => Math.max(p, fit));
+                    }
+                };
+                computeFit();
+                window.addEventListener('resize', computeFit);
+                return () => window.removeEventListener('resize', computeFit);
+            }, [duration]);
+
+            // Đổi kích thước canvas thật (bù devicePixelRatio cho nét trên màn Retina/iPad) mỗi khi
+            // duration/pxPerSec đổi — bề rộng canvas = duration*pxPerSec (đủ hiển thị hết khi cuộn),
+            // tối thiểu bằng đúng bề ngang khung nhìn thấy để không bị hụt khi chưa zoom vào.
+            const getCssWidth = useCallback(() => {
+                const el = scrollRef.current;
+                const w = el ? el.clientWidth : 0;
+                return Math.max(w, Math.ceil(duration * pxPerSec));
+            }, [duration, pxPerSec]);
+
+            const drawWaveform = useCallback(() => {
+                const canvas = canvasRef.current;
+                if (!canvas || !duration) return;
+                const cssW = getCssWidth();
+                const cssH = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, cssW, cssH);
+                const mid = cssH / 2;
+                const px = pxPerSecRef.current;
+                const playedX = currentTimeRef.current * px;
+
+                ctx.strokeStyle = 'rgba(16,185,129,0.25)';
+                ctx.setLineDash([2, 4]);
+                ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(cssW, mid); ctx.stroke();
+                ctx.setLineDash([]);
+
+                const barW = 3, gap = 2;
+                const step = barW + gap;
+                const totalBars = Math.ceil(cssW / step);
+                for (let i = 0; i < totalBars; i++) {
+                    const x = i * step;
+                    let amp;
+                    if (peaks) {
+                        const t = x / px;
+                        const idx = Math.max(0, Math.min(peaks.length - 1, Math.floor((t / duration) * peaks.length)));
+                        amp = peaks[idx] || 0;
+                    } else {
+                        amp = 0.12; // chưa có dữ liệu sóng thật -> vạch phẳng thấp, chỉ để thấy có "track"
+                    }
+                    const barH = Math.max(3, amp * (cssH * 0.88));
+                    ctx.fillStyle = x <= playedX ? '#10b981' : '#a7f3d0';
+                    ctx.fillRect(x, mid - barH / 2, barW, barH);
+                }
+
+                ctx.strokeStyle = '#064e3b';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(playedX, 0); ctx.lineTo(playedX, cssH); ctx.stroke();
+            }, [peaks, duration, getCssWidth]);
+
+            useLayoutEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas || !duration) return;
+                const cssW = getCssWidth();
+                const cssH = 64;
+                const dpr = window.devicePixelRatio || 1;
+                canvas.style.width = cssW + 'px';
+                canvas.style.height = cssH + 'px';
+                canvas.width = Math.round(cssW * dpr);
+                canvas.height = Math.round(cssH * dpr);
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                drawWaveform();
+                // Sau khi đổi cỡ canvas do zoom (KHÔNG phải do cuộn/phát bình thường) -> khôi phục lại
+                // đúng vị trí cuộn sao cho đúng THỜI ĐIỂM đang neo (pendingAnchorRef, ghi lúc pinch/
+                // lăn chuột) vẫn nằm nguyên dưới đúng điểm ngón tay/con trỏ, không bị "nhảy" đi chỗ khác.
+                const anchor = pendingAnchorRef.current;
+                const scrollEl = scrollRef.current;
+                if (anchor && scrollEl) {
+                    pendingAnchorRef.current = null;
+                    const rect = scrollEl.getBoundingClientRect();
+                    scrollEl.scrollLeft = Math.max(0, anchor.time * pxPerSecRef.current - (anchor.clientX - rect.left));
+                }
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+            }, [duration, pxPerSec, peaks]);
+
+            // Vòng lặp requestAnimationFrame trong lúc đang phát: tự vẽ lại playhead mượt mà + tự cuộn
+            // theo cho playhead luôn nằm trong vùng nhìn thấy — không đụng setState mỗi khung hình (chỉ
+            // displayTime đã tự cập nhật qua sự kiện timeupdate ở effect nạp file, tần suất thấp hơn
+            // nhiều, đủ mượt cho ô hiển thị thời gian dạng số).
+            useEffect(() => {
+                if (!playing) return;
+                const tick = () => {
+                    currentTimeRef.current = audioElRef.current.currentTime;
+                    drawWaveform();
+                    const scrollEl = scrollRef.current;
+                    if (scrollEl) {
+                        const playedX = currentTimeRef.current * pxPerSecRef.current;
+                        const viewL = scrollEl.scrollLeft;
+                        const viewR = viewL + scrollEl.clientWidth;
+                        if (playedX < viewL || playedX > viewR - 48) {
+                            scrollEl.scrollLeft = Math.max(0, playedX - scrollEl.clientWidth * 0.3);
+                        }
+                    }
+                    rafRef.current = requestAnimationFrame(tick);
+                };
+                rafRef.current = requestAnimationFrame(tick);
+                return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+            }, [playing, drawWaveform]);
+
+            // --- ZOOM 2 NGÓN TAY TRÊN SÓNG ÂM — y hệt cơ chế zoom nội dung PDF ở trên (Safari:
+            // gesturestart/change/end; Chrome/Firefox trackpad: wheel+ctrlKey) — nhưng ÁP DỤNG RIÊNG
+            // cho khung sóng âm này, không đụng gì tới zoom trang PDF. Vì component này rất nhẹ (chỉ tự
+            // vẽ lại 1 canvas nhỏ, không phải hàng chục trang PDF), không cần kỹ thuật "xem trước bằng
+            // CSS transform" phức tạp như bên PDF — đổi thẳng pxPerSec (state) mỗi lần là đủ mượt.
+            useEffect(() => {
+                const el = scrollRef.current;
+                if (!el) return;
+                let pinching = false;
+                let pinchStartPx = 50;
+
+                const applyZoomAtClientX = (newPx, clientX) => {
+                    const rect = el.getBoundingClientRect();
+                    const time = ((clientX - rect.left) + el.scrollLeft) / pxPerSecRef.current;
+                    pendingAnchorRef.current = { clientX, time };
+                    const clamped = Math.max(fitPxPerSecRef.current, Math.min(AUDIO_MAX_PX_PER_SEC, newPx));
+                    setPxPerSec(clamped);
+                };
+
+                const onGestureStart = (e) => { e.preventDefault(); pinching = true; pinchStartPx = pxPerSecRef.current; };
+                const onGestureChange = (e) => { e.preventDefault(); if (!pinching) return; applyZoomAtClientX(pinchStartPx * e.scale, e.clientX); };
+                const onGestureEnd = (e) => { e.preventDefault(); pinching = false; };
+                const onWheel = (e) => {
+                    if (!e.ctrlKey) return;
+                    e.preventDefault();
+                    applyZoomAtClientX(pxPerSecRef.current * Math.exp(-e.deltaY * 0.01), e.clientX);
+                };
+
+                el.addEventListener('gesturestart', onGestureStart, { passive: false });
+                el.addEventListener('gesturechange', onGestureChange, { passive: false });
+                el.addEventListener('gestureend', onGestureEnd, { passive: false });
+                el.addEventListener('wheel', onWheel, { passive: false });
+                return () => {
+                    el.removeEventListener('gesturestart', onGestureStart);
+                    el.removeEventListener('gesturechange', onGestureChange);
+                    el.removeEventListener('gestureend', onGestureEnd);
+                    el.removeEventListener('wheel', onWheel);
+                };
+            }, []);
+
+            const handleZoomSlider = (e) => {
+                const t = parseFloat(e.target.value);
+                const el = scrollRef.current;
+                // Neo theo GIỮA khung nhìn thấy hiện tại (kéo thanh trượt không có toạ độ ngón tay cụ
+                // thể trên sóng âm như pinch, nên dùng điểm giữa khung làm mốc hợp lý nhất).
+                if (el) {
+                    const centerClientX = el.getBoundingClientRect().left + el.clientWidth / 2;
+                    const time = (el.scrollLeft + el.clientWidth / 2) / pxPerSecRef.current;
+                    pendingAnchorRef.current = { clientX: centerClientX, time };
+                }
+                setPxPerSec(fitPxPerSec + t * (AUDIO_MAX_PX_PER_SEC - fitPxPerSec));
+            };
+
+            const seekToClientX = (clientX) => {
+                if (!duration) return;
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                const rect = canvas.getBoundingClientRect();
+                const t = Math.max(0, Math.min(duration, (clientX - rect.left) / pxPerSecRef.current));
+                audioElRef.current.currentTime = t;
+                currentTimeRef.current = t;
+                setDisplayTime(t);
+                drawWaveform();
+            };
+
+            const togglePlay = () => {
+                const a = audioElRef.current;
+                if (a.paused) a.play().catch(() => {});
+                else a.pause();
+            };
+            const skip = (delta) => {
+                const a = audioElRef.current;
+                const t = Math.max(0, Math.min(duration || 0, a.currentTime + delta));
+                a.currentTime = t;
+                currentTimeRef.current = t;
+                setDisplayTime(t);
+                drawWaveform();
+            };
+            const jumpToStart = () => skip(-Infinity);
+            const jumpToEnd = () => { const a = audioElRef.current; const t = Math.max(0, (duration || 0) - 0.05); a.currentTime = t; currentTimeRef.current = t; setDisplayTime(t); drawWaveform(); };
+            const cycleRate = () => {
+                setRateIdx(i => {
+                    const next = (i + 1) % AUDIO_SPEED_STEPS.length;
+                    audioElRef.current.playbackRate = AUDIO_SPEED_STEPS[next];
+                    return next;
+                });
+            };
+
+            // Kéo-thả cả thanh tới bất kỳ đâu trên màn hình — nắm kéo là đúng phần tiêu đề (icon +
+            // tên file) bên trái, KHÔNG lồng nút bấm nào trong đó nên không cần chặn sự kiện gì thêm.
+            const startDrag = (e) => {
+                e.preventDefault();
+                const rect = barRef.current.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left;
+                const offsetY = e.clientY - rect.top;
+                const onMove = (ev) => {
+                    const maxX = window.innerWidth - 60;
+                    const maxY = window.innerHeight - 40;
+                    setDragPos({
+                        x: Math.max(-rect.width + 80, Math.min(maxX, ev.clientX - offsetX)),
+                        y: Math.max(0, Math.min(maxY, ev.clientY - offsetY)),
+                    });
+                };
+                const onUp = () => {
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                };
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onUp);
+            };
+
+            const zoomSliderValue = AUDIO_MAX_PX_PER_SEC > fitPxPerSec
+                ? Math.max(0, Math.min(1, (pxPerSec - fitPxPerSec) / (AUDIO_MAX_PX_PER_SEC - fitPxPerSec)))
+                : 0;
+
+            return (
+                <div
+                    ref={barRef}
+                    className={"fixed z-[260] w-[92%] max-w-3xl bg-white rounded-3xl shadow-2xl border border-slate-100 px-5 sm:px-7 py-5 " + (dragPos ? '' : 'top-24 left-1/2 -translate-x-1/2')}
+                    style={dragPos ? { left: dragPos.x, top: dragPos.y } : {}}
+                >
+                    <button
+                        onClick={onClose}
+                        className="absolute -top-2.5 -right-2.5 w-7 h-7 bg-slate-700 hover:bg-slate-800 text-white rounded-full flex items-center justify-center shadow-md transition-colors"
+                        title="Đóng trình phát âm thanh"
+                    >
+                        <i className="fas fa-times text-xs"></i>
+                    </button>
+
+                    <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+                        <div onPointerDown={startDrag} className="flex items-center gap-3 min-w-0 cursor-move select-none touch-none" title="Kéo để di chuyển thanh này">
+                            <i className="fas fa-headphones-alt text-emerald-500 text-lg shrink-0"></i>
+                            <span className="font-extrabold text-slate-800 text-base sm:text-lg truncate">{fileName || 'Âm thanh'}</span>
+                        </div>
+                        <div className="flex items-center gap-2.5 shrink-0">
+                            <i className="fas fa-search-minus text-slate-300 text-xs"></i>
+                            <input
+                                type="range" min="0" max="1" step="0.01"
+                                value={zoomSliderValue}
+                                onChange={handleZoomSlider}
+                                className="w-20 sm:w-28 accent-emerald-500"
+                                title="Phóng to/thu nhỏ sóng âm"
+                            />
+                            <i className="fas fa-search-plus text-slate-400 text-xs"></i>
+                            <span className="text-xs font-bold text-slate-500 tabular-nums w-[86px] text-right">{formatAudioTime(displayTime)} / {formatAudioTime(duration)}</span>
+                        </div>
+                    </div>
+
+                    <div
+                        ref={scrollRef}
+                        className="w-full h-16 bg-slate-50 rounded-2xl overflow-x-auto overflow-y-hidden relative"
+                    >
+                        {analyzing && (
+                            <div className="absolute inset-0 flex items-center justify-center gap-2 text-slate-300 text-xs bg-slate-50/80 pointer-events-none z-10">
+                                <i className="fas fa-circle-notch fa-spin"></i> Đang phân tích sóng âm...
+                            </div>
+                        )}
+                        {waveformError && !analyzing && (
+                            <div className="absolute top-1 left-2 text-[10px] text-amber-500 z-10 pointer-events-none">{waveformError}</div>
+                        )}
+                        <canvas
+                            ref={canvasRef}
+                            className="cursor-pointer"
+                            onPointerDown={(e) => { e.stopPropagation(); seekToClientX(e.clientX); }}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-3 items-center mt-4">
+                        <div className="flex items-center gap-2 justify-self-start">
+                            <button onClick={jumpToStart} className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors" title="Về đầu">
+                                <i className="fas fa-step-backward text-xs"></i>
+                            </button>
+                            <button onClick={cycleRate} className="px-3 h-9 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-bold text-sm transition-colors" title="Đổi tốc độ phát">
+                                {AUDIO_SPEED_STEPS[rateIdx]}x
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-3 sm:gap-4 justify-self-center">
+                            <button onClick={() => skip(-5)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex flex-col items-center justify-center gap-0.5 transition-colors" title="Lùi 5 giây">
+                                <i className="fas fa-undo text-sm"></i>
+                                <span className="text-[9px] font-bold leading-none">5s</span>
+                            </button>
+                            <button onClick={togglePlay} className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg shadow-emerald-200 transition-all active:scale-95" title={playing ? 'Tạm dừng' : 'Phát'}>
+                                <i className={"fas text-lg " + (playing ? 'fa-pause' : 'fa-play ml-0.5')}></i>
+                            </button>
+                            <button onClick={() => skip(5)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex flex-col items-center justify-center gap-0.5 transition-colors" title="Tiến 5 giây">
+                                <i className="fas fa-redo text-sm"></i>
+                                <span className="text-[9px] font-bold leading-none">5s</span>
+                            </button>
+                        </div>
+                        <div className="justify-self-end">
+                            <button onClick={jumpToEnd} className="w-9 h-9 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors" title="Đến cuối">
+                                <i className="fas fa-step-forward text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+
+
         // --- MAIN APP COMPONENT ---
         const App = () => {
             const [pdfUrl, setPdfUrl] = useState(null);
@@ -2642,6 +3134,30 @@
             // kích thước, placeholder sẽ khớp gần như chính xác kích thước thật ngay từ đầu, không còn
             // phải "nhảy" khi trang render xong nữa.
             const [basePageSize, setBasePageSize] = useState(null); // { width, height } ở scale 1
+
+            // --- TRÌNH PHÁT FILE ÂM THANH NỔI (kéo-thả được) — port từ bản Night IELTS Land ---
+            // audioSrc là 1 Object URL (URL.createObjectURL) trỏ tới file người dùng vừa chọn từ máy —
+            // KHÔNG tải/upload lên đâu cả, hoàn toàn cục bộ trong trình duyệt. Chỉ giữ 1 file tại 1
+            // thời điểm (chọn file mới sẽ tự thay thế + thu hồi URL cũ, tránh rò rỉ bộ nhớ).
+            const [audioSrc, setAudioSrc] = useState(null);
+            const [audioFileName, setAudioFileName] = useState('');
+            const handleAudioFileSelect = useCallback((e) => {
+                const file = e.target.files && e.target.files[0];
+                e.target.value = ''; // cho phép chọn lại ĐÚNG file cũ ở lần sau vẫn kích hoạt onChange
+                if (!file) return;
+                setAudioSrc(prevUrl => {
+                    if (prevUrl) URL.revokeObjectURL(prevUrl);
+                    return URL.createObjectURL(file);
+                });
+                setAudioFileName(file.name.replace(/\.[^/.]+$/, ''));
+            }, []);
+            const handleCloseAudioPlayer = useCallback(() => {
+                setAudioSrc(prevUrl => {
+                    if (prevUrl) URL.revokeObjectURL(prevUrl);
+                    return null;
+                });
+                setAudioFileName('');
+            }, []);
             
             const [isDrawingMode, setIsDrawingMode] = useState(false);
             const [tool, setTool] = useState('pencil');
@@ -2806,6 +3322,28 @@
                 };
             }, [zoomLocked]);
 
+            // --- CHẶN ZOOM TOÀN TRANG BẰNG WHEEL+CTRL (TRACKPAD PINCH TRÊN CHROME/FIREFOX) ---
+            // QUAN TRỌNG — lỗi MỚI phát hiện khi chuyển hẳn sang dùng Chrome (Safari không dính): pinch 2
+            // ngón trên trackpad Mac trong Chrome/Firefox KHÔNG bắn ra sự kiện "gesturestart/change/end"
+            // riêng như Safari — thay vào đó trình duyệt "giả lập" thành sự kiện "wheel" bình thường
+            // nhưng có kèm cờ `ctrlKey: true` (giống hệt Ctrl+lăn chuột để zoom trên Windows/Linux) rồi
+            // Chrome tự ý zoom TOÀN TRANG (kể cả thanh công cụ, mục lục...) — thẻ
+            // <meta viewport ... user-scalable=no> ở đầu file KHÔNG chặn được kiểu zoom này (nó chỉ chặn
+            // pinch-zoom trên MÀN HÌNH CẢM ỨNG, không đụng gì tới cử chỉ trackpad kiểu desktop này).
+            // Vì không có cách nào phân biệt "Ctrl + lăn chuột thật" với "pinch trackpad bị giả lập
+            // thành wheel", mà trang này vốn dĩ không dùng tổ hợp Ctrl+lăn-chuột để làm việc gì khác, nên
+            // preventDefault LUÔN cho MỌI sự kiện wheel có ctrlKey — bất kể "Khoá zoom" đang bật hay tắt
+            // (khác với việc chặn gesture của Safari ở trên chỉ chặn khi đang khoá) — để trình duyệt
+            // KHÔNG BAO GIỜ tự ý zoom toàn trang kiểu native nữa; việc có zoom được vùng PDF hay không
+            // (và zoom ra sao) do effect riêng gắn trên vùng nội dung PDF ngay bên dưới tự quyết định.
+            useEffect(() => {
+                const onWheelBlock = (e) => {
+                    if (e.ctrlKey) e.preventDefault();
+                };
+                document.addEventListener('wheel', onWheelBlock, { passive: false });
+                return () => document.removeEventListener('wheel', onWheelBlock);
+            }, []);
+
             // --- PHÍM TẮT CHỌN NHANH KIỂU VẼ CHO BÚT CHÌ (F = Tự do/Free-writing, L = Đường thẳng,
             // S = Hình chữ nhật) — port từ bản Night IELTS Land. Chỉ áp dụng khi ĐANG chọn bút chì
             // (tool === 'pencil') — bấm L/S lúc đang dùng bút khác thì không có tác dụng gì (tránh đổi
@@ -2844,6 +3382,251 @@
             // Tải thêm 1 đợt ô mục lục khi cuộn gần tới cuối danh sách hiện có — xem giải thích ở
             // khai báo TOC_BATCH_SIZE. useCallback để không tạo hàm mới mỗi khi App render lại vì lý
             // do khác không liên quan tới mục lục.
+            // --- PINCH 2 NGÓN TAY / WHEEL+CTRL ĐỂ PHÓNG TO-THU NHỎ NỘI DUNG PDF, NEO ĐÚNG VỊ TRÍ ĐANG
+            // XEM (không "nhảy" lên đầu trang mỗi lần đổi scale) — port từ bản Night IELTS Land.
+            // Ghi lại "trang nào + tỉ lệ (%) tính từ đỉnh trang đó xuống tới điểm đang neo (con trỏ/
+            // điểm 2 ngón tay đang chụm khi pinch) — sau khi scale đổi xong (layout đã cập nhật), đo lại
+            // vị trí THẬT của đúng trang đó (getBoundingClientRect — không đoán/tính theo tỉ lệ vì
+            // margin cố định 10px/30px giữa các trang không co giãn theo scale, tính theo tỉ lệ sẽ bị
+            // lệch dần khi sách nhiều trang) rồi chỉnh scrollTop sao cho điểm mốc đó vẫn nằm nguyên tại
+            // vị trí đã neo trên màn hình — không còn "nhảy" đi đâu nữa.
+            const zoomAnchorRef = useRef(null);
+            const scaleRef = useRef(scale);
+            useEffect(() => { scaleRef.current = scale; }, [scale]);
+            const zoomLockedRef = useRef(zoomLocked);
+            useEffect(() => { zoomLockedRef.current = zoomLocked; }, [zoomLocked]);
+
+            const captureZoomAnchor = useCallback((anchorClientY) => {
+                const container = pdfContentAreaRef.current;
+                if (!container || !numPages) { zoomAnchorRef.current = null; return; }
+                let target = null;
+                for (let p = 1; p <= numPages; p++) {
+                    const el = document.getElementById(`pdf-page-${p}`);
+                    if (!el) continue;
+                    const r = el.getBoundingClientRect();
+                    if (anchorClientY <= r.bottom) { target = { pageNum: p, r }; break; }
+                }
+                if (!target) {
+                    const lastEl = document.getElementById(`pdf-page-${numPages}`);
+                    if (!lastEl) { zoomAnchorRef.current = null; return; }
+                    target = { pageNum: numPages, r: lastEl.getBoundingClientRect() };
+                }
+                const fraction = target.r.height > 0 ? (anchorClientY - target.r.top) / target.r.height : 0;
+                zoomAnchorRef.current = { pageNum: target.pageNum, fraction, anchorClientY };
+            }, [numPages]);
+
+            const getContentAreaCenterY = useCallback(() => {
+                const container = pdfContentAreaRef.current;
+                if (!container) return 0;
+                const r = container.getBoundingClientRect();
+                return r.top + r.height / 2;
+            }, []);
+
+            // Chạy NGAY SAU KHI layout đã cập nhật theo scale mới (useLayoutEffect, không phải
+            // useEffect thường) để tránh 1 khung hình bị "chớp" lệch vị trí trước khi kịp bù lại.
+            useLayoutEffect(() => {
+                const container = pdfContentAreaRef.current;
+                if (!container) return;
+
+                // Xoá ảnh xem trước bằng CSS transform (nếu có, để lại từ lúc đang pinch — xem khối pinch
+                // bên dưới) — đúng thời điểm này (ngay sau khi state scale mới đã được React ghi xong
+                // kích thước THẬT vào DOM, nhưng TRƯỚC khi trình duyệt kịp vẽ khung hình kế tiếp) là lúc
+                // "bàn giao" từ ảnh xem trước sang kích thước thật diễn ra trong đúng 1 nhịp, mắt thường
+                // không kịp thấy sai khác. Không đụng gì nếu vốn dĩ không đang có transform nào (vd lúc
+                // bấm nút +/-, không qua pinch) — gán 'none'/rỗng khi vốn đã 'none'/rỗng là vô hại.
+                container.style.transform = 'none';
+                container.style.transformOrigin = '';
+                container.style.willChange = '';
+
+                // QUAN TRỌNG — sửa lỗi "zoom xong nội dung nhảy lệch sang lề trái" (vẫn còn xảy ra dù đã
+                // sửa lại cơ chế pinch giống hệt nút +/-%): hoá ra gốc vấn đề không nằm ở cách bắt cử chỉ
+                // pinch hay cách tính scale — nút +/- VÀ pinch giờ CÙNG đi qua đúng 1 đường setScale() —
+                // mà nằm ở chính CSS: vùng nội dung PDF canh giữa trang theo chiều ngang bằng flexbox
+                // (`items-center`), nhưng cách canh giữa này CHỈ đáng tin cậy khi trang KHÔNG tràn khỏi
+                // bề ngang container. Ngay khi trang phóng to tới mức RỘNG HƠN vùng nhìn thấy (dễ xảy ra
+                // khi zoom cao), container tự đổi ngầm overflow-x thành "auto" (quy tắc CSS: 1 trục
+                // overflow non-visible sẽ buộc trục còn lại cũng hết "visible") — và trình duyệt mặc
+                // định lấy `scrollLeft = 0` làm điểm bắt đầu cho nội dung ĐANG được flexbox canh giữa mà
+                // lại tràn ra, cắt mất phần tràn bên TRÁI thay vì tự cuộn ra đúng giữa — nhìn giống hệt
+                // "nội dung nhảy sang lề trái". Bấm nút +/-% mỗi lần chỉ đổi 0.2 nên độ tràn tăng dần từ
+                // từ, hiếm khi nhảy rõ; còn pinch có thể đổi scale rất nhanh trong 1 cử chỉ (từ vừa khít
+                // tới tràn nhiều) nên lộ rõ hẳn — đây là lý do 2 cách bấm/pinch "nhìn" khác nhau dù cùng
+                // 1 cơ chế đổi scale. Sửa TẬN GỐC: sau MỌI lần đổi scale, LUÔN tự đặt lại `scrollLeft` để
+                // cuộn nội dung về đúng GIỮA theo chiều ngang — không trông chờ flexbox tự lo việc này
+                // khi đã tràn nữa (khi chưa tràn, phép tính dưới đây tự ra 0, không ảnh hưởng gì).
+                if (container.scrollWidth > container.clientWidth) {
+                    container.scrollLeft = (container.scrollWidth - container.clientWidth) / 2;
+                } else {
+                    container.scrollLeft = 0;
+                }
+
+                const anchor = zoomAnchorRef.current;
+                if (!anchor || !container) return;
+                const el = document.getElementById(`pdf-page-${anchor.pageNum}`);
+                if (!el) return;
+                const r = el.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const desiredViewportY = anchor.anchorClientY - containerRect.top;
+                const currentAnchorOffsetFromContainerTop = (r.top - containerRect.top) + anchor.fraction * r.height;
+                const delta = currentAnchorOffsetFromContainerTop - desiredViewportY;
+                if (Math.abs(delta) > 0.5) container.scrollTop = container.scrollTop + delta;
+            }, [scale]);
+
+            // --- PINCH 2 NGÓN TAY ĐỂ PHÓNG TO/THU NHỎ — CHỈ TRÊN VÙNG NỘI DUNG PDF ---
+            // QUAN TRỌNG — LẦN 4, kết hợp cả 2 lần sửa trước thay vì chọn 1 trong 2 (mỗi cách chỉ giải
+            // quyết được đúng 1 nửa vấn đề):
+            //   • Lần 2 (CSS transform preview khi đang pinch): giải quyết đúng vụ RUNG/GIẬT khung hình
+            //     (đẩy việc cho GPU compositor, không đụng React/layout trong lúc đang chụm ngón tay) —
+            //     nhưng lúc BUÔNG TAY, gọi setScale() để chốt scale thật lại đi qua useLayoutEffect ở
+            //     TRÊN — mà bản đó CHƯA có bước tự canh giữa lại `scrollLeft` khi trang tràn khỏi khung
+            //     nhìn, nên vẫn dính đúng lỗi "nhảy lệch lề trái" (gốc rễ thật sự, xem giải thích chi
+            //     tiết ở useLayoutEffect phía trên).
+            //   • Lần 3 (gọi thẳng setScale() qua rAF, y hệt cơ chế nút +/-): giải quyết đúng vụ LỆCH VỊ
+            //     TRÍ (luôn đi qua đúng 1 đường setScale() + useLayoutEffect nên được hưởng luôn phần sửa
+            //     `scrollLeft` mới) — nhưng đổi lại, MỖI khung hình trong lúc đang pinch đều phải chạy
+            //     lại 1 lượt setScale() thật (React re-render toàn bộ App + đo lại layout bằng
+            //     getBoundingClientRect trong useLayoutEffect) — với máy/sách nhiều trang, riêng phần
+            //     tính toán này có thể tốn hơn 1 khung hình (>16ms ở 60Hz, >8ms ở 120Hz ProMotion) khiến
+            //     bị "cắt khung hình"/giật khi đang chụm, dù vị trí cuối cùng luôn đúng.
+            // Sửa LẦN NÀY: dùng lại CSS transform để xem trước MƯỢT trong suốt lúc đang pinch (như lần
+            // 2, không hề gọi setScale() nào trong lúc này nên không có React re-render nào để mà giật)
+            // — nhưng giờ khi BUÔNG TAY (gestureend), chỉ gọi setScale() ĐÚNG 1 LẦN DUY NHẤT, và
+            // useLayoutEffect phía trên ĐÃ ĐƯỢC vá thêm bước tự canh giữa `scrollLeft` (từ lần sửa lệch
+            // lề trái) — nên lần chốt hạ duy nhất này giờ luôn ra đúng vị trí, không còn lệch nữa. Tóm
+            // lại: mượt trong lúc kéo (transform, không đụng React) + đúng vị trí lúc buông tay (chỉ 1
+            // lần setScale() duy nhất, hưởng trọn vẹn useLayoutEffect đã sửa đúng).
+            // KHÔNG đụng tới thẻ <meta viewport> (vẫn giữ user-scalable=no như cũ) — nhờ vậy pinch ở bất
+            // kỳ đâu KHÁC vùng nội dung PDF (thanh công cụ, mục lục, các nút bấm...) hoàn toàn không bị
+            // ảnh hưởng. Tôn trọng luôn nút "Khoá zoom" đã có sẵn: khi đang khoá thì pinch cũng không
+            // đổi scale (đúng như ý nghĩa của việc khoá).
+            useEffect(() => {
+                const container = pdfContentAreaRef.current;
+                if (!container) return;
+                let pinching = false;
+                let pinchStartScale = 1;
+                // Toạ độ gốc (CHƯA áp transform) của vùng nội dung PDF, đo đúng 1 lần lúc bắt đầu chụm —
+                // dùng lại toạ độ này trong suốt cả cử chỉ để tính "gốc phóng to" cục bộ, vì lúc đang
+                // preview bằng transform thì getBoundingClientRect() sẽ trả về toạ độ ĐÃ scale, gọi lại
+                // giữa chừng sẽ tính sai. Container không cuộn dọc/đổi layout trong lúc preview (chỉ đổi
+                // transform) nên toạ độ gốc này không đổi suốt cả cử chỉ.
+                let startRect = null;
+
+                const onGestureStart = (e) => {
+                    e.preventDefault();
+                    if (zoomLockedRef.current) return;
+                    pinching = true;
+                    pinchStartScale = scaleRef.current;
+                    startRect = container.getBoundingClientRect();
+                    captureZoomAnchor(e.clientY);
+                    // Gốc phóng to CỐ ĐỊNH "50%" theo chiều ngang (khớp với việc trang luôn canh giữa
+                    // theo layout thật, kể cả khi tràn — xem useLayoutEffect phía trên), CHỈ riêng chiều
+                    // dọc là theo đúng vị trí ngón tay (khớp với neo dọc đã có).
+                    container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
+                    // Báo trước cho trình duyệt "sắp đổi transform liên tục" để nó promote vùng này thành
+                    // 1 compositing layer riêng NGAY TỪ ĐẦU, tránh 1 nhịp giật lúc mới bắt đầu chụm.
+                    container.style.willChange = 'transform';
+                };
+                const onGestureChange = (e) => {
+                    e.preventDefault();
+                    if (!pinching || zoomLockedRef.current) return;
+                    // Cập nhật lại điểm neo dọc + gốc phóng to dọc theo vị trí ngón tay HIỆN TẠI (tay
+                    // người dùng thường trôi dần trong lúc pinch) — CHỈ để phục vụ hiển thị xem trước và
+                    // chuẩn bị sẵn điểm neo, KHÔNG hề gọi setScale()/đụng React ở đây nên không rung.
+                    if (startRect) {
+                        container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
+                    }
+                    captureZoomAnchor(e.clientY);
+                    container.style.transform = 'scale(' + e.scale + ')';
+                };
+                const onGestureEnd = (e) => {
+                    e.preventDefault();
+                    if (!pinching) return;
+                    pinching = false;
+                    // Chốt lại điểm neo + scale thật ĐÚNG 1 LẦN DUY NHẤT bằng giá trị cuối cùng lúc buông
+                    // tay — KHÔNG tự xoá transform CSS ở đây, cố ý để nguyên cho tới khi useLayoutEffect
+                    // (chạy ngay sau khi state scale mới đã áp dụng xong vào DOM) tự xoá đúng lúc, tránh
+                    // 1 khung hình bị "giật lùi" thoáng qua giữa ảnh xem trước và kích thước thật.
+                    captureZoomAnchor(e.clientY);
+                    const finalScale = Math.max(0.5, Math.min(3, pinchStartScale * e.scale));
+                    setScale(finalScale);
+                };
+
+                container.addEventListener('gesturestart', onGestureStart, { passive: false });
+                container.addEventListener('gesturechange', onGestureChange, { passive: false });
+                container.addEventListener('gestureend', onGestureEnd, { passive: false });
+                return () => {
+                    container.removeEventListener('gesturestart', onGestureStart);
+                    container.removeEventListener('gesturechange', onGestureChange);
+                    container.removeEventListener('gestureend', onGestureEnd);
+                };
+            }, [captureZoomAnchor]);
+
+            // --- PHÓNG TO/THU NHỎ BẰNG WHEEL+CTRL TRÊN VÙNG NỘI DUNG PDF (TRACKPAD CHROME/FIREFOX) ---
+            // Bản dành riêng cho Chrome/Firefox — mirror lại đúng cơ chế "xem trước bằng CSS transform,
+            // chốt scale thật đúng 1 lần lúc kết thúc cử chỉ" của khối pinch Safari ngay phía trên, chỉ
+            // khác ở chỗ: sự kiện "wheel" không có điểm "kết thúc" rõ ràng như "gestureend" của Safari,
+            // nên phải tự đoán lúc nào cử chỉ đã dừng bằng cách đặt hẹn giờ (debounce) — hết một khoảng
+            // lặng ngắn (~150ms) không có thêm sự kiện wheel+ctrlKey nào nữa thì coi như đã buông tay,
+            // chốt setScale() đúng 1 lần duy nhất (hưởng trọn useLayoutEffect canh giữa/neo vị trí ở
+            // trên, giống hệt đường đi của nút +/-% và của pinch Safari).
+            // Không phân biệt được "pinch trackpad" với "Ctrl+lăn chuột chuột thật" (cùng ra 1 kiểu sự
+            // kiện) — nhưng trang này vốn không dùng Ctrl+lăn-chuột để làm gì khác nên cho zoom nội dung
+            // luôn trong cả 2 trường hợp là hợp lý (đúng như kỳ vọng thông thường của người dùng).
+            useEffect(() => {
+                const container = pdfContentAreaRef.current;
+                if (!container) return;
+                let pinching = false;
+                let pinchStartScale = 1;
+                let currentScale = 1;
+                let startRect = null;
+                let endTimer = null;
+
+                const commitEnd = (clientY) => {
+                    pinching = false;
+                    captureZoomAnchor(clientY);
+                    const finalScale = Math.max(0.5, Math.min(3, currentScale));
+                    setScale(finalScale);
+                };
+
+                const onWheel = (e) => {
+                    if (!e.ctrlKey) return;
+                    e.preventDefault();
+                    if (zoomLockedRef.current) return;
+
+                    if (!pinching) {
+                        pinching = true;
+                        pinchStartScale = scaleRef.current;
+                        currentScale = pinchStartScale;
+                        startRect = container.getBoundingClientRect();
+                        captureZoomAnchor(e.clientY);
+                        container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
+                        container.style.willChange = 'transform';
+                    }
+
+                    // deltaY < 0 (chụm 2 ngón ra xa nhau / cuộn "lên") -> Chrome giả lập thành zoom in;
+                    // deltaY > 0 -> zoom out. Hệ số 0.01 cho tốc độ zoom vừa phải, dễ kiểm soát bằng
+                    // trackpad, tương tự các thư viện bản đồ/canvas quen thuộc dùng cùng công thức này.
+                    const factor = Math.exp(-e.deltaY * 0.01);
+                    currentScale = Math.max(0.5, Math.min(3, currentScale * factor));
+
+                    if (startRect) {
+                        container.style.transformOrigin = '50% ' + (e.clientY - startRect.top) + 'px';
+                    }
+                    captureZoomAnchor(e.clientY);
+                    container.style.transform = 'scale(' + (currentScale / pinchStartScale) + ')';
+
+                    if (endTimer) clearTimeout(endTimer);
+                    const clientY = e.clientY;
+                    endTimer = setTimeout(() => { commitEnd(clientY); }, 150);
+                };
+
+                container.addEventListener('wheel', onWheel, { passive: false });
+                return () => {
+                    container.removeEventListener('wheel', onWheel);
+                    if (endTimer) clearTimeout(endTimer);
+                };
+            }, [captureZoomAnchor]);
+
             const handleTocLoadMore = useCallback(() => {
                 setTocVisibleCount(c => Math.min(numPages, c + TOC_BATCH_SIZE));
             }, [numPages]);
@@ -3073,6 +3856,14 @@
                         </div>
                     )}
 
+                    {/* TRÌNH PHÁT FILE ÂM THANH NỔI — key={audioSrc} để mỗi lần chọn file KHÁC sẽ tự
+                        unmount/mount lại 1 component hoàn toàn mới (tự reset sạch mọi state phát/zoom/
+                        vị trí kéo-thả cũ), không cần tự tay reset từng state một trong AudioPlayerBar.
+                        Port từ bản Night IELTS Land. */}
+                    {audioSrc && (
+                        <AudioPlayerBar key={audioSrc} src={audioSrc} fileName={audioFileName} onClose={handleCloseAudioPlayer} />
+                    )}
+
                     {/* Box "Tóm tắt phiên dạy" — cùng vị trí canh giữa/cách đỉnh như Box Bút AI, mở từ
                         nút riêng trên toolbar (không lồng trong Bút AI). Port từ bản Night IELTS Land. */}
                     {showSessionSummary && (
@@ -3247,8 +4038,20 @@
                                 >
                                     <i className={"fas text-sm " + (zoomLocked ? 'fa-lock' : 'fa-lock-open')}></i>
                                 </button>
+
+                                {/* NÚT "PHÁT ÂM THANH" — chọn 1 file âm thanh bất kỳ từ máy (mp3/m4a/wav...),
+                                    hiện thanh trình phát nổi có sóng âm, kéo-thả được (xem AudioPlayerBar) —
+                                    độc lập hoàn toàn với PDF đang mở, không cần tải sách trước mới dùng được.
+                                    Port từ bản Night IELTS Land. */}
+                                <label
+                                    className={"w-9 h-9 shrink-0 rounded-xl flex items-center justify-center transition-colors border shadow-sm cursor-pointer " + (audioSrc ? 'bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-slate-600')}
+                                    title="Phát file âm thanh từ máy (có sóng âm, kéo-thả được, chỉnh tốc độ)"
+                                >
+                                    <i className="fas fa-headphones-alt text-sm"></i>
+                                    <input type="file" accept="audio/*" className="hidden" onChange={handleAudioFileSelect} />
+                                </label>
                             </div>
-                            
+
                             {/* DRAWING TOOLBAR */}
                             <div className="flex-1 flex justify-center">
                                 {pdfUrl && isDrawingMode && (
@@ -3441,9 +4244,9 @@
 
                                 {pdfUrl && (
                                     <div className="flex items-center gap-1 bg-slate-100 rounded-xl p-1 border border-slate-200 shadow-sm">
-                                        <button onClick={() => setScale(s => Math.max(0.5, s - 0.2))} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-minus"></i></button>
+                                        <button onClick={() => { captureZoomAnchor(getContentAreaCenterY()); setScale(s => Math.max(0.5, s - 0.2)); }} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-minus"></i></button>
                                         <span className="text-sm font-bold text-slate-600 w-12 text-center">{Math.round(scale * 100)}%</span>
-                                        <button onClick={() => setScale(s => Math.min(3, s + 0.2))} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-plus"></i></button>
+                                        <button onClick={() => { captureZoomAnchor(getContentAreaCenterY()); setScale(s => Math.min(3, s + 0.2)); }} className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-white rounded-lg text-sm transition-colors"><i className="fas fa-plus"></i></button>
                                     </div>
                                 )}
 
