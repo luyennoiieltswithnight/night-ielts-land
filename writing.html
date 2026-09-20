@@ -117,6 +117,18 @@ html,body{
 
 /* ---- Danh sách dashboard học sinh ---- */
 .ni-dash-item{display:block;padding:16px 18px;margin-bottom:12px;}
+
+/* ---- Dashboard giáo viên (giao bài + xem bài đã giao), tự chứa trong writing.html ---- */
+.ni-input{width:100%;border:2px solid #e5decb;border-radius:10px;padding:11px 13px;font-weight:700;color:var(--text-color);background:#fff;outline:none;font-family:'Inter',sans-serif;font-size:14px;}
+.ni-input:focus{border-color:var(--primary-button);}
+.ni-label{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--border-color);opacity:.75;margin-bottom:8px;}
+.ni-tabbar{display:flex;gap:4px;background:rgba(44,62,45,.08);border-radius:12px;padding:5px;width:fit-content;}
+.ni-tab-btn{background:none;border:none;border-radius:8px;padding:9px 16px;font-weight:800;font-size:13px;cursor:pointer;color:var(--border-color);opacity:.6;font-family:'Inter',sans-serif;display:inline-flex;align-items:center;gap:6px;}
+.ni-tab-btn.active{background:var(--panel-bg);opacity:1;box-shadow:0 2px 5px rgba(0,0,0,.12);}
+.ni-tab-count{background:#e74c3c;color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:1px 7px;min-width:16px;text-align:center;}
+.ni-target-toggle{display:flex;gap:6px;background:rgba(44,62,45,.08);border-radius:10px;padding:4px;margin-bottom:8px;}
+.ni-target-toggle button{flex:1;background:none;border:none;border-radius:7px;padding:7px 8px;font-weight:800;font-size:12px;cursor:pointer;color:var(--border-color);opacity:.6;font-family:'Inter',sans-serif;}
+.ni-target-toggle button.active{background:var(--panel-bg);opacity:1;box-shadow:0 1px 4px rgba(0,0,0,.1);}
 </style>
 </head>
 <body class="antialiased" style="font-family:'Inter',sans-serif;">
@@ -159,15 +171,61 @@ html,body{
       <div class="dash-scroll"><div id="dashboardList"></div></div>
     </div>
 
-    <!-- ================= TEACHER: KHÔNG CÓ ?id= ================= -->
-    <div id="teacherHubView" class="hidden view-center text-center">
-      <div class="ni-panel text-center py-14 px-10" style="max-width:480px;">
-        <div class="text-4xl mb-4">🧑‍🏫</div>
-        <p class="font-bold mb-5" style="color:var(--border-color);">Quản lý bài Writing của học sinh.</p>
-        <div class="flex flex-col gap-3">
-          <a href="index.html?openStudio=writing" class="ni-submit-btn"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Giao bài Writing mới</a>
-          <a href="index.html?openProgress=writing" class="ni-nav-btn"><i class="fa-solid fa-chart-simple mr-1"></i> Xem bài đã nộp / đã chấm</a>
-          <a href="index.html" class="ni-nav-btn" style="border:none;color:#888;">Quay lại trang chủ</a>
+    <!-- ================= TEACHER: KHÔNG CÓ ?id= — dashboard tự chứa, không điều hướng ra trang chủ ================= -->
+    <div id="teacherHubView" class="hidden view-fill">
+      <div style="flex-shrink:0;" class="mb-4">
+        <div class="ni-tabbar">
+          <button type="button" id="thTabComposeBtn" onclick="switchTeacherTab('compose')" class="ni-tab-btn active">✏️ Giao bài mới</button>
+          <button type="button" id="thTabListBtn" onclick="switchTeacherTab('list')" class="ni-tab-btn">📋 Bài đã giao <span id="thListPendingBadge" class="hidden ni-tab-count">0</span></button>
+        </div>
+      </div>
+      <div class="dash-scroll">
+        <!-- TAB: Giao bài Writing mới -->
+        <div id="thTabCompose">
+          <div class="ni-panel p-5 md:p-6" style="max-width:640px;">
+            <div class="space-y-4">
+              <div>
+                <label class="ni-label">Tên bài Writing</label>
+                <input id="thTaskTitle" type="text" class="ni-input" placeholder="Ví dụ: Task 2 - Band 7 Practice">
+              </div>
+              <div>
+                <label class="ni-label">Giao cho</label>
+                <div class="ni-target-toggle">
+                  <button type="button" id="thTargetSingleBtn" onclick="setThTargetMode('single')" class="active">👤 1 học sinh</button>
+                  <button type="button" id="thTargetClassBtn" onclick="setThTargetMode('class')">👥 Cả lớp</button>
+                </div>
+                <div id="thTargetSingleField">
+                  <select id="thStudentSelect" class="ni-input"><option value="">Đang tải danh sách...</option></select>
+                </div>
+                <div id="thTargetClassField" class="hidden">
+                  <select id="thClassSelect" class="ni-input"><option value="">Đang tải danh sách...</option></select>
+                </div>
+              </div>
+              <div>
+                <label class="ni-label">Đề bài Writing (có thể chèn ảnh)</label>
+                <div class="ni-toolbar" style="margin-bottom:8px;">
+                  <button type="button" title="In đậm" onclick="wrCmd('thPromptEditor','bold')"><b>B</b></button>
+                  <button type="button" title="In nghiêng" onclick="wrCmd('thPromptEditor','italic')"><i>I</i></button>
+                  <button type="button" title="Gạch chân" onclick="wrCmd('thPromptEditor','underline')"><u>U</u></button>
+                  <label title="Chèn ảnh (đề bài, biểu đồ...)" style="cursor:pointer;">
+                    <i class="fa-solid fa-image mr-1"></i> Chèn ảnh
+                    <input type="file" accept="image/*" class="hidden" onchange="wrInsertImageFromInput(this,'thPromptEditor')">
+                  </label>
+                </div>
+                <div id="thPromptEditor" contenteditable="true" class="ni-editor" style="min-height:140px;" data-placeholder="Gõ hoặc paste đề bài Writing vào đây (có thể dán trực tiếp ảnh chụp màn hình)..."></div>
+              </div>
+              <div>
+                <label class="ni-label">Hạn nộp (không bắt buộc)</label>
+                <input id="thDeadline" type="date" class="ni-input">
+                <p class="text-[11px] font-semibold mt-1.5" style="color:var(--border-color);opacity:.65;">Bài Writing sẽ tự động biến mất sau 6 tháng kể từ lúc giao, bất kể có đặt hạn nộp hay không.</p>
+              </div>
+              <button id="thSubmitBtn" onclick="submitNewWritingTask()" class="ni-submit-btn w-full">🚀 Giao Bài</button>
+            </div>
+          </div>
+        </div>
+        <!-- TAB: Bài Writing đã giao (chỉ Writing, không lẫn các loại bài khác) -->
+        <div id="thTabList" class="hidden">
+          <div id="thListContainer"><p class="font-semibold text-center py-10" style="color:var(--border-color);opacity:.6;">Đang tải...</p></div>
         </div>
       </div>
     </div>
@@ -292,7 +350,7 @@ html,body{
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-  import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
@@ -636,6 +694,287 @@ html,body{
   };
 
   // ==========================================
+  // TIỆN ÍCH CHÈN ẢNH (nén trước khi nhúng base64) — giống hệt index.html, dùng cho ô soạn
+  // đề bài Writing mới ngay tại đây, không cần quay lại trang chủ nữa.
+  // ==========================================
+  function wrCompressImageFile(file, maxW) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const img = new Image();
+        img.onload = function () {
+          const scale = Math.min(1, (maxW || 900) / img.width);
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', 0.65));
+        };
+        img.onerror = function () { reject(new Error('Không đọc được ảnh')); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function () { reject(new Error('Không đọc được file')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function wrInsertHtmlIntoEditor(editorEl, html) {
+    editorEl.focus();
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editorEl.contains(sel.anchorNode)) {
+      document.execCommand('insertHTML', false, html);
+    } else {
+      editorEl.innerHTML += html;
+    }
+  }
+
+  window.wrInsertImageFromInput = function (inputEl, editorId) {
+    const file = inputEl.files && inputEl.files[0];
+    if (!file) return;
+    const editorEl = document.getElementById(editorId);
+    wrCompressImageFile(file, 900).then(function (dataUrl) {
+      wrInsertHtmlIntoEditor(editorEl, '<br><img src="' + dataUrl + '" style="max-width:100%;border-radius:10px;margin:6px 0;display:block;"><br>');
+      inputEl.value = '';
+    }).catch(function (e) {
+      alert('Không chèn được ảnh: ' + e.message);
+      inputEl.value = '';
+    });
+  };
+
+  function wrAttachPasteImageHandler(editorEl) {
+    editorEl.addEventListener('paste', function (e) {
+      const items = (e.clipboardData && e.clipboardData.items) || [];
+      let imageItem = null;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type && items[i].type.indexOf('image/') === 0) { imageItem = items[i]; break; }
+      }
+      if (!imageItem) return;
+      e.preventDefault();
+      const file = imageItem.getAsFile();
+      if (!file) return;
+      wrCompressImageFile(file, 900).then(function (dataUrl) {
+        wrInsertHtmlIntoEditor(editorEl, '<br><img src="' + dataUrl + '" style="max-width:100%;border-radius:10px;margin:6px 0;display:block;"><br>');
+      }).catch(function (err) { console.error('Không dán được ảnh:', err); });
+    });
+  }
+  (function () {
+    const el = document.getElementById('thPromptEditor');
+    if (el) wrAttachPasteImageHandler(el);
+  })();
+
+  // ==========================================
+  // GIÁO VIÊN: DASHBOARD TỰ CHỨA (giao bài mới + xem bài đã giao) — không điều hướng ra
+  // trang chủ nữa, và danh sách "Bài đã giao" chỉ gồm bài Writing (kind === 'writing'),
+  // không lẫn các loại bài khác (từ vựng, reading...).
+  // ==========================================
+  let __thTargetMode = 'single';
+  let __thClassesMap = {};
+  let __thComposeLoaded = false;
+
+  window.setThTargetMode = function (mode) {
+    __thTargetMode = mode;
+    document.getElementById('thTargetSingleBtn').classList.toggle('active', mode === 'single');
+    document.getElementById('thTargetClassBtn').classList.toggle('active', mode === 'class');
+    document.getElementById('thTargetSingleField').classList.toggle('hidden', mode !== 'single');
+    document.getElementById('thTargetClassField').classList.toggle('hidden', mode !== 'class');
+  };
+
+  window.switchTeacherTab = function (tab) {
+    document.getElementById('thTabComposeBtn').classList.toggle('active', tab === 'compose');
+    document.getElementById('thTabListBtn').classList.toggle('active', tab === 'list');
+    document.getElementById('thTabCompose').classList.toggle('hidden', tab !== 'compose');
+    document.getElementById('thTabList').classList.toggle('hidden', tab !== 'list');
+    if (tab === 'list') loadWritingSubmissionsList();
+  };
+
+  async function loadTeacherComposeData() {
+    if (__thComposeLoaded) return;
+    __thComposeLoaded = true;
+    const studentSelect = document.getElementById('thStudentSelect');
+    const classSelect = document.getElementById('thClassSelect');
+    try {
+      const q = query(collection(db, 'users'), where('role', '==', 'student'));
+      const snap = await getDocs(q);
+      let opts = '<option value="">-- Chọn học sinh --</option>';
+      snap.forEach(d => {
+        const stu = d.data();
+        opts += '<option value="' + d.id + '">' + escapeHtml(stu.name || '') + ' (' + escapeHtml(stu.email || '') + ')</option>';
+      });
+      studentSelect.innerHTML = opts;
+    } catch (e) {
+      studentSelect.innerHTML = '<option value="">Lỗi tải danh sách học sinh</option>';
+    }
+    try {
+      const classSnap = await getDocs(collection(db, 'classes'));
+      __thClassesMap = {};
+      const rows = [];
+      classSnap.forEach(d => {
+        const c = d.data();
+        __thClassesMap[d.id] = c.studentIds || [];
+        rows.push({ id: d.id, name: c.name || '(Lớp không tên)', count: (c.studentIds || []).length });
+      });
+      rows.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+      classSelect.innerHTML = rows.length === 0
+        ? '<option value="">-- Chưa có lớp nào --</option>'
+        : '<option value="">-- Chọn lớp --</option>' + rows.map(c => '<option value="' + c.id + '">' + escapeHtml(c.name) + ' (' + c.count + ' học sinh)</option>').join('');
+    } catch (e) {
+      classSelect.innerHTML = '<option value="">Lỗi tải danh sách lớp</option>';
+    }
+  }
+
+  window.submitNewWritingTask = async function () {
+    let targetStudentIds = [];
+    if (__thTargetMode === 'class') {
+      const classId = document.getElementById('thClassSelect').value;
+      if (!classId) { alert('Vui lòng chọn một lớp!'); return; }
+      targetStudentIds = __thClassesMap[classId] || [];
+      if (targetStudentIds.length === 0) { alert('Lớp này chưa có học sinh nào!'); return; }
+    } else {
+      const studentId = document.getElementById('thStudentSelect').value;
+      if (!studentId) { alert('Vui lòng chọn học sinh!'); return; }
+      targetStudentIds = [studentId];
+    }
+
+    const title = document.getElementById('thTaskTitle').value.trim();
+    const promptEditor = document.getElementById('thPromptEditor');
+    const promptHtml = wrStripScripts(promptEditor.innerHTML || '').trim();
+    const promptText = (promptEditor.textContent || '').trim();
+    if (!title) { alert('Vui lòng đặt tên cho bài Writing!'); return; }
+    if (!promptText && promptHtml.indexOf('<img') === -1) { alert('Vui lòng nhập hoặc paste đề bài Writing!'); return; }
+    if (promptHtml.length > 900000) { alert('Đề bài (kể cả ảnh) đang quá nặng để lưu. Vui lòng bớt ảnh hoặc dùng ảnh nhỏ/nét thấp hơn.'); return; }
+
+    const deadlineStr = document.getElementById('thDeadline').value;
+    const deadlineAt = deadlineStr ? new Date(deadlineStr + 'T23:59:59').getTime() : null;
+    const now = Date.now();
+    const payload = {
+      title: title,
+      kind: 'writing',
+      promptHtml: promptHtml,
+      submissionHtml: null,
+      submittedAt: null,
+      gradedHtml: null,
+      gradedAt: null,
+      status: 'assigned',
+      teacherSeenSubmission: false,
+      studentSeenGraded: false,
+      createdAt: now,
+      deadlineAt: deadlineAt,
+      expiresAt: now + WRITING_TTL_MS
+    };
+
+    const btn = document.getElementById('thSubmitBtn');
+    btn.disabled = true; btn.innerText = 'Đang giao...';
+    try {
+      await Promise.all(targetStudentIds.map(sid =>
+        addDoc(collection(db, 'assignments'), Object.assign({ studentId: sid }, payload))
+      ));
+      alert(targetStudentIds.length > 1
+        ? 'Đã giao bài Writing thành công cho ' + targetStudentIds.length + ' học sinh trong lớp! (Bài sẽ tự động biến mất sau 6 tháng)'
+        : 'Đã giao bài Writing thành công! (Bài sẽ tự động biến mất sau 6 tháng)');
+      document.getElementById('thTaskTitle').value = '';
+      document.getElementById('thPromptEditor').innerHTML = '';
+      document.getElementById('thDeadline').value = '';
+      switchTeacherTab('list');
+    } catch (e) {
+      alert('Lỗi khi giao bài: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.innerText = '🚀 Giao Bài';
+    }
+  };
+
+  // Danh sách "Bài đã giao" — CHỈ gồm bài Writing (kind === 'writing') của TẤT CẢ học sinh,
+  // không lẫn các loại bài khác, theo đúng yêu cầu — mỗi dòng bấm vào để mở writing.html?id=...
+  const __thStudentNameCache = {};
+  async function studentNameFor(sid) {
+    if (__thStudentNameCache[sid]) return __thStudentNameCache[sid];
+    try {
+      const s = await getDoc(doc(db, 'users', sid));
+      const name = s.exists() ? (s.data().name || sid) : sid;
+      __thStudentNameCache[sid] = name;
+      return name;
+    } catch (e) { return sid; }
+  }
+
+  async function loadWritingSubmissionsList() {
+    const container = document.getElementById('thListContainer');
+    container.innerHTML = '<p class="font-semibold text-center py-10" style="color:var(--border-color);opacity:.6;">Đang tải...</p>';
+    const now = Date.now();
+    let items = [];
+    try {
+      const q = query(collection(db, 'assignments'), where('kind', '==', 'writing'));
+      const snap = await getDocs(q);
+      snap.forEach(d => {
+        const a = d.data();
+        const expiresAt = a.expiresAt || (a.createdAt ? a.createdAt + WRITING_TTL_MS : null);
+        if (expiresAt && now > expiresAt) { deleteDoc(doc(db, 'assignments', d.id)).catch(() => {}); return; }
+        items.push(Object.assign({ id: d.id }, a));
+      });
+    } catch (e) {
+      container.innerHTML = '<p class="font-bold text-center py-10" style="color:var(--incorrect-color);">Lỗi khi tải danh sách bài đã giao.</p>';
+      return;
+    }
+
+    // Đếm số bài đang chờ chấm để hiện chấm đỏ trên tab.
+    const pendingBadge = document.getElementById('thListPendingBadge');
+    const pendingCount = items.filter(a => a.status === 'submitted' && a.teacherSeenSubmission === false).length;
+    if (pendingBadge) {
+      pendingBadge.textContent = String(pendingCount);
+      pendingBadge.classList.toggle('hidden', pendingCount === 0);
+    }
+
+    if (items.length === 0) {
+      container.innerHTML = '<div class="ni-panel text-center py-14"><p class="font-semibold" style="color:var(--border-color);opacity:.7;">Chưa giao bài Writing nào.</p></div>';
+      return;
+    }
+
+    // Ưu tiên hiện bài cần chú ý trước: vừa nộp chưa chấm -> chưa nộp -> đã chấm xong.
+    const statusPriority = { submitted: 0, assigned: 1, graded: 2 };
+    items.sort((a, b) => {
+      const pa = statusPriority[a.status] != null ? statusPriority[a.status] : 3;
+      const pb = statusPriority[b.status] != null ? statusPriority[b.status] : 3;
+      if (pa !== pb) return pa - pb;
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+
+    const names = await Promise.all(items.map(a => studentNameFor(a.studentId)));
+    container.innerHTML = items.map((a, i) => renderWritingRow(a, names[i])).join('');
+  }
+
+  function renderWritingRow(a, studentName) {
+    let statusBadge;
+    if (a.status === 'graded') {
+      statusBadge = '<span class="ni-badge ni-badge-green">✅ Đã chấm</span>';
+    } else if (a.status === 'submitted') {
+      statusBadge = '<span class="ni-badge ' + (a.teacherSeenSubmission === false ? 'ni-badge-red' : 'ni-badge-amber') + '">📩 ' + (a.teacherSeenSubmission === false ? 'Vừa nộp — chưa chấm' : 'Đã nộp — chưa chấm') + '</span>';
+    } else {
+      statusBadge = '<span class="ni-badge ni-badge-neutral">📝 Chưa làm</span>';
+    }
+    return '<a href="writing.html?id=' + a.id + '" class="ni-card ni-dash-item">' +
+      '<div class="flex justify-between items-start gap-3 flex-wrap">' +
+        '<div>' +
+          '<p class="font-extrabold" style="color:var(--border-color);">' + escapeHtml(a.title || '(Không tên)') + '</p>' +
+          '<p class="text-xs font-semibold mt-0.5" style="color:var(--border-color);opacity:.65;"><i class="fa-solid fa-user mr-1"></i>' + escapeHtml(studentName) + '</p>' +
+        '</div>' +
+        statusBadge +
+      '</div>' +
+    '</a>';
+  }
+
+  async function enterTeacherHub() {
+    document.getElementById('pageTitle').textContent = 'Writing — Quản lý';
+    switchTeacherTab('compose');
+    setThTargetMode('single');
+    document.getElementById('thTaskTitle').value = '';
+    document.getElementById('thPromptEditor').innerHTML = '';
+    document.getElementById('thDeadline').value = '';
+    showOnly('teacherHubView');
+    await loadTeacherComposeData();
+    loadWritingSubmissionsList(); // tải trước để chấm đỏ trên tab hiện đúng ngay cả khi chưa bấm qua tab đó
+  }
+
+  // ==========================================
   // BOOT
   // ==========================================
   onAuthStateChanged(auth, async (user) => {
@@ -652,7 +991,7 @@ html,body{
     }
 
     if (!taskId) {
-      if (role === 'admin') { document.getElementById('pageTitle').textContent = 'Writing'; showOnly('teacherHubView'); }
+      if (role === 'admin') { await enterTeacherHub(); }
       else { await renderStudentDashboard(user.uid); }
       return;
     }
