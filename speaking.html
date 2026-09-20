@@ -298,6 +298,24 @@ Is it better to read a physical book or an e-book?"></textarea>
             </div>
           </div>
 
+          <div class="ni-panel p-3 mb-4" style="background:#fff;">
+            <p class="ni-label" style="margin-bottom:6px;">Chưa biết trả lời gì? Gõ vài chữ/ý chính, AI sẽ gợi ý từ vựng + 1 câu trả lời mẫu</p>
+            <div class="flex gap-2 flex-wrap items-center">
+              <input id="ideaKeywordsInput" type="text" class="ni-input" style="flex:1;min-width:180px;" placeholder="Ví dụ: đọc sách, thư giãn, học từ mới...">
+              <button type="button" id="ideaGenBtn" onclick="generateIdeaSuggestion()" class="ni-nav-btn">✨ Gợi ý ý tưởng</button>
+            </div>
+            <p id="ideaLoadingMsg" class="hidden text-xs font-bold mt-2" style="color:var(--border-color);opacity:.7;"><i class="fa-solid fa-circle-notch fa-spin"></i> AI đang nghĩ gợi ý...</p>
+            <div id="ideaResultBox" class="hidden mt-3">
+              <p class="ni-label" style="margin-bottom:6px;">Từ vựng gợi ý</p>
+              <ul id="ideaVocabList" class="text-sm pl-4 mb-3" style="list-style:disc;"></ul>
+              <p class="ni-label" style="margin-bottom:6px;">Câu trả lời mẫu (dựa trên ý của bạn)</p>
+              <div class="flex items-start gap-2">
+                <p id="ideaSampleAnswer" class="ni-instruction flex-1" style="font-style:normal;"></p>
+                <button type="button" onclick="speakText(document.getElementById('ideaSampleAnswer').textContent)" class="ni-nav-btn" title="Nghe phát âm"><i class="fa-solid fa-volume-high"></i></button>
+              </div>
+            </div>
+          </div>
+
           <div id="spGroqBoxPractice"></div>
 
           <div class="flex flex-col items-center py-6">
@@ -547,6 +565,56 @@ Is it better to read a physical book or an e-book?"></textarea>
       u.rate = 0.95;
       window.speechSynthesis.speak(u);
     } catch (e) {}
+  };
+
+  // ==========================================
+  // GỢI Ý Ý TƯỞNG BẰNG AI — học sinh gõ vài chữ/ý chính (tiếng Việt hoặc tiếng Anh đều được),
+  // AI dựa vào ĐÚNG câu hỏi đang làm + ý đó để gợi ý từ vựng (kèm IPA + nghĩa tiếng Việt, cùng
+  // định dạng với gợi ý mặc định) và 1 câu trả lời mẫu tự nhiên, mức trung bình-khá (không quá
+  // "đỉnh" để học sinh vẫn học theo được), có lồng ý mà học sinh vừa gõ vào.
+  // ==========================================
+  const IDEA_SYSTEM_PROMPT = 'You are an IELTS Speaking coach helping a Vietnamese-speaking student brainstorm an answer. ' +
+    'You are given an IELTS Speaking question and a few keywords/ideas the student typed (in Vietnamese or English) about what they want to say. ' +
+    'Respond with STRICT JSON only, no markdown, no code fences, exactly in this shape: {"vocabulary": [{"phrase": string, "ipa": string, "meaning_vi": string}, ...], "sampleAnswer": string}. ' +
+    '"vocabulary" must have 4-6 useful English words/collocations for this specific answer (each with an IPA transcription and a Vietnamese meaning — never skip either). ' +
+    '"sampleAnswer" must be ONE natural, coherent spoken-English paragraph, around band 6-6.5 level (clear and correct but not overly advanced/academic), that directly builds on and incorporates the student\'s own keywords/ideas rather than inventing an unrelated answer — if their idea is vague, use it as the seed and fill in reasonable, natural detail. Do NOT split the sample answer into bullet points — it must read as one paragraph a real person would say out loud.';
+
+  window.generateIdeaSuggestion = async function () {
+    const input = document.getElementById('ideaKeywordsInput');
+    const keywords = (input.value || '').trim();
+    if (!keywords) { alert('Vui lòng gõ vài chữ hoặc ý chính trước đã nhé.'); return; }
+    const cfg = getGroqConfig();
+    if (!cfg.apiKey) { alert('Vui lòng cấu hình Groq API Key trước khi dùng gợi ý AI (bấm biểu tượng ⚙️ ở góc trên bên phải).'); return; }
+    if (!__pkg) return;
+    const q = __pkg.questions[__qIdx];
+
+    const btn = document.getElementById('ideaGenBtn');
+    const loadingMsg = document.getElementById('ideaLoadingMsg');
+    const resultBox = document.getElementById('ideaResultBox');
+    btn.disabled = true;
+    loadingMsg.classList.remove('hidden');
+    resultBox.classList.add('hidden');
+
+    try {
+      const raw = await callGroqChat([
+        { role: 'system', content: IDEA_SYSTEM_PROMPT },
+        { role: 'user', content: 'IELTS Speaking question: "' + q.text + '"\n\nStudent\'s keywords/ideas: "' + keywords + '"' }
+      ], { temperature: 0.5, maxTokens: 900 });
+
+      let parsed;
+      try { parsed = parseGroqJson(raw); } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
+
+      document.getElementById('ideaVocabList').innerHTML = (parsed.vocabulary || []).map(v =>
+        '<li class="mb-1"><b>' + escapeHtml(v.phrase || '') + '</b> <span class="ipa">/' + escapeHtml((v.ipa || '').replace(/^\/|\/$/g, '')) + '/</span> — ' + escapeHtml(v.meaning_vi || '') + '</li>'
+      ).join('');
+      document.getElementById('ideaSampleAnswer').textContent = parsed.sampleAnswer || '';
+      resultBox.classList.remove('hidden');
+    } catch (e) {
+      alert('Lỗi khi tạo gợi ý: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      loadingMsg.classList.add('hidden');
+    }
   };
 
   // ==========================================
@@ -987,6 +1055,8 @@ Is it better to read a physical book or an e-book?"></textarea>
     document.getElementById('qHintToggleBtn').textContent = '💡 Xem gợi ý';
     document.getElementById('quickViInput').value = '';
     document.getElementById('quickEnResult').classList.add('hidden');
+    document.getElementById('ideaKeywordsInput').value = '';
+    document.getElementById('ideaResultBox').classList.add('hidden');
     document.getElementById('spGroqBoxPractice').innerHTML = groqMissingHint();
     discardRecording();
 
