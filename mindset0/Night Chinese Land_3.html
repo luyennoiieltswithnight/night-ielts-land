@@ -341,8 +341,26 @@
         // utterance mới nữa.
         let _audioUnlocked = false;
         let _sharedAudioCtx = null;
+        // QUAN TRỌNG — sửa lỗi Chrome "lâu lâu bật phụ đề xong bật Note viết nét đầu tiên thì đứng
+        // hình": unlockAudio() được gọi ở MỌI lần đặt bút xuống (handlePointerDown, xem bên dưới) —
+        // nhưng phần việc "nặng" bên trong (tạo mới AudioContext, phát oscillator, gọi
+        // speechSynthesis.speak) chỉ thực sự chạy ĐÚNG 1 LẦN DUY NHẤT cho cả phiên (nhờ cờ
+        // _audioUnlocked). Nếu lần duy nhất đó rơi vào ĐÚNG LÚC phụ đề (subtitle) đang thực sự nghe
+        // mic — dễ xảy ra nhất khi người dùng bật phụ đề trước rồi mới bật Note và viết nét đầu tiên
+        // trong cả phiên — việc tạo mới audio pipeline (AudioContext/oscillator/TTS) trong khi Chrome
+        // đang giữ 1 luồng mic sống cho Web Speech API/MediaRecorder có thể khiến tiến trình audio nội
+        // bộ của Chrome phải tái cấu hình thiết bị, gây đứng hình tạm thời cả trang — đúng kiểu lỗi
+        // "thỉnh thoảng" (chỉ đúng lần unlockAudio ĐẦU TIÊN + đúng lúc mic phụ đề đang bận) mà người
+        // dùng gặp phải. App bên dưới tự cập nhật cờ module-level "_subtitleMicBusy" này mỗi khi mic
+        // phụ đề bắt đầu/dừng nghe thật sự (xem startSubtitles/pauseSubtitles/resumeSubtitles/
+        // stopSubtitles) — unlockAudio() kiểm tra cờ này để HOÃN LẠI phần việc nặng nếu mic đang bận,
+        // KHÔNG đánh dấu _audioUnlocked (giữ nguyên "chưa mở khoá") để lần gọi kế tiếp (nét vẽ tiếp
+        // theo, luôn tự gọi lại hàm này) khi mic hết bận sẽ tự chạy bù — không mất tác dụng mở khoá,
+        // chỉ trễ lại đúng lúc có nguy cơ xung đột. Port từ bản Night IELTS Land.
+        let _subtitleMicBusy = false;
         const unlockAudio = () => {
             if (_audioUnlocked) return;
+            if (_subtitleMicBusy) return;
             _audioUnlocked = true;
             try {
                 if (!_sharedAudioCtx) {
@@ -700,6 +718,47 @@
         // sách nếu model hiện tại báo lỗi 404 "does not exist" (bị khai tử/đổi tên), không cần người
         // dùng làm gì cả.
         const GROQ_MODELS = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'llama-3.3-70b-versatile'];
+
+        // === PHỤ ĐỀ TRỰC TIẾP (Live Subtitles) — port từ bản Night IELTS Land — dùng Groq Whisper để
+        // chuyển giọng nói thành chữ theo thời gian thực. QUAN TRỌNG: sở dĩ không dùng Web Speech API
+        // (SpeechRecognition) có sẵn miễn phí trong trình duyệt là vì API đó CHỈ nhận đúng 1 nguồn cố
+        // định là micro hệ điều hành, không có cách nào đưa vào 1 MediaStream tuỳ ý (vd âm thanh trộn
+        // thêm từ tab/cửa sổ) — mà yêu cầu ở đây là phải nghe được CẢ mic LẪN âm thanh máy phát ra cùng
+        // lúc; ngoài ra Safari trên iPad hầu như không hỗ trợ SpeechRecognition. Nên dùng cách: tự ghi
+        // âm từng đoạn ngắn (MediaRecorder) rồi gửi cho Groq Whisper (dùng lại đúng API key Groq đã có
+        // sẵn cho Bút AI) — chạy được như nhau trên mọi trình duyệt/thiết bị, kể cả iPad.
+        // Đánh dấu người dùng ĐÃ ĐỌC cảnh báo về việc lần đầu bấm "Nghe âm thanh máy tính" trên Mac có
+        // thể khiến macOS bật hộp thoại xin quyền "Screen & System Audio Recording" cho Chrome, và sau
+        // khi cấp quyền, macOS/Chrome có thể yêu cầu KHỞI ĐỘNG LẠI hẳn trình duyệt để quyền có hiệu lực
+        // — chỉ hiện cảnh báo 1 LẦN DUY NHẤT trên mỗi trình duyệt (ghi nhớ qua localStorage). Khoá riêng
+        // với bản IELTS để dùng song song 2 app không bị lẫn.
+        const SYSTEM_AUDIO_WARNING_KEY = 'nightChineseLandSystemAudioWarningSeen';
+        // 3 model Whisper của Groq theo thứ tự ưu tiên: "distil-whisper-large-v3-en" nhanh & rẻ nhất
+        // nhưng CHỈ nhận tiếng Anh — ở đây học sinh có thể nói xen tiếng Việt/tiếng Trung nên ưu tiên
+        // model đa ngôn ngữ trước, nếu bị khai tử/đổi tên (lỗi 404/400) thì tự rơi xuống model kế tiếp,
+        // y hệt cơ chế GROQ_MODELS ở trên.
+        const GROQ_WHISPER_MODELS = ['whisper-large-v3-turbo', 'whisper-large-v3', 'distil-whisper-large-v3-en'];
+        // Độ dài mỗi đoạn ghi âm gửi đi (ms) — cân bằng giữa độ trễ hiển thị phụ đề (ngắn hơn thì hiện
+        // nhanh hơn) và số lượt gọi API/chi phí (dài hơn thì đỡ tốn request hơn). CHỈ áp dụng cho động
+        // cơ dự phòng 'whisper' (không có Web Speech API, hoặc đã bật thêm âm thanh laptop) — động cơ
+        // chính 'speech' hiện chữ theo thời gian thực, không qua cơ chế đoạn này. 3 giây là mức vừa phải.
+        const SUBTITLE_CHUNK_MS = 3000;
+        // Ngưỡng năng lượng âm thanh (RMS, tính trên dữ liệu waveform -1..1) để coi 1 đoạn ghi âm là
+        // "có tiếng nói thật" — nếu đoạn ghi âm gần như im lặng hoàn toàn (dưới ngưỡng này) thì BỎ QUA,
+        // không gửi cho Whisper: (1) đỡ tốn request/tiền vô ích, (2) tránh đúng lỗi "ảo giác" nổi tiếng
+        // của Whisper — hay tự bịa ra vài chữ vô nghĩa khi cho nó nghe toàn im lặng/tạp âm nhỏ.
+        const SUBTITLE_SILENCE_RMS = 0.008;
+        // Chọn định dạng ghi âm trình duyệt hỗ trợ — Chrome/Mac thường có 'audio/webm;codecs=opus',
+        // Safari/iPad thường chỉ có 'audio/mp4'; thử lần lượt, không có cái nào thì để trống (trình
+        // duyệt tự chọn định dạng mặc định của nó).
+        const pickSubtitleMimeType = () => {
+            const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+            for (const c of candidates) {
+                if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+            }
+            return '';
+        };
+
         // Các prompt có sẵn cho Bút AI — thích nghi cho việc học TIẾNG TRUNG (khác bản IELTS gốc dùng
         // cho tiếng Anh): dịch, giải nghĩa từ vựng, phân tích ngữ pháp câu, mẹo nhớ, đặt câu ví dụ, và
         // THÊM MỚI "Phân tích lục thư" (六书) — phân tích cấu tạo chữ Hán theo 6 cách tạo chữ truyền
@@ -1610,7 +1669,7 @@
         });
 
         // --- PDF THUMBNAIL (FLOATING WINDOW) ---
-        const PdfThumbnail = React.memo(function PdfThumbnail({ pdf, pageNum, onClick }) {
+        const PdfThumbnail = React.memo(function PdfThumbnail({ pdf, pageNum, onClick, selected }) {
             const canvasRef = useRef(null);
             const containerRef = useRef(null);
             const [isVisible, setIsVisible] = useState(false);
@@ -1661,14 +1720,21 @@
             }, [pdf, pageNum, isVisible]);
 
             return (
-                <div 
-                    ref={containerRef} 
-                    onClick={onClick} 
-                    className="cursor-pointer border border-slate-200 hover:border-emerald-500 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all flex flex-col relative group transform hover:-translate-y-1"
+                <div
+                    ref={containerRef}
+                    onClick={onClick}
+                    className={"cursor-pointer border-2 rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-xl transition-all flex flex-col relative group transform hover:-translate-y-1 " + (selected ? 'border-emerald-500 ring-2 ring-emerald-300' : 'border-slate-200 hover:border-emerald-500')}
                 >
                     <div className="bg-slate-100 w-full aspect-[1/1.4] flex items-center justify-center relative overflow-hidden">
                         {isVisible ? <canvas ref={canvasRef} className="w-full h-full object-cover" /> : <i className="fas fa-file-pdf text-slate-300 text-3xl absolute"></i>}
-                        <div className="absolute inset-0 bg-emerald-600/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div className={"absolute inset-0 transition-opacity " + (selected ? 'bg-emerald-600/20 opacity-100' : 'bg-emerald-600/10 opacity-0 group-hover:opacity-100')}></div>
+                        {/* Dấu tích chọn — chỉ hiện khi ở chế độ chọn trang để Xuất PDF (selected !== undefined).
+                            Port từ bản Night IELTS Land. */}
+                        {selected !== undefined && (
+                            <div className={"absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 shadow " + (selected ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white/80 border-slate-300 text-transparent')}>
+                                <i className="fas fa-check text-xs"></i>
+                            </div>
+                        )}
                     </div>
                     <div className="absolute bottom-0 w-full bg-slate-900/70 backdrop-blur-sm text-center py-1.5">
                         <span className="text-xs font-extrabold text-white tracking-widest uppercase">Trang {pageNum}</span>
@@ -1683,6 +1749,18 @@
         // 3 mức độ dày cho bút chì: nhỏ nhất (mức cũ, mặc định) + 2 mức lớn hơn 1 chút.
         const PENCIL_SIZES = [2, 3.5, 5];
         const DEFAULT_PENCIL_SIZE = PENCIL_SIZES[0];
+        // 3 mức "Độ ổn định nét vẽ" (làm mượt run tay khi viết) — port từ bản Night IELTS Land — 0 =
+        // Tắt (giữ nguyên hành vi vẽ cũ, luôn là mặc định), 2 mức còn lại làm mượt tăng dần. Xem cách
+        // dùng ở handlePointerMove trong PdfPage (bộ lọc trung bình trượt theo cấp số nhân — EMA). Áp
+        // dụng chung cho bút chì lẫn Bút Present.
+        const PEN_STABILITY_LEVELS = [0, 0.4, 0.65];
+        // Bảng màu glow (viền phát sáng) có sẵn cho "Bút Present" — mặc định đỏ, người dùng có thể đổi
+        // qua bảng nhỏ trong thanh tuỳ chọn riêng của bút này (bấm đúp vào nút bút Present để mở).
+        const PEN_GLOW_COLORS = ['#EF4444', '#F97316', '#22D3EE', '#A855F7', '#22C55E'];
+        // Thời gian tự mờ dần rồi biến mất của "Bút Present": bắt đầu mờ ở PEN_FADE_START_MS, biến
+        // mất hẳn ở PEN_FADE_TOTAL_MS (1.5 giây).
+        const PEN_FADE_TOTAL_MS = 1500;
+        const PEN_FADE_START_MS = 800;
 
         // Bảng màu bút có sẵn (bấm chọn nhanh) — thay cho việc phải bấm vào 1 chấm tròn nhỏ để
         // mở bảng màu của hệ điều hành mỗi lần muốn đổi màu. Vẫn giữ 1 ô "tuỳ chỉnh" (icon ống hút
@@ -1711,11 +1789,24 @@
             // cụ khi đang dùng bút chì) thay vì cố định — mặc định vẫn y hệt độ dày cũ (2).
             pencil: { width: (s, pencilSizeVal) => (pencilSizeVal || DEFAULT_PENCIL_SIZE) * s, alpha: 0.6, dash: [], useColorProp: true },
             pen: { width: (s) => 4 * s, alpha: 1.0, dash: [], useColorProp: true },
+            // "Bút Present" — port từ bản Night IELTS Land, TÁCH RIÊNG khỏi "pen" (Bút bi) hiện có để
+            // không mất tính năng cũ: lõi trắng + viền glow đậm màu (mặc định đỏ, chọn được qua
+            // PEN_GLOW_COLORS) — mô phỏng bút trình chiếu (như con trỏ laser/bút "present" trong
+            // PowerPoint), dùng để khoanh/nhấn mạnh tạm thời lúc giảng bài chứ không phải ghi chú vĩnh
+            // viễn — xem "fade" bên dưới (mờ dần rồi tự xoá, xem PEN_FADE_TOTAL_MS/PEN_FADE_START_MS).
+            // Lõi LUÔN cố định màu trắng (useColorProp không dùng ở đây, xem strokePenTwoPass), CHỈ
+            // riêng màu viền glow là tuỳ chỉnh được (lưu theo từng nét ở stroke.glowColor).
+            present: { color: '#FFFFFF', width: (s) => (4 / 3) * s, glow: { defaultColor: PEN_GLOW_COLORS[0], blur: 7 / 3 }, fade: true },
             // Viền xem trước khi kéo-thả chọn vùng để TẨY (eraserShapeMode 'rect') — nét đứt màu đỏ,
             // cùng kiểu với viền xem trước của bút IPA/tra ảnh cho dễ nhận biết là đang ở chế độ chọn
             // vùng — port từ bản IELTS.
             eraser: { color: '#EF4444', width: () => 2, alpha: 0.9, dash: [6, 4], useColorProp: false },
         };
+        // QUAN TRỌNG: hàm này KHÔNG dùng cho "Bút Present" (tool 'present') — bút đó cần vẽ 2 lượt
+        // (glow + lõi) nên có helper riêng bên dưới (strokePenTwoPass). Vẫn luôn reset shadowBlur về 0
+        // ở đây cho MỌI bút còn lại — bắt buộc phải reset vì ctx là dùng chung, nếu không glow của bút
+        // Present (vẽ ở lượt trước đó trong cùng 1 lần vẽ lại) có thể "dính" lây sang các nét sau. Port
+        // từ bản Night IELTS Land.
         const applyToolStyle = (ctx, toolName, colorProp, scaleVal, thicknessVal) => {
             const cfg = TOOL_STYLES[toolName];
             if (!cfg) return;
@@ -1723,6 +1814,38 @@
             ctx.setLineDash(cfg.dash);
             ctx.lineWidth = cfg.width(scaleVal, thicknessVal);
             ctx.globalAlpha = cfg.alpha;
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+        };
+
+        // "Bút Present" (tool 'present') — port từ bản Night IELTS Land: bút trình chiếu, lõi trắng +
+        // viền glow đậm màu tự chọn, tự mờ dần rồi biến mất sau PEN_FADE_TOTAL_MS — dùng để khoanh/
+        // nhấn mạnh tạm thời lúc giảng bài chứ không phải ghi chú vĩnh viễn, KHÔNG thay thế "Bút bi"
+        // (tool 'pen') hiện có — 2 bút tồn tại song song, mỗi bút giữ đúng công dụng riêng.
+        // "Bút Present": vẽ 2 lượt lên CÙNG 1 path đã dựng sẵn (moveTo/lineTo... — hàm này KHÔNG tự
+        // gọi beginPath, chỉ lo việc tô 2 lượt lên path hiện có của ctx) — lượt 1 là viền glow bản to,
+        // màu đậm nguyên khối kèm thêm chút shadowBlur toả mờ dần ra rìa ngoài (tạo cảm giác "gradient"
+        // đậm dần từ trong ra ngoài); lượt 2 là lõi trắng mảnh, sắc nét, không glow, đè lên trên cùng.
+        const PEN_GLOW_WIDTH_FACTOR = 1.6; // viền glow to hơn lõi bao nhiêu lần (theo blur*scale)
+        const strokePenTwoPass = (ctx, scaleVal, thicknessVal, glowColorProp, alphaMultiplier) => {
+            const cfg = TOOL_STYLES.present;
+            const glowColor = glowColorProp || cfg.glow.defaultColor;
+            const coreWidth = cfg.width(scaleVal, thicknessVal);
+            const mult = alphaMultiplier == null ? 1 : alphaMultiplier;
+
+            ctx.setLineDash([]);
+            ctx.strokeStyle = glowColor;
+            ctx.lineWidth = coreWidth + cfg.glow.blur * scaleVal * PEN_GLOW_WIDTH_FACTOR;
+            ctx.shadowColor = glowColor;
+            ctx.shadowBlur = cfg.glow.blur * scaleVal;
+            ctx.globalAlpha = 0.9 * mult;
+            ctx.stroke();
+
+            ctx.strokeStyle = cfg.color;
+            ctx.lineWidth = coreWidth;
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1 * mult;
+            ctx.stroke();
         };
 
         // Chuyển 2 điểm chéo (kéo-thả kiểu marquee) thành 4 góc hình chữ nhật theo chiều kim đồng
@@ -1893,7 +2016,7 @@
         // Bọc thêm React.forwardRef (giữ nguyên React.memo bên ngoài) để App có thể "gọi vào" từng
         // trang lấy ảnh chụp nét vẽ + text đã ghi (getAnnotationSnapshot, xem useImperativeHandle bên
         // dưới) — phục vụ tính năng "Lưu ghi chú vào file" (xuất PDF đã dán note) ở component App.
-        const PdfPage = React.memo(React.forwardRef(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, aiShapeMode, pencilShapeMode, eraserShapeMode, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, onAILookup, onTextsChange }, ref) {
+        const PdfPage = React.memo(React.forwardRef(function PdfPage({ pdf, pageNum, scale, isDrawingMode, tool, magicShapeMode, aiShapeMode, pencilShapeMode, eraserShapeMode, penStability, penGlowColor, color, fontSize, pencilSize, basePageSize, onExtractText, onIPALookup, onPhotoLookup, onAILookup, onTextsChange }, ref) {
             const canvasRef = useRef(null);
             const drawCanvasRef = useRef(null);
             const [viewport, setViewport] = useState(null);
@@ -1909,6 +2032,9 @@
 
             const isDrawingRef = useRef(false);
             const currentStrokeRef = useRef(null);
+            // smoothedPointRef: điểm đã "mượt hoá" gần nhất (xem penStability/handlePointerMove) —
+            // reset về điểm bắt đầu mỗi khi đặt bút xuống. Port từ bản Night IELTS Land.
+            const smoothedPointRef = useRef(null);
             // Đếm thời điểm + vị trí lần chạm gần nhất bằng bút "text" — dùng để bắt "gõ đúp" (double
             // tap/click) thay vì tạo box ngay từ lần chạm đầu tiên (giảm tạo nhầm box khi chỉ định
             // chạm 1 lần để làm việc khác, ví dụ chọn công cụ rồi lỡ chạm nhầm vào trang). Port từ
@@ -2036,13 +2162,29 @@
                 const drawLine = (stroke) => {
                     if (!stroke || !stroke.points || stroke.points.length === 0) return;
 
+                    // QUAN TRỌNG — hiệu ứng "Bút Present" tự mờ dần rồi biến mất — port từ bản Night
+                    // IELTS Land: mỗi nét của bút này có kèm createdAt (lúc lưu ở handlePointerUp) —
+                    // mỗi lần vẽ lại, tính tuổi của nét NGAY LÚC ĐANG VẼ (không lưu sẵn vào state, luôn
+                    // tính mới từ Date.now() để mờ dần mượt theo thời gian thực) rồi nhân thêm vào
+                    // globalAlpha. Bỏ hẳn việc vẽ khi đã hết hạn — nét đó sẽ được dọn khỏi state ngay
+                    // sau (xem effect "hiệu ứng mờ dần" trong PdfPage) nên không cần lo tồn đọng.
+                    const cfgForFade = TOOL_STYLES[stroke.tool];
+                    let fadeFactor = 1;
+                    if (cfgForFade && cfgForFade.fade && stroke.createdAt) {
+                        const age = Date.now() - stroke.createdAt;
+                        if (age >= PEN_FADE_TOTAL_MS) return;
+                        if (age > PEN_FADE_START_MS) fadeFactor = 1 - (age - PEN_FADE_START_MS) / (PEN_FADE_TOTAL_MS - PEN_FADE_START_MS);
+                    }
+
                     ctx.beginPath();
-                    applyToolStyle(ctx, stroke.tool, stroke.color, scale, pencilSize);
 
                     // Chế độ "Hình chữ nhật" (kéo-thả): dùng chung cho bút Magic (khi bật chế độ hình
                     // chữ nhật) VÀ bút IPA / tra ảnh (giờ luôn dùng kéo-thả) — vẽ khung chữ nhật thay
-                    // vì nối các điểm như nét vẽ tay thường.
+                    // vì nối các điểm như nét vẽ tay thường. "Bút Present" không bao giờ dùng shape:
+                    // 'rect' nên nhánh này không cần quan tâm tới strokePenTwoPass.
                     if (stroke.shape === 'rect' && stroke.points.length >= 2) {
+                        applyToolStyle(ctx, stroke.tool, stroke.color, scale, pencilSize);
+                        ctx.globalAlpha = ctx.globalAlpha * fadeFactor;
                         const p1 = stroke.points[0], p2 = stroke.points[1];
                         const x = Math.min(p1.x, p2.x) * scale;
                         const y = Math.min(p1.y, p2.y) * scale;
@@ -2057,7 +2199,15 @@
                     for (let i = 1; i < stroke.points.length; i++) {
                         ctx.lineTo(stroke.points[i].x * scale, stroke.points[i].y * scale);
                     }
-                    ctx.stroke();
+
+                    if (stroke.tool === 'present') {
+                        // "Bút Present": vẽ 2 lượt (glow + lõi) lên CÙNG path vừa dựng ở trên.
+                        strokePenTwoPass(ctx, scale, pencilSize, stroke.glowColor, fadeFactor);
+                    } else {
+                        applyToolStyle(ctx, stroke.tool, stroke.color, scale, pencilSize);
+                        ctx.globalAlpha = ctx.globalAlpha * fadeFactor;
+                        ctx.stroke();
+                    }
                     ctx.setLineDash([]);
                 };
 
@@ -2070,6 +2220,29 @@
             }, [strokes, scale, pencilSize, pendingErase]);
 
             useEffect(() => { if(isVisible) redrawStrokes(); }, [redrawStrokes, isVisible]);
+
+            // QUAN TRỌNG — vòng lặp riêng cho hiệu ứng "Bút Present" tự mờ dần rồi biến mất — port từ
+            // bản Night IELTS Land: CHỈ chạy khi trang đang hiện ra (isVisible) VÀ đang thực sự có ít
+            // nhất 1 nét bút Present còn "sống" — tránh tốn CPU chạy requestAnimationFrame vô ích ở
+            // các trang không liên quan. Mỗi khung hình gọi lại redrawStrokes() để mờ dần mượt theo
+            // thời gian thực, đồng thời dọn khỏi state những nét đã hết hạn.
+            useEffect(() => {
+                if (!isVisible) return;
+                const hasFadingStrokes = strokes.some(s => s.tool === 'present' && s.createdAt);
+                if (!hasFadingStrokes) return;
+                let rafId;
+                const tick = () => {
+                    redrawStrokes();
+                    const now = Date.now();
+                    setStrokes(prev => {
+                        const kept = prev.filter(s => !(s.tool === 'present' && s.createdAt && now - s.createdAt >= PEN_FADE_TOTAL_MS));
+                        return kept.length === prev.length ? prev : kept;
+                    });
+                    rafId = requestAnimationFrame(tick);
+                };
+                rafId = requestAnimationFrame(tick);
+                return () => cancelAnimationFrame(rafId);
+            }, [strokes, isVisible, redrawStrokes]);
 
             // QUAN TRỌNG — 1 trong 2 nguồn gây "viết vài nét là đứng màn hình iPad": mỗi lần
             // getCoordinates() chạy, canvas.getBoundingClientRect() buộc trình duyệt phải tính lại
@@ -2195,6 +2368,13 @@
                 }
 
                 currentStrokeRef.current = { id: Date.now(), tool, color, points: [coords] };
+                // "Bút Present": lưu kèm màu glow ĐANG CHỌN vào chính nét này — mỗi nét nhớ đúng màu
+                // lúc vẽ, đổi penGlowColor sau đó không ảnh hưởng ngược lại các nét cũ đã vẽ. Port từ
+                // bản Night IELTS Land.
+                if (tool === 'present') currentStrokeRef.current.glowColor = penGlowColor;
+                // Reset điểm "mượt hoá" (xem penStability/handlePointerMove) về đúng điểm bắt đầu nét
+                // — để nét mới luôn bắt đầu chính xác tại điểm đặt bút, không bị mượt hoá kéo lệch đi.
+                smoothedPointRef.current = coords;
 
                 // QUAN TRỌNG — nguồn thứ 2 gây "viết vài nét là đứng màn hình iPad": trước đây MỖI
                 // LẦN pointermove đều gọi lại applyToolStyle() (gán strokeStyle/lineWidth/globalAlpha
@@ -2202,16 +2382,21 @@
                 // nét vẽ (chỉ phụ thuộc tool/color/scale — cố định từ lúc đặt bút xuống). Với tần suất
                 // sự kiện cao của Apple Pencil, việc gán lại y hệt hàng trăm lần/giây vẫn tốn CPU và
                 // cấp phát bộ nhớ (garbage) không cần thiết, cộng dồn với việc reflow ở trên càng dễ
-                // làm nghẽn luồng chính. Giờ set style CHỈ 1 LẦN DUY NHẤT ngay khi đặt bút xuống —
-                // context canvas tự giữ nguyên các thuộc tính này cho các lệnh stroke() tiếp theo,
-                // không cần (và không nên) gán lại mỗi lần di chuyển.
+                // làm nghẽn luồng chính. Giờ set style CHỈ 1 LẦN DUY NHẤT ngay khi đặt bút xuống (TRỪ
+                // "Bút Present" — luôn cần vẽ 2 lượt glow+lõi nên strokePenTwoPass tự set style riêng
+                // mỗi lần, xem handlePointerMove) — context canvas tự giữ nguyên các thuộc tính này cho
+                // các lệnh stroke() tiếp theo, không cần (và không nên) gán lại mỗi lần di chuyển.
                 const ctx = drawCanvasRef.current.getContext('2d');
                 ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-                applyToolStyle(ctx, tool, color, scale, pencilSize);
                 ctx.beginPath();
                 ctx.moveTo(coords.x * scale, coords.y * scale);
                 ctx.lineTo(coords.x * scale, coords.y * scale);
-                ctx.stroke();
+                if (tool === 'present') {
+                    strokePenTwoPass(ctx, scale, pencilSize, penGlowColor, 1);
+                } else {
+                    applyToolStyle(ctx, tool, color, scale, pencilSize);
+                    ctx.stroke();
+                }
             };
 
             const handlePointerMove = (e) => {
@@ -2249,16 +2434,38 @@
                 const canvas = drawCanvasRef.current;
                 if (!canvas) return;
 
+                // QUAN TRỌNG — "Độ ổn định nét vẽ" (penStability, 0 = tắt hẳn = giữ NGUYÊN hành vi cũ)
+                // — port từ bản Night IELTS Land: làm mượt điểm chạm thô bằng bộ lọc trung bình trượt
+                // theo cấp số nhân (EMA) trước khi lưu/vẽ — điểm vẽ ra sẽ "đuổi theo" điểm chạm thật
+                // với 1 độ trễ nhỏ, giúp khử rung tay/Apple Pencil, nét viết mượt và tròn trịa hơn.
+                // penStability càng cao thì điểm vẽ càng "bám" chậm theo tay hơn (mượt hơn nhưng trễ
+                // hơn 1 chút) — đánh đổi hợp lý, y hệt thanh trượt "ổn định nét bút" ở các app vẽ
+                // chuyên nghiệp (Procreate, Photoshop...).
+                let point = coords;
+                if (penStability > 0) {
+                    const prevSmoothed = smoothedPointRef.current || coords;
+                    const factor = 1 - penStability;
+                    point = { x: prevSmoothed.x + (coords.x - prevSmoothed.x) * factor, y: prevSmoothed.y + (coords.y - prevSmoothed.y) * factor };
+                    smoothedPointRef.current = point;
+                }
+
                 const lastPoint = currentStrokeRef.current.points[currentStrokeRef.current.points.length - 1];
-                currentStrokeRef.current.points.push(coords);
+                currentStrokeRef.current.points.push(point);
 
                 // Style đã được set 1 lần lúc pointerDown — không gọi lại applyToolStyle() ở đây nữa
                 // (xem giải thích chi tiết ở handlePointerDown), chỉ còn vẽ đoạn nối ngắn giữa 2 điểm.
                 const ctx = canvas.getContext('2d');
                 ctx.beginPath();
                 ctx.moveTo(lastPoint.x * scale, lastPoint.y * scale);
-                ctx.lineTo(coords.x * scale, coords.y * scale);
-                ctx.stroke();
+                ctx.lineTo(point.x * scale, point.y * scale);
+                if (tool === 'present') {
+                    // "Bút Present" cần set lại style riêng mỗi đoạn (glow + lõi, 2 lượt stroke()) —
+                    // không dùng được tối ưu "set style 1 lần" vì bản chất luôn cần 2 kiểu style khác
+                    // nhau cho cùng 1 đoạn.
+                    strokePenTwoPass(ctx, scale, pencilSize, currentStrokeRef.current.glowColor, 1);
+                } else {
+                    ctx.stroke();
+                }
             };
 
             const handlePointerUp = (e) => {
@@ -2343,10 +2550,15 @@
                     return;
                 }
 
-                // Bút chì / bút bi: lưu nét vẽ như bình thường
+                // Bút chì / bút bi / bút Present: lưu nét vẽ như bình thường — TRỪ bút Present (tool
+                // 'present') cần đánh dấu thêm createdAt để hiệu ứng tự mờ dần sau 1.5 giây hoạt động
+                // (xem TOOL_STYLES.present.fade + drawLine + effect "hiệu ứng mờ dần" phía trên). Port
+                // từ bản Night IELTS Land.
                 const strokeToSave = { ...currentStrokeRef.current };
+                if (tool === 'present') strokeToSave.createdAt = Date.now();
                 setStrokes(prev => [...prev, strokeToSave]);
                 currentStrokeRef.current = null;
+                smoothedPointRef.current = null;
             };
 
             const handleErase = (x, y) => {
@@ -3180,25 +3392,52 @@
             // lớn hơn 1 chút. Gộp cả 3 vào chung 1 nút cho gọn thanh công cụ — bấm nút mới hiện bảng
             // chọn nhỏ (popover) thay vì chiếm sẵn 3 ô liên tục trên thanh.
             const [pencilSize, setPencilSize] = useState(DEFAULT_PENCIL_SIZE);
+            // "Độ ổn định nét vẽ" (làm mượt run tay, dùng chung cho bút chì lẫn Bút Present) — port từ
+            // bản Night IELTS Land. Mặc định luôn ở mức CAO (PEN_STABILITY_LEVELS[2]) — người mới dùng
+            // sẽ thấy nét mượt ngay từ đầu, muốn giữ hành vi vẽ "thô" như cũ thì tự chọn mức Tắt.
+            const [penStability, setPenStability] = useState(PEN_STABILITY_LEVELS[2]);
+            // Màu viền glow đang chọn cho "Bút Present" — mặc định màu đầu tiên trong PEN_GLOW_COLORS.
+            const [penGlowColor, setPenGlowColor] = useState(PEN_GLOW_COLORS[0]);
             // Chế độ tẩy: 'point' (mặc định, giữ NGUYÊN hành vi cũ — tẩy theo bán kính quanh điểm chạm/
             // kéo) hoặc 'rect' (kéo-thả chọn vùng hình chữ nhật rồi tẩy hết nét trong đó, giống cơ chế
             // của bút Magic/IPA/tra ảnh/bút chì hình chữ nhật). Port từ bản Night IELTS Land.
             const [eraserShapeMode, setEraserShapeMode] = useState('point');
-            const [showPencilSizeMenu, setShowPencilSizeMenu] = useState(false);
-            const pencilSizeMenuRef = useRef(null);
-            useEffect(() => {
-                if (tool !== 'pencil') setShowPencilSizeMenu(false); // đổi công cụ khác thì tự đóng bảng chọn
-            }, [tool]);
-            useEffect(() => {
-                if (!showPencilSizeMenu) return;
-                const handleClickOutside = (e) => {
-                    if (pencilSizeMenuRef.current && !pencilSizeMenuRef.current.contains(e.target)) {
-                        setShowPencilSizeMenu(false);
-                    }
-                };
-                document.addEventListener('pointerdown', handleClickOutside);
-                return () => document.removeEventListener('pointerdown', handleClickOutside);
-            }, [showPencilSizeMenu]);
+
+            // --- THANH TUỲ CHỌN RIÊNG CHO TỪNG BÚT (ẩn mặc định, bấm ĐÚP vào nút bút để hiện) — port
+            // từ bản Night IELTS Land. QUAN TRỌNG: trước đây MỌI tuỳ chọn (cỡ nét, kiểu vẽ, kiểu tẩy,
+            // kiểu khoanh vùng...) đều nhét thẳng vào thanh công cụ chính — quá nhiều nút cùng lúc, rất
+            // rối mắt. Giờ thanh chính CHỈ còn các nút chọn BÚT + bảng màu; các tuỳ chọn theo từng bút
+            // được gom vào 1 thanh nhỏ RIÊNG hiện ngay bên dưới, CHỈ hiện khi bấm đúp (double-click)
+            // vào đúng nút của bút đó — bấm đúp lại (hoặc đổi sang bút khác) để ẩn đi.
+            // expandedToolOptions: tên bút đang mở thanh tuỳ chọn, hoặc null nếu đang ẩn.
+            const [expandedToolOptions, setExpandedToolOptions] = useState(null);
+            const toggleToolOptions = useCallback((toolName) => {
+                setExpandedToolOptions(prev => prev === toolName ? null : toolName);
+            }, []);
+            // Đổi sang bút khác (bấm đơn — chọn công cụ) thì tự ẩn thanh tuỳ chọn của bút CŨ đi, vì
+            // tuỳ chọn đó không còn áp dụng cho bút đang chọn nữa.
+            useEffect(() => { setExpandedToolOptions(null); }, [tool]);
+
+            // QUAN TRỌNG — sửa lỗi "trên iPad bấm 2 lần vào nút bút không hiện thanh tuỳ chọn": sự
+            // kiện `onDoubleClick` của React là sự kiện CHUỘT (mouse dblclick) — Safari trên iPad KHÔNG
+            // tự tổng hợp sự kiện này từ 2 lần chạm ngón tay/Apple Pencil liên tiếp (dblclick vốn chỉ
+            // dành cho chuột thật), nên double-tap trên iPad không bao giờ kích hoạt được onDoubleClick,
+            // dù trên Mac (dùng chuột thật) vẫn hoạt động bình thường — đây là lý do bug chỉ xảy ra
+            // trên iPad. Sửa bằng cách TỰ phát hiện double-tap dựa trên `onClick` (sự kiện này CÓ xảy
+            // ra nhất quán cho cả chuột lẫn chạm ngón tay/bút trên mọi nền tảng): tự đếm thời gian giữa
+            // 2 lần bấm liên tiếp VÀO ĐÚNG CÙNG 1 nút bút — nếu cách nhau dưới 400ms thì coi là double-
+            // tap và mở thanh tuỳ chọn, còn lại thì chỉ chọn công cụ như bình thường.
+            const lastToolTapRef = useRef({ tool: null, time: 0 });
+            const handleToolButtonClick = useCallback((toolName) => {
+                setTool(toolName);
+                const now = Date.now();
+                if (lastToolTapRef.current.tool === toolName && now - lastToolTapRef.current.time < 400) {
+                    toggleToolOptions(toolName);
+                    lastToolTapRef.current = { tool: null, time: 0 }; // reset để tránh bấm 3 lần liên tiếp lại tính thành double-tap lần nữa
+                } else {
+                    lastToolTapRef.current = { tool: toolName, time: now };
+                }
+            }, [toggleToolOptions]);
 
             const [magicText, setMagicText] = useState("");
             const [isOcrProcessing, setIsOcrProcessing] = useState(false);
@@ -3219,6 +3458,573 @@
                 setShowAiKeyModal(true);
             }, [aiApiKey]);
             const [aiLookup, setAiLookup] = useState(null); // { text, ocrLoading } — box Bút AI
+
+            // --- TÍNH NĂNG "PHỤ ĐỀ TRỰC TIẾP" (Live Subtitles) ---
+            // Bật lên hiện 1 thanh màu đen cố định dưới cùng màn hình. Có 2 "động cơ" nhận diện giọng nói
+            // khác nhau, tự chọn theo tình huống:
+            //   • 'speech' (MẶC ĐỊNH, ưu tiên dùng): Web Speech API (SpeechRecognition) có sẵn miễn phí
+            //     trong Chrome — cho phép hiện chữ ra NGAY TỪNG TỪ một lúc đang nói (kết quả "interim"),
+            //     rồi khi hết câu (ngắt hơi) mới "chốt" thành 1 dòng phụ đề hoàn chỉnh và nhảy dòng mới —
+            //     đúng đúng cảm giác phụ đề trực tiếp kiểu YouTube/Google Meet. NHƯỢC ĐIỂM: chỉ nhận
+            //     được đúng 1 nguồn cố định là mic hệ điều hành, không có cách nào đưa thêm 1 MediaStream
+            //     tuỳ ý (vd âm thanh tab) vào được, và Safari/iPad hầu như không hỗ trợ API này.
+            //   • 'whisper' (dự phòng, TỰ ĐỘNG chuyển sang khi cần): ghi âm từng đoạn ngắn rồi gửi Groq
+            //     Whisper phiên âm (xem GROQ_WHISPER_MODELS) — dùng khi (a) trình duyệt không có Web
+            //     Speech API (vd Safari/iPad), hoặc (b) người dùng bấm "Thêm âm thanh laptop" (bắt buộc
+            //     phải trộn 2 nguồn mic+tab thành 1 luồng duy nhất qua AudioContext rồi ghi âm, việc mà
+            //     Web Speech API không làm được) — phụ đề khi đó hiện theo TỪNG ĐOẠN ngắn (~3 giây) thay
+            //     vì từng chữ, đây là đánh đổi kỹ thuật bắt buộc chứ không phải thiếu sót.
+            const [subtitleActive, setSubtitleActive] = useState(false);
+            const [subtitlePaused, setSubtitlePaused] = useState(false);
+            const [subtitleStatus, setSubtitleStatus] = useState('idle'); // 'idle' | 'listening' | 'paused' | 'error'
+            const [subtitleError, setSubtitleError] = useState('');
+            const [subtitleLines, setSubtitleLines] = useState([]); // vài dòng phụ đề ĐÃ CHỐT gần nhất, dạng [{id,text}]
+            // subtitleInterimText: dòng đang "gõ dở" hiện theo thời gian thực (CHỈ có ở động cơ 'speech'
+            // — bên 'whisper' luôn rỗng vì mỗi đoạn ghi âm chỉ trả về sau khi đã ghi xong cả đoạn).
+            const [subtitleInterimText, setSubtitleInterimText] = useState('');
+            const [subtitleHasTabAudio, setSubtitleHasTabAudio] = useState(false);
+            // subtitleHasTabAudioRef: bản sao qua ref của state trên — subtitleRecordLoop chỉ có đúng 1
+            // dependency ([transcribeAudioBlob]) nên đọc state trực tiếp sẽ bị "đóng băng" giá trị cũ lúc
+            // closure tạo ra; đọc ref thì luôn thấy giá trị mới nhất ngay cả trong vòng lặp đệ quy dài.
+            const subtitleHasTabAudioRef = useRef(false);
+            // Modal cảnh báo 1 lần trước khi thật sự gọi getDisplayMedia lấy âm thanh máy — xem
+            // SYSTEM_AUDIO_WARNING_KEY và handleClickAddTabAudio phía dưới.
+            const [showSystemAudioWarning, setShowSystemAudioWarning] = useState(false);
+            // subtitleSilenceHint: gợi ý nhẹ nhàng (KHÔNG phải lỗi cứng, vẫn giữ trạng thái "Đang nghe")
+            // hiện ra khi động cơ 'whisper' đã ghi được vài đoạn LIÊN TIẾP mà đoạn nào cũng gần như im
+            // lặng hoàn toàn — thường gặp nhất khi: (1) lỡ chọn "Cửa sổ/Tab" thay vì "Toàn bộ màn hình"
+            // nên công tắc "Also share system audio" không có tác dụng, (2) macOS chưa cấp quyền "Screen
+            // & System Audio Recording" cho trình duyệt trong System Settings, hoặc (3) âm lượng máy
+            // đang tắt/để rất nhỏ. Tự biến mất ngay khi phát hiện có âm thanh thật.
+            const [subtitleSilenceHint, setSubtitleSilenceHint] = useState('');
+            const subtitleSilentStreakRef = useRef(0);
+            // subtitleActiveRef/subtitlePausedRef: dùng SONG SONG với state cùng tên — vòng lặp ghi âm/
+            // gửi API và các callback của SpeechRecognition (onend...) chạy bất đồng bộ nên đọc state cũ
+            // (đóng gói lúc closure tạo ra) sẽ không thấy được lần setState mới nhất khi người dùng bấm
+            // tắt/tạm dừng giữa chừng; đọc ref thì luôn thấy giá trị mới nhất ngay lập tức.
+            const subtitleActiveRef = useRef(false);
+            const subtitlePausedRef = useRef(false);
+            const subtitleEngineRef = useRef('speech'); // 'speech' | 'whisper' — động cơ đang dùng
+            const recognitionRef = useRef(null); // SpeechRecognition instance (động cơ 'speech')
+            const subtitleMicStreamRef = useRef(null);
+            const subtitleAudioCtxRef = useRef(null);
+            const subtitleDestRef = useRef(null); // MediaStreamDestination cho MIC (động cơ 'whisper' — chỉ dùng khi Web Speech API không có, vd Safari/iPad)
+            const subtitleAnalyserRef = useRef(null); // đo năng lượng âm thanh mic — xem SUBTITLE_SILENCE_RMS
+            const subtitleEnergyPeakRef = useRef(0);
+            const subtitleEnergyIntervalRef = useRef(null);
+            const subtitleRecorderRef = useRef(null);
+            // --- Đồ thị/vòng ghi âm RIÊNG cho ÂM THANH MÁY TÍNH (tab audio) ---
+            // QUAN TRỌNG: tách hẳn thành 1 pipeline ĐỘC LẬP với mic, KHÔNG còn trộn chung vào 1 luồng như
+            // trước nữa. Lý do: hồi trước hễ bấm "Nghe âm thanh máy tính" là ép luôn cả mic phải chuyển
+            // từ động cơ 'speech' (hiện từng chữ tức thời) sang 'whisper' (chờ hết cả đoạn ~3 giây mới
+            // hiện) — người dùng phản ánh đúng: giọng nói của mình qua mic bị "chậm lại" oan uổng dù chỉ
+            // muốn nghe THÊM âm thanh máy. Giờ mic luôn được giữ nguyên ở động cơ nhanh nhất có thể
+            // (Web Speech API nếu trình duyệt hỗ trợ), còn âm thanh máy (vốn dĩ không phải giọng nói trực
+            // tiếp của người dùng nên độ trễ vài giây không quan trọng bằng) đi qua 1 pipeline Whisper
+            // theo đoạn HOÀN TOÀN RIÊNG — 2 nguồn chạy song song, không còn phụ thuộc lẫn nhau nữa.
+            const subtitleTabStreamRef = useRef(null);
+            const tabAudioCtxRef = useRef(null);
+            const tabDestRef = useRef(null);
+            const tabAnalyserRef = useRef(null);
+            const tabEnergyPeakRef = useRef(0);
+            const tabEnergyIntervalRef = useRef(null);
+            const tabRecorderRef = useRef(null);
+
+            // Gửi 1 đoạn audio đã ghi cho Groq Whisper phiên âm ra chữ — tự thử lần lượt các model trong
+            // GROQ_WHISPER_MODELS nếu model hiện tại báo lỗi (giống hệt cơ chế callGroqAPI cho Bút AI).
+            const transcribeAudioBlob = useCallback(async (blob) => {
+                if (!aiApiKey) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Chưa có API key Groq — bấm vào đây để nhập (dùng chung với Bút AI).');
+                    return;
+                }
+                const ext = blob.type.includes('mp4') ? 'mp4' : (blob.type.includes('ogg') ? 'ogg' : 'webm');
+                for (let i = 0; i < GROQ_WHISPER_MODELS.length; i++) {
+                    const model = GROQ_WHISPER_MODELS[i];
+                    const isLastModel = i === GROQ_WHISPER_MODELS.length - 1;
+                    try {
+                        const form = new FormData();
+                        form.append('file', blob, 'chunk.' + ext);
+                        form.append('model', model);
+                        form.append('response_format', 'json');
+                        form.append('temperature', '0');
+                        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+                            method: 'POST',
+                            headers: { 'Authorization': 'Bearer ' + aiApiKey },
+                            body: form,
+                        });
+                        if (res.status === 401) {
+                            setSubtitleStatus('error');
+                            setSubtitleError('API key Groq không hợp lệ — bấm vào đây để sửa lại.');
+                            return;
+                        }
+                        if (!res.ok) {
+                            if (!isLastModel && (res.status === 404 || res.status === 400)) continue; // model này lỗi -> thử model kế tiếp
+                            throw new Error('HTTP ' + res.status);
+                        }
+                        const data = await res.json();
+                        const text = ((data && data.text) || '').trim();
+                        if (text) {
+                            setSubtitleStatus('listening');
+                            setSubtitleError('');
+                            setSubtitleLines(prev => [...prev, { id: Date.now() + Math.random(), text }].slice(-3));
+                        }
+                        return;
+                    } catch (e) {
+                        if (isLastModel) {
+                            setSubtitleStatus('error');
+                            setSubtitleError('Lỗi kết nối tới Groq — đang tự thử lại...');
+                        }
+                    }
+                }
+            }, [aiApiKey]);
+
+            // Vòng lặp ghi âm của động cơ 'whisper': tạo 1 MediaRecorder MỚI cho mỗi đoạn (đơn giản/ổn
+            // định hơn nhiều so với dùng timeslice trên 1 recorder duy nhất — mỗi lần start() lại sinh ra
+            // 1 file audio ĐẦY ĐỦ header, Whisper đọc được ngay). Đệ quy gọi lại chính nó cho tới khi
+            // subtitleActiveRef.current thành false (tắt hẳn) hoặc subtitlePausedRef.current thành true
+            // (tạm dừng — xem pauseSubtitles).
+            const subtitleRecordLoop = useCallback(async () => {
+                if (!subtitleActiveRef.current || subtitlePausedRef.current || !subtitleDestRef.current) return;
+                let recorder;
+                try {
+                    const mimeType = pickSubtitleMimeType();
+                    recorder = new MediaRecorder(subtitleDestRef.current.stream, mimeType ? { mimeType } : undefined);
+                } catch (e) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Trình duyệt này không hỗ trợ ghi âm (MediaRecorder).');
+                    return;
+                }
+                subtitleRecorderRef.current = recorder;
+                subtitleEnergyPeakRef.current = 0;
+                const chunks = [];
+                recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+                const stopped = new Promise(resolve => { recorder.onstop = resolve; });
+                recorder.start();
+                await new Promise(r => setTimeout(r, SUBTITLE_CHUNK_MS));
+                if (recorder.state !== 'inactive') recorder.stop();
+                await stopped;
+                if (!subtitleActiveRef.current || subtitlePausedRef.current) return; // đã tắt/tạm dừng trong lúc đang ghi đoạn này
+                const peak = subtitleEnergyPeakRef.current;
+                if (peak >= SUBTITLE_SILENCE_RMS && chunks.length > 0) {
+                    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+                    transcribeAudioBlob(blob); // KHÔNG await — chạy song song, không làm chậm vòng ghi âm kế tiếp
+                }
+                // Im lặng (hoặc không ghi được chunk nào): bình thường, không cần cảnh báo gì — mic chỉ
+                // đơn giản là chưa ai nói. Xem tabRecordLoop bên dưới cho phần cảnh báo dành riêng cho
+                // pipeline âm thanh máy tính (ở đó im lặng kéo dài mới đáng ngờ, vì đang phát nội dung).
+                subtitleRecordLoop();
+            }, [transcribeAudioBlob]);
+
+            // Vòng lặp ghi âm RIÊNG cho pipeline âm thanh máy tính (tab audio) — y hệt cơ chế của
+            // subtitleRecordLoop ở trên nhưng đọc/ghi vào các ref tab*/subtitleHasTabAudioRef thay vì
+            // mic, và chạy HOÀN TOÀN SONG SONG với subtitleRecordLoop hoặc SpeechRecognition của mic (xem
+            // giải thích đầy đủ ở cụm khai báo ref tabAudioCtxRef/tabDestRef/... phía trên).
+            const tabRecordLoop = useCallback(async () => {
+                if (!subtitleActiveRef.current || subtitlePausedRef.current || !subtitleHasTabAudioRef.current || !tabDestRef.current) return;
+                let recorder;
+                try {
+                    const mimeType = pickSubtitleMimeType();
+                    recorder = new MediaRecorder(tabDestRef.current.stream, mimeType ? { mimeType } : undefined);
+                } catch (e) {
+                    return; // âm thanh máy chỉ là tính năng phụ — lỗi ở đây không cần chặn cả phụ đề mic chính
+                }
+                tabRecorderRef.current = recorder;
+                tabEnergyPeakRef.current = 0;
+                const chunks = [];
+                recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+                const stopped = new Promise(resolve => { recorder.onstop = resolve; });
+                recorder.start();
+                await new Promise(r => setTimeout(r, SUBTITLE_CHUNK_MS));
+                if (recorder.state !== 'inactive') recorder.stop();
+                await stopped;
+                if (!subtitleActiveRef.current || subtitlePausedRef.current || !subtitleHasTabAudioRef.current) return;
+                const peak = tabEnergyPeakRef.current;
+                if (peak >= SUBTITLE_SILENCE_RMS && chunks.length > 0) {
+                    subtitleSilentStreakRef.current = 0;
+                    setSubtitleSilenceHint('');
+                    const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+                    transcribeAudioBlob(blob);
+                } else {
+                    // Im lặng liên tục vài đoạn khi ĐANG chia sẻ âm thanh máy mới đáng ngờ (khác mic —
+                    // nội dung đang phát ra máy thường không im lặng lâu như vậy).
+                    subtitleSilentStreakRef.current += 1;
+                    if (subtitleSilentStreakRef.current >= 4) {
+                        setSubtitleSilenceHint('Chưa phát hiện âm thanh máy tính — kiểm tra lại: đã chọn "Toàn bộ màn hình" + bật "Also share system audio" chưa, và âm lượng máy có đang tắt tiếng không?');
+                    }
+                }
+                tabRecordLoop();
+            }, [transcribeAudioBlob]);
+
+            // Dọn dẹp toàn bộ pipeline âm thanh máy tính (dùng cả khi người dùng bấm "Dừng chia sẻ" trên
+            // thanh riêng của trình duyệt, lẫn khi bấm Tắt hẳn phụ đề — xem stopSubtitles).
+            const stopTabAudioPipeline = useCallback(() => {
+                subtitleHasTabAudioRef.current = false;
+                setSubtitleHasTabAudio(false);
+                if (tabEnergyIntervalRef.current) { clearInterval(tabEnergyIntervalRef.current); tabEnergyIntervalRef.current = null; }
+                if (tabRecorderRef.current && tabRecorderRef.current.state !== 'inactive') {
+                    try { tabRecorderRef.current.stop(); } catch (e) {}
+                }
+                tabRecorderRef.current = null;
+                if (subtitleTabStreamRef.current) { subtitleTabStreamRef.current.getTracks().forEach(t => t.stop()); subtitleTabStreamRef.current = null; }
+                if (tabAudioCtxRef.current) { try { tabAudioCtxRef.current.close(); } catch (e) {} tabAudioCtxRef.current = null; }
+                tabDestRef.current = null;
+                tabAnalyserRef.current = null;
+            }, []);
+
+            // Dựng "đồ thị âm thanh" cho động cơ 'whisper': mic -> (destination TRỘN chung + analyser đo
+            // năng lượng). Tách riêng thành hàm dùng chung vì cần gọi lại y hệt ở 2 chỗ: lúc khởi động
+            // động cơ whisper từ đầu (không có Web Speech API), và lúc đang dùng động cơ 'speech' mà bấm
+            // "Thêm âm thanh laptop" (buộc phải chuyển hẳn sang whisper để trộn được thêm nguồn tab).
+            const setupWhisperAudioGraph = useCallback((micStream) => {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const audioCtx = new AudioCtx();
+                // QUAN TRỌNG — sửa lỗi "share âm thanh xong nhưng phụ đề không bao giờ hiện": AudioContext
+                // MỚI tạo ra có thể ở trạng thái "suspended" (Chrome tự tạm ngưng xử lý audio graph nếu
+                // không chắc chắn đây là do 1 thao tác bấm chuột/chạm trực tiếp của người dùng — ở đây đã
+                // đi qua vài bước await getDisplayMedia/getUserMedia nên có thể rơi vào đúng trường hợp
+                // này) — nếu context bị suspended thì MediaStreamDestination vẫn tạo ra 1 MediaStream hợp
+                // lệ nhưng chỉ toàn im lặng (0), MediaRecorder ghi âm không lỗi gì cả nhưng Whisper mãi
+                // mãi nhận về audio câm, ngưỡng SUBTITLE_SILENCE_RMS không bao giờ vượt qua được -> không
+                // request nào được gửi đi, phụ đề đứng im vĩnh viễn dù người dùng nói/phát nhạc rõ ràng.
+                // Gọi resume() ngay để chắc chắn context luôn ở trạng thái "running".
+                if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); }
+                const destination = audioCtx.createMediaStreamDestination();
+                const analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512;
+                const micSource = audioCtx.createMediaStreamSource(micStream);
+                micSource.connect(destination);
+                micSource.connect(analyser);
+                subtitleMicStreamRef.current = micStream;
+                subtitleAudioCtxRef.current = audioCtx;
+                subtitleDestRef.current = destination;
+                subtitleAnalyserRef.current = analyser;
+                subtitleEnergyIntervalRef.current = setInterval(() => {
+                    const a = subtitleAnalyserRef.current;
+                    if (!a) return;
+                    const data = new Uint8Array(a.fftSize);
+                    a.getByteTimeDomainData(data);
+                    let sumSquares = 0;
+                    for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sumSquares += v * v; }
+                    const rms = Math.sqrt(sumSquares / data.length);
+                    if (rms > subtitleEnergyPeakRef.current) subtitleEnergyPeakRef.current = rms;
+                }, 80);
+            }, []);
+
+            const startWhisperEngine = useCallback(async () => {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Trình duyệt/kết nối hiện tại không hỗ trợ dùng micro (thử mở trang qua https hoặc localhost).');
+                    return;
+                }
+                try {
+                    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    setupWhisperAudioGraph(micStream);
+                    subtitleRecordLoop();
+                } catch (e) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Không lấy được quyền micro (kiểm tra đã cho phép trong trình duyệt/hệ thống chưa).');
+                }
+            }, [setupWhisperAudioGraph, subtitleRecordLoop]);
+
+            // Khởi động động cơ 'speech' (Web Speech API) — trả về true nếu bật được, false nếu trình
+            // duyệt không hỗ trợ (gọi nơi dùng tự rơi xuống động cơ 'whisper'). continuous:true +
+            // interimResults:true là 2 tuỳ chọn mấu chốt cho đúng hiệu ứng "gõ tới đâu hiện tới đó, hết
+            // câu thì chốt dòng và nhảy xuống" mà người dùng yêu cầu.
+            const startSpeechRecognitionEngine = useCallback(() => {
+                const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognitionCtor) return false;
+                const recognition = new SpeechRecognitionCtor();
+                recognition.lang = 'zh-CN';
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.onresult = (event) => {
+                    let interim = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const result = event.results[i];
+                        const text = result[0].transcript;
+                        if (result.isFinal) {
+                            const clean = text.trim();
+                            if (clean) setSubtitleLines(prev => [...prev, { id: Date.now() + Math.random(), text: clean }].slice(-3));
+                        } else {
+                            interim += text;
+                        }
+                    }
+                    setSubtitleInterimText(interim.trim());
+                    setSubtitleStatus('listening');
+                    setSubtitleError('');
+                };
+                recognition.onerror = (event) => {
+                    // 'no-speech' (im lặng quá lâu) và 'aborted' (do chính app chủ động stop()) là bình
+                    // thường, KHÔNG phải lỗi thật — onend bên dưới sẽ tự khởi động lại nếu còn đang bật.
+                    if (event.error === 'no-speech' || event.error === 'aborted') return;
+                    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                        setSubtitleStatus('error');
+                        setSubtitleError('Không có quyền micro (kiểm tra đã cho phép trong trình duyệt chưa).');
+                    }
+                };
+                recognition.onend = () => {
+                    // QUAN TRỌNG: Web Speech API tự động dừng hẳn sau 1 khoảng im lặng dù đã đặt
+                    // continuous:true (giới hạn của chính trình duyệt, không phải bug ở đây) — phải tự
+                    // phát hiện việc này rồi start() lại để phụ đề không bị "chết" giữa buổi dạy dài.
+                    if (subtitleActiveRef.current && !subtitlePausedRef.current && subtitleEngineRef.current === 'speech') {
+                        try { recognition.start(); } catch (e) {}
+                    }
+                };
+                try {
+                    recognition.start();
+                } catch (e) {
+                    return false;
+                }
+                recognitionRef.current = recognition;
+                return true;
+            }, []);
+
+            const startSubtitles = useCallback(async () => {
+                if (subtitleActiveRef.current) return;
+                subtitleActiveRef.current = true;
+                subtitlePausedRef.current = false;
+                _subtitleMicBusy = true;
+                setSubtitleActive(true);
+                setSubtitlePaused(false);
+                setSubtitleStatus('listening');
+                setSubtitleError('');
+                setSubtitleLines([]);
+                setSubtitleInterimText('');
+                setSubtitleHasTabAudio(false);
+                subtitleHasTabAudioRef.current = false;
+                subtitleSilentStreakRef.current = 0;
+                setSubtitleSilenceHint('');
+
+                const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognitionCtor) {
+                    subtitleEngineRef.current = 'speech';
+                    if (startSpeechRecognitionEngine()) return;
+                }
+                // Không có Web Speech API (vd Safari/iPad) -> tự rơi xuống động cơ Groq Whisper theo đoạn.
+                subtitleEngineRef.current = 'whisper';
+                if (!aiApiKey) {
+                    setSubtitleStatus('error');
+                    setSubtitleError('Trình duyệt này không hỗ trợ nhận diện giọng nói tức thời — cần API key Groq để dùng chế độ theo đoạn. Bấm vào đây để nhập.');
+                    return;
+                }
+                await startWhisperEngine();
+            }, [aiApiKey, startSpeechRecognitionEngine, startWhisperEngine]);
+
+            // Lấy âm thanh phát ra từ MÁY TÍNH (nhạc/video/Zoom/bất kỳ app nào đang phát, không riêng gì
+            // 1 tab) — bắt buộc phải qua hộp thoại chia sẻ màn hình của trình duyệt (getDisplayMedia),
+            // không có cách nào lấy được âm thanh hệ thống 1 cách "âm thầm" vì lý do bảo mật của trình
+            // duyệt/hệ điều hành. QUAN TRỌNG để bắt được ĐÚNG "âm thanh toàn hệ thống" (không chỉ 1 tab):
+            //   • constraint `audio: { systemAudio: 'include' }` — báo thẳng cho trình duyệt biết cần âm
+            //     thanh hệ thống, Chrome sẽ tự bật SẴN công tắc "Also share system audio" (đúng cái công
+            //     tắc trong ảnh chụp màn hình macOS mà người dùng đã thấy) khi có thể.
+            //   • constraint `video: { displaySurface: 'monitor' }` — gợi ý trình duyệt ưu tiên chọn sẵn
+            //     tab "Toàn bộ màn hình/Entire Screen" trong hộp thoại (chỉ tab NÀY mới có công tắc âm
+            //     thanh hệ thống nói trên — nếu người dùng lỡ chọn "Cửa sổ/Window" hoặc "Tab Chrome" thì
+            //     công tắc đó sẽ không xuất hiện, dù trình duyệt/hệ điều hành có hỗ trợ đi nữa).
+            // Track video lấy kèm theo (bắt buộc phải xin cả video mới xin được audio) bị TẮT ngay lập
+            // tức vì chỉ cần âm thanh — đỡ tốn tài nguyên máy.
+            // QUAN TRỌNG: từ giờ hàm này KHÔNG còn đụng gì tới mic/động cơ 'speech' của mic nữa — trước
+            // đây bấm nút này sẽ ép luôn cả mic phải chuyển sang chế độ chờ-hết-đoạn (mất đúng cái cảm
+            // giác "hiện từng chữ" mà người dùng thích), giờ mic được giữ nguyên y hệt đang chạy, âm
+            // thanh máy tính đi qua 1 pipeline Whisper hoàn toàn riêng, chạy song song độc lập.
+            const addTabAudioToSubtitles = useCallback(async () => {
+                if (!subtitleActiveRef.current) return;
+                if (!aiApiKey) { openAiSettings(); return; } // pipeline âm thanh máy LUÔN cần Groq Whisper, bất kể mic đang dùng động cơ nào
+                try {
+                    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                        // frameRate ép rất thấp: track video này chỉ tồn tại vì API bắt buộc phải xin
+                        // kèm mới xin được audio — KHÔNG dùng để hiển thị gì cả (tắt ngay dòng dưới), ép
+                        // khung hình thấp để đỡ tốn CPU/GPU chụp màn hình trong lúc chờ người dùng bấm
+                        // Share, nhất là với máy có màn hình độ phân giải cao. LƯU Ý: trên Safari, việc
+                        // hộp thoại chia sẻ màn hình bị giật/xoay xoay con trỏ lúc đang chọn là hạn chế
+                        // của chính Safari/macOS khi dựng bản xem trước live của "Toàn bộ màn hình" — xảy
+                        // ra TRƯỚC khi trang này kịp nhận được stream nào cả, nên không có constraint nào
+                        // ở đây khắc phục được; nếu thấy khó chịu, thử Chrome cho riêng thao tác này.
+                        video: { displaySurface: 'monitor', frameRate: { ideal: 1, max: 5 } },
+                        audio: { systemAudio: 'include' },
+                        preferCurrentTab: false,
+                    });
+                    const audioTracks = displayStream.getAudioTracks();
+                    displayStream.getVideoTracks().forEach(t => t.stop());
+                    if (audioTracks.length === 0) {
+                        setSubtitleError('Chưa lấy được âm thanh — trong hộp thoại vừa hiện, nhớ chọn mục "Toàn bộ màn hình" (Entire Screen) rồi bật công tắc "Also share system audio" trước khi bấm Share/Chia sẻ.');
+                        return;
+                    }
+
+                    // Nếu bấm lại nút này lần 2 (vd đổi nguồn khác) mà pipeline cũ vẫn còn -> dọn trước.
+                    if (subtitleHasTabAudioRef.current) stopTabAudioPipeline();
+
+                    const tabAudioOnlyStream = new MediaStream(audioTracks);
+                    subtitleTabStreamRef.current = tabAudioOnlyStream;
+
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    const audioCtx = new AudioCtx();
+                    // Xem giải thích đầy đủ ở setupWhisperAudioGraph (mic) — cùng 1 lý do: context mới
+                    // tạo có thể "suspended" khiến ghi âm ra toàn im lặng dù đang phát âm thanh thật.
+                    if (audioCtx.state === 'suspended') { audioCtx.resume().catch(() => {}); }
+                    const destination = audioCtx.createMediaStreamDestination();
+                    const analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 512;
+                    const tabSource = audioCtx.createMediaStreamSource(tabAudioOnlyStream);
+                    tabSource.connect(destination);
+                    tabSource.connect(analyser);
+                    tabAudioCtxRef.current = audioCtx;
+                    tabDestRef.current = destination;
+                    tabAnalyserRef.current = analyser;
+                    tabEnergyIntervalRef.current = setInterval(() => {
+                        const a = tabAnalyserRef.current;
+                        if (!a) return;
+                        const data = new Uint8Array(a.fftSize);
+                        a.getByteTimeDomainData(data);
+                        let sumSquares = 0;
+                        for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sumSquares += v * v; }
+                        const rms = Math.sqrt(sumSquares / data.length);
+                        if (rms > tabEnergyPeakRef.current) tabEnergyPeakRef.current = rms;
+                    }, 80);
+
+                    setSubtitleHasTabAudio(true);
+                    subtitleHasTabAudioRef.current = true;
+                    subtitleSilentStreakRef.current = 0;
+                    setSubtitleSilenceHint('');
+                    // Người dùng có thể bấm "Dừng chia sẻ" ngay trên thanh chia sẻ riêng của trình duyệt
+                    // (không phải nút Tắt trong app) — lắng nghe để tự dọn dẹp pipeline riêng này cho khớp
+                    // (KHÔNG đụng gì tới mic — mic vẫn tiếp tục chạy bình thường).
+                    audioTracks[0].addEventListener('ended', () => { stopTabAudioPipeline(); });
+
+                    if (!subtitlePausedRef.current) tabRecordLoop();
+                } catch (e) {
+                    // Người dùng bấm Huỷ ở hộp thoại chia sẻ — không phải lỗi thật sự, bỏ qua im lặng.
+                }
+            }, [aiApiKey, openAiSettings, stopTabAudioPipeline, tabRecordLoop]);
+
+            // Bấm nút "Nghe âm thanh máy tính" đi qua hàm này trước, KHÔNG gọi thẳng addTabAudioToSubtitles
+            // — lần đầu tiên trên mỗi trình duyệt sẽ hiện 1 modal cảnh báo về việc macOS có thể yêu cầu
+            // cấp quyền + khởi động lại Chrome (xem SYSTEM_AUDIO_WARNING_KEY), tránh để người dùng bị bất
+            // ngờ giữa buổi dạy nếu trình duyệt thật sự phải khởi động lại. Các lần bấm sau (đã đọc rồi)
+            // thì vào thẳng luôn, không hỏi lại nữa.
+            const handleClickAddTabAudio = useCallback(() => {
+                let alreadySeen = false;
+                try { alreadySeen = localStorage.getItem(SYSTEM_AUDIO_WARNING_KEY) === '1'; } catch (e) {}
+                if (alreadySeen) {
+                    addTabAudioToSubtitles();
+                } else {
+                    setShowSystemAudioWarning(true);
+                }
+            }, [addTabAudioToSubtitles]);
+
+            // Tạm dừng: tắt HẲN mic phần cứng (đúng nghĩa "không nghe nữa") nhưng CỐ TÌNH không đụng tới
+            // subtitleLines — mọi phụ đề đang hiện được giữ nguyên trên thanh đen cho tới khi bấm tắt hẳn
+            // hoặc bấm tiếp tục nghe.
+            const pauseSubtitles = useCallback(() => {
+                if (!subtitleActiveRef.current || subtitlePausedRef.current) return;
+                subtitlePausedRef.current = true;
+                _subtitleMicBusy = false; // mic phần cứng thực sự bị tắt hẳn ngay bên dưới — hết bận.
+                setSubtitlePaused(true);
+                setSubtitleStatus('paused');
+                setSubtitleInterimText('');
+                if (subtitleEngineRef.current === 'speech' && recognitionRef.current) {
+                    try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch (e) {}
+                    recognitionRef.current = null;
+                }
+                if (subtitleRecorderRef.current && subtitleRecorderRef.current.state !== 'inactive') {
+                    try { subtitleRecorderRef.current.stop(); } catch (e) {}
+                }
+                if (subtitleMicStreamRef.current) {
+                    subtitleMicStreamRef.current.getTracks().forEach(t => t.stop());
+                    subtitleMicStreamRef.current = null;
+                }
+                // Pipeline âm thanh máy (nếu có): chỉ dừng vòng ghi âm, KHÔNG huỷ luôn stream chia sẻ màn
+                // hình (huỷ hẳn sẽ phải hiện lại hộp thoại share khi tiếp tục — làm phiền hơn nhiều so với
+                // chỉ tạm ngưng gửi request). subtitlePausedRef đã true nên tabRecordLoop tự dừng lịch ghi
+                // tiếp theo, ở đây chỉ cần cắt ngay đoạn đang ghi dở.
+                if (tabRecorderRef.current && tabRecorderRef.current.state !== 'inactive') {
+                    try { tabRecorderRef.current.stop(); } catch (e) {}
+                }
+            }, []);
+
+            // Tiếp tục nghe sau khi tạm dừng — bật lại đúng động cơ đang dùng trước đó, KHÔNG xoá phụ đề
+            // cũ. Với động cơ 'whisper', mic đã bị tắt hẳn lúc pause nên phải xin quyền lại rồi nối vào
+            // ĐÚNG audio graph cũ (destination/analyser cũ vẫn còn nguyên nếu vẫn đang có âm thanh tab).
+            const resumeSubtitles = useCallback(async () => {
+                if (!subtitleActiveRef.current || !subtitlePausedRef.current) return;
+                subtitlePausedRef.current = false;
+                _subtitleMicBusy = true;
+                setSubtitlePaused(false);
+                setSubtitleStatus('listening');
+                setSubtitleError('');
+                // Pipeline âm thanh máy (nếu đang có, ĐỘC LẬP với động cơ mic bên dưới) — chỉ cần khởi
+                // động lại vòng ghi âm, graph/stream chia sẻ màn hình vẫn còn nguyên suốt lúc tạm dừng.
+                if (subtitleHasTabAudioRef.current && (!tabRecorderRef.current || tabRecorderRef.current.state === 'inactive')) {
+                    tabRecordLoop();
+                }
+                if (subtitleEngineRef.current === 'speech') {
+                    if (!startSpeechRecognitionEngine()) {
+                        subtitlePausedRef.current = true;
+                        _subtitleMicBusy = false;
+                        setSubtitlePaused(true);
+                        setSubtitleStatus('error');
+                        setSubtitleError('Không bật lại được micro.');
+                    }
+                    return;
+                }
+                subtitleSilentStreakRef.current = 0;
+                setSubtitleSilenceHint('');
+                try {
+                    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    subtitleMicStreamRef.current = micStream;
+                    if (subtitleAudioCtxRef.current && subtitleDestRef.current) {
+                        if (subtitleAudioCtxRef.current.state === 'suspended') { subtitleAudioCtxRef.current.resume().catch(() => {}); }
+                        const micSource = subtitleAudioCtxRef.current.createMediaStreamSource(micStream);
+                        micSource.connect(subtitleDestRef.current);
+                        if (subtitleAnalyserRef.current) micSource.connect(subtitleAnalyserRef.current);
+                    } else {
+                        setupWhisperAudioGraph(micStream); // hiếm khi xảy ra: graph cũ đã mất hẳn, dựng lại từ đầu
+                    }
+                    subtitleRecordLoop();
+                } catch (e) {
+                    subtitlePausedRef.current = true;
+                    _subtitleMicBusy = false;
+                    setSubtitlePaused(true);
+                    setSubtitleStatus('error');
+                    setSubtitleError('Không lấy lại được quyền micro.');
+                }
+            }, [startSpeechRecognitionEngine, setupWhisperAudioGraph, subtitleRecordLoop, tabRecordLoop]);
+
+            const stopSubtitles = useCallback(() => {
+                subtitleActiveRef.current = false;
+                subtitlePausedRef.current = false;
+                _subtitleMicBusy = false;
+                subtitleEngineRef.current = 'speech';
+                setSubtitleActive(false);
+                setSubtitlePaused(false);
+                setSubtitleStatus('idle');
+                setSubtitleError('');
+                setSubtitleLines([]);
+                setSubtitleInterimText('');
+                subtitleSilentStreakRef.current = 0;
+                setSubtitleSilenceHint('');
+                if (recognitionRef.current) {
+                    try { recognitionRef.current.onend = null; recognitionRef.current.stop(); } catch (e) {}
+                    recognitionRef.current = null;
+                }
+                if (subtitleEnergyIntervalRef.current) { clearInterval(subtitleEnergyIntervalRef.current); subtitleEnergyIntervalRef.current = null; }
+                if (subtitleRecorderRef.current && subtitleRecorderRef.current.state !== 'inactive') {
+                    try { subtitleRecorderRef.current.stop(); } catch (e) {}
+                }
+                subtitleRecorderRef.current = null;
+                if (subtitleMicStreamRef.current) { subtitleMicStreamRef.current.getTracks().forEach(t => t.stop()); subtitleMicStreamRef.current = null; }
+                if (subtitleAudioCtxRef.current) { try { subtitleAudioCtxRef.current.close(); } catch (e) {} subtitleAudioCtxRef.current = null; }
+                subtitleDestRef.current = null;
+                subtitleAnalyserRef.current = null;
+                stopTabAudioPipeline(); // dọn pipeline âm thanh máy tính (nếu có) — riêng biệt hoàn toàn với mic ở trên
+            }, [stopTabAudioPipeline]);
+
+            // Đảm bảo dọn dẹp mic/tab-audio/AudioContext/SpeechRecognition nếu người dùng đóng tab/tải
+            // lại trang trong lúc phụ đề trực tiếp đang bật — tránh giữ mic mở "vô hình" sau khi rời trang.
+            useEffect(() => {
+                return () => { stopSubtitles(); };
+            }, [stopSubtitles]);
 
             // --- TÍNH NĂNG "TÓM TẮT PHIÊN DẠY" ---
             // Gom TẤT CẢ notes (text box) trên mọi trang + các câu trả lời Bút AI ĐÃ LƯU trong phiên đang
@@ -3243,6 +4049,14 @@
             const [savedSummaries, setSavedSummaries] = useState([]);
 
             const [showTOC, setShowTOC] = useState(false);
+            // --- TÍNH NĂNG "CHỌN TRANG CỤ THỂ ĐỂ XUẤT PDF" — port từ bản Night IELTS Land, đặt lên
+            // trên pipeline xuất PDF riêng của bản Chinese (pdf-lib dán đè ghi chú lên đúng trang gốc)
+            // thay vì thay thế nó. tocExportMode: khi true, mở mục lục để CHỌN TRANG xuất (bấm vào ô =
+            // tích chọn, không chuyển trang nữa) thay vì mở mục lục bình thường để điều hướng.
+            const [tocExportMode, setTocExportMode] = useState(false);
+            const [selectedExportPages, setSelectedExportPages] = useState(() => new Set());
+            // Hộp thoại nhỏ hỏi "Xuất tất cả" hay "Chọn trang cụ thể" khi bấm nút "Lưu ghi chú".
+            const [showExportChoice, setShowExportChoice] = useState(false);
             // Số ô mục lục đang được dựng trong modal — bắt đầu từ 1 đợt nhỏ (TOC_BATCH_SIZE), tự
             // tăng dần khi cuộn gần tới cuối (qua handleTocScroll). Xem giải thích chi tiết ở khai
             // báo TOC_BATCH_SIZE phía trên (sửa lỗi "mở mục lục file nặng tải rất lâu").
@@ -3259,6 +4073,89 @@
             // true trong lúc app TỰ cuộn bằng lệnh (vd bấm mục lục) — cho phép bộ khống chế tốc độ
             // cuộn bên dưới bỏ qua, không chặn nhầm cú cuộn mượt do chính app gây ra.
             const isProgrammaticScrollRef = useRef(false);
+
+            const progScrollTimerRef = useRef(null);
+
+            // QUAN TRỌNG — THANH ĐIỀU HƯỚNG DẠNG CHẤM DỌC (mỗi trang = 1 chấm): thêm mới theo yêu
+            // cầu, có nút nhỏ để bật/tắt (mặc định ẩn, đỡ chiếm diện tích màn hình). Dùng lại đúng
+            // cách tính "delta rồi scrollTo" đã dùng ổn định cho việc bấm mục lục — không đụng gì tới
+            // cơ chế cuộn bằng wheel/trackpad đã sửa rất kỹ ở các bản trước, nên không có rủi ro làm
+            // lại đúng mấy lỗi "nhảy trang" từng gặp. Cuộn qua thanh này CỐ TÌNH dùng behavior:'auto'
+            // (tức thời, không animation) thay vì 'smooth' — giống hệt cảm giác kéo thanh cuộn thật
+            // của hệ điều hành: kéo tới đâu, trang cập nhật NGAY tới đó, không có animation nào chạy
+            // ngầm để mà chồng chéo/xung đột nhau khi kéo nhanh liên tục — đây chính là cách tránh
+            // "giật/nhảy" khi kéo mà người dùng yêu cầu, thay vì cố gắng làm mượt bằng animation.
+            const [showPageNav, setShowPageNav] = useState(false);
+            const pageNavRailRef = useRef(null);
+            const isDraggingNavRef = useRef(false);
+            const [currentPageForNav, setCurrentPageForNav] = useState(1);
+
+            // Cuộn thẳng tới đúng trang pageNum trong khung đọc PDF chính — dùng chung cho cả bấm
+            // VÀ kéo trên thanh điều hướng dạng chấm.
+            const scrollToPage = useCallback((pageNum) => {
+                const container = pdfContentAreaRef.current;
+                const target = document.getElementById(`pdf-page-${pageNum}`);
+                if (!container || !target) return;
+                const containerRect = container.getBoundingClientRect();
+                const targetRect = target.getBoundingClientRect();
+                const delta = targetRect.top - containerRect.top;
+                isProgrammaticScrollRef.current = true;
+                container.scrollTo({ top: container.scrollTop + delta - 16, behavior: 'auto' });
+                clearTimeout(progScrollTimerRef.current);
+                progScrollTimerRef.current = setTimeout(() => { isProgrammaticScrollRef.current = false; }, 200);
+            }, []);
+
+            // Quy đổi vị trí Y của con trỏ/ngón tay trên thanh điều hướng thành số trang tương ứng
+            // (0 ở đỉnh thanh = trang 1, cuối thanh = trang cuối) rồi cuộn thẳng tới đó.
+            const handleNavPointerToPage = useCallback((clientY) => {
+                const rail = pageNavRailRef.current;
+                if (!rail || !numPages) return;
+                const rect = rail.getBoundingClientRect();
+                const fraction = rect.height > 0 ? Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)) : 0;
+                const pageNum = Math.max(1, Math.min(numPages, Math.round(fraction * (numPages - 1)) + 1));
+                scrollToPage(pageNum);
+            }, [numPages, scrollToPage]);
+
+            const handleNavPointerDown = useCallback((e) => {
+                isDraggingNavRef.current = true;
+                try { e.target.setPointerCapture(e.pointerId); } catch (err) {}
+                handleNavPointerToPage(e.clientY);
+            }, [handleNavPointerToPage]);
+
+            const handleNavPointerMove = useCallback((e) => {
+                if (!isDraggingNavRef.current) return;
+                handleNavPointerToPage(e.clientY);
+            }, [handleNavPointerToPage]);
+
+            const handleNavPointerUp = useCallback((e) => {
+                isDraggingNavRef.current = false;
+                try { e.target.releasePointerCapture(e.pointerId); } catch (err) {}
+            }, []);
+
+            // Theo dõi trang đang xem để tô sáng đúng chấm tương ứng trên thanh điều hướng — dùng 1
+            // IntersectionObserver DUY NHẤT theo dõi TẤT CẢ khung trang, thu hẹp vùng "tính là đang
+            // xem" về đúng dải giữa màn hình (rootMargin âm cả trên lẫn dưới) để chỉ 1 trang khớp tại
+            // 1 thời điểm. Đây CHỈ để tô sáng (hiển thị), hoàn toàn tách biệt khỏi mọi observer khác
+            // của từng PdfPage (dùng để lazy-render) — không ảnh hưởng gì tới cơ chế render/cuộn hiện có.
+            useEffect(() => {
+                if (!pdfDoc || !numPages) return;
+                const observer = new IntersectionObserver((entries) => {
+                    let best = null;
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting && (!best || entry.intersectionRatio > best.intersectionRatio)) {
+                            best = entry;
+                        }
+                    });
+                    if (best) {
+                        const match = best.target.id.match(/pdf-page-(\d+)/);
+                        if (match) setCurrentPageForNav(Number(match[1]));
+                    }
+                }, { rootMargin: '-45% 0px -45% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] });
+
+                const els = document.querySelectorAll('[id^="pdf-page-"]');
+                els.forEach(el => observer.observe(el));
+                return () => observer.disconnect();
+            }, [pdfDoc, numPages]);
 
             // --- PHỤC VỤ TÍNH NĂNG "LƯU GHI CHÚ VÀO FILE" (xem handleExportAnnotatedPdf) ---
             // originalFileRef: giữ nguyên File gốc người dùng đã chọn (không phải objectUrl) — cần
@@ -3692,7 +4589,11 @@
             // "Thay thế?" vì trùng tên; bấm Thay thế coi như đã "ghi đè" file gốc thành công (chỉ tốn
             // thêm vài thao tác chạm, không thể làm hoàn toàn tự động/im lặng được). Trên máy tính
             // (không có Share Sheet, vd Mac/Windows) sẽ tự động tải file mới xuống như bình thường.
-            const handleExportAnnotatedPdf = useCallback(async () => {
+            // pagesToInclude: mảng số trang (1-based) muốn GIỮ LẠI trong file xuất ra — port tính năng
+            // "chọn trang cụ thể" từ bản Night IELTS Land, áp dụng lên pipeline pdf-lib overlay riêng
+            // của bản Chinese thay vì thay thế nó. undefined/null hoặc đủ hết numPages trang = xuất
+            // toàn bộ (hành vi cũ, không đổi).
+            const handleExportAnnotatedPdf = useCallback(async (pagesToInclude) => {
                 if (!originalFileRef.current || !numPages || isExporting) return;
                 if (!window.PDFLib) {
                     alert("Không tải được thư viện xử lý PDF (pdf-lib) — kiểm tra lại kết nối mạng rồi thử lại.");
@@ -3722,6 +4623,16 @@
                         // Ảnh nền TRONG SUỐT (chỉ có nét vẽ/chữ note) dán đè full khung trang — phần
                         // không vẽ gì vẫn để lộ nguyên nội dung trang gốc bên dưới, không mất chi tiết.
                         pdfLibPage.drawImage(pngImage, { x: 0, y: 0, width: pw, height: ph });
+                    }
+
+                    // Nếu chỉ xuất một số trang cụ thể: xoá các trang KHÔNG được chọn khỏi tài liệu SAU
+                    // KHI đã dán xong ghi chú lên đúng trang gốc — xoá theo thứ tự GIẢM DẦN để chỉ số
+                    // các trang phía trước chưa xoá không bị lệch đi giữa chừng.
+                    if (Array.isArray(pagesToInclude) && pagesToInclude.length > 0 && pagesToInclude.length < numPages) {
+                        const keepSet = new Set(pagesToInclude);
+                        for (let i = numPages; i >= 1; i--) {
+                            if (!keepSet.has(i)) pdfLibDoc.removePage(i - 1);
+                        }
                     }
 
                     const outBytes = await pdfLibDoc.save();
@@ -3760,6 +4671,35 @@
                     setIsExporting(false);
                 }
             }, [numPages, isExporting]);
+
+            // 4 hàm điều khiển "Xuất tất cả" / "Chọn trang cụ thể" — port từ bản Night IELTS Land.
+            const handleExportAll = useCallback(() => {
+                setShowExportChoice(false);
+                handleExportAnnotatedPdf();
+            }, [handleExportAnnotatedPdf]);
+
+            const handleOpenExportPicker = useCallback(() => {
+                setShowExportChoice(false);
+                setSelectedExportPages(new Set());
+                setTocExportMode(true);
+                setShowTOC(true);
+            }, []);
+
+            const toggleExportPageSelected = useCallback((pageNum) => {
+                setSelectedExportPages(prev => {
+                    const next = new Set(prev);
+                    if (next.has(pageNum)) next.delete(pageNum); else next.add(pageNum);
+                    return next;
+                });
+            }, []);
+
+            const handleConfirmExportSelected = useCallback(() => {
+                const sorted = Array.from(selectedExportPages).sort((a, b) => a - b);
+                if (sorted.length === 0) return;
+                setTocExportMode(false);
+                setShowTOC(false);
+                handleExportAnnotatedPdf(sorted);
+            }, [selectedExportPages, handleExportAnnotatedPdf]);
 
             const onExtractText = useCallback((text, processing) => {
                 setMagicText(text);
@@ -3864,6 +4804,121 @@
                         <AudioPlayerBar key={audioSrc} src={audioSrc} fileName={audioFileName} onClose={handleCloseAudioPlayer} />
                     )}
 
+                    {/* Modal cảnh báo 1 LẦN DUY NHẤT trước khi thật sự bấm chia sẻ âm thanh máy tính —
+                        xem SYSTEM_AUDIO_WARNING_KEY/handleClickAddTabAudio. Lý do cần cảnh báo trước: lần
+                        đầu dùng trên Mac, macOS có thể tự hiện hộp thoại xin quyền "Screen & System Audio
+                        Recording" cho Chrome — quyền này cần KHỞI ĐỘNG LẠI hẳn trình duyệt mới có hiệu
+                        lực (macOS yêu cầu, không phải Chrome hay app này cố ý), khiến trang có thể trông
+                        như "đứng hình 1 lúc rồi mất luôn" đúng như người dùng mô tả — về bản chất là Chrome
+                        đang tự đóng/mở lại, không phải app bị lỗi/crash. */}
+                    {showSystemAudioWarning && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={() => setShowSystemAudioWarning(false)}>
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 animate-modal-pop" onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                                        <i className="fas fa-triangle-exclamation text-amber-500"></i> Lưu ý trước khi chia sẻ
+                                    </h3>
+                                    <button onClick={() => setShowSystemAudioWarning(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                        <i className="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <p className="text-sm text-slate-600 leading-relaxed">
+                                    Nếu đây là LẦN ĐẦU dùng tính năng này trên máy Mac này, hệ điều hành có thể tự hiện thêm 1 hộp thoại xin cấp quyền "Screen &amp; System Audio Recording" cho Chrome. Sau khi cấp quyền đó, <strong>macOS thường bắt Chrome phải khởi động lại</strong> mới dùng được — lúc đó trang sẽ trông như đứng hình 1 lúc rồi biến mất, đây là điều bình thường (Chrome tự tắt/mở lại), không phải app bị lỗi.
+                                </p>
+                                <p className="text-sm text-rose-600 font-semibold leading-relaxed bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
+                                    Chrome khởi động lại sẽ làm MẤT mọi ghi chú/nét vẽ chưa xuất PDF trong phiên đang mở! Nên xuất PDF lưu lại trước khi thử tính năng này lần đầu.
+                                </p>
+                                <p className="text-xs text-slate-400 leading-relaxed">
+                                    Cách tránh gián đoạn giữa buổi dạy: vào System Settings → Privacy &amp; Security → Screen &amp; System Audio Recording, bật sẵn quyền cho Chrome rồi khởi động lại Chrome MỘT LẦN trước khi bắt đầu dạy — các lần dùng sau sẽ không còn hộp thoại này nữa.
+                                </p>
+                                <button
+                                    onClick={() => {
+                                        try { localStorage.setItem(SYSTEM_AUDIO_WARNING_KEY, '1'); } catch (e) {}
+                                        setShowSystemAudioWarning(false);
+                                        addTabAudioToSubtitles();
+                                    }}
+                                    className="w-full px-4 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold transition-all active:scale-95"
+                                >
+                                    Đã hiểu, tiếp tục chia sẻ
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* THANH PHỤ ĐỀ TRỰC TIẾP (Live Subtitles) — cố định dưới cùng màn hình, phủ hết
+                        chiều ngang, giống kiểu phụ đề của YouTube/Google Meet. Luôn hiện ra ngay khi bấm
+                        nút bật (subtitleActive), kể cả lúc đang lỗi/đang xin quyền micro, để người dùng
+                        luôn thấy phản hồi trạng thái thay vì tưởng nút không hoạt động. */}
+                    {subtitleActive && (
+                        <div className="fixed bottom-0 left-0 right-0 z-[250] bg-black/85 backdrop-blur-sm text-white px-4 sm:px-8 py-4 flex items-center gap-3 sm:gap-5 shadow-[0_-4px_24px_rgba(0,0,0,0.3)] animate-fade-in">
+                            <div className="flex flex-col items-center gap-1 shrink-0 w-16 sm:w-20">
+                                <span className={"w-3 h-3 rounded-full " + (subtitleStatus === 'error' ? 'bg-red-500' : (subtitleStatus === 'paused' ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'))}></span>
+                                <span className="text-[10px] font-bold uppercase tracking-wide text-slate-300 text-center leading-tight">
+                                    {subtitleStatus === 'error' ? 'Lỗi' : (subtitleStatus === 'paused' ? 'Tạm dừng' : 'Đang nghe')}
+                                </span>
+                            </div>
+                            <div className="flex-1 min-w-0 text-center">
+                                {subtitleStatus === 'error' && subtitleError ? (
+                                    <button onClick={openAiSettings} className="text-sm sm:text-base font-bold text-rose-300 hover:text-rose-200 underline decoration-dotted">
+                                        {subtitleError}
+                                    </button>
+                                ) : (
+                                    <React.Fragment>
+                                        {subtitleLines.length === 0 && !subtitleInterimText && (
+                                            <p className={"text-sm italic " + (subtitleSilenceHint ? 'text-amber-300 font-semibold not-italic' : 'text-slate-400')}>
+                                                {subtitleStatus === 'paused'
+                                                    ? 'Đã tạm dừng — bấm nút mic để nghe tiếp, phụ đề vẫn được giữ nguyên.'
+                                                    : (subtitleSilenceHint || 'Đang chờ giọng nói...')}
+                                            </p>
+                                        )}
+                                        {subtitleLines.map((line, i) => (
+                                            <p
+                                                key={line.id}
+                                                className={"font-bold leading-snug transition-opacity " + ((i === subtitleLines.length - 1 && !subtitleInterimText) ? 'opacity-100 text-lg sm:text-xl' : 'opacity-45 text-sm sm:text-base')}
+                                            >
+                                                {line.text}
+                                            </p>
+                                        ))}
+                                        {/* Dòng "đang gõ dở" — chỉ có ở động cơ 'speech', cập nhật theo thời gian thực
+                                            từng chữ một lúc đang nói, tô màu khác để phân biệt với dòng đã chốt. */}
+                                        {subtitleInterimText && (
+                                            <p className="font-bold leading-snug text-lg sm:text-xl text-sky-300">
+                                                {subtitleInterimText}
+                                            </p>
+                                        )}
+                                    </React.Fragment>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {!subtitleHasTabAudio ? (
+                                    <button
+                                        onClick={handleClickAddTabAudio}
+                                        className="px-3 h-9 rounded-full bg-white/10 hover:bg-white/20 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 transition-colors border border-white/20 whitespace-nowrap"
+                                        title={'Nghe âm thanh máy tính (nhạc/video/Zoom...) — hộp thoại hiện ra thì chọn "Toàn bộ màn hình" (Entire Screen) rồi bật công tắc "Also share system audio", sau đó bấm Share/Chia sẻ. Sẽ chuyển phụ đề sang hiện theo từng đoạn ngắn thay vì từng chữ.'}
+                                    >
+                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Nghe âm thanh máy tính</span>
+                                    </button>
+                                ) : (
+                                    <span className="px-3 h-9 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] sm:text-xs font-bold flex items-center gap-1.5 border border-emerald-400/30 whitespace-nowrap">
+                                        <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Đã nghe âm thanh máy tính</span>
+                                    </span>
+                                )}
+                                {/* Nút Tạm dừng/Tiếp tục — tắt hẳn mic (không nghe nữa) nhưng GIỮ NGUYÊN mọi
+                                    phụ đề đang hiện, khác với nút Tắt (X) bên cạnh sẽ đóng hẳn thanh phụ đề. */}
+                                <button
+                                    onClick={() => { subtitlePaused ? resumeSubtitles() : pauseSubtitles(); }}
+                                    className={"w-9 h-9 rounded-full flex items-center justify-center transition-colors shrink-0 " + (subtitlePaused ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white')}
+                                    title={subtitlePaused ? 'Tiếp tục nghe (bật lại mic)' : 'Tạm dừng (tắt mic, giữ nguyên phụ đề đang hiện)'}
+                                >
+                                    <i className={"fas text-xs " + (subtitlePaused ? 'fa-microphone' : 'fa-pause')}></i>
+                                </button>
+                                <button onClick={stopSubtitles} className="w-9 h-9 rounded-full bg-white/10 hover:bg-red-500 flex items-center justify-center transition-colors shrink-0" title="Tắt hẳn phụ đề trực tiếp">
+                                    <i className="fas fa-times text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Box "Tóm tắt phiên dạy" — cùng vị trí canh giữa/cách đỉnh như Box Bút AI, mở từ
                         nút riêng trên toolbar (không lồng trong Bút AI). Port từ bản Night IELTS Land. */}
                     {showSessionSummary && (
@@ -3934,15 +4989,17 @@
                         </div>
                     )}
 
-                    {/* FLOATING WINDOW: MỤC LỤC TRANG DẠNG GRID */}
+                    {/* FLOATING WINDOW: MỤC LỤC TRANG DẠNG GRID — dùng chung cho cả điều hướng thường VÀ
+                        chế độ chọn trang để Xuất PDF (tocExportMode) — port từ bản Night IELTS Land. */}
                     {showTOC && pdfDoc && (
-                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 sm:p-8" onClick={() => setShowTOC(false)}>
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 sm:p-8" onClick={() => { setShowTOC(false); setTocExportMode(false); }}>
                             <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-5xl max-h-full flex flex-col overflow-hidden animate-modal-pop" onClick={e => e.stopPropagation()}>
                                 <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white shadow-sm z-10">
                                     <h3 className="text-xl font-extrabold text-slate-800 tracking-tight">
-                                        <i className="fas fa-th-large text-emerald-500 mr-3"></i> Chọn trang nhanh
+                                        <i className={"fas mr-3 " + (tocExportMode ? 'fa-file-export text-emerald-500' : 'fa-th-large text-emerald-500')}></i>
+                                        {tocExportMode ? 'Chọn trang để xuất PDF' : 'Chọn trang nhanh'}
                                     </h3>
-                                    <button onClick={() => setShowTOC(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                    <button onClick={() => { setShowTOC(false); setTocExportMode(false); }} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
                                         <i className="fas fa-times"></i>
                                     </button>
                                 </div>
@@ -3950,10 +5007,18 @@
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-6">
                                         {Array.from(new Array(Math.min(numPages, tocVisibleCount)), (el, index) => (
                                             <PdfThumbnail
-                                                key={index} 
-                                                pdf={pdfDoc} 
-                                                pageNum={index + 1} 
+                                                key={index}
+                                                pdf={pdfDoc}
+                                                pageNum={index + 1}
+                                                selected={tocExportMode ? selectedExportPages.has(index + 1) : undefined}
                                                 onClick={() => {
+                                                    // Ở chế độ chọn trang xuất PDF: bấm vào ô chỉ tích/bỏ tích chọn, KHÔNG
+                                                    // đóng mục lục cũng không cuộn trang — người dùng chọn xong mới bấm nút
+                                                    // "Xuất" ở thanh nổi phía dưới. Port từ bản Night IELTS Land.
+                                                    if (tocExportMode) {
+                                                        toggleExportPageSelected(index + 1);
+                                                        return;
+                                                    }
                                                     // QUAN TRỌNG — sửa lỗi "bấm chuyển trang từ mục lục làm nguyên trang bị kéo lên,
                                                     // khuất mất thanh công cụ, kéo xuống lại không được": trước đây dùng
                                                     // el.scrollIntoView() — hàm này để TRÌNH DUYỆT TỰ CHỌN cuộn ancestor scroll
@@ -3986,6 +5051,49 @@
                                         </div>
                                     )}
                                 </div>
+                                {/* Thanh nổi hiện số trang đã chọn + nút Xuất/Huỷ — chỉ hiện ở chế độ chọn
+                                    trang xuất PDF. Port từ bản Night IELTS Land. */}
+                                {tocExportMode && (
+                                    <div className="px-6 py-3 border-t border-slate-200 bg-white flex items-center justify-between gap-4 shrink-0">
+                                        <span className="text-sm font-bold text-slate-600">
+                                            Đã chọn <span className="text-emerald-600">{selectedExportPages.size}</span> trang
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => { setShowTOC(false); setTocExportMode(false); }} className="px-4 py-2 rounded-xl text-sm font-bold text-slate-500 hover:bg-slate-100 transition-colors">Huỷ</button>
+                                            <button
+                                                onClick={handleConfirmExportSelected}
+                                                disabled={selectedExportPages.size === 0}
+                                                className={"px-5 py-2 rounded-xl text-sm font-bold text-white transition-all shadow-md flex items-center gap-2 " + (selectedExportPages.size === 0 ? 'bg-slate-300 cursor-not-allowed shadow-none' : 'bg-emerald-500 hover:bg-emerald-600 active:scale-95 shadow-emerald-200')}
+                                            >
+                                                <i className="fas fa-file-export"></i> Xuất {selectedExportPages.size > 0 ? selectedExportPages.size + ' trang' : ''}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* HỘP THOẠI CHỌN "Xuất tất cả" hay "Chọn trang cụ thể" khi bấm nút Xuất PDF/Lưu ghi
+                        chú — port từ bản Night IELTS Land, đặt lên trên pipeline xuất PDF riêng của bản
+                        Chinese (pdf-lib dán đè ghi chú lên đúng trang gốc — xem handleExportAnnotatedPdf)
+                        thay vì thay thế nó. */}
+                    {showExportChoice && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setShowExportChoice(false)}>
+                            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 animate-modal-pop" onClick={e => e.stopPropagation()}>
+                                <h3 className="text-lg font-extrabold text-slate-800 mb-1 flex items-center gap-2">
+                                    <i className="fas fa-file-pdf text-emerald-500"></i> Lưu ghi chú vào PDF
+                                </h3>
+                                <p className="text-sm text-slate-500 mb-5">Bạn muốn lưu toàn bộ tài liệu hay chỉ vài trang cụ thể?</p>
+                                <div className="flex flex-col gap-3">
+                                    <button onClick={handleExportAll} className="w-full px-4 py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold flex items-center gap-3 transition-colors border border-emerald-100">
+                                        <i className="fas fa-copy text-lg w-5 text-center"></i> Xuất tất cả ({numPages} trang)
+                                    </button>
+                                    <button onClick={handleOpenExportPicker} className="w-full px-4 py-3 rounded-2xl bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold flex items-center gap-3 transition-colors border border-sky-100">
+                                        <i className="fas fa-list-check text-lg w-5 text-center"></i> Chọn trang cụ thể
+                                    </button>
+                                </div>
+                                <button onClick={() => setShowExportChoice(false)} className="w-full mt-4 text-center text-sm font-bold text-slate-400 hover:text-slate-600 py-2">Huỷ</button>
                             </div>
                         </div>
                     )}
@@ -4050,19 +5158,43 @@
                                     <i className="fas fa-headphones-alt text-sm"></i>
                                     <input type="file" accept="audio/*" className="hidden" onChange={handleAudioFileSelect} />
                                 </label>
+
+                                {/* NÚT "PHỤ ĐỀ TRỰC TIẾP" — bật/tắt thanh phụ đề đen cố định dưới cùng màn
+                                    hình, phiên âm giọng nói qua mic (+ có thể thêm âm thanh 1 tab/cửa sổ
+                                    khác trên máy) theo thời gian thực bằng Groq Whisper — xem startSubtitles/
+                                    stopSubtitles/subtitleRecordLoop ở trên và thanh đen render ở cuối JSX.
+                                    Port từ bản Night IELTS Land. */}
+                                {pdfUrl && (
+                                    <button
+                                        onClick={() => { subtitleActive ? stopSubtitles() : startSubtitles(); }}
+                                        className={"w-9 h-9 shrink-0 rounded-xl flex items-center justify-center transition-colors border shadow-sm " + (subtitleActive ? 'bg-rose-500 text-white border-rose-500 hover:bg-rose-600' : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50 hover:text-slate-600')}
+                                        title={subtitleActive ? 'Tắt phụ đề trực tiếp' : 'Bật phụ đề trực tiếp (nghe qua mic, phiên âm theo thời gian thực — dùng chung API key với Bút AI)'}
+                                    >
+                                        <i className="fas fa-closed-captioning text-sm"></i>
+                                    </button>
+                                )}
                             </div>
 
                             {/* DRAWING TOOLBAR */}
-                            <div className="flex-1 flex justify-center">
+                            {/* QUAN TRỌNG — gọn lại thanh công cụ ("quá nhiều bút, mỗi bút lại kèm theo cả
+                                đống tuỳ chọn cỡ nét/kiểu vẽ nhét thẳng vào thanh chính, rất rối mắt") — port
+                                từ bản Night IELTS Land: thanh chính giờ CHỈ còn các nút chọn BÚT + bảng màu;
+                                mọi tuỳ chọn riêng của từng bút (cỡ nét, kiểu vẽ, độ ổn định, kiểu tẩy, màu
+                                glow...) được gom vào 1 thanh PHỤ nhỏ hiện ngay BÊN DƯỚI, mặc định ẨN, CHỈ
+                                hiện khi bấm ĐÚP (double-click/double-tap) vào đúng nút của bút đó (xem
+                                expandedToolOptions/toggleToolOptions/handleToolButtonClick) — bấm đúp lại
+                                hoặc đổi sang bút khác để ẩn đi. Đổi div bọc ngoài từ hàng ngang (justify-
+                                center) sang cột (flex-col) để 2 thanh xếp chồng, vẫn căn giữa. */}
+                            <div className="flex-1 flex flex-col items-center justify-center gap-2 min-w-0">
                                 {pdfUrl && isDrawingMode && (
                                     // GHI CHÚ: từng thử đổi rounded-full sang bo góc cố định ở đây, nhưng đó không
                                     // phải gốc vấn đề (hình dạng cũ vẫn đẹp) — gốc thật nằm ở header cha bị giới
                                     // hạn chiều cao cứng h-16, xem sửa ở "TOP HEADER" phía trên. Trả lại rounded-full
                                     // như cũ.
                                     <div className="flex items-center flex-wrap justify-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 shadow-sm animate-fade-in max-w-full">
-                                        <button onClick={() => setTool('pencil')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì"><i className="fas fa-pencil-alt text-md"></i></button>
+                                        <button onClick={() => handleToolButtonClick('pencil')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pencil' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút chì (bấm đúp để xem cỡ nét/kiểu vẽ/độ ổn định)"><i className="fas fa-pencil-alt text-md"></i></button>
 
-                                        <button onClick={() => setTool('magic')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch">
+                                        <button onClick={() => handleToolButtonClick('magic')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-all " + (tool === 'magic' ? 'bg-amber-100 text-amber-600 shadow-inner' : 'text-amber-500 hover:bg-slate-200 hover:text-amber-600')} title="Bút Thần Kỳ OCR: Quét Chữ & Dịch (bấm đúp để chọn kiểu khoanh vùng)">
                                             <i className="fas fa-wand-magic-sparkles text-md"></i>
                                         </button>
 
@@ -4077,19 +5209,27 @@
                                         {/* Bút AI (Groq): quét chữ rồi hỏi AI (giải nghĩa từ vựng/ngữ pháp/
                                             lục thư/mẹo nhớ/đặt câu...) — port từ bản Night IELTS Land, màu
                                             tím (violet) là màu thương hiệu riêng của Bút AI, giữ nguyên. */}
-                                        <button onClick={() => setTool('ai')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'ai' ? 'bg-violet-100 text-violet-600 shadow-inner' : 'text-violet-500 hover:bg-slate-200 hover:text-violet-600')} title="Bút AI: Quét chữ rồi hỏi AI (giải nghĩa/ngữ pháp/lục thư/mẹo nhớ/đặt câu...)">
+                                        <button onClick={() => handleToolButtonClick('ai')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'ai' ? 'bg-violet-100 text-violet-600 shadow-inner' : 'text-violet-500 hover:bg-slate-200 hover:text-violet-600')} title="Bút AI: Quét chữ rồi hỏi AI (giải nghĩa/ngữ pháp/lục thư/mẹo nhớ/đặt câu...) — bấm đúp để chọn kiểu khoanh vùng & API key">
                                             <i className="fas fa-robot text-md"></i>
                                         </button>
 
                                         <button onClick={() => setTool('pen')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'pen' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút bi"><i className="fas fa-pen-nib text-md"></i></button>
-                                        <button onClick={() => setTool('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text"><i className="fas fa-font text-md"></i></button>
-                                        <button onClick={() => setTool('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ"><i className="fas fa-eraser text-md"></i></button>
+
+                                        {/* "Bút Present" — MỚI, port từ bản Night IELTS Land: nét trắng viền
+                                            glow màu, tự mờ dần và biến mất sau 1.5 giây — dùng để khoanh/nhấn
+                                            mạnh tạm thời lúc giảng bài (con trỏ kiểu laser/PowerPoint), KHÔNG
+                                            thay thế "Bút bi" ở trên — 2 bút tồn tại song song. Bấm đúp để chọn
+                                            màu glow/độ ổn định. */}
+                                        <button onClick={() => handleToolButtonClick('present')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'present' ? 'bg-rose-100 text-rose-600 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Bút Present: nét trắng viền glow màu, tự mờ dần và biến mất sau 1.5 giây — dùng để khoanh/nhấn mạnh tạm thời lúc giảng bài (bấm đúp để chọn màu glow/độ ổn định)"><i className="fas fa-highlighter text-md"></i></button>
+
+                                        <button onClick={() => handleToolButtonClick('text')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'text' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Chèn Text (bấm đúp để chọn cỡ chữ)"><i className="fas fa-font text-md"></i></button>
+                                        <button onClick={() => handleToolButtonClick('eraser')} className={"w-10 h-10 rounded-full flex items-center justify-center transition-colors " + (tool === 'eraser' ? 'bg-emerald-100 text-emerald-700 shadow-inner' : 'text-slate-500 hover:bg-slate-200 hover:text-slate-700')} title="Tẩy nét vẽ (bấm đúp để chọn kiểu tẩy)"><i className="fas fa-eraser text-md"></i></button>
 
                                         <div className="w-px h-5 bg-slate-300 mx-2"></div>
                                         {/* Bảng màu có sẵn — bấm 1 phát chọn màu ngay, thay cho việc phải mở bảng màu
                                             của hệ điều hành. Ô cuối (icon ống hút) vẫn mở bảng màu tuỳ chỉnh khi cần
                                             màu ngoài 4 màu có sẵn — value/onChange/disabled giữ nguyên như cũ. */}
-                                        <div className={"flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm " + ((tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'ai') ? 'opacity-40 pointer-events-none' : '')} title="Chọn màu bút">
+                                        <div className={"flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2 py-1 shadow-sm " + ((tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'ai' || tool === 'present') ? 'opacity-40 pointer-events-none' : '')} title="Chọn màu bút">
                                             {PRESET_COLORS.map(c => (
                                                 <button
                                                     key={c}
@@ -4101,57 +5241,53 @@
                                                 ></button>
                                             ))}
                                             <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
-                                            <label className="relative w-6 h-6 rounded-full shrink-0 cursor-pointer border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden" title="Màu tuỳ chỉnh">
-                                                <i className="fas fa-eye-dropper text-[9px] text-slate-400 pointer-events-none"></i>
-                                                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'ai'} />
-                                            </label>
-                                        </div>
-
-                                        {/* Độ dày bút chì: gộp 3 lựa chọn vào chung 1 nút cho gọn thanh công cụ — bấm
-                                            vào nút (đang hiện đúng chấm tròn theo độ dày đang chọn) để mở bảng nhỏ
-                                            (popover) chọn 1 trong 3 mức, bấm ra ngoài hoặc chọn xong tự đóng lại. */}
-                                        {tool === 'pencil' && (
-                                            <React.Fragment>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                                                <div className="relative" ref={pencilSizeMenuRef}>
-                                                    <button
-                                                        onClick={() => setShowPencilSizeMenu(v => !v)}
-                                                        className={"w-9 h-9 rounded-full flex items-center justify-center bg-white border transition-colors shadow-sm " + (showPencilSizeMenu ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50')}
-                                                        title="Độ dày bút chì"
+                                            {/* Ô "tuỳ chỉnh" tự đổi màu nền theo ĐÚNG màu đang chọn (isCustomColorActive)
+                                                mỗi khi đó là màu tuỳ chỉnh (không trùng 1 trong các màu có sẵn) — port
+                                                từ bản Night IELTS Land: trước đây ô này luôn chỉ là viền chấm chấm
+                                                trống, chọn màu xong không có phản hồi thị giác nào là đã áp dụng màu đó. */}
+                                            {(() => {
+                                                const isCustomColorActive = !PRESET_COLORS.some(c => c.toLowerCase() === color.toLowerCase());
+                                                return (
+                                                    <label
+                                                        className={"relative w-6 h-6 rounded-full shrink-0 cursor-pointer border-2 flex items-center justify-center overflow-hidden transition-transform " + (isCustomColorActive ? 'border-emerald-400 scale-110' : 'border-dashed border-slate-300 hover:scale-110')}
+                                                        style={isCustomColorActive ? { backgroundColor: color } : {}}
+                                                        title={isCustomColorActive ? ('Màu tuỳ chỉnh đang chọn: ' + color) : 'Màu tuỳ chỉnh'}
                                                     >
-                                                        <span
-                                                            className="rounded-full bg-emerald-600 transition-colors"
-                                                            style={{ width: (6 + PENCIL_SIZES.indexOf(pencilSize) * 4) + 'px', height: (6 + PENCIL_SIZES.indexOf(pencilSize) * 4) + 'px' }}
-                                                        ></span>
-                                                    </button>
-                                                    {showPencilSizeMenu && (
-                                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 flex items-center gap-1.5 bg-white border border-slate-200 rounded-full px-2.5 py-1.5 shadow-lg z-10 animate-fade-in">
-                                                            {PENCIL_SIZES.map((sz, i) => (
-                                                                <button
-                                                                    key={sz}
-                                                                    onClick={() => { setPencilSize(sz); setShowPencilSizeMenu(false); }}
-                                                                    className={"w-7 h-7 rounded-full flex items-center justify-center transition-colors " + (pencilSize === sz ? 'bg-emerald-100' : 'hover:bg-slate-100')}
-                                                                    title={['Nhỏ', 'Vừa', 'Lớn'][i]}
-                                                                >
-                                                                    <span
-                                                                        className={"rounded-full transition-colors " + (pencilSize === sz ? 'bg-emerald-600' : 'bg-slate-400')}
-                                                                        style={{ width: (6 + i * 4) + 'px', height: (6 + i * 4) + 'px' }}
-                                                                    ></span>
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </React.Fragment>
-                                        )}
+                                                        <i className={"fas fa-eye-dropper text-[9px] pointer-events-none " + (isCustomColorActive ? 'text-white drop-shadow' : 'text-slate-400')}></i>
+                                                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu" disabled={tool === 'magic' || tool === 'ipa' || tool === 'photo' || tool === 'ai' || tool === 'present'} />
+                                                    </label>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
+                                )}
 
-                                        {/* Kiểu vẽ cho bút chì: Tự do / Đường thẳng (MỚI) / Hình chữ nhật — phím tắt
-                                            F/L/S khi đang dùng bút chì (xem useEffect lắng nghe bàn phím trong App).
-                                            Port từ bản Night IELTS Land. */}
+                                {/* THANH TUỲ CHỌN PHỤ — chỉ hiện khi bấm đúp đúng nút của bút ĐANG chọn (xem
+                                    giải thích ở đầu khối "DRAWING TOOLBAR" phía trên). Port từ bản Night
+                                    IELTS Land. */}
+                                {pdfUrl && isDrawingMode && expandedToolOptions === tool && (
+                                    <div className="flex items-center flex-wrap justify-center gap-3 bg-white border border-slate-200 rounded-full px-4 py-1.5 shadow-md animate-fade-in max-w-full">
                                         {tool === 'pencil' && (
                                             <React.Fragment>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kiểu vẽ (phím tắt: F = Tự do, L = Đường thẳng, S = Hình chữ nhật)">
+                                                <div className="flex items-center gap-1" title="Độ dày bút chì">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Cỡ</span>
+                                                    {PENCIL_SIZES.map((sz, i) => (
+                                                        <button
+                                                            key={sz}
+                                                            onClick={() => setPencilSize(sz)}
+                                                            className={"w-7 h-7 rounded-full flex items-center justify-center transition-colors " + (pencilSize === sz ? 'bg-emerald-100' : 'hover:bg-slate-100')}
+                                                            title={['Nhỏ', 'Vừa', 'Lớn'][i]}
+                                                        >
+                                                            <span
+                                                                className={"rounded-full transition-colors " + (pencilSize === sz ? 'bg-emerald-600' : 'bg-slate-400')}
+                                                                style={{ width: (6 + i * 4) + 'px', height: (6 + i * 4) + 'px' }}
+                                                            ></span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="w-px h-5 bg-slate-200"></div>
+                                                <div className="flex items-center gap-1" title="Kiểu vẽ (phím tắt: F = Tự do, L = Đường thẳng, S = Hình chữ nhật)">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Kiểu</span>
                                                     <button onClick={() => setPencilShapeMode('freehand')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (pencilShapeMode === 'freehand' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-100')} title="Tự do / Free-writing (vẽ tay — phím tắt F)">
                                                         <i className="fas fa-signature text-xs"></i>
                                                     </button>
@@ -4162,30 +5298,97 @@
                                                         <i className="fas fa-vector-square text-xs"></i>
                                                     </button>
                                                 </div>
-                                            </React.Fragment>
-                                        )}
-
-                                        {/* Chọn kiểu khoanh vùng cho bút Magic: Tự do (freehand) hoặc Hình chữ nhật (kéo-thả, tiện cho Mac/trackpad) */}
-                                        {tool === 'magic' && (
-                                            <React.Fragment>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kiểu khoanh vùng">
-                                                    <button onClick={() => setMagicShapeMode('lasso')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (magicShapeMode === 'lasso' ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
-                                                        <i className="fas fa-signature text-xs"></i>
-                                                    </button>
-                                                    <button onClick={() => setMagicShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (magicShapeMode === 'rect' ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — tiện cho Mac/trackpad)">
-                                                        <i className="fas fa-vector-square text-xs"></i>
-                                                    </button>
+                                                <div className="w-px h-5 bg-slate-200"></div>
+                                                <div className="flex items-center gap-1" title="Độ ổn định nét vẽ (làm mượt run tay)">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Ổn định</span>
+                                                    {PEN_STABILITY_LEVELS.map((lvl, i) => (
+                                                        <button
+                                                            key={lvl}
+                                                            onClick={() => setPenStability(lvl)}
+                                                            className={"px-3 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors whitespace-nowrap " + (penStability === lvl ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-100')}
+                                                        >
+                                                            {['Tắt', 'Vừa', 'Cao'][i]}
+                                                        </button>
+                                                    ))}
                                                 </div>
                                             </React.Fragment>
                                         )}
 
-                                        {/* Chọn kiểu khoanh vùng cho bút AI (y hệt bút Magic) + trạng thái/
-                                            cài đặt API key Groq. Port từ bản Night IELTS Land. */}
+                                        {tool === 'present' && (
+                                            <React.Fragment>
+                                                <div className="flex items-center gap-1" title="Độ ổn định nét vẽ (làm mượt run tay)">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Ổn định</span>
+                                                    {PEN_STABILITY_LEVELS.map((lvl, i) => (
+                                                        <button
+                                                            key={lvl}
+                                                            onClick={() => setPenStability(lvl)}
+                                                            className={"px-3 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors whitespace-nowrap " + (penStability === lvl ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-100')}
+                                                        >
+                                                            {['Tắt', 'Vừa', 'Cao'][i]}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                <div className="w-px h-5 bg-slate-200"></div>
+                                                {/* Màu viền glow — bảng màu đậm có sẵn (PEN_GLOW_COLORS) + 1 ô tuỳ chỉnh
+                                                    (eyedropper), cùng kiểu với bảng màu chính — ô tuỳ chỉnh cũng tự đổi
+                                                    nền theo màu đang chọn khi đang dùng màu ngoài bảng có sẵn. */}
+                                                <div className="flex items-center gap-1.5" title="Màu viền glow">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Glow</span>
+                                                    {PEN_GLOW_COLORS.map(c => (
+                                                        <button
+                                                            key={c}
+                                                            type="button"
+                                                            onClick={() => setPenGlowColor(c)}
+                                                            className={"w-6 h-6 rounded-full shrink-0 border-2 transition-transform " + (penGlowColor.toLowerCase() === c.toLowerCase() ? 'border-emerald-400 scale-110' : 'border-white hover:scale-110')}
+                                                            style={{ backgroundColor: c, boxShadow: '0 0 4px ' + c }}
+                                                            title={c}
+                                                        ></button>
+                                                    ))}
+                                                    {(() => {
+                                                        const isCustomGlowActive = !PEN_GLOW_COLORS.some(c => c.toLowerCase() === penGlowColor.toLowerCase());
+                                                        return (
+                                                            <label
+                                                                className={"relative w-6 h-6 rounded-full shrink-0 cursor-pointer border-2 flex items-center justify-center overflow-hidden transition-transform " + (isCustomGlowActive ? 'border-emerald-400 scale-110' : 'border-dashed border-slate-300 hover:scale-110')}
+                                                                style={isCustomGlowActive ? { backgroundColor: penGlowColor } : {}}
+                                                                title={isCustomGlowActive ? ('Màu glow tuỳ chỉnh đang chọn: ' + penGlowColor) : 'Màu glow tuỳ chỉnh'}
+                                                            >
+                                                                <i className={"fas fa-eye-dropper text-[9px] pointer-events-none " + (isCustomGlowActive ? 'text-white drop-shadow' : 'text-slate-400')}></i>
+                                                                <input type="color" value={penGlowColor} onChange={(e) => setPenGlowColor(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" title="Đổi màu glow" />
+                                                            </label>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </React.Fragment>
+                                        )}
+
+                                        {tool === 'eraser' && (
+                                            <div className="flex items-center gap-1" title="Kiểu tẩy">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Kiểu</span>
+                                                <button onClick={() => setEraserShapeMode('point')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (eraserShapeMode === 'point' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-100')} title="Theo điểm (kéo tới đâu tẩy tới đó)">
+                                                    <i className="fas fa-hand-pointer text-xs"></i>
+                                                </button>
+                                                <button onClick={() => setEraserShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (eraserShapeMode === 'rect' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-100')} title="Chọn vùng (kéo-thả hình chữ nhật)">
+                                                    <i className="fas fa-vector-square text-xs"></i>
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {tool === 'magic' && (
+                                            <div className="flex items-center gap-1" title="Kiểu khoanh vùng">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Kiểu</span>
+                                                <button onClick={() => setMagicShapeMode('lasso')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (magicShapeMode === 'lasso' ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
+                                                    <i className="fas fa-signature text-xs"></i>
+                                                </button>
+                                                <button onClick={() => setMagicShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (magicShapeMode === 'rect' ? 'bg-amber-100 text-amber-600' : 'text-slate-400 hover:bg-slate-100')} title="Hình chữ nhật (kéo-thả — tiện cho Mac/trackpad)">
+                                                    <i className="fas fa-vector-square text-xs"></i>
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {tool === 'ai' && (
                                             <React.Fragment>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kiểu khoanh vùng">
+                                                <div className="flex items-center gap-1" title="Kiểu khoanh vùng">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Kiểu</span>
                                                     <button onClick={() => setAiShapeMode('lasso')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (aiShapeMode === 'lasso' ? 'bg-violet-100 text-violet-600' : 'text-slate-400 hover:bg-slate-100')} title="Tự do (vẽ tay)">
                                                         <i className="fas fa-signature text-xs"></i>
                                                     </button>
@@ -4193,7 +5396,7 @@
                                                         <i className="fas fa-vector-square text-xs"></i>
                                                     </button>
                                                 </div>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
+                                                <div className="w-px h-5 bg-slate-200"></div>
                                                 <button
                                                     onClick={openAiSettings}
                                                     className={"px-3 h-8 rounded-full flex items-center gap-1.5 text-xs font-bold transition-colors whitespace-nowrap border " + (aiApiKey ? 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100')}
@@ -4204,33 +5407,13 @@
                                             </React.Fragment>
                                         )}
 
-                                        {/* Kích thước chữ Text */}
                                         {tool === 'text' && (
-                                            <React.Fragment>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kích cỡ chữ Text">
-                                                    <button onClick={() => setFontSize(s => Math.max(8, s - 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-minus text-[10px]"></i></button>
-                                                    <span className="text-xs font-bold text-slate-700 w-6 text-center">{fontSize}</span>
-                                                    <button onClick={() => setFontSize(s => Math.min(48, s + 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-plus text-[10px]"></i></button>
-                                                </div>
-                                            </React.Fragment>
-                                        )}
-
-                                        {/* Kiểu tẩy: Theo điểm (mặc định, giữ nguyên hành vi cũ) hoặc Chọn vùng
-                                            (kéo-thả hình chữ nhật rồi bấm nút "Xoá" mới thực sự xoá — xem pendingErase/
-                                            confirmPendingErase trong PdfPage). Port từ bản Night IELTS Land. */}
-                                        {tool === 'eraser' && (
-                                            <React.Fragment>
-                                                <div className="w-px h-5 bg-slate-300 mx-1"></div>
-                                                <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-full p-1 shadow-sm" title="Kiểu tẩy">
-                                                    <button onClick={() => setEraserShapeMode('point')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (eraserShapeMode === 'point' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-100')} title="Theo điểm (kéo tới đâu tẩy tới đó)">
-                                                        <i className="fas fa-hand-pointer text-xs"></i>
-                                                    </button>
-                                                    <button onClick={() => setEraserShapeMode('rect')} className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors " + (eraserShapeMode === 'rect' ? 'bg-emerald-100 text-emerald-700' : 'text-slate-400 hover:bg-slate-100')} title="Chọn vùng (kéo-thả hình chữ nhật)">
-                                                        <i className="fas fa-vector-square text-xs"></i>
-                                                    </button>
-                                                </div>
-                                            </React.Fragment>
+                                            <div className="flex items-center gap-1" title="Kích cỡ chữ Text">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase mr-0.5">Cỡ chữ</span>
+                                                <button onClick={() => setFontSize(s => Math.max(8, s - 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-minus text-[10px]"></i></button>
+                                                <span className="text-xs font-bold text-slate-700 w-6 text-center">{fontSize}</span>
+                                                <button onClick={() => setFontSize(s => Math.min(48, s + 2))} className="w-6 h-6 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-full"><i className="fas fa-plus text-[10px]"></i></button>
+                                            </div>
                                         )}
                                     </div>
                                 )}
@@ -4269,10 +5452,12 @@
                                     chọn "Lưu vào Files" > chọn lại đúng thư mục cũ > bấm "Thay thế" khi
                                     được hỏi, coi như đã ghi đè vào đúng file gốc (xem giải thích đầy đủ
                                     ở handleExportAnnotatedPdf — Safari không có API ghi thẳng vào file
-                                    như 1 app native nên đây là cách gần nhất/tốt nhất làm được). */}
+                                    như 1 app native nên đây là cách gần nhất/tốt nhất làm được). Sách có
+                                    hơn 1 trang thì hỏi trước "Xuất tất cả hay Chọn trang cụ thể" (port từ
+                                    bản Night IELTS Land) — sách 1 trang thì xuất thẳng, khỏi hỏi. */}
                                 {pdfUrl && (
                                     <button
-                                        onClick={handleExportAnnotatedPdf}
+                                        onClick={() => { numPages > 1 ? setShowExportChoice(true) : handleExportAnnotatedPdf(); }}
                                         disabled={isExporting}
                                         className={"px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 flex items-center gap-2 border shadow-sm " + (isExporting ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-white text-emerald-600 hover:bg-emerald-50 border-emerald-200')}
                                         title="Lưu toàn bộ nét vẽ/note vào file PDF (mở bảng Chia sẻ để lưu đè vào đúng file gốc trong Files)"
@@ -4319,6 +5504,8 @@
                                         aiShapeMode={aiShapeMode}
                                         pencilShapeMode={pencilShapeMode}
                                         eraserShapeMode={eraserShapeMode}
+                                        penStability={penStability}
+                                        penGlowColor={penGlowColor}
                                         pencilSize={pencilSize}
                                         color={color}
                                         fontSize={fontSize}
@@ -4332,6 +5519,49 @@
                                 ))
                             )}
                         </div>
+
+                        {/* THANH ĐIỀU HƯỚNG DẠNG CHẤM DỌC — port từ bản Night IELTS Land — mặc định
+                            ẩn, bấm nút nhỏ ở mép phải để hiện/ẩn. Chỉ hiện khi đã có file PDF và có
+                            nhiều hơn 1 trang (1 trang thì thanh này không có tác dụng gì). QUAN TRỌNG:
+                            mỗi chấm được định vị bằng % (top tính theo tỉ lệ trang / tổng số trang)
+                            thay vì xếp flex bình thường — nhờ vậy dù sách có VÀI TRĂM trang, các chấm
+                            vẫn luôn gói gọn đúng trong chiều cao cố định của thanh. */}
+                        {pdfUrl && numPages > 1 && (
+                            <div className="fixed right-3 top-1/2 transform -translate-y-1/2 z-40 flex items-center gap-2">
+                                {showPageNav && (
+                                    <div
+                                        ref={pageNavRailRef}
+                                        onPointerDown={handleNavPointerDown}
+                                        onPointerMove={handleNavPointerMove}
+                                        onPointerUp={handleNavPointerUp}
+                                        onPointerCancel={handleNavPointerUp}
+                                        className="glass-panel rounded-full shadow-xl border border-slate-200 relative cursor-pointer animate-fade-in touch-none"
+                                        style={{ height: 'min(70vh, 640px)', width: '16px' }}
+                                        title={`Trang ${currentPageForNav}/${numPages} — kéo hoặc bấm để tới trang`}
+                                    >
+                                        {Array.from(new Array(numPages), (el, i) => i + 1).map(p => (
+                                            <span
+                                                key={p}
+                                                className={"absolute left-1/2 rounded-full pointer-events-none transition-all " + (p === currentPageForNav ? 'bg-emerald-600' : 'bg-slate-300')}
+                                                style={{
+                                                    top: (numPages > 1 ? (p - 1) / (numPages - 1) : 0) * 100 + '%',
+                                                    transform: 'translate(-50%, -50%)',
+                                                    width: p === currentPageForNav ? '7px' : '4px',
+                                                    height: p === currentPageForNav ? '7px' : '4px'
+                                                }}
+                                            ></span>
+                                        ))}
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => setShowPageNav(v => !v)}
+                                    className={"w-8 h-8 rounded-full flex items-center justify-center shadow-lg border transition-colors " + (showPageNav ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-400 border-slate-200 hover:text-emerald-600')}
+                                    title={showPageNav ? 'Ẩn thanh điều hướng trang' : 'Hiện thanh điều hướng trang'}
+                                >
+                                    <i className="fas fa-grip-lines-vertical text-xs"></i>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
