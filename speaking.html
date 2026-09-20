@@ -519,12 +519,44 @@ Is it better to read a physical book or an e-book?"></textarea>
     return data.text || '';
   }
 
+  // Quét từ dấu "{" đầu tiên và đếm độ sâu ngoặc (bỏ qua ngoặc nằm trong chuỗi) để tìm đúng dấu
+  // "}" đóng khớp với nó — chính xác hơn nhiều so với chỉ lấy dấu "}" CUỐI CÙNG trong toàn bộ
+  // text (cách cũ), vì AI đôi khi in thêm vài chữ sau khối JSON hoặc trả JSON có nhiều object
+  // con lồng nhau (criteria.fluency, criteria.lexical...). Nếu JSON bị cắt cụt giữa chừng (hết
+  // token) thì depth sẽ không bao giờ về 0 — hàm gọi bên ngoài (callGroqChatJson) sẽ tự thử lại.
   function parseGroqJson(raw) {
     let s = String(raw || '').trim();
     s = s.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
-    const first = s.indexOf('{'), last = s.lastIndexOf('}');
-    if (first !== -1 && last !== -1) s = s.slice(first, last + 1);
-    return JSON.parse(s);
+    const first = s.indexOf('{');
+    if (first === -1) throw new Error('Không tìm thấy JSON trong phản hồi của AI.');
+    let depth = 0, inString = false, escapeNext = false, end = -1;
+    for (let i = first; i < s.length; i++) {
+      const ch = s[i];
+      if (escapeNext) { escapeNext = false; continue; }
+      if (ch === '\\') { escapeNext = true; continue; }
+      if (ch === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (ch === '{') depth++;
+      else if (ch === '}') { depth--; if (depth === 0) { end = i; break; } }
+    }
+    const jsonStr = end !== -1 ? s.slice(first, end + 1) : s.slice(first);
+    return JSON.parse(jsonStr);
+  }
+
+  // Gọi Groq + parse JSON, TỰ ĐỘNG THỬ LẠI ĐÚNG 1 LẦN nếu lần đầu không parse được — phần lớn
+  // lỗi "AI trả về không đúng định dạng" là do model bị cắt cụt giữa chừng (hết token) hoặc lỡ
+  // chèn thêm vài chữ ngoài khối JSON, thử lại với lời nhắc rõ hơn thường sẽ ra kết quả đúng.
+  async function callGroqChatJson(messages, opts) {
+    const raw = await callGroqChat(messages, opts);
+    try {
+      return parseGroqJson(raw);
+    } catch (e) {
+      const retryMessages = messages.concat([
+        { role: 'user', content: 'Your previous reply was not valid JSON, or it got cut off before the closing brace. Reply again with ONLY one complete, valid JSON object in the exact shape requested above — no markdown code fences, no extra commentary before or after it.' }
+      ]);
+      const raw2 = await callGroqChat(retryMessages, opts);
+      return parseGroqJson(raw2);
+    }
   }
 
   // ==========================================
@@ -596,13 +628,13 @@ Is it better to read a physical book or an e-book?"></textarea>
     resultBox.classList.add('hidden');
 
     try {
-      const raw = await callGroqChat([
-        { role: 'system', content: IDEA_SYSTEM_PROMPT },
-        { role: 'user', content: 'IELTS Speaking question: "' + q.text + '"\n\nStudent\'s keywords/ideas: "' + keywords + '"' }
-      ], { temperature: 0.5, maxTokens: 900 });
-
       let parsed;
-      try { parsed = parseGroqJson(raw); } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
+      try {
+        parsed = await callGroqChatJson([
+          { role: 'system', content: IDEA_SYSTEM_PROMPT },
+          { role: 'user', content: 'IELTS Speaking question: "' + q.text + '"\n\nStudent\'s keywords/ideas: "' + keywords + '"' }
+        ], { temperature: 0.5, maxTokens: 1400 });
+      } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
 
       document.getElementById('ideaVocabList').innerHTML = (parsed.vocabulary || []).map(v =>
         '<li class="mb-1"><b>' + escapeHtml(v.phrase || '') + '</b> <span class="ipa">/' + escapeHtml((v.ipa || '').replace(/^\/|\/$/g, '')) + '/</span> — ' + escapeHtml(v.meaning_vi || '') + '</li>'
@@ -1177,13 +1209,13 @@ Is it better to read a physical book or an e-book?"></textarea>
 
       spinnerMsg.textContent = 'Đang chấm điểm theo 4 tiêu chí IELTS Speaking...';
       const q = __pkg.questions[__qIdx];
-      const raw = await callGroqChat([
-        { role: 'system', content: SCORING_SYSTEM_PROMPT },
-        { role: 'user', content: 'IELTS Speaking Part ' + __pkg.part + ' question: "' + q.text + '"\n\nStudent\'s transcribed spoken answer: "' + transcript + '"' }
-      ], { temperature: 0.3, maxTokens: 1500 });
-
       let parsed;
-      try { parsed = parseGroqJson(raw); } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
+      try {
+        parsed = await callGroqChatJson([
+          { role: 'system', content: SCORING_SYSTEM_PROMPT },
+          { role: 'user', content: 'IELTS Speaking Part ' + __pkg.part + ' question: "' + q.text + '"\n\nStudent\'s transcribed spoken answer: "' + transcript + '"' }
+        ], { temperature: 0.3, maxTokens: 2600 });
+      } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
 
       const overall = parsed.overallBand;
       const scores = {
