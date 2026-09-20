@@ -2088,22 +2088,41 @@
                         const vp = page.getViewport({ scale });
                         setViewport(vp);
 
-                        const canvas = canvasRef.current;
-                        const drawCanvas = drawCanvasRef.current;
-                        if (!canvas || !drawCanvas) return;
-
-                        canvas.height = vp.height;
-                        canvas.width = vp.width;
-                        drawCanvas.height = vp.height;
-                        drawCanvas.width = vp.width;
-
-                        const ctx = canvas.getContext('2d');
-                        realRenderTask = page.render({ canvasContext: ctx, viewport: vp });
+                        // QUAN TRỌNG — sửa lỗi "trang bị trắng ra 1 tý rồi mới trở lại khi zoom (đặc
+                        // biệt rõ khi pinch/zoom 2 ngón trên trackpad)" — port từ bản Night IELTS Land:
+                        // trước đây đổi canvas.width/height của canvas ĐANG HIỂN THỊ ngay lập tức — mà
+                        // cứ đổi width/height của 1 canvas là trình duyệt XOÁ TRẮNG nội dung cũ NGAY TỨC
+                        // THÌ, còn phải đợi page.render() (việc bất đồng bộ, tốn 1 khoảng thời gian) vẽ
+                        // xong nội dung mới thì mới hết trắng — chính là khoảng "trắng trang" người dùng
+                        // thấy. Sửa: render vào 1 canvas TẠM (offscreen, không nằm trong DOM, người dùng
+                        // không nhìn thấy) trước — canvas đang hiển thị vẫn giữ NGUYÊN nội dung cũ (chỉ
+                        // tự động co giãn theo CSS 100% để khớp khung đã đổi kích thước, hơi mờ 1 chút
+                        // trong lúc chờ — coi như hiệu ứng xem trước khi zoom, không hề bị trắng). Chỉ
+                        // khi nào render xong hoàn toàn mới đổi width/height của canvas thật rồi vẽ ảnh
+                        // đã render sẵn qua NGAY LẬP TỨC (đồng bộ, cùng 1 nhịp) — khoảng trắng chỉ tồn
+                        // tại trong đúng 1 canvas tạm vô hình, không bao giờ lọt vào khung hình mà người
+                        // dùng thực sự nhìn thấy.
+                        const offCanvas = document.createElement('canvas');
+                        offCanvas.width = vp.width;
+                        offCanvas.height = vp.height;
+                        const offCtx = offCanvas.getContext('2d');
+                        realRenderTask = page.render({ canvasContext: offCtx, viewport: vp });
                         return realRenderTask.promise.then(() => {
-                            if (!cancelled) {
-                                redrawStrokes();
-                                renderedRef.current = { pdf, scale };
-                            }
+                            if (cancelled) return;
+                            const canvas = canvasRef.current;
+                            const drawCanvas = drawCanvasRef.current;
+                            if (!canvas || !drawCanvas) return;
+
+                            canvas.height = vp.height;
+                            canvas.width = vp.width;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(offCanvas, 0, 0);
+
+                            drawCanvas.height = vp.height;
+                            drawCanvas.width = vp.width;
+
+                            redrawStrokes();
+                            renderedRef.current = { pdf, scale };
                         });
                     });
                     return {
