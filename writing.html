@@ -161,11 +161,14 @@ html,body{
 
     <!-- ================= TEACHER: KHÔNG CÓ ?id= ================= -->
     <div id="teacherHubView" class="hidden view-center text-center">
-      <div class="ni-panel text-center py-16 px-10" style="max-width:480px;">
+      <div class="ni-panel text-center py-14 px-10" style="max-width:480px;">
         <div class="text-4xl mb-4">🧑‍🏫</div>
-        <p class="font-bold mb-1" style="color:var(--border-color);">Trang này dùng để chấm 1 bài Writing cụ thể.</p>
-        <p class="ni-instruction inline-block mb-5 text-left">Vào mục "Tiến Độ" ở trang chủ để xem danh sách bài Writing học sinh đã nộp và bấm "✏️ Chấm bài".</p>
-        <div><a href="index.html" class="ni-nav-btn inline-flex">Quay lại trang chủ</a></div>
+        <p class="font-bold mb-5" style="color:var(--border-color);">Quản lý bài Writing của học sinh.</p>
+        <div class="flex flex-col gap-3">
+          <a href="index.html?openStudio=writing" class="ni-submit-btn"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Giao bài Writing mới</a>
+          <a href="index.html?openProgress=writing" class="ni-nav-btn"><i class="fa-solid fa-chart-simple mr-1"></i> Xem bài đã nộp / đã chấm</a>
+          <a href="index.html" class="ni-nav-btn" style="border:none;color:#888;">Quay lại trang chủ</a>
+        </div>
       </div>
     </div>
 
@@ -531,6 +534,13 @@ html,body{
       badge.innerHTML = (overdue ? '<i class="fa-solid fa-triangle-exclamation"></i> Đã quá hạn nộp (' : '<i class="fa-regular fa-clock"></i> Hạn nộp: ') + fmtDate(data.deadlineAt) + (overdue ? ')' : '');
     }
     window.__currentRef = ref;
+    // Tương tự nút chấm bài của giáo viên: reset nút "Nộp bài" mỗi khi vào view này, tránh bị
+    // kẹt ở chữ "Đang nộp..." nếu có lúc nào đó view này được vẽ lại mà không phải từ đầu.
+    const submitBtn = document.getElementById('submitAnswerBtn');
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> Nộp bài';
+    }
     showOnly('composeView');
   }
 
@@ -584,6 +594,14 @@ html,body{
     document.getElementById('gradeEditor').innerHTML = data.gradedHtml || data.submissionHtml || '';
     window.__currentRef = ref;
     window.__currentStudentName = studentName;
+    // Luôn đưa nút "Gửi lại cho học sinh" về trạng thái bình thường mỗi khi vào view này —
+    // nếu không, sau khi gửi thành công (bấm lại vào cùng 1 bài đã chấm để sửa tiếp) nút sẽ bị
+    // kẹt mãi ở chữ "Đang gửi..." vì nó là cùng 1 phần tử DOM được tái sử dụng, không tự sinh lại.
+    const sendBtn = document.getElementById('sendGradedBtn');
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane mr-1"></i> Gửi lại cho học sinh';
+    }
     showOnly('teacherGradeView');
 
     if (data.status === 'submitted' && data.teacherSeenSubmission !== true) {
