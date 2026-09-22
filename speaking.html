@@ -79,8 +79,20 @@ textarea.ni-input{font-weight:500;line-height:1.5;}
 /* ---- Part / package chip ---- */
 .part-chip{display:inline-flex;align-items:center;font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;background:#eadcc2;color:var(--border-color);}
 .ipa{font-family:'Plus Jakarta Sans',sans-serif;color:#8a6416;font-style:italic;}
-.refine-note{background:#fff;border:1px solid #e5decb;border-radius:10px;padding:10px 12px;}
-.refine-note b{color:var(--border-color);}
+
+/* ---- Bài trả lời mẫu / bài nâng cấp — cần NỔI BẬT hơn hẳn văn bản phụ xung quanh, vì đây
+   là phần học sinh cần đọc kỹ nhất, nên cỡ chữ lớn hơn .ni-instruction và có khung riêng. ---- */
+.answer-card{background:#fff;border:2px solid var(--border-color);border-radius:12px;padding:16px 18px;margin-bottom:4px;}
+.answer-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.answer-card-title{font-size:12px;font-weight:800;letter-spacing:.03em;color:var(--border-color);display:flex;align-items:center;gap:7px;}
+.answer-card-text{font-size:16px;line-height:1.65;font-weight:600;color:#2b2109;}
+.answer-card.upgraded{background:#fff8e8;border-color:var(--primary-button);}
+.answer-card.upgraded .answer-card-text{color:#5c3d0e;}
+
+.refine-note{background:#fff;border:1px solid #e5decb;border-radius:10px;padding:11px 13px;display:flex;gap:10px;align-items:flex-start;}
+.refine-note-num{flex-shrink:0;width:22px;height:22px;border-radius:999px;background:var(--primary-button);border:1.5px solid var(--border-color);font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;color:var(--border-color);}
+.refine-note b{color:var(--border-color);display:block;font-size:13px;margin-bottom:2px;}
+.refine-note span{font-size:12.5px;color:#555;}
 
 /* ---- Danh sách câu hỏi trong 1 gói (điều hướng luyện tập) ---- */
 .q-nav{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
@@ -164,6 +176,7 @@ textarea.ni-input{font-weight:500;line-height:1.5;}
         <div class="ni-tabbar">
           <button type="button" id="spTabPkgBtn" onclick="switchSpTab('pkg')" class="ni-tab-btn active">📦 Bộ câu hỏi</button>
           <button type="button" id="spTabAssignBtn" onclick="switchSpTab('assign')" class="ni-tab-btn">📨 Giao bài &amp; Kết quả <span id="spResultsBadge" class="hidden ni-tab-count">0</span></button>
+          <button type="button" id="spTabPracticeBtn" onclick="switchSpTab('practice')" class="ni-tab-btn">🎙️ Tự luyện</button>
         </div>
       </div>
 
@@ -211,12 +224,11 @@ Is it better to read a physical book or an e-book?"></textarea>
               </div>
             </div>
             <div id="spGroqBoxCreate"></div>
-            <button id="spCreatePkgBtn" onclick="createPackage()" class="ni-submit-btn w-full">➕ Tạo bộ câu hỏi (AI sẽ tự tạo gợi ý)</button>
+            <button id="spCreatePkgBtn" onclick="createPackage()" class="ni-submit-btn w-full">➕ Tạo bộ câu hỏi</button>
             <p id="spCreatePkgMsg" class="text-xs font-bold" style="color:var(--border-color);"></p>
           </div>
         </div>
 
-        <div class="ni-panel-label px-1">Tất cả bộ câu hỏi</div>
         <div id="spPkgList"><p class="font-semibold text-center py-8" style="color:var(--border-color);opacity:.6;">Đang tải...</p></div>
       </div>
 
@@ -227,6 +239,11 @@ Is it better to read a physical book or an e-book?"></textarea>
           <div class="space-y-3">
             <div>
               <label class="ni-label">Chọn bộ câu hỏi</label>
+              <div class="ni-target-toggle mb-2">
+                <button type="button" id="spAssignFilterAllBtn" onclick="setSpAssignPartFilter('all')" class="active">Tất cả</button>
+                <button type="button" id="spAssignFilterP1Btn" onclick="setSpAssignPartFilter('1')">Part 1</button>
+                <button type="button" id="spAssignFilterP23Btn" onclick="setSpAssignPartFilter('23')">Part 2 + 3</button>
+              </div>
               <select id="spAssignPkgSelect" class="ni-input"><option value="">Đang tải danh sách...</option></select>
             </div>
             <div>
@@ -253,6 +270,12 @@ Is it better to read a physical book or an e-book?"></textarea>
 
         <div class="ni-panel-label px-1">Kết quả học sinh đã luyện tập</div>
         <div id="spResultsList"><p class="font-semibold text-center py-8" style="color:var(--border-color);opacity:.6;">Đang tải...</p></div>
+      </div>
+
+      <!-- TAB: Tự luyện (giáo viên luyện Speaking như học sinh, không chỉ giao bài) -->
+      <div id="spTabPractice" class="hidden">
+        <p class="ni-instruction mb-4">Chọn 1 bộ câu hỏi bất kỳ để tự luyện — ghi âm, được AI chấm điểm y như học sinh. Kết quả không tính là bài giao, chỉ để Thầy/Cô tự kiểm tra bộ câu hỏi hoặc luyện tập.</p>
+        <div id="spTeacherPracticeList"><p class="font-semibold text-center py-8" style="color:var(--border-color);opacity:.6;">Đang tải...</p></div>
       </div>
     </div>
 
@@ -308,10 +331,12 @@ Is it better to read a physical book or an e-book?"></textarea>
             <div id="ideaResultBox" class="hidden mt-3">
               <p class="ni-label" style="margin-bottom:6px;">Từ vựng gợi ý</p>
               <ul id="ideaVocabList" class="text-sm pl-4 mb-3" style="list-style:disc;"></ul>
-              <p class="ni-label" style="margin-bottom:6px;">Câu trả lời mẫu (dựa trên ý của bạn)</p>
-              <div class="flex items-start gap-2">
-                <p id="ideaSampleAnswer" class="ni-instruction flex-1" style="font-style:normal;"></p>
-                <button type="button" onclick="speakText(document.getElementById('ideaSampleAnswer').textContent)" class="ni-nav-btn" title="Nghe phát âm"><i class="fa-solid fa-volume-high"></i></button>
+              <div class="answer-card">
+                <div class="answer-card-head">
+                  <span class="answer-card-title">💬 Câu trả lời mẫu (dựa trên ý của bạn)</span>
+                  <button type="button" onclick="speakText(document.getElementById('ideaSampleAnswer').textContent)" class="ni-nav-btn" title="Nghe phát âm"><i class="fa-solid fa-volume-high"></i></button>
+                </div>
+                <p id="ideaSampleAnswer" class="answer-card-text"></p>
               </div>
             </div>
           </div>
@@ -345,13 +370,20 @@ Is it better to read a physical book or an e-book?"></textarea>
             <p class="ni-label">Bài nói của bạn</p>
             <audio id="resAudioPlayback" controls class="w-full mb-2 hidden"></audio>
             <p id="resAudioMissingNote" class="text-xs font-semibold mb-3 hidden" style="color:var(--border-color);opacity:.7;">🔇 Bản ghi âm quá dài nên chỉ lưu được văn bản chuyển giọng nói, không lưu được file âm thanh.</p>
-            <p class="ni-label" style="margin-top:0;">Văn bản chuyển từ giọng nói</p>
+            <p class="ni-label" style="margin-top:0;">Văn bản chuyển từ giọng nói (bài gốc của bạn)</p>
             <p id="resTranscript" class="ni-instruction mb-4" style="font-style:normal;"></p>
             <div id="resCriteria"></div>
-            <p class="ni-label mt-4">✍️ Bài trả lời được nâng cấp — dựa trên chính câu trả lời của bạn, không viết lại thành bài hoàn toàn khác</p>
-            <p id="resRefinedAnswer" class="ni-instruction mb-3" style="font-style:normal;background:#fbf3df;border-left-color:var(--primary-button);"></p>
-            <p class="ni-label mt-3">💡 Vì sao nâng cấp như vậy</p>
-            <div id="resRefinementNotes" class="text-sm space-y-2" style="color:#333;"></div>
+
+            <div class="answer-card upgraded mt-4">
+              <div class="answer-card-head">
+                <span class="answer-card-title">✍️ Bài trả lời được nâng cấp <span style="font-weight:600;opacity:.7;text-transform:none;letter-spacing:0;">(dựa trên chính câu trả lời của bạn, không viết lại thành bài khác)</span></span>
+                <button type="button" onclick="speakText(document.getElementById('resRefinedAnswer').textContent)" class="ni-nav-btn" title="Nghe phát âm"><i class="fa-solid fa-volume-high"></i></button>
+              </div>
+              <p id="resRefinedAnswer" class="answer-card-text"></p>
+            </div>
+
+            <p class="ni-label mt-4" style="margin-bottom:8px;">💡 Vì sao nâng cấp như vậy — từng thay đổi cụ thể</p>
+            <div id="resRefinementNotes" class="text-sm space-y-2"></div>
             <button type="button" onclick="discardRecording()" class="ni-nav-btn mt-4">🔁 Luyện lại câu này</button>
           </div>
         </div>
@@ -744,7 +776,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       });
     } catch (e) {
       alert('Lỗi khi tạo bộ câu hỏi: ' + e.message);
-      btn.disabled = false; btn.innerText = '➕ Tạo bộ câu hỏi (AI sẽ tự tạo gợi ý)';
+      btn.disabled = false; btn.innerText = '➕ Tạo bộ câu hỏi';
       return;
     }
 
@@ -755,10 +787,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     msg.textContent = '✅ Đã tạo bộ câu hỏi!';
     await loadAllPackages();
     renderTeacherPkgList();
-    btn.disabled = false; btn.innerText = '➕ Tạo bộ câu hỏi (AI sẽ tự tạo gợi ý)';
-
-    // Sinh gợi ý bằng Groq cho từng câu — chạy NGẦM sau khi đã tạo xong, không chặn giáo viên.
-    generateTipsForPackage(pkgRef.id, questions).catch(() => {});
+    btn.disabled = false; btn.innerText = '➕ Tạo bộ câu hỏi';
   };
 
   // Gợi ý AI cho mỗi câu hỏi: PHẢI có (1) mẹo trả lời ngắn bằng tiếng Việt, và (2) danh sách
@@ -811,26 +840,61 @@ Is it better to read a physical book or an e-book?"></textarea>
     __spAllPackages = items;
   }
 
+  // Mỗi bộ câu hỏi hiển thị thành 1 thẻ (dùng chung cho cả 2 nhóm Part 1 / Part 2+3, và cho
+  // nhóm luyện tập của giáo viên ở tab "Tự luyện").
+  function renderPkgCard(pkg, opts) {
+    opts = opts || {};
+    const tipsDone = pkg.questions.filter(q => q.tipHtml).length;
+    const q = pkg.questions.map(q => '<li class="mb-1"><b>' + escapeHtml(q.text) + '</b>' + (q.tipHtml ? '<div class="mt-1 text-xs" style="opacity:.8;">' + q.tipHtml + '</div>' : '<div class="mt-1 text-xs italic" style="opacity:.5;">(chưa có gợi ý AI)</div>') + '</li>').join('');
+    const actions = opts.practiceOnly
+      ? '<a href="speaking.html?packageId=' + pkg.id + '" class="ni-nav-btn">🎙️ Tự luyện</a>'
+      : '<a href="speaking.html?packageId=' + pkg.id + '" class="ni-nav-btn">🎙️ Tự luyện</a>' +
+        '<button type="button" class="ni-nav-btn" onclick="regenerateTips(\'' + pkg.id + '\')">✨ Tạo gợi ý AI (' + tipsDone + '/' + pkg.questions.length + ')</button>' +
+        '<button type="button" class="ni-nav-btn" style="color:var(--incorrect-color);" onclick="deletePackage(\'' + pkg.id + '\')">🗑️ Xoá</button>';
+    return '<div class="ni-panel p-4 mb-3">' +
+      '<div class="flex items-center justify-between flex-wrap gap-2 mb-2">' +
+        '<div><span class="part-chip mr-2">' + (PART_LABELS[pkg.part] || pkg.part) + '</span><b style="color:var(--border-color);">' + escapeHtml(pkg.title) + '</b>' + (pkg.ownerId === 'built-in' ? ' <span class="ni-badge ni-badge-neutral">Mẫu có sẵn</span>' : '') + '</div>' +
+        '<div class="flex gap-2 flex-wrap">' + actions + '</div>' +
+      '</div>' +
+      '<details><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Xem ' + pkg.questions.length + ' câu hỏi</summary><ul class="text-sm mt-2 pl-4" style="list-style:disc;">' + q + '</ul></details>' +
+    '</div>';
+  }
+
+  // part1 = pkg.part === '1'; mọi bộ còn lại (part '2', '3', '2-3') đi chung nhóm "Part 2 + 3"
+  // vì trong đề thi thật 2 phần này luôn được hỏi nối tiếp nhau về cùng 1 chủ đề.
+  function splitPackagesByPart(list) {
+    const part1 = list.filter(p => p.part === '1');
+    const part23 = list.filter(p => p.part !== '1');
+    return { part1: part1, part23: part23 };
+  }
+
+  function renderPkgGroup(title, list, opts) {
+    if (list.length === 0) {
+      return '<div class="ni-panel-label px-1 mt-4">' + title + '</div><div class="ni-panel text-center py-8 mb-3"><p class="font-semibold" style="color:var(--border-color);opacity:.6;">Chưa có bộ câu hỏi nào ở nhóm này.</p></div>';
+    }
+    return '<div class="ni-panel-label px-1 mt-4">' + title + ' <span style="opacity:.6;">(' + list.length + ')</span></div>' + list.map(pkg => renderPkgCard(pkg, opts)).join('');
+  }
+
   function renderTeacherPkgList() {
     const el = document.getElementById('spPkgList');
     if (__spAllPackages.length === 0) {
       el.innerHTML = '<div class="ni-panel text-center py-10"><p class="font-semibold" style="color:var(--border-color);opacity:.7;">Chưa có bộ câu hỏi nào.</p></div>';
       return;
     }
-    el.innerHTML = __spAllPackages.map(pkg => {
-      const tipsDone = pkg.questions.filter(q => q.tipHtml).length;
-      const q = pkg.questions.map(q => '<li class="mb-1"><b>' + escapeHtml(q.text) + '</b>' + (q.tipHtml ? '<div class="mt-1 text-xs" style="opacity:.8;">' + q.tipHtml + '</div>' : '<div class="mt-1 text-xs italic" style="opacity:.5;">(chưa có gợi ý AI)</div>') + '</li>').join('');
-      return '<div class="ni-panel p-4 mb-3">' +
-        '<div class="flex items-center justify-between flex-wrap gap-2 mb-2">' +
-          '<div><span class="part-chip mr-2">' + (PART_LABELS[pkg.part] || pkg.part) + '</span><b style="color:var(--border-color);">' + escapeHtml(pkg.title) + '</b>' + (pkg.ownerId === 'built-in' ? ' <span class="ni-badge ni-badge-neutral">Mẫu có sẵn</span>' : '') + '</div>' +
-          '<div class="flex gap-2">' +
-            '<button type="button" class="ni-nav-btn" onclick="regenerateTips(\'' + pkg.id + '\')">✨ Tạo gợi ý AI (' + tipsDone + '/' + pkg.questions.length + ')</button>' +
-            '<button type="button" class="ni-nav-btn" style="color:var(--incorrect-color);" onclick="deletePackage(\'' + pkg.id + '\')">🗑️ Xoá</button>' +
-          '</div>' +
-        '</div>' +
-        '<details><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Xem ' + pkg.questions.length + ' câu hỏi</summary><ul class="text-sm mt-2 pl-4" style="list-style:disc;">' + q + '</ul></details>' +
-      '</div>';
-    }).join('');
+    const { part1, part23 } = splitPackagesByPart(__spAllPackages);
+    el.innerHTML = renderPkgGroup('🗣️ Part 1', part1) + renderPkgGroup('🗣️ Part 2 + 3', part23);
+  }
+
+  // Tab "Tự luyện": giống hệt danh sách bộ câu hỏi nhưng chỉ có 1 nút "Tự luyện" (không có nút
+  // xoá / tạo gợi ý AI) để tránh giáo viên bấm nhầm khi mục đích chỉ là luyện tập.
+  function renderTeacherPracticeList() {
+    const el = document.getElementById('spTeacherPracticeList');
+    if (__spAllPackages.length === 0) {
+      el.innerHTML = '<div class="ni-panel text-center py-10"><p class="font-semibold" style="color:var(--border-color);opacity:.7;">Chưa có bộ câu hỏi nào. Hãy tạo hoặc nạp bộ mẫu ở tab "Bộ câu hỏi" trước.</p></div>';
+      return;
+    }
+    const { part1, part23 } = splitPackagesByPart(__spAllPackages);
+    el.innerHTML = renderPkgGroup('🗣️ Part 1', part1, { practiceOnly: true }) + renderPkgGroup('🗣️ Part 2 + 3', part23, { practiceOnly: true });
   }
 
   // ==========================================
@@ -838,6 +902,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   // ==========================================
   let __spTargetMode = 'single';
   let __spClassesMap = {};
+  let __spAssignPartFilter = 'all'; // 'all' | '1' | '23'
 
   window.setSpTargetMode = function (mode) {
     __spTargetMode = mode;
@@ -850,16 +915,37 @@ Is it better to read a physical book or an e-book?"></textarea>
   window.switchSpTab = function (tab) {
     document.getElementById('spTabPkgBtn').classList.toggle('active', tab === 'pkg');
     document.getElementById('spTabAssignBtn').classList.toggle('active', tab === 'assign');
+    document.getElementById('spTabPracticeBtn').classList.toggle('active', tab === 'practice');
     document.getElementById('spTabPkg').classList.toggle('hidden', tab !== 'pkg');
     document.getElementById('spTabAssign').classList.toggle('hidden', tab !== 'assign');
+    document.getElementById('spTabPractice').classList.toggle('hidden', tab !== 'practice');
     if (tab === 'assign') loadAssignTabData();
+    if (tab === 'practice') renderTeacherPracticeList();
   };
 
-  async function loadAssignTabData() {
+  // Lọc dropdown "Chọn bộ câu hỏi" theo Part 1 / Part 2+3 để giáo viên dễ tìm khi có nhiều bộ.
+  window.setSpAssignPartFilter = function (filter) {
+    __spAssignPartFilter = filter;
+    document.getElementById('spAssignFilterAllBtn').classList.toggle('active', filter === 'all');
+    document.getElementById('spAssignFilterP1Btn').classList.toggle('active', filter === '1');
+    document.getElementById('spAssignFilterP23Btn').classList.toggle('active', filter === '23');
+    renderAssignPkgOptions();
+  };
+
+  function renderAssignPkgOptions() {
     const pkgSelect = document.getElementById('spAssignPkgSelect');
-    pkgSelect.innerHTML = __spAllPackages.length === 0
-      ? '<option value="">-- Chưa có bộ câu hỏi nào --</option>'
-      : '<option value="">-- Chọn bộ câu hỏi --</option>' + __spAllPackages.map(p => '<option value="' + p.id + '">' + escapeHtml(p.title) + '</option>').join('');
+    const filtered = __spAllPackages.filter(p => {
+      if (__spAssignPartFilter === '1') return p.part === '1';
+      if (__spAssignPartFilter === '23') return p.part !== '1';
+      return true;
+    });
+    pkgSelect.innerHTML = filtered.length === 0
+      ? '<option value="">-- Không có bộ câu hỏi nào ở nhóm này --</option>'
+      : '<option value="">-- Chọn bộ câu hỏi --</option>' + filtered.map(p => '<option value="' + p.id + '">' + '[' + (PART_LABELS[p.part] || p.part) + '] ' + escapeHtml(p.title) + '</option>').join('');
+  }
+
+  async function loadAssignTabData() {
+    renderAssignPkgOptions();
 
     const studentSelect = document.getElementById('spStudentSelect');
     const classSelect = document.getElementById('spClassSelect');
@@ -1214,7 +1300,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         parsed = await callGroqChatJson([
           { role: 'system', content: SCORING_SYSTEM_PROMPT },
           { role: 'user', content: 'IELTS Speaking Part ' + __pkg.part + ' question: "' + q.text + '"\n\nStudent\'s transcribed spoken answer: "' + transcript + '"' }
-        ], { temperature: 0.3, maxTokens: 2600 });
+        ], { temperature: 0.3, maxTokens: 3400 });
       } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
 
       const overall = parsed.overallBand;
@@ -1273,7 +1359,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     'IMPORTANT — feedback language and depth: write ALL feedback text (every "feedback" field and every "reason" field) in Vietnamese (tiếng Việt), natural and clear, as if explaining to a Vietnamese IELTS student. Each criterion feedback must be 3-5 sentences long, and must directly quote or closely paraphrase specific words/phrases the student actually said (in English, inside the Vietnamese sentence), explicitly naming: (a) what exactly was good, (b) what exactly was weak or wrong (with a concrete example from the transcript), and (c) precisely why that pulled the band up or down according to the descriptors above. Avoid generic filler like "cần cải thiện thêm" without specifics — always anchor to the actual transcript. ' +
     'For Pronunciation specifically you cannot hear audio — infer only an approximate estimate from indirect textual signals in the transcript (natural idiomatic phrasing, sentence complexity, absence of transcription confusion vs simple/halting/garbled phrasing that suggests unclear speech) and explicitly say in the Vietnamese feedback that this is only an estimate based on the transcript, not real audio pronunciation analysis. ' +
     'Then produce "refinedAnswer": a single coherent English paragraph that is the STUDENT\'S OWN answer, lightly upgraded — reuse their actual ideas, structure, and as much of their original wording as possible, only replacing or adding the specific words/phrases/grammar needed to sound naturally about 1.0 band higher than their estimated current overall band (relative to THEIR level, not a generic advanced answer). It must still sound like something that student would plausibly say — do NOT introduce sophisticated vocabulary, ideas, or sentence structures far beyond their demonstrated level, do NOT change the content/meaning/opinions they expressed, and do NOT split it into a list — it must read as one natural spoken-style paragraph a real person would say. If the student\'s answer was very short or off-topic, keep the refined answer similarly modest in length/scope, just cleaner. ' +
-    'Then produce "refinementNotes": an array of 3-6 objects, each {"change": short quote or description in English of the specific word/phrase changed (e.g. \'"very good" → "genuinely impressive"\'), "reason": 1-2 Vietnamese sentences explaining precisely why this specific change helps raise the band (referencing the relevant criterion and descriptor, e.g. "mở rộng vốn từ vựng (Lexical Resource) và tránh lặp từ rất nhiều lần")}. Every note must correspond to an actual difference between the transcript and refinedAnswer. ' +
+    'Then produce "refinementNotes": go through the transcript and refinedAnswer SENTENCE BY SENTENCE and list EVERY individual word/phrase/grammar change you made, no matter how small — do not summarize multiple changes into one note. Unless the student\'s original answer was extremely short (under ~15 words, in which case fewer changes may genuinely exist), you MUST return AT LEAST 4 notes, and up to 8 if there are that many real differences; never collapse several distinct changes into fewer notes just to keep the list short. Actively look for changes across ALL of these categories and include at least one note per category whenever that category actually differs (skip a category only if nothing in it changed): (1) vocabulary/word-choice upgrades, (2) grammar/verb-tense/sentence-structure fixes, (3) coherence/linking-word improvements (e.g. adding "actually", "to be honest", "on top of that" to sound more natural or better connect ideas), (4) natural/idiomatic expression changes (making something sound more like a real spoken answer, less awkward/translated-from-Vietnamese). Each object is {"change": a short, specific, quoted before → after in English, e.g. \'"very good" → "genuinely impressive"\' or \'added linking phrase "to be honest" at the start\', "reason": 1-2 Vietnamese sentences explaining precisely why this specific change helps raise the band (referencing the relevant criterion and descriptor, e.g. "mở rộng vốn từ vựng (Lexical Resource) và tránh lặp từ rất nhiều lần")}. Every note must correspond to an actual, real difference between the transcript and refinedAnswer — never invent a change that isn\'t really there. ' +
     'Respond with STRICT JSON only, no markdown, no code fences, exactly in this shape: {"overallBand": number, "criteria": {"fluency": {"band": number, "feedback": string}, "lexical": {"band": number, "feedback": string}, "grammar": {"band": number, "feedback": string}, "pronunciation": {"band": number, "feedback": string}}, "refinedAnswer": string, "refinementNotes": [{"change": string, "reason": string}, ...]}';
 
   function showResult(record) {
@@ -1296,10 +1382,13 @@ Is it better to read a physical book or an e-book?"></textarea>
       const c = record.criteria[k] || {};
       return '<div class="criteria-row"><div class="band-chip" style="width:44px;height:44px;font-size:15px;">' + (c.band != null ? c.band : '-') + '</div><div><p class="font-extrabold text-sm" style="color:var(--border-color);">' + CRIT_LABELS[k] + '</p><p class="text-sm">' + escapeHtml(c.feedback || '') + '</p></div></div>';
     }).join('');
-    document.getElementById('resRefinedAnswer').textContent = record.refinedAnswer ? ('"' + record.refinedAnswer + '"') : '';
-    document.getElementById('resRefinementNotes').innerHTML = (record.refinementNotes || []).map(n =>
-      '<div class="refine-note"><b>' + escapeHtml(n.change || '') + '</b><br>' + escapeHtml(n.reason || '') + '</div>'
-    ).join('');
+    document.getElementById('resRefinedAnswer').textContent = record.refinedAnswer || '';
+    const notes = record.refinementNotes || [];
+    document.getElementById('resRefinementNotes').innerHTML = notes.length === 0
+      ? '<p class="text-xs font-semibold" style="color:var(--border-color);opacity:.6;">Không có ghi chú nâng cấp cho câu trả lời này.</p>'
+      : notes.map((n, i) =>
+          '<div class="refine-note"><div class="refine-note-num">' + (i + 1) + '</div><div><b>' + escapeHtml(n.change || '') + '</b><span>' + escapeHtml(n.reason || '') + '</span></div></div>'
+        ).join('');
   }
 
   async function maybeCompleteAssignment() {
