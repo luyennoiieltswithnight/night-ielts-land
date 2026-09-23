@@ -122,28 +122,52 @@
             padding: 14px 16px; margin-bottom: 14px;
         }
         .audio-missing-msg { background: #fff3cd; border: 1px solid #e0b400; color: #6b5300; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; }
-        .audio-controls { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-        .audio-playpause {
-            width: 42px; height: 42px; border-radius: 50%; border: 2px solid var(--border-color);
-            background: var(--primary-button); font-size: 17px; cursor: pointer; flex-shrink: 0;
-        }
-        .audio-time { font-family: monospace; font-size: 14px; font-weight: 600; }
-        .audio-speed select, .lettered-select { border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; font-family: inherit; }
-        .wave-zoom button { border: 1px solid var(--border-color); background: white; border-radius: 4px; cursor: pointer; padding: 3px 8px; }
-        .exam-live-badge { color: #b02a37; font-weight: 800; font-size: 13px; }
 
-        .wave-scroll { margin-top: 12px; overflow-x: auto; position: relative; background: #f7f6fd; border: 1px solid #e4e1f5; border-radius: 16px; padding: 8px 0; cursor: pointer; }
-        /* Canvas khổ nhỏ CỐ ĐỊNH, "dính" mép trái vùng đang cuộn — KHÔNG vẽ cả
-           khổ ảo dài (xem giải thích ở audio_module.js.txt: drawWaveform()). */
+        /* --- Đầu player: tên đề (trái) + zoom/thời gian (phải) --- */
+        .audio-controls { display: flex; flex-direction: column; gap: 10px; }
+        .audio-player-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .audio-player-title { font-weight: 800; color: var(--border-color); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+        .audio-player-head-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+        .audio-time { font-family: monospace; font-size: 13.5px; font-weight: 700; color: var(--border-color); }
+        .audio-speed select, .lettered-select { border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; font-family: inherit; }
+        .wave-zoom { display: inline-flex; gap: 4px; }
+        .wave-zoom button { border: 1px solid var(--border-color); background: white; border-radius: 6px; cursor: pointer; padding: 2px 8px; font-weight: 700; line-height: 1.6; }
+        .wave-zoom button:hover { background: #f0ead9; }
+        .exam-live-badge { display: inline-block; margin-top: 2px; color: #b02a37; font-weight: 800; font-size: 12.5px; background: #fdecea; border: 1px solid #f1b6bb; border-radius: 20px; padding: 5px 14px; }
+
+        /* --- Hàng điều khiển: tốc độ (trái) + lùi 5s / play / tiến 5s (giữa) --- */
+        .audio-transport { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+        .audio-transport .audio-speed { justify-self: start; font-size: 13px; color: var(--border-color); font-weight: 600; }
+        .transport-center { justify-self: center; display: flex; align-items: center; gap: 12px; }
+        .transport-spacer { justify-self: end; }
+        .transport-btn { border: 1px solid var(--border-color); background: #fdf9ec; border-radius: 20px; padding: 7px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--border-color); }
+        .transport-btn:hover { background: #f0ead9; }
+        .audio-playpause {
+            width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--border-color);
+            background: var(--primary-button); font-size: 18px; cursor: pointer; flex-shrink: 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,.15);
+        }
+        .audio-playpause:hover { filter: brightness(1.08); }
+
+        /* --- Sóng âm: full bề ngang khung, khổ mảnh — xem giải thích khổ ảo/canvas
+             ở audio_module.js.txt: drawWaveform(). Màu theo đúng tông vàng-kem-xanh
+             rêu của trang (khớp nút play/progress bar) thay vì tím lạc tông trước đó. --- */
+        .wave-scroll { margin-top: 0; overflow-x: auto; overflow-y: hidden; position: relative; background: #fdf9ec; border: 1px solid #e3dcc2; border-radius: 14px; padding: 8px 0; cursor: pointer; width: 100%; }
+        /* QUAN TRỌNG: .practice-only { display: inline-flex } (dùng chung cho rất nhiều
+           phần tử nhỏ khác) vô tình ÉP luôn khung sóng âm này thành inline-flex co-khít-
+           nội-dung — khiến nó tự thu lại đúng bằng khổ canvas mặc định (~320px) rồi KẸT
+           luôn ở đó vì canvas lại đo bề rộng từ chính khung này để tự đặt khổ (vòng lặp
+           tự khoá nhau) — đây là nguyên nhân khung sóng âm trước giờ chỉ hiện bé tí giữa
+           khoảng trắng thay vì kéo dài hết khung. Ghi đè lại display:block ở đây để phá
+           vòng lặp, khung mới thật sự rộng bằng cha (.audio-player-card). */
+        .wave-scroll.practice-only { display: block; }
         .wave-scroll canvas { display: block; position: sticky; left: 0; top: 0; z-index: 1; }
-        /* Div rỗng riêng để "kéo dài" vùng cuộn ngang cho đúng khổ ảo của cả bài
-           (chỉ là 1 ô layout, không phải canvas nên không bị giới hạn khổ vẽ). */
         #wave-spacer { position: absolute; top: 0; left: 0; height: 1px; pointer-events: none; }
         .playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #d32f2f; pointer-events: none; left: 0; z-index: 2; }
         .wave-marker-line { position: absolute; top: 0; bottom: 0; width: 2px; background: #2c3e2d; pointer-events: none; z-index: 2; }
         .wave-marker-label { position: absolute; top: -2px; font-size: 10px; font-weight: 800; color: #2c3e2d; background: #fff; padding: 0 3px; border-radius: 3px; transform: translateX(-50%); pointer-events: none; z-index: 2; }
 
-        .exam-progress-bar { margin-top: 12px; height: 10px; background: #eee; border-radius: 6px; overflow: hidden; border: 1px solid #ccc; }
+        .exam-progress-bar { margin-top: 4px; height: 10px; background: #eee; border-radius: 6px; overflow: hidden; border: 1px solid #ccc; }
         .exam-progress-fill { height: 100%; width: 0%; background: var(--primary-button); transition: width 0.25s linear; }
 
         .practice-only { display: inline-flex; }
@@ -316,10 +340,11 @@
            gốc. Đặt cố định (sticky) ngay dưới header để luôn thấy được dù
            đang cuộn xem Section nào.
            ================================================================= */
-        .global-audio-bar { position: sticky; top: 60px; z-index: 40; background: var(--panel-bg, #fff); border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; margin: 14px 0; box-shadow: 0 2px 6px rgba(0,0,0,.06); }
+        .global-audio-bar { position: sticky; top: 60px; z-index: 40; background: white; border: 2px solid var(--border-color); border-radius: 16px; padding: 16px 18px; margin: 14px 0; box-shadow: 0 3px 10px rgba(0,0,0,.10); display: flex; flex-direction: column; gap: 14px; }
         .global-audio-bar .audio-missing-msg { margin: 0; }
-        .section-quick-jump { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-        .section-quick-jump button { border: 1px solid var(--border-color); background: #fdf9ec; border-radius: 14px; padding: 4px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+        .section-quick-jump { display: flex; gap: 8px; flex-wrap: wrap; }
+        .section-quick-jump button { border: 1px solid var(--border-color); background: #fdf9ec; border-radius: 14px; padding: 5px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--border-color); }
+        .section-quick-jump button:hover { background: #f0ead9; }
         .section-quick-jump button.current-playing { background: var(--border-color); color: white; }
         .replay-section-btn { border: 1px solid var(--border-color); background: #fdf9ec; border-radius: 14px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; margin-left: 8px; }
 
@@ -471,25 +496,37 @@
                     ⚠️ Chưa có file audio cho đề này. Các phần khác (câu hỏi/transcript/chấm điểm) vẫn dùng được bình thường.
                 </div>
                 <div class="audio-controls" id="audio-controls">
-                    <button type="button" class="audio-playpause" id="playpause-audio" onclick="toggleAudioPlay()">▶</button>
-                    <span class="audio-time" id="audio-time">00:00 / 00:00</span>
-                    <span class="audio-speed practice-only">
-                        Tốc độ:
-                        <select onchange="setAudioSpeed(this.value)">
-                            <option value="0.75">0.75x</option>
-                            <option value="1" selected>1x</option>
-                            <option value="1.25">1.25x</option>
-                            <option value="1.5">1.5x</option>
-                        </select>
-                    </span>
-                    <span class="wave-zoom practice-only">
-                        <button type="button" onclick="zoomWave(-1)" title="Thu nhỏ waveform">🔍−</button>
-                        <button type="button" onclick="zoomWave(1)" title="Phóng to waveform">🔍+</button>
-                    </span>
-                    <span class="exam-live-badge exam-only">🔴 ĐANG PHÁT — không thể tua/dừng</span>
+                    <div class="audio-player-head">
+                        <span class="audio-player-title">🎧 IELTS Listening Cambridge 10 Test 1</span>
+                        <span class="audio-player-head-right">
+                            <span class="wave-zoom practice-only">
+                                <button type="button" onclick="zoomWave(-1)" title="Thu nhỏ waveform">−</button>
+                                <button type="button" onclick="zoomWave(1)" title="Phóng to waveform">+</button>
+                            </span>
+                            <span class="audio-time" id="audio-time">00:00 / 00:00</span>
+                        </span>
+                    </div>
+                    <div class="audio-transport practice-only">
+                        <span class="audio-speed practice-only">
+                            Tốc độ:
+                            <select onchange="setAudioSpeed(this.value)">
+                                <option value="0.75">0.75x</option>
+                                <option value="1" selected>1x</option>
+                                <option value="1.25">1.25x</option>
+                                <option value="1.5">1.5x</option>
+                            </select>
+                        </span>
+                        <span class="transport-center">
+                            <button type="button" class="transport-btn" onclick="seekBy(-5)" title="Lùi 5 giây">⟲ 5s</button>
+                            <button type="button" class="audio-playpause" id="playpause-audio" onclick="toggleAudioPlay()">▶</button>
+                            <button type="button" class="transport-btn" onclick="seekBy(5)" title="Tiến 5 giây">5s ⟳</button>
+                        </span>
+                        <span class="transport-spacer"></span>
+                    </div>
+                    <div class="exam-live-badge exam-only">🔴 ĐANG PHÁT — không thể tua/dừng</div>
                 </div>
                 <div class="wave-scroll practice-only" id="wave-scroll">
-                    <canvas id="wave-canvas" height="56"></canvas>
+                    <canvas id="wave-canvas" height="64"></canvas>
                     <div id="wave-spacer"></div>
                     <div class="playhead" id="playhead"></div>
                 </div>
@@ -497,10 +534,10 @@
                     <div class="exam-progress-fill" id="exam-progress-fill"></div>
                 </div>
                 <div class="section-quick-jump practice-only">
-                    <button type="button" class="current-playing" onclick="playSectionAudio(1)">▶ Section 1</button>
-                    <button type="button" onclick="playSectionAudio(2)">▶ Section 2</button>
-                    <button type="button" onclick="playSectionAudio(3)">▶ Section 3</button>
-                    <button type="button" onclick="playSectionAudio(4)">▶ Section 4</button>
+                    <button type="button" class="current-playing" onclick="playSectionAudio(1)">Section 1</button>
+                    <button type="button" onclick="playSectionAudio(2)">Section 2</button>
+                    <button type="button" onclick="playSectionAudio(3)">Section 3</button>
+                    <button type="button" onclick="playSectionAudio(4)">Section 4</button>
                 </div>
             </div>
 
@@ -797,6 +834,18 @@
             // Cuộn ngang -> canvas (đang "dính" mép trái nhờ CSS sticky) cần vẽ lại
             // đúng đoạn sóng âm mới lọt vào khung nhìn thấy (xem drawWaveform()).
             if (scrollWrap) scrollWrap.addEventListener('scroll', () => { redrawVisibleWaveSlice(); });
+            // Zoom bằng track pad: cử chỉ "pinch" 2 ngón trên trackpad được Chrome/
+            // Firefox/Safari tự chuyển thành sự kiện wheel có ctrlKey=true (quy ước
+            // chuẩn của trình duyệt để web tự làm zoom riêng, y hệt cách Google Maps
+            // làm) — bắt đúng trường hợp đó để zoom sóng âm, còn cuộn ngang bình
+            // thường (lướt 2 ngón không pinch) vẫn để trình duyệt tự cuộn qua
+            // overflow-x:auto như cũ, không đụng vào.
+            if (scrollWrap) scrollWrap.addEventListener('wheel', (e) => {
+                if (appMode !== 'practice' || !waveData) return;
+                if (!(e.ctrlKey || e.metaKey)) return;
+                e.preventDefault();
+                zoomWave(e.deltaY < 0 ? 1 : -1);
+            }, { passive: false });
         }
 
         function onAudioMissing() {
@@ -863,13 +912,15 @@
             if (spacer) spacer.style.width = waveTotalVirtualWidth + 'px';
             const viewportWidth = Math.max(320, (scrollWrap && scrollWrap.clientWidth) || 800);
             canvas.width = viewportWidth;
-            canvas.height = 56;
+            canvas.height = 64;
             redrawVisibleWaveSlice();
             drawWaveMarkerLines();
         }
 
-        const WAVE_PLAYED_COLOR = '#5b4fe0';
-        const WAVE_UNPLAYED_COLOR = '#d8d4f7';
+        // Đổi từ tím sang tông vàng-kem đúng theme của trang (khớp nút play/progress
+        // bar dùng var(--primary-button) #e8b93b) thay vì tím lạc tông trước đó.
+        const WAVE_PLAYED_COLOR = '#e8b93b';
+        const WAVE_UNPLAYED_COLOR = '#e3dcc2';
         function redrawVisibleWaveSlice() {
             if (!waveData) return;
             const canvas = document.getElementById('wave-canvas');
@@ -937,7 +988,7 @@
             const frac = audio.duration ? (audio.currentTime / audio.duration) : 0;
             const x = frac * waveTotalVirtualWidth;
             playhead.style.left = x + 'px';
-            playhead.style.height = '56px';
+            playhead.style.height = '64px';
             const wrap = document.getElementById('wave-scroll');
             if (wrap && wrap.style.display !== 'none') {
                 const visibleLeft = wrap.scrollLeft, visibleRight = visibleLeft + wrap.clientWidth;
@@ -962,6 +1013,16 @@
         function setAudioSpeed(rate) {
             if (appMode === 'exam' || !audio) return;
             audio.playbackRate = parseFloat(rate);
+        }
+
+        // Nút "⟲5s / 5s⟳" tua nhanh lùi/tiến 5 giây — chỉ dùng khi luyện tập (thi thật
+        // không cho tua). Tua tay xong thì bỏ giới hạn "nghe riêng 1 section" (nếu có)
+        // để không bị cắt phát ngang xương do đã ra khỏi mốc cũ.
+        function seekBy(deltaSec) {
+            if (appMode === 'exam' || !audio || audioMissing) return;
+            const dur = (waveData && waveData.duration) || audio.duration || 0;
+            audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + deltaSec));
+            audio._boundEnd = null;
         }
 
         // Luyện tập: nghe riêng 1 section (tua tới mốc bắt đầu, tự dừng ở mốc
