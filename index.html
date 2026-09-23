@@ -87,12 +87,6 @@
                 "link": "homework/night-ielts-reading-test-builder.html"
             },
             {
-                "title": "Listening Test Builder",
-                "date": "10/09",
-                "questions": 0,
-                "link": "homework/test-builder-listening.html"
-            },
-            {
                 "title": "TRÌNH ĐỌC SÁCH",
                 "date": "09/07",
                 "questions": 30,
@@ -662,10 +656,11 @@
             <p class="text-sm text-gray-500 font-bold mb-5">Chọn học sinh và nạp bài tập</p>
 
             <!-- Chuyển đổi giữa các cách giao bài -->
-            <div class="flex gap-2 bg-gray-100 rounded-xl p-1 mb-5">
+            <div class="flex flex-wrap gap-2 bg-gray-100 rounded-xl p-1 mb-5">
                 <button id="mode-typed-btn" onclick="setTaskMode('typed')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors bg-white text-brand-purple shadow-sm">✍️ Nhập từ vựng mới</button>
                 <button id="mode-link-btn" onclick="setTaskMode('link')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📂 Chọn bài có sẵn</button>
                 <button id="mode-reading-btn" onclick="setTaskMode('reading')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📖 Đề Reading</button>
+                <button id="mode-listening-btn" onclick="setTaskMode('listening')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">🎧 Đề Listening</button>
                 <button id="mode-writing-btn" onclick="setTaskMode('writing')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-colors text-gray-500">📝 Đề Writing</button>
             </div>
 
@@ -741,6 +736,26 @@
                     </div>
                     <p id="task-reading-empty-msg" class="hidden text-[11px] text-amber-600 font-semibold">Chưa có đề Reading nào được đăng. Vào "Reading" ở trang chủ hoặc dùng công cụ Test Builder để tạo đề trước.</p>
                     <p class="text-[11px] text-gray-400 font-semibold">Bài Reading được tự động chấm điểm và báo về mục Tiến Độ khi học sinh bấm "Nộp bài" — không cần tự đánh dấu hoàn thành.</p>
+                </div>
+
+                <!-- CHẾ ĐỘ: chọn đề Listening từ thư viện (listening/manifest.json) -->
+                <div id="mode-listening-fields" class="hidden space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Bộ đề</label>
+                            <select id="task-listening-source-select" onchange="onListeningSourceChange()" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Sách</label>
+                            <select id="task-listening-book-select" onchange="onListeningBookChange()" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Test</label>
+                        <select id="task-listening-test-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                    </div>
+                    <p id="task-listening-empty-msg" class="hidden text-[11px] text-amber-600 font-semibold">Chưa có đề Listening nào được đăng. Vào "Listening" ở trang chủ hoặc dùng công cụ Test Builder Listening để tạo đề trước.</p>
+                    <p class="text-[11px] text-gray-400 font-semibold">Đây là bài có sẵn (chưa nối auto-chấm như Reading) — học sinh cần tự bấm "Đánh dấu đã hoàn thành" sau khi làm xong.</p>
                 </div>
 
                 <!-- CHẾ ĐỘ: giao đề Writing (giáo viên gõ/paste đề + ảnh nếu cần, học sinh viết bài, giáo viên sửa) -->
@@ -931,6 +946,24 @@
         </div>
     </div>
 
+    <!-- MODAL THƯ VIỆN ĐỀ LISTENING (Ẩn mặc định) -->
+    <div id="listening-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-floating transform transition-all max-h-[85vh] flex flex-col">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <h2 class="text-2xl font-black text-brand-purple mb-1">🎧 Listening Materials</h2>
+                    <p class="text-sm text-gray-500 font-bold">Chọn bộ đề → sách → test để bắt đầu luyện tập</p>
+                </div>
+                <button id="btn-close-listening" class="text-gray-400 hover:text-gray-600 text-xl leading-none mt-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="listening-modal-list" class="mt-6 flex-1 overflow-y-auto hide-scrollbar space-y-4">
+                <p class="text-gray-400 text-sm font-bold">Đang tải danh sách đề...</p>
+            </div>
+        </div>
+    </div>
+
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
         <div class="grid grid-cols-2 gap-4 sm:gap-6 mt-4 max-w-2xl">
             <div class="bg-white p-5 rounded-3xl shadow-soft hover:shadow-md transition-shadow border border-gray-50 flex items-center gap-4">
@@ -961,8 +994,7 @@
                 </h3>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <button id="listening-hero-card" class="relative overflow-hidden text-left bg-gradient-to-br from-slate-400 to-slate-500 rounded-3xl p-6 shadow-soft hover:shadow-md transition-shadow text-white">
-                    <span class="absolute top-4 right-4 text-[10px] font-black uppercase tracking-wider bg-white/25 px-2.5 py-1 rounded-full">Sắp ra mắt</span>
+                <button id="listening-hero-card" class="relative overflow-hidden text-left bg-gradient-to-br from-sky-400 to-blue-500 rounded-3xl p-6 shadow-soft hover:shadow-md transition-shadow text-white">
                     <div class="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-2xl mb-4">
                         <i class="fa-solid fa-headphones-simple"></i>
                     </div>
@@ -1319,8 +1351,8 @@
         var currentTaskMode = 'typed';
         function setTaskMode(mode){
             currentTaskMode = mode;
-            var btns = { typed: document.getElementById('mode-typed-btn'), link: document.getElementById('mode-link-btn'), reading: document.getElementById('mode-reading-btn'), writing: document.getElementById('mode-writing-btn') };
-            var fields = { typed: document.getElementById('mode-typed-fields'), link: document.getElementById('mode-link-fields'), reading: document.getElementById('mode-reading-fields'), writing: document.getElementById('mode-writing-fields') };
+            var btns = { typed: document.getElementById('mode-typed-btn'), link: document.getElementById('mode-link-btn'), reading: document.getElementById('mode-reading-btn'), listening: document.getElementById('mode-listening-btn'), writing: document.getElementById('mode-writing-btn') };
+            var fields = { typed: document.getElementById('mode-typed-fields'), link: document.getElementById('mode-link-fields'), reading: document.getElementById('mode-reading-fields'), listening: document.getElementById('mode-listening-fields'), writing: document.getElementById('mode-writing-fields') };
             Object.keys(btns).forEach(function(key){
                 var active = key === mode;
                 btns[key].className = 'flex-1 py-2 rounded-lg font-bold text-sm transition-colors ' + (active ? 'bg-white text-brand-purple shadow-sm' : 'text-gray-500');
@@ -1328,6 +1360,7 @@
             });
             if (mode === 'link') populateTaskFolderSelect();
             else if (mode === 'reading') populateTaskReadingSelects();
+            else if (mode === 'listening') populateTaskListeningSelects();
             var ttlNote = document.getElementById('task-deadline-ttl-note');
             if (ttlNote) {
                 ttlNote.textContent = mode === 'writing'
@@ -1536,9 +1569,107 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         });
-        document.getElementById('listening-hero-card').addEventListener('click', function(){
-            alert('Phần Listening đang được xây dựng, sẽ sớm ra mắt! Trong lúc chờ, thầy/cô có thể dùng "Listening Type Generator" trong Kho Lưu Trữ để giao bài luyện nghe cho học sinh nhé.');
+        document.getElementById('listening-hero-card').addEventListener('click', openListeningModal);
+        document.getElementById('btn-close-listening').addEventListener('click', function(){
+            var modal = document.getElementById('listening-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         });
+
+        // ==========================================
+        // THƯ VIỆN ĐỀ LISTENING (đọc listening/manifest.json — do Test Builder Listening tự
+        // cập nhật mỗi lần giáo viên xuất bản 1 đề mới). Giống hệt cơ chế reading/manifest.json
+        // ở trên, chỉ khác: mỗi test ở đây là { path, title } (có sẵn tiêu đề) thay vì string
+        // đường dẫn trần — nên hiển thị được tên đề thật thay vì chỉ "Test N".
+        // ==========================================
+        function loadListeningManifest(forceReload){
+            if (window.__listeningManifestCache && !forceReload) return Promise.resolve(window.__listeningManifestCache);
+            return fetch('listening/manifest.json', { cache: 'no-cache' }).then(function(res){
+                if (!res.ok) { window.__listeningManifestCache = { listening: {} }; return window.__listeningManifestCache; }
+                return res.json();
+            }).then(function(data){
+                window.__listeningManifestCache = (data && data.listening) ? data : { listening: {} };
+                return window.__listeningManifestCache;
+            }).catch(function(e){
+                console.error('Không tải được listening/manifest.json:', e);
+                window.__listeningManifestCache = { listening: {} };
+                return window.__listeningManifestCache;
+            });
+        }
+
+        function openListeningModal(){
+            var modal = document.getElementById('listening-modal');
+            var listEl = document.getElementById('listening-modal-list');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            listEl.innerHTML = '<p class="text-gray-400 text-sm font-bold">Đang tải danh sách đề...</p>';
+            loadListeningManifest(true).then(function(manifest){
+                renderListeningList(listEl, manifest, function(testPath){ window.open(testPath, '_blank'); });
+            });
+        }
+
+        // renderListeningList() tách riêng giống renderReadingList() — tái dùng được cho cả modal
+        // "Listening Materials" trên trang chủ LẪN dropdown chọn đề trong Studio khi giao bài.
+        function renderListeningList(container, manifest, onPickTest){
+            var listeningData = (manifest && manifest.listening) || {};
+            var prefixes = Object.keys(listeningData).filter(function(p){ return listeningData[p] && Object.keys(listeningData[p]).length > 0; });
+            if (prefixes.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-sm font-bold">Chưa có đề Listening nào được đăng. Thầy/cô dùng công cụ "Test Builder Listening" để tạo đề đầu tiên.</p>';
+                return;
+            }
+            container.innerHTML = prefixes.map(function(prefix){
+                var books = listeningData[prefix];
+                var bookKeys = sortedNumKeys(books);
+                var bookHtml = bookKeys.map(function(book){
+                    var tests = books[book];
+                    var testKeys = sortedNumKeys(tests);
+                    var testBtns = testKeys.map(function(t){
+                        var entry = tests[t];
+                        var path = (entry && typeof entry === 'object') ? entry.path : entry;
+                        var label = (entry && typeof entry === 'object' && entry.title) ? entry.title : ('Test ' + t);
+                        return '<button type="button" class="listening-test-btn px-4 py-2.5 rounded-xl border-2 border-gray-100 hover:border-brand-purple hover:bg-purple-50 font-bold text-sm text-gray-700 transition-colors" data-path="' + path + '">' + label + '</button>';
+                    }).join('');
+                    return '' +
+                        '<div class="listening-book-panel border border-gray-100 rounded-2xl p-3 mb-2">' +
+                            '<button type="button" class="listening-book-toggle w-full flex items-center justify-between px-2 py-1.5 font-bold text-gray-700">' +
+                                '<span><i class="fa-solid fa-book text-brand-purple mr-2"></i>' + (BOOK_LABELS[prefix] || prefix) + ' ' + book + '</span>' +
+                                '<i class="fa-solid fa-chevron-down text-xs text-gray-400 listening-book-chevron"></i>' +
+                            '</button>' +
+                            '<div class="listening-book-tests hidden flex flex-wrap gap-2 mt-2 pt-2 border-t border-gray-100">' + (testBtns || '<p class="text-gray-400 text-xs font-bold">Chưa có test nào.</p>') + '</div>' +
+                        '</div>';
+                }).join('');
+                return '' +
+                    '<div class="listening-source-panel border border-gray-100 rounded-2xl overflow-hidden">' +
+                        '<button type="button" class="listening-source-toggle w-full flex items-center justify-between px-4 py-3 bg-gray-50/60 font-black text-gray-800">' +
+                            '<span>🎧 ' + (SOURCE_LABELS[prefix] || prefix) + '</span>' +
+                            '<i class="fa-solid fa-chevron-down text-xs text-gray-400 listening-source-chevron"></i>' +
+                        '</button>' +
+                        '<div class="listening-source-books hidden p-3">' + bookHtml + '</div>' +
+                    '</div>';
+            }).join('');
+
+            container.querySelectorAll('.listening-source-toggle').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    var panel = btn.nextElementSibling;
+                    var chevron = btn.querySelector('.listening-source-chevron');
+                    panel.classList.toggle('hidden');
+                    chevron.classList.toggle('fa-chevron-down');
+                    chevron.classList.toggle('fa-chevron-up');
+                });
+            });
+            container.querySelectorAll('.listening-book-toggle').forEach(function(btn){
+                btn.addEventListener('click', function(){
+                    var panel = btn.nextElementSibling;
+                    var chevron = btn.querySelector('.listening-book-chevron');
+                    panel.classList.toggle('hidden');
+                    chevron.classList.toggle('fa-chevron-down');
+                    chevron.classList.toggle('fa-chevron-up');
+                });
+            });
+            container.querySelectorAll('.listening-test-btn').forEach(function(btn){
+                btn.addEventListener('click', function(){ onPickTest(btn.dataset.path, btn); });
+            });
+        }
 
         // ==========================================
         // GIAO BÀI: chọn đề Reading từ thư viện (reading/manifest.json)
@@ -1579,6 +1710,52 @@
             var tests = ((manifest.reading[prefix] || {})[book]) || {};
             var testKeys = sortedNumKeys(tests);
             testSel.innerHTML = testKeys.map(function(t){ return '<option value="' + t + '" data-path="' + tests[t] + '">Test ' + t + '</option>'; }).join('');
+        }
+        // ==========================================
+        // GIAO BÀI: chọn đề Listening từ thư viện (listening/manifest.json) — mirror y hệt
+        // populateTaskReadingSelects()/onReadingSourceChange()/onReadingBookChange() ở trên.
+        // ==========================================
+        async function populateTaskListeningSelects(){
+            var sourceSel = document.getElementById('task-listening-source-select');
+            sourceSel.innerHTML = '<option value="">Đang tải...</option>';
+            var manifest = await loadListeningManifest();
+            window.__taskListeningManifest = manifest;
+            var listeningData = (manifest && manifest.listening) || {};
+            var prefixes = Object.keys(listeningData).filter(function(p){ return listeningData[p] && Object.keys(listeningData[p]).length > 0; });
+            var emptyMsg = document.getElementById('task-listening-empty-msg');
+            if (prefixes.length === 0) {
+                sourceSel.innerHTML = '<option value="">-- Chưa có đề nào --</option>';
+                document.getElementById('task-listening-book-select').innerHTML = '';
+                document.getElementById('task-listening-test-select').innerHTML = '';
+                emptyMsg.classList.remove('hidden');
+                return;
+            }
+            emptyMsg.classList.add('hidden');
+            sourceSel.innerHTML = prefixes.map(function(p){ return '<option value="' + p + '">' + (SOURCE_LABELS[p] || p) + '</option>'; }).join('');
+            onListeningSourceChange();
+        }
+        function onListeningSourceChange(){
+            var prefix = document.getElementById('task-listening-source-select').value;
+            var bookSel = document.getElementById('task-listening-book-select');
+            var manifest = window.__taskListeningManifest || { listening: {} };
+            var books = (manifest.listening[prefix]) || {};
+            var bookKeys = sortedNumKeys(books);
+            bookSel.innerHTML = bookKeys.map(function(b){ return '<option value="' + b + '">' + (BOOK_LABELS[prefix] || prefix) + ' ' + b + '</option>'; }).join('');
+            onListeningBookChange();
+        }
+        function onListeningBookChange(){
+            var prefix = document.getElementById('task-listening-source-select').value;
+            var book = document.getElementById('task-listening-book-select').value;
+            var testSel = document.getElementById('task-listening-test-select');
+            var manifest = window.__taskListeningManifest || { listening: {} };
+            var tests = ((manifest.listening[prefix] || {})[book]) || {};
+            var testKeys = sortedNumKeys(tests);
+            testSel.innerHTML = testKeys.map(function(t){
+                var entry = tests[t];
+                var path = (entry && typeof entry === 'object') ? entry.path : entry;
+                var label = (entry && typeof entry === 'object' && entry.title) ? entry.title : ('Test ' + t);
+                return '<option value="' + t + '" data-path="' + path + '">' + label + '</option>';
+            }).join('');
         }
         function onTaskFolderChange(){
             var folderId = document.getElementById('task-folder-select').value;
@@ -2273,6 +2450,22 @@
                     completed: false,
                     percent: 0,
                     kind: 'reading'
+                };
+            } else if (mode === 'listening') {
+                const testSel = document.getElementById('task-listening-test-select');
+                const testOpt = testSel.options[testSel.selectedIndex];
+                if (!testOpt || !testOpt.dataset.path) return alert('Vui lòng chọn một đề Listening!');
+                // Chưa nối auto-chấm/Tiến Độ kiểu Reading (?assignmentId=) — dùng lại đúng cơ chế
+                // "manual" của mode 'link': học sinh tự bấm "Đánh dấu đã hoàn thành".
+                payload = {
+                    title: testOpt.textContent,
+                    link: testOpt.dataset.path,
+                    createdAt: now,
+                    deadlineAt: deadlineAt,
+                    expiresAt: now + ASSIGNMENT_TTL_MS,
+                    completed: false,
+                    percent: 0,
+                    kind: 'manual'
                 };
             } else if (mode === 'writing') {
                 const title = document.getElementById('task-title').value;
