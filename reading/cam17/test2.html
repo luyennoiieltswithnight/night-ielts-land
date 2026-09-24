@@ -2782,13 +2782,34 @@
                 });
             }
 
+            var SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 ngày — phiên "Làm chung" mở sau mốc này tự bị xoá sạch
+
+            function checkExpiryThenProceed(done) {
+                var metaRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/meta');
+                dbMod.get(metaRef).then(function (snap) {
+                    var meta = snap.val();
+                    var isExpired = !meta || !meta.createdAt || (Date.now() - meta.createdAt > SESSION_TTL_MS);
+                    if (!isExpired) { done(); return; }
+                    var sessRef = dbMod.ref(db, 'liveSessions/' + sessionId);
+                    dbMod.remove(sessRef).then(function () {
+                        return dbMod.set(dbMod.ref(db, 'liveSessions/' + sessionId + '/meta'), {
+                            createdAt: Date.now(),
+                            title: document.title || ''
+                        });
+                    }).then(done).catch(done);
+                }).catch(function (e) {
+                    console.warn('Night IELTS: không kiểm tra được hạn phiên làm chung', e);
+                    done();
+                });
+            }
+
             function joinSessionFromUrl() {
                 var params = new URLSearchParams(location.search);
                 var id = params.get('liveSession');
                 if (!id) return;
                 sessionId = id;
                 loadFirebase().then(function () {
-                    startSyncing();
+                    checkExpiryThenProceed(function () { startSyncing(); });
                 }).catch(function (e) { console.warn('Night IELTS: không tham gia được phiên làm chung', e); });
             }
 
