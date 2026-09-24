@@ -1014,11 +1014,30 @@ Is it better to read a physical book or an e-book?"></textarea>
     }
   };
 
-  async function loadTeacherResults() {
+  // "Đã xem tới đâu" chỉ cần lưu TRÊN TRÌNH DUYỆT của giáo viên (localStorage) — không cần đồng
+  // bộ nhiều thiết bị, đủ dùng cho badge "mới nộp kể từ lần check gần nhất". Đọc giá trị CŨ ra
+  // dùng để tính "mới" cho lần render này XONG rồi mới ghi đè giá trị mới vào, nếu không sẽ tự
+  // xoá badge của chính mình trước khi kịp hiện lên.
+  function getSpResultsLastSeen() {
+    try { return parseInt(localStorage.getItem('nightIeltsSpResultsLastSeenAt') || '0', 10) || 0; } catch (e) { return 0; }
+  }
+  function setSpResultsLastSeen(ts) {
+    try { localStorage.setItem('nightIeltsSpResultsLastSeenAt', String(ts)); } catch (e) {}
+  }
+
+  // markSeen=false: chỉ tính lại badge (dùng khi giáo viên vừa vào giao diện quản lý, CHƯA bấm
+  // vào tab "Kết quả") — không được cập nhật "đã xem tới đâu" lúc này, nếu không khi họ bấm vào
+  // tab thật thì badge sẽ về 0 dù họ chưa nhìn thấy gì. markSeen=true (mặc định, dùng khi tab
+  // "Kết quả" thực sự được mở ra) — sau khi tính + hiển thị xong mới chốt "đã xem tới đâu" = giờ
+  // hiện tại, để lần check TIẾP THEO chỉ tính những bài nộp SAU thời điểm này là "mới".
+  async function loadTeacherResults(markSeen) {
+    if (markSeen === undefined) markSeen = true;
     const el = document.getElementById('spResultsList');
+    const badge = document.getElementById('spResultsBadge');
     try {
       const snap = await getDocs(collection(db, 'speakingAttempts'));
       const now = Date.now();
+      const lastSeenAt = getSpResultsLastSeen();
       const items = [];
       snap.forEach(d => {
         const a = d.data();
@@ -1026,36 +1045,72 @@ Is it better to read a physical book or an e-book?"></textarea>
         items.push(Object.assign({ id: d.id }, a));
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      const badge = document.getElementById('spResultsBadge');
-      badge.textContent = String(items.length);
-      badge.classList.toggle('hidden', items.length === 0);
+
+      // Gom theo học sinh — mỗi học sinh 1 nhóm. Nhóm được sắp xếp theo lần nộp GẦN NHẤT của
+      // chính học sinh đó (không phải theo tên A-Z), nên học sinh vừa nộp bài mới nhất luôn nổi
+      // lên đầu danh sách; bên trong 1 nhóm vẫn giữ đúng thứ tự mới nhất lên trước (items đã
+      // sort sẵn ở trên, chỉ việc gom nhóm giữ nguyên thứ tự đó).
+      const groupsMap = new Map();
+      items.forEach(a => {
+        if (!groupsMap.has(a.studentId)) groupsMap.set(a.studentId, []);
+        groupsMap.get(a.studentId).push(a);
+      });
+      const groups = Array.from(groupsMap.entries()).map(([studentId, attempts]) => ({
+        studentId: studentId,
+        attempts: attempts,
+        latestAt: attempts[0].createdAt || 0,
+        newCount: attempts.filter(a => (a.createdAt || 0) > lastSeenAt).length,
+      }));
+      groups.sort((g1, g2) => g2.latestAt - g1.latestAt);
+
+      const totalNew = groups.reduce((sum, g) => sum + g.newCount, 0);
+      badge.textContent = String(totalNew);
+      badge.classList.toggle('hidden', totalNew === 0);
+
       if (items.length === 0) {
         el.innerHTML = '<div class="ni-panel text-center py-10"><p class="font-semibold" style="color:var(--border-color);opacity:.7;">Chưa có học sinh nào luyện tập.</p></div>';
-        return;
-      }
-      const names = {};
-      for (const it of items) {
-        if (!names[it.studentId]) {
-          try { const s = await getDoc(doc(db, 'users', it.studentId)); names[it.studentId] = s.exists() ? (s.data().name || it.studentId) : it.studentId; } catch (e) { names[it.studentId] = it.studentId; }
+      } else {
+        const names = {};
+        for (const g of groups) {
+          if (!names[g.studentId]) {
+            try { const s = await getDoc(doc(db, 'users', g.studentId)); names[g.studentId] = s.exists() ? (s.data().name || g.studentId) : g.studentId; } catch (e) { names[g.studentId] = g.studentId; }
+          }
         }
+        el.innerHTML = groups.map(g => {
+          const attemptsHtml = g.attempts.map(a => {
+            const isNew = (a.createdAt || 0) > lastSeenAt;
+            return '<div class="ni-panel p-4 mb-3">' +
+              '<div class="flex justify-between items-start flex-wrap gap-2">' +
+                '<div>' +
+                  (isNew ? '<span class="ni-tab-count" style="margin-right:6px;">MỚI</span>' : '') +
+                  '<span class="text-xs font-bold" style="opacity:.55;">' + escapeHtml(a.createdAt ? new Date(a.createdAt).toLocaleString('vi-VN') : '') + '</span>' +
+                  '<p class="text-xs font-semibold mt-0.5" style="opacity:.7;">' + escapeHtml(a.packageTitle || '') + ' — ' + escapeHtml(a.questionText || '') + '</p>' +
+                '</div>' +
+                '<div class="band-chip" style="width:44px;height:44px;font-size:15px;">' + (a.scores ? a.scores.overall : '-') + '</div>' +
+              '</div>' +
+              '<details class="mt-2"><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Nghe ghi âm &amp; xem transcript</summary>' +
+                (a.audioBase64
+                  ? '<audio controls class="w-full mt-2" src="data:' + (a.audioMime || 'audio/webm') + ';base64,' + a.audioBase64 + '"></audio>'
+                  : '<p class="text-xs font-semibold mt-2" style="opacity:.6;">🔇 Không có file ghi âm (bản ghi quá dài hoặc học sinh dùng trình duyệt cũ).</p>') +
+                '<p class="text-sm mt-2 italic">"' + escapeHtml(a.transcript || '') + '"</p>' +
+              '</details>' +
+            '</div>';
+          }).join('');
+
+          return '<details class="ni-panel p-0 mb-3"' + (g.newCount > 0 ? ' open' : '') + '>' +
+            '<summary class="p-4 cursor-pointer flex justify-between items-center gap-2 flex-wrap">' +
+              '<span class="font-extrabold" style="color:var(--border-color);"><i class="fa-solid fa-user mr-1"></i>' + escapeHtml(names[g.studentId] || g.studentId) + '</span>' +
+              '<span class="flex items-center gap-2">' +
+                (g.newCount > 0 ? '<span class="ni-tab-count">' + g.newCount + ' mới</span>' : '') +
+                '<span class="ni-badge ni-badge-neutral">' + g.attempts.length + ' lần luyện tập</span>' +
+              '</span>' +
+            '</summary>' +
+            '<div class="px-4 pb-4">' + attemptsHtml + '</div>' +
+          '</details>';
+        }).join('');
       }
-      el.innerHTML = items.map(a => (
-        '<div class="ni-panel p-4 mb-3">' +
-          '<div class="flex justify-between items-start flex-wrap gap-2">' +
-            '<div>' +
-              '<p class="font-extrabold" style="color:var(--border-color);"><i class="fa-solid fa-user mr-1"></i>' + escapeHtml(names[a.studentId] || a.studentId) + '</p>' +
-              '<p class="text-xs font-semibold mt-0.5" style="opacity:.7;">' + escapeHtml(a.packageTitle || '') + ' — ' + escapeHtml(a.questionText || '') + '</p>' +
-            '</div>' +
-            '<div class="band-chip" style="width:44px;height:44px;font-size:15px;">' + (a.scores ? a.scores.overall : '-') + '</div>' +
-          '</div>' +
-          '<details class="mt-2"><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Nghe ghi âm &amp; xem transcript</summary>' +
-            (a.audioBase64
-              ? '<audio controls class="w-full mt-2" src="data:' + (a.audioMime || 'audio/webm') + ';base64,' + a.audioBase64 + '"></audio>'
-              : '<p class="text-xs font-semibold mt-2" style="opacity:.6;">🔇 Không có file ghi âm (bản ghi quá dài hoặc học sinh dùng trình duyệt cũ).</p>') +
-            '<p class="text-sm mt-2 italic">"' + escapeHtml(a.transcript || '') + '"</p>' +
-          '</details>' +
-        '</div>'
-      )).join('');
+
+      if (markSeen) setSpResultsLastSeen(now);
     } catch (e) {
       el.innerHTML = '<p class="font-bold text-center py-8" style="color:var(--incorrect-color);">Lỗi khi tải kết quả.</p>';
     }
@@ -1068,6 +1123,9 @@ Is it better to read a physical book or an e-book?"></textarea>
     showOnly('teacherView');
     await loadAllPackages();
     renderTeacherPkgList();
+    // Tính badge "mới" ngay khi vừa vào giao diện quản lý, để giáo viên thấy có bài mới mà
+    // KHÔNG cần bấm vào tab "Kết quả" trước — markSeen=false nên không tự xoá badge của chính nó.
+    loadTeacherResults(false).catch(() => {});
   }
 
   // ==========================================
