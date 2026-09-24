@@ -770,7 +770,7 @@
         // playback thi thật chạy liên tục qua ranh giới giữa các section.
         // =====================================================================
         const AUDIO_SRC = "test2-audio.mp3";
-        const SECTION_MARKS = {"1":0,"2":395.78,"3":844.72,"4":1293.66}; // vd {"1":0,"2":187.4,"3":502.9,"4":900.1}
+        const SECTION_MARKS = {"1":0,"2":395.78,"3":757.76,"4":1206.7}; // vd {"1":0,"2":187.4,"3":502.9,"4":900.1}
         let waveData = null;      // {peaks, duration}
         let wavePxPerSec = 45;
         let waveTotalVirtualWidth = 320; // xem giải thích "ảo hoá canvas" ở drawWaveform()
@@ -2272,10 +2272,18 @@
         function __newAnnotId() {
             return 'a' + Date.now().toString(36) + '_' + (__annotSeq++).toString(36) + '_' + Math.random().toString(36).slice(2, 6);
         }
+        // SỬA (Listening): khác với Reading (chỉ có 1 loại vùng để highlight/note là đoạn văn
+        // "passage-N-text"), Listening cho phép tô màu/ghi chú NGAY TRÊN ĐỀ BÀI (câu hỏi/hướng
+        // dẫn trong #questions-pN, luôn hiển thị) chứ không chỉ trên transcript (ẩn, chỉ hiện khi
+        // "Xem lại đáp án"). Nhận thêm "questions-pN" làm 1 loại container hợp lệ để
+        // __captureAnnotContext() lấy được containerId ổn định dùng để đồng bộ — thiếu case này
+        // thì annotation trên đề bài vẫn tô màu được tại chỗ (applyHighlight chạy trước, không phụ
+        // thuộc hàm này) nhưng __finishAnnotCreate() lặng lẽ bỏ qua bước phát lên RTDB vì info=null,
+        // nên KHÔNG đồng bộ sang máy khác được — đúng như báo lỗi.
         function findPassageContainer(node) {
             let el = node && node.nodeType === 3 ? node.parentElement : node;
             while (el && el !== document.body) {
-                if (el.id && /^passage-\d-text$/.test(el.id)) return el;
+                if (el.id && /^(passage-\d-text|questions-p\d)$/.test(el.id)) return el;
                 el = el.parentElement;
             }
             return null;
