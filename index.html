@@ -92,12 +92,6 @@
                 "link": "homework/night-ielts-reading-test-builder.html"
             },
             {
-                "title": "Listening Test Builder",
-                "date": "10/09",
-                "questions": 0,
-                "link": "homework/test-builder-listening.html"
-            },
-            {
                 "title": "TRÌNH ĐỌC SÁCH",
                 "date": "09/07",
                 "questions": 30,
@@ -761,12 +755,24 @@
                             <select id="task-listening-book-select" onchange="onListeningBookChange()" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Test</label>
-                        <select id="task-listening-test-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Test</label>
+                            <select id="task-listening-test-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Phạm vi giao</label>
+                            <select id="task-listening-scope-select" class="w-full border-2 border-gray-100 rounded-xl p-3 font-bold text-gray-700 outline-none focus:border-brand-purple transition-colors">
+                                <option value="all">Cả đề (4 Section)</option>
+                                <option value="1">Chỉ Section 1</option>
+                                <option value="2">Chỉ Section 2</option>
+                                <option value="3">Chỉ Section 3</option>
+                                <option value="4">Chỉ Section 4</option>
+                            </select>
+                        </div>
                     </div>
                     <p id="task-listening-empty-msg" class="hidden text-[11px] text-amber-600 font-semibold">Chưa có đề Listening nào được đăng. Vào "Listening" ở trang chủ hoặc dùng công cụ Test Builder Listening để tạo đề trước.</p>
-                    <p class="text-[11px] text-gray-400 font-semibold">Đây là bài có sẵn (chưa nối auto-chấm như Reading) — học sinh cần tự bấm "Đánh dấu đã hoàn thành" sau khi làm xong.</p>
+                    <p class="text-[11px] text-gray-400 font-semibold">Bài Listening được tự động chấm điểm và báo về mục Tiến Độ khi học sinh bấm "Nộp bài" — không cần tự đánh dấu hoàn thành. (Chỉ áp dụng cho đề được xuất bản lại từ Test Builder Listening bản mới nhất — đề cũ xuất bản trước đó cần đăng lại 1 lần để có tính năng này.)</p>
                 </div>
 
                 <!-- CHẾ ĐỘ: giao đề Writing (giáo viên gõ/paste đề + ảnh nếu cần, học sinh viết bài, giáo viên sửa) -->
@@ -2010,6 +2016,9 @@
                     } else if (data.kind === 'reading') {
                         kindLabel = 'reading';
                         resultText = data.scoreText || 'Đã hoàn thành';
+                    } else if (data.kind === 'listening') {
+                        kindLabel = 'listening';
+                        resultText = data.scoreText || 'Đã hoàn thành';
                     } else if (data.link) {
                         kindLabel = 'assigned';
                         resultText = 'Đã hoàn thành';
@@ -2020,17 +2029,16 @@
                     }
                     logProgressEntry(uid, docSnap.id, { title: data.title, kind: kindLabel, resultText: resultText });
                 }
-                // Bài Reading (kind: 'reading') đã tự mang sẵn ?assignmentId=&scope= trong
-                // chính data.link (do Studio ghép lúc giao bài) và đề Reading tự báo điểm/tự
-                // đánh dấu hoàn thành khi học sinh bấm "Nộp bài" (script theo dõi nhúng sẵn
-                // trong file đề, xem night-ielts-reading-test-builder.html) — nên mở THẲNG
-                // data.link, không đi qua assigned.html (trang đó dành cho bài "chọn bài có
-                // sẵn" cần học sinh tự bấm "Đánh dấu đã hoàn thành").
+                // Bài Reading (kind: 'reading') VÀ Listening (kind: 'listening') đã tự mang sẵn
+                // ?assignmentId=&scope= trong chính data.link (do Studio ghép lúc giao bài) và tự
+                // báo điểm/tự đánh dấu hoàn thành khi học sinh bấm "Nộp bài" (script theo dõi nhúng
+                // sẵn trong file đề) — nên mở THẲNG data.link, không đi qua assigned.html (trang đó
+                // dành cho bài "chọn bài có sẵn" cần học sinh tự bấm "Đánh dấu đã hoàn thành").
                 // Bài Writing (kind: 'writing') mở qua writing.html?id=... — trang đó tự hiện
                 // đúng giao diện (viết bài / xem đã nộp / xem bài đã sửa) theo status hiện tại.
                 const openLink = data.kind === 'writing'
                     ? `writing.html?id=${docSnap.id}`
-                    : (data.kind === 'reading' && data.link
+                    : ((data.kind === 'reading' || data.kind === 'listening') && data.link
                         ? data.link
                         : (data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`));
                 // Gắn nhãn trạng thái vào tên bài Writing ngay trên trang chủ, vì bài Writing
@@ -2139,7 +2147,7 @@
         // TIẾN ĐỘ CỦA TÔI (học sinh) — đọc collection progressLog của riêng học sinh này,
         // tự dọn các dòng đã quá 1 năm trước khi hiển thị.
         // ==========================================
-        const KIND_ICON = { writing: '✍️', reading: '📖', assigned: '📂', vocab: '🔤' };
+        const KIND_ICON = { writing: '✍️', reading: '📖', listening: '🎧', assigned: '📂', vocab: '🔤' };
         async function loadStudentProgressLog(uid) {
             const q = query(collection(db, 'progressLog'), where('studentId', '==', uid));
             const snap = await getDocs(q);
@@ -2422,6 +2430,8 @@
             let payload = null;
             let readingTestPath = null;
             let readingScope = null;
+            let listeningTestPath = null;
+            let listeningScope = null;
 
             if (mode === 'link') {
                 const folderId = document.getElementById('task-folder-select').value;
@@ -2466,17 +2476,22 @@
                 const testSel = document.getElementById('task-listening-test-select');
                 const testOpt = testSel.options[testSel.selectedIndex];
                 if (!testOpt || !testOpt.dataset.path) return alert('Vui lòng chọn một đề Listening!');
-                // Chưa nối auto-chấm/Tiến Độ kiểu Reading (?assignmentId=) — dùng lại đúng cơ chế
-                // "manual" của mode 'link': học sinh tự bấm "Đánh dấu đã hoàn thành".
+                listeningTestPath = testOpt.dataset.path;
+                listeningScope = document.getElementById('task-listening-scope-select').value || 'all';
+                const scopeLabel = (listeningScope === '1' || listeningScope === '2' || listeningScope === '3' || listeningScope === '4') ? ('Section ' + listeningScope) : 'Cả đề';
+                const titleBase = testOpt.textContent + ' - ' + scopeLabel;
+                // Giống Reading: link chưa có ở đây — mỗi học sinh cần 1 ?assignmentId= riêng trỏ
+                // đúng document của mình để đề Listening tự báo điểm về đúng chỗ, nên link được
+                // ghép NGAY LÚC TẠO document (xem bước ghi bên dưới), không nằm trong payload dùng
+                // addDoc như chế độ "Chọn bài có sẵn".
                 payload = {
-                    title: testOpt.textContent,
-                    link: testOpt.dataset.path,
+                    title: titleBase,
                     createdAt: now,
                     deadlineAt: deadlineAt,
                     expiresAt: now + ASSIGNMENT_TTL_MS,
                     completed: false,
                     percent: 0,
-                    kind: 'manual'
+                    kind: 'listening'
                 };
             } else if (mode === 'writing') {
                 const title = document.getElementById('task-title').value;
@@ -2539,6 +2554,15 @@
                     await Promise.all(targetStudentIds.map(sid => {
                         const ref = doc(collection(db, 'assignments'));
                         const link = readingTestPath + '?assignmentId=' + ref.id + '&scope=' + readingScope;
+                        return setDoc(ref, Object.assign({ studentId: sid, link: link }, payload));
+                    }));
+                } else if (mode === 'listening') {
+                    // Y hệt cơ chế của Reading ở trên — engine Listening (Test Builder Listening
+                    // bản mới) tự đọc ?assignmentId=&scope= để giới hạn đúng Section được giao và
+                    // tự báo điểm về đúng document này khi học sinh bấm "Nộp bài".
+                    await Promise.all(targetStudentIds.map(sid => {
+                        const ref = doc(collection(db, 'assignments'));
+                        const link = listeningTestPath + '?assignmentId=' + ref.id + '&scope=' + listeningScope;
                         return setDoc(ref, Object.assign({ studentId: sid, link: link }, payload));
                     }));
                 } else {
@@ -2722,6 +2746,10 @@
                 } else if (r.kind === 'reading') {
                     doneLine = r.isDone
                         ? `📖 Đã nộp bài, đúng ${r.scoreText || (r.percent + '%')} (tự động chấm điểm)`
+                        : 'Học sinh chưa nộp bài';
+                } else if (r.kind === 'listening') {
+                    doneLine = r.isDone
+                        ? `🎧 Đã nộp bài, đúng ${r.scoreText || (r.percent + '%')} (tự động chấm điểm)`
                         : 'Học sinh chưa nộp bài';
                 } else if (r.isLink) {
                     doneLine = r.isDone ? '✅ Học sinh đã đánh dấu hoàn thành' : 'Chưa đánh dấu hoàn thành';
