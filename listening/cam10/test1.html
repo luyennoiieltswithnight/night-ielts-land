@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IELTS Listening Cambridge 10 Test 1</title>
+<title>Test 1</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 
@@ -362,6 +362,13 @@
         .section-quick-jump button.current-playing { background: var(--border-color); color: white; }
         .replay-section-btn { border: 1px solid var(--border-color); background: #fdf9ec; border-radius: 14px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; margin-left: 8px; }
 
+        /* Giao bài theo Section (?assignmentId=&scope=) — trạng thái báo kết quả
+           tự động ở modal Kết quả sau khi bấm "Nộp bài". */
+        .assign-report-note { font-weight: 800; font-size: 14px; border-radius: 10px; padding: 8px 12px; margin: 4px 0 14px; }
+        .assign-report-note.pending { background: #f1f1f1; color: #666; }
+        .assign-report-note.ok { background: #e6f7ec; color: #1b7a1b; }
+        .assign-report-note.err { background: #fdecea; color: #b3261e; }
+
 </style>
 </head>
 <body>
@@ -431,9 +438,9 @@
     <!-- Setup Screen -->
     <div id="setup-screen" class="overlay">
         <div class="modal-box">
-            <h1 style="margin-bottom:4px;">IELTS Listening Cambridge 10 Test 1</h1>
+            <h1 style="margin-bottom:4px;">Test 1</h1>
             <p style="color:#7c4dab; font-weight:700; font-size:13px;" class="teacher-only">👩‍🏫 Đang ở chế độ Giáo viên (thấy được nút "📄 Transcript" ở mỗi Section)</p>
-            <p>Chọn chế độ làm bài:</p>
+            <p id="mode-select-intro">Chọn chế độ làm bài:</p>
             <div class="mode-select">
                 <button type="button" class="mode-btn selected" id="btn-practice" onclick="selectMode('practice')">
                     <h3>Chế độ Luyện Tập</h3>
@@ -462,6 +469,7 @@
             <h2>Kết quả làm bài</h2>
             <div class="score-display"><span id="score-correct">0</span> / <span id="score-total">40</span></div>
             <div class="band-display">Estimated Band: <span id="band-score">0.0</span></div>
+            <p id="assignment-report-note" style="display:none;"></p>
             <p style="margin-bottom: 20px; color: #555;">Bạn có thể xem lại chi tiết đáp án, transcript và lời giải thích ở từng Section bằng nút "✅ Chấm đáp án Section N".</p>
             <button type="button" class="submit-btn" onclick="closeResultsModal()">Đóng</button>
         </div>
@@ -524,7 +532,7 @@
                 </div>
                 <div class="audio-controls" id="audio-controls">
                     <div class="audio-player-head">
-                        <span class="audio-player-title">🎧 IELTS Listening Cambridge 10 Test 1</span>
+                        <span class="audio-player-title">🎧 Test 1</span>
                         <span class="audio-player-head-right">
                             <span class="wave-zoom practice-only">
                                 <button type="button" onclick="zoomWave(-1)" title="Thu nhỏ waveform">−</button>
@@ -1109,6 +1117,18 @@
 
 
         // =====================================================================
+        // Giao bài theo Section (đọc ?assignmentId=...&scope=N từ URL, do trang
+        // index.html gắn vào link khi giáo viên giao 1 Section cụ thể hoặc cả đề
+        // qua Studio "🎧 Đề Listening" — y hệt cơ chế "?assignmentId=&scope=" của
+        // Reading). KHÔNG có assignmentId (mở trực tiếp từ Kho Lưu Trữ/thư viện,
+        // hoặc đây là bản HTML đã xuất bản TRƯỚC KHI có tính năng này) thì mọi
+        // thứ hoạt động y hệt trước giờ — không ảnh hưởng gì.
+        // =====================================================================
+        const ASSIGNED_ID = new URLSearchParams(location.search).get('assignmentId') || null;
+        const ASSIGNED_SCOPE_RAW = new URLSearchParams(location.search).get('scope');
+        const ASSIGNED_SCOPE = (ASSIGNED_SCOPE_RAW && /^[1-4]$/.test(ASSIGNED_SCOPE_RAW)) ? parseInt(ASSIGNED_SCOPE_RAW, 10) : null;
+
+        // =====================================================================
         // Dữ liệu câu hỏi + đáp án, dựng từ questionsData (bơm vào bởi Test
         // Builder — xem [[{"instruction":"Questions 1-6: Complete the notes below. Write ONE WORD for each answer.","type":"text","notesTemplate":"SELF-DRIVE TOURS IN THE USA\n\nExample\n\nName: Andrea Brown\nAddress: 24, ___ Road\nPostcode: BH5 2OP\nPhone: (mobile) 077 8664 3091\nHeard about company from: ___\n\nPossible self-drive tours\n\nTrip one:\nLos Angeles: customer wants to visit some ___ parks with their children\n\nYosemite Park: customer wants to stay in a lodge, not a ___\n\nTrip two:\nCustomer wants to see the ___ on the way to Cambria\n\nAt Santa Monica: not interested in shopping\n\nAt San Diego: wants to spend time on the ___","questions":[{"answer":"Ardleigh","exp":"Andrea cung cấp tên đường là “Ardleigh Road”, nên đáp án là Ardleigh.","loc":"24, Ardleigh Road","text":""},{"answer":"newspaper","exp":"Andrea nói cô ấy biết đến World Tours qua báo.","loc":"I read about you in the newspaper","text":""},{"answer":"theme","exp":"Travel Agent nói tour đầu tiên có thời gian để ghé thăm các theme parks ở Los Angeles.","loc":"visit some of the theme parks there","text":""},{"answer":"tent","exp":"Andrea nói cô ấy không thích ở trong tent và muốn ở lodge.","loc":"I don’t like the idea of staying in a tent","text":""},{"answer":"castle","exp":"Andrea muốn xem một castle gần Cambria.","loc":"there’s a really nice castle near Cambria","text":""},{"answer":"beach","exp":"Andrea nói San Diego thích hợp cho beaches và sau đó nói họ muốn sunbathing and swimming.","loc":"That’s good for beaches isn’t it?","text":""}]},{"instruction":"Questions 7-10: Complete the table below. Write ONE WORD AND/OR A NUMBER for each answer.","type":"table","tableColumns":["Number of days","Total distance","Price (per person)","Includes"],"tableRows":[["Trip One","12 days","___ km","£525","accommodation; car; one ___"],["Trip Two","9 days","980 km","£___","accommodation; car; ___"]],"questions":[{"answer":"2020","exp":"Tour One kéo dài 12 ngày và bao phủ 2,020 kilometres.","loc":"lasts twelve days and covers 2,020 kilometres","text":"Trip One — Total distance"},{"answer":"flight","exp":"Giá tour bao gồm accommodation, car rental và a flight.","loc":"accommodation, car rental and a flight","text":"Trip One — Includes"},{"answer":"429","exp":"Travel Agent cho biết giá là £429 mỗi người.","loc":"It’s £429 per person","text":"Trip Two — Price (per person)"},{"answer":"dinner","exp":"Các khách sạn cung cấp dinner trong giá tour.","loc":"these hotels offer dinner in the price","text":"Trip Two — Includes"}]}],[{"instruction":"Questions 11-12: Choose TWO letters A-E. Which TWO facilities at the leisure club have recently been improved?","type":"multi","options":["A. the gym","B. the tracks","C. the indoor pool","D. the outdoor pool","E. the sports training for children"],"pickCount":2,"questions":[{"answer":"A","exp":"“Fitness suite” được tân trang gần đây và tương ứng với the gym.","loc":"Our recently refurbished fitness suite has all the latest exercise equipment","text":"Which TWO facilities at the leisure club have recently been improved?"},{"answer":"C","exp":"Swimming pool được mở rộng thành tám làn; đồng thời outdoor pool được nói là không có không gian để xây.","loc":"now we’ve expanded it to eight lanes, it’s much wider","text":"Which TWO facilities at the leisure club have recently been improved?"}]},{"instruction":"Questions 13-20: Complete the notes below. Write NO MORE THAN TWO WORDS for each answer.","type":"text","notesTemplate":"Joining the leisure club\n\nPersonal Assessment\n• New members should describe any ___\n• The ___ will be explained to you before you use the equipment.\n• You will be given a six-week ___\n\nTypes of membership\n• There is a compulsory £90 ___ fee for members.\n• Gold members are given ___ to all the LP clubs.\n• Premier members are given priority during ___ hours.\n• Premier members can bring some ___ every month.\n• Members should always take their ___ with them.","questions":[{"answer":"health problems","exp":"Thành viên mới được yêu cầu cung cấp thông tin về bất kỳ health problems nào.","loc":"giving details of any health problems","text":""},{"answer":"safety rules","exp":"Huấn luyện viên sẽ hướng dẫn các safety rules trước khi sử dụng thiết bị.","loc":"take you through the safety rules for using the equipment in the fitness suite","text":""},{"answer":"plan","exp":"Sau đánh giá cá nhân, huấn luyện viên lập một plan trong khoảng thời gian sáu tuần.","loc":"draw up a plan, outlining what you should try to achieve within a six-week period","text":""},{"answer":"joining","exp":"Tất cả thành viên phải trả joining fee £90.","loc":"All members must pay a joining fee of £90","text":""},{"answer":"free entry","exp":"Gold membership cho phép thành viên free entry tại tất cả LP Clubs.","loc":"Gold membership entitles you to free entry at all LP Clubs","text":""},{"answer":"peak","exp":"Premier members được ưu tiên đặt lịch vào peak times.","loc":"booking preferences to Premier members at peak times","text":""},{"answer":"guests","exp":"Premier members được cấp passes cho guests mỗi tháng.","loc":"you will be sent passes for guests every month","text":""},{"answer":"photo card","exp":"Thành viên phải mang photo card vì nếu không có thì không thể vào câu lạc bộ.","loc":"it’s very important to remember your photo card","text":""}]}],[{"instruction":"Questions 21-25: Choose the correct letter, A, B or C.","type":"mcq","questions":[{"answer":"C","exp":"John nói cuộc thi yêu cầu áp dụng một cách tiếp cận sáng tạo vào công nghệ hiện có theo cách chưa từng được nghĩ tới.","loc":"We have to adopt an innovative approach to existing technology, using it in a way that hasn’t been thought of before.","text":"Students entering the design competition have to","options":["A. produce an energy-efficient design.","B. adapt an existing energy-saving appliance.","C. develop a new use for current technology."]},{"answer":"A","exp":"John cho rằng máy rửa bát hiện tại khá nhàm chán và giống nhau, nên muốn tạo ra thứ có vẻ khác biệt và hấp dẫn hơn.","loc":"I think some people will be prepared to pay a little extra for something that looks different.","text":"John chose a dishwasher because he wanted to make dishwashers","options":["A. more appealing.","B. more common.","C. more economical."]},{"answer":"B","exp":"Hòn đá có chức năng thay cho nút bấm để khởi động máy rửa bát.","loc":"Instead of pushing a button, you turn the stone.","text":"The stone in John’s ‘Rockpool’ design is used","options":["A. for decoration.","B. to switch it on.","C. to stop water escaping."]},{"answer":"A","exp":"Carbon dioxide lỏng được giảm áp suất và trở lại thành khí trong holding chamber.","loc":"That’s where the liquid is depressurised and so it reverts to a gas.","text":"In the holding chamber, the carbon dioxide","options":["A. changes back to a gas.","B. dries the dishes.","C. is allowed to cool."]},{"answer":"C","exp":"Carbon dioxide được đưa trở lại cylinder để tiếp tục được sử dụng.","loc":"The carbon dioxide is sent back to the cylinder and can be used again and again.","text":"At the end of the cleaning process, the carbon dioxide","options":["A. is released into the air.","B. is disposed of with the waste.","C. is collected ready to be re-used."]}]},{"instruction":"Questions 26-30: Complete the notes below. Write ONE WORD ONLY for each answer.","type":"text","notesTemplate":"John needs help preparing for his ___.\n\nThe professor advises John to make a ___ of his design.\n\nJohn’s main problem is getting good quality ___.\n\nThe professor suggests John apply for a ___.\n\nThe professor will check the ___ information in John’s written report.","questions":[{"answer":"presentation","exp":"John cần giáo sư giúp chuẩn bị cho bài presentation.","loc":"I have to give a presentation, and that’s the part I was hoping you could help me with.","text":""},{"answer":"model","exp":"Giáo sư khuyên John làm một model của chiếc máy.","loc":"you really need a model of the machine","text":""},{"answer":"materials","exp":"Vấn đề chính của John là tìm materials chất lượng cao với chi phí hợp lý.","loc":"everything that’s top quality is also very expensive","text":""},{"answer":"grant","exp":"Giáo sư đề nghị John xin một grant từ trường đại học.","loc":"why don’t you talk to the university about a grant?","text":""},{"answer":"technical","exp":"Giáo sư sẽ kiểm tra technical information/details trong báo cáo của John.","loc":"make sure the technical details you’ve given are accurate and thorough","text":""}]}],[{"instruction":"Questions 31-40: Complete the notes below. Write ONE WORD ONLY for each answer.","type":"text","notesTemplate":"THE SPIRIT BEAR\n\nGeneral facts\n• It is a white bear belonging to the black bear family.\n• Its colour comes from an uncommon ___\n• Local people believe that it has unusual ___\n• They protect the bear from ___\n\nHabitat\n• The bear’s relationship with the forest is complex.\n• Tree roots stop ___ along salmon streams.\n• The bears’ feeding habits provide nutrients for forest vegetation.\n• It is currently found on a small number of ___\n\nThreats\n• Habitat is being lost due to deforestation and construction of ___ by logging companies.\n• Unrestricted ___ is affecting the salmon supply.\n• The bears’ existence is also threatened by their low rate of ___\n\nGoing forward\n• Interested parties are working together.\n• Logging companies must improve their ___ of logging.\n• Maintenance and ___ of the spirit bears’ territory is needed.","questions":[{"answer":"gene","exp":"Màu trắng của gấu là kết quả của một special gene.","loc":"the result of a special gene that surfaces in a few","text":""},{"answer":"power","exp":"Người dân địa phương tin bộ lông trắng mang lại một special power.","loc":"its snowy fur brings with it a special power","text":""},{"answer":"strangers","exp":"Họ bảo vệ gấu khi strangers đến khu vực.","loc":"protecting it when strangers visit the area","text":""},{"answer":"erosion","exp":"Rễ cây giúp ngăn erosion của đất dọc theo các dòng suối.","loc":"help prevent erosion of the soil along the banks of the many fish streams","text":""},{"answer":"islands","exp":"Gấu thần hiện được tìm thấy trên một vài islands.","loc":"lives off the coast of the province of British Columbia on a few islands","text":""},{"answer":"roads","exp":"Logging companies đã xây dựng roads, làm phân mảnh khu vực gấu thường kiếm ăn.","loc":"they have built roads which have fractured the areas where the bear usually feeds","text":""},{"answer":"fishing","exp":"Fishing không bị giới hạn về mặt pháp lý và đang ảnh hưởng đến nguồn cá hồi.","loc":"there is no legal limit on fishing at the moment","text":""},{"answer":"reproduction","exp":"Tỷ lệ reproduction thấp đe dọa sự tồn tại của gấu.","loc":"reproduction among these bears has always been disappointingly low","text":""},{"answer":"method","exp":"Các công ty khai thác gỗ phải áp dụng một logging method tốt hơn.","loc":"adopt a better logging method","text":""},{"answer":"expansion","exp":"Bên cạnh việc duy trì lãnh thổ, cần chú trọng đến expansion của lãnh thổ gấu thần.","loc":"there also needs to be more emphasis on its expansion","text":""}]}]])
         // =====================================================================
@@ -1255,6 +1275,35 @@
             const dd = document.getElementById('section-dropdown');
             const opts = [1, 2, 3, 4].map(i => `<option value="${i}">Section ${i}</option>`);
             dd.innerHTML = opts.join('');
+        })();
+
+        // Nếu bài này được GIAO (assignmentId có trong URL): ép chế độ Luyện Tập
+        // (không cho chọn Thi Thật — bài giao làm khi rảnh, không phải thi mô
+        // phỏng có giờ), và nếu giao ĐÚNG 1 Section thì ẩn hẳn 3 Section còn lại
+        // khỏi giao diện làm bài (tab, nav câu hỏi, nút "Nghe lại Section X").
+        (function applyAssignedRestrictions() {
+            if (!ASSIGNED_ID) return;
+            const modeSelectEl = document.querySelector('#setup-screen .mode-select');
+            if (modeSelectEl) modeSelectEl.style.display = 'none';
+            const introP = document.getElementById('mode-select-intro');
+            if (introP) introP.textContent = ASSIGNED_SCOPE
+                ? `📌 Thầy/Cô đã giao riêng Section ${ASSIGNED_SCOPE} cho bạn. Làm xong bấm "Nộp bài" ở góc trên — hệ thống sẽ TỰ ĐỘNG chấm điểm và báo kết quả về cho Thầy/Cô, không cần tự đánh dấu hoàn thành.`
+                : `📌 Thầy/Cô đã giao cả đề này cho bạn. Làm xong bấm "Nộp bài" ở góc trên — hệ thống sẽ TỰ ĐỘNG chấm điểm và báo kết quả về cho Thầy/Cô, không cần tự đánh dấu hoàn thành.`;
+            appMode = 'practice';
+
+            if (ASSIGNED_SCOPE) {
+                const dd = document.getElementById('section-dropdown');
+                if (dd) { dd.value = String(ASSIGNED_SCOPE); dd.disabled = true; }
+                for (let s = 1; s <= 4; s++) {
+                    if (s === ASSIGNED_SCOPE) continue;
+                    const tabBtn = document.querySelectorAll('#section-tabs .tab-btn')[s - 1];
+                    if (tabBtn) tabBtn.style.display = 'none';
+                    const quickBtn = document.querySelectorAll('.section-quick-jump button')[s - 1];
+                    if (quickBtn) quickBtn.style.display = 'none';
+                    const block = document.getElementById(`section-S${s}`);
+                    if (block) block.style.display = 'none';
+                }
+            }
         })();
 
         function initNavCircles() {
@@ -1450,24 +1499,72 @@
         // tập: học sinh tự bấm "Nộp bài" ở header nếu muốn xem điểm & band ước
         // tính cho CẢ 4 section cùng lúc).
         // =====================================================================
+        // Bài KHÔNG được giao (mở trực tiếp từ thư viện) -> chấm CẢ 4 section như
+        // trước giờ. Bài ĐƯỢC GIAO đúng 1 Section -> chỉ chấm + báo điểm đúng
+        // Section đó (học sinh không cần đụng tới 3 section còn lại).
         function submitTest() {
             stopExamStopwatch();
-            const score = gradeQuestionRange(1, TOTAL_QUESTIONS);
+            const range = ASSIGNED_SCOPE ? sectionRanges[ASSIGNED_SCOPE - 1] : [1, TOTAL_QUESTIONS];
+            const [gStart, gEnd] = range;
+            const total = gEnd - gStart + 1;
+            const score = gradeQuestionRange(gStart, gEnd);
             document.getElementById('score-correct').innerText = score;
-            document.getElementById('score-total').innerText = TOTAL_QUESTIONS;
-            const band = calculateBand(score);
+            document.getElementById('score-total').innerText = total;
+            const band = calculateBand(score, total);
             document.getElementById('band-score').innerText = band;
-            saveProgressRecord(score, TOTAL_QUESTIONS, band);
+            saveProgressRecord(score, total, band);
+            if (ASSIGNED_ID) reportAssignmentResult(score, total, band);
             document.body.classList.add('exam-submitted');
             document.getElementById('results-modal').style.display = 'flex';
         }
 
-        function calculateBand(s) {
-            const scaled = TOTAL_QUESTIONS > 0 ? Math.round(s * 40 / TOTAL_QUESTIONS) : s;
+        function calculateBand(s, total) {
+            const t = total || TOTAL_QUESTIONS;
+            const scaled = t > 0 ? Math.round(s * 40 / t) : s;
             if (scaled >= 39) return "9.0"; if (scaled >= 37) return "8.5"; if (scaled >= 35) return "8.0";
             if (scaled >= 33) return "7.5"; if (scaled >= 30) return "7.0"; if (scaled >= 27) return "6.5";
             if (scaled >= 23) return "6.0"; if (scaled >= 19) return "5.5"; if (scaled >= 15) return "5.0";
             if (scaled >= 13) return "4.5"; if (scaled >= 10) return "4.0"; return "< 4.0";
+        }
+
+        // Báo kết quả về đúng document Firestore của học sinh (collection
+        // "assignments", cùng id nhúng sẵn trong URL) — không cần Firebase Auth
+        // (y hệt cơ chế "kind: reading" của index.html, dùng ?assignmentId=).
+        // Lỗi mạng ở đây KHÔNG làm mất điểm vừa chấm tại chỗ, chỉ là chưa báo
+        // được cho Thầy/Cô — học sinh bấm "Nộp bài" lại để thử báo lần nữa.
+        function reportAssignmentResult(score, total, band) {
+            const noteEl = document.getElementById('assignment-report-note');
+            if (noteEl) { noteEl.style.display = 'block'; noteEl.className = 'assign-report-note pending'; noteEl.textContent = '⏳ Đang gửi kết quả về cho Thầy/Cô...'; }
+            const percent = total > 0 ? Math.round(score / total * 100) : 0;
+            const scoreText = `${score}/${total} câu đúng (Band ước tính ${band})`;
+            Promise.all([
+                import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+            ]).then(([appMod, fsMod]) => {
+                const FB_CONFIG = {
+                    apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                    authDomain: "night-ielts-land.firebaseapp.com",
+                    databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+                    projectId: "night-ielts-land",
+                    storageBucket: "night-ielts-land.firebasestorage.app",
+                    messagingSenderId: "408519436407",
+                    appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+                    measurementId: "G-H3P14NJR76"
+                };
+                const app = appMod.initializeApp(FB_CONFIG, 'night-ielts-listening-report-' + Date.now());
+                const db = fsMod.getFirestore(app);
+                return fsMod.updateDoc(fsMod.doc(db, 'assignments', ASSIGNED_ID), {
+                    completed: true,
+                    percent: percent,
+                    scoreText: scoreText,
+                    submittedAt: Date.now()
+                });
+            }).then(() => {
+                if (noteEl) { noteEl.className = 'assign-report-note ok'; noteEl.textContent = '✅ Đã gửi kết quả về cho Thầy/Cô.'; }
+            }).catch(err => {
+                console.error('Không báo được kết quả về hệ thống (điểm vừa chấm ở trên vẫn đúng, không mất):', err);
+                if (noteEl) { noteEl.className = 'assign-report-note err'; noteEl.textContent = '⚠️ Gửi kết quả bị lỗi mạng — bấm "Nộp bài" lại để thử gửi lần nữa.'; }
+            });
         }
 
         const PROGRESS_HISTORY_KEY = 'bseh_progress_history';
@@ -2723,6 +2820,22 @@
             var syncStarted = false;
             var currentParticipantCount = 1;
 
+            // "Tự động phát/dừng/tua theo người khác trong phòng" — mặc định BẬT cho mọi người,
+            // nhưng từng người có thể tự tắt riêng cho máy của mình (không ảnh hưởng người khác,
+            // không đồng bộ lên RTDB — chỉ là sở thích cá nhân lưu trên trình duyệt). Việc phát
+            // hành động CỦA CHÍNH MÌNH cho người khác theo thì KHÔNG bị tắt bởi cờ này — ai bấm
+            // play/pause/tua đều luôn được người khác thấy, cờ chỉ quyết định máy NÀY có tự chạy
+            // theo người khác hay không.
+            var audioFollowEnabled = true;
+            try {
+                var savedFollow = localStorage.getItem('nightIeltsAudioFollow');
+                audioFollowEnabled = (savedFollow === null) ? true : savedFollow === '1';
+            } catch (e) {}
+            function setAudioFollowEnabled(v) {
+                audioFollowEnabled = !!v;
+                try { localStorage.setItem('nightIeltsAudioFollow', audioFollowEnabled ? '1' : '0'); } catch (e) {}
+            }
+
             function loadFirebase() {
                 return Promise.all([
                     import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
@@ -2779,7 +2892,12 @@
                         '<input type="text" id="live-session-link-input" readonly value="' + url.replace(/"/g, '&quot;') + '" style="flex:1; padding:8px; border-radius:6px; border:2px solid var(--border-color);">' +
                         '<button class="nav-btn" id="live-session-copy-btn">📋 Copy</button>' +
                         '</div>' +
-                        '<p style="margin:12px 0 0 0; font-size:12.5px; color:#888;">Gửi link này cho học sinh — ai mở cũng làm chung 1 đề, đáp án của người này người kia đều thấy ngay.</p>';
+                        '<p style="margin:12px 0 0 0; font-size:12.5px; color:#888;">Gửi link này cho học sinh — ai mở cũng làm chung 1 đề, đáp án của người này người kia đều thấy ngay.</p>' +
+                        '<label style="display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid #eee; font-size:13.5px; cursor:pointer;">' +
+                        '<input type="checkbox" id="live-audio-follow-toggle" style="width:16px; height:16px;"' + (audioFollowEnabled ? ' checked' : '') + '>' +
+                        '🔊 Tự động phát/dừng/tua audio theo người khác trong phòng' +
+                        '</label>' +
+                        '<p style="margin:6px 0 0 0; font-size:12.5px; color:#888;">Ai bấm phát/dừng/tua audio, máy của người khác (đang bật mục này) sẽ tự chạy theo. Tắt đi nếu bạn muốn tự điều khiển audio riêng của mình.</p>';
                     var copyBtn = document.getElementById('live-session-copy-btn');
                     if (copyBtn) copyBtn.addEventListener('click', function () {
                         var input = document.getElementById('live-session-link-input');
@@ -2788,6 +2906,8 @@
                         copyBtn.textContent = '✅ Đã copy';
                         setTimeout(function () { copyBtn.textContent = '📋 Copy'; }, 1500);
                     });
+                    var followToggle = document.getElementById('live-audio-follow-toggle');
+                    if (followToggle) followToggle.addEventListener('change', function (e) { setAudioFollowEnabled(e.target.checked); });
                 }
             }
 
@@ -2838,7 +2958,64 @@
                 setupAnswerSync();
                 setupMultiGroupSync();
                 setupAnnotationSync();
+                setupAudioSync();
                 updateParticipantBadge(currentParticipantCount);
+            }
+
+            // --- Đồng bộ play/pause/tua audio: BẤT KỲ ai trong phòng bấm phát/dừng/tua đều phát
+            //     lên RTDB, những máy khác (đang bật "Tự động phát theo người khác") sẽ tự chạy
+            //     theo ngay — không phân biệt "host", ai thao tác cũng được người khác thấy. Dùng
+            //     'play'/'pause'/'seeked' (không dùng 'timeupdate' vì bắn liên tục, sẽ ghi RTDB
+            //     quá nhiều lần/giây). Biến cờ applyingRemoteAudio chặn vòng lặp y hệt cách
+            //     applyingRemote chặn vòng lặp đồng bộ đáp án ở trên. Bỏ qua hoàn toàn khi Thi
+            //     Thật (audio tự chạy 1 mạch, không cho tua tay — không cần và không nên đồng bộ). ---
+            function setupAudioSync() {
+                // Script này chạy trong <script type="module"> RIÊNG (scope khác hẳn khối <script>
+                // thường chứa core_rest.js.txt/audio_module.js.txt) nên KHÔNG đụng trực tiếp được
+                // vào biến `audio`/`appMode` của khối kia — lấy thẳng phần tử DOM #global-audio (đã
+                // có sẵn trong HTML tĩnh ngay từ đầu) và dùng class "exam-mode" trên <body> (do
+                // startTest() gắn) để nhận biết đang ở Thi Thật hay không, thay vì đọc biến JS.
+                var audioEl = document.getElementById('global-audio');
+                if (!audioEl) return; // đề không có file audio -> không có gì để đồng bộ
+                var audioRef = dbMod.ref(db, SESSION_ROOT + '/' + sessionId + '/audioState');
+                var applyingRemoteAudio = false;
+
+                function isExamMode() { return document.body.classList.contains('exam-mode'); }
+
+                function broadcastLocal() {
+                    if (applyingRemoteAudio || isExamMode()) return;
+                    dbMod.set(audioRef, {
+                        playing: !audioEl.paused,
+                        time: audioEl.currentTime,
+                        updatedAt: Date.now(),
+                        by: clientId
+                    });
+                }
+                audioEl.addEventListener('play', broadcastLocal);
+                audioEl.addEventListener('pause', broadcastLocal);
+                audioEl.addEventListener('seeked', broadcastLocal);
+
+                dbMod.onValue(audioRef, function (snap) {
+                    if (isExamMode()) return;
+                    var data = snap.val();
+                    if (!data || data.by === clientId || !audioFollowEnabled) return;
+                    applyingRemoteAudio = true;
+                    // Bù thêm thời gian đã trôi qua kể từ lúc người kia phát ra trạng thái này (độ
+                    // trễ mạng), để máy vừa tham gia/vừa nhận cũng nghe ĐÚNG vị trí hiện tại chứ
+                    // không bị lùi lại đúng-lúc-người-kia-bấm.
+                    var elapsed = data.playing ? Math.max(0, (Date.now() - (data.updatedAt || Date.now())) / 1000) : 0;
+                    var targetTime = (data.time || 0) + elapsed;
+                    if (Math.abs(audioEl.currentTime - targetTime) > 0.75) {
+                        audioEl.currentTime = targetTime;
+                        audioEl._boundEnd = null; // người khác tua -> bỏ giới hạn "nghe riêng 1 section" cục bộ
+                    }
+                    if (data.playing && audioEl.paused) audioEl.play().catch(function () {});
+                    if (!data.playing && !audioEl.paused) audioEl.pause();
+                    // Đợi 1 chút cho 'play'/'pause'/'seeked' do CHÍNH đoạn code trên vừa gây ra kịp
+                    // bắn xong (đặc biệt 'seeked' bắn KHÔNG đồng bộ ngay sau khi set currentTime)
+                    // rồi mới mở khoá lại, tránh phát ngược các hành động này lên RTDB.
+                    setTimeout(function () { applyingRemoteAudio = false; }, 200);
+                });
             }
 
             function setupPresence() {
