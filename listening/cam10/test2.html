@@ -362,6 +362,13 @@
         .section-quick-jump button.current-playing { background: var(--border-color); color: white; }
         .replay-section-btn { border: 1px solid var(--border-color); background: #fdf9ec; border-radius: 14px; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; margin-left: 8px; }
 
+        /* Giao bài theo Section (?assignmentId=&scope=) — trạng thái báo kết quả
+           tự động ở modal Kết quả sau khi bấm "Nộp bài". */
+        .assign-report-note { font-weight: 800; font-size: 14px; border-radius: 10px; padding: 8px 12px; margin: 4px 0 14px; }
+        .assign-report-note.pending { background: #f1f1f1; color: #666; }
+        .assign-report-note.ok { background: #e6f7ec; color: #1b7a1b; }
+        .assign-report-note.err { background: #fdecea; color: #b3261e; }
+
 </style>
 </head>
 <body>
@@ -433,7 +440,7 @@
         <div class="modal-box">
             <h1 style="margin-bottom:4px;">Test 2</h1>
             <p style="color:#7c4dab; font-weight:700; font-size:13px;" class="teacher-only">👩‍🏫 Đang ở chế độ Giáo viên (thấy được nút "📄 Transcript" ở mỗi Section)</p>
-            <p>Chọn chế độ làm bài:</p>
+            <p id="mode-select-intro">Chọn chế độ làm bài:</p>
             <div class="mode-select">
                 <button type="button" class="mode-btn selected" id="btn-practice" onclick="selectMode('practice')">
                     <h3>Chế độ Luyện Tập</h3>
@@ -462,6 +469,7 @@
             <h2>Kết quả làm bài</h2>
             <div class="score-display"><span id="score-correct">0</span> / <span id="score-total">40</span></div>
             <div class="band-display">Estimated Band: <span id="band-score">0.0</span></div>
+            <p id="assignment-report-note" style="display:none;"></p>
             <p style="margin-bottom: 20px; color: #555;">Bạn có thể xem lại chi tiết đáp án, transcript và lời giải thích ở từng Section bằng nút "✅ Chấm đáp án Section N".</p>
             <button type="button" class="submit-btn" onclick="closeResultsModal()">Đóng</button>
         </div>
@@ -762,7 +770,7 @@
         // playback thi thật chạy liên tục qua ranh giới giữa các section.
         // =====================================================================
         const AUDIO_SRC = "test2-audio.mp3";
-        const SECTION_MARKS = {"1":0,"2":395.78,"3":757.76,"4":1206.7}; // vd {"1":0,"2":187.4,"3":502.9,"4":900.1}
+        const SECTION_MARKS = {"1":0,"2":395.78,"3":844.72,"4":1293.66}; // vd {"1":0,"2":187.4,"3":502.9,"4":900.1}
         let waveData = null;      // {peaks, duration}
         let wavePxPerSec = 45;
         let waveTotalVirtualWidth = 320; // xem giải thích "ảo hoá canvas" ở drawWaveform()
@@ -1094,6 +1102,18 @@
 
 
         // =====================================================================
+        // Giao bài theo Section (đọc ?assignmentId=...&scope=N từ URL, do trang
+        // index.html gắn vào link khi giáo viên giao 1 Section cụ thể hoặc cả đề
+        // qua Studio "🎧 Đề Listening" — y hệt cơ chế "?assignmentId=&scope=" của
+        // Reading). KHÔNG có assignmentId (mở trực tiếp từ Kho Lưu Trữ/thư viện,
+        // hoặc đây là bản HTML đã xuất bản TRƯỚC KHI có tính năng này) thì mọi
+        // thứ hoạt động y hệt trước giờ — không ảnh hưởng gì.
+        // =====================================================================
+        const ASSIGNED_ID = new URLSearchParams(location.search).get('assignmentId') || null;
+        const ASSIGNED_SCOPE_RAW = new URLSearchParams(location.search).get('scope');
+        const ASSIGNED_SCOPE = (ASSIGNED_SCOPE_RAW && /^[1-4]$/.test(ASSIGNED_SCOPE_RAW)) ? parseInt(ASSIGNED_SCOPE_RAW, 10) : null;
+
+        // =====================================================================
         // Dữ liệu câu hỏi + đáp án, dựng từ questionsData (bơm vào bởi Test
         // Builder — xem [[{"instruction":"Questions 1-10: Complete the notes below. Write ONE WORD AND/OR A NUMBER for each answer.","type":"text","notesTemplate":"Transport Survey\nExample\nTravelled to town today: by bus\n\nName: Luisa ___\n\nAddress: ___ White Stone Rd\nArea: Bradfield\nPostcode: ___\nOccupation: ___\nReason for visit to town: to go to the ___\n\nSuggestions for improvement:\nbetter ___\nhave more footpaths\nmore frequent ___\n\nThings that would encourage cycling to work:\nhaving ___ parking places for bicycles\nbeing able to use a ___ at work\nthe opportunity to have cycling ___ on busy roads","questions":[{"answer":"Hardie","exp":"Luisa gives her surname as “Hardie” and then spells it H-A-R-D-I-E.","loc":"Hardie.","text":""},{"answer":"19","exp":"Luisa gives the house number as 19.","loc":"It’s 19, White Stone Road.","text":""},{"answer":"GT8 2LC","exp":"Luisa corrects the postcode and spells it out.","loc":"It’s actually G-T-8, 2-L-C.","text":""},{"answer":"hairdresser","exp":"Luisa says that her occupation is a hairdresser.","loc":"I’m a hairdresser.","text":""},{"answer":"dentist|dentist’s","exp":"Luisa says she came into town to see the dentist.","loc":"but to see the dentist.","text":""},{"answer":"lighting","exp":"Luisa suggests that the lighting should be better.","loc":"I think the lighting should be better.","text":""},{"answer":"trains","exp":"Luisa says there are not enough trains and people have to wait a long time.","loc":"I don’t think there are enough trains.","text":""},{"answer":"safe","exp":"Luisa wants safe places where bicycles can be left.","loc":"there are no safe places to leave your bikes.","text":""},{"answer":"shower","exp":"Luisa says she would need a shower at work after cycling uphill.","loc":"I think I’d need a shower somewhere at work.","text":""},{"answer":"training","exp":"Luisa says training would make her feel more confident about cycling on busy roads.","loc":"I think I’d like to see you offering training for that","text":""}]}],[{"instruction":"Questions 11-14: Choose the correct letter, A, B or C.","type":"mcq","questions":[{"answer":"A","exp":"“you, the public” refers to the local people.","loc":"the idea for these initiatives came from you, the public","text":"The idea for the two new developments in the city came from","options":["A. local people.","B. the City Council.","C. the SWRDC."]},{"answer":"C","exp":"The unusual feature is the unique recycling system that enables seawater to be used in the pool.","loc":"a recycling system – the only one of its kind in the world – which enables seawater to be used in the pool.","text":"What is unusual about Brackenside pool?","options":["A. its architectural style","B. its heating system","C. its method of water treatment"]},{"answer":"C","exp":"The local press questioned whether there would be enough room for the expected number of visitors.","loc":"there has been quite a bit of discussion in the local press about whether there would be enough room for the number of visitors we’re hoping to attract","text":"Local newspapers have raised worries about","options":["A. the late opening date.","B. the cost of the project.","C. the size of the facilities."]},{"answer":"A","exp":"The public will decide which famous historical figure will be represented by the sculpture at the entrance.","loc":"There’ll also be a competition for the public to decide on the sculpture we plan to have at the entrance","text":"What decision has not yet been made about the pool?","options":["A. whose statue will be at the door","B. the exact opening times","C. who will open it"]}]},{"instruction":"Questions 15-20: Choose SIX answers from the box and write the correct letter, A-I, next to questions 15-20.","type":"list_match","options":["A. ancient forts","B. waterways","C. ice and snow","D. jewels","E. local animals","F. mountains","G. music and film","H. space travel","I. volcanoes"],"questions":[{"answer":"E","exp":"Asia is represented by local animals.","loc":"snakes, orang-utans, tigers and so on – fauna native to the forests of the region.","text":"Asia"},{"answer":"F","exp":"Antarctica is represented by mountains.","loc":"opted instead for climbing blocks in the shape of mountains","text":"Antarctica"},{"answer":"D","exp":"South America is represented by jewels.","loc":"games replicating the search for mines full of precious stones.","text":"South America"},{"answer":"H","exp":"North America is represented by space travel.","loc":"the designers finally opted for rockets and the international Space Station","text":"North America"},{"answer":"A","exp":"Europe is represented by ancient forts.","loc":"medieval castles and other fortifications.","text":"Europe"},{"answer":"B","exp":"Africa is represented by waterways.","loc":"a whole set of wonderful mosaics and trails to represent the great rivers","text":"Africa"}]}],[{"instruction":"Questions 21 and 22: Choose TWO letters, A-E.","type":"multi","options":["A. camping","B. climbing","C. collecting","D. hunting","E. reading"],"pickCount":2,"questions":[{"answer":"B|C","exp":"The transcript identifies climbing and collecting as his hobbies. “Hunting” and “camping” are mentioned but are not the answers.","loc":"No, it was climbing that he spent his time on as a young man.","text":"Which TWO hobbies was Thor Heyerdahl very interested in as a youth?"},{"answer":"B|C","exp":"The transcript explicitly mentions his passion for collecting things and that he spent his time climbing.","loc":"especially his passion for collecting things.","text":""}]},{"instruction":"Questions 23 and 24: Choose TWO letters, A-E.","type":"multi","options":["A. to examine ancient carvings","B. to experience an isolated place","C. to formulate a new theory","D. to learn survival skills","E. to study the impact of an extreme environment"],"pickCount":2,"questions":[{"answer":"B|E","exp":"The speakers say they wanted to experience island life and find out how harsh weather conditions shaped people’s lifestyles.","loc":"they decided to experience living on a small island, to find out how harsh weather conditions shaped people’s lifestyles.","text":"Which do the speakers say are the TWO reasons why Heyerdahl went to live on an island?"},{"answer":"B|E","exp":"These two purposes correspond to experiencing an isolated place and studying the impact of an extreme environment.","loc":"they decided to experience living on a small island, to find out how harsh weather conditions shaped people’s lifestyles.","text":""}]},{"instruction":"Questions 25-30: Choose the correct letter, A, B or C.","type":"mcq","questions":[{"answer":"A","exp":"The academics considered the huge distance of ocean between the islands and the nearest inhabited land to be the problem.","loc":"they thought that travel from the east was impossible, because of the huge, empty stretch of ocean that lies between the islands and the nearest inhabited land.","text":"According to Victor and Olivia, academics thought that Polynesian migration from the east was impossible due to","options":["A. the fact that Eastern countries were far away.","B. the lack of materials for boat building.","C. the direction of the winds and currents."]},{"answer":"C","exp":"Olivia says the journey was to test Heyerdahl’s idea, and Victor agrees.","loc":"it was more a matter of simply trying out his idea, to see if migration from the east was possible.","text":"Which do the speakers agree was the main reason for Heyerdahl’s raft journey?","options":["A. to overcome a research setback","B. to demonstrate a personal quality","C. to test a new theory"]},{"answer":"C","exp":"The important factor was using ancient techniques and local materials to build the raft.","loc":"The most important factor seems to have been that he use only ancient techniques and local materials to build his raft.","text":"What was most important to Heyerdahl about his raft journey?","options":["A. the fact that he was the first person to do it","B. the speed of crossing the Pacific","C. the use of authentic construction methods"]},{"answer":"A","exp":"He wanted to learn about the local stone carvings and make one himself.","loc":"But what he wanted to do was talk to the local people about their old stone carvings and then make one himself to learn more about the process.","text":"Why did Heyerdahl go to Easter Island?","options":["A. to build a stone statue","B. to sail a reed boat","C. to learn the local language"]},{"answer":"B","exp":"Olivia identifies his establishment of practical archaeology as his major influence.","loc":"he was the first person to establish what modern academics call practical archaeology.","text":"In Olivia’s opinion, Heyerdahl’s greatest influence was on","options":["A. theories about Polynesian origins.","B. the development of archaeological methodology.","C. establishing archaeology as an academic subject."]},{"answer":"A","exp":"The speakers agree that the overall tone of the textbook is old-fashioned.","loc":"I found the overall tone somewhat old-fashioned.","text":"Which criticism do the speakers make of William Oliver’s textbook?","options":["A. Its style is out of date.","B. Its content is over-simplified.","C. its methodology is flawed."]}]}],[{"instruction":"Questions 31-40: Complete the notes below. Write ONE WORD ONLY for each answer.","type":"text","notesTemplate":"THE FUTURE OF MANAGEMENT\n\nBusiness markets\ngreater ___ among companies\nincrease in power of large ___ companies\nrising ___ in certain countries\n\nExternal influences on businesses\nmore discussion with ___ before making business decisions\nenvironmental concerns which may lead to more ___\n\nBusiness structures\nmore teams will be formed to work on a particular ___\nbusinesses may need to offer hours that are ___, or the chance to work remotely\n\nManagement styles\nincreasing need for managers to provide good ___\nchanges influenced by ___ taking senior roles\n\nChanges in the economy\nservice sector continues to be important\nincreasing value of intellectual property\nmore and more ___ workers","questions":[{"answer":"competition","exp":"The speaker says a major development will be an increase in competition.","loc":"a major increase in competition, with companies from all round the world trying to sell similar products.","text":""},{"answer":"global","exp":"The corporations are described as global.","loc":"governments are actually losing power to major global corporations.","text":""},{"answer":"demand","exp":"The speaker says demand is growing rapidly in expanding economies.","loc":"demand is growing very fast.","text":""},{"answer":"customers","exp":"Companies are consulting customers before making business decisions.","loc":"companies are consulting customers more and more before making their business decisions.","text":""},{"answer":"regulation","exp":"Environmental concerns are linked to stronger regulation.","loc":"regulation will need to be strengthened.","text":""},{"answer":"project","exp":"Teams will be created to work on specific projects.","loc":"teams created with a specific project in mind.","text":""},{"answer":"flexible","exp":"Flexible hours are given as an example of working arrangements that can attract and retain staff.","loc":"traditional ones like flexible hours","text":""},{"answer":"leadership","exp":"Senior managers will need strong leadership skills.","loc":"they’ll need great skills in leadership","text":""},{"answer":"women","exp":"Changes in management style are linked to more women taking senior management positions.","loc":"by more women moving into senior management positions.","text":""},{"answer":"self-employed","exp":"The speaker identifies the move towards self-employment as a trend in the economy.","loc":"more and more people are becoming self-employed","text":""}]}]])
         // =====================================================================
@@ -1240,6 +1260,35 @@
             const dd = document.getElementById('section-dropdown');
             const opts = [1, 2, 3, 4].map(i => `<option value="${i}">Section ${i}</option>`);
             dd.innerHTML = opts.join('');
+        })();
+
+        // Nếu bài này được GIAO (assignmentId có trong URL): ép chế độ Luyện Tập
+        // (không cho chọn Thi Thật — bài giao làm khi rảnh, không phải thi mô
+        // phỏng có giờ), và nếu giao ĐÚNG 1 Section thì ẩn hẳn 3 Section còn lại
+        // khỏi giao diện làm bài (tab, nav câu hỏi, nút "Nghe lại Section X").
+        (function applyAssignedRestrictions() {
+            if (!ASSIGNED_ID) return;
+            const modeSelectEl = document.querySelector('#setup-screen .mode-select');
+            if (modeSelectEl) modeSelectEl.style.display = 'none';
+            const introP = document.getElementById('mode-select-intro');
+            if (introP) introP.textContent = ASSIGNED_SCOPE
+                ? `📌 Thầy/Cô đã giao riêng Section ${ASSIGNED_SCOPE} cho bạn. Làm xong bấm "Nộp bài" ở góc trên — hệ thống sẽ TỰ ĐỘNG chấm điểm và báo kết quả về cho Thầy/Cô, không cần tự đánh dấu hoàn thành.`
+                : `📌 Thầy/Cô đã giao cả đề này cho bạn. Làm xong bấm "Nộp bài" ở góc trên — hệ thống sẽ TỰ ĐỘNG chấm điểm và báo kết quả về cho Thầy/Cô, không cần tự đánh dấu hoàn thành.`;
+            appMode = 'practice';
+
+            if (ASSIGNED_SCOPE) {
+                const dd = document.getElementById('section-dropdown');
+                if (dd) { dd.value = String(ASSIGNED_SCOPE); dd.disabled = true; }
+                for (let s = 1; s <= 4; s++) {
+                    if (s === ASSIGNED_SCOPE) continue;
+                    const tabBtn = document.querySelectorAll('#section-tabs .tab-btn')[s - 1];
+                    if (tabBtn) tabBtn.style.display = 'none';
+                    const quickBtn = document.querySelectorAll('.section-quick-jump button')[s - 1];
+                    if (quickBtn) quickBtn.style.display = 'none';
+                    const block = document.getElementById(`section-S${s}`);
+                    if (block) block.style.display = 'none';
+                }
+            }
         })();
 
         function initNavCircles() {
@@ -1435,24 +1484,72 @@
         // tập: học sinh tự bấm "Nộp bài" ở header nếu muốn xem điểm & band ước
         // tính cho CẢ 4 section cùng lúc).
         // =====================================================================
+        // Bài KHÔNG được giao (mở trực tiếp từ thư viện) -> chấm CẢ 4 section như
+        // trước giờ. Bài ĐƯỢC GIAO đúng 1 Section -> chỉ chấm + báo điểm đúng
+        // Section đó (học sinh không cần đụng tới 3 section còn lại).
         function submitTest() {
             stopExamStopwatch();
-            const score = gradeQuestionRange(1, TOTAL_QUESTIONS);
+            const range = ASSIGNED_SCOPE ? sectionRanges[ASSIGNED_SCOPE - 1] : [1, TOTAL_QUESTIONS];
+            const [gStart, gEnd] = range;
+            const total = gEnd - gStart + 1;
+            const score = gradeQuestionRange(gStart, gEnd);
             document.getElementById('score-correct').innerText = score;
-            document.getElementById('score-total').innerText = TOTAL_QUESTIONS;
-            const band = calculateBand(score);
+            document.getElementById('score-total').innerText = total;
+            const band = calculateBand(score, total);
             document.getElementById('band-score').innerText = band;
-            saveProgressRecord(score, TOTAL_QUESTIONS, band);
+            saveProgressRecord(score, total, band);
+            if (ASSIGNED_ID) reportAssignmentResult(score, total, band);
             document.body.classList.add('exam-submitted');
             document.getElementById('results-modal').style.display = 'flex';
         }
 
-        function calculateBand(s) {
-            const scaled = TOTAL_QUESTIONS > 0 ? Math.round(s * 40 / TOTAL_QUESTIONS) : s;
+        function calculateBand(s, total) {
+            const t = total || TOTAL_QUESTIONS;
+            const scaled = t > 0 ? Math.round(s * 40 / t) : s;
             if (scaled >= 39) return "9.0"; if (scaled >= 37) return "8.5"; if (scaled >= 35) return "8.0";
             if (scaled >= 33) return "7.5"; if (scaled >= 30) return "7.0"; if (scaled >= 27) return "6.5";
             if (scaled >= 23) return "6.0"; if (scaled >= 19) return "5.5"; if (scaled >= 15) return "5.0";
             if (scaled >= 13) return "4.5"; if (scaled >= 10) return "4.0"; return "< 4.0";
+        }
+
+        // Báo kết quả về đúng document Firestore của học sinh (collection
+        // "assignments", cùng id nhúng sẵn trong URL) — không cần Firebase Auth
+        // (y hệt cơ chế "kind: reading" của index.html, dùng ?assignmentId=).
+        // Lỗi mạng ở đây KHÔNG làm mất điểm vừa chấm tại chỗ, chỉ là chưa báo
+        // được cho Thầy/Cô — học sinh bấm "Nộp bài" lại để thử báo lần nữa.
+        function reportAssignmentResult(score, total, band) {
+            const noteEl = document.getElementById('assignment-report-note');
+            if (noteEl) { noteEl.style.display = 'block'; noteEl.className = 'assign-report-note pending'; noteEl.textContent = '⏳ Đang gửi kết quả về cho Thầy/Cô...'; }
+            const percent = total > 0 ? Math.round(score / total * 100) : 0;
+            const scoreText = `${score}/${total} câu đúng (Band ước tính ${band})`;
+            Promise.all([
+                import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+            ]).then(([appMod, fsMod]) => {
+                const FB_CONFIG = {
+                    apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                    authDomain: "night-ielts-land.firebaseapp.com",
+                    databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+                    projectId: "night-ielts-land",
+                    storageBucket: "night-ielts-land.firebasestorage.app",
+                    messagingSenderId: "408519436407",
+                    appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+                    measurementId: "G-H3P14NJR76"
+                };
+                const app = appMod.initializeApp(FB_CONFIG, 'night-ielts-listening-report-' + Date.now());
+                const db = fsMod.getFirestore(app);
+                return fsMod.updateDoc(fsMod.doc(db, 'assignments', ASSIGNED_ID), {
+                    completed: true,
+                    percent: percent,
+                    scoreText: scoreText,
+                    submittedAt: Date.now()
+                });
+            }).then(() => {
+                if (noteEl) { noteEl.className = 'assign-report-note ok'; noteEl.textContent = '✅ Đã gửi kết quả về cho Thầy/Cô.'; }
+            }).catch(err => {
+                console.error('Không báo được kết quả về hệ thống (điểm vừa chấm ở trên vẫn đúng, không mất):', err);
+                if (noteEl) { noteEl.className = 'assign-report-note err'; noteEl.textContent = '⚠️ Gửi kết quả bị lỗi mạng — bấm "Nộp bài" lại để thử gửi lần nữa.'; }
+            });
         }
 
         const PROGRESS_HISTORY_KEY = 'bseh_progress_history';
@@ -2708,6 +2805,22 @@
             var syncStarted = false;
             var currentParticipantCount = 1;
 
+            // "Tự động phát/dừng/tua theo người khác trong phòng" — mặc định BẬT cho mọi người,
+            // nhưng từng người có thể tự tắt riêng cho máy của mình (không ảnh hưởng người khác,
+            // không đồng bộ lên RTDB — chỉ là sở thích cá nhân lưu trên trình duyệt). Việc phát
+            // hành động CỦA CHÍNH MÌNH cho người khác theo thì KHÔNG bị tắt bởi cờ này — ai bấm
+            // play/pause/tua đều luôn được người khác thấy, cờ chỉ quyết định máy NÀY có tự chạy
+            // theo người khác hay không.
+            var audioFollowEnabled = true;
+            try {
+                var savedFollow = localStorage.getItem('nightIeltsAudioFollow');
+                audioFollowEnabled = (savedFollow === null) ? true : savedFollow === '1';
+            } catch (e) {}
+            function setAudioFollowEnabled(v) {
+                audioFollowEnabled = !!v;
+                try { localStorage.setItem('nightIeltsAudioFollow', audioFollowEnabled ? '1' : '0'); } catch (e) {}
+            }
+
             function loadFirebase() {
                 return Promise.all([
                     import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
@@ -2764,7 +2877,12 @@
                         '<input type="text" id="live-session-link-input" readonly value="' + url.replace(/"/g, '&quot;') + '" style="flex:1; padding:8px; border-radius:6px; border:2px solid var(--border-color);">' +
                         '<button class="nav-btn" id="live-session-copy-btn">📋 Copy</button>' +
                         '</div>' +
-                        '<p style="margin:12px 0 0 0; font-size:12.5px; color:#888;">Gửi link này cho học sinh — ai mở cũng làm chung 1 đề, đáp án của người này người kia đều thấy ngay.</p>';
+                        '<p style="margin:12px 0 0 0; font-size:12.5px; color:#888;">Gửi link này cho học sinh — ai mở cũng làm chung 1 đề, đáp án của người này người kia đều thấy ngay.</p>' +
+                        '<label style="display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid #eee; font-size:13.5px; cursor:pointer;">' +
+                        '<input type="checkbox" id="live-audio-follow-toggle" style="width:16px; height:16px;"' + (audioFollowEnabled ? ' checked' : '') + '>' +
+                        '🔊 Tự động phát/dừng/tua audio theo người khác trong phòng' +
+                        '</label>' +
+                        '<p style="margin:6px 0 0 0; font-size:12.5px; color:#888;">Ai bấm phát/dừng/tua audio, máy của người khác (đang bật mục này) sẽ tự chạy theo. Tắt đi nếu bạn muốn tự điều khiển audio riêng của mình.</p>';
                     var copyBtn = document.getElementById('live-session-copy-btn');
                     if (copyBtn) copyBtn.addEventListener('click', function () {
                         var input = document.getElementById('live-session-link-input');
@@ -2773,6 +2891,8 @@
                         copyBtn.textContent = '✅ Đã copy';
                         setTimeout(function () { copyBtn.textContent = '📋 Copy'; }, 1500);
                     });
+                    var followToggle = document.getElementById('live-audio-follow-toggle');
+                    if (followToggle) followToggle.addEventListener('change', function (e) { setAudioFollowEnabled(e.target.checked); });
                 }
             }
 
@@ -2823,7 +2943,64 @@
                 setupAnswerSync();
                 setupMultiGroupSync();
                 setupAnnotationSync();
+                setupAudioSync();
                 updateParticipantBadge(currentParticipantCount);
+            }
+
+            // --- Đồng bộ play/pause/tua audio: BẤT KỲ ai trong phòng bấm phát/dừng/tua đều phát
+            //     lên RTDB, những máy khác (đang bật "Tự động phát theo người khác") sẽ tự chạy
+            //     theo ngay — không phân biệt "host", ai thao tác cũng được người khác thấy. Dùng
+            //     'play'/'pause'/'seeked' (không dùng 'timeupdate' vì bắn liên tục, sẽ ghi RTDB
+            //     quá nhiều lần/giây). Biến cờ applyingRemoteAudio chặn vòng lặp y hệt cách
+            //     applyingRemote chặn vòng lặp đồng bộ đáp án ở trên. Bỏ qua hoàn toàn khi Thi
+            //     Thật (audio tự chạy 1 mạch, không cho tua tay — không cần và không nên đồng bộ). ---
+            function setupAudioSync() {
+                // Script này chạy trong <script type="module"> RIÊNG (scope khác hẳn khối <script>
+                // thường chứa core_rest.js.txt/audio_module.js.txt) nên KHÔNG đụng trực tiếp được
+                // vào biến `audio`/`appMode` của khối kia — lấy thẳng phần tử DOM #global-audio (đã
+                // có sẵn trong HTML tĩnh ngay từ đầu) và dùng class "exam-mode" trên <body> (do
+                // startTest() gắn) để nhận biết đang ở Thi Thật hay không, thay vì đọc biến JS.
+                var audioEl = document.getElementById('global-audio');
+                if (!audioEl) return; // đề không có file audio -> không có gì để đồng bộ
+                var audioRef = dbMod.ref(db, SESSION_ROOT + '/' + sessionId + '/audioState');
+                var applyingRemoteAudio = false;
+
+                function isExamMode() { return document.body.classList.contains('exam-mode'); }
+
+                function broadcastLocal() {
+                    if (applyingRemoteAudio || isExamMode()) return;
+                    dbMod.set(audioRef, {
+                        playing: !audioEl.paused,
+                        time: audioEl.currentTime,
+                        updatedAt: Date.now(),
+                        by: clientId
+                    });
+                }
+                audioEl.addEventListener('play', broadcastLocal);
+                audioEl.addEventListener('pause', broadcastLocal);
+                audioEl.addEventListener('seeked', broadcastLocal);
+
+                dbMod.onValue(audioRef, function (snap) {
+                    if (isExamMode()) return;
+                    var data = snap.val();
+                    if (!data || data.by === clientId || !audioFollowEnabled) return;
+                    applyingRemoteAudio = true;
+                    // Bù thêm thời gian đã trôi qua kể từ lúc người kia phát ra trạng thái này (độ
+                    // trễ mạng), để máy vừa tham gia/vừa nhận cũng nghe ĐÚNG vị trí hiện tại chứ
+                    // không bị lùi lại đúng-lúc-người-kia-bấm.
+                    var elapsed = data.playing ? Math.max(0, (Date.now() - (data.updatedAt || Date.now())) / 1000) : 0;
+                    var targetTime = (data.time || 0) + elapsed;
+                    if (Math.abs(audioEl.currentTime - targetTime) > 0.75) {
+                        audioEl.currentTime = targetTime;
+                        audioEl._boundEnd = null; // người khác tua -> bỏ giới hạn "nghe riêng 1 section" cục bộ
+                    }
+                    if (data.playing && audioEl.paused) audioEl.play().catch(function () {});
+                    if (!data.playing && !audioEl.paused) audioEl.pause();
+                    // Đợi 1 chút cho 'play'/'pause'/'seeked' do CHÍNH đoạn code trên vừa gây ra kịp
+                    // bắn xong (đặc biệt 'seeked' bắn KHÔNG đồng bộ ngay sau khi set currentTime)
+                    // rồi mới mở khoá lại, tránh phát ngược các hành động này lên RTDB.
+                    setTimeout(function () { applyingRemoteAudio = false; }, 200);
+                });
             }
 
             function setupPresence() {
