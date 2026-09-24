@@ -2945,13 +2945,39 @@
                 });
             }
 
+            // Phiên "Làm chung" tự hết hạn sau 3 ngày kể từ lúc tạo -- QUÁ MỐC này, người đầu
+            // tiên mở lại link sẽ tự XOÁ SẠCH dữ liệu cũ (đáp án/highlight/audio state) trong
+            // RTDB trước khi bắt đầu đồng bộ, để dữ liệu không tích luỹ mãi. Link vẫn dùng lại
+            // được bình thường (không bị chặn/báo lỗi) -- chỉ coi như bắt đầu 1 phiên MỚI với
+            // đúng ID cũ (createdAt được ghi lại = thời điểm này, hẹn 3 ngày sau mới xoá tiếp).
+            var SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+
+            function checkExpiryThenProceed(done) {
+                var metaRef = dbMod.ref(db, SESSION_ROOT + '/' + sessionId + '/meta');
+                dbMod.get(metaRef).then(function (snap) {
+                    var meta = snap.val();
+                    var isExpired = !meta || !meta.createdAt || (Date.now() - meta.createdAt > SESSION_TTL_MS);
+                    if (!isExpired) { done(); return; }
+                    var sessRef = dbMod.ref(db, SESSION_ROOT + '/' + sessionId);
+                    dbMod.remove(sessRef).then(function () {
+                        return dbMod.set(dbMod.ref(db, SESSION_ROOT + '/' + sessionId + '/meta'), {
+                            createdAt: Date.now(),
+                            title: document.title || ''
+                        });
+                    }).then(done).catch(done);
+                }).catch(function (e) {
+                    console.warn('Night IELTS: không kiểm tra được hạn phiên làm chung', e);
+                    done(); // lỗi mạng lúc kiểm tra hạn -> vẫn cho vào bình thường, không chặn học sinh
+                });
+            }
+
             function joinSessionFromUrl() {
                 var params = new URLSearchParams(location.search);
                 var id = params.get('liveSession');
                 if (!id) return;
                 sessionId = id;
                 loadFirebase().then(function () {
-                    startSyncing();
+                    checkExpiryThenProceed(function () { startSyncing(); });
                 }).catch(function (e) { console.warn('Night IELTS: không tham gia được phiên làm chung', e); });
             }
 
