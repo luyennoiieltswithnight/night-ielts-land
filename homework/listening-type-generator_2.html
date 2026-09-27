@@ -749,59 +749,90 @@ function current(){
   };
 }
 function normalizeSpaces(str){
-  return str
-    .replace(/[\\u2018\\u2019\\u201A\\u201B\\u2032\\u02BC\\uFF07]/g, "'")
+  return String(str==null?'':str)
+    .replace(/[\\u2018\\u2019\\u201A\\u201B\\u2032\\u02BC\\uFF07\\u00B4\\u0060]/g, "'")
     .replace(/[\\u201C\\u201D\\u201E\\u201F\\u2033\\uFF02]/g, '"')
-    .replace(/\\s+/g, ' ');
+    .replace(/[\\s\\u00A0]+/g, ' ');
+}
+// So sánh 1 ký tự: không phân biệt hoa/thường và BỎ QUA dấu thanh do bàn phím tự ghép
+// (vd Windows US-International: gõ ' rồi e thành é -> vẫn tính là e).
+function foldChar(ch){
+  return String(ch||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+}
+function isApos(ch){ return ch === "'"; }
+
+// DẤU ' ĐƯỢC TỰ ĐIỀN: học sinh gõ "dont" hay "don't" đều đúng. Gõ dư dấu ' thì bỏ qua.
+// Lý do: dấu ' trên Windows (US-International, Unikey) và bàn phím điện thoại (Gboard, Laban Key,
+// Samsung) hay bị đổi thành ký tự khác / bị "chờ ghép" với chữ sau / làm kẹt cả từ đang gõ.
+// Trả về { text: phần đã gõ đúng (lấy theo ký tự của đáp án), errIdx: vị trí sai đầu tiên hoặc -1 }
+function alignTyped(typedStr, targetStr){
+  var out = '', j = 0;
+  for(var i=0;i<typedStr.length;i++){
+    var ch = typedStr[i];
+    if(j >= targetStr.length){
+      if(isApos(ch) || ch === ' ') continue;          // dư dấu ' hoặc dấu cách ở cuối -> bỏ qua
+      return { text: out, errIdx: j };
+    }
+    if(isApos(ch) && !isApos(targetStr[j])) continue;  // dấu ' dư -> bỏ qua
+    while(j < targetStr.length && isApos(targetStr[j]) && !isApos(ch)){ out += targetStr[j]; j++; } // tự điền '
+    if(j >= targetStr.length) return { text: out, errIdx: j };
+    if(foldChar(ch) !== foldChar(targetStr[j])) return { text: out, errIdx: j };
+    out += targetStr[j]; j++;
+  }
+  // gõ tới ngay trước dấu ' (vd "students" của "students'") -> tự điền luôn
+  while(j < targetStr.length && isApos(targetStr[j]) && out.length > 0){ out += targetStr[j]; j++; }
+  return { text: out, errIdx: -1 };
 }
 
-// Gõ dấu ' (vd trong "don't") hoặc các ký tự có dấu khác trên bàn phím KHÔNG PHẢI iOS (Windows —
-// nhất là layout "US International" hay coi dấu ' là "dead key" chờ ký tự kế tiếp để ghép thành
-// á/é/ñ..., và bàn phím ảo Android/Gboard cũng gộp cả từ đang gõ vào 1 "composition" đang chờ commit)
-// đi qua các sự kiện compositionstart/compositionupdate/compositionend TRƯỚC KHI input value ổn định.
-// Trước đây hàm này xử lý (và có lúc còn GHI ĐÈ e.target.value để cắt bớt khi sai) ngay trong lúc
-// đang composition dở dang — làm gãy composition đang chạy dở của trình duyệt, khiến từ đó gõ lung
-// tung/kẹt không gõ tiếp được. Giờ: trong lúc đang composition (isComposing) thì CHỜ, không xử lý gì
-// cả — chỉ xử lý sau khi compositionend báo ký tự đã gõ xong hẳn. Bàn phím vật lý Mỹ thường (không
-// composition) thì isComposing luôn false nên chạy y như cũ, không đổi hành vi.
+// Bàn phím điện thoại (Gboard...) và bộ gõ Windows gửi chữ qua "composition" (chữ đang gõ dở,
+// có gạch chân). KHÔNG được ghi đè ô input trong lúc đó (sẽ làm kẹt/nhảy chữ), nhưng vẫn phải
+// chấm điểm ngay từng ký tự, và nếu gõ sai thì chủ động kết thúc composition rồi mới cắt bớt.
 var __isComposingNow = false;
-function handleCompositionStart(){
-  __isComposingNow = true;
-}
+function handleCompositionStart(){ __isComposingNow = true; }
 function handleCompositionEnd(e){
   __isComposingNow = false;
-  processTypedValue(e.target);
+  processTypedValue(e.target, false);
 }
 function handleKeyInput(e){
-  if(e.isComposing || __isComposingNow) return; // đang gõ dở 1 ký tự ghép -> đợi compositionend
-  processTypedValue(e.target);
+  processTypedValue(e.target, !!(e.isComposing || __isComposingNow));
 }
-function processTypedValue(inputEl){
+function forceEndComposition(inputEl){
+  // blur rồi focus lại = trình duyệt chốt chữ đang gõ dở -> compositionend -> xử lý lại
+  try{ inputEl.blur(); }catch(_){}
+  __isComposingNow = false;
+  setTimeout(function(){
+    processTypedValue(inputEl, false);
+    if(!state.completed && !state.revealed){ try{ inputEl.focus(); }catch(_){} }
+  }, 0);
+}
+function processTypedValue(inputEl, composing){
   if(state.completed || state.revealed) return;
   var c = current();
   var targetStr = normalizeSpaces(c.target);
-  var typedStr = normalizeSpaces(inputEl.value);
+  var r = alignTyped(normalizeSpaces(inputEl.value), targetStr);
+  var good = r.text;
+  var prevLen = (state.input||'').length;
 
-  var isValid = true, errIdx = -1;
-  for(var i=0;i<typedStr.length;i++){
-    if(typedStr[i].toLowerCase() !== (targetStr[i]||'').toLowerCase()){ isValid=false; errIdx=i; break; }
-  }
-  if(!isValid){
+  if(r.errIdx !== -1){
+    if(composing){ forceEndComposition(inputEl); return; }
     errorSound();
-    inputEl.value = typedStr.substring(0, errIdx);
-    state.input = inputEl.value;
-    state.errorIndex = errIdx;
+    inputEl.value = good;
+    state.input = good;
+    state.errorIndex = r.errIdx;
     updateTyping();
     clearTimeout(window.errorTimer);
     window.errorTimer = setTimeout(function(){ state.errorIndex = -1; updateTyping(); }, 350);
     return;
   }
-  state.errorIndex = -1;
-  state.input = typedStr;
-  if(state.hintActive && typedStr.length >= state.hintEndIndex) state.hintActive = false;
-  if(typedStr.length > 0) beep(620+Math.min(typedStr.length,12)*24, 0.055, 0.022);
+  if(good.length > prevLen) state.errorIndex = -1; // giữ ô đỏ tới hết 350ms nếu vừa gõ sai
+  state.input = good;
+  // chỉ đồng bộ lại ô input (vd để chèn dấu ' tự điền) khi KHÔNG đang composition
+  if(!composing && inputEl.value !== good) inputEl.value = good;
+  if(state.hintActive && good.length >= state.hintEndIndex) state.hintActive = false;
+  if(good.length > prevLen) beep(620+Math.min(good.length,12)*24, 0.055, 0.022);
 
-  if(typedStr.toLowerCase() === targetStr.toLowerCase()){
+  if(good.length === targetStr.length){
+    if(composing){ try{ inputEl.blur(); }catch(_){} __isComposingNow = false; }
     state.completed = true; state.revealed = true; state.input = c.target; inputEl.value = c.target;
     completeSound();
     setTimeout(fireworks, 60);
