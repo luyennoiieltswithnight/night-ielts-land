@@ -759,29 +759,36 @@ function normalizeSpaces(str){
 function foldChar(ch){
   return String(ch||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
 }
-function isApos(ch){ return ch === "'"; }
-
-// DẤU ' ĐƯỢC TỰ ĐIỀN: học sinh gõ "dont" hay "don't" đều đúng. Gõ dư dấu ' thì bỏ qua.
-// Lý do: dấu ' trên Windows (US-International, Unikey) và bàn phím điện thoại (Gboard, Laban Key,
-// Samsung) hay bị đổi thành ký tự khác / bị "chờ ghép" với chữ sau / làm kẹt cả từ đang gõ.
-// Trả về { text: phần đã gõ đúng (lấy theo ký tự của đáp án), errIdx: vị trí sai đầu tiên hoặc -1 }
-function alignTyped(typedStr, targetStr){
-  var out = '', j = 0;
-  for(var i=0;i<typedStr.length;i++){
-    var ch = typedStr[i];
-    if(j >= targetStr.length){
-      if(isApos(ch) || ch === ' ') continue;          // dư dấu ' hoặc dấu cách ở cuối -> bỏ qua
-      return { text: out, errIdx: j };
+// CHỈ GÕ CHỮ CÁI + SỐ. Dấu ' , . ? ! - và khoảng cách đều HIỆN SẴN, tự điền — học sinh
+// gõ hay không gõ mấy ký tự đó cũng không sao (gõ vào thì bị bỏ qua).
+// Lý do: dấu ' / dấu câu trên Windows (US-International, Unikey) và bàn phím điện thoại
+// hay bị đổi thành ký tự khác hoặc làm kẹt ô gõ.
+var __alnumRe;
+try{ __alnumRe = new RegExp('[\\\\p{L}\\\\p{N}]','u'); }catch(_){ __alnumRe = /[A-Za-z0-9À-ɏḀ-ỿ]/; }
+function isAlnum(ch){ return !!ch && __alnumRe.test(ch); }
+function lettersOnly(str){
+  var out=''; str=String(str||'');
+  for(var i=0;i<str.length;i++){ if(isAlnum(str[i])) out+=str[i]; }
+  return out;
+}
+// Trả về { text: phần đã gõ đúng (lấy theo đáp án, kèm dấu câu/khoảng cách tự điền),
+//          keep: số chữ cái gõ đúng, errIdx: vị trí sai đầu tiên hoặc -1 }
+function alignTyped(typedRaw, targetStr){
+  var typed = lettersOnly(typedRaw);
+  var j = 0, k = 0;
+  // nhảy qua dấu câu ở đầu (vd “Hello...)
+  while(j < targetStr.length && !isAlnum(targetStr[j])) j++;
+  for(k=0;k<typed.length;k++){
+    if(j >= targetStr.length) return { text: targetStr, keep: k, errIdx: -1 };
+    if(foldChar(typed[k]) !== foldChar(targetStr[j])){
+      return { text: targetStr.substring(0, k===0 ? 0 : j), keep: k, errIdx: j };
     }
-    if(isApos(ch) && !isApos(targetStr[j])) continue;  // dấu ' dư -> bỏ qua
-    while(j < targetStr.length && isApos(targetStr[j]) && !isApos(ch)){ out += targetStr[j]; j++; } // tự điền '
-    if(j >= targetStr.length) return { text: out, errIdx: j };
-    if(foldChar(ch) !== foldChar(targetStr[j])) return { text: out, errIdx: j };
-    out += targetStr[j]; j++;
+    j++;
+    // tự điền dấu câu / khoảng cách phía sau chữ vừa gõ đúng
+    while(j < targetStr.length && !isAlnum(targetStr[j])) j++;
   }
-  // gõ tới ngay trước dấu ' (vd "students" của "students'") -> tự điền luôn
-  while(j < targetStr.length && isApos(targetStr[j]) && out.length > 0){ out += targetStr[j]; j++; }
-  return { text: out, errIdx: -1 };
+  if(k === 0) return { text: '', keep: 0, errIdx: -1 };
+  return { text: targetStr.substring(0, j), keep: k, errIdx: -1 };
 }
 
 // Bàn phím điện thoại (Gboard...) và bộ gõ Windows gửi chữ qua "composition" (chữ đang gõ dở,
@@ -807,6 +814,7 @@ function forceEndComposition(inputEl){
 }
 function processTypedValue(inputEl, composing){
   if(state.completed || state.revealed) return;
+  if(composing) __isComposingNow = true;
   var c = current();
   var targetStr = normalizeSpaces(c.target);
   var r = alignTyped(normalizeSpaces(inputEl.value), targetStr);
@@ -816,7 +824,7 @@ function processTypedValue(inputEl, composing){
   if(r.errIdx !== -1){
     if(composing){ forceEndComposition(inputEl); return; }
     errorSound();
-    inputEl.value = good;
+    inputEl.value = lettersOnly(inputEl.value).substring(0, r.keep);
     state.input = good;
     state.errorIndex = r.errIdx;
     updateTyping();
@@ -827,13 +835,13 @@ function processTypedValue(inputEl, composing){
   if(good.length > prevLen) state.errorIndex = -1; // giữ ô đỏ tới hết 350ms nếu vừa gõ sai
   state.input = good;
   // chỉ đồng bộ lại ô input (vd để chèn dấu ' tự điền) khi KHÔNG đang composition
-  if(!composing && inputEl.value !== good) inputEl.value = good;
+  if(!composing){ var lo = lettersOnly(inputEl.value); if(inputEl.value !== lo) inputEl.value = lo; }
   if(state.hintActive && good.length >= state.hintEndIndex) state.hintActive = false;
   if(good.length > prevLen) beep(620+Math.min(good.length,12)*24, 0.055, 0.022);
 
   if(good.length === targetStr.length){
     if(composing){ try{ inputEl.blur(); }catch(_){} __isComposingNow = false; }
-    state.completed = true; state.revealed = true; state.input = c.target; inputEl.value = c.target;
+    state.completed = true; state.revealed = true; state.input = targetStr; inputEl.value = c.target;
     completeSound();
     setTimeout(fireworks, 60);
   }
@@ -878,7 +886,12 @@ function updateTyping(){
         if(state.revealed || state.completed){
           html += '<span class="char-box char-untyped" style="border-bottom-color: transparent;">' + (isSpace ? '&nbsp;' : esc(actualChar)) + '</span>';
         }else{
-          html += '<span class="char-box char-untyped"><span class="char-masked">' + displayChar + '</span></span>';
+          if(isSpace || isAlnum(actualChar)){
+            html += '<span class="char-box char-untyped"><span class="char-masked">' + displayChar + '</span></span>';
+          }else{
+            // dấu ' , . ? ! ... hiện sẵn, học sinh không cần gõ
+            html += '<span class="char-box char-typed" style="border-bottom-color:transparent;opacity:.75">' + esc(actualChar) + '</span>';
+          }
         }
       }
     }
@@ -901,7 +914,14 @@ function updateTyping(){
   }
 
   var hiddenInp = document.getElementById('hiddenInput');
-  if(hiddenInp){ hiddenInp.value = state.input; hiddenInp.disabled = state.completed || state.revealed; }
+  if(hiddenInp){
+    // KHÔNG ghi đè ô gõ khi bàn phím đang gõ dở (composition) — ghi đè lúc đó làm kẹt Gboard/Unikey
+    if(!__isComposingNow){
+      var want = (state.completed || state.revealed) ? state.input : lettersOnly(state.input);
+      if(hiddenInp.value !== want) hiddenInp.value = want;
+    }
+    hiddenInp.disabled = state.completed || state.revealed;
+  }
 
   var fb = document.getElementById('typingFeedback');
   if(fb){
@@ -1040,7 +1060,7 @@ function typeView(){
         '</div>' +
         '<div id="inputWrapper" class="relative w-full max-w-3xl mx-auto mt-10 bg-white border-2 border-primary-100 rounded-2xl shadow-sm cursor-text focus-within:border-primary-400 transition-all duration-300 overflow-hidden group" onclick="var el=document.getElementById(\\'hiddenInput\\');if(el)el.focus();">' +
           '<div id="visualInputBox" class="w-full text-center text-[26px] md:text-[32px] font-bold px-6 py-10 flex justify-center flex-wrap leading-[2.2]"></div>' +
-          '<input id="hiddenInput" value="' + esc(state.input) + '" oninput="handleKeyInput(event)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" class="absolute opacity-0 pointer-events-none w-full h-full top-0 left-0"' + (state.completed||state.revealed ? ' disabled' : '') + '>' +
+          '<input id="hiddenInput" value="' + esc((state.completed||state.revealed) ? state.input : lettersOnly(state.input)) + '" oninput="handleKeyInput(event)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" class="absolute opacity-0 pointer-events-none w-full h-full top-0 left-0"' + (state.completed||state.revealed ? ' disabled' : '') + '>' +
           '<div id="purpleProgressBar" class="absolute bottom-0 left-0 h-2 bg-primary-500 transition-all duration-300 ease-out" style="width: 0%"></div>' +
         '</div>' +
         '<div id="typingFeedback" class="mt-6 text-center text-sm font-bold text-slate-400 h-6">Nghe rồi gõ lại chính xác</div>' +
