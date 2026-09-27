@@ -254,6 +254,75 @@
     <script type="text/babel">
         const { useState, useEffect, useLayoutEffect, useRef, useCallback } = React;
 
+        // --- KHUNG KÉO-THẢ ĐƯỢC cho các box hiện ra khi dùng bút (Bút AI, Magic/IPA, Tra ảnh, Tóm tắt) ---
+        // Nắm vào thanh nhỏ có icon ⠿ ở mép trên box rồi kéo tới chỗ khác (chuột, ngón tay hoặc Apple
+        // Pencil đều được). Bấm đúp vào thanh đó để đưa box về vị trí mặc định. Vị trí đã kéo được NHỚ
+        // theo từng loại box (trong phiên đang mở), nên lần sau box hiện ra lại đúng chỗ đã đặt.
+        const __draggableBoxPositions = {};
+        const DraggableBox = ({ boxKey, baseClass, defaultPosClass, children }) => {
+            const [pos, setPos] = useState(() => __draggableBoxPositions[boxKey] || null);
+            const boxRef = useRef(null);
+            // Giữ box (và thanh "Kéo" ở mép trên) LUÔN nằm trong màn hình để không bao giờ bị mất tay nắm.
+            const clamp = (x, y, rect) => {
+                const maxX = Math.max(0, window.innerWidth - rect.width);
+                const maxY = Math.max(16, window.innerHeight - 60);
+                return {
+                    x: Math.max(0, Math.min(maxX, x)),
+                    y: Math.max(16, Math.min(maxY, y)),
+                };
+            };
+            const startDrag = (e) => {
+                if (e.button !== undefined && e.button !== 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const el = boxRef.current;
+                if (!el) return;
+                const rect = el.getBoundingClientRect();
+                const offsetX = e.clientX - rect.left;
+                const offsetY = e.clientY - rect.top;
+                const pointerId = e.pointerId;
+                const onMove = (ev) => {
+                    if (ev.pointerId !== pointerId) return;
+                    ev.preventDefault();
+                    const next = clamp(ev.clientX - offsetX, ev.clientY - offsetY, rect);
+                    __draggableBoxPositions[boxKey] = next;
+                    setPos(next);
+                };
+                const onUp = (ev) => {
+                    if (ev.pointerId !== pointerId) return;
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                    window.removeEventListener('pointercancel', onUp);
+                };
+                window.addEventListener('pointermove', onMove, { passive: false });
+                window.addEventListener('pointerup', onUp);
+                window.addEventListener('pointercancel', onUp);
+            };
+            const resetPos = (e) => {
+                e.stopPropagation();
+                delete __draggableBoxPositions[boxKey];
+                setPos(null);
+            };
+            // Chưa kéo: giữ nguyên vị trí + hiệu ứng mặc định (animate-slide-down có sẵn translateX(-50%)).
+            // Đã kéo: đặt theo toạ độ left/top, bỏ class canh giữa, dùng hiệu ứng chỉ trượt dọc.
+            const cls = "fixed " + baseClass + " " + (pos ? 'animate-slide-down-y' : defaultPosClass);
+            return (
+                <div ref={boxRef} className={cls} style={pos ? { left: pos.x, top: pos.y } : undefined}>
+                    <div
+                        onPointerDown={startDrag}
+                        onDoubleClick={resetPos}
+                        title="Kéo để di chuyển box · bấm đúp để về chỗ cũ"
+                        style={{ touchAction: 'none' }}
+                        className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-10 h-7 px-4 rounded-full bg-white border border-slate-200 shadow-md flex items-center gap-1.5 text-slate-400 hover:text-slate-600 hover:border-slate-300 cursor-grab active:cursor-grabbing select-none"
+                    >
+                        <i className="fas fa-grip text-xs"></i>
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Kéo</span>
+                    </div>
+                    {children}
+                </div>
+            );
+        };
+
         // --- BỘ GIỚI HẠN SỐ LƯỢT RENDER PDF.JS CHẠY ĐỒNG THỜI ---
         // QUAN TRỌNG — sửa lỗi "mở mục lục tải lâu, lag khi hiện thị/lướt": page.render() của
         // pdf.js khá nặng CPU (giải mã + rasterize nội dung trang). Trước đây MỌI trang/thumbnail
@@ -4650,14 +4719,14 @@
                         component đó), nên xếp thành cột tự nhiên, khoảng cách luôn đúng dù box dịch cao
                         hay thấp (không cần tính toán offset thủ công như cách "bám mép trái" cũ). */}
                     {(magicText || isOcrProcessing) && (
-                        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-3xl flex flex-col items-center gap-3 animate-slide-down">
+                        <DraggableBox boxKey="magic" baseClass="z-[100] w-[90%] max-w-3xl flex flex-col items-center gap-3" defaultPosClass="top-24 left-1/2 transform -translate-x-1/2 animate-slide-down">
                             <MagicTranslationBar text={magicText} isProcessing={isOcrProcessing} onClose={() => { setMagicText(""); setIsOcrProcessing(false); setIpaInfo(null); }} />
                             {ipaInfo && (
                                 <div className="hidden sm:block animate-slide-down-y">
                                     <IPAPanel info={ipaInfo} onClose={() => setIpaInfo(null)} />
                                 </div>
                             )}
-                        </div>
+                        </DraggableBox>
                     )}
 
                     {/* Thông báo/nút mở kết quả ảnh minh hoạ cho bút Tra ảnh — luôn hiện ra khi có
@@ -4665,7 +4734,7 @@
                         bấm nút là mở tab/cửa sổ Google Hình ảnh thật, chắc chắn không bị chặn vì đó
                         là 1 cú bấm chuột/chạm thật của người dùng. */}
                     {photoLookup && (
-                        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-[100] glass-panel rounded-2xl shadow-2xl border-2 border-rose-100 px-5 py-3 flex items-center gap-4 animate-slide-down max-w-[92%]">
+                        <DraggableBox boxKey="photo" baseClass="z-[100] glass-panel rounded-2xl shadow-2xl border-2 border-rose-100 px-5 py-3 flex items-center gap-4 max-w-[92%]" defaultPosClass="bottom-8 left-1/2 transform -translate-x-1/2 animate-slide-down">
                             <i className="fas fa-images text-rose-500 text-xl shrink-0"></i>
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Đã quét được</p>
@@ -4680,7 +4749,7 @@
                             <button onClick={() => setPhotoLookup(null)} className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 transition-colors bg-white border border-slate-200">
                                 <i className="fas fa-times text-xs"></i>
                             </button>
-                        </div>
+                        </DraggableBox>
                     )}
 
                     {/* Box Bút AI — hiện chữ vừa quét + các nút prompt có sẵn (Groq). Đặt cùng vị trí
@@ -4688,16 +4757,16 @@
                         ngay sau khi quét — nhưng KHÔNG lồng chung khung với box dịch (2 bút độc lập,
                         không bao giờ cùng hiện 1 lúc vì chỉ 1 tool đang được chọn tại 1 thời điểm). */}
                     {aiLookup && (
-                        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-xl animate-slide-down">
+                        <DraggableBox boxKey="ai" baseClass="z-[100] w-[90%] max-w-xl" defaultPosClass="top-24 left-1/2 transform -translate-x-1/2 animate-slide-down">
                             <AIPanel info={aiLookup} apiKey={aiApiKey} onClose={() => setAiLookup(null)} onOpenSettings={openAiSettings} onAnswered={onAIHistoryEntry} />
-                        </div>
+                        </DraggableBox>
                     )}
 
                     {/* Box "Tóm tắt phiên dạy" — cùng vị trí canh giữa/cách đỉnh như Box Bút AI, mở từ
                         nút riêng trên toolbar (không lồng trong Bút AI, theo đúng lựa chọn của người
                         dùng khi được hỏi). */}
                     {showSessionSummary && (
-                        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[100] w-[90%] max-w-xl animate-slide-down">
+                        <DraggableBox boxKey="summary" baseClass="z-[100] w-[90%] max-w-xl" defaultPosClass="top-24 left-1/2 transform -translate-x-1/2 animate-slide-down">
                             <SessionSummaryPanel
                                 apiKey={aiApiKey}
                                 onOpenSettings={openAiSettings}
@@ -4708,7 +4777,7 @@
                                 onSave={(item) => setSavedSummaries(prev => [...prev, item])}
                                 onDeleteSaved={(id) => setSavedSummaries(prev => prev.filter(s => s.id !== id))}
                             />
-                        </div>
+                        </DraggableBox>
                     )}
 
                     {/* Modal nhập/xoá API key Groq cho Bút AI — mở từ nút bánh răng trong Box Bút AI,
