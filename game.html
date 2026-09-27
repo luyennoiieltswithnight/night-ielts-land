@@ -221,35 +221,86 @@ function current(){
     kind: isPhrase ? 'PHRASE' : 'SENTENCE'
   };
 }
-function normalizeSpaces(str){ return str.replace(/\s+/g, ' '); }
+function normalizeSpaces(str){
+  return String(str==null?'':str)
+    .replace(/[‘’‚‛′ʼ＇´`]/g, "'")
+    .replace(/[“”„‟″＂]/g, '"')
+    .replace(/[\s ]+/g, ' ');
+}
+// So sánh 1 ký tự: không phân biệt hoa/thường, bỏ qua dấu thanh bàn phím tự ghép (é -> e)
+function foldChar(ch){
+  return String(ch||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+}
+// CHỈ GÕ CHỮ CÁI + SỐ. Dấu ' , . ? ! - và khoảng cách đều HIỆN SẴN, tự điền.
+// Lý do: dấu ' / dấu câu trên Windows (US-International, Unikey) và bàn phím điện thoại
+// hay bị đổi thành ký tự khác hoặc làm kẹt ô gõ.
+var __alnumRe;
+try{ __alnumRe = new RegExp('[\\p{L}\\p{N}]','u'); }catch(_){ __alnumRe = /[A-Za-z0-9À-ɏḀ-ỿ]/; }
+function isAlnum(ch){ return !!ch && __alnumRe.test(ch); }
+function lettersOnly(str){
+  var out=''; str=String(str||'');
+  for(var i=0;i<str.length;i++){ if(isAlnum(str[i])) out+=str[i]; }
+  return out;
+}
+function alignTyped(typedRaw, targetStr){
+  var typed = lettersOnly(typedRaw);
+  var j = 0, k = 0;
+  while(j < targetStr.length && !isAlnum(targetStr[j])) j++;
+  for(k=0;k<typed.length;k++){
+    if(j >= targetStr.length) return { text: targetStr, keep: k, errIdx: -1 };
+    if(foldChar(typed[k]) !== foldChar(targetStr[j])){
+      return { text: targetStr.substring(0, k===0 ? 0 : j), keep: k, errIdx: j };
+    }
+    j++;
+    while(j < targetStr.length && !isAlnum(targetStr[j])) j++;
+  }
+  if(k === 0) return { text: '', keep: 0, errIdx: -1 };
+  return { text: targetStr.substring(0, j), keep: k, errIdx: -1 };
+}
 
-function handleKeyInput(e){
+// Bàn phím điện thoại (Gboard...) và bộ gõ Windows gửi chữ qua "composition" (chữ gõ dở).
+// KHÔNG ghi đè ô input trong lúc đó (sẽ làm kẹt/nhảy chữ); gõ sai thì chốt composition trước rồi mới cắt.
+var __isComposingNow = false;
+function handleCompositionStart(){ __isComposingNow = true; }
+function handleCompositionEnd(e){ __isComposingNow = false; processTypedValue(e.target, false); }
+function handleKeyInput(e){ processTypedValue(e.target, !!(e.isComposing || __isComposingNow)); }
+function forceEndComposition(inputEl){
+  try{ inputEl.blur(); }catch(_){}
+  __isComposingNow = false;
+  setTimeout(function(){
+    processTypedValue(inputEl, false);
+    if(!state.completed && !state.revealed){ try{ inputEl.focus(); }catch(_){} }
+  }, 0);
+}
+function processTypedValue(inputEl, composing){
   if(state.completed || state.revealed) return;
+  if(composing) __isComposingNow = true;
   var c = current();
   var targetStr = normalizeSpaces(c.target);
-  var typedStr = normalizeSpaces(e.target.value);
+  var r = alignTyped(normalizeSpaces(inputEl.value), targetStr);
+  var good = r.text;
+  var prevLen = (state.input||'').length;
 
-  var isValid = true, errIdx = -1;
-  for(var i=0;i<typedStr.length;i++){
-    if(typedStr[i].toLowerCase() !== (targetStr[i]||'').toLowerCase()){ isValid=false; errIdx=i; break; }
-  }
-  if(!isValid){
+  if(r.errIdx !== -1){
+    if(composing){ forceEndComposition(inputEl); return; }
     errorSound();
-    e.target.value = typedStr.substring(0, errIdx);
-    state.input = e.target.value;
-    state.errorIndex = errIdx;
+    inputEl.value = lettersOnly(inputEl.value).substring(0, r.keep);
+    state.input = good;
+    state.errorIndex = r.errIdx;
     updateTyping();
     clearTimeout(window.errorTimer);
     window.errorTimer = setTimeout(function(){ state.errorIndex = -1; updateTyping(); }, 350);
     return;
   }
-  state.errorIndex = -1;
-  state.input = typedStr;
-  if(state.hintActive && typedStr.length >= state.hintEndIndex) state.hintActive = false;
-  if(typedStr.length > 0) beep(620+Math.min(typedStr.length,12)*24, 0.055, 0.022);
+  if(good.length > prevLen) state.errorIndex = -1;
+  state.input = good;
+  if(!composing){ var lo = lettersOnly(inputEl.value); if(inputEl.value !== lo) inputEl.value = lo; }
+  if(state.hintActive && good.length >= state.hintEndIndex) state.hintActive = false;
+  if(good.length > prevLen) beep(620+Math.min(good.length,12)*24, 0.055, 0.022);
 
-  if(typedStr.toLowerCase() === targetStr.toLowerCase()){
-    state.completed = true; state.revealed = true; state.input = c.target; e.target.value = c.target;
+  if(good.length === targetStr.length){
+    if(composing){ try{ inputEl.blur(); }catch(_){} __isComposingNow = false; }
+    state.completed = true; state.revealed = true; state.input = targetStr; inputEl.value = c.target;
     completeSound();
     setTimeout(fireworks, 60);
     if(state.practiceType === 'sentence') markSentenceDone(state.practiceIndex);
@@ -295,7 +346,12 @@ function updateTyping(){
         if(state.revealed || state.completed){
           html += '<span class="char-box char-untyped" style="border-bottom-color: transparent;">' + (isSpace ? '&nbsp;' : esc(actualChar)) + '</span>';
         }else{
-          html += '<span class="char-box char-untyped"><span class="char-masked">' + displayChar + '</span></span>';
+          if(isSpace || isAlnum(actualChar)){
+            html += '<span class="char-box char-untyped"><span class="char-masked">' + displayChar + '</span></span>';
+          }else{
+            // dấu ' , . ? ! ... hiện sẵn, học sinh không cần gõ
+            html += '<span class="char-box char-typed" style="border-bottom-color:transparent;opacity:.75">' + esc(actualChar) + '</span>';
+          }
         }
       }
     }
@@ -318,13 +374,20 @@ function updateTyping(){
   }
 
   var hiddenInp = document.getElementById('hiddenInput');
-  if(hiddenInp){ hiddenInp.value = state.input; hiddenInp.disabled = state.completed || state.revealed; }
+  if(hiddenInp){
+    // KHÔNG ghi đè ô gõ khi bàn phím đang gõ dở (composition)
+    if(!__isComposingNow){
+      var want = (state.completed || state.revealed) ? state.input : lettersOnly(state.input);
+      if(hiddenInp.value !== want) hiddenInp.value = want;
+    }
+    hiddenInp.disabled = state.completed || state.revealed;
+  }
 
   var fb = document.getElementById('typingFeedback');
   if(fb){
     if(state.completed) fb.innerHTML = '<span class="text-emerald-600 font-extrabold">&#10003; Xuất sắc!</span>';
     else if(state.revealed) fb.innerHTML = '<span class="text-slate-500 font-bold">Đáp án đã hiện. Nghe lại và ôn tập.</span>';
-    else fb.innerHTML = '<span class="text-primary-600/80 font-bold tracking-widest text-[10px] uppercase">Nghe rồi gõ lại chính xác</span>';
+    else fb.innerHTML = '<span class="text-primary-600/80 font-bold tracking-widest text-[10px] uppercase">Nghe rồi gõ lại chính xác · v3</span>';
   }
 }
 
@@ -372,7 +435,7 @@ function retryItem(){
   setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); }, 50);
 }
 function reveal(){
-  state.revealed = true; state.completed = false; state.input = current().target; state.hintActive=false; state.errorIndex=-1;
+  state.revealed = true; state.completed = false; state.input = normalizeSpaces(current().target); state.hintActive=false; state.errorIndex=-1;
   updateTyping();
 }
 
@@ -445,7 +508,7 @@ function typeView(){
         '</div>' +
         '<div id="inputWrapper" class="relative w-full max-w-3xl mx-auto mt-10 bg-white border-2 border-primary-100 rounded-2xl shadow-sm cursor-text focus-within:border-primary-400 transition-all duration-300 overflow-hidden group" onclick="var el=document.getElementById(\'hiddenInput\');if(el)el.focus();">' +
           '<div id="visualInputBox" class="w-full text-center text-[26px] md:text-[32px] font-bold px-6 py-10 flex justify-center flex-wrap leading-[2.2]"></div>' +
-          '<input id="hiddenInput" value="' + esc(state.input) + '" oninput="handleKeyInput(event)" autocomplete="off" autocapitalize="off" spellcheck="false" class="absolute opacity-0 pointer-events-none w-full h-full top-0 left-0"' + (state.completed||state.revealed ? ' disabled' : '') + '>' +
+          '<input id="hiddenInput" value="' + esc((state.completed||state.revealed) ? state.input : lettersOnly(state.input)) + '" oninput="handleKeyInput(event)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" class="absolute opacity-0 pointer-events-none w-full h-full top-0 left-0"' + (state.completed||state.revealed ? ' disabled' : '') + '>' +
           '<div id="purpleProgressBar" class="absolute bottom-0 left-0 h-2 bg-primary-500 transition-all duration-300 ease-out" style="width: 0%"></div>' +
         '</div>' +
         '<div id="typingFeedback" class="mt-6 text-center text-sm font-bold text-slate-400 h-6">Nghe rồi gõ lại chính xác</div>' +
@@ -470,6 +533,12 @@ function render(scrollTop){
   var content = state.viewMode === 'type' ? typeView() : cardsView();
   document.getElementById('app').innerHTML = content;
   loadVoices();
+  // gắn sự kiện composition cho ô gõ vừa được tạo lại
+  var hiddenInputEl = document.getElementById('hiddenInput');
+  if(hiddenInputEl){
+    hiddenInputEl.addEventListener('compositionstart', handleCompositionStart);
+    hiddenInputEl.addEventListener('compositionend', handleCompositionEnd);
+  }
   requestAnimationFrame(function(){
     var m = document.getElementById('mainArea');
     if(m) m.scrollTop = old;
