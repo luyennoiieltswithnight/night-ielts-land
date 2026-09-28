@@ -123,6 +123,18 @@ textarea.ni-input{font-weight:500;line-height:1.5;}
 .band-chip small{font-size:8px;font-weight:800;opacity:.7;}
 .criteria-row{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid #eee0c4;}
 .criteria-row:last-child{border-bottom:none;}
+
+/* ---- Lịch sử các lần làm 1 câu (tiến bộ 6.0 → 6.5 → 7.0) ---- */
+.hist-box{background:#fff;border:2px solid var(--border-color);border-radius:12px;padding:12px 14px;margin-bottom:16px;}
+.hist-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.hist-chip{display:inline-flex;flex-direction:column;align-items:center;border:2px solid var(--border-color);border-radius:10px;background:#fffaf0;padding:5px 10px;cursor:pointer;min-width:62px;font-family:inherit;color:var(--border-color);}
+.hist-chip b{font-size:16px;font-weight:900;line-height:1.1;}
+.hist-chip small{font-size:10px;font-weight:700;opacity:.7;}
+.hist-chip.active{background:var(--primary-button);box-shadow:0 2px 6px rgba(0,0,0,.15);}
+.hist-arrow{font-size:11px;font-weight:800;opacity:.75;}
+.hist-arrow.up{color:#256b32;opacity:1;}
+.hist-arrow.down{color:var(--incorrect-color);opacity:1;}
+.retry-ref{margin-bottom:12px;}
 </style>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -354,6 +366,20 @@ Is it better to read a physical book or an e-book?"></textarea>
 
           <div id="spGroqBoxPractice"></div>
 
+          <!-- Khi bấm "Làm lại": hiện bản nâng cấp của LẦN GẦN NHẤT để học sinh dựa vào đó nói lại -->
+          <div id="retryRefBox" class="hidden retry-ref">
+            <div class="answer-card upgraded">
+              <div class="answer-card-head">
+                <span class="answer-card-title" id="retryRefTitle">🎯 Bản nâng cấp lần trước</span>
+                <button type="button" onclick="speakText(document.getElementById('retryRefText').textContent)" class="ni-nav-btn" title="Nghe phát âm"><i class="fa-solid fa-volume-high"></i></button>
+              </div>
+              <p id="retryRefText" class="answer-card-text"></p>
+            </div>
+            <p class="text-xs font-semibold mt-2" style="color:var(--border-color);opacity:.75;">Đọc kỹ bản trên, rồi ghi âm lại bằng lời của bạn (không cần thuộc lòng y chang) — lần chấm mới sẽ được lưu thêm vào lịch sử, không ghi đè lần cũ.</p>
+            <button type="button" onclick="cancelRetry()" class="ni-nav-btn mt-2">↩️ Huỷ, xem lại kết quả</button>
+          </div>
+
+          <div id="recSection">
           <div class="flex flex-col items-center py-6">
             <button type="button" id="recBtn" onclick="toggleRecording()" class="rec-btn"><i class="fa-solid fa-microphone"></i></button>
             <p id="recStatus" class="font-bold mt-3 text-sm" style="color:var(--border-color);">Bấm để bắt đầu ghi âm câu trả lời</p>
@@ -372,15 +398,18 @@ Is it better to read a physical book or an e-book?"></textarea>
             <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-2" style="color:var(--border-color);"></i>
             <p class="font-bold text-sm" style="color:var(--border-color);" id="scoringSpinnerMsg">Đang chuyển giọng nói thành văn bản...</p>
           </div>
+          </div><!-- /recSection -->
 
           <div id="resultBox" class="hidden">
+            <div id="resHistory" class="hist-box hidden"></div>
+            <button type="button" onclick="startRetry()" class="ni-submit-btn w-full mb-4">🔁 Làm lại câu này (dựa trên bản nâng cấp gần nhất)</button>
             <div class="flex items-center gap-4 mb-4">
               <div class="band-chip" style="background:#fff;"><span id="resOverallBand">-</span><small>OVERALL</small></div>
               <p class="text-xs" style="color:var(--border-color);opacity:.7;">Điểm ước tính bởi AI — chỉ mang tính tham khảo, không thay thế giám khảo thật.</p>
             </div>
             <p class="ni-label">Bài nói của bạn</p>
             <audio id="resAudioPlayback" controls class="w-full mb-2 hidden"></audio>
-            <p id="resAudioMissingNote" class="text-xs font-semibold mb-3 hidden" style="color:var(--border-color);opacity:.7;">🔇 Bản ghi âm quá dài nên chỉ lưu được văn bản chuyển giọng nói, không lưu được file âm thanh.</p>
+            <p id="resAudioMissingNote" class="text-xs font-semibold mb-3 hidden" style="color:var(--border-color);opacity:.7;">🔇 Lần làm này không có file âm thanh (bản cũ trước khi cập nhật, bản ghi quá dài đã bị bỏ).</p>
             <p class="ni-label" style="margin-top:0;">Văn bản chuyển từ giọng nói (bài gốc của bạn)</p>
             <p id="resTranscript" class="ni-instruction mb-4" style="font-style:normal;"></p>
             <div id="resCriteria"></div>
@@ -395,7 +424,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 
             <p class="ni-label mt-4" style="margin-bottom:8px;">💡 Vì sao nâng cấp như vậy — từng thay đổi cụ thể</p>
             <div id="resRefinementNotes" class="text-sm space-y-2"></div>
-            <button type="button" onclick="discardRecording()" class="ni-nav-btn mt-4">🔁 Luyện lại câu này</button>
+            <button type="button" onclick="startRetry()" class="ni-submit-btn mt-4">🔁 Làm lại câu này</button>
           </div>
         </div>
       </div>
@@ -428,14 +457,15 @@ Is it better to read a physical book or an e-book?"></textarea>
   // đề Reading. Chỉ 2 thứ có hạn: bản ghi "đã giao cho ai" (assignments) và "kết quả từng câu"
   // (speakingAttempts) — cùng quy ước TTL với các tính năng khác trong site.
   const SPEAKING_ASSIGN_TTL_MS = 60 * 24 * 60 * 60 * 1000;   // 60 ngày, giống ASSIGNMENT_TTL_MS ở index.html
-  const ATTEMPT_TTL_MS = 90 * 24 * 60 * 60 * 1000;           // 3 tháng lưu kết quả luyện tập (kèm file ghi âm)
-  // Firestore (gói Spark miễn phí, không có Cloud Storage) giới hạn ~1MB/document, nên file ghi âm
-  // phải được nhúng base64 ngay trong document speakingAttempts và phải tự giới hạn dung lượng:
-  // ghi âm tối đa 150 giây (2.5 phút, dư so với Part 2 tối đa 2 phút) ở bitrate thấp (24kbps, đủ
-  // nghe rõ giọng nói) để dữ liệu base64 luôn nằm dưới ngưỡng an toàn AUDIO_MAX_BASE64_CHARS.
-  const REC_MAX_SECONDS = 150;
+  const ATTEMPT_TTL_MS = 180 * 24 * 60 * 60 * 1000;          // 6 tháng kể từ ngày luyện (mỗi lần làm tự hết hạn riêng, kèm file ghi âm)
+  // Firestore (gói Spark miễn phí, không có Cloud Storage) giới hạn ~1MB/document. Trước đây file
+  // ghi âm nhúng thẳng vào 1 document nên bản dài (hoặc iPhone/Safari bỏ qua bitrate thấp) bị VỨT
+  // BỎ. Giờ file được CHIA NHỎ thành nhiều document "mảnh" (kind:'audioChunk') nằm cùng collection
+  // speakingAttempts, mỗi mảnh ≤ AUDIO_CHUNK_CHARS ký tự base64 — nên file dài bao nhiêu cũng giữ lại
+  // đủ. Mảnh có cùng studentId/packageId/expiresAt với lần làm nên được tải và tự xoá cùng lúc.
+  const REC_MAX_SECONDS = 300;                                // 5 phút — Part 2 tối đa 2 phút nên rất dư
   const REC_AUDIO_BITS_PER_SECOND = 24000;
-  const AUDIO_MAX_BASE64_CHARS = 800000;
+  const AUDIO_CHUNK_CHARS = 700000;
   const PROGRESS_LOG_TTL_MS = 365 * 24 * 60 * 60 * 1000;     // giống hệt index.html
 
   const PART_LABELS = { '1': 'Part 1', '2': 'Part 2 — Cue Card', '3': 'Part 3', '2-3': 'Part 2 + 3' };
@@ -1039,12 +1069,24 @@ Is it better to read a physical book or an e-book?"></textarea>
       const now = Date.now();
       const lastSeenAt = getSpResultsLastSeen();
       const items = [];
+      const chunkMap = {};
       snap.forEach(d => {
         const a = d.data();
         if (a.expiresAt && now > a.expiresAt) { deleteDoc(doc(db, 'speakingAttempts', d.id)).catch(() => {}); return; }
+        if (a.kind === 'audioChunk') { (chunkMap[a.attemptId] = chunkMap[a.attemptId] || []).push(a); return; }
         items.push(Object.assign({ id: d.id }, a));
       });
       items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      // Đánh số "Lần 1, Lần 2..." cho từng học sinh + từng câu (theo thứ tự thời gian)
+      const attemptNo = {};
+      items.slice().reverse().forEach(a => {
+        const k = a.studentId + '|' + a.packageId + '|' + a.questionId;
+        attemptNo[k] = (attemptNo[k] || 0) + 1;
+        a.__no = attemptNo[k];
+      });
+      __teacherAudioSrcs.forEach(u => URL.revokeObjectURL(u));
+      __teacherAudioSrcs = [];
+      const teacherAudioQueue = [];
 
       // Gom theo học sinh — mỗi học sinh 1 nhóm. Nhóm được sắp xếp theo lần nộp GẦN NHẤT của
       // chính học sinh đó (không phải theo tên A-Z), nên học sinh vừa nộp bài mới nhất luôn nổi
@@ -1084,14 +1126,15 @@ Is it better to read a physical book or an e-book?"></textarea>
                 '<div>' +
                   (isNew ? '<span class="ni-tab-count" style="margin-right:6px;">MỚI</span>' : '') +
                   '<span class="text-xs font-bold" style="opacity:.55;">' + escapeHtml(a.createdAt ? new Date(a.createdAt).toLocaleString('vi-VN') : '') + '</span>' +
+                  (a.__no > 1 ? '<span class="ni-badge ni-badge-amber" style="margin-right:6px;padding:2px 9px;">Lần ' + a.__no + '</span>' : '') +
                   '<p class="text-xs font-semibold mt-0.5" style="opacity:.7;">' + escapeHtml(a.packageTitle || '') + ' — ' + escapeHtml(a.questionText || '') + '</p>' +
                 '</div>' +
                 '<div class="band-chip" style="width:44px;height:44px;font-size:15px;">' + (a.scores ? a.scores.overall : '-') + '</div>' +
               '</div>' +
               '<details class="mt-2"><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Nghe ghi âm &amp; xem transcript</summary>' +
-                (a.audioBase64
-                  ? '<audio controls class="w-full mt-2" src="data:' + (a.audioMime || 'audio/webm') + ';base64,' + a.audioBase64 + '"></audio>'
-                  : '<p class="text-xs font-semibold mt-2" style="opacity:.6;">🔇 Không có file ghi âm (bản ghi quá dài hoặc học sinh dùng trình duyệt cũ).</p>') +
+                (hasAudio(a, chunkMap[a.id])
+                  ? (teacherAudioQueue.push({ rec: a, chunks: chunkMap[a.id] }), '<audio controls class="w-full mt-2" data-tq="' + (teacherAudioQueue.length - 1) + '"></audio>')
+                  : '<p class="text-xs font-semibold mt-2" style="opacity:.6;">🔇 Không có file ghi âm (bản cũ trước khi cập nhật, bản ghi quá dài đã bị bỏ).</p>') +
                 '<p class="text-sm mt-2 italic">"' + escapeHtml(a.transcript || '') + '"</p>' +
               '</details>' +
             '</div>';
@@ -1108,6 +1151,11 @@ Is it better to read a physical book or an e-book?"></textarea>
             '<div class="px-4 pb-4">' + attemptsHtml + '</div>' +
           '</details>';
         }).join('');
+        el.querySelectorAll('audio[data-tq]').forEach(au => {
+          const item = teacherAudioQueue[+au.dataset.tq];
+          const url = audioUrlFor(item.rec, item.chunks);
+          if (url) { au.src = url; __teacherAudioSrcs.push(url); }
+        });
       }
 
       if (markSeen) setSpResultsLastSeen(now);
@@ -1177,7 +1225,13 @@ Is it better to read a physical book or an e-book?"></textarea>
   // ==========================================
   let __pkg = null;
   let __qIdx = 0;
-  let __doneQIds = {};
+  let __doneQIds = {};        // questionId -> lần làm GẦN NHẤT (dùng cho dấu ✓ + hoàn thành bài giao)
+  let __history = {};         // questionId -> [tất cả các lần làm, cũ → mới]
+  let __audioChunks = {};     // attemptId -> [các mảnh base64 của file ghi âm]
+  let __viewingAttemptId = null;
+  let __retryMode = false;
+  let __resAudioUrl = null;
+  let __teacherAudioSrcs = [];
   let __mediaStream = null;
   let __mediaRecorder = null;
   let __recChunks = [];
@@ -1188,11 +1242,43 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   async function loadPracticeAttempts(uid) {
     __doneQIds = {};
+    __history = {};
+    __audioChunks = {};
     try {
       const q = query(collection(db, 'speakingAttempts'), where('studentId', '==', uid), where('packageId', '==', __pkg.id));
       const snap = await getDocs(q);
-      snap.forEach(d => { __doneQIds[d.data().questionId] = d.data(); });
+      const now = Date.now();
+      snap.forEach(d => {
+        const a = d.data();
+        // Quá 6 tháng kể từ ngày luyện -> xoá (cả lần làm lẫn các mảnh ghi âm của nó)
+        if (a.expiresAt && now > a.expiresAt) { deleteDoc(doc(db, 'speakingAttempts', d.id)).catch(() => {}); return; }
+        if (a.kind === 'audioChunk') { (__audioChunks[a.attemptId] = __audioChunks[a.attemptId] || []).push(a); return; }
+        const rec = Object.assign({ id: d.id }, a);
+        (__history[a.questionId] = __history[a.questionId] || []).push(rec);
+      });
+      Object.keys(__history).forEach(qid => {
+        __history[qid].sort((x, y) => (x.createdAt || 0) - (y.createdAt || 0));
+        __doneQIds[qid] = __history[qid][__history[qid].length - 1];
+      });
     } catch (e) {}
+  }
+
+  // ---- File ghi âm: chia mảnh khi lưu, ghép lại khi nghe ----
+  function hasAudio(rec, chunks) {
+    return !!(rec.audioBase64 || (rec.audioChunkCount && chunks && chunks.length >= rec.audioChunkCount));
+  }
+  function audioUrlFor(rec, chunks) {
+    let b64 = rec.audioBase64 || '';
+    if (!b64 && rec.audioChunkCount && chunks && chunks.length >= rec.audioChunkCount) {
+      b64 = chunks.slice().sort((x, y) => x.idx - y.idx).map(c => c.data).join('');
+    }
+    if (!b64) return null;
+    try {
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes], { type: rec.audioMime || 'audio/webm' }));
+    } catch (e) { return null; }
   }
 
   async function enterPracticeView(uid, role) {
@@ -1245,14 +1331,80 @@ Is it better to read a physical book or an e-book?"></textarea>
     document.getElementById('ideaKeywordsInput').value = '';
     document.getElementById('ideaResultBox').classList.add('hidden');
     document.getElementById('spGroqBoxPractice').innerHTML = groqMissingHint();
+    __retryMode = false;
     discardRecording();
 
     const existing = __doneQIds[q.id];
     if (existing) {
       showResult(existing);
     } else {
-      document.getElementById('resultBox').classList.add('hidden');
+      showRecordMode(null);
     }
+  }
+
+  // Chế độ "ghi âm": ẩn kết quả, hiện nút micro. Nếu truyền vào 1 lần làm trước (khi bấm "Làm
+  // lại") thì hiện bản nâng cấp của lần đó phía trên để học sinh dựa vào mà nói lại.
+  function showRecordMode(prevRecord) {
+    document.getElementById('resultBox').classList.add('hidden');
+    document.getElementById('recSection').classList.remove('hidden');
+    const ref = document.getElementById('retryRefBox');
+    if (prevRecord) {
+      document.getElementById('retryRefTitle').textContent = '🎯 Bản nâng cấp lần trước (lần đó bạn được ' + fmtBand(prevRecord.scores.overall) + ') — nói theo hướng này để lên điểm';
+      document.getElementById('retryRefText').textContent = prevRecord.refinedAnswer || '(Lần trước không có bản nâng cấp)';
+      ref.classList.remove('hidden');
+    } else {
+      ref.classList.add('hidden');
+    }
+  }
+
+  window.startRetry = function () {
+    const q = __pkg.questions[__qIdx];
+    const latest = __doneQIds[q.id];
+    __retryMode = true;
+    discardRecording();
+    showRecordMode(latest || null);
+    document.getElementById('retryRefBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  window.cancelRetry = function () {
+    __retryMode = false;
+    discardRecording();
+    const q = __pkg.questions[__qIdx];
+    if (__doneQIds[q.id]) showResult(__doneQIds[q.id]); else showRecordMode(null);
+  };
+
+  window.viewAttempt = function (attemptId) {
+    const q = __pkg.questions[__qIdx];
+    const rec = (__history[q.id] || []).find(r => r.id === attemptId);
+    if (rec) showResult(rec);
+  };
+
+  function fmtBand(b) { const n = Number(b); return isFinite(n) ? n.toFixed(1) : '-'; }
+
+  function renderHistory(currentRec) {
+    const box = document.getElementById('resHistory');
+    const q = __pkg.questions[__qIdx];
+    const list = __history[q.id] || [];
+    if (list.length === 0) { box.classList.add('hidden'); return; }
+    let html = '<p class="ni-label" style="margin-bottom:8px;">📈 Tiến bộ của bạn ở câu này (' + list.length + ' lần) — bấm vào từng lần để xem lại</p><div class="hist-row">';
+    list.forEach((r, i) => {
+      if (i > 0) {
+        const diff = Math.round(((r.scores.overall || 0) - (list[i - 1].scores.overall || 0)) * 10) / 10;
+        const cls = diff > 0 ? 'up' : (diff < 0 ? 'down' : '');
+        html += '<span class="hist-arrow ' + cls + '">' + (diff > 0 ? '▲ +' + diff : (diff < 0 ? '▼ ' + diff : '→')) + '</span>';
+      }
+      const d = r.createdAt ? new Date(r.createdAt) : null;
+      html += '<button type="button" class="hist-chip' + (r.id === currentRec.id ? ' active' : '') + '" onclick="viewAttempt(\'' + r.id + '\')">' +
+        '<small>Lần ' + (i + 1) + '</small><b>' + fmtBand(r.scores.overall) + '</b>' +
+        '<small>' + (d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : '') + '</small></button>';
+    });
+    html += '</div>';
+    const idx = list.findIndex(r => r.id === currentRec.id);
+    const d = currentRec.createdAt ? new Date(currentRec.createdAt) : null;
+    html += '<p class="text-xs font-semibold mt-2" style="color:var(--border-color);opacity:.7;">Đang xem: Lần ' + (idx + 1) + (d ? ' — ' + d.toLocaleString('vi-VN') : '') +
+      (currentRec.expiresAt ? ' · tự xoá ngày ' + new Date(currentRec.expiresAt).toLocaleDateString('vi-VN') : '') + '</p>';
+    box.innerHTML = html;
+    box.classList.remove('hidden');
   }
 
   window.toggleHint = function () {
@@ -1319,17 +1471,24 @@ Is it better to read a physical book or an e-book?"></textarea>
     }, REC_MAX_SECONDS * 1000);
   };
 
+  // Chỉ reset phần GHI ÂM (không đụng tới kết quả/lịch sử). Nếu đang ghi dở (vd. chuyển câu khi
+  // đang ghi) thì dừng hẳn micro, bỏ bản ghi dở để nó không nhảy ra ở câu khác.
   window.discardRecording = function () {
+    if (__mediaRecorder && __mediaRecorder.state === 'recording') {
+      __mediaRecorder.onstop = null;
+      try { __mediaRecorder.stop(); } catch (e) {}
+      if (__mediaStream) __mediaStream.getTracks().forEach(t => t.stop());
+    }
     __recBlob = null;
     __recChunks = [];
     clearInterval(__recTimerInterval);
     clearTimeout(__recAutoStopTimeout);
     document.getElementById('recBtn').classList.remove('hidden', 'recording');
     document.getElementById('recStatus').classList.remove('hidden');
-    document.getElementById('recStatus').textContent = 'Bấm để bắt đầu ghi âm câu trả lời';
+    document.getElementById('recStatus').textContent = __retryMode ? 'Bấm để ghi âm lại câu trả lời (dựa trên bản nâng cấp ở trên)' : 'Bấm để bắt đầu ghi âm câu trả lời';
     document.getElementById('recTimer').classList.add('hidden');
     document.getElementById('recPreviewBox').classList.add('hidden');
-    document.getElementById('resultBox').classList.add('hidden');
+    document.getElementById('scoringSpinner').classList.add('hidden');
   };
 
   // Chuyển Blob ghi âm thành chuỗi base64 THUẦN (đã bỏ tiền tố "data:...;base64,") để nhúng
@@ -1358,12 +1517,15 @@ Is it better to read a physical book or an e-book?"></textarea>
     spinner.classList.remove('hidden');
     spinnerMsg.textContent = 'Đang chuyển giọng nói thành văn bản...';
 
+    // Giữ bản ghi + câu hỏi tại thời điểm bấm chấm, để dù học sinh chuyển câu trong lúc chờ
+    // thì vẫn lưu đúng file ghi âm cho đúng câu.
+    const recBlob = __recBlob;
+    const q = __pkg.questions[__qIdx];
     try {
-      const transcript = await callGroqTranscribe(__recBlob);
+      const transcript = await callGroqTranscribe(recBlob);
       if (!transcript || !transcript.trim()) throw new Error('Không nhận diện được nội dung, vui lòng thử ghi âm lại.');
 
       spinnerMsg.textContent = 'Đang chấm điểm theo 4 tiêu chí IELTS Speaking...';
-      const q = __pkg.questions[__qIdx];
       let parsed;
       try {
         parsed = await callGroqChatJson([
@@ -1380,39 +1542,66 @@ Is it better to read a physical book or an e-book?"></textarea>
         pronunciation: parsed.criteria.pronunciation.band,
         overall: overall
       };
-      // Kèm luôn file ghi âm (base64) để học sinh nghe lại và giáo viên nghe được giọng nói
-      // thật, không chỉ đọc transcript. Nếu vì lý do nào đó (trình duyệt lạ, ghi âm dài bất
-      // thường...) mà base64 vượt ngưỡng an toàn cho 1 document Firestore thì bỏ qua phần âm
-      // thanh, vẫn lưu transcript + điểm bình thường thay vì làm hỏng cả lần chấm điểm.
-      let audioBase64 = null, audioMime = null;
+      // Mỗi lần chấm là 1 document RIÊNG (id có thời gian) -> không ghi đè lần trước, nên giữ
+      // được lịch sử 6.0 → 6.5 → 7.0. File ghi âm được chia mảnh (xem AUDIO_CHUNK_CHARS) nên dài
+      // bao nhiêu cũng giữ lại đủ, không còn bị bỏ.
+      spinnerMsg.textContent = 'Đang lưu bài làm và file ghi âm...';
+      const createdAt = Date.now();
+      const expiresAt = createdAt + ATTEMPT_TTL_MS;
+      const attemptId = window.__currentUid + '_' + __pkg.id + '_' + q.id + '_' + createdAt;
+      const audioMime = recBlob.type || 'audio/webm';
+      let audioChunkCount = 0;
+      const chunkDocs = [];
       try {
-        const payload = await blobToBase64Payload(__recBlob);
-        if (payload.length <= AUDIO_MAX_BASE64_CHARS) {
-          audioBase64 = payload;
-          audioMime = __recBlob.type || 'audio/webm';
+        const payload = await blobToBase64Payload(recBlob);
+        for (let i = 0; i * AUDIO_CHUNK_CHARS < payload.length; i++) {
+          chunkDocs.push({
+            kind: 'audioChunk', attemptId: attemptId, idx: i,
+            studentId: window.__currentUid, packageId: __pkg.id, questionId: q.id,
+            data: payload.slice(i * AUDIO_CHUNK_CHARS, (i + 1) * AUDIO_CHUNK_CHARS),
+            createdAt: createdAt, expiresAt: expiresAt
+          });
         }
-      } catch (e) { /* bỏ qua audio, vẫn lưu transcript + điểm */ }
+        // Lưu các mảnh TRƯỚC, xong hết mới lưu lần làm -> lần làm không bao giờ trỏ tới file thiếu mảnh.
+        for (const c of chunkDocs) await setDoc(doc(db, 'speakingAttempts', attemptId + '_a' + c.idx), c);
+        audioChunkCount = chunkDocs.length;
+      } catch (e) {
+        console.warn('Không lưu được file ghi âm:', e);
+        audioChunkCount = 0;
+      }
 
       const record = {
+        kind: 'attempt',
         studentId: window.__currentUid, packageId: __pkg.id, packageTitle: __pkg.title,
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: scores, criteria: parsed.criteria,
         refinedAnswer: parsed.refinedAnswer || '',
         refinementNotes: parsed.refinementNotes || [],
-        audioBase64: audioBase64, audioMime: audioMime,
-        createdAt: Date.now(), expiresAt: Date.now() + ATTEMPT_TTL_MS
+        audioChunkCount: audioChunkCount, audioMime: audioMime,
+        createdAt: createdAt, expiresAt: expiresAt
       };
-      await setDoc(doc(db, 'speakingAttempts', window.__currentUid + '_' + __pkg.id + '_' + q.id), record);
+      await setDoc(doc(db, 'speakingAttempts', attemptId), record);
+      record.id = attemptId;
+      if (audioChunkCount) __audioChunks[attemptId] = chunkDocs;
+      (__history[q.id] = __history[q.id] || []).push(record);
       __doneQIds[q.id] = record;
 
       spinner.classList.add('hidden');
       renderQNav();
-      showResult(record);
+      // Nếu học sinh đã chuyển sang câu khác trong lúc chờ chấm thì không nhảy kết quả sang câu đó.
+      if (__pkg.questions[__qIdx].id === q.id) {
+        __retryMode = false;
+        discardRecording();
+        showResult(record);
+      }
 
       await maybeCompleteAssignment();
     } catch (e) {
       spinner.classList.add('hidden');
-      document.getElementById('recPreviewBox').classList.remove('hidden');
+      // Giữ nguyên bản ghi để học sinh bấm chấm lại, không phải nói lại từ đầu.
+      if (__pkg.questions[__qIdx].id === q.id && __recBlob === recBlob) {
+        document.getElementById('recPreviewBox').classList.remove('hidden');
+      }
       alert('Lỗi: ' + e.message);
     }
   };
@@ -1432,12 +1621,19 @@ Is it better to read a physical book or an e-book?"></textarea>
     'Respond with STRICT JSON only, no markdown, no code fences, exactly in this shape: {"overallBand": number, "criteria": {"fluency": {"band": number, "feedback": string}, "lexical": {"band": number, "feedback": string}, "grammar": {"band": number, "feedback": string}, "pronunciation": {"band": number, "feedback": string}}, "refinedAnswer": string, "refinementNotes": [{"change": string, "reason": string}, ...]}';
 
   function showResult(record) {
+    __viewingAttemptId = record.id || null;
+    document.getElementById('recSection').classList.add('hidden');
+    document.getElementById('retryRefBox').classList.add('hidden');
     document.getElementById('resultBox').classList.remove('hidden');
-    document.getElementById('resOverallBand').textContent = record.scores.overall;
+    renderHistory(record);
+    document.getElementById('resOverallBand').textContent = fmtBand(record.scores.overall);
     const audioPlayer = document.getElementById('resAudioPlayback');
     const audioMissingNote = document.getElementById('resAudioMissingNote');
-    if (record.audioBase64) {
-      audioPlayer.src = 'data:' + (record.audioMime || 'audio/webm') + ';base64,' + record.audioBase64;
+    if (__resAudioUrl) { URL.revokeObjectURL(__resAudioUrl); __resAudioUrl = null; }
+    const url = audioUrlFor(record, __audioChunks[record.id]);
+    if (url) {
+      __resAudioUrl = url;
+      audioPlayer.src = url;
       audioPlayer.classList.remove('hidden');
       audioMissingNote.classList.add('hidden');
     } else {
