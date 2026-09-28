@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lộ trình Tiếng Anh Giao tiếp Thực chiến - Night IELTS Land</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+                    colors: {
+                        dark: { bg: '#050505', card: '#111827', panel: '#1F2937' },
+                        brand: { 400: '#818cf8', 500: '#6366f1' }
+                    },
+                    boxShadow: {
+                        'glass-dark': '0 8px 32px 0 rgba(0, 0, 0, 0.5)',
+                        'neon-cyan': '0 0 20px -5px rgba(6, 182, 212, 0.5)',
+                        'neon-purple': '0 0 20px -5px rgba(168, 85, 247, 0.5)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React & Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { 
+            background-color: #050505; 
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
+            background-attachment: fixed;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+        
+        .reveal-hidden { opacity: 0; transform: translateY(35px); transition: all 0.7s ease-out; }
+        .reveal-visible { opacity: 1; transform: translateY(0); transition: all 0.7s ease-out; }
+        
+        .timeline-line {
+            background: linear-gradient(to bottom, transparent, #06b6d4, #a855f7, #ec4899, transparent);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+        
+        .iframe-container { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .iframe-fullscreen { position: fixed; inset: 0; z-index: 50; width: 100vw; height: 100vh; background: #000; padding: 0; border-radius: 0; }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // DỮ LIỆU CHUẨN XÁC: 16 UNITS OUTCOMES PRE-INTERMEDIATE (32 BUỔI HỌC)
+        const ROADMAP_DATA = [
+            {
+                id: '01',
+                phase: 'THÁNG 1',
+                month: '8 BUỔI | 16 GIỜ',
+                title: 'Khởi động & Đời sống Thường nhật',
+                unitRange: 'Units 1 - 4: Jobs, Shops, Getting there, Eat',
+                description: 'Xây dựng lại hệ thống phát âm cốt lõi, làm chủ từ vựng giao tiếp thực tế và ngữ pháp diễn đạt thói quen, trải nghiệm.',
+                sessions: [
+                    { 
+                        s: 'Buổi 01', 
+                        u: 'Unit 1: Jobs', 
+                        t: '[Ngữ âm: Vowels] Từ vựng Công việc (Talking about jobs) & Hỏi - đáp thông tin nghề nghiệp (Questions about jobs)' 
+                    },
+                    { 
+                        s: 'Buổi 02', 
+                        u: 'Unit 1: Jobs', 
+                        t: '[Ngữ pháp Giao tiếp: Hiện tại đơn, Tiếp diễn & Điều kiện loại 0] Thảo luận môi trường làm việc & Đưa lời khuyên công sở' 
+                    },
+                    { 
+                        s: 'Buổi 03', 
+                        u: 'Unit 2: Shops', 
+                        t: '[Ngữ âm: Consonants] Từ vựng Mua sắm (Describing things bought) & Kỹ năng Khen ngợi trong giao tiếp (Complimenting)' 
+                    },
+                    { 
+                        s: 'Buổi 04', 
+                        u: 'Unit 2: Shops', 
+                        t: '[Ngữ pháp Giao tiếp: Quá khứ đơn & So sánh hơn] Roleplay: Xử lý sự cố mua hàng online & Khiếu nại tại cửa hàng' 
+                    },
+                    { 
+                        s: 'Buổi 05', 
+                        u: 'Unit 3: Getting there', 
+                        t: '[Ngữ âm: Word stress] Từ vựng Địa điểm & Giao thông & Kỹ năng Hỏi / Chỉ đường (Asking for & giving directions)' 
+                    },
+                    { 
+                        s: 'Buổi 06', 
+                        u: 'Unit 3: Getting there', 
+                        t: '[Ngữ pháp Giao tiếp: Quá khứ tiếp diễn & Lượng từ] Roleplay: Chia sẻ trải nghiệm du lịch & Kể lý do trễ giờ' 
+                    },
+                    { 
+                        s: 'Buổi 07', 
+                        u: 'Unit 4: Eat', 
+                        t: '[Ngữ âm: Final sounds] Từ vựng Nhà hàng, Ẩm thực & Cách đưa ra lời gợi ý (Making & responding to suggestions)' 
+                    },
+                    { 
+                        s: 'Buổi 08', 
+                        u: 'Unit 4: Eat', 
+                        t: '[Ngữ pháp Giao tiếp: Hiện tại hoàn thành, Too/Not enough] Roleplay: Đặt bàn, gọi món nhà hàng & Đánh giá món ăn' 
+                    }
+                ],
+                color: 'from-cyan-400 to-blue-500',
+                glow: 'hover:shadow-neon-cyan',
+                borderColor: 'group-hover:border-cyan-500/50'
+            },
+            {
+                id: '02',
+                phase: 'THÁNG 2',
+                month: '8 BUỔI | 16 GIỜ',
+                title: 'Kết nối Xã hội & Trải nghiệm Cá nhân',
+                unitRange: 'Units 5 - 8: Relax, Family and friends, Your place, Always learning',
+                description: 'Ứng dụng ngữ điệu và nối âm tự nhiên. Nâng cao khả năng rủ rê, lập kế hoạch, giới thiệu mối quan hệ và tranh luận quan điểm.',
+                sessions: [
+                    { 
+                        s: 'Buổi 09', 
+                        u: 'Unit 5: Relax', 
+                        t: '[Ngữ âm: Sentence stress] Từ vựng Thể thao, Giải trí & Kỹ năng Cho mượn đồ (Lending people things)' 
+                    },
+                    { 
+                        s: 'Buổi 10', 
+                        u: 'Unit 5: Relax', 
+                        t: '[Ngữ pháp Giao tiếp: Cấu trúc Lập kế hoạch & So sánh nhất] Hội thoại: Rủ bạn tham gia hoạt động & Chia sẻ cách giảm stress' 
+                    },
+                    { 
+                        s: 'Buổi 11', 
+                        u: 'Unit 6: Family & Friends', 
+                        t: '[Ngữ âm: Connected speech] Từ vựng Tính cách, Mạng xã hội & Kỹ năng Giới thiệu người khác (Explaining who people are)' 
+                    },
+                    { 
+                        s: 'Buổi 12', 
+                        u: 'Unit 6: Family & Friends', 
+                        t: '[Ngữ pháp Giao tiếp: Cách đặt câu hỏi & Tìm điểm chung] Thảo luận: Mối quan hệ bạn bè & Tác động của mạng xã hội' 
+                    },
+                    { 
+                        s: 'Buổi 13', 
+                        u: 'Unit 7: Your place', 
+                        t: '[Ngữ âm: Intonation in questions] Từ vựng Mô tả nhà cửa & Kỹ năng Chỉ vị trí đồ đạc, phòng ốc (Explaining where places are)' 
+                    },
+                    { 
+                        s: 'Buổi 14', 
+                        u: 'Unit 7: Your place', 
+                        t: '[Ngữ pháp Giao tiếp: Have to / Can / Will] Roleplay: Tình huống giao tiếp chủ nhà - khách ở trọ (Host & Guest)' 
+                    },
+                    { 
+                        s: 'Buổi 15', 
+                        u: 'Unit 8: Always learning', 
+                        t: '[Ngữ âm: Weak forms] Từ vựng Các bậc học & Kỹ năng Thể hiện sự ngạc nhiên trong đối thoại (Showing surprise)' 
+                    },
+                    { 
+                        s: 'Buổi 16', 
+                        u: 'Unit 8: Always learning', 
+                        t: '[Ngữ pháp Giao tiếp: Câu điều kiện loại 1, Had to / Could] Thảo luận: Ưu - nhược điểm học online & Trải nghiệm trường lớp' 
+                    }
+                ],
+                color: 'from-blue-500 to-indigo-500',
+                glow: 'hover:shadow-[0_0_20px_-5px_rgba(99,102,241,0.5)]',
+                borderColor: 'group-hover:border-indigo-500/50'
+            },
+            {
+                id: '03',
+                phase: 'THÁNG 3',
+                month: '8 BUỔI | 16 GIỜ',
+                title: 'Xử lý Tình huống & Tương tác Đời sống',
+                unitRange: 'Units 9 - 12: Mind and body, Places to stay, Science and nature, On the phone',
+                description: 'Luyện phản xạ trong các tình huống thực tế: thăm khám sức khỏe, sự cố đặt phòng khách sạn và giao tiếp qua điện thoại.',
+                sessions: [
+                    { 
+                        s: 'Buổi 17', 
+                        u: 'Unit 9: Mind & Body', 
+                        t: '[Ngữ âm: Thought groups] Từ vựng Sức khỏe, Tai nạn & Hỏi thăm bệnh nhân (Common questions about illness)' 
+                    },
+                    { 
+                        s: 'Buổi 18', 
+                        u: 'Unit 9: Mind & Body', 
+                        t: '[Ngữ pháp Giao tiếp: Đưa lời khuyên (Giving advice) & Câu mệnh lệnh] Roleplay: Tư vấn cách phòng ngừa và chăm sóc sức khỏe' 
+                    },
+                    { 
+                        s: 'Buổi 19', 
+                        u: 'Unit 10: Places to stay', 
+                        t: '[Ngữ âm: Elision] Từ vựng Đặt phòng, Kỳ nghỉ & Nghệ thuật Xin lỗi khéo léo (Apologizing)' 
+                    },
+                    { 
+                        s: 'Buổi 20', 
+                        u: 'Unit 10: Places to stay', 
+                        t: '[Ngữ pháp Giao tiếp: Cấu trúc Used to & Mệnh đề thời gian] Roleplay: Đặt chỗ lưu trú & Đàm phán xử lý sự cố khách sạn' 
+                    },
+                    { 
+                        s: 'Buổi 21', 
+                        u: 'Unit 11: Science & Nature', 
+                        t: '[Ngữ âm: Assimilation] Từ vựng Tin tức tự nhiên, Động vật & Kỹ năng Phản hồi bình luận (Responding to news)' 
+                    },
+                    { 
+                        s: 'Buổi 22', 
+                        u: 'Unit 11: Science & Nature', 
+                        t: '[Ngữ pháp Giao tiếp: Quá khứ hoàn thành & Câu bị động] Thảo luận: Kể lại sự cố tự nhiên kỳ lạ & Bàn luận tin tức khoa học' 
+                    },
+                    { 
+                        s: 'Buổi 23', 
+                        u: 'Unit 12: On the phone', 
+                        t: '[Ngữ âm: Fluency drills] Từ vựng Điện thoại & Kỹ năng Giải thích vị trí người nghe (Explaining where people are)' 
+                    },
+                    { 
+                        s: 'Buổi 24', 
+                        u: 'Unit 12: On the phone', 
+                        t: '[Ngữ pháp Giao tiếp: Yet, already, just & Câu gián tiếp] Roleplay: Để lại lời nhắn công việc & Báo cáo sự cố qua điện thoại' 
+                    }
+                ],
+                color: 'from-indigo-500 to-purple-500',
+                glow: 'hover:shadow-neon-purple',
+                borderColor: 'group-hover:border-purple-500/50'
+            },
+            {
+                id: '04',
+                phase: 'THÁNG 4',
+                month: '8 BUỔI | 16 GIỜ',
+                title: 'Tư duy Sâu sắc, Bàn luận & Tranh biện',
+                unitRange: 'Units 13 - 16: Culture, Stuff, Money, Events',
+                description: 'Đạt độ trôi chảy khi bàn về sở thích nghệ thuật, văn hóa tiêu dùng, kinh tế - xã hội và thuyết trình sự kiện đáng nhớ.',
+                sessions: [
+                    { 
+                        s: 'Buổi 25', 
+                        u: 'Unit 13: Culture', 
+                        t: '[Ngữ âm: Focus words] Từ vựng Phim ảnh, Âm nhạc & Kỹ năng Hỏi sâu về tác phẩm (Asking questions about films/series)' 
+                    },
+                    { 
+                        s: 'Buổi 26', 
+                        u: 'Unit 13: Culture', 
+                        t: '[Ngữ pháp Giao tiếp: Be supposed to & Hiện tại HT tiếp diễn] Thảo luận: Tranh luận thị hiếu nghệ thuật & Thói quen giải trí' 
+                    },
+                    { 
+                        s: 'Buổi 27', 
+                        u: 'Unit 14: Stuff', 
+                        t: '[Ngữ âm: Modulation] Từ vựng Đồ dùng, Tái chế & Kỹ năng Giải thích nhu cầu (Explaining what you need & don\'t need)' 
+                    },
+                    { 
+                        s: 'Buổi 28', 
+                        u: 'Unit 14: Stuff', 
+                        t: '[Ngữ pháp Giao tiếp: Mệnh đề quan hệ xác định & Quy tắc] Roleplay: Lên kế hoạch dã ngoại & Bàn về lối sống tái chế' 
+                    },
+                    { 
+                        s: 'Buổi 29', 
+                        u: 'Unit 15: Money', 
+                        t: '[Ngữ âm: Presentation cadence] Từ vựng Kinh tế, Tiền bạc, Ngân hàng & Kỹ năng So sánh giá cả (Comparing prices)' 
+                    },
+                    { 
+                        s: 'Buổi 30', 
+                        u: 'Unit 15: Money', 
+                        t: '[Ngữ pháp Giao tiếp: Câu điều kiện loại 2] Roleplay: Thuyết phục quyên góp từ thiện & Ứng biến tình huống khó về tài chính' 
+                    },
+                    { 
+                        s: 'Buổi 31', 
+                        u: 'Unit 16: Events', 
+                        t: '[Ngữ âm: Conversational flow] Từ vựng Tiệc tùng, Lễ hội & Kỹ năng Đặt câu hỏi móc xích (Asking linked questions)' 
+                    },
+                    { 
+                        s: 'Buổi 32', 
+                        u: 'Unit 16: Events', 
+                        t: '[Ngữ pháp Giao tiếp: Mạo từ & Cấu trúc động từ] Presentation & Roleplay: Kể về một ngày tuyệt vời nhất & Tổng kết khóa' 
+                    }
+                ],
+                color: 'from-purple-500 to-pink-500',
+                glow: 'hover:shadow-[0_0_20px_-5px_rgba(236,72,153,0.5)]',
+                borderColor: 'group-hover:border-pink-500/50'
+            }
+        ];
+
+        // --- COMPONENTS ---
+        const Reveal = ({ children, delay = 0 }) => {
+            const [isVisible, setIsVisible] = useState(false);
+            const ref = useRef(null);
+            useEffect(() => {
+                const observer = new IntersectionObserver(([entry]) => {
+                    if (entry.isIntersecting) { setIsVisible(true); observer.unobserve(entry.target); }
+                }, { threshold: 0.05 });
+                if (ref.current) observer.observe(ref.current);
+                return () => observer.disconnect();
+            }, []);
+            return ( <div ref={ref} className={isVisible ? 'reveal-visible' : 'reveal-hidden'} style={{ transitionDelay: `${delay}ms` }}>{children}</div> );
+        };
+
+        const WebsiteEmbed = () => {
+            const [isFullscreen, setIsFullscreen] = useState(false);
+
+            return (
+                <Reveal delay={150}>
+                    <div className={`mt-10 mb-20 iframe-container ${isFullscreen ? 'iframe-fullscreen' : 'relative bg-[#111827] border border-slate-800 rounded-3xl p-2 md:p-4 shadow-glass-dark mx-auto max-w-5xl'}`}>
+                        {!isFullscreen && (
+                            <div className="flex items-center justify-between px-4 py-3 bg-[#1F2937] rounded-t-2xl border-b border-slate-800">
+                                <div className="flex gap-2">
+                                    <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-amber-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                </div>
+                                <div className="text-xs font-mono text-slate-400 bg-slate-900 px-4 py-1.5 rounded-full flex-1 mx-4 text-center truncate">
+                                    https://luyennoiieltswithnight.github.io/night-ielts-land/
+                                </div>
+                                <button 
+                                    onClick={() => setIsFullscreen(true)}
+                                    className="text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                    Phóng to
+                                </button>
+                            </div>
+                        )}
+                        {isFullscreen && (
+                            <div className="absolute top-4 right-4 z-[60]">
+                                <button 
+                                    onClick={() => setIsFullscreen(false)}
+                                    className="bg-rose-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg flex items-center gap-2 hover:bg-rose-600 transition"
+                                >
+                                    Thu nhỏ lại
+                                </button>
+                            </div>
+                        )}
+                        <div className={`w-full ${isFullscreen ? 'h-screen' : 'h-[520px] rounded-b-2xl overflow-hidden'}`}>
+                            <iframe 
+                                src="https://luyennoiieltswithnight.github.io/night-ielts-land/" 
+                                className="w-full h-full border-0 bg-white"
+                                title="Night IELTS Land System"
+                            ></iframe>
+                        </div>
+                    </div>
+                </Reveal>
+            );
+        };
+
+        const PhaseCard = ({ data, index }) => {
+            const isLeft = index % 2 === 0;
+            return (
+                <Reveal delay={100}>
+                    <div className="relative pl-6 md:pl-0 flex w-full">
+                        <div className="hidden md:flex absolute left-1/2 -ml-3 mt-8 w-6 h-6 rounded-full bg-[#0B0F19] border-[3px] shadow-[0_0_15px_rgba(255,255,255,0.1)] items-center justify-center z-10" style={{ borderColor: `var(--tw-colors-${data.color.split('-')[1]}-500, #818cf8)` }}></div>
+                        <div className="md:hidden absolute left-[-5px] mt-8 w-3 h-3 rounded-full border-2 border-[#0B0F19] bg-slate-500 z-10"></div>
+
+                        <div className={`md:w-[48%] ${isLeft ? 'md:mr-auto md:pr-10' : 'md:ml-auto md:pl-10'} w-full`}>
+                            <div className={`bg-[#111827]/85 backdrop-blur-xl border border-slate-800 p-6 md:p-8 rounded-[2rem] shadow-glass-dark transition-all duration-300 relative group ${data.glow} ${data.borderColor}`}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="text-slate-400 text-[10px] md:text-xs font-bold tracking-widest uppercase border border-slate-700 bg-slate-800/60 px-3 py-1 rounded-full">{data.month}</span>
+                                    <span className="text-slate-800 text-3xl font-black italic">{data.id}</span>
+                                </div>
+                                <p className={`text-xs font-bold tracking-wider mb-1 bg-clip-text text-transparent bg-gradient-to-r ${data.color}`}>{data.phase}</p>
+                                <h3 className="text-2xl font-bold text-white mb-1">{data.title}</h3>
+                                <p className="text-xs font-semibold text-slate-400 mb-3">{data.unitRange}</p>
+                                <p className="text-slate-400 text-xs md:text-sm mb-6 leading-relaxed border-b border-slate-800/80 pb-5">{data.description}</p>
+                                
+                                {/* Danh sách chi tiết từng buổi học */}
+                                <div className="space-y-3.5">
+                                    {data.sessions.map((session, i) => (
+                                        <div key={i} className="flex items-start gap-3 group/item hover:bg-slate-800/40 p-2.5 -mx-2 rounded-xl transition-colors">
+                                            <div className="flex-shrink-0 mt-0.5">
+                                                <span className={`inline-block px-2 py-1 rounded bg-slate-800/90 border border-slate-700 text-[10px] font-black text-slate-300 tracking-wider w-16 text-center group-hover/item:text-white transition-colors`}>
+                                                    {session.s}
+                                                </span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-[11px] font-bold text-slate-400 mb-0.5 group-hover/item:text-brand-400 transition-colors">{session.u}</p>
+                                                <p className="text-xs md:text-sm text-slate-300 font-medium leading-snug">{session.t}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Reveal>
+            );
+        };
+
+        const App = () => {
+            return (
+                <div className="max-w-[1200px] mx-auto px-5 py-12 md:py-20">
+                    
+                    <Reveal delay={0}>
+                        <div className="text-center mb-10">
+                            <div className="inline-flex items-center px-4 py-1.5 mb-6 text-[10px] md:text-xs font-bold tracking-[0.2em] text-cyan-400 bg-cyan-900/20 border border-cyan-800/50 rounded-full shadow-neon-cyan">
+                                OUTCOMES PRE-INTERMEDIATE (32 BUỔI HỌC THỰC CHIẾN)
+                            </div>
+                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight mb-4">
+                                LỘ TRÌNH GIAO TIẾP <br/>
+                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-indigo-400 to-pink-500">
+                                    NIGHT IELTS LAND
+                                </span>
+                            </h1>
+                            <p className="text-slate-400 md:text-base max-w-2xl mx-auto leading-relaxed">
+                                Phản xạ hội thoại thực tế, chuẩn hóa ngữ âm và làm chủ ngữ pháp giao tiếp theo 16 chủ đề chuẩn quốc tế. Tích hợp nền tảng bài tập luyện nói chuyên sâu.
+                            </p>
+                        </div>
+                    </Reveal>
+
+                    <Reveal delay={100}>
+                        <div className="text-center mt-14 mb-4">
+                            <h2 className="text-lg md:text-xl font-bold text-white mb-1 tracking-wide">HỆ THỐNG LUYỆN TẬP TƯƠNG TÁC</h2>
+                            <p className="text-slate-500 text-xs md:text-sm">Trải nghiệm trực tiếp bài tập luyện nói, nghe và chữa lỗi trực tiếp trên hệ thống Web.</p>
+                        </div>
+                    </Reveal>
+                    
+                    <WebsiteEmbed />
+
+                    <div className="relative pt-6 pb-20">
+                        <div className="absolute left-[5px] md:left-1/2 top-0 bottom-0 w-1 timeline-line md:-translate-x-1/2 rounded-full"></div>
+                        <div className="space-y-12 md:space-y-24 mt-10">
+                            {ROADMAP_DATA.map((phase, index) => <PhaseCard key={phase.id} data={phase} index={index} />)}
+                        </div>
+                    </div>
+                    
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
