@@ -5528,7 +5528,7 @@
            Lần sau mở trang là tự hiện lại, không phải chọn lại.
          ================================================================================ -->
     <style>
-        #nl-launcher { position: fixed; left: 16px; bottom: 16px; z-index: 245; display: none; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: linear-gradient(135deg,#6366f1,#7c3aed); color: #fff; font: 800 13px 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow: 0 10px 30px -8px rgba(99,102,241,.6); cursor: pointer; border: 0; }
+        #nl-launcher { position: fixed; left: 16px; bottom: 16px; z-index: 270; transition: bottom .25s ease; display: none; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: linear-gradient(135deg,#6366f1,#7c3aed); color: #fff; font: 800 13px 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow: 0 10px 30px -8px rgba(99,102,241,.6); cursor: pointer; border: 0; }
         #nl-launcher.has-src .nl-dot { display: inline-block; }
         #nl-launcher .nl-dot { display: none; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.3); }
         #nl-panel { position: fixed; right: 16px; bottom: 76px; width: 560px; height: 400px; min-width: 280px; min-height: 200px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); z-index: 285; display: none; flex-direction: column; background: #fff; border-radius: 18px; box-shadow: 0 24px 60px -12px rgba(15,23,42,.45); border: 1px solid #e2e8f0; overflow: hidden; resize: both; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #334155; }
@@ -5856,6 +5856,23 @@
             t.frozen.style.display = performance.now() - last > 8000 ? 'block' : 'none';
         }, 2000);
     }
+
+    // Khi bật phụ đề (CC), thanh phụ đề đen nằm sát đáy màn hình và che nút iPad ->
+    // tự đẩy nút iPad lên nằm ngay TRÊN thanh phụ đề; tắt phụ đề thì nút về lại chỗ cũ.
+    function findCaptionBar() {
+        const els = document.querySelectorAll('#root div.fixed.bottom-0.left-0.right-0');
+        for (const el of els) { if (el.offsetHeight > 0) return el; }
+        return null;
+    }
+    let lastBottom = -1;
+    function placeLauncher() {
+        const bar = findCaptionBar();
+        const bottom = bar ? Math.round(bar.getBoundingClientRect().height) + 12 : 16;
+        if (bottom !== lastBottom) { launcher.style.bottom = bottom + 'px'; lastBottom = bottom; }
+    }
+    new MutationObserver(() => requestAnimationFrame(placeLauncher)).observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
+    window.addEventListener('resize', placeLauncher);
+    setInterval(placeLauncher, 1000); // phòng khi thanh phụ đề đổi chiều cao (câu dài xuống dòng)
 
     // ================== KHỞI ĐỘNG: chỉ giáo viên thấy ==================
     let booted = false;
