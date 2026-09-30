@@ -2973,5 +2973,126 @@ subtitle: New research sheds light on the disappearance of an ancient society</h
             };
         })();
     </script>
+
+    <!-- NIGHT-PROGRESS-TRACKER v1 — ghi mỗi lần TỰ LUYỆN vào bảng "Hoạt động 3 tháng" ở trang chủ:
+         bấm "Nộp bài" cả đề, HOẶC chấm riêng 1 Part/Section đều được tính. Bài được giao (URL có
+         ?assignmentId=) thì bỏ qua vì trang chủ đã tự ghi rồi. -->
+    <script type="module">
+        (function () {
+            var KIND = 'reading';
+            if (new URLSearchParams(location.search).get('assignmentId')) return;
+            var pageLoadedAt = Date.now();
+            var fullSubmitted = false;
+            var partDocIds = {};
+            var FB_CONFIG = {
+                apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                authDomain: "night-ielts-land.firebaseapp.com",
+                projectId: "night-ielts-land",
+                storageBucket: "night-ielts-land.firebasestorage.app",
+                messagingSenderId: "408519436407",
+                appId: "1:408519436407:web:a9f0b9ba23368b54427e72"
+            };
+            var fbPromise = null;
+            function loadFb() {
+                if (!fbPromise) {
+                    fbPromise = Promise.all([
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'),
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+                    ]).then(function (m) {
+                        // App MẶC ĐỊNH (không đặt tên) để dùng lại đúng phiên đăng nhập của trang chủ
+                        var app = m[0].getApps().find(function (a) { return a.name === '[DEFAULT]'; }) || m[0].initializeApp(FB_CONFIG);
+                        return { authMod: m[1], fsMod: m[2], auth: m[1].getAuth(app), db: m[2].getFirestore(app) };
+                    }).then(function (fb) {
+                        return new Promise(function (res) {
+                            var unsub = fb.authMod.onAuthStateChanged(fb.auth, function (user) { unsub(); fb.user = user; res(fb); });
+                        });
+                    });
+                }
+                return fbPromise;
+            }
+            setTimeout(function () { loadFb().catch(function () {}); }, 1500);
+
+            function writeLog(docId, title, score, total, band) {
+                return loadFb().then(function (fb) {
+                    if (!fb.user) return null; // chưa đăng nhập ở trang chủ -> không ghi được
+                    var now = Date.now();
+                    return fb.fsMod.setDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + docId), {
+                        studentId: fb.user.uid,
+                        title: title,
+                        kind: KIND,
+                        practice: true,
+                        resultText: score + '/' + total + ' câu đúng' + (band ? ' (Band ' + band + ')' : ''),
+                        completedAt: now,
+                        expiresAt: now + 365 * 24 * 60 * 60 * 1000
+                    }).then(function () { return fb; });
+                }).catch(function (e) { console.warn('Night progress: ghi thất bại', e); });
+            }
+
+            // ---- 1) Nộp bài cả đề (cả Reading lẫn Listening đều gọi saveProgressRecord khi nộp) ----
+            var origSave = window.saveProgressRecord;
+            if (typeof origSave === 'function') {
+                window.saveProgressRecord = function (score, total, band) {
+                    try { origSave.apply(this, arguments); } catch (e) { console.warn(e); }
+                    try {
+                        fullSubmitted = true;
+                        try {
+                            var sig = new Date().toLocaleDateString('vi-VN') + '|' + location.pathname.split('/').pop() + '|' + score + '|' + total;
+                            var arr = JSON.parse(localStorage.getItem('nightTrackedSigs') || '[]');
+                            arr.push(sig);
+                            localStorage.setItem('nightTrackedSigs', JSON.stringify(arr.slice(-100)));
+                        } catch (e) {}
+                        // Nộp cả đề thì thay cho các lần chấm lẻ từng phần trước đó (không đếm trùng)
+                        var partIds = Object.keys(partDocIds).map(function (k) { return partDocIds[k]; });
+                        partDocIds = {};
+                        writeLog(KIND + '_' + pageLoadedAt, document.title, score, total, band).then(function (fb) {
+                            if (!fb || !fb.user) return;
+                            partIds.forEach(function (id) { fb.fsMod.deleteDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + id)).catch(function () {}); });
+                        });
+                    } catch (e) { console.warn('Night progress:', e); }
+                };
+            }
+
+            // ---- 2) Chấm riêng 1 Part (Reading) / 1 Section (Listening) ----
+            function getRanges() {
+                try { if (typeof passageRanges !== 'undefined') return passageRanges; } catch (e) {}
+                try { if (typeof sectionRanges !== 'undefined') return sectionRanges; } catch (e) {}
+                return window.passageRanges || window.sectionRanges || null;
+            }
+            function answeredCount(startQ, endQ) {
+                var c = 0;
+                for (var i = startQ; i <= endQ; i++) {
+                    var inputs = document.getElementsByName('q' + i);
+                    for (var j = 0; j < inputs.length; j++) {
+                        var el = inputs[j];
+                        if ((el.type === 'radio' || el.type === 'checkbox') ? el.checked : String(el.value || '').trim()) { c++; break; }
+                    }
+                }
+                return c;
+            }
+            function logPart(n, label) {
+                if (fullSubmitted) return; // đã nộp cả đề rồi -> bấm xem lại từng phần không tính thêm
+                var ranges = getRanges();
+                var r = ranges && ranges[n - 1];
+                if (!r || typeof window.gradeQuestionRange !== 'function') return;
+                if (answeredCount(r[0], r[1]) === 0) return; // chỉ bấm xem đáp án, chưa làm câu nào -> không tính
+                var score = window.gradeQuestionRange(r[0], r[1]);
+                var total = r[1] - r[0] + 1;
+                var id = KIND + '_' + pageLoadedAt + '_p' + n;
+                partDocIds[n] = id;
+                writeLog(id, document.title + ' — ' + label + ' ' + n, score, total, null);
+            }
+            ['gradePart', 'openSectionReview'].forEach(function (fnName) {
+                var orig = window[fnName];
+                if (typeof orig !== 'function') return;
+                window[fnName] = function (n) {
+                    var out = orig.apply(this, arguments);
+                    try { logPart(Number(n), fnName === 'gradePart' ? 'Part' : 'Section'); } catch (e) { console.warn('Night progress:', e); }
+                    return out;
+                };
+            });
+        })();
+    </script>
+
 </body>
 </html>
