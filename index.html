@@ -1145,6 +1145,11 @@
             </div>
         </div>
 
+        <!-- BẢNG HOẠT ĐỘNG 3 THÁNG trên trang chủ — chỉ học sinh thấy. Đặt ngay trên "Kho Lưu Trữ"
+             và trang tự cuộn tới đây khi học sinh đăng nhập, nên đây là thứ đầu tiên học sinh thấy,
+             ngay bên dưới là "Bài Tập Được Giao". -->
+        <div id="home-heatmap-section" class="hidden mt-10"></div>
+
         <div class="mt-10">
             <div class="space-y-6">
                 <div class="flex items-center justify-between">
@@ -2077,7 +2082,7 @@
         function logProgressEntry(uid, assignmentId, entry, completedAtMs) {
             const now = Date.now();
             const at = completedAtMs || now;
-            setDoc(doc(db, 'progressLog', uid + '_' + assignmentId), Object.assign({
+            return setDoc(doc(db, 'progressLog', uid + '_' + assignmentId), Object.assign({
                 studentId: uid,
                 assignmentId: assignmentId,
                 completedAt: at,
@@ -2091,6 +2096,7 @@
             const snap = await getDocs(q);
             // Những bài đã có dòng trong "Tiến Độ Của Tôi" thì không ghi lại nữa
             const loggedIds = new Set();
+            const logWrites = [];
             try {
                 const logSnap = await getDocs(query(collection(db, 'progressLog'), where('studentId', '==', uid)));
                 logSnap.forEach(d => loggedIds.add(d.id));
@@ -2143,7 +2149,7 @@
                         resultText = total + '/' + total + ' từ đúng';
                     }
                     const doneAt = toMillis(data.completedAt) || toMillis(data.submittedAt) || toMillis(data.gradedAt) || toMillis(data.updatedAt) || null;
-                    logProgressEntry(uid, docSnap.id, { title: data.title, kind: kindLabel, resultText: resultText }, doneAt);
+                    logWrites.push(logProgressEntry(uid, docSnap.id, { title: data.title, kind: kindLabel, resultText: resultText }, doneAt));
                 }
                 // Bài Reading (kind: 'reading') VÀ Listening (kind: 'listening') đã tự mang sẵn
                 // ?assignmentId=&scope= trong chính data.link (do Studio ghép lúc giao bài) và tự
@@ -2195,8 +2201,9 @@
                 }
                 updateStats();
                 renderFolders();
-                scrollToMyTasks();
             }
+            // Chờ ghi xong các dòng "Tiến Độ Của Tôi" mới, để bảng hoạt động vẽ ngay sau đó có đủ dữ liệu
+            await Promise.all(logWrites);
         }
 
         // Tự động cuộn xuống khu vực "Bài Tập Được Giao" sau khi học sinh đăng nhập,
@@ -2204,7 +2211,8 @@
         // bị trôi xuống dưới màn hình đầu tiên.
         function scrollToMyTasks() {
             setTimeout(() => {
-                const el = document.getElementById('folder-tabs-container');
+                const hm = document.getElementById('home-heatmap-section');
+                const el = (hm && !hm.classList.contains('hidden')) ? hm : document.getElementById('folder-tabs-container');
                 if (!el) return;
                 const headerEl = document.querySelector('header');
                 const headerH = headerEl ? headerEl.offsetHeight : 80;
@@ -2284,10 +2292,24 @@
 
         // ==========================================
         // BẢNG HOẠT ĐỘNG 3 THÁNG (kiểu ô vuông đậm/nhạt) — đọc từ progressLog.
+        // Luôn hiện ĐÚNG 3 tháng lịch: tháng hiện tại ở bên phải, 2 tháng trước ở bên trái.
+        // Tự tính theo ngày hôm nay mỗi lần mở trang -> qua tháng mới là tự đổi, không cần sửa gì.
         // Mỗi cột = 1 tuần (T2 -> CN), ô càng đậm = hôm đó làm càng nhiều bài.
         // ==========================================
-        const HEAT_WEEKS = 13; // ~3 tháng
-        const HEAT_COLORS = ['#eceef3', '#cdc8f7', '#a69cf1', '#6f61e3', '#3b2fc4'];
+        const HEAT_THEMES = {
+            purple: { name: 'Tím',       colors: ['#eceef3', '#cdc8f7', '#a69cf1', '#6f61e3', '#3b2fc4'] },
+            blue:   { name: 'Xanh dương', colors: ['#eceef3', '#bfdbfe', '#7cb5f5', '#3b82f6', '#1d4ed8'] },
+            green:  { name: 'Xanh lá',   colors: ['#eceef3', '#bbf7d0', '#6ee7a0', '#22c55e', '#15803d'] },
+            pink:   { name: 'Hồng',      colors: ['#eceef3', '#fbcfe8', '#f9a8d4', '#ec4899', '#be185d'] },
+            orange: { name: 'Cam',       colors: ['#eceef3', '#fed7aa', '#fdba74', '#f97316', '#c2410c'] },
+            teal:   { name: 'Ngọc',      colors: ['#eceef3', '#a5f3fc', '#5eead4', '#14b8a6', '#0f766e'] }
+        };
+        const HEAT_THEME_KEY = 'nightHeatTheme';
+        function getHeatTheme() {
+            let k = null;
+            try { k = localStorage.getItem(HEAT_THEME_KEY); } catch (e) {}
+            return HEAT_THEMES[k] ? k : 'purple';
+        }
         const HEAT_FILTERS = [
             { key: 'all', label: 'Tất cả', icon: '⭐' },
             { key: 'reading', label: 'Reading', icon: '📖' },
@@ -2295,31 +2317,70 @@
             { key: 'writing', label: 'Writing', icon: '✍️' },
             { key: 'speaking', label: 'Speaking', icon: '🎤' }
         ];
+        const HEAT_KIND_ICON = { reading: '📖', listening: '🎧', writing: '✍️', speaking: '🎤', vocab: '🔤', assigned: '📂' };
+        const HEAT_DAY_NAMES = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
         function heatDayKey(d) { return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+
+        // Ô thông tin nổi (hiện khi rê chuột / chạm vào 1 ô) — dùng chung cho mọi bảng trên trang
+        function getHeatTip() {
+            let tip = document.getElementById('heat-tip');
+            if (!tip) {
+                tip = document.createElement('div');
+                tip.id = 'heat-tip';
+                tip.style.cssText = 'position:fixed;z-index:400;pointer-events:none;background:#1e1b4b;color:#fff;font-size:12px;font-weight:700;line-height:1.45;padding:7px 10px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);white-space:nowrap;display:none;';
+                document.body.appendChild(tip);
+            }
+            return tip;
+        }
+        let heatTipTimer = null;
+        function showHeatTip(cell) {
+            const tip = getHeatTip();
+            tip.innerHTML = cell.dataset.tip;
+            tip.style.display = 'block';
+            const r = cell.getBoundingClientRect();
+            const tw = tip.offsetWidth, th = tip.offsetHeight;
+            let x = r.left + r.width / 2 - tw / 2;
+            x = Math.max(8, Math.min(x, window.innerWidth - tw - 8));
+            let y = r.top - th - 8;
+            if (y < 8) y = r.bottom + 8;
+            tip.style.left = x + 'px'; tip.style.top = y + 'px';
+        }
+        function hideHeatTip() { const t = document.getElementById('heat-tip'); if (t) t.style.display = 'none'; }
+        window.addEventListener('scroll', hideHeatTip, { passive: true });
 
         function renderActivityHeatmap(container, entries, filterKey) {
             if (!container) return;
-            filterKey = filterKey || 'all';
+            filterKey = filterKey || container.__heatFilter || 'all';
             container.__heatEntries = entries;
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            const dow = (today.getDay() + 6) % 7; // 0 = Thứ 2
-            const start = new Date(today); start.setDate(today.getDate() - dow - (HEAT_WEEKS - 1) * 7);
+            container.__heatFilter = filterKey;
+            const themeKey = getHeatTheme();
+            const COLORS = HEAT_THEMES[themeKey].colors;
 
-            const counts = {};
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            // 3 tháng lịch: tháng hiện tại + 2 tháng trước
+            const rangeStart = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+            const rangeEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // ngày cuối tháng hiện tại
+            const gridStart = new Date(rangeStart); gridStart.setDate(rangeStart.getDate() - ((rangeStart.getDay() + 6) % 7)); // lùi về Thứ 2
+            const gridEnd = new Date(rangeEnd); gridEnd.setDate(rangeEnd.getDate() + (6 - ((rangeEnd.getDay() + 6) % 7))); // tới Chủ nhật
+            const weeks = Math.round((gridEnd - gridStart) / 86400000 + 1) / 7;
+
+            const counts = {}, dayKinds = {};
             const kindTotals = { all: 0, reading: 0, listening: 0, writing: 0, speaking: 0 };
+            let thisMonth = 0;
             entries.forEach(e => {
                 if (!e.completedAt) return;
                 const d = new Date(e.completedAt); d.setHours(0, 0, 0, 0);
-                if (d < start || d > today) return;
+                if (d < rangeStart || d > today) return;
                 kindTotals.all++;
                 if (kindTotals[e.kind] != null) kindTotals[e.kind]++;
                 if (filterKey !== 'all' && e.kind !== filterKey) return;
                 const k = heatDayKey(d);
                 counts[k] = (counts[k] || 0) + 1;
+                (dayKinds[k] = dayKinds[k] || {})[e.kind] = (dayKinds[k][e.kind] || 0) + 1;
+                if (d.getMonth() === today.getMonth()) thisMonth++;
             });
             const level = n => n <= 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : n <= 4 ? 3 : 4;
 
-            // Chuỗi ngày liên tiếp có làm bài (tính tới hôm nay, hoặc hôm qua nếu hôm nay chưa làm)
             let streak = 0;
             const cur = new Date(today);
             if (!counts[heatDayKey(cur)]) cur.setDate(cur.getDate() - 1);
@@ -2327,55 +2388,101 @@
             const activeDays = Object.keys(counts).length;
 
             let cells = '';
-            const monthLabels = new Array(HEAT_WEEKS).fill('');
-            let lastMonth = -1;
-            for (let w = 0; w < HEAT_WEEKS; w++) {
+            const monthLabels = new Array(weeks).fill('');
+            for (let w = 0; w < weeks; w++) {
                 for (let r = 0; r < 7; r++) {
-                    const d = new Date(start); d.setDate(start.getDate() + w * 7 + r);
-                    if (d.getMonth() !== lastMonth && d.getDate() <= 7 && r === 0) { monthLabels[w] = 'Thg ' + (d.getMonth() + 1); lastMonth = d.getMonth(); }
-                    if (d > today) { cells += '<div></div>'; continue; }
-                    const n = counts[heatDayKey(d)] || 0;
-                    const tip = d.toLocaleDateString('vi-VN') + ': ' + (n ? n + ' bài' : 'chưa làm bài');
+                    const d = new Date(gridStart); d.setDate(gridStart.getDate() + w * 7 + r);
+                    if (d.getDate() === 1 && d >= rangeStart && d <= rangeEnd) monthLabels[w] = 'Thg ' + (d.getMonth() + 1);
+                    if (d < rangeStart || d > rangeEnd) { cells += '<div></div>'; continue; }
+                    const dateStr = HEAT_DAY_NAMES[d.getDay()] + ', ' + d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    if (d > today) {
+                        cells += `<div class="heat-cell" data-tip="${dateStr}<br><span style='opacity:.7'>Chưa tới ngày này</span>" style="aspect-ratio:1;border-radius:22%;border:1.5px dashed ${COLORS[0]};"></div>`;
+                        continue;
+                    }
+                    const k = heatDayKey(d);
+                    const n = counts[k] || 0;
+                    const detail = dayKinds[k] ? Object.keys(dayKinds[k]).map(kind => (HEAT_KIND_ICON[kind] || '📌') + ' ' + dayKinds[k][kind]).join(' &nbsp;') : '';
+                    const tip = dateStr + '<br>' + (n ? `<b>${n} bài</b>${detail ? ' &nbsp;·&nbsp; ' + detail : ''}` : "<span style='opacity:.7'>Chưa làm bài</span>");
                     const isToday = d.getTime() === today.getTime();
-                    cells += `<div title="${tip}" style="background:${HEAT_COLORS[level(n)]};aspect-ratio:1;border-radius:22%;${isToday ? 'outline:2px solid #f472b6;outline-offset:1px;' : ''}"></div>`;
+                    cells += `<div class="heat-cell" data-tip="${tip}" style="background:${COLORS[level(n)]};aspect-ratio:1;border-radius:22%;cursor:pointer;${isToday ? 'outline:2px solid #f472b6;outline-offset:1px;' : ''}"></div>`;
                 }
             }
-            if (!monthLabels.some(Boolean)) monthLabels[0] = 'Thg ' + (start.getMonth() + 1);
             const dayLabels = ['T2', '', 'T4', '', 'T6', '', 'CN'];
+            const rangeText = 'Tháng ' + (rangeStart.getMonth() + 1) + (rangeStart.getFullYear() !== today.getFullYear() ? '/' + rangeStart.getFullYear() : '') + ' – Tháng ' + (today.getMonth() + 1) + '/' + today.getFullYear();
 
             const chips = HEAT_FILTERS.map(f => {
                 const active = f.key === filterKey;
-                return `<button type="button" data-heat-filter="${f.key}" class="px-2.5 py-1 rounded-full text-[11px] font-black border transition-colors ${active ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-indigo-300'}">${f.icon} ${f.label} <span class="${active ? 'text-indigo-100' : 'text-gray-400'}">${kindTotals[f.key]}</span></button>`;
+                return `<button type="button" data-heat-filter="${f.key}" class="px-2.5 py-1 rounded-full text-[11px] font-black border transition-colors ${active ? 'bg-gray-800 border-gray-800 text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}">${f.icon} ${f.label} <span class="${active ? 'text-gray-300' : 'text-gray-400'}">${kindTotals[f.key]}</span></button>`;
             }).join('');
+            const swatches = Object.keys(HEAT_THEMES).map(k => `<button type="button" data-heat-theme="${k}" title="${HEAT_THEMES[k].name}" style="width:18px;height:18px;border-radius:50%;background:${HEAT_THEMES[k].colors[3]};${k === themeKey ? 'box-shadow:0 0 0 2px #fff,0 0 0 4px ' + HEAT_THEMES[k].colors[4] + ';' : ''}"></button>`).join('');
 
             container.innerHTML = `
-                <div class="bg-gradient-to-br from-indigo-50/70 to-purple-50/60 border border-indigo-100 rounded-2xl p-4">
-                    <div class="flex items-center justify-between gap-2 flex-wrap mb-3">
-                        <p class="text-sm font-black text-gray-800"><i class="fa-solid fa-calendar-days text-indigo-500 mr-1"></i> Hoạt động 3 tháng qua</p>
-                        <div class="flex items-center gap-2 text-[11px] font-black">
-                            <span class="px-2 py-0.5 rounded-full bg-white text-indigo-600 border border-indigo-100">${activeDays} ngày có học</span>
-                            <span class="px-2 py-0.5 rounded-full bg-white text-orange-500 border border-orange-100">🔥 Chuỗi ${streak} ngày</span>
+                <div class="bg-white border border-gray-100 shadow-soft rounded-3xl p-4 sm:p-5">
+                    <div class="flex items-start justify-between gap-2 flex-wrap mb-3">
+                        <div>
+                            <p class="text-base font-black text-gray-800"><i class="fa-solid fa-calendar-days mr-1" style="color:${COLORS[3]}"></i> Hoạt động 3 tháng gần nhất</p>
+                            <p class="text-[11px] font-bold text-gray-400 mt-0.5">${rangeText}</p>
+                        </div>
+                        <div class="flex items-center gap-1.5 text-[11px] font-black flex-wrap">
+                            <span class="px-2 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-100">Tháng này: ${thisMonth} bài</span>
+                            <span class="px-2 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-100">${activeDays} ngày có học</span>
+                            <span class="px-2 py-1 rounded-full bg-orange-50 text-orange-500 border border-orange-100">🔥 Chuỗi ${streak} ngày</span>
                         </div>
                     </div>
-                    <div class="flex flex-wrap gap-1.5 mb-3">${chips}</div>
-                    <div style="max-width:560px">
-                        <div style="display:grid;grid-template-columns:22px repeat(${HEAT_WEEKS},minmax(0,1fr));gap:4px;margin-bottom:4px">
-                            <div></div>${monthLabels.map(l => `<div class="text-[10px] font-bold text-gray-500 whitespace-nowrap overflow-visible">${l}</div>`).join('')}
+                    <div class="flex flex-wrap gap-1.5 mb-4">${chips}</div>
+                    <div style="max-width:640px">
+                        <div style="display:grid;grid-template-columns:22px repeat(${weeks},minmax(0,1fr));gap:4px;margin-bottom:4px">
+                            <div></div>${monthLabels.map(l => `<div class="text-[10px] font-black text-gray-500 whitespace-nowrap" style="overflow:visible">${l}</div>`).join('')}
                         </div>
                         <div style="display:grid;grid-template-columns:22px 1fr;gap:4px">
                             <div style="display:grid;grid-template-rows:repeat(7,minmax(0,1fr));gap:4px">${dayLabels.map(l => `<div class="text-[10px] font-bold text-gray-400 flex items-center">${l}</div>`).join('')}</div>
-                            <div style="display:grid;grid-template-rows:repeat(7,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px">${cells}</div>
+                            <div class="heat-grid" style="display:grid;grid-template-rows:repeat(7,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px">${cells}</div>
                         </div>
-                        <div class="flex items-center justify-end gap-1 mt-2.5 text-[10px] font-bold text-gray-400">
-                            Ít ${HEAT_COLORS.map(c => `<span style="background:${c};width:12px;height:12px;border-radius:3px;display:inline-block"></span>`).join('')} Nhiều
+                        <div class="flex items-center justify-between gap-2 mt-3 flex-wrap">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[10px] font-bold text-gray-400 mr-0.5">Màu:</span>${swatches}
+                            </div>
+                            <div class="flex items-center gap-1 text-[10px] font-bold text-gray-400">
+                                Ít ${COLORS.map(c => `<span style="background:${c};width:12px;height:12px;border-radius:3px;display:inline-block"></span>`).join('')} Nhiều
+                            </div>
                         </div>
                     </div>
                 </div>`;
+
             container.querySelectorAll('[data-heat-filter]').forEach(btn => {
                 btn.addEventListener('click', () => renderActivityHeatmap(container, container.__heatEntries || [], btn.dataset.heatFilter));
             });
+            container.querySelectorAll('[data-heat-theme]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    try { localStorage.setItem(HEAT_THEME_KEY, btn.dataset.heatTheme); } catch (e) {}
+                    // Vẽ lại MỌI bảng đang hiện trên trang với màu mới
+                    document.querySelectorAll('[data-heat-host]').forEach(el => renderActivityHeatmap(el, el.__heatEntries || [], el.__heatFilter));
+                });
+            });
+            container.setAttribute('data-heat-host', '1');
+            const grid = container.querySelector('.heat-grid');
+            grid.addEventListener('mouseover', e => { const c = e.target.closest('.heat-cell'); if (c) showHeatTip(c); });
+            grid.addEventListener('mouseleave', hideHeatTip);
+            // Điện thoại/iPad không có chuột: chạm vào ô để xem ngày, tự ẩn sau 2.5 giây
+            grid.addEventListener('click', e => {
+                const c = e.target.closest('.heat-cell'); if (!c) return;
+                showHeatTip(c);
+                clearTimeout(heatTipTimer); heatTipTimer = setTimeout(hideHeatTip, 2500);
+            });
         }
         window.renderActivityHeatmap = renderActivityHeatmap;
+
+        // Trang chủ học sinh: tải bài được giao -> vẽ bảng hoạt động ngay trên "Kho Lưu Trữ" -> cuộn tới đó
+        async function startStudentHome(uid) {
+            try { await fetchStudentTasks(uid); } catch (e) { console.error(e); }
+            try {
+                const entries = await loadStudentProgressLog(uid);
+                if (window.__currentUid !== uid) return;
+                const sec = document.getElementById('home-heatmap-section');
+                if (sec) { sec.classList.remove('hidden'); renderActivityHeatmap(sec, entries); }
+            } catch (e) { console.error('Không tải được bảng hoạt động:', e); }
+            scrollToMyTasks();
+        }
 
         function renderStudentProgressList(entries) {
             const list = document.getElementById('student-progress-list');
@@ -2511,7 +2618,7 @@
                         document.getElementById('student-progress-btn').classList.add('flex');
                         document.getElementById('student-mywords-btn').classList.remove('hidden');
                         document.getElementById('student-mywords-btn').classList.add('flex');
-                        fetchStudentTasks(user.uid);
+                        startStudentHome(user.uid);
                         refreshStudentWritingBadge(user.uid);
                     }
                 } else {
@@ -2526,7 +2633,7 @@
                     document.getElementById('student-progress-btn').classList.add('flex');
                     document.getElementById('student-mywords-btn').classList.remove('hidden');
                     document.getElementById('student-mywords-btn').classList.add('flex');
-                    fetchStudentTasks(user.uid);
+                    startStudentHome(user.uid);
                     refreshStudentWritingBadge(user.uid);
                 }
             } else {
@@ -2546,6 +2653,8 @@
                 document.getElementById('student-mywords-btn').classList.remove('flex');
                 window.__currentUid = null;
                 if (window.setAdminMode) window.setAdminMode(false);
+                const hmSec = document.getElementById('home-heatmap-section');
+                if (hmSec) { hmSec.classList.add('hidden'); hmSec.innerHTML = ''; }
 
                 // Xóa tab Bài Tập nếu đăng xuất
                 const idx = LESSON_DATA.findIndex(f => f.id === "MY_TASKS");
