@@ -5518,5 +5518,365 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+
+    <!-- ================================================================================
+         NIGHT LIVE — HIỆN MÀN HÌNH iPad / CỬA SỔ KHÁC NGAY TRONG TRÌNH ĐỌC SÁCH (chỉ giáo viên)
+         Khối độc lập, không đụng tới app React phía trên. Nút "Live" ở góc trái dưới.
+         - Chỉ hiển thị trên chính máy này (để chiếu lên máy chiếu), KHÔNG phát đi đâu cả.
+         - Bấm "—" hoặc bấm lại nút: chỉ ẨN cửa sổ, hình vẫn chạy nền.
+         - Tự nhớ: camera/iPad đã chọn, vị trí, kích thước, kiểu sắp xếp, đang mở hay ẩn.
+           Lần sau mở trang là tự hiện lại, không phải chọn lại.
+         ================================================================================ -->
+    <style>
+        #nl-launcher { position: fixed; left: 16px; bottom: 16px; z-index: 245; display: none; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px; background: linear-gradient(135deg,#6366f1,#7c3aed); color: #fff; font: 800 13px 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow: 0 10px 30px -8px rgba(99,102,241,.6); cursor: pointer; border: 0; }
+        #nl-launcher.has-src .nl-dot { display: inline-block; }
+        #nl-launcher .nl-dot { display: none; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.3); }
+        #nl-panel { position: fixed; right: 16px; bottom: 76px; width: 560px; height: 400px; min-width: 280px; min-height: 200px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); z-index: 285; display: none; flex-direction: column; background: #fff; border-radius: 18px; box-shadow: 0 24px 60px -12px rgba(15,23,42,.45); border: 1px solid #e2e8f0; overflow: hidden; resize: both; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #334155; }
+        #nl-panel.nl-max { left: 12px !important; top: 12px !important; right: 12px !important; bottom: 12px !important; width: auto !important; height: auto !important; resize: none; }
+        #nl-panel .nl-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 12px; background: linear-gradient(135deg,#eef2ff,#f5f3ff); border-bottom: 1px solid #e2e8f0; cursor: move; user-select: none; touch-action: none; }
+        #nl-panel .nl-title { font-weight: 900; font-size: 13px; color: #1e293b; margin-right: 4px; white-space: nowrap; }
+        #nl-panel .nl-hbtn { height: 30px; min-width: 30px; padding: 0 8px; border-radius: 9px; border: 0; background: transparent; color: #64748b; cursor: pointer; font-size: 12px; font-weight: 800; white-space: nowrap; }
+        #nl-panel .nl-hbtn:hover { background: #e0e7ff; color: #4f46e5; }
+        #nl-panel .nl-hbtn.on { background: #6366f1; color: #fff; }
+        #nl-panel .nl-sep { width: 1px; height: 18px; background: #cbd5e1; margin: 0 2px; }
+        #nl-panel .nl-body { position: relative; flex: 1; min-height: 0; padding: 8px; }
+        #nl-stage { display: grid; gap: 8px; height: 100%; }
+        #nl-stage:fullscreen { background: #000; padding: 0; gap: 4px; }
+        .nl-tile { position: relative; background: #0f0f1a; border-radius: 12px; overflow: hidden; min-width: 0; min-height: 0; }
+        #nl-stage:fullscreen .nl-tile { border-radius: 0; }
+        .nl-tile.is-focus { outline: 3px solid #818cf8; outline-offset: -3px; }
+        #nl-stage:fullscreen .nl-tile.is-focus { outline: none; }
+        .nl-tile video { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .nl-tile .nl-label { position: absolute; left: 8px; bottom: 8px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity .2s; }
+        .nl-tile:hover .nl-label { opacity: 1; }
+        .nl-tile .nl-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .2s; }
+        .nl-tile:hover .nl-actions { opacity: 1; }
+        .nl-actions button { width: 28px; height: 28px; border-radius: 8px; border: 0; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; cursor: pointer; }
+        .nl-actions button:hover { background: #6366f1; }
+        .nl-tile .nl-frozen { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); display: none; background: #f59e0b; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+        #nl-panel .nl-empty { height: 100%; overflow: auto; font-size: 12.5px; line-height: 1.55; color: #475569; }
+        #nl-panel .nl-empty b { color: #1e293b; }
+        #nl-panel .nl-card { border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+        #nl-panel .nl-btn { border: 2px solid #eef0f4; background: #fff; color: #475569; font-weight: 800; font-size: 12px; padding: 7px 10px; border-radius: 10px; cursor: pointer; }
+        #nl-panel .nl-btn:hover { border-color: #a5b4fc; }
+        #nl-panel .nl-btn.primary { background: #6366f1; border-color: #6366f1; color: #fff; }
+        #nl-panel .nl-notice { display: none; position: absolute; left: 8px; right: 8px; top: 8px; z-index: 4; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; font-size: 12px; font-weight: 700; border-radius: 10px; padding: 8px 10px; align-items: center; gap: 8px; }
+        #nl-panel .nl-overlay { position: absolute; inset: 0; background: rgba(255,255,255,.97); z-index: 5; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 16px; text-align: center; gap: 10px; overflow: auto; }
+        #nl-panel .nl-devlist button { display: block; width: 100%; text-align: left; margin-bottom: 6px; }
+    </style>
+
+    <button id="nl-launcher" type="button" title="Hiện / ẩn màn hình iPad"><span class="nl-dot"></span><i class="fa-solid fa-tablet-screen-button"></i> <span>iPad</span></button>
+
+    <div id="nl-panel" role="dialog" aria-label="Màn hình iPad">
+        <div class="nl-head" id="nl-head">
+            <span class="nl-title"><i class="fa-solid fa-tablet-screen-button" style="color:#6366f1"></i> iPad</span>
+            <button class="nl-hbtn" id="nl-add-cam" title="Thêm iPad (qua OBS) / camera"><i class="fa-solid fa-plus"></i> iPad/Cam</button>
+            <button class="nl-hbtn" id="nl-add-win" title="Thêm cửa sổ / màn hình"><i class="fa-solid fa-plus"></i> Cửa sổ</button>
+            <span class="nl-sep"></span>
+            <button class="nl-hbtn nl-lay" data-layout="grid" title="Chia đều"><i class="fa-solid fa-table-cells-large"></i></button>
+            <button class="nl-hbtn nl-lay" data-layout="focus" title="1 lớn + nhỏ"><i class="fa-solid fa-table-columns"></i></button>
+            <button class="nl-hbtn nl-lay" data-layout="single" title="Chỉ 1 cửa sổ"><i class="fa-regular fa-square"></i></button>
+            <span style="flex:1"></span>
+            <button class="nl-hbtn" id="nl-btn-full" title="Toàn màn hình (Esc để thoát)"><i class="fa-solid fa-expand"></i></button>
+            <button class="nl-hbtn" id="nl-btn-max" title="Phóng to / thu nhỏ"><i class="fa-regular fa-window-maximize"></i></button>
+            <button class="nl-hbtn" id="nl-btn-hide" title="Ẩn (vẫn chạy nền)"><i class="fa-solid fa-minus"></i></button>
+        </div>
+        <div class="nl-body">
+            <div class="nl-notice" id="nl-notice"><span id="nl-notice-text" style="flex:1"></span><button class="nl-btn" id="nl-retry">Thử lại</button></div>
+            <div class="nl-empty" id="nl-empty">
+                <div class="nl-card" style="background:#eef2ff">
+                    <b><i class="fa-solid fa-star" style="color:#6366f1"></i> Hiện iPad không bị đứng hình (qua OBS):</b><br>
+                    1. Cắm cáp iPad vào Mac, mở <b>OBS</b>.<br>
+                    2. OBS: Nguồn <b>+</b> → <b>Thiết bị quay video</b> → chọn <b>iPad</b>.<br>
+                    3. Bấm <b>Khởi động camera ảo</b> (góc phải dưới OBS), rồi thu nhỏ OBS.<br>
+                    4. Ở đây bấm <b>+ iPad/Cam</b> → chọn <b>OBS Virtual Camera</b>.<br>
+                    Chọn 1 lần thôi — lần sau mở trang là tự hiện.
+                </div>
+                <div class="nl-card" style="background:#f8fafc">
+                    <b>+ Cửa sổ</b>: hiện thêm 1 cửa sổ / tab / màn hình khác bên cạnh. (Cửa sổ thì Chrome bắt chọn lại mỗi lần mở trang.)
+                </div>
+            </div>
+            <div id="nl-stage" style="display:none"></div>
+            <div class="nl-overlay" id="nl-dev-overlay">
+                <b style="font-size:14px;color:#1e293b">Chọn nguồn</b>
+                <div class="nl-devlist" id="nl-devlist" style="width:100%;max-width:340px"></div>
+                <button class="nl-btn" id="nl-dev-cancel">Huỷ</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+    import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // Firebase chỉ dùng để kiểm tra "có phải giáo viên không" (đọc phiên đăng nhập sẵn có từ trang chủ).
+    const app = getApps().length ? getApps()[0] : initializeApp({
+        apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+        authDomain: "night-ielts-land.firebaseapp.com",
+        projectId: "night-ielts-land",
+        storageBucket: "night-ielts-land.firebasestorage.app",
+        messagingSenderId: "408519436407",
+        appId: "1:408519436407:web:a9f0b9ba23368b54427e72"
+    });
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const $ = id => document.getElementById(id);
+    const panel = $('nl-panel'), launcher = $('nl-launcher'), stageEl = $('nl-stage');
+
+    // ================== GHI NHỚ TRẠNG THÁI ==================
+    const STORE_KEY = 'nightLiveLocalState';
+    let state = { open: true, max: false, rect: null, layout: 'grid', cams: [] };
+    try { Object.assign(state, JSON.parse(localStorage.getItem(STORE_KEY) || '{}')); } catch (e) {}
+    function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {} }
+    function applyRect() {
+        const r = state.rect; if (!r) return;
+        const w = Math.min(r.width, window.innerWidth - 16), h = Math.min(r.height, window.innerHeight - 16);
+        Object.assign(panel.style, {
+            width: w + 'px', height: h + 'px', right: 'auto', bottom: 'auto',
+            left: Math.min(Math.max(0, r.left), window.innerWidth - w) + 'px',
+            top: Math.min(Math.max(0, r.top), window.innerHeight - 40) + 'px'
+        });
+    }
+    function rememberRect() {
+        if (panel.classList.contains('nl-max') || panel.style.display === 'none') return;
+        const r = panel.getBoundingClientRect();
+        state.rect = { left: r.left, top: r.top, width: r.width, height: r.height }; save();
+    }
+
+    let panelOpen = false;
+    function setPanel(open) {
+        panelOpen = open; state.open = open; save();
+        panel.style.display = open ? 'flex' : 'none';
+        if (open) render();
+    }
+    launcher.addEventListener('click', () => setPanel(!panelOpen));
+    $('nl-btn-hide').addEventListener('click', () => setPanel(false));
+    $('nl-btn-max').addEventListener('click', () => { panel.classList.toggle('nl-max'); state.max = panel.classList.contains('nl-max'); save(); render(); });
+    $('nl-btn-full').addEventListener('click', () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else if (sources.length && stageEl.requestFullscreen) stageEl.requestFullscreen();
+    });
+
+    (function () {
+        const head = $('nl-head'); let drag = null;
+        head.addEventListener('pointerdown', e => {
+            if (e.target.closest('button') || panel.classList.contains('nl-max')) return;
+            const r = panel.getBoundingClientRect();
+            drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+            head.setPointerCapture(e.pointerId);
+        });
+        head.addEventListener('pointermove', e => {
+            if (!drag) return;
+            const w = panel.offsetWidth;
+            Object.assign(panel.style, {
+                left: Math.min(Math.max(0, e.clientX - drag.dx), window.innerWidth - w) + 'px',
+                top: Math.min(Math.max(0, e.clientY - drag.dy), window.innerHeight - 40) + 'px',
+                right: 'auto', bottom: 'auto'
+            });
+        });
+        head.addEventListener('pointerup', () => { if (drag) rememberRect(); drag = null; });
+    })();
+    let resizeTimer = null;
+    new ResizeObserver(() => {
+        if (!panelOpen) return;
+        render();
+        clearTimeout(resizeTimer); resizeTimer = setTimeout(rememberRect, 400);
+    }).observe(panel);
+
+    // ================== NGUỒN HÌNH ==================
+    const sources = []; // { id, stream, label, kind, deviceId? }
+    let focusId = null;
+    const tiles = new Map();
+
+    function render() {
+        const layout = state.layout;
+        $('nl-empty').style.display = sources.length ? 'none' : '';
+        stageEl.style.display = sources.length ? 'grid' : 'none';
+        launcher.classList.toggle('has-src', sources.length > 0);
+        document.querySelectorAll('.nl-lay').forEach(b => b.classList.toggle('on', b.dataset.layout === layout));
+        for (const [id, t] of tiles) if (!sources.some(s => s.id === id)) { t.el.remove(); tiles.delete(id); }
+        if (!sources.some(s => s.id === focusId)) focusId = sources[0] ? sources[0].id : null;
+        const visible = layout === 'single' ? sources.filter(s => s.id === focusId) : sources;
+        const n = visible.length;
+        const narrow = stageEl.clientWidth < 520;
+        if (layout === 'focus' && n > 1) {
+            if (narrow) { stageEl.style.gridTemplateColumns = `repeat(${n - 1},minmax(0,1fr))`; stageEl.style.gridTemplateRows = 'minmax(0,1fr) 90px'; }
+            else { stageEl.style.gridTemplateColumns = 'minmax(0,1fr) 26%'; stageEl.style.gridTemplateRows = `repeat(${n - 1},minmax(0,1fr))`; }
+        } else {
+            const cols = n <= 1 ? 1 : (n <= 4 ? 2 : 3);
+            stageEl.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
+            stageEl.style.gridTemplateRows = `repeat(${Math.max(1, Math.ceil(n / cols))},minmax(0,1fr))`;
+        }
+        sources.forEach(src => {
+            let t = tiles.get(src.id);
+            if (!t) {
+                const el = document.createElement('div'); el.className = 'nl-tile';
+                const video = document.createElement('video'); video.autoplay = true; video.playsInline = true; video.muted = true;
+                video.srcObject = src.stream; video.play().catch(() => {});
+                const label = document.createElement('div'); label.className = 'nl-label';
+                const frozen = document.createElement('div'); frozen.className = 'nl-frozen'; frozen.textContent = '⏸ Hình có thể đang đứng — nên dùng cách OBS';
+                const act = document.createElement('div'); act.className = 'nl-actions';
+                act.innerHTML = '<button data-a="focus" title="Làm cửa sổ chính"><i class="fa-solid fa-up-right-and-down-left-from-center"></i></button><button data-a="remove" title="Bỏ"><i class="fa-solid fa-xmark"></i></button>';
+                act.addEventListener('click', e => { const b = e.target.closest('button'); if (b) onAction(b.dataset.a, src.id); });
+                el.addEventListener('dblclick', () => onAction('focus', src.id));
+                el.append(video, label, frozen, act);
+                t = { el, video, label, frozen };
+                tiles.set(src.id, t);
+            }
+            t.label.textContent = src.label;
+            t.el.classList.toggle('is-focus', src.id === focusId && sources.length > 1 && layout === 'focus');
+            t.el.style.display = visible.includes(src) ? '' : 'none';
+            t.el.style.gridColumn = ''; t.el.style.gridRow = '';
+            if (layout === 'focus' && n > 1 && src.id === focusId) {
+                if (narrow) { t.el.style.gridColumn = `1 / span ${n - 1}`; t.el.style.gridRow = '1'; }
+                else { t.el.style.gridColumn = '1'; t.el.style.gridRow = `1 / span ${n - 1}`; }
+            }
+        });
+        [...visible].sort((a, b) => a.id === focusId ? -1 : b.id === focusId ? 1 : 0).forEach(s => stageEl.appendChild(tiles.get(s.id).el));
+    }
+
+    function onAction(a, id) {
+        if (a === 'focus') { focusId = id; if (state.layout === 'grid') { state.layout = 'focus'; save(); } render(); }
+        else if (a === 'remove') removeSource(id, true);
+    }
+    document.querySelectorAll('.nl-lay').forEach(b => b.addEventListener('click', () => { state.layout = b.dataset.layout; save(); render(); }));
+
+    function addSource(stream, label, kind, deviceId, reveal = true) {
+        const src = { id: stream.id, stream, label, kind, deviceId };
+        sources.push(src);
+        if (!focusId) focusId = src.id;
+        stream.getVideoTracks().forEach(t => t.addEventListener('ended', () => {
+            // Camera bị ngắt (rút cáp, tắt OBS...) -> bỏ khỏi màn hình nhưng VẪN NHỚ để tự nối lại
+            removeSource(src.id, false);
+            if (kind === 'camera') showNotice('Mất tín hiệu "' + label + '". Kiểm tra cáp / OBS rồi bấm Thử lại.');
+        }));
+        if (!panelOpen && reveal) setPanel(true); else render();
+    }
+
+    function removeSource(id, forget) {
+        const i = sources.findIndex(s => s.id === id); if (i === -1) return;
+        const [src] = sources.splice(i, 1);
+        src.stream.getTracks().forEach(t => t.stop());
+        if (forget && src.deviceId) { state.cams = state.cams.filter(c => c.deviceId !== src.deviceId); save(); }
+        render();
+    }
+
+    function showNotice(text) { $('nl-notice-text').textContent = text; $('nl-notice').style.display = 'flex'; }
+    function hideNotice() { $('nl-notice').style.display = 'none'; }
+
+    // ---------- Camera / iPad qua OBS ----------
+    async function openCamera(deviceId, name, reveal = true) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } }, audio: false });
+        stream.getVideoTracks().forEach(t => { try { t.contentHint = 'detail'; } catch (e) {} });
+        addSource(stream, name, 'camera', deviceId, reveal);
+    }
+
+    // Tự mở lại các camera đã chọn lần trước (không cần bấm gì). Trình duyệt đã nhớ quyền
+    // camera cho trang này nên không hỏi lại.
+    let restoring = false;
+    async function restoreCams() {
+        if (restoring || !state.cams.length) return;
+        restoring = true;
+        const missing = [];
+        let devs = [];
+        try { devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput'); } catch (e) {}
+        for (const c of state.cams) {
+            if (sources.some(s => s.deviceId === c.deviceId)) continue;
+            // deviceId có thể đổi -> tìm lại theo tên thiết bị
+            const dev = devs.find(d => d.deviceId === c.deviceId) || devs.find(d => d.label && d.label === c.label);
+            if (!dev) { missing.push(c.name); continue; }
+            if (dev.deviceId !== c.deviceId) { c.deviceId = dev.deviceId; save(); }
+            try { await openCamera(dev.deviceId, c.name, false); } catch (e) { missing.push(c.name); }
+        }
+        restoring = false;
+        if (missing.length) showNotice('Chưa thấy: ' + missing.join(', ') + '. Mở OBS + bật "Khởi động camera ảo" (hoặc cắm lại cáp), sẽ tự hiện.');
+        else hideNotice();
+    }
+    $('nl-retry').addEventListener('click', () => { hideNotice(); restoreCams(); });
+    // Khi cắm thiết bị / bật OBS, trình duyệt báo "devicechange" -> tự nối lại
+    if (navigator.mediaDevices) navigator.mediaDevices.addEventListener('devicechange', () => setTimeout(restoreCams, 800));
+
+    $('nl-add-cam').addEventListener('click', async () => {
+        try { const tmp = await navigator.mediaDevices.getUserMedia({ video: true }); tmp.getTracks().forEach(t => t.stop()); }
+        catch (e) { return alert('Không mở được camera: ' + e.message); }
+        const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+        const list = $('nl-devlist'); list.innerHTML = '';
+        devs.sort((a, b) => (/obs/i.test(b.label) ? 1 : 0) - (/obs/i.test(a.label) ? 1 : 0)).forEach(d => {
+            const isObs = /obs/i.test(d.label);
+            const b = document.createElement('button'); b.className = 'nl-btn' + (isObs ? ' primary' : '');
+            b.innerHTML = (isObs ? '⭐ ' : '📷 ') + (d.label || 'Camera') + (isObs ? ' — iPad qua OBS' : '');
+            b.addEventListener('click', async () => {
+                $('nl-dev-overlay').style.display = 'none';
+                const name = isObs ? 'iPad' : (d.label.replace(/\s*\(.*\)$/, '').slice(0, 40) || 'Camera');
+                if (sources.some(s => s.deviceId === d.deviceId)) return;
+                try {
+                    await openCamera(d.deviceId, name);
+                    state.cams = state.cams.filter(c => c.deviceId !== d.deviceId).concat([{ deviceId: d.deviceId, label: d.label, name }]);
+                    save(); hideNotice();
+                } catch (e) { alert('Không mở được: ' + e.message); }
+            });
+            list.appendChild(b);
+        });
+        if (!devs.some(d => /obs/i.test(d.label))) {
+            const p = document.createElement('p'); p.style.cssText = 'font-size:11px;color:#94a3b8;margin-top:4px';
+            p.textContent = 'Chưa thấy "OBS Virtual Camera"? Bật "Khởi động camera ảo" trong OBS, khởi động lại Chrome rồi thử lại.';
+            list.appendChild(p);
+        }
+        $('nl-dev-overlay').style.display = 'flex';
+    });
+    $('nl-dev-cancel').addEventListener('click', () => { $('nl-dev-overlay').style.display = 'none'; });
+
+    // ---------- Cửa sổ / màn hình (Chrome bắt chọn lại mỗi lần, không tự nhớ được) ----------
+    $('nl-add-win').addEventListener('click', async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return alert('Máy này không chia sẻ cửa sổ được. Hãy dùng Chrome trên Mac.');
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30, width: { max: 1920 }, height: { max: 1080 } }, audio: false, selfBrowserSurface: 'exclude' });
+            const tr = stream.getVideoTracks()[0];
+            try { tr.contentHint = 'detail'; } catch (e) {}
+            let label = tr.label || '';
+            if (tr.getSettings().displaySurface === 'monitor') label = 'Màn hình';
+            else if (/quicktime|movie recording|bản ghi phim/i.test(label)) label = 'iPad (QuickTime)';
+            label = label.replace(/^(window|screen|tab):?\s*/i, '').slice(0, 40) || 'Cửa sổ';
+            addSource(stream, label, 'window');
+            if (/quicktime/i.test(label)) watchFreeze(stream);
+        } catch (e) {
+            if (e.name !== 'NotAllowedError' && e.name !== 'AbortError') alert('Không chia sẻ được: ' + e.message + '\nMở Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Ghi màn hình → bật cho Chrome, rồi mở lại Chrome.');
+        }
+    });
+
+    function watchFreeze(stream) {
+        const t = tiles.get(stream.id); if (!t || !t.video.requestVideoFrameCallback) return;
+        let last = performance.now();
+        const onFrame = () => { last = performance.now(); t.frozen.style.display = 'none'; if (sources.some(s => s.id === stream.id)) t.video.requestVideoFrameCallback(onFrame); };
+        t.video.requestVideoFrameCallback(onFrame);
+        const iv = setInterval(() => {
+            if (!sources.some(s => s.id === stream.id)) return clearInterval(iv);
+            t.frozen.style.display = performance.now() - last > 8000 ? 'block' : 'none';
+        }, 2000);
+    }
+
+    // ================== KHỞI ĐỘNG: chỉ giáo viên thấy ==================
+    let booted = false;
+    onAuthStateChanged(auth, async u => {
+        if (!u) { launcher.style.display = 'none'; return; }
+        if (booted) return;
+        try {
+            const snap = await getDoc(doc(db, 'users', u.uid));
+            if (!snap.exists() || snap.data().role !== 'admin') return;
+            booted = true;
+            launcher.style.display = 'flex';
+            applyRect();
+            if (state.max) panel.classList.add('nl-max');
+            if (state.cams.length) {
+                // Mở lại đúng trạng thái lần trước: đang mở thì hiện luôn, đang ẩn thì chạy nền
+                if (state.open) setPanel(true);
+                await restoreCams();
+            }
+        } catch (e) { console.error('[NightLive]', e); }
+    });
+    </script>
+
 </body>
 </html>
