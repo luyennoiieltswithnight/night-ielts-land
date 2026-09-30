@@ -2042,7 +2042,7 @@
         // triển khai file night-ielts-mailer.gs. Để trống = không gửi mail ngay lúc giao
         // (nhưng nếu đã cài trigger hằng giờ trong Apps Script thì mail vẫn đi trong vòng 1 giờ).
         // ==========================================
-        const MAIL_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwsYqBxEnJsLOx4yQNyqWHqOiV3yfNSTOXav5JV15YN3grkXYeQxxyAsLiO-8l8lyJLAw/exec';
+        const MAIL_WEBAPP_URL = '';
         function notifyAssignmentEmails(ids) {
             if (!MAIL_WEBAPP_URL || !ids || ids.length === 0) return;
             // text/plain + no-cors: không bị chặn CORS, không cần chờ phản hồi. Apps Script tự
@@ -2368,7 +2368,9 @@
             const kindTotals = { all: 0, reading: 0, listening: 0, writing: 0, speaking: 0 };
             let thisMonth = 0;
             entries.forEach(e => {
-                if (!e.completedAt) return;
+                // summary = dòng "hoàn thành cả bộ Speaking được giao" — các câu trong bộ đó đã được
+                // đếm riêng từng lần luyện rồi, nên bỏ qua để không đếm trùng
+                if (!e.completedAt || e.summary) return;
                 const d = new Date(e.completedAt); d.setHours(0, 0, 0, 0);
                 if (d < rangeStart || d > today) return;
                 kindTotals.all++;
@@ -2473,8 +2475,38 @@
         window.renderActivityHeatmap = renderActivityHeatmap;
 
         // Trang chủ học sinh: tải bài được giao -> vẽ bảng hoạt động ngay trên "Kho Lưu Trữ" -> cuộn tới đó
+        // Bù dữ liệu 1 lần: các lần tự luyện Speaking TRƯỚC khi speaking.html biết ghi vào progressLog
+        // vẫn còn nằm trong speakingAttempts -> chép sang progressLog để bảng ô vuông hiện đủ.
+        // Id giống hệt cách speaking.html ghi (uid_sp_<thời điểm>) nên không bao giờ bị đếm trùng.
+        async function backfillSpeakingPractice(uid) {
+            const flag = 'nightSpBackfill_v1_' + uid;
+            try { if (localStorage.getItem(flag)) return; } catch (e) {}
+            try {
+                const snap = await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid), where('kind', '==', 'attempt')));
+                const writes = [];
+                snap.forEach(d => {
+                    const a = d.data();
+                    if (!a.createdAt) return;
+                    const overall = a.scores && a.scores.overall;
+                    writes.push(setDoc(doc(db, 'progressLog', uid + '_sp_' + a.createdAt), {
+                        studentId: uid,
+                        assignmentId: d.id,
+                        title: (a.packageTitle || 'Speaking') + ' — ' + (a.questionText || ''),
+                        kind: 'speaking',
+                        practice: true,
+                        resultText: overall != null ? 'Band ' + Number(overall).toFixed(1) : 'Đã luyện',
+                        completedAt: a.createdAt,
+                        expiresAt: a.createdAt + PROGRESS_LOG_TTL_MS
+                    }).catch(() => {}));
+                });
+                await Promise.all(writes);
+                try { localStorage.setItem(flag, '1'); } catch (e) {}
+            } catch (e) { console.warn('Không bù được lịch sử Speaking:', e); }
+        }
+
         async function startStudentHome(uid) {
             try { await fetchStudentTasks(uid); } catch (e) { console.error(e); }
+            await backfillSpeakingPractice(uid);
             try {
                 const entries = await loadStudentProgressLog(uid);
                 if (window.__currentUid !== uid) return;
@@ -2486,6 +2518,8 @@
 
         function renderStudentProgressList(entries) {
             const list = document.getElementById('student-progress-list');
+            // Từng lần tự luyện Speaking chỉ dùng cho bảng ô vuông, không liệt kê ở đây cho đỡ dài
+            entries = entries.filter(e => !e.practice);
             if (entries.length === 0) {
                 list.innerHTML = '<p class="text-gray-400 text-sm font-bold text-center py-8">Chưa có kết quả nào được lưu. Hoàn thành 1 bài bất kỳ để bắt đầu theo dõi tiến độ nhé!</p>';
                 return;
