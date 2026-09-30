@@ -1794,8 +1794,59 @@ VỀ ẢNH (đề dạng type=planlabel — Plan/Map/Diagram labelling — thư�
             if (!state.audio.fileName) warnings.push('Chưa chọn file audio (tab "Audio") — đề vẫn xuất bản được, học sinh sẽ thấy thông báo thiếu audio nhưng vẫn làm bài/chấm điểm bình thường.');
             else if (marks[2] == null || marks[3] == null || marks[4] == null) warnings.push('Chưa đánh dấu đủ 4 mốc Section trong tab "Audio" — các Section chưa đánh dấu sẽ không tự chuyển đúng lúc ở chế độ Thi thật.');
 
-            return { html: engineHtml, warnings, total, title: state.meta.title };
+            return { html: addProgressTracker(engineHtml, 'listening'), warnings, total, title: state.meta.title };
         }
+
+// ============================================================================
+// THEO DÕI TIẾN ĐỘ TỰ LUYỆN (NIGHT-PROGRESS-TRACKER) — mỗi đề build ra sẽ tự gắn 1 đoạn script
+// nhỏ: học sinh bấm "Nộp bài" cả đề HOẶC chấm riêng 1 Part/Section là ghi 1 dòng vào progressLog
+// -> bảng "Hoạt động 3 tháng" ở trang chủ tự đậm lên. Đề đã xuất bản từ trước thì bấm nút
+// "📊 Gắn theo dõi tiến độ vào TẤT CẢ đề" trong danh sách GitHub để vá hàng loạt (chỉ chèn thêm
+// đoạn script trước </body>, không đụng nội dung đề).
+// ============================================================================
+const NIGHT_TRACKER_TPL = "\n    <!-- NIGHT-PROGRESS-TRACKER v1 — ghi mỗi lần TỰ LUYỆN vào bảng \"Hoạt động 3 tháng\" ở trang chủ:\n         bấm \"Nộp bài\" cả đề, HOẶC chấm riêng 1 Part/Section đều được tính. Bài được giao (URL có\n         ?assignmentId=) thì bỏ qua vì trang chủ đã tự ghi rồi. -->\n    <script type=\"module\">\n        (function () {\n            var KIND = '__KIND__';\n            if (new URLSearchParams(location.search).get('assignmentId')) return;\n            var pageLoadedAt = Date.now();\n            var fullSubmitted = false;\n            var partDocIds = {};\n            var FB_CONFIG = {\n                apiKey: \"AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8\",\n                authDomain: \"night-ielts-land.firebaseapp.com\",\n                projectId: \"night-ielts-land\",\n                storageBucket: \"night-ielts-land.firebasestorage.app\",\n                messagingSenderId: \"408519436407\",\n                appId: \"1:408519436407:web:a9f0b9ba23368b54427e72\"\n            };\n            var fbPromise = null;\n            function loadFb() {\n                if (!fbPromise) {\n                    fbPromise = Promise.all([\n                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),\n                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'),\n                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')\n                    ]).then(function (m) {\n                        // App MẶC ĐỊNH (không đặt tên) để dùng lại đúng phiên đăng nhập của trang chủ\n                        var app = m[0].getApps().find(function (a) { return a.name === '[DEFAULT]'; }) || m[0].initializeApp(FB_CONFIG);\n                        return { authMod: m[1], fsMod: m[2], auth: m[1].getAuth(app), db: m[2].getFirestore(app) };\n                    }).then(function (fb) {\n                        return new Promise(function (res) {\n                            var unsub = fb.authMod.onAuthStateChanged(fb.auth, function (user) { unsub(); fb.user = user; res(fb); });\n                        });\n                    });\n                }\n                return fbPromise;\n            }\n            setTimeout(function () { loadFb().catch(function () {}); }, 1500);\n\n            function writeLog(docId, title, score, total, band) {\n                return loadFb().then(function (fb) {\n                    if (!fb.user) return null; // chưa đăng nhập ở trang chủ -> không ghi được\n                    var now = Date.now();\n                    return fb.fsMod.setDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + docId), {\n                        studentId: fb.user.uid,\n                        title: title,\n                        kind: KIND,\n                        practice: true,\n                        resultText: score + '/' + total + ' câu đúng' + (band ? ' (Band ' + band + ')' : ''),\n                        completedAt: now,\n                        expiresAt: now + 365 * 24 * 60 * 60 * 1000\n                    }).then(function () { return fb; });\n                }).catch(function (e) { console.warn('Night progress: ghi thất bại', e); });\n            }\n\n            // ---- 1) Nộp bài cả đề (cả Reading lẫn Listening đều gọi saveProgressRecord khi nộp) ----\n            var origSave = window.saveProgressRecord;\n            if (typeof origSave === 'function') {\n                window.saveProgressRecord = function (score, total, band) {\n                    try { origSave.apply(this, arguments); } catch (e) { console.warn(e); }\n                    try {\n                        fullSubmitted = true;\n                        try {\n                            var sig = new Date().toLocaleDateString('vi-VN') + '|' + location.pathname.split('/').pop() + '|' + score + '|' + total;\n                            var arr = JSON.parse(localStorage.getItem('nightTrackedSigs') || '[]');\n                            arr.push(sig);\n                            localStorage.setItem('nightTrackedSigs', JSON.stringify(arr.slice(-100)));\n                        } catch (e) {}\n                        // Nộp cả đề thì thay cho các lần chấm lẻ từng phần trước đó (không đếm trùng)\n                        var partIds = Object.keys(partDocIds).map(function (k) { return partDocIds[k]; });\n                        partDocIds = {};\n                        writeLog(KIND + '_' + pageLoadedAt, document.title, score, total, band).then(function (fb) {\n                            if (!fb || !fb.user) return;\n                            partIds.forEach(function (id) { fb.fsMod.deleteDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + id)).catch(function () {}); });\n                        });\n                    } catch (e) { console.warn('Night progress:', e); }\n                };\n            }\n\n            // ---- 2) Chấm riêng 1 Part (Reading) / 1 Section (Listening) ----\n            function getRanges() {\n                try { if (typeof passageRanges !== 'undefined') return passageRanges; } catch (e) {}\n                try { if (typeof sectionRanges !== 'undefined') return sectionRanges; } catch (e) {}\n                return window.passageRanges || window.sectionRanges || null;\n            }\n            function answeredCount(startQ, endQ) {\n                var c = 0;\n                for (var i = startQ; i <= endQ; i++) {\n                    var inputs = document.getElementsByName('q' + i);\n                    for (var j = 0; j < inputs.length; j++) {\n                        var el = inputs[j];\n                        if ((el.type === 'radio' || el.type === 'checkbox') ? el.checked : String(el.value || '').trim()) { c++; break; }\n                    }\n                }\n                return c;\n            }\n            function logPart(n, label) {\n                if (fullSubmitted) return; // đã nộp cả đề rồi -> bấm xem lại từng phần không tính thêm\n                var ranges = getRanges();\n                var r = ranges && ranges[n - 1];\n                if (!r || typeof window.gradeQuestionRange !== 'function') return;\n                if (answeredCount(r[0], r[1]) === 0) return; // chỉ bấm xem đáp án, chưa làm câu nào -> không tính\n                var score = window.gradeQuestionRange(r[0], r[1]);\n                var total = r[1] - r[0] + 1;\n                var id = KIND + '_' + pageLoadedAt + '_p' + n;\n                partDocIds[n] = id;\n                writeLog(id, document.title + ' — ' + label + ' ' + n, score, total, null);\n            }\n            ['gradePart', 'openSectionReview'].forEach(function (fnName) {\n                var orig = window[fnName];\n                if (typeof orig !== 'function') return;\n                window[fnName] = function (n) {\n                    var out = orig.apply(this, arguments);\n                    try { logPart(Number(n), fnName === 'gradePart' ? 'Part' : 'Section'); } catch (e) { console.warn('Night progress:', e); }\n                    return out;\n                };\n            });\n        })();\n    <\/script>\n";
+const NIGHT_TRACKER_MARK = 'NIGHT-PROGRESS-TRACKER v1';
+function addProgressTracker(html, kind) {
+  if (html.indexOf(NIGHT_TRACKER_MARK) !== -1) return html;
+  const snippet = NIGHT_TRACKER_TPL.split('__KIND__').join(kind);
+  const idx = html.lastIndexOf('</body>');
+  return idx === -1 ? html + snippet : html.slice(0, idx) + snippet + '\n' + html.slice(idx);
+}
+// Đọc nội dung file trên GitHub; file > 1MB thì API "contents" không trả nội dung -> đọc qua "blobs"
+async function nightGhReadText(owner, repo, path, token, branch) {
+  const file = await ghGetFile(owner, repo, path, token, branch);
+  if (!file) return null;
+  let b64 = file.content || '';
+  if (!b64 && file.sha) {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/blobs/${file.sha}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!res.ok) throw new Error(`Không đọc được ${path} (file lớn): HTTP ${res.status}`);
+    b64 = (await res.json()).content || '';
+  }
+  return { text: b64ToUtf8(b64.replace(/\s/g, '')), sha: file.sha };
+}
+async function installProgressTrackerOnAll(paths, kind, owner, repo, token, branch, logFn, btn) {
+  if (!paths.length) return;
+  if (!confirm(`Gắn "theo dõi tiến độ tự luyện" vào ${paths.length} đề đã xuất bản?\n\nChỉ chèn thêm 1 đoạn script nhỏ cuối mỗi file, KHÔNG thay đổi nội dung đề. Đề nào đã có rồi sẽ tự bỏ qua.`)) return;
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Đang gắn...'; }
+  let done = 0, skipped = 0, failed = 0;
+  for (const path of paths) {
+    try {
+      const f = await nightGhReadText(owner, repo, path, token, branch);
+      if (!f) { logFn(`❌ Không tìm thấy ${path} — bỏ qua.`); failed++; continue; }
+      if (f.text.indexOf(NIGHT_TRACKER_MARK) !== -1) { logFn(`ℹ️ ${path} đã có sẵn — bỏ qua.`); skipped++; continue; }
+      if (f.text.indexOf('saveProgressRecord') === -1) { logFn(`⚠️ ${path} là bản engine quá cũ (không có hàm nộp bài quen thuộc) — bỏ qua, cần xuất bản lại đề này.`); failed++; continue; }
+      await ghPutFile(owner, repo, path, token, branch, addProgressTracker(f.text, kind), `Add progress tracker to ${path}`, f.sha);
+      logFn(`✅ Đã gắn: ${path}`); done++;
+    } catch (err) {
+      logFn(`❌ Lỗi ở ${path}: ${err.message}`); failed++;
+    }
+  }
+  logFn(`— Xong: gắn mới ${done}, đã có sẵn ${skipped}, lỗi/bỏ qua ${failed}. GitHub Pages cần 1–2 phút để cập nhật.`);
+  if (btn) { btn.disabled = false; btn.textContent = '📊 Gắn theo dõi tiến độ vào TẤT CẢ đề'; }
+}
+
 
         // =====================================================================
         // Xem trước (iframe srcdoc) — audio dùng blob: URL tạm từ audioFileHandle
@@ -2077,6 +2128,12 @@ VỀ ẢNH (đề dạng type=planlabel — Plan/Map/Diagram labelling — thư�
                 });
                 box.innerHTML = '';
                 if (rows.length === 0) { box.innerHTML = '<p class="hint">Manifest rỗng.</p>'; return; }
+                const trackerLog = el('pre', { class: 'hint', style: { whiteSpace: 'pre-wrap', maxHeight: '220px', overflow: 'auto', margin: '8px 0' } }, []);
+                box.appendChild(el('button', { type: 'button', class: 'btn btn-sm', onclick: (e) => {
+                    installProgressTrackerOnAll(rows.map(r => r.path).filter(Boolean), 'listening', owner, repo, token, branch,
+                        msg => { trackerLog.textContent += (trackerLog.textContent ? '\n' : '') + msg; trackerLog.scrollTop = trackerLog.scrollHeight; }, e.target);
+                } }, [`📊 Gắn theo dõi tiến độ vào TẤT CẢ đề (${rows.length})`]));
+                box.appendChild(trackerLog);
                 rows.forEach(info => {
                     box.appendChild(el('div', { class: 'card', style: { padding: '10px 14px', marginBottom: '8px' } }, [
                         el('div', { style: { fontWeight: '700' } }, [info.title || info.path]),
