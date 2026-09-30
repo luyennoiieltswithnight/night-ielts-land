@@ -2504,9 +2504,45 @@
             } catch (e) { console.warn('Không bù được lịch sử Speaking:', e); }
         }
 
+        // Bù dữ liệu 1 lần: đề Reading/Listening tự lưu sẵn lịch sử nộp bài NGAY TRÊN MÁY học sinh
+        // (localStorage "bseh_progress_history", tối đa 40 lần gần nhất) từ trước khi có bộ theo dõi
+        // tiến độ -> chép sang bảng. Lần nào bộ theo dõi mới đã ghi rồi (nightTrackedSigs) thì bỏ qua.
+        async function backfillLocalTestHistory(uid) {
+            const flag = 'nightTestBackfill_v1_' + uid;
+            let history = [], tracked = [];
+            try {
+                if (localStorage.getItem(flag)) return;
+                history = JSON.parse(localStorage.getItem('bseh_progress_history') || '[]');
+                tracked = JSON.parse(localStorage.getItem('nightTrackedSigs') || '[]');
+            } catch (e) { return; }
+            const trackedSet = new Set(tracked);
+            const minTime = Date.now() - 100 * 86400000;
+            const writes = [];
+            history.forEach((r, i) => {
+                const m = String(r.d || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (!m) return;
+                const at = new Date(+m[3], +m[2] - 1, +m[1], 12, 0, 0).getTime();
+                if (at < minTime) return;
+                const sig = r.d + '|' + r.u + '|' + r.s + '|' + r.n;
+                if (trackedSet.has(sig)) return;
+                const kind = /listen/i.test(r.t || '') ? 'listening' : (/read/i.test(r.t || '') ? 'reading' : null);
+                if (!kind) return;
+                let h = 0; const key = sig + '|' + i;
+                for (let k = 0; k < key.length; k++) h = (h * 31 + key.charCodeAt(k)) | 0;
+                writes.push(setDoc(doc(db, 'progressLog', uid + '_lh_' + (h >>> 0).toString(36)), {
+                    studentId: uid, title: r.t || 'Đề ' + kind, kind: kind, practice: true,
+                    resultText: r.s + '/' + r.n + ' câu đúng' + (r.b ? ' (Band ' + r.b + ')' : ''),
+                    completedAt: at, expiresAt: at + PROGRESS_LOG_TTL_MS
+                }).catch(() => {}));
+            });
+            await Promise.all(writes);
+            try { localStorage.setItem(flag, '1'); } catch (e) {}
+        }
+
         async function startStudentHome(uid) {
             try { await fetchStudentTasks(uid); } catch (e) { console.error(e); }
             await backfillSpeakingPractice(uid);
+            await backfillLocalTestHistory(uid);
             try {
                 const entries = await loadStudentProgressLog(uid);
                 if (window.__currentUid !== uid) return;
