@@ -2054,6 +2054,8 @@
             }).catch(e => console.error('Không gọi được dịch vụ gửi mail:', e));
         }
         window.notifyAssignmentEmails = notifyAssignmentEmails;
+        // Lưu link vào trình duyệt để các trang khác (speaking.html) gửi mail được mà không phải dán link lần 2
+        try { if (MAIL_WEBAPP_URL) localStorage.setItem('nightMailWebappUrl', MAIL_WEBAPP_URL); } catch (e) {}
 
         // Bài giao riêng cho học sinh tự động biến mất sau 20 ngày kể từ lúc giao
         const ASSIGNMENT_TTL_MS = 20 * 24 * 60 * 60 * 1000;
@@ -2117,8 +2119,11 @@
                 // Xác định hoàn thành hay chưa cho MỌI loại bài tập (gõ từ mới, chọn file
                 // có sẵn, game bắn từ, hay Writing) để tô màu đúng trạng thái ở dưới.
                 let isDone;
+                if (!data.title && data.packageTitle) data.title = data.packageTitle;
                 if (data.kind === 'writing') {
                     isDone = data.status === 'graded';
+                } else if (data.kind === 'speaking') {
+                    isDone = data.status === 'completed';
                 } else if (data.link) {
                     isDone = data.completed === true;
                 } else {
@@ -2131,7 +2136,12 @@
                 // lưu lại promptHtml/vocabList/gradedHtml đầy đủ, để tiết kiệm dung lượng).
                 if (isDone && !loggedIds.has(uid + '_' + docSnap.id)) {
                     let kindLabel, resultText;
-                    if (data.kind === 'writing') {
+                    let extra = {};
+                    if (data.kind === 'speaking') {
+                        kindLabel = 'speaking';
+                        resultText = 'Đã hoàn thành';
+                        extra = { summary: true }; // từng câu đã được speaking.html đếm riêng
+                    } else if (data.kind === 'writing') {
                         kindLabel = 'writing';
                         resultText = 'Đã được Thầy chấm và gửi lại';
                     } else if (data.kind === 'reading') {
@@ -2149,7 +2159,7 @@
                         resultText = total + '/' + total + ' từ đúng';
                     }
                     const doneAt = toMillis(data.completedAt) || toMillis(data.submittedAt) || toMillis(data.gradedAt) || toMillis(data.updatedAt) || null;
-                    logWrites.push(logProgressEntry(uid, docSnap.id, { title: data.title, kind: kindLabel, resultText: resultText }, doneAt));
+                    logWrites.push(logProgressEntry(uid, docSnap.id, Object.assign({ title: data.title, kind: kindLabel, resultText: resultText }, extra), doneAt));
                 }
                 // Bài Reading (kind: 'reading') VÀ Listening (kind: 'listening') đã tự mang sẵn
                 // ?assignmentId=&scope= trong chính data.link (do Studio ghép lúc giao bài) và tự
@@ -2160,6 +2170,8 @@
                 // đúng giao diện (viết bài / xem đã nộp / xem bài đã sửa) theo status hiện tại.
                 const openLink = data.kind === 'writing'
                     ? `writing.html?id=${docSnap.id}`
+                    : data.kind === 'speaking'
+                    ? `speaking.html?packageId=${data.packageId}&assignmentId=${docSnap.id}`
                     : ((data.kind === 'reading' || data.kind === 'listening') && data.link
                         ? data.link
                         : (data.link ? `assigned.html?id=${docSnap.id}` : `game.html?id=${docSnap.id}`));
