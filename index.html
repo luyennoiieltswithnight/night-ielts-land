@@ -2042,7 +2042,7 @@
         // triển khai file night-ielts-mailer.gs. Để trống = không gửi mail ngay lúc giao
         // (nhưng nếu đã cài trigger hằng giờ trong Apps Script thì mail vẫn đi trong vòng 1 giờ).
         // ==========================================
-        const MAIL_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwsYqBxEnJsLOx4yQNyqWHqOiV3yfNSTOXav5JV15YN3grkXYeQxxyAsLiO-8l8lyJLAw/exec';
+        const MAIL_WEBAPP_URL = '';
         function notifyAssignmentEmails(ids) {
             if (!MAIL_WEBAPP_URL || !ids || ids.length === 0) return;
             // text/plain + no-cors: không bị chặn CORS, không cần chờ phản hồi. Apps Script tự
@@ -2121,7 +2121,8 @@
                 let isDone;
                 if (!data.title && data.packageTitle) data.title = data.packageTitle;
                 if (data.kind === 'writing') {
-                    isDone = data.status === 'graded';
+                    // Writing giờ được AI chấm ngay khi nộp -> nộp là xong
+                    isDone = data.status === 'submitted' || data.status === 'graded';
                 } else if (data.kind === 'speaking') {
                     isDone = data.status === 'completed';
                 } else if (data.link) {
@@ -2143,7 +2144,7 @@
                         extra = { summary: true }; // từng câu đã được speaking.html đếm riêng
                     } else if (data.kind === 'writing') {
                         kindLabel = 'writing';
-                        resultText = 'Đã được Thầy chấm và gửi lại';
+                        resultText = data.ai && data.ai.overall ? 'Band ' + Number(data.ai.overall).toFixed(1) + ' (AI chấm)' : 'Đã nộp';
                     } else if (data.kind === 'reading') {
                         kindLabel = 'reading';
                         resultText = data.scoreText || 'Đã hoàn thành';
