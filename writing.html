@@ -120,6 +120,11 @@ button,input,select,textarea{font-family:inherit;}
 }
 .prompt{font-family:var(--serif);font-size:17px;line-height:1.75;color:var(--ink);}
 .prompt img{cursor:zoom-in;}
+/* Đề dán từ web khác hay mang theo font/cỡ chữ/màu riêng — ép về đúng font bài viết, kể cả đề đã lưu từ trước */
+.prompt *, .editor *, .g-essay *{font-family:inherit !important;font-size:inherit !important;line-height:inherit !important;}
+.prompt *:not(mark), .prompt-editor *:not(mark){color:inherit !important;background-color:transparent !important;}
+.prompt table{border-collapse:collapse;margin:8px 0;}
+.prompt td,.prompt th{border:1px solid var(--rule);padding:4px 10px;}
 .prompt img{max-width:100%;border-radius:10px;margin:10px 0;display:block;}
 .prompt p{margin:0 0 8px;}
 .band-pick{display:flex;gap:6px;flex-wrap:wrap;}
@@ -199,7 +204,7 @@ button,input,select,textarea{font-family:inherit;}
 .editor p,.editor div{margin:0;}
 .editor mark{background:#fff1a8;}
 .editor img{max-width:100%;border-radius:10px;display:block;margin:8px 0;}
-.prompt-editor{font-family:inherit;font-size:15px;border:1px solid #dfe5ef;border-radius:0 0 10px 10px;min-height:220px;padding:14px;}
+.prompt-editor{font-size:17px;border:1px solid #dfe5ef;border-radius:0 0 10px 10px;min-height:220px;padding:14px;}
 .editor-wrap{border:1px solid #dfe5ef;border-radius:10px;overflow:hidden;background:#fff;}
 .editor-wrap .toolbar{border-radius:0;}
 .submit-bar{padding:14px 20px;border-top:1px solid var(--rule);display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;}
@@ -448,7 +453,7 @@ details[open] > summary:before{content:'▾ ';}
       <!-- Kho đề -->
       <div id="tabBank" class="hidden sheet">
         <div class="sec">
-          <p class="sec-h">Thêm đề vào kho</p>
+          <p class="sec-h" id="tbFormTitle">Thêm đề vào kho</p>
           <div style="display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));">
             <div>
               <label class="label">Task</label>
@@ -458,6 +463,7 @@ details[open] > summary:before{content:'▾ ';}
               <label class="label" for="tbAddTitle">Tên đề (không bắt buộc)</label>
               <input id="tbAddTitle" class="input mb12" placeholder="Ví dụ: Dân số 3 thành phố 1990–2020">
               <button id="tbAddBtn" type="button" class="btn-primary" style="width:100%;" onclick="submitNewBankItem()">Lưu vào kho</button>
+              <button id="tbCancelEdit" type="button" class="btn hidden" style="width:100%;justify-content:center;margin-top:8px;" onclick="cancelBankEdit()">Huỷ sửa</button>
               <p class="muted mt8">Lưu đề không tự tạo gợi ý. Học sinh bấm "Gợi ý làm bài" lúc làm thì AI mới đọc đề (kể cả ảnh) và gợi ý theo band các em chọn.</p>
             </div>
             <div>
@@ -940,9 +946,37 @@ details[open] > summary:before{content:'▾ ';}
     compressImage(f, 1100).then(src => { insertHtml(document.getElementById(editorId), IMG_TAG(src)); input.value = ''; })
       .catch(e => { alert('Không chèn được ảnh: ' + e.message); input.value = ''; });
   };
+  // Làm sạch HTML của đề: chỉ giữ đậm/nghiêng/gạch chân, đoạn, danh sách, bảng, ảnh — bỏ hết
+  // font, cỡ chữ, màu, class của trang web gốc, để mọi đề hiện cùng 1 font với khung viết bài.
+  const KEEP_TAGS = { B: 'b', STRONG: 'b', I: 'i', EM: 'i', U: 'u', P: 'p', BR: 'br', DIV: 'p', UL: 'ul', OL: 'ol', LI: 'li', IMG: 'img',
+    TABLE: 'table', THEAD: 'thead', TBODY: 'tbody', TR: 'tr', TD: 'td', TH: 'th', H1: 'p', H2: 'p', H3: 'p', H4: 'p', BLOCKQUOTE: 'p' };
+  function cleanPromptHtml(html) {
+    const src = document.createElement('div'); src.innerHTML = String(html || '');
+    function walk(node, out) {
+      node.childNodes.forEach(ch => {
+        if (ch.nodeType === 3) { out.appendChild(document.createTextNode(ch.textContent)); return; }
+        if (ch.nodeType !== 1) return;
+        const tag = KEEP_TAGS[ch.tagName];
+        if (/^(SCRIPT|STYLE|META|LINK|TITLE)$/.test(ch.tagName)) return;
+        if (!tag) { walk(ch, out); return; } // span, font... -> bỏ thẻ, giữ chữ bên trong
+        const el = document.createElement(tag);
+        if (tag === 'img') {
+          const s = ch.getAttribute('src'); if (!s) return;
+          el.setAttribute('src', s); el.setAttribute('style', 'max-width:100%;border-radius:10px;margin:8px 0;display:block;');
+        } else if (/^(td|th)$/.test(tag)) {
+          ['colspan', 'rowspan'].forEach(a => { if (ch.getAttribute(a)) el.setAttribute(a, ch.getAttribute(a)); });
+        }
+        out.appendChild(el);
+        if (tag !== 'img' && tag !== 'br') walk(ch, el);
+      });
+    }
+    const out = document.createElement('div'); walk(src, out);
+    return out.innerHTML.replace(/<p>\s*<\/p>/g, '').trim();
+  }
   function attachPasteImage(el) {
     el.addEventListener('paste', e => {
-      const items = (e.clipboardData && e.clipboardData.items) || [];
+      const cd = e.clipboardData;
+      const items = (cd && cd.items) || [];
       for (let i = 0; i < items.length; i++) {
         if (items[i].type && items[i].type.indexOf('image/') === 0) {
           e.preventDefault();
@@ -951,6 +985,8 @@ details[open] > summary:before{content:'▾ ';}
           return;
         }
       }
+      const html = cd && cd.getData('text/html');
+      if (html) { e.preventDefault(); document.execCommand('insertHTML', false, cleanPromptHtml(html)); }
     });
   }
   attachPasteImage(document.getElementById('thPromptEditor'));
@@ -1781,7 +1817,7 @@ details[open] > summary:before{content:'▾ ';}
       if (!title) title = __thBankPicked.title || taskLabel(task);
     } else {
       const ed = document.getElementById('thPromptEditor');
-      promptHtml = stripScripts(ed.innerHTML).trim();
+      promptHtml = cleanPromptHtml(stripScripts(ed.innerHTML));
       if (!htmlToText(promptHtml) && promptHtml.indexOf('<img') === -1) { alert('Nhập đề bài.'); return; }
       type = document.getElementById('thSaveType').value || null;
     }
@@ -1883,21 +1919,51 @@ details[open] > summary:before{content:'▾ ';}
     loadBankList();
   };
   window.setTbFilterType = function (t) { __tbFType = t; loadBankList(); };
+  let __tbEditingId = null;      // đang sửa đề nào (null = thêm đề mới)
+  let __tbItemsCache = [];
   window.submitNewBankItem = async function () {
     const type = document.getElementById('tbAddType').value;
     const ed = document.getElementById('tbAddEditor');
-    const html = stripScripts(ed.innerHTML).trim();
+    const html = cleanPromptHtml(stripScripts(ed.innerHTML));
     if (!htmlToText(html) && html.indexOf('<img') === -1) { alert('Nhập nội dung đề.'); return; }
     if (html.length > 900000) { alert('Đề quá nặng, hãy dùng ảnh nhỏ hơn.'); return; }
     const btn = document.getElementById('tbAddBtn'); btn.disabled = true;
+    const title = document.getElementById('tbAddTitle').value.trim() || (taskLabel(__tbAddTask) + ' — ' + typeLabel(__tbAddTask, type));
     try {
-      await addDoc(collection(db, BANK), { task: __tbAddTask, type: type, title: document.getElementById('tbAddTitle').value.trim() || (taskLabel(__tbAddTask) + ' — ' + typeLabel(__tbAddTask, type)), promptHtml: html, createdAt: Date.now(), createdBy: __uid });
-      ed.innerHTML = ''; document.getElementById('tbAddTitle').value = '';
-      if (__tbFTask === __tbAddTask) loadBankList();
-      btn.textContent = 'Đã lưu'; setTimeout(() => { btn.textContent = 'Lưu vào kho'; }, 1400);
+      if (__tbEditingId) {
+        await updateDoc(doc(db, BANK, __tbEditingId), { task: __tbAddTask, type: type, title: title, promptHtml: html, updatedAt: Date.now() });
+      } else {
+        await addDoc(collection(db, BANK), { task: __tbAddTask, type: type, title: title, promptHtml: html, createdAt: Date.now(), createdBy: __uid });
+      }
+      const wasEditing = !!__tbEditingId;
+      cancelBankEdit();
+      if (__tbFTask !== __tbAddTask) setTbFilterTask(__tbAddTask); else loadBankList();
+      btn.textContent = wasEditing ? 'Đã lưu thay đổi' : 'Đã lưu'; setTimeout(() => { btn.textContent = 'Lưu vào kho'; }, 1400);
     } catch (e) { alert('Lỗi khi lưu: ' + e.message); }
     btn.disabled = false;
   };
+  // Bấm "Sửa" ở 1 đề: đưa đề đó lên khung phía trên để chỉnh tên, dạng, nội dung
+  window.editBankItem = function (id) {
+    const it = __tbItemsCache.find(x => x.id === id); if (!it) return;
+    __tbEditingId = id;
+    setTbAddTask(it.task || 'task1');
+    document.getElementById('tbAddType').value = it.type || '';
+    document.getElementById('tbAddTitle').value = it.title || '';
+    document.getElementById('tbAddEditor').innerHTML = cleanPromptHtml(it.promptHtml);
+    document.getElementById('tbFormTitle').textContent = 'Sửa đề';
+    document.getElementById('tbAddBtn').textContent = 'Lưu thay đổi';
+    document.getElementById('tbCancelEdit').classList.remove('hidden');
+    document.getElementById('tabBank').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  function cancelBankEdit() {
+    __tbEditingId = null;
+    document.getElementById('tbAddEditor').innerHTML = '';
+    document.getElementById('tbAddTitle').value = '';
+    document.getElementById('tbFormTitle').textContent = 'Thêm đề vào kho';
+    document.getElementById('tbAddBtn').textContent = 'Lưu vào kho';
+    document.getElementById('tbCancelEdit').classList.add('hidden');
+  }
+  window.cancelBankEdit = cancelBankEdit;
   async function loadBankList() {
     const box = document.getElementById('tbList');
     box.innerHTML = '<p class="empty">Đang tải...</p>';
@@ -1908,10 +1974,12 @@ details[open] > summary:before{content:'▾ ';}
     } catch (e) { box.innerHTML = '<p class="empty">Không tải được kho đề.</p>'; return; }
     if (__tbFType) items = items.filter(i => i.type === __tbFType);
     items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    __tbItemsCache = items;
     box.innerHTML = items.length ? items.map(i =>
       '<div class="list-row" style="cursor:default;align-items:flex-start;"><div class="grow"><div class="list-title">' + escapeHtml(i.title || 'Đề') + '</div><div class="list-sub">' + typeLabel(i.task, i.type) + ' · thêm ' + fmtDate(i.createdAt) + '</div>' +
       '<details class="mt8"><summary>Xem đề</summary><div class="prompt mt8">' + (i.promptHtml || '') + '</div></details></div>' +
-      '<button type="button" class="btn btn-danger" onclick="deleteBankItem(\'' + i.id + '\')" aria-label="Xoá đề"><i class="fa-regular fa-trash-can"></i></button></div>'
+      '<div class="row" style="flex-shrink:0;"><button type="button" class="btn" onclick="editBankItem(\'' + i.id + '\')"><i class="fa-regular fa-pen-to-square"></i> Sửa</button>' +
+      '<button type="button" class="btn btn-danger" onclick="deleteBankItem(\'' + i.id + '\')" aria-label="Xoá đề"><i class="fa-regular fa-trash-can"></i></button></div></div>'
     ).join('') : '<p class="empty">Chưa có đề nào trong mục này.</p>';
   }
   window.deleteBankItem = async function (id) {
