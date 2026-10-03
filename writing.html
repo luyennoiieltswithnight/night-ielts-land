@@ -323,6 +323,9 @@ body.full-work .shell{max-width:none;}
 .next-steps{margin:0;padding-left:20px;font-size:14.5px;line-height:1.7;color:var(--ink-2);}
 
 /* ---- Thanh nổi khi giáo viên bôi đen chữ để sửa thêm ---- */
+#annBar{position:fixed;display:none;align-items:center;gap:6px;background:#fff;border-radius:30px;padding:6px 10px;box-shadow:0 6px 18px rgba(30,37,50,.22);z-index:1000;border:1px solid var(--rule);}
+.ann-hl-y{background:#fff1a8;border-radius:2px;} .ann-hl-g{background:#cdeccf;border-radius:2px;} .ann-hl-p{background:#f8cbd4;border-radius:2px;}
+.ann-b{font-weight:700;color:var(--ink);} .ann-i{font-style:italic;} .ann-u{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
 #floatToolbar{position:fixed;display:none;align-items:center;gap:6px;background:#fff;border-radius:30px;padding:7px 11px;box-shadow:0 6px 18px rgba(30,37,50,.22);z-index:1000;border:1px solid var(--rule);}
 .annot-color{width:24px;height:24px;border-radius:7px;border:1px solid rgba(0,0,0,.12);cursor:pointer;padding:0;}
 .annot-divider{width:1px;height:20px;background:var(--rule);}
@@ -858,6 +861,17 @@ details[open] > summary:before{content:'▾ ';}
   <div class="prompt-drawer-body"><div id="drawerPrompt" class="prompt"></div></div>
 </div>
 
+<div id="annBar" role="toolbar" aria-label="Đánh dấu">
+  <button type="button" class="annot-color" style="background:#fff1a8" title="Tô vàng" data-a="hl-y"></button>
+  <button type="button" class="annot-color" style="background:#cdeccf" title="Tô xanh" data-a="hl-g"></button>
+  <button type="button" class="annot-color" style="background:#f8cbd4" title="Tô hồng" data-a="hl-p"></button>
+  <span class="annot-divider"></span>
+  <button type="button" class="annot-btn" title="In đậm" data-a="b">B</button>
+  <button type="button" class="annot-btn" title="In nghiêng" data-a="i"><i>I</i></button>
+  <button type="button" class="annot-btn" title="Gạch chân" data-a="u"><u>U</u></button>
+  <span class="annot-divider"></span>
+  <button type="button" class="annot-btn" title="Bỏ đánh dấu" data-a="clear"><i class="fa-solid fa-eraser"></i></button>
+</div>
 <div id="floatToolbar">
   <button type="button" class="annot-color" style="background:#fff1a8" title="Tô vàng" onclick="wrCmd('teacherEditor','hiliteColor','#fff1a8')"></button>
   <button type="button" class="annot-color" style="background:#c9dbf6" title="Tô xanh" onclick="wrCmd('teacherEditor','hiliteColor','#c9dbf6')"></button>
@@ -961,6 +975,103 @@ details[open] > summary:before{content:'▾ ';}
       document.body.appendChild(lb);
     }
   });
+  // ---- Đánh dấu khi đọc: bôi đen chữ trong đề / gợi ý / viết từng bước → tô màu, in đậm, nghiêng, gạch chân.
+  // Lưu trên máy theo đoạn chữ được chọn, nên chuyển tab hay mở lại trang vẫn còn.
+  const ANN_STORE = 'nightWrAnn';
+  function annLoad() { try { return JSON.parse(localStorage.getItem(ANN_STORE) || '{}'); } catch (e) { return {}; } }
+  function annSave(all) { try { localStorage.setItem(ANN_STORE, JSON.stringify(all)); } catch (e) {} }
+  function annTextNodes(root) {
+    const out = [];
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => n.parentElement && n.parentElement.closest('button,textarea,input,select,.use-btn') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+    let n, pos = 0;
+    while ((n = w.nextNode())) { out.push({ n: n, s: pos }); pos += n.data.length; }
+    return out;
+  }
+  function annWrap(root, start, end, cls) {
+    annTextNodes(root).forEach(({ n, s }) => {
+      const e = s + n.data.length;
+      if (e <= start || s >= end || !n.data.length) return;
+      let node = n;
+      const a = Math.max(0, start - s), b = Math.min(n.data.length, end - s);
+      if (b < node.data.length) node.splitText(b);
+      if (a > 0) node = node.splitText(a);
+      if (!node.data.trim() && node.parentNode && /^(UL|OL|TABLE|TBODY|TR)$/.test(node.parentNode.nodeName)) return;
+      const span = document.createElement('span'); span.className = 'ann ann-' + cls;
+      node.parentNode.insertBefore(span, node); span.appendChild(node);
+    });
+  }
+  function annUnwrapAll(root) {
+    root.querySelectorAll('span.ann').forEach(sp => { const p = sp.parentNode; while (sp.firstChild) p.insertBefore(sp.firstChild, sp); p.removeChild(sp); });
+    root.normalize();
+  }
+  function annApply(root) {
+    if (!root || !root.dataset.annKey) return;
+    const list = annLoad()[root.dataset.annKey] || [];
+    if (!list.length) return;
+    const text = annTextNodes(root).map(x => x.n.data).join('');
+    list.forEach(a => {
+      let idx = -1, from = 0;
+      for (let k = 0; k <= a.n; k++) { idx = text.indexOf(a.q, from); if (idx === -1) break; from = idx + 1; }
+      if (idx !== -1) annWrap(root, idx, idx + a.q.length, a.t);
+    });
+  }
+  function annSelInfo() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+    const r = sel.getRangeAt(0);
+    const root = (r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentElement).closest('[data-ann-key]');
+    if (!root) return null;
+    const nodes = annTextNodes(root).filter(x => r.intersectsNode(x.n));
+    if (!nodes.length) return null;
+    const f = nodes[0], l = nodes[nodes.length - 1];
+    const start = f.s + (f.n === r.startContainer ? r.startOffset : 0);
+    const end = l.s + (l.n === r.endContainer ? r.endOffset : l.n.data.length);
+    if (end <= start) return null;
+    return { root: root, start: start, end: end, range: r };
+  }
+  const annBar = document.getElementById('annBar');
+  let __annInfo = null;
+  function annHide() { annBar.style.display = 'none'; __annInfo = null; }
+  function annMaybeShow() {
+    const info = annSelInfo();
+    if (!info) { annHide(); return; }
+    __annInfo = info;
+    annBar.style.display = 'flex';
+    const rr = info.range.getBoundingClientRect();
+    const w = annBar.offsetWidth, h = annBar.offsetHeight;
+    let top = rr.top - h - 10; if (top < 8) top = rr.bottom + 10;
+    annBar.style.top = top + 'px';
+    annBar.style.left = Math.max(8, Math.min(rr.left + rr.width / 2 - w / 2, innerWidth - w - 8)) + 'px';
+  }
+  let __annT = null;
+  document.addEventListener('selectionchange', () => { clearTimeout(__annT); __annT = setTimeout(annMaybeShow, 180); });
+  document.addEventListener('scroll', () => { if (__annInfo) annMaybeShow(); }, true);
+  annBar.addEventListener('mousedown', e => e.preventDefault());  // giữ nguyên vùng đang bôi đen khi bấm nút
+  annBar.addEventListener('click', e => {
+    const btn = e.target.closest('[data-a]'); if (!btn || !__annInfo) return;
+    const { root, start, end } = __annInfo;
+    const key = root.dataset.annKey, act = btn.dataset.a;
+    const text = annTextNodes(root).map(x => x.n.data).join('');
+    const all = annLoad(); let list = all[key] || [];
+    // vị trí các đánh dấu cũ trong đoạn chữ hiện tại
+    const located = list.map(a => { let idx = -1, from = 0; for (let k = 0; k <= a.n; k++) { idx = text.indexOf(a.q, from); if (idx === -1) break; from = idx + 1; } return { a: a, s: idx, e: idx + a.q.length }; });
+    if (act === 'clear') {
+      list = located.filter(x => x.s === -1 || x.e <= start || x.s >= end).map(x => x.a);
+    } else {
+      const q = text.slice(start, end);
+      let n = 0, from = 0, idx;
+      while ((idx = text.indexOf(q, from)) !== -1 && idx < start) { n++; from = idx + 1; }
+      // bấm lại cùng kiểu trên đúng đoạn đó thì bỏ
+      const same = located.find(x => x.s === start && x.e === end && x.a.t === act);
+      if (same) list = list.filter(a => a !== same.a);
+      else { if (act.indexOf('hl-') === 0) list = located.filter(x => !(x.a.t.indexOf('hl-') === 0 && x.s < end && x.e > start)).map(x => x.a); list.push({ q: q, n: n, t: act }); }
+    }
+    if (list.length) all[key] = list; else delete all[key];
+    annSave(all);
+    annUnwrapAll(root); annApply(root);
+    window.getSelection().removeAllRanges(); annHide();
+  });
+
   // ---- Kéo chỉnh kích thước: thanh dọc giữa 2 cột, thanh ngang dưới phần đề (nhớ trên máy) ----
   // Lưu tỉ lệ, đổi ra pixel theo bề ngang hiện tại để thanh kéo luôn đi đúng theo con trỏ
   (function () {
@@ -1469,6 +1580,8 @@ details[open] > summary:before{content:'▾ ';}
       dl.textContent = (over ? 'Quá hạn ' : 'Hạn nộp ') + fmtDate(it.deadlineAt);
     } else dl.className = 'tag hidden';
     document.getElementById('wkPrompt').innerHTML = it.promptHtml || '';
+    document.getElementById('wkPrompt').dataset.annKey = 'p|' + hashStr(it.promptHtml || '');
+    annApply(document.getElementById('wkPrompt'));
     setDrawerPrompt(it.promptHtml);
     document.getElementById('wkPromptPane').classList.remove('collapsed');
     document.getElementById('wkPromptToggle').textContent = 'Thu gọn đề';
@@ -1561,7 +1674,10 @@ details[open] > summary:before{content:'▾ ';}
   window.renderGuideTab = function (t) {
     __guideTab = t;
     document.getElementById('wkGuideTabs').innerHTML = guideTabs().map(x => '<button type="button" class="' + (x[0] === t ? 'active' : '') + '" onclick="renderGuideTab(\'' + x[0] + '\')">' + x[1] + '</button>').join('');
-    document.getElementById('wkGuide').innerHTML = renderGuide(__guide, t);
+    const gEl = document.getElementById('wkGuide');
+    gEl.innerHTML = renderGuide(__guide, t);
+    gEl.dataset.annKey = 'g|' + guideKey() + '|' + t;
+    annApply(gEl);
     const sc = document.querySelector('#workView .left-col .scroll'); if (sc) sc.scrollTop = 0;
   };
 
@@ -1919,13 +2035,14 @@ details[open] > summary:before{content:'▾ ';}
     h += '</div>';
     if (doneCount && steps.every((st, i) => c.steps[i].done)) h += coachFinish(steps);
     document.getElementById('wkCoach').innerHTML = h;
+    document.querySelectorAll('#wkCoach [data-ann-key]').forEach(annApply);
   }
 
   function coachStepBody(st, s, i) {
     const prev = i > 0 ? __coach.steps[i - 1].result : null;
     const arr = x => Array.isArray(x) ? x : [];
     let h = '<p class="cs-ask">' + escapeHtml(st.ask) + '</p>';
-    h += '<div class="cs-guide">' + (st.lesson ? '<div class="cs-lesson">' + st.lesson + '</div>' : '') + '<p>' + escapeHtml(st.hint) + '</p>';
+    h += '<div class="cs-guide" data-ann-key="c|' + coachKey() + '|' + i + '|g">' + (st.lesson ? '<div class="cs-lesson">' + st.lesson + '</div>' : '') + '<p>' + escapeHtml(st.hint) + '</p>';
     if (prev && prev.nextGuide) h += '<p><b>Hướng dẫn cho bước này:</b> ' + escapeHtml(prev.nextGuide) + '</p>';
     if (prev && arr(prev.frames).length) h += '<p class="cs-lbl">Khung câu gợi ý</p>' + arr(prev.frames).map(f => '<p class="cs-frame">' + escapeHtml(f) + '</p>').join('');
     if (prev && arr(prev.vocabulary).length) h += '<p class="cs-lbl">Từ vựng nên dùng</p><div class="cs-vocab">' + arr(prev.vocabulary).map(v => '<span><b>' + escapeHtml(v.phrase) + '</b> ' + escapeHtml(v.meaning_vi || '') + '</span>').join('') + '</div>';
@@ -1937,7 +2054,7 @@ details[open] > summary:before{content:'▾ ';}
       (!s.result && !s.done ? '<button type="button" class="link-btn" style="font-size:13px;" onclick="coachSkip(' + i + ')">Bỏ qua bước này</button>' : '') + '</div>';
     const r = s.result;
     if (r) {
-      h += '<div class="cs-result">' +
+      h += '<div class="cs-result" data-ann-key="c|' + coachKey() + '|' + i + '|r|' + hashStr(JSON.stringify(r)) + '">' +
         '<div class="cs-meter"><span class="' + scoreClass(r.score) + '" style="width:' + r.score + '%"></span></div>' +
         '<p class="cs-verdict"><b class="' + scoreClass(r.score) + '">' + r.score + '%</b> ' + escapeHtml(r.verdict || '') + '</p>' +
         (r.feedback ? '<p>' + escapeHtml(r.feedback) + '</p>' : '') +
