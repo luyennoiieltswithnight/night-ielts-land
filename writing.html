@@ -117,7 +117,7 @@ button,input,select,textarea{font-family:inherit;}
 body.full-work .shell{max-width:none;}
 .splitter,.vsplit{display:none;}
 @media (min-width:1024px){
-  .work{grid-template-columns:minmax(340px,var(--lw,1fr)) 14px minmax(380px,var(--rw,1fr));gap:0;height:calc(100vh - 90px);}
+  .work{grid-template-columns:var(--lw,minmax(340px,1fr)) 14px minmax(380px,1fr);gap:0;height:calc(100vh - 90px);}
   .splitter{display:flex;align-items:center;justify-content:center;cursor:col-resize;touch-action:none;}
   .splitter:before{content:'';width:4px;height:44px;border-radius:999px;background:#d5dce8;transition:background .15s,height .15s;}
   .splitter:hover:before,.splitter.drag:before{background:var(--accent);height:72px;}
@@ -159,6 +159,16 @@ body.full-work .shell{max-width:none;}
 .bank-meta b{color:var(--good);font-weight:700;}
 @media (max-width:600px){ .bank-thumb{flex-basis:104px;height:92px;} .bank-excerpt{-webkit-line-clamp:4;font-size:15px;} }
 
+.tl-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:4px 4px 10px;border-bottom:1px solid var(--rule);min-height:42px;}
+.tl-row{display:flex;align-items:center;gap:6px;border-top:1px solid var(--rule);}
+.tl-row:first-child{border-top:0;}
+.tl-row .list-row{border-top:0;min-width:0;}
+.tl-row.sel{background:var(--accent-wash);border-radius:10px;}
+.tl-chk{padding:14px 4px 14px 6px;cursor:pointer;display:flex;}
+.tl-chk input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+.tl-del{background:none;border:0;color:var(--ink-3);padding:10px;border-radius:8px;cursor:pointer;opacity:.55;}
+.tl-row:hover .tl-del{opacity:1;}
+.tl-del:hover{color:var(--bad);background:#fdecec;}
 .bank-card.picked{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
 .bank-check{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:999px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;}
 .picked-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--accent-wash);border-radius:12px;padding:10px 14px;margin-bottom:16px;}
@@ -170,11 +180,13 @@ body.full-work .shell{max-width:none;}
 .left-col{display:flex;flex-direction:column;}
 .prompt-pane{padding:20px 26px 16px;border-bottom:1px solid var(--rule);background:#fff;}
 .prompt-pane{padding-top:14px !important;padding-bottom:8px !important;}
-.prompt-pane .prompt{max-height:var(--ph,26vh);overflow-y:auto;font-size:15px;line-height:1.6;}
-.prompt-pane .prompt img{width:auto;max-width:100%;max-height:calc(var(--ph,26vh) - 64px);min-height:80px;object-fit:contain;margin:6px 0;}
+.prompt-pane .prompt{max-height:26vh;overflow-y:auto;font-size:15px;line-height:1.6;}
+@media (min-width:1024px){ .prompt-pane.sized .prompt{max-height:none;height:var(--ph);} }
+.prompt-pane .prompt img{width:auto;max-width:100%;max-height:calc(26vh - 64px);min-height:60px;object-fit:contain;margin:6px 0;}
+@media (min-width:1024px){ .prompt-pane.sized .prompt img{max-height:calc(var(--ph) - 56px);} }
 @media (max-width:1023px){ .prompt-pane .prompt{max-height:none;} .prompt-pane .prompt img{max-height:260px;} }
 .prompt-pane.collapsed .vsplit{display:none;}
-.prompt-pane.collapsed .prompt{max-height:5.4em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent);}
+.prompt-pane.collapsed .prompt,.prompt-pane.sized.collapsed .prompt{height:auto;max-height:5.4em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent);}
 .prompt-pane-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .guide-head{padding:16px 26px 0;border-bottom:1px solid var(--rule);background:#fbfcfe;}
 .guide-tabs{display:flex;gap:2px;overflow-x:auto;margin-top:12px;}
@@ -621,6 +633,7 @@ details[open] > summary:before{content:'▾ ';}
             <button type="button" class="chip" data-f="pending" onclick="setTlFilter('pending')">Chưa nộp</button>
             <button type="button" class="chip" data-f="practice" onclick="setTlFilter('practice')">Tự luyện</button>
           </div>
+          <div id="tlBar" class="tl-bar"></div>
           <div id="tlList" class="list"></div>
         </div>
       </div>
@@ -766,6 +779,7 @@ details[open] > summary:before{content:'▾ ';}
             <span id="rsMeta" class="muted grow"></span>
             <button type="button" id="rsRewriteBtn" class="btn hidden" onclick="rewriteCurrent()">Viết lại đề này</button>
             <button type="button" id="rsTeacherRegrade" class="btn hidden" onclick="regradeCurrent()">Chấm lại bằng AI</button>
+            <button type="button" id="rsDeleteBtn" class="btn btn-danger hidden" onclick="__rs && deleteSubmissions([__rs.ref.id])" title="Xoá bài này"><i class="fa-regular fa-trash-can"></i> Xoá</button>
           </div>
         </div>
 
@@ -829,7 +843,7 @@ details[open] > summary:before{content:'▾ ';}
     <!-- ================= GIÁO VIÊN: HỌC SINH CHƯA NỘP ================= -->
     <div id="waitView" class="hidden narrow">
       <div class="sheet">
-        <div class="sec"><p id="waitMsg" style="margin:0;font-weight:600;"></p></div>
+        <div class="sec row"><p id="waitMsg" class="grow" style="margin:0;font-weight:600;"></p><button type="button" id="waitDelBtn" class="btn btn-danger"><i class="fa-regular fa-trash-can"></i> Xoá bài đã giao</button></div>
         <div class="sec"><div id="waitPrompt" class="prompt"></div></div>
       </div>
     </div>
@@ -859,7 +873,7 @@ details[open] > summary:before{content:'▾ ';}
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, getDocFromCache, setDoc, updateDoc, addDoc, deleteDoc, collection, query, where, getDocs, getDocsFromCache } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
   const app = initializeApp({
     apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
@@ -872,15 +886,39 @@ details[open] > summary:before{content:'▾ ';}
     measurementId: "G-H3P14NJR76"
   });
   const auth = getAuth(app);
-  const db = getFirestore(app);
+  // Lưu bản sao dữ liệu trên máy (IndexedDB): mở trang là hiện ngay từ bản lưu, rồi mới cập nhật từ máy chủ
+  let db;
+  try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
+  catch (e) { db = getFirestore(app); }
   const provider = new GoogleAuthProvider();
 
   const WRITING_TTL_MS = 180 * 24 * 60 * 60 * 1000;      // bài Writing tự xoá sau 6 tháng (như cũ)
   const PROGRESS_LOG_TTL_MS = 365 * 24 * 60 * 60 * 1000;  // giống index.html
   const BANK = 'writingTaskBank';
 
-  const params = new URLSearchParams(location.search);
-  const taskId = params.get('id');
+  function currentId() { return new URLSearchParams(location.search).get('id'); }
+  // Đăng nhập Google mất 0,5–2 giây mới xong: hiện dữ liệu đã lưu trên máy trước, chờ đăng nhập xong mới hỏi máy chủ
+  let __authResolve; const authReady = new Promise(r => { __authResolve = r; });
+  // Lấy danh sách: gọi onData 2 lần — lần 1 từ bản lưu trên máy (tức thì), lần 2 từ máy chủ (mới nhất)
+  async function swrDocs(q, onData) {
+    let shown = false;
+    try { const c = await getDocsFromCache(q); if (!c.empty) { onData(c, true); shown = true; } } catch (e) {}
+    await authReady;
+    try { const sn = await getDocs(q); onData(sn, false); }
+    catch (e) { if (!shown) throw e; console.warn('Không cập nhật được từ máy chủ:', e); }
+  }
+  const __docCache = {};   // id bài → dữ liệu, có sẵn từ danh sách nên bấm vào là mở ngay
+  const __bankCache = {};  // task → danh sách đề trong kho
+  function snapRows(snap) { const out = []; snap.forEach(d => out.push(Object.assign({ id: d.id }, d.data()))); return out; }
+  function getBank(task, onData) {
+    if (__bankCache[task]) onData(__bankCache[task], true);
+    return swrDocs(query(collection(db, BANK), where('task', '==', task)), (sn, fromCache) => {
+      const rows = snapRows(sn).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      const same = __bankCache[task] && JSON.stringify(__bankCache[task]) === JSON.stringify(rows);
+      __bankCache[task] = rows;
+      if (!same) onData(rows, fromCache);
+    });
+  }
 
   let __role = 'student';
   let __backHref = null;   // nút "Danh sách" quay về đâu (bài nộp / tự luyện của thầy / trang học sinh)
@@ -901,6 +939,7 @@ details[open] > summary:before{content:'▾ ';}
     fab.classList.toggle('only-mobile', id === 'workView'); // màn làm bài trên máy tính đã có đề ở cột trái
     closePromptDrawer();
     document.body.classList.toggle('full-work', id === 'workView');
+    if (id === 'workView' && window.__applyWorkSizes) requestAnimationFrame(window.__applyWorkSizes);
     window.scrollTo(0, 0);
   }
   // ---- Đề bài nổi: bấm nút là mở ra để so sánh, bấm Đóng / Esc / ra ngoài để tắt ----
@@ -923,28 +962,51 @@ details[open] > summary:before{content:'▾ ';}
     }
   });
   // ---- Kéo chỉnh kích thước: thanh dọc giữa 2 cột, thanh ngang dưới phần đề (nhớ trên máy) ----
+  // Lưu tỉ lệ, đổi ra pixel theo bề ngang hiện tại để thanh kéo luôn đi đúng theo con trỏ
   (function () {
     const work = document.getElementById('workView'), split = document.getElementById('wkSplit');
     const pane = document.getElementById('wkPromptPane'), vs = document.getElementById('wkVSplit');
-    function applyCol(f) { f = Math.min(.72, Math.max(.28, f)); work.style.setProperty('--lw', f + 'fr'); work.style.setProperty('--rw', (1 - f) + 'fr'); return f; }
-    function applyRow(px) { px = Math.min(innerHeight * .7, Math.max(110, px)); pane.style.setProperty('--ph', px + 'px'); return px; }
-    try { const f = parseFloat(localStorage.getItem('nightWrSplit')); if (f) applyCol(f); const h = parseFloat(localStorage.getItem('nightWrPromptH')); if (h) applyRow(h); } catch (e) {}
+    let colFrac = null, rowPx = null;
+    const wide = () => innerWidth >= 1024;
+    function applyCol() {
+      if (colFrac == null) { work.style.removeProperty('--lw'); return; }
+      const W = work.getBoundingClientRect().width || (innerWidth - 48);
+      const px = Math.round(Math.min(W - 14 - 380, Math.max(340, colFrac * W)));
+      work.style.setProperty('--lw', px + 'px');
+    }
+    function applyRow() {
+      if (rowPx == null) { pane.classList.remove('sized'); pane.style.removeProperty('--ph'); return; }
+      rowPx = Math.min(innerHeight * 0.75, Math.max(90, rowPx));
+      pane.classList.add('sized'); pane.style.setProperty('--ph', Math.round(rowPx) + 'px');
+    }
+    try { const f = parseFloat(localStorage.getItem('nightWrSplit')); if (f > 0 && f < 1) colFrac = f; const h = parseFloat(localStorage.getItem('nightWrPromptH')); if (h > 0) rowPx = h; } catch (e) {}
+    applyRow();
+    window.__applyWorkSizes = () => { if (wide()) applyCol(); };
+    window.addEventListener('resize', () => { if (wide()) applyCol(); });
     function drag(handle, kind, onMove, onEnd) {
       handle.addEventListener('pointerdown', e => {
-        e.preventDefault(); handle.setPointerCapture(e.pointerId);
+        if (e.button !== 0) return;
+        e.preventDefault();
+        try { handle.setPointerCapture(e.pointerId); } catch (er) {}
         handle.classList.add('drag'); document.body.classList.add('resizing', kind);
-        const mv = ev => onMove(ev), up = () => {
+        const mv = ev => { ev.preventDefault(); onMove(ev); };
+        const up = () => {
           handle.classList.remove('drag'); document.body.classList.remove('resizing', kind);
-          handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); onEnd();
+          handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up);
+          onEnd();
         };
         handle.addEventListener('pointermove', mv); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
       });
     }
-    let lastF = null, lastH = null;
-    drag(split, 'col', e => { const r = work.getBoundingClientRect(); lastF = applyCol((e.clientX - r.left) / r.width); }, () => { try { if (lastF) localStorage.setItem('nightWrSplit', lastF); } catch (er) {} });
-    split.addEventListener('dblclick', () => { work.style.removeProperty('--lw'); work.style.removeProperty('--rw'); try { localStorage.removeItem('nightWrSplit'); } catch (e) {} });
-    drag(vs, 'row', e => { const p = document.getElementById('wkPrompt').getBoundingClientRect(); lastH = applyRow(e.clientY - p.top); }, () => { try { if (lastH) localStorage.setItem('nightWrPromptH', lastH); } catch (er) {} });
-    vs.addEventListener('dblclick', () => { pane.style.removeProperty('--ph'); try { localStorage.removeItem('nightWrPromptH'); } catch (e) {} });
+    drag(split, 'col', e => {
+      const r = work.getBoundingClientRect();
+      colFrac = (e.clientX - r.left - 7) / r.width; applyCol();
+    }, () => { try { localStorage.setItem('nightWrSplit', colFrac); } catch (er) {} });
+    split.addEventListener('dblclick', () => { colFrac = null; applyCol(); try { localStorage.removeItem('nightWrSplit'); } catch (e) {} });
+    let startY = 0, startH = 0;
+    vs.addEventListener('pointerdown', e => { startY = e.clientY; startH = document.getElementById('wkPrompt').getBoundingClientRect().height; }, true);
+    drag(vs, 'row', e => { rowPx = startH + (e.clientY - startY); applyRow(); }, () => { try { localStorage.setItem('nightWrPromptH', rowPx); } catch (er) {} });
+    vs.addEventListener('dblclick', () => { rowPx = null; applyRow(); try { localStorage.removeItem('nightWrPromptH'); } catch (e) {} });
   })();
   window.togglePromptPane = function () {
     const pane = document.getElementById('wkPromptPane');
@@ -1267,28 +1329,39 @@ details[open] > summary:before{content:'▾ ';}
   // HỌC SINH: TRANG CHÍNH
   // ==========================================
   let __myDocs = [];
-  async function loadMyDocs(uid) {
-    const snap = await getDocs(query(collection(db, 'assignments'), where('studentId', '==', uid), where('kind', '==', 'writing')));
+  function keepAlive(rows) {
     const now = Date.now();
-    __myDocs = [];
-    snap.forEach(d => {
-      const a = d.data();
+    return rows.filter(a => {
       const exp = a.expiresAt || (a.createdAt ? a.createdAt + WRITING_TTL_MS : null);
-      if (exp && now > exp) { deleteDoc(doc(db, 'assignments', d.id)).catch(() => {}); return; }
-      __myDocs.push(Object.assign({ id: d.id }, a));
+      if (exp && now > exp) { deleteDoc(doc(db, 'assignments', a.id)).catch(() => {}); return false; }
+      __docCache[a.id] = a;
+      return true;
     });
-    __myDocs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   }
-  async function renderStudentHome(uid) {
-    setTitle('Writing');
-    await loadMyDocs(uid);
+  async function loadMyDocs(uid, onUpdate) {
+    await swrDocs(query(collection(db, 'assignments'), where('studentId', '==', uid), where('kind', '==', 'writing')), sn => {
+      __myDocs = keepAlive(snapRows(sn)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (onUpdate) onUpdate();
+    });
+  }
+  function paintStudentHome() {
     const assigned = __myDocs.filter(a => !a.selfPracticed);
     const practiced = __myDocs.filter(a => a.selfPracticed);
     document.getElementById('shAssignedWrap').classList.toggle('hidden', !assigned.length);
     document.getElementById('shAssigned').innerHTML = assigned.map(studentRow).join('');
     document.getElementById('shPracticed').innerHTML = practiced.length ? practiced.map(studentRow).join('') : '<p class="empty">Chưa có. Chọn 1 đề trong kho ở trên để bắt đầu.</p>';
+    if (__pbItems.length) renderPbList();
+  }
+  let __homeInited = false;
+  async function renderStudentHome(uid) {
+    setTitle('Writing');
+    document.getElementById('studentHomeView').prepend(document.getElementById('shAssignedWrap'));
+    const wrap = document.getElementById('studentHomeView');
+    if (document.getElementById('bankBrowser').parentNode !== wrap) wrap.insertBefore(document.getElementById('bankBrowser'), document.getElementById('shAssignedWrap').nextSibling);
+    paintStudentHome();
     showOnly('studentHomeView');
-    setPracticeTask(__pbTask);
+    if (!__homeInited) { __homeInited = true; setPracticeTask(__pbTask); }
+    try { await loadMyDocs(uid, () => { if (!currentId()) paintStudentHome(); }); } catch (e) {}
   }
   function statusTag(a) {
     if (a.status === 'graded') return '<span class="tag tag-green">Thầy đã sửa' + (a.ai ? ' · ' + fmtBand(a.ai.overall) : '') + '</span>';
@@ -1310,14 +1383,10 @@ details[open] > summary:before{content:'▾ ';}
     document.getElementById('pbT2').classList.toggle('active', task === 'task2');
     renderPbChips();
     const list = document.getElementById('pbList');
-    list.innerHTML = '<p class="empty">Đang tải...</p>';
+    if (!__bankCache[task]) list.innerHTML = '<p class="empty">Đang tải...</p>';
     try {
-      const snap = await getDocs(query(collection(db, BANK), where('task', '==', task)));
-      __pbItems = [];
-      snap.forEach(d => __pbItems.push(Object.assign({ id: d.id }, d.data())));
-      __pbItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    } catch (e) { list.innerHTML = '<p class="empty">Không tải được kho đề.</p>'; return; }
-    renderPbList();
+      await getBank(task, rows => { if (__pbTask !== task) return; __pbItems = rows; renderPbList(); });
+    } catch (e) { if (!__bankCache[task]) list.innerHTML = '<p class="empty">Không tải được kho đề.</p>'; }
   };
   function renderPbChips() {
     document.getElementById('pbChips').innerHTML = '<button type="button" class="chip' + (!__pbType ? ' active' : '') + '" onclick="setPracticeType(\'\')">Tất cả</button>' +
@@ -1348,11 +1417,18 @@ details[open] > summary:before{content:'▾ ';}
       '<span class="bank-excerpt">' + escapeHtml(excerpt) + '</span>' +
       '<span class="bank-meta" style="display:block;">' + metaHtml + '</span></span></button>';
   }
-  window.openPracticeItem = function (id) {
-    const it = __pbItems.find(x => x.id === id);
-    if (!it) return;
+  window.openPracticeItem = function (id) { navigate('writing.html?practice=' + id); };
+  function bankItemById(id) { for (const k in __bankCache) { const f = __bankCache[k].find(x => x.id === id); if (f) return f; } return __pbItems.find(x => x.id === id) || null; }
+  async function openPracticeById(id, seq) {
+    let it = bankItemById(id);
+    if (!it) {
+      showOnly('loadingBox');
+      try { let sn; try { sn = await getDocFromCache(doc(db, BANK, id)); } catch (e) { await authReady; sn = await getDoc(doc(db, BANK, id)); } if (sn.exists()) it = Object.assign({ id: id }, sn.data()); } catch (e) {}
+      if (seq !== __routeSeq) return;
+      if (!it) { showError('Đề này không còn trong kho.'); return; }
+    }
     openWork({ mode: 'practice', item: { title: it.title, promptHtml: it.promptHtml, task: it.task, type: it.type, sourceBankId: it.id } });
-  };
+  }
 
   // ==========================================
   // MÀN LÀM BÀI
@@ -2003,15 +2079,21 @@ details[open] > summary:before{content:'▾ ';}
     }
     // Bài đã lưu + đã gửi về cho Thầy. Giờ chấm AI (lỗi thì vẫn xem được, bấm chấm lại sau).
     history.replaceState(null, '', 'writing.html?id=' + ref.id);
+    __docCache[ref.id] = Object.assign({ id: ref.id }, data);
+    if (__work.mode === 'practice') __myDocs.unshift(__docCache[ref.id]);
+    __gradingIds.add(ref.id);
     try {
-      await runAiGrading(ref, data, s => { om.textContent = s; });
+      await runAiGrading(ref, data, s => { om.textContent = s; if (currentId() === ref.id && __rs && __rs.ref.id === ref.id) showGradingMsg(s); });
     } catch (e) {
       data.aiStatus = 'error'; data.aiError = e.message;
       updateDoc(ref, { aiStatus: 'error', aiError: String(e.message).slice(0, 300) }).catch(() => {});
     }
+    __gradingIds.delete(ref.id);
+    Object.assign(__docCache[ref.id], data);
+    const m = __myDocs.find(x => x.id === ref.id); if (m) Object.assign(m, data);
     logProgress(ref.id, data);
     overlay.classList.add('hidden');
-    renderResult(ref, data);
+    if (currentId() === ref.id) renderResult(ref, data);
   };
 
   // Ghi vào bảng "Hoạt động 3 tháng" ở trang chủ (cùng id trang chủ dùng nên không bị đếm trùng)
@@ -2300,7 +2382,8 @@ details[open] > summary:before{content:'▾ ';}
   const CRIT_NAME = (task) => ({ ta: task === 'task1' ? 'Task Achievement' : 'Task Response', cc: 'Coherence & Cohesion', lr: 'Lexical Resource', gra: 'Grammatical Range & Accuracy' });
   let __rs = null; // { ref, data, text, placed, filter, showBetter, view }
 
-  function renderResult(ref, data) {
+  const __gradingIds = new Set();  // bài đang được AI chấm (rời màn hình rồi quay lại không chấm trùng)
+  function renderResult(ref, data, opts) {
     const task = data.task || guessTask(data.promptHtml);
     const names = CRIT_NAME(task);
     setTitle(data.title || 'Writing');
@@ -2382,8 +2465,22 @@ details[open] > summary:before{content:'▾ ';}
     setDrawerPrompt(data.promptHtml);
     showOnly('resultView');
 
+    document.getElementById('rsDeleteBtn').classList.toggle('hidden', __role !== 'admin');
+    if (__gradingIds.has(ref.id)) showGradingMsg('Đang chấm...');
+    if (!(opts && opts.noAuto)) resultAuto();
+  }
+  function resultAuto() {
+    if (!__rs) return;
+    const data = __rs.data, ai = data.ai, isOwn = data.studentId === __uid;
+    if (__gradingIds.has(__rs.ref.id)) return;
     if (!ai && data.aiStatus !== 'error' && getGroqConfig().apiKey && isOwn) regradeCurrent();
     else if (ai && !ai.upgrade && ai.moderated && isOwn && getGroqConfig().apiKey) startUpgrade();
+  }
+  function showGradingMsg(s) {
+    document.getElementById('rsNoAi').classList.remove('hidden');
+    document.getElementById('rsAiArea').classList.add('hidden');
+    document.getElementById('rsNoAiMsg').innerHTML = '<span class="loading-line" style="padding:0;"><span class="spin"></span>' + escapeHtml(s) + ' (khoảng 30–60 giây)</span>';
+    [document.getElementById('rsRegradeBtn'), document.getElementById('rsTeacherRegrade')].forEach(b => { b.disabled = true; });
   }
   function critExtra(c, k) {
     let h = '';
@@ -2587,27 +2684,30 @@ details[open] > summary:before{content:'▾ ';}
   window.regradeCurrent = async function () {
     if (!__rs) return;
     if (!getGroqConfig().apiKey) { openGroqSettingsModal(); return; }
-    const btns = [document.getElementById('rsRegradeBtn'), document.getElementById('rsTeacherRegrade')];
-    btns.forEach(b => { b.disabled = true; });
-    const msg = document.getElementById('rsNoAiMsg');
-    document.getElementById('rsNoAi').classList.remove('hidden');
-    document.getElementById('rsAiArea').classList.add('hidden');
+    const rs = __rs, id = rs.ref.id;
+    if (__gradingIds.has(id)) return;
+    __gradingIds.add(id); rs.grading = true;
+    const here = () => __rs && __rs.ref.id === id && currentId() === id;
+    showGradingMsg('Đang chấm...');
     try {
-      await runAiGrading(__rs.ref, __rs.data, s => { msg.innerHTML = '<span class="loading-line" style="padding:0;"><span class="spin"></span>' + escapeHtml(s) + ' (khoảng 30–60 giây)</span>'; });
-      logProgress(__rs.ref.id, __rs.data);
+      await runAiGrading(rs.ref, rs.data, s => { if (here()) showGradingMsg(s); });
+      logProgress(id, rs.data);
     } catch (e) {
-      __rs.data.aiStatus = 'error'; __rs.data.aiError = e.message;
-      updateDoc(__rs.ref, { aiStatus: 'error', aiError: String(e.message).slice(0, 300) }).catch(() => {});
+      rs.data.aiStatus = 'error'; rs.data.aiError = e.message;
+      updateDoc(rs.ref, { aiStatus: 'error', aiError: String(e.message).slice(0, 300) }).catch(() => {});
     }
-    btns.forEach(b => { b.disabled = false; });
-    renderResult(__rs.ref, __rs.data);
+    __gradingIds.delete(id); rs.grading = false;
+    __docCache[id] = Object.assign({ id: id }, rs.data);
+    [document.getElementById('rsRegradeBtn'), document.getElementById('rsTeacherRegrade')].forEach(b => { b.disabled = false; });
+    if (here()) renderResult(rs.ref, rs.data);
   };
 
   window.rewriteCurrent = function () {
     if (!__rs) return;
     const d = __rs.data;
+    if (d.sourceBankId && bankItemById(d.sourceBankId)) { navigate('writing.html?practice=' + d.sourceBankId); return; }
+    history.pushState(null, '', 'writing.html');
     openWork({ mode: 'practice', item: { title: d.title, promptHtml: d.promptHtml, task: __rs.task, type: d.type || d.sourceType || null, sourceBankId: d.sourceBankId || null } });
-    history.replaceState(null, '', 'writing.html');
   };
 
   window.sendTeacherEdit = async function () {
@@ -2630,6 +2730,7 @@ details[open] > summary:before{content:'▾ ';}
   let __thBankTask = 'task1', __thBankType = '', __thBankItems = [], __thBankPicked = null;
 
   window.switchTeacherTab = function (t) {
+    __hubTab = t;
     ['compose', 'list', 'bank', 'practice'].forEach(k => {
       document.getElementById('tab' + k[0].toUpperCase() + k.slice(1)).classList.toggle('hidden', k !== t);
       document.getElementById('tab' + k[0].toUpperCase() + k.slice(1) + 'Btn').classList.toggle('active', k === t);
@@ -2671,13 +2772,10 @@ details[open] > summary:before{content:'▾ ';}
     __thBankTask = t; __thBankType = '';
     document.getElementById('thBankT1').classList.toggle('active', t === 'task1');
     document.getElementById('thBankT2').classList.toggle('active', t === 'task2');
-    document.getElementById('thBankGrid').innerHTML = '<p class="empty">Đang tải kho đề...</p>';
+    if (!__bankCache[t]) document.getElementById('thBankGrid').innerHTML = '<p class="empty">Đang tải kho đề...</p>';
     try {
-      const snap = await getDocs(query(collection(db, BANK), where('task', '==', t)));
-      __thBankItems = []; snap.forEach(d => __thBankItems.push(Object.assign({ id: d.id }, d.data())));
-      __thBankItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    } catch (e) { __thBankItems = []; }
-    renderThBankOptions();
+      await getBank(t, rows => { if (__thBankTask !== t) return; __thBankItems = rows; renderThBankOptions(); });
+    } catch (e) { if (!__bankCache[t]) { __thBankItems = []; renderThBankOptions(); } }
   };
   window.setThBankType = function (t) { __thBankType = t; renderThBankOptions(); };
   function renderThBankOptions() {
@@ -2714,19 +2812,24 @@ details[open] > summary:before{content:'▾ ';}
 
   async function loadTeacherComposeData() {
     const ss = document.getElementById('thStudentSelect'), cs = document.getElementById('thClassSelect');
-    try {
-      const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
-      const rows = []; snap.forEach(d => rows.push({ id: d.id, name: d.data().name || '', email: d.data().email || '' }));
+    const p1 = swrDocs(query(collection(db, 'users'), where('role', '==', 'student')), snap => {
+      const rows = []; snap.forEach(d => { rows.push({ id: d.id, name: d.data().name || '', email: d.data().email || '' }); if (d.data().name) __names[d.id] = d.data().name; });
+      saveNames();
       rows.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+      const keep = ss.value;
       ss.innerHTML = '<option value="">Chọn học sinh</option>' + rows.map(r => '<option value="' + r.id + '">' + escapeHtml(r.name) + ' (' + escapeHtml(r.email) + ')</option>').join('');
-    } catch (e) { ss.innerHTML = '<option value="">Lỗi tải danh sách</option>'; }
-    try {
-      const snap = await getDocs(collection(db, 'classes'));
+      if (keep) ss.value = keep;
+      if (__tlItems.length) { __tlItems.forEach(a => { if (__names[a.studentId]) a.__name = __names[a.studentId]; }); renderTeacherList(); }
+    }).catch(() => { ss.innerHTML = '<option value="">Lỗi tải danh sách</option>'; });
+    const p2 = swrDocs(collection(db, 'classes'), snap => {
       const rows = []; __thClasses = {};
       snap.forEach(d => { const c = d.data(); __thClasses[d.id] = c.studentIds || []; rows.push({ id: d.id, name: c.name || 'Lớp', n: (c.studentIds || []).length }); });
       rows.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+      const keep = cs.value;
       cs.innerHTML = rows.length ? '<option value="">Chọn lớp</option>' + rows.map(c => '<option value="' + c.id + '">' + escapeHtml(c.name) + ' (' + c.n + ' học sinh)</option>').join('') : '<option value="">Chưa có lớp nào</option>';
-    } catch (e) { cs.innerHTML = '<option value="">Lỗi tải danh sách</option>'; }
+      if (keep) cs.value = keep;
+    }).catch(() => { cs.innerHTML = '<option value="">Lỗi tải danh sách</option>'; });
+    await Promise.all([p1, p2]);
   }
 
   window.submitNewWritingTask = async function () {
@@ -2782,31 +2885,52 @@ details[open] > summary:before{content:'▾ ';}
   // ---- Bài nộp ----
   let __tlItems = [], __tlFilter = 'all';
   const __names = {};
+  try { Object.assign(__names, JSON.parse(localStorage.getItem('nightWrNames') || '{}')); } catch (e) {}
+  function saveNames() { try { localStorage.setItem('nightWrNames', JSON.stringify(__names)); } catch (e) {} }
   async function nameOf(uid) {
     if (__names[uid]) return __names[uid];
-    try { const s = await getDoc(doc(db, 'users', uid)); __names[uid] = s.exists() ? (s.data().name || uid) : uid; } catch (e) { __names[uid] = uid; }
+    await authReady;
+    try { const s = await getDoc(doc(db, 'users', uid)); __names[uid] = s.exists() ? (s.data().name || uid) : uid; saveNames(); } catch (e) { return uid; }
     return __names[uid];
   }
   async function loadTeacherList() {
     const box = document.getElementById('tlList');
-    box.innerHTML = '<p class="empty">Đang tải...</p>';
-    const now = Date.now();
+    if (!__tlItems.length) box.innerHTML = '<p class="empty">Đang tải...</p>';
     try {
-      const snap = await getDocs(query(collection(db, 'assignments'), where('kind', '==', 'writing')));
-      __tlItems = [];
-      snap.forEach(d => {
-        const a = d.data();
-        const exp = a.expiresAt || (a.createdAt ? a.createdAt + WRITING_TTL_MS : null);
-        if (exp && now > exp) { deleteDoc(doc(db, 'assignments', d.id)).catch(() => {}); return; }
-        if (a.studentId === __uid) return; // bài thầy tự luyện nằm ở tab Tự luyện
-        __tlItems.push(Object.assign({ id: d.id }, a));
+      await swrDocs(query(collection(db, 'assignments'), where('kind', '==', 'writing')), sn => {
+        __tlItems = keepAlive(snapRows(sn)).filter(a => a.studentId !== __uid); // bài thầy tự luyện nằm ở tab Tự luyện
+        __tlItems.forEach(a => { a.__name = __names[a.studentId] || 'Học sinh'; });
+        const newCount = __tlItems.filter(a => a.status === 'submitted' && a.teacherSeenSubmission === false).length;
+        const c = document.getElementById('tabListCount'); c.textContent = newCount; c.classList.toggle('hidden', !newCount);
+        renderTeacherList();
+        const missing = [...new Set(__tlItems.filter(a => !__names[a.studentId]).map(a => a.studentId))];
+        if (missing.length) Promise.all(missing.map(nameOf)).then(() => { __tlItems.forEach(a => { a.__name = __names[a.studentId] || a.__name; }); renderTeacherList(); });
       });
-    } catch (e) { box.innerHTML = '<p class="empty">Không tải được danh sách.</p>'; return; }
-    await Promise.all(__tlItems.map(a => nameOf(a.studentId).then(n => { a.__name = n; })));
-    const newCount = __tlItems.filter(a => a.status === 'submitted' && a.teacherSeenSubmission === false).length;
-    const c = document.getElementById('tabListCount'); c.textContent = newCount; c.classList.toggle('hidden', !newCount);
-    renderTeacherList();
+    } catch (e) { if (!__tlItems.length) box.innerHTML = '<p class="empty">Không tải được danh sách.</p>'; }
   }
+  // ---- Chọn nhiều bài để xoá ----
+  const __tlSel = new Set();
+  window.tlToggle = function (id, on) { if (on) __tlSel.add(id); else __tlSel.delete(id); renderTlBar(); };
+  window.tlToggleAll = function (on) {
+    document.querySelectorAll('#tlList .tl-chk input').forEach(c => { c.checked = on; if (on) __tlSel.add(c.value); else __tlSel.delete(c.value); });
+    renderTlBar();
+  };
+  function renderTlBar() {
+    const n = __tlSel.size, bar = document.getElementById('tlBar');
+    bar.innerHTML = '<label class="row small" style="cursor:pointer;color:var(--ink-2);gap:8px;"><input type="checkbox" ' + (n && n === document.querySelectorAll('#tlList .tl-chk input').length ? 'checked' : '') + ' onchange="tlToggleAll(this.checked)" style="width:16px;height:16px;accent-color:var(--accent);"> Chọn tất cả</label><span class="grow"></span>' +
+      (n ? '<button type="button" class="btn btn-danger" onclick="deleteSubmissions([...__tlSelArr()])"><i class="fa-regular fa-trash-can"></i> Xoá ' + n + ' bài đã chọn</button>' : '<span class="muted">Tích ô bên trái để chọn bài cần xoá</span>');
+  }
+  window.__tlSelArr = () => Array.from(__tlSel);
+  window.deleteSubmissions = async function (ids) {
+    ids = (ids || []).filter(Boolean); if (!ids.length) return;
+    if (!confirm('Xoá vĩnh viễn ' + (ids.length === 1 ? 'bài này' : ids.length + ' bài') + ' (cả bài viết, điểm AI và phần Thầy sửa)? Không khôi phục được.')) return;
+    const res = await Promise.allSettled(ids.map(id => deleteDoc(doc(db, 'assignments', id))));
+    const failed = res.filter(r => r.status === 'rejected');
+    ids.forEach((id, i) => { if (res[i].status === 'fulfilled') { __tlSel.delete(id); delete __docCache[id]; __tlItems = __tlItems.filter(a => a.id !== id); __myDocs = __myDocs.filter(a => a.id !== id); } });
+    if (failed.length) alert('Không xoá được ' + failed.length + ' bài: ' + failed[0].reason.message + (/permission/i.test(failed[0].reason.message) ? '\n(Firestore Rules chưa cho tài khoản thầy xoá bài trong "assignments".)' : ''));
+    if (currentId() && ids.indexOf(currentId()) !== -1 && res[ids.indexOf(currentId())].status === 'fulfilled') { navigate(__backHref || 'writing.html?view=list'); return; }
+    renderTeacherList();
+  };
   window.setTlFilter = function (f) {
     __tlFilter = f;
     document.querySelectorAll('#tlFilters .chip').forEach(b => b.classList.toggle('active', b.dataset.f === f));
@@ -2825,9 +2949,14 @@ details[open] > summary:before{content:'▾ ';}
       if (a.status === 'assigned') tag = '<span class="tag">Chưa nộp</span>';
       else if (a.status === 'graded') tag = '<span class="tag tag-green">Đã sửa' + (a.ai ? ' · ' + fmtBand(a.ai.overall) : '') + '</span>';
       else tag = '<span class="tag ' + (isNew ? 'tag-blue' : '') + '">' + (isNew ? 'Mới · ' : '') + (a.ai ? 'AI ' + fmtBand(a.ai.overall) : 'Chưa chấm AI') + '</span>';
-      return '<a class="list-row" href="writing.html?id=' + a.id + '"><div class="grow"><div class="list-title">' + escapeHtml(a.__name) + ' — ' + escapeHtml(a.title || 'Writing') + '</div>' +
-        '<div class="list-sub">' + taskLabel(a.task || guessTask(a.promptHtml)) + (a.selfPracticed ? ' · tự luyện' : '') + (a.submittedAt ? ' · nộp ' + fmtDate(a.submittedAt) : ' · giao ' + fmtDate(a.createdAt)) + (a.wordCount ? ' · ' + a.wordCount + ' từ' : '') + '</div></div>' + tag + '</a>';
+      return '<div class="tl-row' + (__tlSel.has(a.id) ? ' sel' : '') + '"><label class="tl-chk"><input type="checkbox" value="' + a.id + '"' + (__tlSel.has(a.id) ? ' checked' : '') + ' onchange="tlToggle(this.value, this.checked); this.closest(\'.tl-row\').classList.toggle(\'sel\', this.checked)" aria-label="Chọn bài"></label>' +
+        '<a class="list-row grow" href="writing.html?id=' + a.id + '"><div class="grow"><div class="list-title">' + escapeHtml(a.__name) + ' — ' + escapeHtml(a.title || 'Writing') + '</div>' +
+        '<div class="list-sub">' + taskLabel(a.task || guessTask(a.promptHtml)) + (a.selfPracticed ? ' · tự luyện' : '') + (a.submittedAt ? ' · nộp ' + fmtDate(a.submittedAt) : ' · giao ' + fmtDate(a.createdAt)) + (a.wordCount ? ' · ' + a.wordCount + ' từ' : '') + '</div></div>' + tag + '</a>' +
+        '<button type="button" class="tl-del" title="Xoá bài này" aria-label="Xoá bài này" onclick="deleteSubmissions([\'' + a.id + '\'])"><i class="fa-regular fa-trash-can"></i></button></div>';
     }).join('') : '<p class="empty">Không có bài nào.</p>';
+    // bỏ chọn những bài không còn trong danh sách đang lọc
+    const vis = new Set(items.map(a => a.id)); Array.from(__tlSel).forEach(id => { if (!vis.has(id)) __tlSel.delete(id); });
+    renderTlBar();
   }
 
   // ---- Kho đề ----
@@ -2898,18 +3027,25 @@ details[open] > summary:before{content:'▾ ';}
   window.cancelBankEdit = cancelBankEdit;
   async function loadBankList() {
     const box = document.getElementById('tbList');
-    box.innerHTML = '<p class="empty">Đang tải...</p>';
-    let items = [];
-    try {
-      const snap = await getDocs(query(collection(db, BANK), where('task', '==', __tbFTask)));
-      snap.forEach(d => items.push(Object.assign({ id: d.id }, d.data())));
-    } catch (e) { box.innerHTML = '<p class="empty">Không tải được kho đề.</p>'; return; }
+    const task = __tbFTask;
+    if (!__bankCache[task]) box.innerHTML = '<p class="empty">Đang tải...</p>';
+    try { await getBank(task, rows => { if (__tbFTask === task) paintBankList(rows); }); }
+    catch (e) { if (!__bankCache[task]) box.innerHTML = '<p class="empty">Không tải được kho đề.</p>'; }
+  }
+  // Nội dung đề (có ảnh) chỉ dựng khi bấm "Xem đề" cho nhẹ trang
+  window.fillBankPreview = function (det, id) {
+    if (!det.open || det.dataset.done) return;
+    const it = __tbItemsCache.find(x => x.id === id); if (!it) return;
+    det.querySelector('.prompt').innerHTML = it.promptHtml || ''; det.dataset.done = '1';
+  };
+  function paintBankList(rows) {
+    const box = document.getElementById('tbList');
+    let items = rows.slice();
     if (__tbFType) items = items.filter(i => i.type === __tbFType);
-    items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     __tbItemsCache = items;
     box.innerHTML = items.length ? items.map(i =>
       '<div class="list-row" style="cursor:default;align-items:flex-start;"><div class="grow"><div class="list-title">' + escapeHtml(i.title || 'Đề') + '</div><div class="list-sub">' + typeLabel(i.task, i.type) + ' · thêm ' + fmtDate(i.createdAt) + '</div>' +
-      '<details class="mt8"><summary>Xem đề</summary><div class="prompt mt8">' + (i.promptHtml || '') + '</div></details></div>' +
+      '<details class="mt8" ontoggle="fillBankPreview(this, \'' + i.id + '\')"><summary>Xem đề</summary><div class="prompt mt8"></div></details></div>' +
       '<div class="row" style="flex-shrink:0;"><button type="button" class="btn" onclick="editBankItem(\'' + i.id + '\')"><i class="fa-regular fa-pen-to-square"></i> Sửa</button>' +
       '<button type="button" class="btn btn-danger" onclick="deleteBankItem(\'' + i.id + '\')" aria-label="Xoá đề"><i class="fa-regular fa-trash-can"></i></button></div></div>'
     ).join('') : '<p class="empty">Chưa có đề nào trong mục này.</p>';
@@ -2919,60 +3055,120 @@ details[open] > summary:before{content:'▾ ';}
     try { await deleteDoc(doc(db, BANK, id)); loadBankList(); } catch (e) { alert('Lỗi khi xoá: ' + e.message); }
   };
 
-  async function enterTeacherHub() {
+  let __hubInited = false, __hubTab = 'compose';
+  async function enterTeacherHub(v) {
     setTitle('Writing — Quản lý');
     showOnly('teacherView');
-    setThTask('task2'); setThTarget('single'); setThSource('bank');
-    const v = params.get('view');
-    switchTeacherTab(v === 'list' ? 'list' : v === 'bank' ? 'bank' : v === 'practice' ? 'practice' : 'compose');
+    const first = !__hubInited;
+    if (first) { __hubInited = true; setThTask('task2'); setThTarget('single'); setThSource('bank'); }
+    if (v) __hubTab = v === 'list' ? 'list' : v === 'bank' ? 'bank' : v === 'practice' ? 'practice' : 'compose';
+    switchTeacherTab(__hubTab);
     history.replaceState(null, '', location.pathname);
-    await loadTeacherComposeData();
-    if (v !== 'list') loadTeacherList();
+    if (first) loadTeacherComposeData();
+    if (__hubTab !== 'list') loadTeacherList();
   }
 
   // ==========================================
   // KHỞI ĐỘNG
   // ==========================================
+  // ---- Mở bài ngay trong trang (không tải lại trang, không đăng nhập lại) ----
+  function navigate(url) {
+    const u = new URL(url, location.href);
+    history.pushState(null, '', u.pathname + u.search);
+    route();
+  }
+  window.navigate = navigate;
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target) return;
+    const u = new URL(a.getAttribute('href'), location.href);
+    if (u.origin !== location.origin || u.pathname !== location.pathname) return;  // trang khác (trang chủ...) thì đi bình thường
+    e.preventDefault();
+    navigate(u.href);
+  });
+  window.addEventListener('popstate', () => route());
+
+  let __routeSeq = 0;
+  async function route() {
+    const seq = ++__routeSeq;
+    hidePop();
+    const p = new URLSearchParams(location.search), id = p.get('id');
+    if (p.get('practice')) { await openPracticeById(p.get('practice'), seq); return; }
+    if (!id) {
+      if (__role === 'admin') await enterTeacherHub(p.get('view')); else await renderStudentHome(__uid);
+      return;
+    }
+    const ref = doc(db, 'assignments', id);
+    let data = __docCache[id] ? JSON.parse(JSON.stringify(__docCache[id])) : null;
+    if (data) delete data.id, delete data.__name;
+    if (!data) { try { const c = await getDocFromCache(ref); if (c.exists()) data = c.data(); } catch (e) {} }
+    if (seq !== __routeSeq) return;
+    if (data) showDoc(ref, data, true); else showOnly('loadingBox');
+    await authReady;
+    let snap;
+    try { snap = await getDoc(ref); }
+    catch (e) { if (seq === __routeSeq && !data) showError('Lỗi kết nối máy chủ. Kiểm tra mạng rồi tải lại trang.'); return; }
+    if (seq !== __routeSeq) return;  // đã chuyển sang màn khác
+    if (!snap.exists()) { delete __docCache[id]; showError('Bài Writing không tồn tại hoặc đã bị xoá.'); return; }
+    const fresh = snap.data();
+    __docCache[id] = Object.assign({ id: id }, fresh);
+    const same = data && JSON.stringify(data) === JSON.stringify(fresh);
+    const editing = data && __work && __work.ref && __work.ref.id === id && fresh.status === 'assigned' && !document.getElementById('workView').classList.contains('hidden');
+    const busy = __rs && __rs.ref.id === id && (__rs.upgrading || __rs.grading);
+    if (editing) __work.data = fresh;
+    else if (!same && !busy) showDoc(ref, fresh, false);
+    else if (__rs && __rs.ref.id === id && !document.getElementById('resultView').classList.contains('hidden')) resultAuto();
+    // đánh dấu đã xem
+    if (__role === 'admin' && fresh.status !== 'assigned' && fresh.studentId !== __uid && fresh.teacherSeenSubmission !== true) updateDoc(ref, { teacherSeenSubmission: true }).catch(() => {});
+    if (__role !== 'admin' && fresh.status === 'graded' && fresh.studentSeenGraded !== true) updateDoc(ref, { studentSeenGraded: true }).catch(() => {});
+  }
+  function showDoc(ref, data, fromCache) {
+    if (data.kind !== 'writing') { showError('Đây không phải bài Writing.'); return; }
+    if (__role === 'admin') {
+      if (data.status === 'assigned' && data.studentId !== __uid) {
+        setTitle(data.title || 'Writing');
+        __backHref = 'writing.html?view=list';
+        document.getElementById('waitMsg').textContent = (__names[data.studentId] || 'Học sinh') + ' chưa nộp bài này.';
+        nameOf(data.studentId).then(n => { if (currentId() === ref.id) document.getElementById('waitMsg').textContent = n + ' chưa nộp bài này.'; });
+        document.getElementById('waitPrompt').innerHTML = data.promptHtml || '';
+        document.getElementById('waitDelBtn').onclick = () => deleteSubmissions([ref.id]);
+        showOnly('waitView');
+        return;
+      }
+    } else if (data.studentId !== __uid) { showError('Bạn không có quyền xem bài này.'); return; }
+    if (data.status === 'assigned') {
+      openWork({ mode: 'assigned', ref: ref, data: data, item: { title: data.title, promptHtml: data.promptHtml, task: data.task || null, type: data.type || data.sourceType || null, deadlineAt: data.deadlineAt, sourceBankId: data.sourceBankId } });
+    } else renderResult(ref, data, { noAuto: fromCache });
+  }
+
+  // ---- Khởi động: có phiên đăng nhập lần trước thì hiện luôn từ bản lưu, không chờ đăng nhập ----
+  let __sess = null;
+  try { __sess = JSON.parse(localStorage.getItem('nightWrSess') || 'null'); } catch (e) {}
+  let __started = false;
+  if (__sess && __sess.uid) { __uid = __sess.uid; __role = __sess.role || 'student'; updateGear(); __started = true; route(); }
+
   onAuthStateChanged(auth, async user => {
-    if (!user) { showOnly('loginBox'); return; }
-    showOnly('loadingBox');
+    if (!user) { try { localStorage.removeItem('nightWrSess'); } catch (e) {} __routeSeq++; showOnly('loginBox'); return; }
+    if (__started && __sess && __sess.uid === user.uid) {
+      __authResolve();
+      // kiểm tra lại quyền ở nền; đổi quyền thì tải lại trang
+      getDoc(doc(db, 'users', user.uid)).then(u => {
+        const role = u.exists() ? (u.data().role || 'student') : 'student';
+        if (role !== __role) { localStorage.setItem('nightWrSess', JSON.stringify({ uid: user.uid, role: role })); location.reload(); }
+      }).catch(() => {});
+      return;
+    }
+    if (!__started) showOnly('loadingBox');
     __uid = user.uid;
     updateGear();
     try {
       const u = await getDoc(doc(db, 'users', user.uid));
-      if (u.exists()) __role = u.data().role || 'student';
+      __role = u.exists() ? (u.data().role || 'student') : 'student';
     } catch (e) { showError('Lỗi kết nối máy chủ. Kiểm tra mạng rồi tải lại trang.'); return; }
-
-    if (!taskId) {
-      if (__role === 'admin') await enterTeacherHub(); else await renderStudentHome(user.uid);
-      return;
-    }
-    let snap;
-    try { snap = await getDoc(doc(db, 'assignments', taskId)); }
-    catch (e) { showError('Lỗi kết nối máy chủ. Kiểm tra mạng rồi tải lại trang.'); return; }
-    if (!snap.exists()) { showError('Bài Writing không tồn tại hoặc đã bị xoá.'); return; }
-    const data = snap.data();
-    if (data.kind !== 'writing') { showError('Đây không phải bài Writing.'); return; }
-
-    if (__role === 'admin') {
-      if (data.status === 'assigned') {
-        setTitle(data.title || 'Writing');
-        document.getElementById('waitMsg').textContent = (await nameOf(data.studentId)) + ' chưa nộp bài này.';
-        document.getElementById('waitPrompt').innerHTML = data.promptHtml || '';
-        showOnly('waitView');
-      } else {
-        renderResult(snap.ref, data);
-        if (data.teacherSeenSubmission !== true) updateDoc(snap.ref, { teacherSeenSubmission: true }).catch(() => {});
-      }
-      return;
-    }
-    if (data.studentId !== user.uid) { showError('Bạn không có quyền xem bài này.'); return; }
-    if (data.status === 'assigned') {
-      openWork({ mode: 'assigned', ref: snap.ref, data: data, item: { title: data.title, promptHtml: data.promptHtml, task: data.task || null, type: data.type || data.sourceType || null, deadlineAt: data.deadlineAt, sourceBankId: data.sourceBankId } });
-    } else {
-      renderResult(snap.ref, data);
-      if (data.status === 'graded' && data.studentSeenGraded !== true) updateDoc(snap.ref, { studentSeenGraded: true }).catch(() => {});
-    }
+    try { localStorage.setItem('nightWrSess', JSON.stringify({ uid: __uid, role: __role })); } catch (e) {}
+    __authResolve();
+    __started = true;
+    route();
   });
 </script>
 </body>
