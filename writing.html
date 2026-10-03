@@ -113,8 +113,19 @@ button,input,select,textarea{font-family:inherit;}
 
 /* ---- Màn làm bài: 2 cột (trái: đề + gợi ý, phải: viết bài) ---- */
 .work{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;}
+/* Màn làm bài dùng hết bề ngang màn hình; kéo thanh giữa để đổi độ rộng 2 cột */
+body.full-work .shell{max-width:none;}
+.splitter,.vsplit{display:none;}
 @media (min-width:1024px){
-  .work{grid-template-columns:minmax(0,1fr) minmax(0,1fr);height:calc(100vh - 90px);}
+  .work{grid-template-columns:minmax(340px,var(--lw,1fr)) 14px minmax(380px,var(--rw,1fr));gap:0;height:calc(100vh - 90px);}
+  .splitter{display:flex;align-items:center;justify-content:center;cursor:col-resize;touch-action:none;}
+  .splitter:before{content:'';width:4px;height:44px;border-radius:999px;background:#d5dce8;transition:background .15s,height .15s;}
+  .splitter:hover:before,.splitter.drag:before{background:var(--accent);height:72px;}
+  .vsplit{display:flex;justify-content:center;align-items:center;height:12px;margin:2px 0 -6px;cursor:row-resize;touch-action:none;}
+  .vsplit:before{content:'';width:44px;height:4px;border-radius:999px;background:#d5dce8;transition:background .15s,width .15s;}
+  .vsplit:hover:before,.vsplit.drag:before{background:var(--accent);width:72px;}
+  body.resizing{user-select:none;}
+  body.resizing.col{cursor:col-resize;} body.resizing.row{cursor:row-resize;}
   .work > .sheet{overflow:hidden;display:flex;flex-direction:column;min-height:0;}
   .work .scroll{overflow-y:auto;flex:1;min-height:0;}
 }
@@ -148,10 +159,21 @@ button,input,select,textarea{font-family:inherit;}
 .bank-meta b{color:var(--good);font-weight:700;}
 @media (max-width:600px){ .bank-thumb{flex-basis:104px;height:92px;} .bank-excerpt{-webkit-line-clamp:4;font-size:15px;} }
 
+.bank-card.picked{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+.bank-check{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:999px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.picked-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--accent-wash);border-radius:12px;padding:10px 14px;margin-bottom:16px;}
+.picked-bar img{width:64px;height:46px;object-fit:contain;background:#fff;border-radius:6px;}
+.compose-grid{display:grid;gap:16px 20px;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,.8fr);}
+@media (max-width:900px){ .compose-grid{grid-template-columns:1fr;} }
+
 /* ---- Cột trái màn làm bài: đề luôn ở trên, gợi ý cuộn bên dưới ---- */
 .left-col{display:flex;flex-direction:column;}
 .prompt-pane{padding:20px 26px 16px;border-bottom:1px solid var(--rule);background:#fff;}
-.prompt-pane .prompt{max-height:34vh;overflow-y:auto;}
+.prompt-pane{padding-top:14px !important;padding-bottom:8px !important;}
+.prompt-pane .prompt{max-height:var(--ph,26vh);overflow-y:auto;font-size:15px;line-height:1.6;}
+.prompt-pane .prompt img{width:auto;max-width:100%;max-height:calc(var(--ph,26vh) - 64px);min-height:80px;object-fit:contain;margin:6px 0;}
+@media (max-width:1023px){ .prompt-pane .prompt{max-height:none;} .prompt-pane .prompt img{max-height:260px;} }
+.prompt-pane.collapsed .vsplit{display:none;}
 .prompt-pane.collapsed .prompt{max-height:5.4em;overflow:hidden;-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent);}
 .prompt-pane-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .guide-head{padding:16px 26px 0;border-bottom:1px solid var(--rule);background:#fbfcfe;}
@@ -375,6 +397,11 @@ button,input,select,textarea{font-family:inherit;}
 .cs-vocab{display:flex;flex-wrap:wrap;gap:6px;}
 .cs-vocab span{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:4px 9px;font-size:13px;}
 .cs-vocab b{font-family:var(--serif);font-size:14.5px;color:var(--ink);}
+.cs-lesson{background:#fff;border:1px solid #dfe8f7;border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+.cs-lesson p{margin:0 0 6px;}
+.cs-formula{padding-left:10px;border-left:2px solid var(--accent-soft);}
+.cs-formula i,.cs-ex{font-family:var(--serif);font-size:15px;color:var(--ink);}
+.cs-ex{font-style:italic;}
 .cs-input{resize:vertical;line-height:1.65;}
 .cs-input.serif-in{font-family:var(--serif) !important;font-size:16px;}
 .cs-result{margin-top:14px;font-size:14px;line-height:1.7;color:var(--ink-2);}
@@ -523,54 +550,65 @@ details[open] > summary:before{content:'▾ ';}
         </div>
       </div>
 
-      <!-- Giao bài -->
+      <!-- Giao bài: chọn đề ở trên (thẻ giống tự luyện), điền người nhận ở dưới -->
       <div id="tabCompose" class="sheet">
         <div class="sec">
-          <div style="display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));">
-            <div>
-              <label class="label" for="thTitle">Tên bài</label>
-              <input id="thTitle" class="input mb12" placeholder="Ví dụ: Task 2 — Opinion — Remote work">
-              <label class="label">Task</label>
-              <div class="seg mb12"><button type="button" id="thT1" onclick="setThTask('task1')">Task 1</button><button type="button" id="thT2" class="active" onclick="setThTask('task2')">Task 2</button></div>
-              <label class="label">Giao cho</label>
-              <div class="seg mb8"><button type="button" id="thTargetSingle" class="active" onclick="setThTarget('single')">1 học sinh</button><button type="button" id="thTargetClass" onclick="setThTarget('class')">Cả lớp</button></div>
-              <select id="thStudentSelect" class="input mb12"><option>Đang tải...</option></select>
-              <select id="thClassSelect" class="input mb12 hidden"><option>Đang tải...</option></select>
-              <label class="label" for="thDeadline">Hạn nộp (không bắt buộc)</label>
-              <input id="thDeadline" type="date" class="input mb12">
-              <label class="row small" style="cursor:pointer;color:var(--ink-2);margin-bottom:16px;"><input id="thEmail" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;"> Gửi mail báo bài, tự nhắc mỗi 2 ngày nếu chưa làm</label>
-              <button id="thSubmitBtn" type="button" class="btn-primary" style="width:100%;" onclick="submitNewWritingTask()">Giao bài</button>
-              <p id="thMsg" class="small" style="color:var(--good);min-height:18px;"></p>
+          <div class="row" style="justify-content:space-between;margin-bottom:14px;">
+            <p class="sec-h" style="margin:0;">1. Chọn đề</p>
+            <div class="seg"><button type="button" id="thSrcBank" class="active" onclick="setThSource('bank')">Từ kho đề</button><button type="button" id="thSrcCustom" onclick="setThSource('custom')">Tự soạn đề mới</button></div>
+          </div>
+          <div id="thBankBlock">
+            <div class="bank-toolbar">
+              <div class="seg"><button type="button" id="thBankT1" class="active" onclick="setThBankTask('task1')">Task 1</button><button type="button" id="thBankT2" onclick="setThBankTask('task2')">Task 2</button></div>
             </div>
-            <div>
-              <div class="row" style="justify-content:space-between;margin-bottom:8px;">
-                <span class="label" style="margin:0;">Đề bài</span>
-                <div class="seg"><button type="button" id="thSrcCustom" class="active" onclick="setThSource('custom')">Tự soạn</button><button type="button" id="thSrcBank" onclick="setThSource('bank')">Từ kho đề</button></div>
+            <div id="thBankChips" class="filters"></div>
+            <div id="thBankGrid" class="card-grid"></div>
+          </div>
+          <div id="thCustomBlock" class="hidden">
+            <label class="label">Task</label>
+            <div class="seg mb12"><button type="button" id="thT1" onclick="setThTask('task1')">Task 1</button><button type="button" id="thT2" class="active" onclick="setThTask('task2')">Task 2</button></div>
+            <div class="editor-wrap">
+              <div class="toolbar">
+                <button type="button" title="In đậm" onclick="wrCmd('thPromptEditor','bold')"><b>B</b></button>
+                <button type="button" title="In nghiêng" onclick="wrCmd('thPromptEditor','italic')"><i>I</i></button>
+                <button type="button" title="Gạch chân" onclick="wrCmd('thPromptEditor','underline')"><u>U</u></button>
+                <span class="sep"></span>
+                <label title="Chèn ảnh biểu đồ / bản đồ / quy trình" style="cursor:pointer;font-size:13px;color:var(--ink-2);padding:0 8px;"><i class="fa-regular fa-image"></i> Chèn ảnh<input type="file" accept="image/*" class="hidden" onchange="wrInsertImageFromInput(this,'thPromptEditor')"></label>
               </div>
-              <div id="thCustomBlock">
-                <div class="editor-wrap">
-                  <div class="toolbar">
-                    <button type="button" title="In đậm" onclick="wrCmd('thPromptEditor','bold')"><b>B</b></button>
-                    <button type="button" title="In nghiêng" onclick="wrCmd('thPromptEditor','italic')"><i>I</i></button>
-                    <button type="button" title="Gạch chân" onclick="wrCmd('thPromptEditor','underline')"><u>U</u></button>
-                    <span class="sep"></span>
-                    <label title="Chèn ảnh biểu đồ / bản đồ / quy trình" style="cursor:pointer;font-size:13px;color:var(--ink-2);padding:0 8px;"><i class="fa-regular fa-image"></i> Chèn ảnh<input type="file" accept="image/*" class="hidden" onchange="wrInsertImageFromInput(this,'thPromptEditor')"></label>
-                  </div>
-                  <div id="thPromptEditor" contenteditable="true" class="editor prompt-editor" style="border:0;border-radius:0;" data-placeholder="Gõ hoặc dán đề bài. Dán thẳng ảnh chụp biểu đồ được."></div>
-                </div>
-                <label class="row small mt8" style="cursor:pointer;color:var(--ink-2);"><input id="thSaveToBank" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;"> Lưu đề này vào kho đề luôn</label>
-                <select id="thSaveType" class="input mt8"></select>
-              </div>
-              <div id="thBankBlock" class="hidden">
-                <div class="row mb8">
-                  <div class="seg"><button type="button" id="thBankT1" class="active" onclick="setThBankTask('task1')">Task 1</button><button type="button" id="thBankT2" onclick="setThBankTask('task2')">Task 2</button></div>
-                  <select id="thBankType" class="input grow" onchange="setThBankType(this.value)"></select>
-                </div>
-                <select id="thBankItem" class="input mb8" onchange="onThBankItemPicked(this.value)"></select>
-                <div id="thBankPreview" class="prompt" style="border:1px solid var(--rule);border-radius:10px;padding:14px;min-height:180px;"><p class="muted">Chọn 1 đề để xem trước.</p></div>
-              </div>
+              <div id="thPromptEditor" contenteditable="true" class="editor prompt-editor" style="border:0;border-radius:0;" data-placeholder="Gõ hoặc dán đề bài. Dán thẳng ảnh chụp biểu đồ được."></div>
+            </div>
+            <div class="row mt8">
+              <label class="row small" style="cursor:pointer;color:var(--ink-2);"><input id="thSaveToBank" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;"> Lưu đề này vào kho đề luôn, dạng</label>
+              <select id="thSaveType" class="input" style="width:auto;min-width:220px;"></select>
             </div>
           </div>
+        </div>
+        <div class="sec">
+          <p class="sec-h">2. Giao cho</p>
+          <div id="thPicked" class="picked-bar hidden"></div>
+          <div class="compose-grid">
+            <div>
+              <label class="label" for="thTitle">Tên bài</label>
+              <input id="thTitle" class="input" placeholder="Ví dụ: Task 2 — Opinion — Remote work">
+            </div>
+            <div>
+              <label class="label">Giao cho</label>
+              <div class="row" style="flex-wrap:nowrap;gap:8px;">
+                <div class="seg" style="flex-shrink:0;"><button type="button" id="thTargetSingle" class="active" onclick="setThTarget('single')">1 học sinh</button><button type="button" id="thTargetClass" onclick="setThTarget('class')">Cả lớp</button></div>
+                <select id="thStudentSelect" class="input" style="min-width:0;"><option>Đang tải...</option></select>
+                <select id="thClassSelect" class="input hidden" style="min-width:0;"><option>Đang tải...</option></select>
+              </div>
+            </div>
+            <div>
+              <label class="label" for="thDeadline">Hạn nộp (không bắt buộc)</label>
+              <input id="thDeadline" type="date" class="input">
+            </div>
+          </div>
+          <div class="row mt16">
+            <label class="row small grow" style="cursor:pointer;color:var(--ink-2);"><input id="thEmail" type="checkbox" checked style="accent-color:var(--accent);width:16px;height:16px;"> Gửi mail báo bài, tự nhắc mỗi 2 ngày nếu chưa làm</label>
+            <button id="thSubmitBtn" type="button" class="btn-primary" style="min-width:200px;" onclick="submitNewWritingTask()">Giao bài</button>
+          </div>
+          <p id="thMsg" class="small" style="color:var(--good);min-height:18px;margin:10px 0 0;"></p>
         </div>
       </div>
 
@@ -641,6 +679,7 @@ details[open] > summary:before{content:'▾ ';}
             <button type="button" id="wkPromptToggle" class="link-btn" style="font-size:13px;" onclick="togglePromptPane()">Thu gọn đề</button>
           </div>
           <div id="wkPrompt" class="prompt"></div>
+          <div id="wkVSplit" class="vsplit" title="Kéo để đổi chiều cao phần đề"></div>
         </div>
         <div class="guide-head">
           <div class="row">
@@ -679,6 +718,7 @@ details[open] > summary:before{content:'▾ ';}
           </div>
         </div>
       </div>
+      <div id="wkSplit" class="splitter" title="Kéo để đổi độ rộng 2 cột · bấm đúp để trả về mặc định"></div>
       <!-- Phải: viết bài -->
       <div class="sheet" style="position:relative;">
         <div class="toolbar">
@@ -860,6 +900,7 @@ details[open] > summary:before{content:'▾ ';}
     fab.classList.toggle('show', id === 'resultView' || id === 'workView');
     fab.classList.toggle('only-mobile', id === 'workView'); // màn làm bài trên máy tính đã có đề ở cột trái
     closePromptDrawer();
+    document.body.classList.toggle('full-work', id === 'workView');
     window.scrollTo(0, 0);
   }
   // ---- Đề bài nổi: bấm nút là mở ra để so sánh, bấm Đóng / Esc / ra ngoài để tắt ----
@@ -871,7 +912,7 @@ details[open] > summary:before{content:'▾ ';}
   document.addEventListener('click', e => {
     const dr = document.getElementById('promptDrawer');
     // Điện thoại: bấm ra ngoài là đóng. Máy tính: giữ mở để vừa xem đề vừa đọc bài.
-    if (innerWidth < 768 && dr.classList.contains('open') && !dr.contains(e.target) && !e.target.closest('#promptFab')) closePromptDrawer();
+    if (innerWidth < 768 && dr.classList.contains('open') && !dr.contains(e.target) && !e.target.closest('#promptFab') && !e.target.closest('[data-keep-drawer]')) closePromptDrawer();
     // Bấm vào ảnh trong đề -> phóng to để đọc số liệu
     const img = e.target.closest('.prompt img');
     if (img) {
@@ -881,6 +922,30 @@ details[open] > summary:before{content:'▾ ';}
       document.body.appendChild(lb);
     }
   });
+  // ---- Kéo chỉnh kích thước: thanh dọc giữa 2 cột, thanh ngang dưới phần đề (nhớ trên máy) ----
+  (function () {
+    const work = document.getElementById('workView'), split = document.getElementById('wkSplit');
+    const pane = document.getElementById('wkPromptPane'), vs = document.getElementById('wkVSplit');
+    function applyCol(f) { f = Math.min(.72, Math.max(.28, f)); work.style.setProperty('--lw', f + 'fr'); work.style.setProperty('--rw', (1 - f) + 'fr'); return f; }
+    function applyRow(px) { px = Math.min(innerHeight * .7, Math.max(110, px)); pane.style.setProperty('--ph', px + 'px'); return px; }
+    try { const f = parseFloat(localStorage.getItem('nightWrSplit')); if (f) applyCol(f); const h = parseFloat(localStorage.getItem('nightWrPromptH')); if (h) applyRow(h); } catch (e) {}
+    function drag(handle, kind, onMove, onEnd) {
+      handle.addEventListener('pointerdown', e => {
+        e.preventDefault(); handle.setPointerCapture(e.pointerId);
+        handle.classList.add('drag'); document.body.classList.add('resizing', kind);
+        const mv = ev => onMove(ev), up = () => {
+          handle.classList.remove('drag'); document.body.classList.remove('resizing', kind);
+          handle.removeEventListener('pointermove', mv); handle.removeEventListener('pointerup', up); handle.removeEventListener('pointercancel', up); onEnd();
+        };
+        handle.addEventListener('pointermove', mv); handle.addEventListener('pointerup', up); handle.addEventListener('pointercancel', up);
+      });
+    }
+    let lastF = null, lastH = null;
+    drag(split, 'col', e => { const r = work.getBoundingClientRect(); lastF = applyCol((e.clientX - r.left) / r.width); }, () => { try { if (lastF) localStorage.setItem('nightWrSplit', lastF); } catch (er) {} });
+    split.addEventListener('dblclick', () => { work.style.removeProperty('--lw'); work.style.removeProperty('--rw'); try { localStorage.removeItem('nightWrSplit'); } catch (e) {} });
+    drag(vs, 'row', e => { const p = document.getElementById('wkPrompt').getBoundingClientRect(); lastH = applyRow(e.clientY - p.top); }, () => { try { if (lastH) localStorage.setItem('nightWrPromptH', lastH); } catch (er) {} });
+    vs.addEventListener('dblclick', () => { pane.style.removeProperty('--ph'); try { localStorage.removeItem('nightWrPromptH'); } catch (e) {} });
+  })();
   window.togglePromptPane = function () {
     const pane = document.getElementById('wkPromptPane');
     const c = pane.classList.toggle('collapsed');
@@ -1266,18 +1331,22 @@ details[open] > summary:before{content:'▾ ';}
       done[a.sourceBankId] = (done[a.sourceBankId] || 0) + 1;
       if (a.ai && a.ai.overall) best[a.sourceBankId] = Math.max(best[a.sourceBankId] || 0, a.ai.overall);
     });
-    document.getElementById('pbList').innerHTML = items.length ? items.map(it => {
-      const img = extractImages(it.promptHtml)[0];
-      const excerpt = htmlToText(it.promptHtml).replace(/\s+/g, ' ').slice(0, 260);
-      const typeName = typeLabel(it.task, it.type) || taskLabel(it.task);
-      return '<button type="button" class="bank-card" onclick="openPracticeItem(\'' + it.id + '\')">' +
-        '<span class="bank-type">' + escapeHtml(typeName.replace(/ \(.*\)$/, '')) + '</span>' +
-        '<span class="bank-thumb">' + (img ? '<img src="' + img + '" alt="" loading="lazy">' : '<span class="ph">“</span>') + '</span>' +
-        '<span class="bank-body"><span class="bank-title" style="display:block;">' + escapeHtml(it.title || 'Đề Writing') + '</span>' +
-        '<span class="bank-excerpt">' + escapeHtml(excerpt) + '</span>' +
-        '<span class="bank-meta" style="display:block;">' + (done[it.id] ? 'Đã viết ' + done[it.id] + ' lần' + (best[it.id] ? ' · cao nhất <b>' + fmtBand(best[it.id]) + '</b>' : '') : 'Chưa viết') + '</span></span>' +
-        '</button>';
-    }).join('') : '<p class="empty">Chưa có đề nào trong mục này.</p>';
+    document.getElementById('pbList').innerHTML = items.length ? items.map(it =>
+      bankCardHtml(it, 'openPracticeItem(\'' + it.id + '\')', false,
+        done[it.id] ? 'Đã viết ' + done[it.id] + ' lần' + (best[it.id] ? ' · cao nhất <b>' + fmtBand(best[it.id]) + '</b>' : '') : 'Chưa viết')
+    ).join('') : '<p class="empty">Chưa có đề nào trong mục này.</p>';
+  }
+  function bankCardHtml(it, onclick, picked, metaHtml) {
+    const img = extractImages(it.promptHtml)[0];
+    const excerpt = htmlToText(it.promptHtml).replace(/\s+/g, ' ').slice(0, 260);
+    const typeName = typeLabel(it.task, it.type) || taskLabel(it.task);
+    return '<button type="button" class="bank-card' + (picked ? ' picked' : '') + '" onclick="' + onclick + '">' +
+      '<span class="bank-type">' + escapeHtml(typeName.replace(/ \(.*\)$/, '')) + '</span>' +
+      (picked ? '<span class="bank-check"><i class="fa-solid fa-check"></i></span>' : '') +
+      '<span class="bank-thumb">' + (img ? '<img src="' + img + '" alt="" loading="lazy">' : '<span class="ph">“</span>') + '</span>' +
+      '<span class="bank-body"><span class="bank-title" style="display:block;">' + escapeHtml(it.title || 'Đề Writing') + '</span>' +
+      '<span class="bank-excerpt">' + escapeHtml(excerpt) + '</span>' +
+      '<span class="bank-meta" style="display:block;">' + metaHtml + '</span></span></button>';
   }
   window.openPracticeItem = function (id) {
     const it = __pbItems.find(x => x.id === id);
@@ -1398,7 +1467,8 @@ details[open] > summary:before{content:'▾ ';}
   }
   function guideTabs() {
     const t1 = __work && __work.item.task === 'task1';
-    return [['type', 'Dạng đề'], ['plan', 'Dàn ý']].concat(t1 ? [['data', 'Số liệu']] : []).concat([['mistakes', 'Lỗi hay mắc'], ['vocab', 'Từ vựng'], ['sample', 'Bài mẫu']]);
+    const fam = t1 ? t1Family(__work.item) : '';
+    return [['type', 'Dạng đề'], ['plan', 'Dàn ý']].concat(t1 ? [['data', fam === 'map' ? 'Vị trí & thay đổi' : fam === 'process' ? 'Các bước' : 'Số liệu']] : []).concat([['mistakes', 'Lỗi hay mắc'], ['vocab', 'Từ vựng'], ['sample', 'Bài mẫu']]);
   }
   window.renderGuideTab = function (t) {
     __guideTab = t;
@@ -1411,7 +1481,8 @@ details[open] > summary:before{content:'▾ ';}
   function taskContext(it, visual) {
     return 'Task: ' + taskLabel(it.task) + (it.type ? ' — ' + typeLabel(it.task, it.type) : '') +
       '\n\nQuestion:\n' + htmlToText(it.promptHtml) +
-      (visual ? '\n\nTranscription of the image(s):\n' + visual : (it.task === 'task1' && extractImages(it.promptHtml).length ? '\n\n(The image could not be read automatically — base your answer on the question text and keep figure references general.)' : ''));
+      (visual ? '\n\nTranscription of the image(s):\n' + visual : (it.task === 'task1' && extractImages(it.promptHtml).length ? '\n\n(The image could not be read automatically — base your answer on the question text and keep figure references general.)' : '')) +
+      '\n\n' + typeNotes(it) + ' All guidance, questions, frames and examples MUST fit this question type.';
   }
   async function visualFor(it, onStep) {
     if (it.task !== 'task1' || !extractImages(it.promptHtml).length) return '';
@@ -1421,7 +1492,7 @@ details[open] > summary:before{content:'▾ ';}
 
   const IELTS_FORMAT =
     'Follow the standard IELTS answer format exactly. ' +
-    'TASK 1 = 4 paragraphs: Introduction (paraphrase the question in ONE sentence; no data, no overview), Overview (1-2 sentences: the main trends / biggest differences / main stages; NO specific figures), Body 1 and Body 2 (details grouped logically, accurate figures with comparisons; never an opinion or a conclusion paragraph). ' +
+    'TASK 1 = 4 paragraphs: Introduction (paraphrase the question in ONE sentence; no data, no overview), Overview (1-2 sentences: data charts = main trends / biggest differences, maps = overall transformation + biggest changes + what stayed the same, processes = number of stages + start and end; NO specific figures), Body 1 and Body 2 (details grouped logically: data charts = accurate figures with comparisons, maps = changes with locations, processes = stages in order; never an opinion or a conclusion paragraph). ' +
     'TASK 2 = 4-5 paragraphs: Introduction (paraphrase the topic + a thesis that answers EVERY part of the question and states the position), Body paragraphs (each: topic sentence → explanation → specific example → link back to the question), Conclusion (restate the position and summarise the main ideas; no new ideas). ' +
     'Adapt the paragraphs to the question type: Opinion = reasons for your position (optionally one concession paragraph); Discussion = Body 1 view A, Body 2 view B, own opinion stated in the intro and conclusion; Advantages/Disadvantages = one side per body (and say which outweighs if asked); Problem/Solution = problems then solutions (or cause/effect); Two-part question = one body per question.';
 
@@ -1429,6 +1500,7 @@ details[open] > summary:before{content:'▾ ';}
     'Write a detailed, clearly organised study guide for THIS question, pitched exactly at the target band. All explanations in clear, natural Vietnamese (specific and concrete, no filler; 2-4 sentences where needed); all example sentences in English. Refer to the actual data/features/ideas of this question, never generic statements. ' +
     IELTS_FORMAT + ' ' +
     'If the student gave their own ideas: evaluate them honestly in "ideasFeedback" (which are relevant and strong, which are off-topic, too general or illogical, and how to fix them) and BUILD the plan around their usable ideas. If not, "ideasFeedback" is "". ' +
+    'For the Task 1 Overview paragraph, "steps" must give a reusable formula for this question type AND show exactly which features of THIS visual fill each part of it, so the student knows precisely how to write it. ' +
     '"commonMistakes": 6-8 mistakes that candidates — especially Vietnamese learners — typically make on THIS question type (structure, task requirements, data/ideas, vocabulary and grammar typical of this type), each with a wrong and a corrected English example about this question. ' +
     'Respond with STRICT JSON only (no markdown, no code fences) in exactly this shape: ' +
     '{"typeName": string (e.g. "Task 2 — Opinion (Agree/Disagree)"), "typeOverview": string (VN, 3-4 sentences: what this type asks, what examiners reward, what band X specifically requires), ' +
@@ -1443,7 +1515,7 @@ details[open] > summary:before{content:'▾ ';}
       'Produce the vocabulary and a model answer that follows that plan exactly, written as a real band-' + __targetBand.toFixed(1) + ' candidate would (correct, well organised, not more advanced than that band). Explanations in Vietnamese, examples in English. ' +
       IELTS_FORMAT + ' ' +
       (task === 'task1'
-        ? 'Model answer 170-190 words. Also produce "dataGuide" to teach the student how to select and ESTIMATE figures for THIS visual: which figures matter and which to skip; the key figures read from the chart and how to write them with approximation language (e.g. 38.6% → "just under two-fifths", 2,950 → "almost 3,000"); tips for reading values between gridlines, units and rounding for THIS chart; and model comparison sentences using this chart\'s data (twice as high as, the gap narrowed to, X overtook Y in...). If the visual is a map or process, keyFigures lists the key changes/stages instead and estimating explains how to describe location/sequence. '
+        ? 'Model answer 170-190 words. Also produce "dataGuide" to teach the student how to select and ESTIMATE figures for THIS visual: which figures matter and which to skip; the key figures read from the chart and how to write them with approximation language (e.g. 38.6% → "just under two-fifths", 2,950 → "almost 3,000"); tips for reading values between gridlines, units and rounding for THIS chart; and model comparison sentences using this chart\'s data (twice as high as, the gap narrowed to, X overtook Y in...). For a MAP: howToSelect = which changes matter and how to group them, keyFigures = each important change {feature: location (VN), reading: before → after, write: the English sentence/phrase to use}, estimating = tips for describing location and change on THIS map, comparisons = 4-6 model sentences describing these changes; never mention numbers or trends. For a PROCESS: howToSelect = how to split the stages into two paragraphs, keyFigures = each stage {feature: stage number/name, reading: what happens, write: the passive-voice sentence to use}, estimating = tips for sequencing THIS process, comparisons = model sentences. '
         : 'Model answer 270-300 words. ') +
       'Every vocabulary item must appear in the model answer. ' +
       'Respond with STRICT JSON only, no markdown: {"vocabulary": [{"phrase": string (EN), "meaning_vi": string, "example": string (EN, about this question)}] (10-14 items' + (task === 'task1' ? ', include trend/comparison language' : '') + '), ' +
@@ -1534,6 +1606,19 @@ details[open] > summary:before{content:'▾ ';}
      ['gấp 2', 'twice as high as / double'], ['gấp 1,5', 'one and a half times as many as'], ['gấp 3', 'three times as much as / tripled']].map(r => '<tr><td>' + r[0] + '</td><td class="en">' + r[1] + '</td></tr>').join('') +
     '</tbody></table>';
 
+  const MAP_RULES = '<h4>Ngôn ngữ cho dạng bản đồ</h4><ul class="g-rules">' +
+    '<li><b>Vị trí:</b> <i>in the north / to the north of, in the north-east corner, alongside the river, opposite, adjacent to, in the centre</i>.</li>' +
+    '<li><b>Thay đổi (bị động):</b> <i>was replaced by, was demolished / knocked down, was converted into, was constructed / built, was expanded, was cleared to make way for, was relocated</i>.</li>' +
+    '<li><b>Giữ nguyên:</b> <i>remained unchanged, was retained, stayed in the same place</i>.</li>' +
+    '<li><b>Thì:</b> bản đồ quá khứ → hiện tại dùng quá khứ đơn bị động; bản đồ kế hoạch dùng <i>will be + V3 / is planned to be</i>.</li>' +
+    '<li><b>Không</b> dùng increase / decrease / trend, không đưa ý kiến.</li></ul>';
+  const PROCESS_RULES = '<h4>Ngôn ngữ cho dạng quy trình</h4><ul class="g-rules">' +
+    '<li><b>Từ nối thứ tự:</b> <i>First / At the first stage, Next, After that, Once ..., Subsequently, Following this, Finally</i>.</li>' +
+    '<li><b>Quy trình nhân tạo:</b> hiện tại đơn bị động (<i>is heated, are transported, is poured into</i>). <b>Tự nhiên:</b> chủ động.</li>' +
+    '<li>Gộp 2 bước ngắn bằng <i>before / after / once / which</i> để câu đa dạng hơn.</li>' +
+    '<li>Đừng bỏ sót bước nào; nếu là vòng lặp, nói rõ quy trình bắt đầu lại.</li></ul>';
+  function familyRules() { const f = t1Family(__work.item); return f === 'map' ? MAP_RULES : f === 'process' ? PROCESS_RULES : ESTIMATE_RULES; }
+
   function renderGuide(g, tab) {
     if (!g) return '';
     const arr = x => Array.isArray(x) ? x : [];
@@ -1552,14 +1637,17 @@ details[open] > summary:before{content:'▾ ';}
           (m.why ? '<p class="g-why">' + escapeHtml(m.why) + '</p>' : '') + '</div>').join('');
     }
     if (tab === 'data') {
-      if (g.partB !== 'done') return partBPending() + ESTIMATE_RULES;
+      if (g.partB !== 'done') return partBPending() + familyRules();
       const d = g.dataGuide || {};
-      return (d.howToSelect ? '<h4>Chọn số liệu nào</h4><p class="g-lead">' + escapeHtml(d.howToSelect) + '</p>' : '') +
-        (arr(d.keyFigures).length ? '<h4>Số liệu chính của đề này</h4><table class="g-table g-figs"><thead><tr><th>Điểm cần nói</th><th>Biểu đồ cho thấy</th><th>Viết trong bài</th></tr></thead><tbody>' +
+      const L = { data: ['Chọn số liệu nào', 'Số liệu chính của đề này', 'Điểm cần nói', 'Biểu đồ cho thấy', 'Ước lượng số liệu cho biểu đồ này'],
+        map: ['Chọn thay đổi nào', 'Các thay đổi chính', 'Vị trí', 'Trước → sau', 'Mẹo tả bản đồ này'],
+        process: ['Chia giai đoạn', 'Các bước chính', 'Bước', 'Diễn ra gì', 'Mẹo tả quy trình này'] }[t1Family(__work.item)];
+      return (d.howToSelect ? '<h4>' + L[0] + '</h4><p class="g-lead">' + escapeHtml(d.howToSelect) + '</p>' : '') +
+        (arr(d.keyFigures).length ? '<h4>' + L[1] + '</h4><table class="g-table g-figs"><thead><tr><th>' + L[2] + '</th><th>' + L[3] + '</th><th>Viết trong bài</th></tr></thead><tbody>' +
           arr(d.keyFigures).map(f => '<tr><td>' + escapeHtml(f.feature) + '</td><td class="en">' + escapeHtml(f.reading) + '</td><td class="en"><b>' + escapeHtml(f.write) + '</b></td></tr>').join('') + '</tbody></table>' : '') +
-        (arr(d.estimating).length ? '<h4>Ước lượng số liệu cho biểu đồ này</h4><ul class="g-rules">' + arr(d.estimating).map(x => '<li>' + escapeHtml(x) + '</li>').join('') + '</ul>' : '') +
-        (arr(d.comparisons).length ? '<h4>Câu so sánh mẫu</h4>' + arr(d.comparisons).map(x => '<div class="g-model"><p>' + escapeHtml(x) + '</p>' + useBtn(x) + '</div>').join('') : '') +
-        ESTIMATE_RULES;
+        (arr(d.estimating).length ? '<h4>' + L[4] + '</h4><ul class="g-rules">' + arr(d.estimating).map(x => '<li>' + escapeHtml(x) + '</li>').join('') + '</ul>' : '') +
+        (arr(d.comparisons).length ? '<h4>' + (t1Family(__work.item) === 'data' ? 'Câu so sánh mẫu' : 'Câu mẫu') + '</h4>' + arr(d.comparisons).map(x => '<div class="g-model"><p>' + escapeHtml(x) + '</p>' + useBtn(x) + '</div>').join('') : '') +
+        familyRules();
     }
     if (tab === 'vocab') {
       if (g.partB !== 'done') return partBPending();
@@ -1606,32 +1694,101 @@ details[open] > summary:before{content:'▾ ';}
     const sc = document.querySelector('#workView .left-col .scroll'); if (sc) sc.scrollTop = 0;
   };
 
-  const COACH_STEPS = {
-    task1: [
-      { id: 'analyze', title: 'Phân tích đề', kind: 'answer', ask: 'Đây là loại biểu đồ gì? Biểu đồ nói về cái gì: đối tượng nào, đơn vị gì, ở đâu, khoảng thời gian nào?', hint: 'Đọc kỹ tiêu đề, 2 trục, chú thích và đơn vị. Gõ tiếng Việt cũng được.', ph: 'Ví dụ: biểu đồ đường, so sánh lượng ... của 3 nước từ 1990 đến 2020, đơn vị triệu tấn' },
-      { id: 'intro', title: 'Viết mở bài', kind: 'write', para: true, ask: 'Viết 1 câu mở bài: diễn đạt lại đề bằng từ của bạn (không chép nguyên văn, không đưa số liệu).', hint: 'Khung: The [line graph / bar chart...] illustrates / compares [cái gì] in [ở đâu] between [năm] and [năm].', ph: 'The line graph illustrates...' },
-      { id: 'overviewIdeas', title: 'Tìm ý tổng quan', kind: 'answer', ask: 'Nhìn tổng thể: xu hướng chung là gì (tăng, giảm, dao động, ổn định)? Điểm nổi bật nhất là gì (cao nhất, thấp nhất, chênh lệch lớn nhất, thay đổi mạnh nhất)?', hint: 'Overview quyết định Task Achievement: thiếu overview rõ ràng thì tiêu chí này tối đa band 5. Chưa cần số liệu ở bước này.', ph: 'Ví dụ: cả 3 đều tăng, nhưng A tăng mạnh nhất và luôn cao nhất...' },
-      { id: 'overview', title: 'Viết tổng quan', kind: 'write', para: true, ask: 'Viết 1–2 câu tổng quan từ các ý ở bước trước. Không đưa số liệu cụ thể.', hint: 'Khung: Overall, it is clear that ..., while ... . / Overall, ... saw an upward trend, with ... remaining the highest throughout the period.', ph: 'Overall, ...' },
-      { id: 'grouping', title: 'Chia đoạn thân bài', kind: 'answer', ask: 'Bạn sẽ chia số liệu thành 2 đoạn thân bài thế nào, và vì sao chia vậy? (theo mốc thời gian, theo đối tượng, theo nhóm tăng / nhóm giảm, theo khu vực, theo giai đoạn...)', hint: 'Mỗi đoạn có 1 chủ đề rõ ràng; 2 đoạn nên dài gần bằng nhau; cách chia phải giúp so sánh dễ hơn chứ không phải tả từng đường một.', ph: 'Ví dụ: Body 1 nói A và B vì cùng tăng; Body 2 nói C vì giảm...' },
-      { id: 'body1Ideas', title: 'Ý cho thân bài 1', kind: 'answer', ask: 'Thân bài 1 sẽ nói những số liệu và so sánh nào? Gõ ý và các từ, cụm từ bạn định dùng.', hint: 'Chọn số liệu quan trọng (đầu, cuối, cao nhất, thấp nhất, điểm thay đổi) và luôn kèm so sánh. Đừng liệt kê hết.', ph: 'Ví dụ: năm 1990 A khoảng 20, gấp đôi B; sau đó A tăng đều lên gần 50...' },
-      { id: 'body1', title: 'Viết thân bài 1', kind: 'write', para: true, ask: 'Viết thân bài 1 dựa trên ý và cách chia đoạn ở trên.', hint: 'Câu đầu nói đoạn này về gì, sau đó số liệu + so sánh, dùng từ ước lượng (about, just over, nearly) cho số đọc từ biểu đồ.', ph: 'Looking at ..., ...' },
-      { id: 'body2Ideas', title: 'Ý cho thân bài 2', kind: 'answer', ask: 'Thân bài 2 sẽ nói những số liệu và so sánh nào? Gõ ý và từ vựng định dùng.', hint: 'Đừng lặp lại số liệu đã nói ở thân bài 1. Tìm điểm so sánh với nhóm ở đoạn trước.', ph: '' },
-      { id: 'body2', title: 'Viết thân bài 2', kind: 'write', para: true, ask: 'Viết thân bài 2.', hint: 'Mở đoạn bằng từ nối chuyển chủ đề (Turning to..., In contrast,...), không viết kết luận hay ý kiến cá nhân.', ph: 'Turning to ..., ...' }
-    ],
-    task2: [
+  // Nhóm dạng đề Task 1: số liệu (line/bar/pie/table/mixed), bản đồ, quy trình — mỗi nhóm cách viết khác hẳn
+  function t1Family(it) {
+    const t = it.type || '';
+    if (t === 'map') return 'map';
+    if (t === 'process') return 'process';
+    if (t) return 'data';
+    const txt = htmlToText(it.promptHtml).toLowerCase();
+    if (/\bmaps?\b|\bplans?\b|layout|before and after/.test(txt)) return 'map';
+    if (/process|stages|is produced|are produced|manufactur|life cycle|how .* (is|are) made/.test(txt)) return 'process';
+    return 'data';
+  }
+  function t2Kind(it) {
+    if (it.type) return it.type;
+    const txt = htmlToText(it.promptHtml).toLowerCase();
+    if (/discuss both/.test(txt)) return 'discussion';
+    if (/advantages?|disadvantages?|outweigh/.test(txt)) return 'adv_dis';
+    if (/solutions?|measures|causes?|problems?/.test(txt)) return 'problem_solution';
+    if (/agree or disagree|to what extent/.test(txt)) return 'opinion';
+    return '';
+  }
+  // Ghi chú dạng đề gửi kèm cho AI để hướng dẫn đúng kiểu (không hỏi "xu hướng tăng giảm" với bản đồ...)
+  function typeNotes(it) {
+    if (it.task === 'task1') {
+      const f = t1Family(it);
+      if (f === 'map') return 'QUESTION TYPE: MAP (comparison of maps). There are NO numbers and NO increasing/decreasing trends — never talk about trends, data or figures. Overview = the overall transformation of the area (e.g. from rural/natural to industrial/residential/tourist) + the most significant changes (what was removed, added, replaced) + what stayed the same. Paragraph grouping: by AREA (north/south, either side of the river, centre/outskirts) when changes are clustered, or by TYPE OF CHANGE (removed/replaced vs newly built/retained) when they are scattered. Language: location phrases (to the north of, alongside, adjacent to), passive voice for changes (was replaced by, was demolished, was converted into, was constructed), past tense for past→present maps, future passive for planned changes.';
+      if (f === 'process') return 'QUESTION TYPE: PROCESS DIAGRAM. There are NO numbers or trends. Overview = number of stages, where the process begins and ends, linear vs cyclical, main phases. Paragraph grouping: split the process into two halves at a natural change of phase (location, state of the material). Language: sequencers (First, Next, Once, Subsequently, Finally), present simple PASSIVE for man-made processes, active for natural cycles.';
+      return 'QUESTION TYPE: DATA CHART (' + (typeLabel('task1', it.type) || 'chart/table') + '). If there is a time period, overview = overall trends + the most noticeable feature (highest throughout, biggest rise, overtaking); if there is no time period, overview = the biggest/smallest categories and major differences. No figures in the overview. Grouping: by similar trend or similar size, or by time period when all items change together. Bodies: selected figures with comparisons and approximation language.';
+    }
+    const k = t2Kind(it);
+    return 'QUESTION TYPE: ' + ({ opinion: 'OPINION (agree/disagree) — clear position kept throughout; bodies = reasons (optionally one concession + rebuttal).', discussion: 'DISCUSSION (discuss both views + give your opinion) — Body 1 view A, Body 2 view B, own opinion in intro and conclusion.', adv_dis: 'ADVANTAGES / DISADVANTAGES — one side per body; if asked whether advantages outweigh, give a clear verdict.', problem_solution: 'PROBLEM/CAUSE + SOLUTION — Body 1 problems or causes, Body 2 solutions that match them.', two_part: 'TWO-PART QUESTION — one body per question, each answered directly.' }[k] || 'Identify the type from the wording.');
+  }
+
+  function coachStepsFor(it) {
+    if (it.task === 'task1') {
+      const f = t1Family(it);
+      const intro = { id: 'intro', title: 'Viết mở bài', kind: 'write', para: true, ask: 'Viết 1 câu mở bài: diễn đạt lại đề bằng từ của bạn (không chép nguyên văn' + (f === 'data' ? ', không đưa số liệu' : '') + ').' };
+      if (f === 'map') return [
+        { id: 'analyze', title: 'Phân tích đề', kind: 'answer', ask: 'Có mấy bản đồ, mỗi bản đồ là thời điểm nào (quá khứ → hiện tại, hay hiện tại → kế hoạch tương lai)? Đây là khu vực gì? Bạn sẽ dùng thì động từ nào?', hint: 'Bản đồ không có số liệu, không có "tăng / giảm". Quá khứ → hiện tại: quá khứ đơn + bị động (was built, was replaced). Kế hoạch tương lai: will be + bị động.', ph: 'Ví dụ: 2 bản đồ, trước và sau khi xây đập thuỷ điện, một vùng quê ven sông, dùng quá khứ đơn bị động' },
+        Object.assign(intro, { hint: 'Khung: The maps illustrate the changes that took place in [địa điểm] [between ... and ... / before and after the construction of ...].', ph: 'The maps illustrate ...' }),
+        { id: 'overviewIdeas', title: 'Tìm ý tổng quan', kind: 'answer', ask: 'Nhìn tổng thể: khu vực đã biến đổi theo hướng nào (vd: từ vùng quê / tự nhiên thành khu công nghiệp, du lịch, dân cư)? Thay đổi lớn nhất là gì (cái gì bị xoá bỏ, cái gì mới xuất hiện)? Cái gì giữ nguyên?', hint: 'Overview của bản đồ trả lời 2 câu hỏi: (1) Cả khu vực thay đổi theo hướng nào? (2) Thay đổi nổi bật nhất và những gì giữ nguyên. Chưa cần vị trí chi tiết.', ph: 'Ví dụ: vùng quê biến thành khu sản xuất điện và du lịch; nông trại, công viên bị mất, có hồ lớn; làng, rừng, núi giữ nguyên' },
+        { id: 'overview', title: 'Viết tổng quan', kind: 'write', para: true, ask: 'Viết 2 câu tổng quan từ các ý ở bước trước. Không tả vị trí chi tiết.',
+          lesson: '<p><b>Cách viết overview cho bản đồ (2 câu):</b></p><p class="cs-formula">Câu 1 — hướng thay đổi chung: <i>Overall, [địa điểm] was transformed from a [đặc điểm cũ] area into a [đặc điểm mới] one.</i></p><p class="cs-formula">Câu 2 — thay đổi lớn nhất + cái giữ nguyên: <i>The most significant change was [cái mới / cái bị thay thế], while [cái giữ nguyên] remained unchanged.</i></p><p><b>Ví dụ (đề khác):</b> <span class="cs-ex">Overall, the town centre became far more pedestrian-friendly over the period. The most noticeable change was the replacement of the main road with a shopping street, while the park and the church remained unchanged.</span></p>', hint: 'Không dùng increase / decrease / trend cho bản đồ.', ph: 'Overall, ...' },
+        { id: 'grouping', title: 'Chia đoạn thân bài', kind: 'answer', ask: 'Bạn chia các thay đổi thành 2 đoạn thân bài thế nào: theo khu vực (bắc / nam, 2 bên sông, trung tâm / ngoại ô) hay theo loại thay đổi (bị phá bỏ, thay thế / xây mới, giữ nguyên)? Vì sao?', hint: 'Thay đổi tập trung theo vùng → chia theo khu vực. Thay đổi rải rác khắp bản đồ → chia theo loại thay đổi. 2 đoạn nên dài gần bằng nhau.', ph: 'Ví dụ: Body 1 bờ tây sông (công viên, lâu đài → nhà máy điện, cột điện); Body 2 bờ đông (nông trại → hồ, đập, khách sạn)' },
+        { id: 'body1Ideas', title: 'Ý cho thân bài 1', kind: 'answer', ask: 'Thân bài 1 nói những thay đổi nào? Với mỗi thay đổi: trước đây ở đó là gì, giờ là gì, nằm ở đâu? Gõ cả từ chỉ vị trí và động từ thay đổi bạn định dùng.', hint: 'Vị trí: to the west of, alongside the river, next to, in the north-east corner. Thay đổi (bị động): was replaced by, was demolished, was converted into, was constructed, was cleared to make way for.', ph: 'Ví dụ: công viên quốc gia (phía tây) → nhà máy điện; lâu đài → cột điện ...' },
+        { id: 'body1', title: 'Viết thân bài 1', kind: 'write', para: true, ask: 'Viết thân bài 1 theo cách chia đoạn và ý ở trên.', hint: 'Đi theo 1 hướng (tây → đông, bắc → nam) để người đọc dễ hình dung; mỗi câu: vị trí + trước đây + bây giờ, dùng bị động.', ph: 'In the west of the area, ...' },
+        { id: 'body2Ideas', title: 'Ý cho thân bài 2', kind: 'answer', ask: 'Thân bài 2 nói những thay đổi nào (và những gì giữ nguyên)? Vị trí, trước / sau, từ vựng định dùng.', hint: 'Đừng lặp lại thay đổi đã nói ở thân bài 1. Có thể kết đoạn bằng những thứ giữ nguyên.', ph: '' },
+        { id: 'body2', title: 'Viết thân bài 2', kind: 'write', para: true, ask: 'Viết thân bài 2.', hint: 'Mở đoạn bằng câu chuyển vùng / chuyển loại thay đổi (Turning to the eastern side, ...). Không viết kết luận hay ý kiến.', ph: 'Turning to ..., ...' }
+      ];
+      if (f === 'process') return [
+        { id: 'analyze', title: 'Phân tích đề', kind: 'answer', ask: 'Đây là quy trình tự nhiên (vòng đời, chu trình) hay nhân tạo (sản xuất)? Có bao nhiêu bước? Bắt đầu và kết thúc ở đâu? Có lặp lại thành vòng không?', hint: 'Quy trình không có số liệu và không có "tăng / giảm". Quy trình nhân tạo → hiện tại đơn bị động (is heated, are packed). Tự nhiên → chủ động.', ph: 'Ví dụ: quy trình sản xuất gạch, nhân tạo, 7 bước, bắt đầu từ đào đất sét, kết thúc giao hàng' },
+        Object.assign(intro, { hint: 'Khung: The diagram illustrates the process by which ... / how ... is produced.', ph: 'The diagram illustrates ...' }),
+        { id: 'overviewIdeas', title: 'Tìm ý tổng quan', kind: 'answer', ask: 'Tổng cộng bao nhiêu bước, gồm mấy giai đoạn chính? Bắt đầu bằng gì, kết thúc bằng gì? Quy trình đi một chiều hay lặp lại thành vòng?', hint: 'Overview của quy trình = số bước + điểm đầu + điểm cuối (+ tuyến tính / chu kỳ). Không đi vào chi tiết từng bước.', ph: '' },
+        { id: 'overview', title: 'Viết tổng quan', kind: 'write', para: true, ask: 'Viết 1–2 câu tổng quan từ các ý ở bước trước.',
+          lesson: '<p><b>Cách viết overview cho quy trình:</b></p><p class="cs-formula"><i>Overall, there are [số] main stages in the process, beginning with [bước đầu] and ending with [bước cuối].</i></p><p class="cs-formula">Nếu là vòng lặp: <i>It is a cyclical process which [mô tả ngắn].</i></p><p><b>Ví dụ (đề khác):</b> <span class="cs-ex">Overall, the production of bricks involves seven stages, beginning with the digging of clay and ending with the delivery of the finished bricks to customers.</span></p>', hint: 'Không liệt kê từng bước trong overview.', ph: 'Overall, ...' },
+        { id: 'grouping', title: 'Chia đoạn thân bài', kind: 'answer', ask: 'Bạn chia quy trình thành 2 nửa ở bước nào, và vì sao chia ở đó?', hint: 'Chia ở chỗ chuyển giai đoạn (đổi địa điểm, đổi trạng thái của vật liệu); 2 đoạn có số bước gần bằng nhau.', ph: 'Ví dụ: Body 1 từ bước 1–4 (chuẩn bị nguyên liệu), Body 2 từ bước 5–7 (nung, đóng gói)' },
+        { id: 'body1Ideas', title: 'Ý cho thân bài 1', kind: 'answer', ask: 'Liệt kê các bước trong thân bài 1 theo thứ tự: mỗi bước làm gì? Gõ cả động từ, từ nối bạn định dùng.', hint: 'Từ nối: First, After that, Once ..., Subsequently, At this point. Động từ ở dạng bị động: is crushed, are poured into.', ph: '' },
+        { id: 'body1', title: 'Viết thân bài 1', kind: 'write', para: true, ask: 'Viết thân bài 1.', hint: 'Mỗi bước 1 mệnh đề, gộp 2 bước ngắn thành 1 câu bằng "before / after / once" để câu đa dạng.', ph: 'At the first stage, ...' },
+        { id: 'body2Ideas', title: 'Ý cho thân bài 2', kind: 'answer', ask: 'Các bước còn lại theo thứ tự, mỗi bước làm gì? Từ vựng định dùng?', hint: 'Đừng quên bước cuối cùng; nếu là vòng lặp, nói rõ quy trình bắt đầu lại.', ph: '' },
+        { id: 'body2', title: 'Viết thân bài 2', kind: 'write', para: true, ask: 'Viết thân bài 2.', hint: 'Kết đoạn ở bước cuối (Finally, ...). Không viết kết luận riêng.', ph: '' }
+      ];
+      return [
+        { id: 'analyze', title: 'Phân tích đề', kind: 'answer', ask: 'Đây là loại biểu đồ gì? Nói về cái gì (đối tượng, đơn vị), ở đâu? Có mốc thời gian không — nếu có thì quá khứ, dự đoán tương lai hay cả hai?', hint: 'Có thời gian → tả xu hướng (tăng, giảm, vượt nhau). Không có thời gian (chỉ 1 năm) → tập trung so sánh (lớn nhất, nhỏ nhất, gấp mấy lần). Thì động từ theo mốc thời gian.', ph: 'Ví dụ: biểu đồ đường, lượng ... của 3 nước từ 1990 đến 2020, đơn vị triệu tấn' },
+        Object.assign(intro, { hint: 'Khung: The [line graph / bar chart / table] illustrates / compares [cái gì] in [ở đâu] between [năm] and [năm].', ph: 'The line graph illustrates ...' }),
+        { id: 'overviewIdeas', title: 'Tìm ý tổng quan', kind: 'answer', ask: 'Có thời gian: xu hướng chung của các đối tượng là gì, đối tượng nào nổi bật nhất (cao nhất suốt giai đoạn, tăng mạnh nhất, vượt nhau)? Không có thời gian: đối tượng nào lớn nhất / nhỏ nhất, có khác biệt nào rõ rệt?', hint: 'Thiếu overview rõ ràng thì Task Achievement tối đa band 5. Chưa cần số liệu ở bước này.', ph: 'Ví dụ: cả 3 đều tăng, nhưng A tăng mạnh nhất và luôn cao nhất...' },
+        { id: 'overview', title: 'Viết tổng quan', kind: 'write', para: true, ask: 'Viết 1–2 câu tổng quan từ các ý ở bước trước. Không đưa số liệu cụ thể.',
+          lesson: '<p><b>Cách viết overview cho biểu đồ số liệu:</b> 2 đặc điểm lớn nhất, không số liệu.</p><p class="cs-formula">Có thời gian: <i>Overall, [xu hướng chung], while / with [đối tượng nổi bật nhất].</i></p><p class="cs-formula">Không có thời gian: <i>Overall, [lớn nhất] accounted for the largest share, whereas [nhỏ nhất] was the least significant.</i></p><p><b>Ví dụ (đề khác):</b> <span class="cs-ex">Overall, the number of visitors to all three museums rose over the period, with the British Museum remaining the most popular throughout.</span></p>', hint: 'Không đưa số vào overview.', ph: 'Overall, ...' },
+        { id: 'grouping', title: 'Chia đoạn thân bài', kind: 'answer', ask: 'Bạn chia số liệu thành 2 đoạn thân bài thế nào, và vì sao? (theo nhóm cùng xu hướng, theo nhóm lớn / nhỏ, theo giai đoạn thời gian, theo hạng mục...)', hint: 'Ưu tiên gom các đối tượng có cùng xu hướng hoặc cùng độ lớn để dễ so sánh; nếu mọi đối tượng đổi chiều cùng lúc → chia theo giai đoạn thời gian.', ph: 'Ví dụ: Body 1 nói A và B vì cùng tăng; Body 2 nói C vì giảm...' },
+        { id: 'body1Ideas', title: 'Ý cho thân bài 1', kind: 'answer', ask: 'Thân bài 1 sẽ nói những số liệu và so sánh nào? Gõ ý và các từ, cụm từ bạn định dùng.', hint: 'Chọn số liệu quan trọng (đầu, cuối, cao nhất, thấp nhất, điểm thay đổi) và luôn kèm so sánh. Đừng liệt kê hết.', ph: 'Ví dụ: năm 1990 A khoảng 20, gấp đôi B; sau đó A tăng đều lên gần 50...' },
+        { id: 'body1', title: 'Viết thân bài 1', kind: 'write', para: true, ask: 'Viết thân bài 1 dựa trên ý và cách chia đoạn ở trên.', hint: 'Câu đầu nói đoạn này về gì, sau đó số liệu + so sánh, dùng từ ước lượng (about, just over, nearly) cho số đọc từ biểu đồ.', ph: 'Looking at ..., ...' },
+        { id: 'body2Ideas', title: 'Ý cho thân bài 2', kind: 'answer', ask: 'Thân bài 2 sẽ nói những số liệu và so sánh nào? Gõ ý và từ vựng định dùng.', hint: 'Đừng lặp lại số liệu đã nói ở thân bài 1. Tìm điểm so sánh với nhóm ở đoạn trước.', ph: '' },
+        { id: 'body2', title: 'Viết thân bài 2', kind: 'write', para: true, ask: 'Viết thân bài 2.', hint: 'Mở đoạn bằng từ nối chuyển chủ đề (Turning to..., In contrast,...), không viết kết luận hay ý kiến cá nhân.', ph: 'Turning to ..., ...' }
+      ];
+    }
+    const k = t2Kind(it);
+    const P = {
+      opinion: ['Bạn đồng ý hoàn toàn, không đồng ý, hay đồng ý một phần? 2 lý do chính để bảo vệ quan điểm đó?', 'Lý do thứ nhất là gì? Vì sao (giải thích)? Ví dụ cụ thể nào?', 'Lý do thứ hai (hoặc: quan điểm ngược lại + vì sao bạn vẫn không đồng ý)? Giải thích, ví dụ?'],
+      discussion: ['Quan điểm A là gì, quan điểm B là gì? Bạn ủng hộ bên nào (hay cả hai ở mức độ nào)?', 'Vì sao một số người nghĩ theo quan điểm thứ nhất? Lý do, giải thích, ví dụ?', 'Vì sao người khác nghĩ theo quan điểm thứ hai? Và vì sao bạn nghiêng về bên nào?'],
+      adv_dis: ['Lợi ích chính và bất lợi chính là gì? Đề có hỏi bên nào lớn hơn không — nếu có, bạn chọn bên nào?', 'Lợi ích (hoặc bên bạn cho là lớn hơn): ý chính, giải thích, ví dụ?', 'Bất lợi (hoặc bên còn lại): ý chính, giải thích, ví dụ?'],
+      problem_solution: ['Đề hỏi nguyên nhân hay vấn đề? 1–2 nguyên nhân / vấn đề chính và 1–2 giải pháp tương ứng là gì?', 'Nguyên nhân / vấn đề: ý chính, giải thích, ví dụ?', 'Giải pháp cho đúng các vấn đề ở thân bài 1: làm gì, ai làm, vì sao hiệu quả, ví dụ?'],
+      two_part: ['Đề có 2 câu hỏi nào? Câu trả lời ngắn gọn của bạn cho từng câu?', 'Trả lời câu hỏi thứ nhất: ý chính, giải thích, ví dụ?', 'Trả lời câu hỏi thứ hai: ý chính, giải thích, ví dụ?']
+    }[k] || ['Bạn trả lời đề thế nào (quan điểm / hướng trả lời)? 2 ý chính để bảo vệ là gì?', 'Ý chính của thân bài 1 là gì? Vì sao? Ví dụ cụ thể nào?', 'Ý chính của thân bài 2, giải thích và ví dụ?'];
+    return [
       { id: 'analyze', title: 'Phân tích đề', kind: 'answer', ask: 'Đề thuộc dạng nào (opinion, discussion, advantages/disadvantages, problem/solution, two-part)? Chủ đề và từ khoá chính là gì? Đề yêu cầu trả lời mấy ý, đó là những ý nào?', hint: 'Gạch chân từ khoá và câu hỏi cuối đề. Rất nhiều bài mất điểm Task Response chỉ vì bỏ sót 1 ý đề hỏi.', ph: 'Ví dụ: dạng discussion + opinion, chủ đề ..., cần nói 2 quan điểm và ý kiến của mình' },
-      { id: 'position', title: 'Quan điểm và 2 ý chính', kind: 'answer', ask: 'Bạn trả lời đề thế nào (quan điểm / hướng trả lời)? 2 ý chính để bảo vệ quan điểm đó là gì?', hint: 'Chọn quan điểm dễ chứng minh nhất, không phải quan điểm "đúng" nhất. Mỗi ý chính phải trả lời trực tiếp câu hỏi của đề.', ph: 'Ví dụ: đồng ý phần lớn; ý 1 ..., ý 2 ...' },
-      { id: 'intro', title: 'Viết mở bài', kind: 'write', para: true, ask: 'Viết mở bài: 1 câu diễn đạt lại chủ đề + 1 câu nêu rõ quan điểm và trả lời mọi ý đề hỏi.', hint: 'Không chép nguyên đề; câu thesis phải đọc là biết bạn nghĩ gì và bài sẽ nói 2 ý nào.', ph: 'It is often argued that ...' },
-      { id: 'body1Ideas', title: 'Ý cho thân bài 1', kind: 'answer', ask: 'Ý chính của thân bài 1 là gì? Vì sao (giải thích)? Ví dụ cụ thể nào? Gõ thêm từ vựng bạn định dùng.', hint: 'Topic sentence → giải thích → ví dụ cụ thể → câu chốt nối về đề. Ví dụ càng cụ thể càng tốt (ai, ở đâu, kết quả gì).', ph: 'Ý: ...; giải thích: ...; ví dụ: ...' },
-      { id: 'body1', title: 'Viết thân bài 1', kind: 'write', para: true, ask: 'Viết thân bài 1 theo các ý ở trên.', hint: 'Khung: The main reason why ... is that ... . This is because ... . For example, ... . Therefore, ...', ph: 'The main reason ...' },
-      { id: 'body2Ideas', title: 'Ý cho thân bài 2', kind: 'answer', ask: 'Ý chính của thân bài 2, giải thích và ví dụ? Gõ thêm từ vựng định dùng.', hint: 'Ý thân bài 2 phải khác hẳn thân bài 1, không phải cùng một ý nói lại.', ph: '' },
+      { id: 'position', title: 'Quan điểm và 2 ý chính', kind: 'answer', ask: P[0], hint: 'Chọn hướng dễ chứng minh nhất, không phải hướng "đúng" nhất. Mỗi ý chính phải trả lời trực tiếp câu hỏi của đề.', ph: '' },
+      { id: 'intro', title: 'Viết mở bài', kind: 'write', para: true, ask: 'Viết mở bài: 1 câu diễn đạt lại chủ đề + 1 câu nêu rõ quan điểm / hướng trả lời và trả lời mọi ý đề hỏi.', hint: 'Không chép nguyên đề; câu thesis phải đọc là biết bạn nghĩ gì và bài sẽ nói 2 ý nào.', ph: 'It is often argued that ...' },
+      { id: 'body1Ideas', title: 'Ý cho thân bài 1', kind: 'answer', ask: P[1] + ' Gõ thêm từ vựng bạn định dùng.', hint: 'Topic sentence → giải thích → ví dụ cụ thể → câu chốt nối về đề. Ví dụ càng cụ thể càng tốt (ai, ở đâu, kết quả gì).', ph: 'Ý: ...; giải thích: ...; ví dụ: ...' },
+      { id: 'body1', title: 'Viết thân bài 1', kind: 'write', para: true, ask: 'Viết thân bài 1 theo các ý ở trên.', hint: 'Khung: The main reason why ... is that ... . This is because ... . For example, ... . Therefore, ...', ph: '' },
+      { id: 'body2Ideas', title: 'Ý cho thân bài 2', kind: 'answer', ask: P[2] + ' Gõ thêm từ vựng định dùng.', hint: 'Ý thân bài 2 phải khác hẳn thân bài 1, không phải cùng một ý nói lại.', ph: '' },
       { id: 'body2', title: 'Viết thân bài 2', kind: 'write', para: true, ask: 'Viết thân bài 2.', hint: 'Mở đoạn bằng từ nối chuyển ý (Another reason..., On the other hand, ...), vẫn đủ giải thích + ví dụ.', ph: '' },
       { id: 'conclusion', title: 'Viết kết bài', kind: 'write', para: true, ask: 'Viết kết bài: nhắc lại quan điểm và tóm tắt 2 ý chính bằng từ khác. Không thêm ý mới.', hint: 'Khung: In conclusion, I believe that ... because ... and ... .', ph: 'In conclusion, ...' }
-    ]
-  };
+    ];
+  }
   let __coach = null;
   function coachKey() { return draftKey() + '_coach'; }
-  function coachSteps() { return COACH_STEPS[__work.item.task === 'task1' ? 'task1' : 'task2']; }
+  function coachSteps() { return coachStepsFor(__work.item); }
   function loadCoach() {
     let c = null;
     try { c = JSON.parse(localStorage.getItem(coachKey()) || 'null'); } catch (e) {}
@@ -1680,7 +1837,7 @@ details[open] > summary:before{content:'▾ ';}
     const prev = i > 0 ? __coach.steps[i - 1].result : null;
     const arr = x => Array.isArray(x) ? x : [];
     let h = '<p class="cs-ask">' + escapeHtml(st.ask) + '</p>';
-    h += '<div class="cs-guide"><p>' + escapeHtml(st.hint) + '</p>';
+    h += '<div class="cs-guide">' + (st.lesson ? '<div class="cs-lesson">' + st.lesson + '</div>' : '') + '<p>' + escapeHtml(st.hint) + '</p>';
     if (prev && prev.nextGuide) h += '<p><b>Hướng dẫn cho bước này:</b> ' + escapeHtml(prev.nextGuide) + '</p>';
     if (prev && arr(prev.frames).length) h += '<p class="cs-lbl">Khung câu gợi ý</p>' + arr(prev.frames).map(f => '<p class="cs-frame">' + escapeHtml(f) + '</p>').join('');
     if (prev && arr(prev.vocabulary).length) h += '<p class="cs-lbl">Từ vựng nên dùng</p><div class="cs-vocab">' + arr(prev.vocabulary).map(v => '<span><b>' + escapeHtml(v.phrase) + '</b> ' + escapeHtml(v.meaning_vi || '') + '</span>').join('') + '</div>';
@@ -2469,7 +2626,7 @@ details[open] > summary:before{content:'▾ ';}
   // ==========================================
   // GIÁO VIÊN
   // ==========================================
-  let __thTask = 'task2', __thTarget = 'single', __thSource = 'custom', __thClasses = {};
+  let __thTask = 'task2', __thTarget = 'single', __thSource = 'bank', __thClasses = {};
   let __thBankTask = 'task1', __thBankType = '', __thBankItems = [], __thBankPicked = null;
 
   window.switchTeacherTab = function (t) {
@@ -2508,13 +2665,13 @@ details[open] > summary:before{content:'▾ ';}
     document.getElementById('thCustomBlock').classList.toggle('hidden', m !== 'custom');
     document.getElementById('thBankBlock').classList.toggle('hidden', m !== 'bank');
     if (m === 'bank' && !__thBankItems.length) setThBankTask(__thBankTask);
+    renderThPicked();
   };
   window.setThBankTask = async function (t) {
-    __thBankTask = t; __thBankType = ''; __thBankPicked = null;
+    __thBankTask = t; __thBankType = '';
     document.getElementById('thBankT1').classList.toggle('active', t === 'task1');
     document.getElementById('thBankT2').classList.toggle('active', t === 'task2');
-    fillTypeSelect(document.getElementById('thBankType'), t, true);
-    const sel = document.getElementById('thBankItem'); sel.innerHTML = '<option>Đang tải...</option>';
+    document.getElementById('thBankGrid').innerHTML = '<p class="empty">Đang tải kho đề...</p>';
     try {
       const snap = await getDocs(query(collection(db, BANK), where('task', '==', t)));
       __thBankItems = []; snap.forEach(d => __thBankItems.push(Object.assign({ id: d.id }, d.data())));
@@ -2524,16 +2681,36 @@ details[open] > summary:before{content:'▾ ';}
   };
   window.setThBankType = function (t) { __thBankType = t; renderThBankOptions(); };
   function renderThBankOptions() {
+    document.getElementById('thBankChips').innerHTML = '<button type="button" class="chip' + (!__thBankType ? ' active' : '') + '" onclick="setThBankType(\'\')">Tất cả</button>' +
+      (TASK_TYPES[__thBankTask] || []).map(t => '<button type="button" class="chip' + (__thBankType === t.key ? ' active' : '') + '" onclick="setThBankType(\'' + t.key + '\')">' + t.label + '</button>').join('');
     const items = __thBankType ? __thBankItems.filter(i => i.type === __thBankType) : __thBankItems;
-    __thBankPicked = null;
-    document.getElementById('thBankPreview').innerHTML = '<p class="muted">Chọn 1 đề để xem trước.</p>';
-    document.getElementById('thBankItem').innerHTML = items.length ? '<option value="">Chọn 1 đề</option>' + items.map(i => '<option value="' + i.id + '">' + escapeHtml(i.title || 'Đề') + '</option>').join('') : '<option value="">Chưa có đề nào</option>';
+    document.getElementById('thBankGrid').innerHTML = items.length ? items.map(it =>
+      bankCardHtml(it, 'onThBankItemPicked(\'' + it.id + '\')', __thBankPicked && __thBankPicked.id === it.id,
+        __thBankPicked && __thBankPicked.id === it.id ? '<b style="color:var(--accent-ink);">Đã chọn đề này</b>' : 'Bấm để chọn')).join('')
+      : '<p class="empty">Chưa có đề nào trong mục này. Thêm đề ở tab Kho đề hoặc bấm "Tự soạn đề mới".</p>';
   }
   window.onThBankItemPicked = function (id) {
-    __thBankPicked = __thBankItems.find(i => i.id === id) || null;
-    document.getElementById('thBankPreview').innerHTML = __thBankPicked ? __thBankPicked.promptHtml : '<p class="muted">Chọn 1 đề để xem trước.</p>';
-    if (__thBankPicked && !document.getElementById('thTitle').value.trim()) document.getElementById('thTitle').value = __thBankPicked.title || '';
+    const it = __thBankItems.find(i => i.id === id) || null;
+    const prev = __thBankPicked;
+    __thBankPicked = it;
+    const tt = document.getElementById('thTitle');
+    if (it && (!tt.value.trim() || (prev && tt.value === (prev.title || '')))) tt.value = it.title || '';
+    renderThBankOptions();
+    renderThPicked();
   };
+  function renderThPicked() {
+    const bar = document.getElementById('thPicked');
+    const it = __thSource === 'bank' ? __thBankPicked : null;
+    bar.classList.toggle('hidden', !it);
+    if (!it) return;
+    const img = extractImages(it.promptHtml)[0];
+    bar.innerHTML = (img ? '<img src="' + img + '" alt="">' : '') +
+      '<div class="grow" style="min-width:0;"><p class="muted" style="margin:0;">Đề đã chọn · ' + taskLabel(it.task) + (it.type ? ' · ' + escapeHtml(typeLabel(it.task, it.type)) : '') + '</p>' +
+      '<p style="margin:2px 0 0;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(it.title || 'Đề Writing') + '</p></div>' +
+      '<button type="button" class="btn" data-keep-drawer onclick="previewThPicked()">Xem đề</button>' +
+      '<button type="button" class="link-btn" style="font-size:13px;" onclick="onThBankItemPicked(\'\')">Bỏ chọn</button>';
+  }
+  window.previewThPicked = function () { if (!__thBankPicked) return; setDrawerPrompt(__thBankPicked.promptHtml); openPromptDrawer(); };
 
   async function loadTeacherComposeData() {
     const ss = document.getElementById('thStudentSelect'), cs = document.getElementById('thClassSelect');
@@ -2596,9 +2773,8 @@ details[open] > summary:before{content:'▾ ';}
       const refs = await Promise.all(ids.map(sid => addDoc(collection(db, 'assignments'), Object.assign({ studentId: sid }, payload))));
       if (emailOn) notifyAssignmentEmails(refs.map(r => r.id));
       document.getElementById('thMsg').textContent = 'Đã giao cho ' + ids.length + ' học sinh' + (emailOn ? ', mail báo bài đang được gửi.' : '.');
-      document.getElementById('thTitle').value = '';
-      document.getElementById('thPromptEditor').innerHTML = '';
-      document.getElementById('thDeadline').value = '';
+      // Giữ nguyên đề đã chọn trong kho để giao tiếp cho học sinh khác nếu cần
+      if (__thSource === 'custom') { document.getElementById('thTitle').value = ''; document.getElementById('thPromptEditor').innerHTML = ''; }
     } catch (e) { alert('Lỗi khi giao bài: ' + e.message); }
     btn.disabled = false; btn.textContent = 'Giao bài';
   };
@@ -2746,7 +2922,7 @@ details[open] > summary:before{content:'▾ ';}
   async function enterTeacherHub() {
     setTitle('Writing — Quản lý');
     showOnly('teacherView');
-    setThTask('task2'); setThTarget('single'); setThSource('custom');
+    setThTask('task2'); setThTarget('single'); setThSource('bank');
     const v = params.get('view');
     switchTeacherTab(v === 'list' ? 'list' : v === 'bank' ? 'bank' : v === 'practice' ? 'practice' : 'compose');
     history.replaceState(null, '', location.pathname);
