@@ -3117,8 +3117,9 @@
                     if (a.kind === 'writing' && isDone) percent = 100;
                     const stu = studentMap[a.studentId];
                     const doneAt = assignmentDoneAt(a);
-                    const seenAt = (stu && stu.teacherSeenAt) || 0;
-                    const isNew = (a.kind === 'writing' && a.status === 'submitted' && a.teacherSeenSubmission === false) ||
+                    // Lần cuối Thầy mở học sinh này: lấy mốc muộn nhất giữa Firestore và máy này (phòng khi ghi Firestore lỗi)
+                    const seenAt = Math.max((stu && stu.teacherSeenAt) || 0, teacherSeenLocal()[a.studentId] || 0);
+                    const isNew = (a.kind === 'writing' && a.status === 'submitted' && a.teacherSeenSubmission === false && (toMillis(a.submittedAt) || 0) > seenAt) ||
                         (isDone && a.kind !== 'writing' && !!doneAt && doneAt > seenAt && doneAt > (a.createdAt || 0));
                     rows.push({
                         id: d.id,
@@ -3181,6 +3182,32 @@
             await Promise.all([pS, pA]);
             return true;
         }
+        function teacherSeenLocal() { try { return JSON.parse(localStorage.getItem('nightTeacherSeen') || '{}'); } catch (e) { return {}; } }
+        function markTeacherSeen(studentId, at) {
+            const m = teacherSeenLocal(); m[studentId] = at;
+            try { localStorage.setItem('nightTeacherSeen', JSON.stringify(m)); } catch (e) {}
+            if (__progStudents && __progStudents[studentId]) __progStudents[studentId].teacherSeenAt = at;
+            setDoc(doc(db, 'users', studentId), { teacherSeenAt: at }, { merge: true }).catch(e => console.warn('Không lưu được "đã xem" lên Firestore (vẫn nhớ trên máy này):', e));
+        }
+        // Mỗi kỹ năng 1 màu riêng trong bảng Tiến độ
+        const KIND_STYLE = {
+            reading:   { c: '#2563eb', bg: '#eff6ff', label: '📖 Reading' },
+            listening: { c: '#d97706', bg: '#fffbeb', label: '🎧 Listening' },
+            writing:   { c: '#059669', bg: '#ecfdf5', label: '✍️ Writing' },
+            speaking:  { c: '#db2777', bg: '#fdf2f8', label: '🎤 Speaking' }
+        };
+        function kindChip(kind) {
+            const k = KIND_STYLE[kind];
+            return k ? `<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:800;color:${k.c};background:${k.bg};border:1px solid ${k.c}33;padding:1px 8px;border-radius:999px;margin-right:6px;vertical-align:middle;white-space:nowrap;">${k.label}</span>` : '';
+        }
+        function kindSummary(tasks) {
+            return Object.keys(KIND_STYLE).map(k => {
+                const list = tasks.filter(t => t.kind === k);
+                if (!list.length) return '';
+                const st = KIND_STYLE[k];
+                return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;color:${st.c};background:${st.bg};padding:1px 7px;border-radius:999px;">${st.label.split(' ')[0]} ${list.filter(t => t.isDone).length}/${list.length}</span>`;
+            }).join('');
+        }
         function updateProgressBadge(n) {
             const badge = document.getElementById('admin-progress-badge');
             if (!badge) return;
@@ -3223,6 +3250,7 @@
                         </div>
                         <div class="flex items-center gap-2 mt-1.5 flex-wrap">
                             <p class="text-[11px] text-gray-400 font-semibold">${s.done}/${s.total} bài đã hoàn thành</p>
+                            ${kindSummary(s.tasks)}
                             ${newBadge}
                             ${overdueBadge}
                         </div>
@@ -3238,11 +3266,8 @@
             if (!s) return;
             window.__currentProgressStudentId = studentId;
             const now = Date.now();
-            // Mở học sinh = đã xem các bài mới của học sinh này (lưu lên Firestore để máy khác cũng biết)
-            if (s.newCount > 0) {
-                setDoc(doc(db, 'users', studentId), { teacherSeenAt: now }, { merge: true }).catch(e => console.warn('Không lưu được "đã xem":', e));
-                if (__progStudents && __progStudents[studentId]) __progStudents[studentId].teacherSeenAt = now;
-            }
+            // Mở học sinh = đã xem hết bài mới của học sinh này (lưu trên máy + Firestore để máy khác cũng biết)
+            markTeacherSeen(studentId, now);
             const cards = s.tasks.map(r => {
                 const barColor = r.isDone ? 'bg-emerald-500' : (r.percent > 0 ? 'bg-brand-purple' : 'bg-gray-200');
                 const percentColor = r.isDone ? 'text-emerald-600' : 'text-brand-purple';
@@ -3299,10 +3324,10 @@
                     doneLine = `${r.done}/${r.total} câu đã gõ đúng`;
                 }
                 return `
-                    <div class="bg-gray-50/60 rounded-2xl p-4 border ${r.isNew ? 'border-red-200' : 'border-gray-100'}">
+                    <div class="rounded-2xl p-4 border ${r.isNew ? 'border-red-200' : 'border-gray-100'}" style="${KIND_STYLE[r.kind] ? 'border-left:5px solid ' + KIND_STYLE[r.kind].c + ';background:' + KIND_STYLE[r.kind].bg + '99;' : 'background:#f9fafb99;'}">
                         <div class="flex justify-between items-start gap-3">
                             <div class="min-w-0">
-                                <p class="font-bold text-gray-800 text-sm truncate">${r.isNew ? '<span class="inline-flex text-[10px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full mr-1.5 align-middle">MỚI</span>' : ''}${r.title}</p>
+                                <p class="font-bold text-gray-800 text-sm truncate">${r.isNew ? '<span class="inline-flex text-[10px] font-black text-white bg-red-500 px-2 py-0.5 rounded-full mr-1.5 align-middle">MỚI</span>' : ''}${kindChip(r.kind)}${r.title}</p>
                                 <p class="text-xs text-gray-400 font-semibold mt-0.5 truncate">${dateStr}</p>
                                 ${deadlineBadge}
                             </div>
