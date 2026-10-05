@@ -1614,6 +1614,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       // có dữ liệu lưu trên máy thì hiện ngay; chưa có thì vẫn hiện câu hỏi, điểm cũ hiện sau
       setTimeout(() => { if (!shown) show(); }, 350);
       await loadPracticeAttempts(uid, show);
+      authReady.then(() => maybeCompleteAssignment());
     }
     if (!shown) show();
     // cập nhật bộ câu hỏi mới nhất ở nền (nếu thầy vừa sửa)
@@ -1969,6 +1970,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         showResult(record);
       }
 
+      sendSpeakingDocLog(record);
       await maybeCompleteAssignment();
     } catch (e) {
       spinner.classList.add('hidden');
@@ -2217,22 +2219,93 @@ Is it better to read a physical book or an e-book?"></textarea>
     }).catch(() => {});
   }
 
+  // Đánh dấu bài giao Speaking: hoàn thành khi đã làm đủ mọi câu của bộ (tính các lần làm SAU lúc
+  // giao bài), kể cả khi học sinh luyện từ danh sách chứ không bấm vào bài được giao. Làm chưa đủ
+  // thì lưu số câu đã làm để Thầy thấy "đã làm 3/5 câu".
   async function maybeCompleteAssignment() {
-    if (!assignmentId) return;
-    const allDone = __pkg.questions.every(q => __doneQIds[q.id]);
-    if (!allDone) return;
+    if (window.__spRole === 'admin' || !__pkg) return;
+    const uid = window.__currentUid;
     try {
-      const aRef = doc(db, 'assignments', assignmentId);
-      const aSnap = await getDoc(aRef);
-      if (!aSnap.exists() || aSnap.data().status === 'completed') return;
-      await updateDoc(aRef, { status: 'completed', completedAt: Date.now() });
-      const scoresAvg = __pkg.questions.reduce((sum, q) => sum + (__doneQIds[q.id].scores.overall || 0), 0) / __pkg.questions.length;
-      await setDoc(doc(db, 'progressLog', window.__currentUid + '_' + assignmentId), {
-        studentId: window.__currentUid, title: __pkg.title, kind: 'speaking', summary: true,
-        resultText: 'Band trung bình: ' + scoresAvg.toFixed(1),
-        completedAt: Date.now(), expiresAt: Date.now() + PROGRESS_LOG_TTL_MS
-      }).catch(() => {});
-    } catch (e) {}
+      const snap = await getDocs(query(collection(db, 'assignments'), where('studentId', '==', uid), where('kind', '==', 'speaking'), where('packageId', '==', __pkg.id)));
+      const jobs = [];
+      snap.forEach(d => {
+        const a = d.data();
+        if (a.status === 'completed') return;
+        const since = (a.createdAt || 0) - 60 * 1000;
+        const doneQs = __pkg.questions.filter(q => (__history[q.id] || []).some(r => (r.createdAt || 0) >= since));
+        const total = __pkg.questions.length;
+        if (doneQs.length < total) {
+          if ((a.doneCount || 0) !== doneQs.length) jobs.push(updateDoc(d.ref, { doneCount: doneQs.length, totalCount: total, lastPlayedAt: Date.now() }).catch(() => {}));
+          return;
+        }
+        const now = Date.now();
+        const avg = doneQs.reduce((sum, q) => sum + (Number(__doneQIds[q.id].scores.overall) || 0), 0) / total;
+        jobs.push(updateDoc(d.ref, { status: 'completed', completedAt: now, doneCount: total, totalCount: total, scoreText: 'Band TB ' + avg.toFixed(1) }).catch(() => {}));
+        jobs.push(setDoc(doc(db, 'progressLog', uid + '_' + d.id), {
+          studentId: uid, title: __pkg.title, kind: 'speaking', summary: true,
+          resultText: 'Band trung bình: ' + avg.toFixed(1),
+          completedAt: now, expiresAt: now + PROGRESS_LOG_TTL_MS
+        }).catch(() => {}));
+      });
+      await Promise.all(jobs);
+    } catch (e) { console.warn('Không cập nhật được bài giao Speaking:', e); }
+  }
+
+  // ---- Sổ bài làm trên Google Docs (thẻ Speaking) ----
+  const DOCLOG_URL = 'https://script.google.com/macros/s/AKfycbwsYqBxEnJsLOx4yQNyqWHqOiV3yfNSTOXav5JV15YN3grkXYeQxxyAsLiO-8l8lyJLAw/exec';
+  const SP_WASH = { fluency: '#e4f4f2', lexical: '#fbf1e1', grammar: '#fcebea', pronunciation: '#f3eefc' };
+  const SP_INK = { fluency: '#0e7f75', lexical: '#a65f00', grammar: '#c0392b', pronunciation: '#7a4fc4' };
+  function sendSpeakingDocLog(record) {
+    if (window.__spRole === 'admin' || !record) return;
+    try {
+      const B = [];
+      const crit = record.criteria || {};
+      B.push({ k: 'p', r: [{ t: 'Band ' + fmtBand(record.scores.overall) + '  ·  ' + SP_CRIT.map(k => SP_SHORT[k] + ' ' + (crit[k] && crit[k].band != null ? fmtBand(crit[k].band) : '-')).join('  ·  '), b: true }] });
+      B.push({ k: 'h', t: 'Câu hỏi' });
+      B.push({ k: 'p', r: [{ t: (record.packageTitle ? record.packageTitle + ' — ' : '') + (record.questionText || '') }] });
+      // Bài nói: chữ sai gạch đỏ, chữ đúng in đậm ngay sau
+      const tr = (record.transcript || '').trim();
+      const edits = record.edits || [];
+      const runs = [];
+      let pos = 0;
+      spPlace(tr, edits, 'find').forEach(p => {
+        const e = edits[p.i];
+        if (p.s > pos) runs.push({ t: tr.slice(pos, p.s) });
+        runs.push({ t: tr.slice(p.s, p.e), s: true, c: '#9a93a8' });
+        if (e.replace) runs.push({ t: ' ' + e.replace, b: true, c: SP_INK[e.criterion], bg: SP_WASH[e.criterion] });
+        pos = p.e;
+      });
+      if (pos < tr.length) runs.push({ t: tr.slice(pos) });
+      B.push({ k: 'h', t: 'Bài nói của bạn (đã sửa)' });
+      B.push({ k: 'p', r: runs.length ? runs : [{ t: tr }] });
+      if (record.whyNotHigher) B.push({ k: 'p', r: [{ t: 'Vì sao chưa đạt band cao hơn: ', b: true }, { t: record.whyNotHigher }] });
+      B.push({ k: 'h', t: 'Nhận xét theo 4 tiêu chí' });
+      SP_CRIT.forEach(k => {
+        const c = crit[k] || {};
+        B.push({ k: 'p', r: [{ t: SP_NAME[k] + ' — ' + (c.band != null ? fmtBand(c.band) : '-') + ': ', b: true, c: SP_INK[k] }, { t: c.feedback || '' }] });
+        if (c.toNextBand) B.push({ k: 'p', r: [{ t: 'Vì sao chưa lên band tiếp theo: ', i: true, b: true }, { t: c.toNextBand, i: true }] });
+      });
+      if (edits.length) {
+        B.push({ k: 'table', rows: [['Chỗ sai', 'Sửa thành', 'Tiêu chí', 'Vì sao']].concat(edits.map(e => [e.find, e.replace || '(bỏ)', SP_SHORT[e.criterion] || '', e.why])) });
+      }
+      const notes = record.refinementNotes || [];
+      const ra = record.refinedAnswer || '';
+      if (ra) {
+        const rr = []; let p2 = 0;
+        spPlace(ra, notes, 'to').forEach(p => {
+          const n = notes[p.i];
+          if (p.s > p2) rr.push({ t: ra.slice(p2, p.s) });
+          rr.push({ t: ra.slice(p.s, p.e), bg: SP_WASH[n.criterion] || '#e8f5e9', b: true });
+          p2 = p.e;
+        });
+        if (p2 < ra.length) rr.push({ t: ra.slice(p2) });
+        B.push({ k: 'h', t: 'Bản nâng cấp' });
+        B.push({ k: 'p', r: rr });
+        notes.forEach((n, i) => B.push({ k: 'p', r: [{ t: (i + 1) + '. ' + (n.change || ((n.from ? n.from + ' → ' : '') + n.to)) + (n.criterion ? ' (' + SP_SHORT[n.criterion] + ')' : '') + ': ', b: true }, { t: n.reason || '' }] }));
+      }
+      const body = JSON.stringify({ action: 'docLog', uid: window.__currentUid, tab: 'Speaking', title: (record.packageTitle || 'Speaking') + ' — ' + (record.questionText || '').slice(0, 80), at: record.createdAt || Date.now(), blocks: B });
+      fetch(DOCLOG_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, keepalive: body.length < 60000 }).catch(() => {});
+    } catch (e) { console.warn('Không gửi được sang Google Docs:', e); }
   }
 
   // ==========================================

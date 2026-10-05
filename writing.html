@@ -2221,11 +2221,76 @@ details[open] > summary:before{content:'▾ ';}
     Object.assign(__docCache[ref.id], data);
     const m = __myDocs.find(x => x.id === ref.id); if (m) Object.assign(m, data);
     logProgress(ref.id, data);
+    sendWritingDocLog(data);
     overlay.classList.add('hidden');
     if (currentId() === ref.id) renderResult(ref, data);
   };
 
   // Ghi vào bảng "Hoạt động 3 tháng" ở trang chủ (cùng id trang chủ dùng nên không bị đếm trùng)
+  // ---- Sổ bài làm trên Google Docs (thẻ Writing) ----
+  const DOCLOG_URL = 'https://script.google.com/macros/s/AKfycbwsYqBxEnJsLOx4yQNyqWHqOiV3yfNSTOXav5JV15YN3grkXYeQxxyAsLiO-8l8lyJLAw/exec';
+  const WR_WASH = { ta: '#f3eefc', cc: '#e4f4f2', lr: '#fbf1e1', gra: '#fcebea' };
+  const WR_INK = { ta: '#7a4fc4', cc: '#0e7f75', lr: '#a65f00', gra: '#c0392b' };
+  function postDocLog(title, at, blocks) {
+    const body = JSON.stringify({ action: 'docLog', uid: __uid, tab: 'Writing', title: title, at: at || Date.now(), blocks: blocks });
+    try { fetch(DOCLOG_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, keepalive: body.length < 60000 }).catch(() => {}); } catch (e) {}
+  }
+  function sendWritingDocLog(data) {
+    if (__role === 'admin' || data.studentId !== __uid || !data.ai) return;
+    try {
+      const ai = data.ai, task = data.task || guessTask(data.promptHtml), names = CRIT_NAME(task);
+      const B = [];
+      B.push({ k: 'p', r: [{ t: 'Band ' + fmtBand(ai.overall) + '  ·  ' + ['ta', 'cc', 'lr', 'gra'].map(k => names[k].replace('Grammatical Range & Accuracy', 'Grammar') + ' ' + fmtBand(ai.criteria[k].band)).join('  ·  ') + '  ·  ' + (data.wordCount || 0) + ' từ', b: true }] });
+      B.push({ k: 'h', t: 'Đề bài' });
+      B.push({ k: 'p', r: [{ t: htmlToText(data.promptHtml) + (extractImages(data.promptHtml).length ? '  (đề có hình, xem trên web)' : '') }] });
+      // Bài viết: lỗi gạch đi + chữ đúng in đậm; gợi ý hay hơn tô nền + "→ ..." nghiêng
+      const text = data.submissionText || htmlToText(data.submissionHtml);
+      const placed = applyEdits(text, ai.edits);
+      B.push({ k: 'h', t: 'Bài viết của bạn (đã sửa)' });
+      splitParasWithEdits(text, placed).forEach(runs => B.push({ k: 'p', r: runs }));
+      if (ai.summary) B.push({ k: 'p', r: [{ t: 'Nhận xét chung: ', b: true }, { t: ai.summary }] });
+      if (ai.whyNotHigher) B.push({ k: 'p', r: [{ t: 'Vì sao chưa đạt band ' + fmtBand(Math.min(9, ai.overall + 0.5)) + ': ', b: true }, { t: ai.whyNotHigher }] });
+      B.push({ k: 'h', t: 'Nhận xét theo 4 tiêu chí' });
+      ['ta', 'cc', 'lr', 'gra'].forEach(k => {
+        const c = ai.criteria[k] || {};
+        B.push({ k: 'p', r: [{ t: names[k] + ' — ' + fmtBand(c.band) + ': ', b: true, c: WR_INK[k] }, { t: c.feedback || '' }] });
+        if (c.toNext) B.push({ k: 'p', r: [{ t: 'Vì sao chưa lên ' + (c.band + 1) + ': ', b: true, i: true }, { t: c.toNext, i: true }] });
+      });
+      const rows = placed.map(p => [text.slice(p.s, p.e), p.edit.replace || '(bỏ)', names[p.edit.criterion].replace('Grammatical Range & Accuracy', 'Grammar') + (p.edit.kind === 'better' ? ' · gợi ý' : ''), p.edit.why]);
+      if (rows.length) { B.push({ k: 'h', t: 'Các chỗ sửa' }); B.push({ k: 'table', rows: [['Bạn viết', 'Sửa thành', 'Tiêu chí', 'Vì sao']].concat(rows) }); }
+      if ((ai.nextSteps || []).length) { B.push({ k: 'h', t: 'Để lên band tiếp theo' }); ai.nextSteps.forEach((x, i) => B.push({ k: 'p', r: [{ t: (i + 1) + '. ' + x }] })); }
+      postDocLog((data.title || 'Writing') + (data.selfPracticed ? ' (tự luyện)' : ''), data.submittedAt, B);
+    } catch (e) { console.warn('Không gửi được sang Google Docs:', e); }
+  }
+  function splitParasWithEdits(text, placed) {
+    const out = []; let cur = [], pos = 0;
+    const pushText = t => { t.split(/(\n+)/).forEach(part => { if (/^\n+$/.test(part)) { if (cur.length) out.push(cur); cur = []; } else if (part) cur.push({ t: part }); }); };
+    placed.forEach(p => {
+      pushText(text.slice(pos, p.s));
+      const e = p.edit, orig = text.slice(p.s, p.e);
+      if (e.kind === 'better') { cur.push({ t: orig, bg: WR_WASH[e.criterion] }); if (e.replace) cur.push({ t: ' → ' + e.replace, i: true, c: WR_INK[e.criterion] }); }
+      else { cur.push({ t: orig, s: true, c: '#9aa3b2' }); if (e.replace) cur.push({ t: ' ' + e.replace, b: true, c: WR_INK[e.criterion], bg: WR_WASH[e.criterion] }); }
+      pos = p.e;
+    });
+    pushText(text.slice(pos));
+    if (cur.length) out.push(cur);
+    return out;
+  }
+  function sendUpgradeDocLog(data) {
+    if (__role === 'admin' || data.studentId !== __uid || !data.ai || !data.ai.upgrade) return;
+    try {
+      const up = data.ai.upgrade, task = data.task || guessTask(data.promptHtml), names = CRIT_NAME(task);
+      const B = [];
+      B.push({ k: 'p', r: [{ t: 'Bài của bạn band ' + fmtBand(data.ai.overall) + ' → bản nâng cấp band ' + Number(up.targetBand).toFixed(1), b: true }] });
+      if (up.summary) B.push({ k: 'p', r: [{ t: 'Vì sao bài chưa đạt band ' + Number(up.targetBand).toFixed(1) + ': ', b: true }, { t: up.summary }] });
+      B.push({ k: 'table', rows: [['Bài của bạn', 'Bản nâng cấp']].concat((up.rows || []).map(r => [r.orig, r.improved])) });
+      const ch = [];
+      (up.rows || []).forEach(r => (r.changes || []).forEach(c => ch.push(c)));
+      if (ch.length) { B.push({ k: 'h', t: 'Từng chỗ nâng cấp' }); B.push({ k: 'table', rows: [['Bạn viết', 'Bản nâng cấp', 'Tiêu chí', 'Vì sao']].concat(ch.map(c => [c.from || '(thêm mới)', c.to, names[c.criterion].replace('Grammatical Range & Accuracy', 'Grammar'), c.why])) }); }
+      postDocLog((data.title || 'Writing') + ' — Gợi ý nâng cấp', Date.now(), B);
+    } catch (e) { console.warn('Không gửi được bản nâng cấp sang Google Docs:', e); }
+  }
+
   function logProgress(docId, data) {
     if (__role === 'admin' || data.studentId !== __uid) return; // bài thầy tự luyện không tính vào bảng tiến độ học sinh
     const at = data.submittedAt || Date.now();
@@ -2425,6 +2490,7 @@ details[open] > summary:before{content:'▾ ';}
     const up = { targetBand: target, summary: String(res.summary || ''), rows: rows, createdAt: Date.now() };
     ai.upgrade = up;
     await updateDoc(ref, { ai: ai });
+    sendUpgradeDocLog(data);
     return up;
   }
 
@@ -2821,6 +2887,7 @@ details[open] > summary:before{content:'▾ ';}
     try {
       await runAiGrading(rs.ref, rs.data, s => { if (here()) showGradingMsg(s); });
       logProgress(id, rs.data);
+      sendWritingDocLog(rs.data);
     } catch (e) {
       rs.data.aiStatus = 'error'; rs.data.aiError = e.message;
       updateDoc(rs.ref, { aiStatus: 'error', aiError: String(e.message).slice(0, 300) }).catch(() => {});
