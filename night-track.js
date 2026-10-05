@@ -290,4 +290,217 @@
     });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+
+  // =====================================================================
+  // LÀM CHUNG: nhập biệt danh + hiện tên người vừa nhập ngay cạnh từng đáp án
+  // Chạy song song với bộ "Làm chung" có sẵn trong đề (không sửa gì bộ đó): ghi thêm
+  // liveSessions/{phiên}/who/{câu} = { n: biệt danh, c: máy, t: lúc } và names/{máy} = biệt danh.
+  // =====================================================================
+  var LIVE = { sid: null, nick: '', cid: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), db: null, mod: null, who: {}, lastSent: {} };
+  var NICK_KEY = 'nightLiveNick';
+  try { LIVE.nick = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
+
+  function liveDb() {
+    if (LIVE.dbP) return LIVE.dbP;
+    LIVE.dbP = Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js')
+    ]).then(function (m) {
+      var cfg = Object.assign({ databaseURL: 'https://night-ielts-land-default-rtdb.firebaseio.com' }, FB_CONFIG);
+      var app = m[0].initializeApp(cfg, 'night-live-names-' + Date.now());
+      LIVE.mod = m[1]; LIVE.db = m[1].getDatabase(app);
+      return LIVE;
+    });
+    return LIVE.dbP;
+  }
+  function nickColor(name) {
+    var h = 0; name = String(name || ''); for (var i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+    var hues = [210, 340, 145, 28, 265, 190, 0, 95, 300, 50];
+    return 'hsl(' + hues[Math.abs(h) % hues.length] + ', 65%, 42%)';
+  }
+  function injectLiveCss() {
+    if (document.getElementById('nt-live-css')) return;
+    var st = document.createElement('style'); st.id = 'nt-live-css';
+    st.textContent =
+      '.nt-who{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:1px 7px;border-radius:999px;font:600 11px/1.6 system-ui,-apple-system,sans-serif;color:#fff;vertical-align:middle;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;pointer-events:none;animation:ntPop .25s ease;}' +
+      '.nt-who.mine{opacity:.75;}' +
+      '.nt-who-host{position:relative;}' +
+      '.nt-who.corner{position:absolute;top:6px;right:8px;margin:0;}' +
+      '.options-tf .nt-who,.mcq-options .nt-who{align-self:center;}' +
+      '@keyframes ntPop{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}' +
+      '#nt-nick-overlay{position:fixed;inset:0;background:rgba(20,20,30,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,sans-serif;}' +
+      '#nt-nick-box{background:#fff;border-radius:16px;padding:22px 22px 18px;max-width:360px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);}' +
+      '#nt-nick-box h3{margin:0 0 6px;font-size:18px;color:#222;}' +
+      '#nt-nick-box p{margin:0 0 14px;font-size:13.5px;color:#666;line-height:1.5;}' +
+      '#nt-nick-box input{width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #ddd;border-radius:10px;font-size:15px;outline:none;}' +
+      '#nt-nick-box input:focus{border-color:#7c6be6;}' +
+      '#nt-nick-box button{margin-top:12px;width:100%;padding:11px;border:0;border-radius:10px;background:#7c6be6;color:#fff;font-weight:700;font-size:15px;cursor:pointer;}' +
+      '#nt-live-names{font:600 11.5px system-ui,-apple-system,sans-serif;color:#555;margin-left:6px;}';
+    document.head.appendChild(st);
+  }
+  function askNick(cb) {
+    injectLiveCss();
+    if (document.getElementById('nt-nick-overlay')) return;
+    var ov = document.createElement('div'); ov.id = 'nt-nick-overlay';
+    ov.innerHTML = '<div id="nt-nick-box"><h3>👥 Làm bài chung</h3><p>Nhập tên hiển thị của bạn. Khi bạn chọn hoặc gõ đáp án, tên này hiện nhỏ cạnh câu đó để mọi người biết ai đã làm.</p>' +
+      '<input id="nt-nick-input" maxlength="20" placeholder="Ví dụ: Minh Anh" autocomplete="off"><button type="button" id="nt-nick-ok">Vào làm bài</button></div>';
+    document.body.appendChild(ov);
+    var inp = document.getElementById('nt-nick-input');
+    inp.value = LIVE.nick || '';
+    setTimeout(function () { inp.focus(); inp.select(); }, 50);
+    function done() {
+      var v = inp.value.replace(/\s+/g, ' ').trim().slice(0, 20);
+      if (!v) { inp.focus(); inp.style.borderColor = '#e53935'; return; }
+      LIVE.nick = v;
+      try { localStorage.setItem(NICK_KEY, v); } catch (e) {}
+      ov.remove();
+      cb && cb();
+    }
+    document.getElementById('nt-nick-ok').addEventListener('click', done);
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') done(); });
+  }
+
+  // Chỗ đặt nhãn tên: ngay sau ô điền / ô thả (kéo-thả) / danh sách chọn; câu trắc nghiệm thì ở góc khung câu
+  function hostFor(key) {
+    if (key.indexOf('g_') === 0) {
+      var grp = document.querySelector('.multi-group[data-multi-group="' + key.slice(2) + '"]');
+      return grp ? { el: grp, corner: true } : null;
+    }
+    var slot = document.getElementById('slot-' + key);
+    if (slot) return { el: slot, after: true };
+    var inp = document.getElementsByName('q' + key)[0];
+    if (!inp) return null;
+    if (inp.type === 'radio') {
+      var opts = inp.closest('.options-tf, .mcq-options');
+      if (opts) return { el: opts, inside: true };
+    }
+    if (inp.type === 'radio' || inp.type === 'checkbox' || inp.type === 'hidden') {
+      var box = document.getElementById('q-container-' + key) || inp.closest('.question-item, li, tr');
+      return box ? { el: box, corner: true } : { el: inp, after: true };
+    }
+    return { el: inp, after: true };
+  }
+  function renderWho(key) {
+    var old = document.querySelector('.nt-who[data-k="' + key + '"]');
+    var w = LIVE.who[key];
+    if (!w || !w.n) { if (old) old.remove(); return; }
+    var h = hostFor(key);
+    if (!h) { if (old) old.remove(); return; }
+    var b = old || document.createElement('span');
+    b.className = 'nt-who' + (h.corner ? ' corner' : '') + (w.c === LIVE.cid ? ' mine' : '');
+    b.setAttribute('data-k', key);
+    b.style.background = nickColor(w.n);
+    b.textContent = w.n;
+    b.title = w.n + ' đã nhập câu này';
+    if (h.inside) { if (b.parentNode !== h.el) h.el.appendChild(b); }
+    else if (h.corner) { h.el.classList.add('nt-who-host'); if (b.parentNode !== h.el) h.el.appendChild(b); }
+    else if (b.previousSibling !== h.el) h.el.parentNode.insertBefore(b, h.el.nextSibling);
+  }
+  function renderAllWho() { Object.keys(LIVE.who).forEach(renderWho); document.querySelectorAll('.nt-who').forEach(function (b) { if (!LIVE.who[b.getAttribute('data-k')]) b.remove(); }); }
+
+  function sendWho(key, hasValue) {
+    if (!LIVE.sid || !LIVE.nick) return;
+    var now = Date.now();
+    var last = LIVE.lastSent[key];
+    if (hasValue && last && last.on && now - last.t < 2500) return;   // gõ liên tục: không ghi mỗi phím
+    LIVE.lastSent[key] = { t: now, on: hasValue };
+    liveDb().then(function (L) {
+      var r = L.mod.ref(L.db, 'liveSessions/' + LIVE.sid + '/who/' + key);
+      if (hasValue) L.mod.set(r, { n: LIVE.nick, c: LIVE.cid, t: now }).catch(function () {});
+      else L.mod.remove(r).catch(function () {});
+    });
+    LIVE.who[key] = hasValue ? { n: LIVE.nick, c: LIVE.cid, t: now } : null;
+    if (!hasValue) delete LIVE.who[key];
+    renderWho(key);
+  }
+  function valueOfQ(name) {
+    var els = document.getElementsByName(name);
+    if (!els.length) return '';
+    if (els[0].type === 'radio') { for (var i = 0; i < els.length; i++) if (els[i].checked) return els[i].value; return ''; }
+    return String(els[0].value || '').trim();
+  }
+  var lastGesture = 0;
+  function onUserEdit(e) {
+    if (!e.isTrusted || !LIVE.sid) return;     // thay đổi do đồng bộ từ người khác thì bỏ qua
+    var t = e.target;
+    if (!t || !t.name) return;
+    if (t.classList && t.classList.contains('multi-check')) {
+      var grp = t.closest('.multi-group');
+      if (grp) sendWho('g_' + grp.getAttribute('data-multi-group'), !!grp.querySelector('.multi-check:checked'));
+      return;
+    }
+    var m = String(t.name).match(/^q(\d+)$/);
+    if (m) sendWho(m[1], !!valueOfQ(t.name));
+  }
+  ['pointerdown', 'pointerup', 'keydown', 'touchend', 'click'].forEach(function (ev) { document.addEventListener(ev, function (e) { if (e.isTrusted) lastGesture = Date.now(); }, true); });
+  // Kéo-thả (Matching/Heading): ô ẩn đổi giá trị bằng code nên bắt qua fillSlot/clearSlot ngay sau thao tác thật
+  function wrapSlots() {
+    ['fillSlot', 'clearSlot'].forEach(function (fn) {
+      var orig = window[fn];
+      if (typeof orig !== 'function' || orig.__nt) return;
+      var w = function (slotEl) {
+        var out = orig.apply(this, arguments);
+        try {
+          if (LIVE.sid && Date.now() - lastGesture < 900 && slotEl && /^slot-\d+$/.test(slotEl.id || '')) {
+            var q = slotEl.id.slice(5);
+            setTimeout(function () { sendWho(q, !!valueOfQ('q' + q)); }, 0);
+          }
+        } catch (e) {}
+        return out;
+      };
+      w.__nt = true;
+      window[fn] = w;
+    });
+  }
+
+  function startLive(sid) {
+    if (LIVE.sid === sid) return;
+    LIVE.sid = sid;
+    injectLiveCss();
+    document.addEventListener('input', onUserEdit, true);
+    document.addEventListener('change', onUserEdit, true);
+    wrapSlots();
+    liveDb().then(function (L) {
+      var base = 'liveSessions/' + sid;
+      var nameRef = L.mod.ref(L.db, base + '/names/' + LIVE.cid);
+      L.mod.onValue(L.mod.ref(L.db, '.info/connected'), function (sn) {
+        if (sn.val() === true && LIVE.nick) { L.mod.onDisconnect(nameRef).remove(); L.mod.set(nameRef, LIVE.nick).catch(function () {}); }
+      });
+      L.mod.onValue(L.mod.ref(L.db, base + '/who'), function (sn) {
+        LIVE.who = sn.val() || {};
+        renderAllWho();
+      });
+      L.mod.onValue(L.mod.ref(L.db, base + '/names'), function (sn) {
+        var names = Object.keys(sn.val() || {}).map(function (k) { return sn.val()[k]; }).filter(Boolean);
+        var badge = document.getElementById('live-participant-badge');
+        if (!badge) return;
+        badge.title = names.join(', ');
+        var el = document.getElementById('nt-live-names');
+        if (!el) { el = document.createElement('span'); el.id = 'nt-live-names'; badge.appendChild(el); }
+        el.textContent = names.length ? '· ' + names.slice(0, 2).join(', ') + (names.length > 2 ? ' +' + (names.length - 2) : '') : '';
+      });
+    }).catch(function (e) { console.warn('Night live names:', e); });
+    // Giao diện câu hỏi dựng xong / đổi passage thì vẽ lại nhãn
+    var origStart = window.startTest;
+    if (typeof origStart === 'function' && !origStart.__nt) {
+      var ws = function () { var o = origStart.apply(this, arguments); setTimeout(function () { wrapSlots(); renderAllWho(); }, 50); return o; };
+      ws.__nt = true; window.startTest = ws;
+    }
+  }
+  function sidFromUrl() { return new URLSearchParams(location.search).get('liveSession'); }
+  function beginLive(sid) {
+    if (!sid) return;
+    if (LIVE.nick && LIVE.askedFor === sid) { startLive(sid); return; }
+    LIVE.askedFor = sid;
+    askNick(function () { startLive(sid); if (LIVE.db) liveDb().then(function (L) { L.mod.set(L.mod.ref(L.db, 'liveSessions/' + sid + '/names/' + LIVE.cid), LIVE.nick).catch(function () {}); }); });
+  }
+  // Người mở link làm chung: hỏi tên ngay. Thầy bấm "Tạo link làm chung": bộ có sẵn đổi URL -> bắt lúc đó.
+  var origReplace = history.replaceState;
+  history.replaceState = function () {
+    var out = origReplace.apply(this, arguments);
+    try { var sid = sidFromUrl(); if (sid && sid !== LIVE.sid && sid !== LIVE.askedFor) beginLive(sid); } catch (e) {}
+    return out;
+  };
+  function initLive() { var sid = sidFromUrl(); if (sid) beginLive(sid); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initLive); else initLive();
 })();
