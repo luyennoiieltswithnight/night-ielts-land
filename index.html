@@ -4831,7 +4831,7 @@
                 <div class="hw-st${s.hwDocUrl ? '' : ' nofile'}" data-sid="${s.id}">
                     <label><input type="checkbox" data-pick="${s.id}" ${HW.picked.has(s.id) ? 'checked' : ''} ${s.hwDocUrl ? '' : 'disabled'}> <b>${hwEsc(s.name)}</b></label>
                     ${s.hwDocUrl
-                        ? `<a href="${hwEsc(s.hwDocUrl)}" target="_blank" rel="noopener" title="Mở file Bài tập của em này">📄</a>`
+                        ? `<span class="hw-acts"><a href="${hwEsc(s.hwDocUrl)}" target="_blank" rel="noopener" title="Mở file Bài tập của em này">📄</a><button data-paste="${s.id}" title="Đổi sang file khác">Đổi</button></span>`
                         : `<span class="hw-acts"><button data-mk="${s.id}">✨ Tạo file</button><button data-paste="${s.id}">Dán link</button></span>`}
                 </div>`).join('');
         }
@@ -4954,6 +4954,10 @@
             if (!title) return alert('Đặt tên bài giúp em.');
             const uids = [...HW.picked].filter(id => (HW.students.find(s => s.id === id) || {}).hwDocUrl);
             if (!uids.length) return alert('Chọn ít nhất 1 học sinh đã có file Bài tập.');
+            // File bài tập của học sinh KHÔNG được trùng file tài liệu đang mở (nếu trùng sẽ chép bài vào chính file của Thầy)
+            const fileId = u => ((u || '').match(/\/d\/([A-Za-z0-9_-]{20,})/) || [])[1];
+            const same = uids.map(id => HW.students.find(s => s.id === id)).filter(s => fileId(s.hwDocUrl) === HW.src.id);
+            if (same.length) return alert('File Bài tập của ' + same.map(s => s.name).join(', ') + ' đang là CHÍNH file tài liệu Thầy vừa mở.\n\nMỗi em cần 1 file riêng: bấm "Đổi" cạnh tên em đó để dán link file khác, hoặc vào Tiến Độ → bấm tên em → xoá link rồi bấm "Tạo file mới".');
             const dl = $hw('#hw-deadline').value;
             const deadlineAt = dl ? new Date(dl + 'T23:59:59').getTime() : null;
             const note = $hw('#hw-note').value.trim();
