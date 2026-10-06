@@ -924,9 +924,9 @@
                 </div>
 
                 <!-- PASSAGE 3 -->
-                <div id="passage-3-text" class="content-wrapper" data-title="BOOK REVIEW">
+                <div id="passage-3-text" class="content-wrapper" data-title="BOOK REVIEW "The Happiness Industry: How the Government and Big Business Sold Us Well-Beingauthor: William Davies"">
                     <p style="color: #666; font-size: 14px;">READING PASSAGE 3</p>
-                    <h2>BOOK REVIEW</h2>
+                    <h2>BOOK REVIEW "The Happiness Industry: How the Government and Big Business Sold Us Well-Beingauthor: William Davies"</h2>
                     <p>‘Happiness is the ultimate goal because it is self-evidently good. If we are asked why happiness matters we can give no further external reason. It just obviously does matter.’ This pronouncement by Richard Layard, an economist and advocate of ‘positive psychology’, summarises the beliefs of many people today. For Layard and others like him, it is obvious that the purpose of government is to promote a state of collective well-being. The only question is how to achieve it, and here positive psychology – a supposed science that not only identifies what makes people happy but also allows their happiness to be measured – can show the way. Equipped with this science, they say, governments can secure happiness in society in a way they never could in the past.</p>
 <p>It is an astonishingly crude and simple-minded way of thinking, and for that very reason increasingly popular. <span id="loc-27">Those who think in this way are oblivious to the vast philosophical literature</span> in which the meaning and value of happiness have been explored and questioned, and write as if nothing of any importance had been thought on the subject until it came to their attention. It was the philosopher Jeremy Bentham (1748-1832) who was more than anyone else responsible for the development of this way of thinking. For Bentham it was obvious that the human good consists of pleasure and the absence of pain. The Greek philosopher <span id="loc-28">Aristotle may have identified happiness with self-realisation in the 4th century BC</span>, and thinkers throughout the ages may have struggled to reconcile the pursuit of happiness with other human values, but for Bentham all this was mere metaphysics or fiction. Without knowing anything much of him or the school of moral theory he established – since they are by education and intellectual conviction illiterate in the history of ideas – our advocates of positive psychology follow in his tracks in rejecting as outmoded and irrelevant pretty much the entirety of ethical reflection on human happiness to date.</p>
 <p>But as William Davies notes in his recent book The Happiness Industry, the view that happiness is the only self-evident good is actually a way of limiting moral inquiry. One of the virtues of this rich, lucid and arresting book is that it places the current cult of happiness in a well-defined historical framework. Rightly, Davies begins his story with Bentham, noting that he was far more than a philosopher. Davies writes, ‘Bentham’s activities were those which we might now associate with a public sector management consultant’. In the 1790s, he wrote to the Home Office suggesting that <span id="loc-30">the departments of government be linked together through a set of ‘conversation tubes’</span>, and to the Bank of England with a design for <span id="loc-31">a printing device that could produce unforgeable banknotes</span>. He drew up plans for <span id="loc-32">a ‘frigidarium’ to keep provisions such as meat, fish, fruit and vegetables fresh</span>. His celebrated design for a prison to be known as a ‘Panopticon’, in which prisoners would be kept in solitary confinement while <span id="loc-33">being visible at all times to the guards</span>, was very nearly adopted. (Surprisingly, Davies does not discuss the fact that Bentham meant his Panopticon not just as a model prison but also as an instrument of control that could be applied to schools and factories.)</p>
@@ -1851,34 +1851,6 @@
             return score;
         }
 
-        // ---- KẾT QUẢ CHI TIẾT gửi về cho giáo viên (index.html → "Bài Đã Giao" → bấm vào học sinh).
-        //      Lưu 14 ngày rồi index.html tự xoá. `by` = nickname người điền câu đó khi "Làm chung". ----
-        function buildBsehResultDetail(startQ, endQ, score, total, band) {
-            const by = window.__bsehLiveBy || {};
-            const answers = [];
-            for (let i = startQ; i <= endQ; i++) {
-                let uAns = '';
-                const inputs = document.getElementsByName(`q${i}`);
-                if (inputs.length > 0) {
-                    if (inputs[0].type === 'radio') inputs.forEach(r => { if (r.checked) uAns = r.value; });
-                    else uAns = (inputs[0].value || '').trim();
-                }
-                const correct = String((testData[i] && testData[i].answer) || '');
-                const ok = uAns.toUpperCase() === correct.toUpperCase();
-                const row = { q: String(i), user: uAns, correct: correct, ok: ok };
-                if (by[i]) row.by = String(by[i]);
-                answers.push(row);
-            }
-            const started = window.__bsehStartedAt || 0;
-            return { score: score, total: total, band: band, answers: answers, submittedAt: Date.now(),
-                     timeSpentSec: started ? Math.round((Date.now() - started) / 1000) : 0 };
-        }
-        function bsehResultFields() {
-            const r = window.__bsehLastResult;
-            if (!r) return {};
-            return { score: r.score, result: r, resultExpiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000 };
-        }
-
         function submitTest() {
             if(timerInterval) clearInterval(timerInterval);
 
@@ -1904,7 +1876,6 @@
             const band = calculateBand(score);
             document.getElementById('band-score').innerText = band;
 
-            try { window.__bsehLastResult = buildBsehResultDetail(startQ, endQ, score, total, band); } catch (e) { console.warn('BSEH result detail', e); }
             saveProgressRecord(score, total, band);
 
             // Khi đang nộp 1 bài tập được giao: hiện rõ banner "Đã nộp homework thành công" +
@@ -2523,67 +2494,7 @@
             }
             btn.innerText = result === 'duplicate' ? '✓ Đã có sẵn' : '✅ Đã lưu!';
             setTimeout(() => { btn.innerText = original; }, 1500);
-            // Đồng bộ thêm 1 bản lên Firestore (collection savedWords) để từ này cũng hiện trong
-            // "My Words" ở trang chủ — xem được trên MỌI thiết bị, không chỉ trình duyệt này, và
-            // tự hết hạn sau 3 tháng. Sổ từ vựng cục bộ (localStorage) ở trên vẫn giữ nguyên như
-            // cũ, không đổi gì — đây chỉ là lưu THÊM, không thay thế.
-            if (result !== 'full') syncWordToMyWords(selectedTextStr, currentTranslation);
         });
-
-        // Lazy-load Firebase Auth + Firestore (chỉ khi học sinh thực sự bấm lưu từ, đỡ phải tải
-        // Firebase cho MỌI lượt mở đề Reading, kể cả lúc không dùng đến tính năng này). Dùng
-        // CHUNG firebaseConfig với index.html (project "b-s-english-house"), và nhờ
-        // Firebase Auth tự lưu phiên đăng nhập theo gốc site (origin) nên nếu học sinh đã đăng
-        // nhập ở trang chủ thì mở đề Reading (kể cả luyện tự do, không qua bài giao) vẫn nhận
-        // diện được đúng học sinh đó — không cần đăng nhập lại lần 2 ở đây.
-        let __myWordsFirebasePromise = null;
-        function loadMyWordsFirebase() {
-            if (!__myWordsFirebasePromise) {
-                __myWordsFirebasePromise = Promise.all([
-                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
-                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'),
-                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
-                ]).then(function (mods) {
-                    var FB_CONFIG = {
-                        apiKey: "AIzaSyDuoosjvJe3EoF22h9UJ6M95os5s_boQ-o",
-                        authDomain: "b-s-english-house.firebaseapp.com",
-                        projectId: "b-s-english-house",
-                        storageBucket: "b-s-english-house.firebasestorage.app",
-                        messagingSenderId: "946574286636",
-                        appId: "1:946574286636:web:44624fb938e6b5dc961689",
-                        measurementId: "G-YZR2QFWQGR"
-                    };
-                    var appMod = mods[0], authMod = mods[1], fsMod = mods[2];
-                    var app = appMod.initializeApp(FB_CONFIG, 'night-ielts-mywords-' + Date.now());
-                    var auth = authMod.getAuth(app);
-                    var db = fsMod.getFirestore(app);
-                    return { authMod: authMod, fsMod: fsMod, auth: auth, db: db };
-                });
-            }
-            return __myWordsFirebasePromise;
-        }
-
-        var SAVED_WORD_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 3 tháng, giống hệt index.html
-
-        function syncWordToMyWords(word, meaning) {
-            loadMyWordsFirebase().then(function (fb) {
-                // onAuthStateChanged luôn gọi callback ngay lần đầu (dù có hay không có user) nên
-                // dùng 1 lần rồi tự huỷ đăng ký, không cần giữ subscription sống lâu dài.
-                var unsub = fb.authMod.onAuthStateChanged(fb.auth, function (user) {
-                    unsub();
-                    if (!user) return; // chưa đăng nhập ở trang chủ -> chỉ lưu local, bỏ qua Firestore
-                    var now = Date.now();
-                    fb.fsMod.addDoc(fb.fsMod.collection(fb.db, 'savedWords'), {
-                        studentId: user.uid,
-                        word: word,
-                        meaning: meaning,
-                        sourceTitle: document.title || '',
-                        savedAt: now,
-                        expiresAt: now + SAVED_WORD_TTL_MS
-                    }).catch(function (e) { console.warn('Night IELTS: không lưu được từ vào My Words', e); });
-                });
-            }).catch(function (e) { console.warn('Night IELTS: không tải được Firebase cho My Words', e); });
-        }
 
         function getVocabBook() {
             try {
@@ -2659,32 +2570,29 @@
     <!-- ============ BÁO CÁO KẾT QUẢ VỀ FIRESTORE (chỉ chạy khi bài test này được mở từ 1 bài
          tập được giao qua "Bài tập" trên trang chủ — tức URL có ?assignmentId=). Tách riêng thành
          1 <script type="module"> độc lập, KHÔNG đụng vào script chính ở trên, để không phải gắn
-         lại hàng loạt hàm lên window. Script này đọc kết quả grading có sẵn (submitTest()) rồi ghi
-         vào CẢ 2 nơi: (1) document assignments/{assignmentId} (giữ lại để tương thích ngược), và
-         (2) submissions/{assignmentId}_{uid} — đây mới là nơi DUY NHẤT mà trang chủ (index.html,
-         xem loadAssignmentsManager()/loadMyAssignments()) đọc để biết CHÍNH XÁC học sinh nào đã
-         làm xong/chưa trong 1 bài giao (đặc biệt khi giao theo CẢ LỚP — nhiều học sinh cùng 1
-         assignmentId nhưng mỗi người 1 submissions riêng). Thiếu bước (2) thì giáo viên sẽ
-         KHÔNG BAO GIỜ thấy bài được đánh dấu "Đã xong" dù (1) đã cập nhật thành công. -->
+         lại hàng loạt hàm lên window. Script này chỉ đọc kết quả grading có sẵn (submitTest()) rồi
+         cập nhật THẲNG vào đúng document assignments/{assignmentId} — CÙNG 1 collection mà trang
+         chủ (index.html) dùng để hiện "Bài Tập Được Giao" và mục Tiến Độ Học Sinh cho giáo viên,
+         thay vì 1 collection "submissions" riêng mà trang chủ không biết đọc. -->
     <script type="module">
         (function () {
             var params = new URLSearchParams(location.search);
             var assignmentId = params.get('assignmentId');
             var scope = params.get('scope') || 'all';
-            var reportUid = params.get('uid') || null;
             if (!assignmentId) return; // mở bài test bình thường (không phải bài được giao) -> bỏ qua
 
-            // PHẢI giống hệt khối firebaseConfig trong index.html của B's English House
-            // (project "b-s-english-house") — nếu không kết quả sẽ ghi nhầm project, giáo
+            // PHẢI giống hệt khối firebaseConfig trong index.html / các công cụ khác của Night
+            // IELTS (project "night-ielts-land") — nếu không kết quả sẽ ghi nhầm project, giáo
             // viên sẽ không bao giờ thấy được.
             var FB_CONFIG = {
-                apiKey: "AIzaSyDuoosjvJe3EoF22h9UJ6M95os5s_boQ-o",
-                authDomain: "b-s-english-house.firebaseapp.com",
-                projectId: "b-s-english-house",
-                storageBucket: "b-s-english-house.firebasestorage.app",
-                messagingSenderId: "946574286636",
-                appId: "1:946574286636:web:44624fb938e6b5dc961689",
-                measurementId: "G-YZR2QFWQGR"
+                apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                authDomain: "night-ielts-land.firebaseapp.com",
+                databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+                projectId: "night-ielts-land",
+                storageBucket: "night-ielts-land.firebasestorage.app",
+                messagingSenderId: "408519436407",
+                appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+                measurementId: "G-H3P14NJR76"
             };
 
             Promise.all([
@@ -2726,27 +2634,12 @@
                     }
 
                     var percent = reportTotal > 0 ? Math.round(reportCorrect / reportTotal * 100) : 0;
-                    var scoreText = reportCorrect + '/' + reportTotal;
                     fsMod.updateDoc(assignmentRef, {
                         percent: percent,
                         completed: true,
-                        scoreText: scoreText,
+                        scoreText: reportCorrect + '/' + reportTotal,
                         lastPlayedAt: Date.now()
                     }).catch(function (e) { console.warn('Night IELTS: cập nhật assignments thất bại', e); });
-
-                    // Ghi THÊM vào đúng submissions/{assignmentId}_{uid} của học sinh này — bắt
-                    // buộc phải có reportUid (đọc từ ?uid=... do index.html gắn sẵn khi mở bài giao,
-                    // xem openAssignment() ở index.html) vì 1 assignmentId có thể có NHIỀU học sinh
-                    // (giao theo lớp) nên không thể suy luận ngược uid từ assignmentId.
-                    if (reportUid) {
-                        fsMod.updateDoc(fsMod.doc(db, 'submissions', assignmentId + '_' + reportUid), {
-                            status: 'done',
-                            percent: percent,
-                            scoreText: scoreText,
-                            completedAt: Date.now(),
-                            ...(typeof window.bsehResultFields === 'function' ? window.bsehResultFields() : {})
-                        }).catch(function (e) { console.warn('Night IELTS: cập nhật submissions thất bại', e); });
-                    }
                 }
             }).catch(function (e) { console.warn('Night IELTS: không tải được hệ thống báo cáo', e); });
         })();
@@ -2765,111 +2658,33 @@
     <script type="module">
         (function () {
             var FB_CONFIG = {
-                apiKey: "AIzaSyDuoosjvJe3EoF22h9UJ6M95os5s_boQ-o",
-                authDomain: "b-s-english-house.firebaseapp.com",
-                projectId: "b-s-english-house",
-                storageBucket: "b-s-english-house.firebasestorage.app",
-                messagingSenderId: "946574286636",
-                appId: "1:946574286636:web:44624fb938e6b5dc961689",
-                measurementId: "G-YZR2QFWQGR"
+                apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                authDomain: "night-ielts-land.firebaseapp.com",
+                databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+                projectId: "night-ielts-land",
+                storageBucket: "night-ielts-land.firebasestorage.app",
+                messagingSenderId: "408519436407",
+                appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+                measurementId: "G-H3P14NJR76"
             };
 
-            var db = null, fsMod = null;
+            var db = null, dbMod = null;
             var sessionId = null;
             var clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-            var applyingRemote = false; // đang áp dụng thay đổi từ xa -> không ghi ngược lại Firestore (chặn vòng lặp)
+            var applyingRemote = false; // đang áp dụng thay đổi từ xa -> không ghi ngược lại RTDB (chặn vòng lặp)
             var syncStarted = false;
-
-            // ---- NICKNAME khi "Làm chung": hỏi tên lúc vào phiên, rồi hiện tên người điền cạnh
-            //      từng câu (lưu ở field answerBy.<qNum> / multiGroupsBy.<groupId> của phiên). ----
-            var NICK_KEY = 'bseh_live_nick';
-            function myNick() { return window.__bsehLiveNick || ''; }
-            function askLiveNickname(done) {
-                var saved = '';
-                try { saved = localStorage.getItem(NICK_KEY) || ''; } catch (e) {}
-                var ov = document.createElement('div');
-                ov.id = 'bseh-nick-overlay';
-                ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
-                ov.innerHTML = '<div style="background:#fff;color:#222;border-radius:14px;padding:22px;max-width:360px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,.3);">' +
-                    '<h3 style="margin:0 0 6px 0;">👋 Bạn tên gì?</h3>' +
-                    '<p style="margin:0 0 12px 0;font-size:13.5px;color:#666;">Nhập nickname — câu nào bạn điền sẽ hiện tên bạn bên cạnh để cả nhóm biết ai làm câu đó.</p>' +
-                    '<input id="bseh-nick-input" maxlength="20" placeholder="VD: Mèo Mun" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:2px solid #ccc;font-size:15px;">' +
-                    '<button type="button" id="bseh-nick-ok" style="margin-top:12px;width:100%;padding:10px;border:none;border-radius:8px;background:#2B4214;color:#fff;font-weight:700;font-size:15px;cursor:pointer;">Vào làm chung</button>' +
-                    '</div>';
-                document.body.appendChild(ov);
-                var input = ov.querySelector('#bseh-nick-input');
-                input.value = saved;
-                setTimeout(function () { input.focus(); input.select(); }, 50);
-                function ok() {
-                    var v = (input.value || '').trim().slice(0, 20);
-                    if (!v) { input.style.borderColor = '#c62828'; input.focus(); return; }
-                    window.__bsehLiveNick = v;
-                    try { localStorage.setItem(NICK_KEY, v); } catch (e) {}
-                    ov.remove();
-                    if (typeof done === 'function') done();
-                }
-                ov.querySelector('#bseh-nick-ok').addEventListener('click', ok);
-                input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); ok(); } });
-            }
-            function ensureByTagStyle() {
-                if (document.getElementById('bseh-by-tag-style')) return;
-                var st = document.createElement('style');
-                st.id = 'bseh-by-tag-style';
-                st.textContent = '.bseh-by-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:10px;background:#fff3cd;color:#8a5a00;border:1px solid #f4d27a;font-size:11px;font-weight:700;line-height:1.6;vertical-align:middle;white-space:nowrap;}';
-                document.head.appendChild(st);
-            }
-            function setByTag(host, key, nick) {
-                if (!host) return;
-                ensureByTagStyle();
-                var tag = null;
-                for (var i = 0; i < host.children.length; i++) {
-                    if (host.children[i].getAttribute('data-bseh-k') === key) { tag = host.children[i]; break; }
-                }
-                if (!nick) { if (tag) tag.remove(); return; }
-                if (!tag) {
-                    tag = document.createElement('span');
-                    tag.className = 'bseh-by-tag';
-                    tag.setAttribute('data-bseh-k', key);
-                    host.appendChild(tag);
-                }
-                tag.textContent = '✍ ' + nick;
-            }
-            function renderAnswerByTags(map) {
-                map = map || {};
-                window.__bsehLiveBy = map;
-                Object.keys(map).forEach(function (qNum) {
-                    var host = document.getElementById('q-container-' + qNum);
-                    if (!host) {
-                        var inp = document.getElementsByName('q' + qNum);
-                        host = inp && inp[0] ? inp[0].parentNode : null;
-                    }
-                    setByTag(host, 'q' + qNum, map[qNum]);
-                });
-            }
-            function renderMultiByTags(map) {
-                map = map || {};
-                Object.keys(map).forEach(function (groupId) {
-                    var container = document.querySelector('.multi-group[data-multi-group="' + groupId + '"]');
-                    setByTag(container, 'm' + groupId, map[groupId]);
-                });
-            }
             var currentParticipantCount = 1;
-            var lastPresenceDocs = []; // cache để tính lại số người đang tham gia theo nhịp tim, không chỉ khi có thay đổi
 
             function loadFirebase() {
                 return Promise.all([
                     import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
-                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js')
                 ]).then(function (mods) {
-                    var appMod = mods[0]; fsMod = mods[1];
-                    var app = appMod.initializeApp(FB_CONFIG, 'bs-english-house-reading-live-' + Date.now());
-                    db = fsMod.getFirestore(app);
+                    var appMod = mods[0]; dbMod = mods[1];
+                    var app = appMod.initializeApp(FB_CONFIG, 'night-ielts-reading-live-' + Date.now());
+                    db = dbMod.getDatabase(app);
                 });
             }
-
-            function sessionDocRef() { return fsMod.doc(db, 'liveSessions', sessionId); }
-            function presenceColRef() { return fsMod.collection(db, 'liveSessions', sessionId, 'presence'); }
-            function annotColRef() { return fsMod.collection(db, 'liveSessions', sessionId, 'annotations'); }
 
             function randomSessionId() {
                 var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -2941,13 +2756,10 @@
             function createSession() {
                 sessionId = randomSessionId();
                 loadFirebase().then(function () {
-                    return fsMod.setDoc(sessionDocRef(), {
+                    dbMod.set(dbMod.ref(db, 'liveSessions/' + sessionId + '/meta'), {
                         createdAt: Date.now(),
-                        title: document.title || '',
-                        answers: {},
-                        multiGroups: {}
+                        title: document.title || ''
                     });
-                }).then(function () {
                     history.replaceState(null, '', shareUrl(sessionId));
                     startSyncing();
                     renderModalBody();
@@ -2959,32 +2771,17 @@
 
             var SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 ngày — phiên "Làm chung" mở sau mốc này tự bị xoá sạch
 
-            // Firestore không tự xoá subcollection khi xoá document cha -> phải tự liệt kê rồi xoá
-            // từng doc con (presence/annotations) trước khi ghi đè lại document phiên.
-            function wipeSessionSubcollections() {
-                return Promise.all([
-                    fsMod.getDocs(presenceColRef()),
-                    fsMod.getDocs(annotColRef())
-                ]).then(function (snaps) {
-                    var deletes = [];
-                    snaps.forEach(function (qs) {
-                        qs.forEach(function (d) { deletes.push(fsMod.deleteDoc(d.ref)); });
-                    });
-                    return Promise.all(deletes);
-                });
-            }
-
             function checkExpiryThenProceed(done) {
-                fsMod.getDoc(sessionDocRef()).then(function (snap) {
-                    var meta = snap.exists() ? snap.data() : null;
+                var metaRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/meta');
+                dbMod.get(metaRef).then(function (snap) {
+                    var meta = snap.val();
                     var isExpired = !meta || !meta.createdAt || (Date.now() - meta.createdAt > SESSION_TTL_MS);
                     if (!isExpired) { done(); return; }
-                    wipeSessionSubcollections().then(function () {
-                        return fsMod.setDoc(sessionDocRef(), {
+                    var sessRef = dbMod.ref(db, 'liveSessions/' + sessionId);
+                    dbMod.remove(sessRef).then(function () {
+                        return dbMod.set(dbMod.ref(db, 'liveSessions/' + sessionId + '/meta'), {
                             createdAt: Date.now(),
-                            title: document.title || '',
-                            answers: {},
-                            multiGroups: {}
+                            title: document.title || ''
                         });
                     }).then(done).catch(done);
                 }).catch(function (e) {
@@ -3010,56 +2807,33 @@
                 var setup = document.getElementById('setup-screen');
                 if (!setup || setup.style.display !== 'none') return; // chưa bấm "Bắt đầu làm bài"
                 syncStarted = true;
-                askLiveNickname(setupPresence);
+                setupPresence();
                 setupAnswerSync();
                 setupMultiGroupSync();
                 setupAnnotationSync();
                 updateParticipantBadge(currentParticipantCount);
             }
 
-            // Firestore không có API kiểu ".info/connected" + "onDisconnect()" như Realtime Database
-            // -> giả lập "đang online" bằng nhịp tim: mỗi client tự ghi lastSeen mỗi 15s, ai không
-            // ghi được nữa quá 30s (đóng tab, mất mạng, sập máy...) bị coi như đã rời phiên khi đếm
-            // số người tham gia, dù bản ghi Firestore của họ vẫn còn tồn tại tạm thời.
-            var PRESENCE_HEARTBEAT_MS = 15 * 1000;
-            var PRESENCE_STALE_MS = 30 * 1000;
-
             function setupPresence() {
-                var myRef = fsMod.doc(presenceColRef(), clientId);
-
-                function heartbeat() {
-                    fsMod.setDoc(myRef, { lastSeen: Date.now(), nick: myNick() }).catch(function () {});
-                }
-                heartbeat();
-                setInterval(heartbeat, PRESENCE_HEARTBEAT_MS);
-                window.addEventListener('beforeunload', function () {
-                    fsMod.deleteDoc(myRef).catch(function () {});
+                var myRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/presence/' + clientId);
+                var presenceRoot = dbMod.ref(db, 'liveSessions/' + sessionId + '/presence');
+                dbMod.onValue(dbMod.ref(db, '.info/connected'), function (snap) {
+                    if (snap.val() === true) {
+                        dbMod.onDisconnect(myRef).remove();
+                        dbMod.set(myRef, true);
+                    }
                 });
-
-                function recomputeCount() {
-                    var now = Date.now();
-                    var count = 0;
-                    lastPresenceDocs.forEach(function (data) {
-                        if (data && data.lastSeen && (now - data.lastSeen) < PRESENCE_STALE_MS) count++;
-                    });
-                    updateParticipantBadge(count || 1);
-                }
-
-                fsMod.onSnapshot(presenceColRef(), function (snap) {
-                    lastPresenceDocs = [];
-                    snap.forEach(function (d) { lastPresenceDocs.push(d.data()); });
-                    recomputeCount();
+                dbMod.onValue(presenceRoot, function (snap) {
+                    var val = snap.val() || {};
+                    updateParticipantBadge(Object.keys(val).length || 1);
                 });
-                setInterval(recomputeCount, 10 * 1000); // để badge tự giảm ngay cả khi không ai ghi thêm dữ liệu mới
             }
 
             // --- Đồng bộ đáp án dùng CHUNG quy ước name="qN" có sẵn cho MỌI loại câu hỏi (xem
             //     gradeQuestionRange/setupInputListeners ở script chính) — nên chỉ cần nghe
             //     'input'/'change' là bắt được mọi dạng (trắc nghiệm/TFNG/điền từ/dropdown/kéo-thả)
             //     mà không cần biết dạng câu cụ thể. Riêng checkbox "Choose N of M" tách đồng bộ
-            //     riêng ở setupMultiGroupSync() vì value của hidden input đó bị lossy khi chọn sai.
-            //     Firestore không có "child path" ghi lẻ như RTDB nên dùng updateDoc với field path
-            //     kiểu "answers.<qNum>" để chỉ cập nhật đúng 1 câu, không đụng câu khác. ---
+            //     riêng ở setupMultiGroupSync() vì value của hidden input đó bị lossy khi chọn sai. ---
             function currentQValue(el) {
                 if (el.type === 'radio') {
                     var group = document.getElementsByName(el.name);
@@ -3071,26 +2845,23 @@
             }
 
             function setupAnswerSync() {
+                var answersRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/answers');
+
                 function maybeSyncAnswer(target) {
                     if (applyingRemote || !target || !target.name || target.name.charAt(0) !== 'q') return;
                     if (target.classList && target.classList.contains('multi-check')) return;
                     var qNum = target.name.substring(1);
                     if (!/^\d+$/.test(qNum)) return;
-                    var field = {};
-                    field['answers.' + qNum] = currentQValue(target);
-                    field['answerBy.' + qNum] = field['answers.' + qNum] ? myNick() : '';
-                    fsMod.updateDoc(sessionDocRef(), field).catch(function () {});
+                    dbMod.set(dbMod.child(answersRef, qNum), currentQValue(target));
                 }
                 document.addEventListener('input', function (e) { maybeSyncAnswer(e.target); });
                 document.addEventListener('change', function (e) { maybeSyncAnswer(e.target); });
 
-                fsMod.onSnapshot(sessionDocRef(), function (snap) {
-                    var data = snap.data() || {};
-                    var answers = data.answers || {};
+                dbMod.onValue(answersRef, function (snap) {
+                    var answers = snap.val() || {};
                     applyingRemote = true;
                     try {
                         Object.keys(answers).forEach(function (qNum) { applyRemoteAnswer(qNum, answers[qNum]); });
-                        renderAnswerByTags(data.answerBy || {});
                     } finally { applyingRemote = false; }
                 });
             }
@@ -3126,6 +2897,8 @@
             // --- "Choose N of M": đồng bộ THẲNG trạng thái tick/bỏ tick từng checkbox (không dùng
             //     value của hidden input vì nó lossy khi chọn sai — xem genMulti/initMultiSelect). ---
             function setupMultiGroupSync() {
+                var groupsRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/multiGroups');
+
                 document.addEventListener('change', function (e) {
                     if (applyingRemote) return;
                     if (!e.target.classList || !e.target.classList.contains('multi-check')) return;
@@ -3135,16 +2908,11 @@
                     var checked = Array.from(container.querySelectorAll('.multi-check'))
                         .filter(function (c) { return c.checked; })
                         .map(function (c) { return c.value; });
-                    var field = {};
-                    field['multiGroups.' + groupId] = checked;
-                    field['multiGroupsBy.' + groupId] = checked.length ? myNick() : '';
-                    fsMod.updateDoc(sessionDocRef(), field).catch(function () {});
+                    dbMod.set(dbMod.child(groupsRef, groupId), checked);
                 });
 
-                fsMod.onSnapshot(sessionDocRef(), function (snap) {
-                    var data = snap.data() || {};
-                    var groups = data.multiGroups || {};
-                    try { renderMultiByTags(data.multiGroupsBy || {}); } catch (e) {}
+                dbMod.onValue(groupsRef, function (snap) {
+                    var groups = snap.val() || {};
                     applyingRemote = true;
                     try {
                         Object.keys(groups).forEach(function (groupId) {
@@ -3165,36 +2933,32 @@
 
             // --- Đồng bộ highlight/gạch chân/gạch ngang/note: script chính đã gọi sẵn 2 hook
             //     window.__onAnnotCreate/__onAnnotRemove ngay khi người dùng tạo/xoá 1 định dạng —
-            //     module này chỉ ghi/đọc Firestore (subcollection "annotations") rồi "replay" lại
-            //     bằng window.__replayAnnotCreate/__replayAnnotRemove (cũng đã định nghĩa sẵn ở
-            //     script chính). onSnapshot(...).docChanges() thay cho onChildAdded/onChildRemoved
-            //     của RTDB — lần đầu gắn listener, MỌI annotation có sẵn cũng tự về dưới dạng
-            //     change.type === 'added', giống hệt hành vi onChildAdded lúc mới join phiên. ---
+            //     module này chỉ ghi/đọc RTDB rồi "replay" lại bằng window.__replayAnnotCreate/
+            //     __replayAnnotRemove (cũng đã định nghĩa sẵn ở script chính). ---
             function setupAnnotationSync() {
+                var annotRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/annotations');
+
                 window.__onAnnotCreate = function (annotId, type, passageId, start, end, extra) {
-                    fsMod.setDoc(fsMod.doc(annotColRef(), annotId), {
+                    dbMod.set(dbMod.child(annotRef, annotId), {
                         type: type, passageId: passageId, start: start, end: end,
                         extra: extra === undefined ? null : extra, ts: Date.now()
-                    }).catch(function () {});
+                    });
                 };
                 window.__onAnnotRemove = function (annotId) {
-                    fsMod.deleteDoc(fsMod.doc(annotColRef(), annotId)).catch(function () {});
+                    dbMod.remove(dbMod.child(annotRef, annotId));
                 };
 
-                fsMod.onSnapshot(annotColRef(), function (snap) {
-                    snap.docChanges().forEach(function (change) {
-                        var data = change.doc.data();
-                        if (change.type === 'added') {
-                            if (!data) return;
-                            if (typeof window.__replayAnnotCreate === 'function') {
-                                try { window.__replayAnnotCreate(change.doc.id, data.type, data.passageId, data.start, data.end, data.extra); } catch (e) {}
-                            }
-                        } else if (change.type === 'removed') {
-                            if (typeof window.__replayAnnotRemove === 'function') {
-                                try { window.__replayAnnotRemove(change.doc.id); } catch (e) {}
-                            }
-                        }
-                    });
+                dbMod.onChildAdded(annotRef, function (snap) {
+                    var data = snap.val();
+                    if (!data) return;
+                    if (typeof window.__replayAnnotCreate === 'function') {
+                        try { window.__replayAnnotCreate(snap.key, data.type, data.passageId, data.start, data.end, data.extra); } catch (e) {}
+                    }
+                });
+                dbMod.onChildRemoved(annotRef, function (snap) {
+                    if (typeof window.__replayAnnotRemove === 'function') {
+                        try { window.__replayAnnotRemove(snap.key); } catch (e) {}
+                    }
                 });
             }
 
@@ -3205,11 +2969,132 @@
             // dựng xong (input q1..qN/slot kéo-thả chỉ tồn tại SAU khi startTest() chạy).
             var origStartTest = window.startTest;
             window.startTest = function () {
-                window.__bsehStartedAt = Date.now();
                 if (typeof origStartTest === 'function') origStartTest();
                 try { startSyncing(); } catch (e) { console.warn('Night IELTS: live-session sync lỗi', e); }
             };
         })();
     </script>
+
+    <!-- NIGHT-PROGRESS-TRACKER v1 — ghi mỗi lần TỰ LUYỆN vào bảng "Hoạt động 3 tháng" ở trang chủ:
+         bấm "Nộp bài" cả đề, HOẶC chấm riêng 1 Part/Section đều được tính. Bài được giao (URL có
+         ?assignmentId=) thì bỏ qua vì trang chủ đã tự ghi rồi. -->
+    <script type="module">
+        (function () {
+            var KIND = 'reading';
+            if (new URLSearchParams(location.search).get('assignmentId')) return;
+            var pageLoadedAt = Date.now();
+            var fullSubmitted = false;
+            var partDocIds = {};
+            var FB_CONFIG = {
+                apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                authDomain: "night-ielts-land.firebaseapp.com",
+                projectId: "night-ielts-land",
+                storageBucket: "night-ielts-land.firebasestorage.app",
+                messagingSenderId: "408519436407",
+                appId: "1:408519436407:web:a9f0b9ba23368b54427e72"
+            };
+            var fbPromise = null;
+            function loadFb() {
+                if (!fbPromise) {
+                    fbPromise = Promise.all([
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'),
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+                    ]).then(function (m) {
+                        // App MẶC ĐỊNH (không đặt tên) để dùng lại đúng phiên đăng nhập của trang chủ
+                        var app = m[0].getApps().find(function (a) { return a.name === '[DEFAULT]'; }) || m[0].initializeApp(FB_CONFIG);
+                        return { authMod: m[1], fsMod: m[2], auth: m[1].getAuth(app), db: m[2].getFirestore(app) };
+                    }).then(function (fb) {
+                        return new Promise(function (res) {
+                            var unsub = fb.authMod.onAuthStateChanged(fb.auth, function (user) { unsub(); fb.user = user; res(fb); });
+                        });
+                    });
+                }
+                return fbPromise;
+            }
+            setTimeout(function () { loadFb().catch(function () {}); }, 1500);
+
+            function writeLog(docId, title, score, total, band) {
+                return loadFb().then(function (fb) {
+                    if (!fb.user) return null; // chưa đăng nhập ở trang chủ -> không ghi được
+                    var now = Date.now();
+                    return fb.fsMod.setDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + docId), {
+                        studentId: fb.user.uid,
+                        title: title,
+                        kind: KIND,
+                        practice: true,
+                        resultText: score + '/' + total + ' câu đúng' + (band ? ' (Band ' + band + ')' : ''),
+                        completedAt: now,
+                        expiresAt: now + 365 * 24 * 60 * 60 * 1000
+                    }).then(function () { return fb; });
+                }).catch(function (e) { console.warn('Night progress: ghi thất bại', e); });
+            }
+
+            // ---- 1) Nộp bài cả đề (cả Reading lẫn Listening đều gọi saveProgressRecord khi nộp) ----
+            var origSave = window.saveProgressRecord;
+            if (typeof origSave === 'function') {
+                window.saveProgressRecord = function (score, total, band) {
+                    try { origSave.apply(this, arguments); } catch (e) { console.warn(e); }
+                    try {
+                        fullSubmitted = true;
+                        try {
+                            var sig = new Date().toLocaleDateString('vi-VN') + '|' + location.pathname.split('/').pop() + '|' + score + '|' + total;
+                            var arr = JSON.parse(localStorage.getItem('nightTrackedSigs') || '[]');
+                            arr.push(sig);
+                            localStorage.setItem('nightTrackedSigs', JSON.stringify(arr.slice(-100)));
+                        } catch (e) {}
+                        // Nộp cả đề thì thay cho các lần chấm lẻ từng phần trước đó (không đếm trùng)
+                        var partIds = Object.keys(partDocIds).map(function (k) { return partDocIds[k]; });
+                        partDocIds = {};
+                        writeLog(KIND + '_' + pageLoadedAt, document.title, score, total, band).then(function (fb) {
+                            if (!fb || !fb.user) return;
+                            partIds.forEach(function (id) { fb.fsMod.deleteDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + id)).catch(function () {}); });
+                        });
+                    } catch (e) { console.warn('Night progress:', e); }
+                };
+            }
+
+            // ---- 2) Chấm riêng 1 Part (Reading) / 1 Section (Listening) ----
+            function getRanges() {
+                try { if (typeof passageRanges !== 'undefined') return passageRanges; } catch (e) {}
+                try { if (typeof sectionRanges !== 'undefined') return sectionRanges; } catch (e) {}
+                return window.passageRanges || window.sectionRanges || null;
+            }
+            function answeredCount(startQ, endQ) {
+                var c = 0;
+                for (var i = startQ; i <= endQ; i++) {
+                    var inputs = document.getElementsByName('q' + i);
+                    for (var j = 0; j < inputs.length; j++) {
+                        var el = inputs[j];
+                        if ((el.type === 'radio' || el.type === 'checkbox') ? el.checked : String(el.value || '').trim()) { c++; break; }
+                    }
+                }
+                return c;
+            }
+            function logPart(n, label) {
+                if (fullSubmitted) return; // đã nộp cả đề rồi -> bấm xem lại từng phần không tính thêm
+                var ranges = getRanges();
+                var r = ranges && ranges[n - 1];
+                if (!r || typeof window.gradeQuestionRange !== 'function') return;
+                if (answeredCount(r[0], r[1]) === 0) return; // chỉ bấm xem đáp án, chưa làm câu nào -> không tính
+                var score = window.gradeQuestionRange(r[0], r[1]);
+                var total = r[1] - r[0] + 1;
+                var id = KIND + '_' + pageLoadedAt + '_p' + n;
+                partDocIds[n] = id;
+                writeLog(id, document.title + ' — ' + label + ' ' + n, score, total, null);
+            }
+            ['gradePart', 'openSectionReview'].forEach(function (fnName) {
+                var orig = window[fnName];
+                if (typeof orig !== 'function') return;
+                window[fnName] = function (n) {
+                    var out = orig.apply(this, arguments);
+                    try { logPart(Number(n), fnName === 'gradePart' ? 'Part' : 'Section'); } catch (e) { console.warn('Night progress:', e); }
+                    return out;
+                };
+            });
+        })();
+    </script>
+
+    <script src="https://luyennoiieltswithnight.github.io/night-ielts-land/night-track.js" defer></script>
 </body>
 </html>
