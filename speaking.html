@@ -726,18 +726,26 @@ Is it better to read a physical book or an e-book?"></textarea>
     const cfg = getGroqConfig();
     if (!cfg.apiKey) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     let res;
+    const model = cfg.model || 'openai/gpt-oss-120b';
+    let useJson = !!(opts && opts.json);
     // Groq bản miễn phí giới hạn token/phút: gặp 429 thì chờ đúng số giây Groq báo rồi thử lại (tối đa 2 lần)
     for (let attempt = 0; attempt < 3; attempt++) {
+      const payload = {
+        model: model,
+        messages: messages,
+        temperature: (opts && opts.temperature != null) ? opts.temperature : 0.3,
+        max_completion_tokens: (opts && opts.maxTokens) || 1800
+      };
+      // Model "suy nghĩ" (gpt-oss) tốn token cho phần nghĩ trước khi viết: nghĩ ít lại để còn chỗ cho câu trả lời
+      if (opts && opts.reasoning && /gpt-oss/i.test(model)) payload.reasoning_effort = opts.reasoning;
+      if (useJson) payload.response_format = { type: 'json_object' };
       res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
-        body: JSON.stringify({
-          model: cfg.model || 'openai/gpt-oss-120b',
-          messages: messages,
-          temperature: (opts && opts.temperature != null) ? opts.temperature : 0.3,
-          max_completion_tokens: (opts && opts.maxTokens) || 1800
-        })
+        body: JSON.stringify(payload)
       });
+      // Model không hỗ trợ chế độ JSON / reasoning_effort -> gửi lại kiểu thường
+      if (res.status === 400 && (useJson || payload.reasoning_effort)) { useJson = false; opts = Object.assign({}, opts, { reasoning: null }); continue; }
       if (res.status !== 429 || attempt === 2) break;
       const t = await res.text().catch(() => '');
       const m = t.match(/try again in ([\d.]+)(ms|s|m)/i);
@@ -749,7 +757,10 @@ Is it better to read a physical book or an e-book?"></textarea>
       throw new Error('Groq lỗi HTTP ' + res.status + ': ' + t.slice(0, 200));
     }
     const data = await res.json();
-    return data.choices[0].message.content;
+    const ch = data.choices && data.choices[0];
+    const content = ch && ch.message && ch.message.content;
+    if (!content) throw new Error(ch && ch.finish_reason === 'length' ? 'AI viết chưa xong thì hết lượt chữ, thử lại nhé.' : 'AI không trả lời, thử lại nhé.');
+    return content;
   }
 
   async function callGroqTranscribe(blob) {
@@ -885,8 +896,11 @@ Is it better to read a physical book or an e-book?"></textarea>
         parsed = await callGroqChatJson([
           { role: 'system', content: IDEA_SYSTEM_PROMPT },
           { role: 'user', content: 'IELTS Speaking question: "' + q.text + '"\n\nStudent\'s keywords/ideas: "' + keywords + '"\n\nTARGET LEVEL: write the sampleAnswer AND choose the vocabulary at ' + IDEA_BANDS[__ideaBand].en + ' Do not write above this level — the student must be able to understand and say it. ' + ideaLengthRule(q) }
-        ], { temperature: 0.5, maxTokens: 1400 });
-      } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
+        ], { temperature: 0.5, maxTokens: 4000, json: true, reasoning: 'low' });
+      } catch (e) {
+        console.warn('Gợi ý AI lỗi:', e);
+        throw new Error(/HTTP|hết lượt|không trả lời|API Key/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
+      }
 
       document.getElementById('ideaVocabList').innerHTML = (parsed.vocabulary || []).map(v =>
         '<li class="mb-1"><b>' + escapeHtml(v.phrase || '') + '</b> <span class="ipa">/' + escapeHtml((v.ipa || '').replace(/^\/|\/$/g, '')) + '/</span> — ' + escapeHtml(v.meaning_vi || '') + '</li>'
@@ -1027,7 +1041,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         const raw = await callGroqChat([
           { role: 'system', content: TIP_SYSTEM_PROMPT },
           { role: 'user', content: 'IELTS Speaking question: ' + q.text }
-        ], { temperature: 0.4, maxTokens: 700 });
+        ], { temperature: 0.4, maxTokens: 2000, reasoning: 'low' });
         updated.push(Object.assign({}, q, { tipHtml: wrStripScripts(raw.trim()) }));
       } catch (e) {
         updated.push(q);
