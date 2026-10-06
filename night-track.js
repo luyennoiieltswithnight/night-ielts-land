@@ -256,6 +256,25 @@
     }).catch(function (e) { console.warn('Night track: không đối chiếu được bài giao', e); });
   }
 
+  // ---- Bài ĐƯỢC GIAO (mở từ link có ?assignmentId=): ghi luôn 1 dòng vào progressLog để bảng
+  //      "Hoạt động 3 tháng" sáng ô hôm nay ngay, không phải chờ học sinh mở lại trang chủ.
+  //      Dùng đúng id trang chủ dùng (uid_assignmentId) nên không bao giờ bị đếm trùng.
+  function logAssigned(o, partNo, score, total, band) {
+    if (!ASSIGN_ID) return;
+    var sc = /^[1-4]$/.test(ASSIGN_SCOPE) ? Number(ASSIGN_SCOPE) : null;
+    if (partNo != null && partNo !== sc) return; // chấm thử 1 phần khác phần được giao -> chưa tính
+    var fs = o.fs, now = Date.now();
+    var ref = fs.doc(o.db, 'progressLog', o.user.uid + '_' + ASSIGN_ID);
+    fs.getDoc(fs.doc(o.db, 'assignments', ASSIGN_ID)).then(function (s) { return s.exists() ? s.data() : {}; }).catch(function () { return {}; }).then(function (a) {
+      return fs.setDoc(ref, {
+        studentId: o.user.uid, assignmentId: ASSIGN_ID, kind: KIND,
+        title: a.title || (document.title + (sc ? (isListening ? ' — Section ' : ' — Passage ') + sc : '')),
+        resultText: score + '/' + total + ' câu đúng' + (band ? ' (Band ' + band + ')' : ''),
+        completedAt: now, expiresAt: now + 365 * 24 * 60 * 60 * 1000
+      });
+    }).catch(function (e) { console.warn('Night track: không ghi được tiến độ bài giao', e); });
+  }
+
   function onGraded(range, partNo, score, total, band) {
     var label = partNo == null
       ? (ASSIGN_SCOPE !== 'all' && /^[1-4]$/.test(ASSIGN_SCOPE) ? (isListening ? 'Section ' : 'Passage ') + ASSIGN_SCOPE : 'Cả đề')
@@ -266,6 +285,7 @@
       if (!o.user) { ntToast('Bạn chưa đăng nhập Gmail ở trang chủ Night IELTS nên kết quả lần này KHÔNG được lưu vào Tiến độ và Sổ bài làm. Đăng nhập ở trang chủ rồi làm lại nhé.'); return; }
       var name = document.title + (isListening && !/cam|real|ielts/i.test(document.title) ? ' (' + PAGE.replace(/^listening\//, '').replace(/\.html$/, '') + ')' : '');
       sendDocLog(o.user.uid, name + ' — ' + label, blocks);
+      logAssigned(o, partNo, score, total, band);
       completeMatching(o, partNo == null && /^[1-4]$/.test(ASSIGN_SCOPE) ? Number(ASSIGN_SCOPE) : partNo, score, total);
     }).catch(function () {});
   }
