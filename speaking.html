@@ -243,6 +243,12 @@ audio{width:100%;height:40px;}
 .sp-pop .pop-tag{margin-left:auto;font-size:11.5px;font-weight:600;background:#f1eff5;color:var(--ink-2);border-radius:999px;padding:1px 8px;}
 .sp-pop .pop-change{font-size:15px;color:var(--ink);margin:0 0 6px;}
 .sp-pop del{color:var(--ink-3);} .sp-pop ins{text-decoration:none;font-weight:700;}
+.band-pick{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px;}
+.band-pick button{border:1.5px solid var(--rule);background:#fff;color:var(--ink-2);font-weight:700;font-size:13.5px;border-radius:999px;padding:5px 13px;cursor:pointer;transition:.15s;}
+.band-pick button:hover{border-color:var(--accent);color:var(--accent-ink);}
+.band-pick button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.band-desc{font-size:12.5px;color:var(--ink-3);margin:0 0 14px;line-height:1.5;}
+.band-tag{font-size:11.5px;font-weight:800;color:var(--accent-ink);background:var(--accent-wash);border-radius:999px;padding:2px 8px;margin-left:6px;}
 </style>
 <!-- Tailwind đã dựng sẵn (chỉ các class trang này dùng) thay cho bản CDN dịch lúc chạy — tải nhanh hơn nhiều.
      Nếu thêm class Tailwind mới mà không thấy tác dụng, nhắn để dựng lại khối này. -->
@@ -459,6 +465,11 @@ Is it better to read a physical book or an e-book?"></textarea>
             <div id="qHintBox" class="hidden hint-box"></div>
 
             <div id="ideaPanel" class="hidden tool-panel">
+              <p class="ni-label">Band em muốn hướng tới</p>
+              <div id="ideaBandPick" class="band-pick" role="radiogroup" aria-label="Chọn band">
+                <button type="button" data-b="4.5">4.5</button><button type="button" data-b="5.0">5.0</button><button type="button" data-b="5.5">5.5</button><button type="button" data-b="6.0">6.0</button><button type="button" data-b="6.5">6.5</button><button type="button" data-b="7.0">7.0+</button>
+              </div>
+              <p id="ideaBandDesc" class="band-desc"></p>
               <label for="ideaKeywordsInput" class="ni-label">Gõ vài ý chính (tiếng Việt cũng được), AI sẽ gợi ý từ vựng và 1 câu trả lời mẫu</label>
               <div class="flex gap-2 flex-wrap items-center">
                 <input id="ideaKeywordsInput" type="text" class="ni-input" style="flex:1;min-width:180px;" placeholder="Ví dụ: đọc sách, thư giãn, học từ mới" onkeydown="if(event.key==='Enter') generateIdeaSuggestion()">
@@ -470,7 +481,7 @@ Is it better to read a physical book or an e-book?"></textarea>
                 <ul id="ideaVocabList" class="text-sm pl-4 mb-4" style="list-style:disc;line-height:1.75;color:var(--ink-2);"></ul>
                 <div class="answer-card">
                   <div class="answer-card-head">
-                    <span class="answer-card-title">Câu trả lời mẫu từ ý của bạn</span>
+                    <span class="answer-card-title">Câu trả lời mẫu từ ý của bạn <span id="ideaBandTag" class="band-tag"></span></span>
                     <button type="button" onclick="speakText(document.getElementById('ideaSampleAnswer').textContent)" class="ni-nav-btn" title="Nghe phát âm" aria-label="Nghe phát âm"><i class="fa-solid fa-volume-high"></i></button>
                   </div>
                   <p id="ideaSampleAnswer" class="answer-card-text"></p>
@@ -822,7 +833,35 @@ Is it better to read a physical book or an e-book?"></textarea>
     'You are given an IELTS Speaking question and a few keywords/ideas the student typed (in Vietnamese or English) about what they want to say. ' +
     'Respond with STRICT JSON only, no markdown, no code fences, exactly in this shape: {"vocabulary": [{"phrase": string, "ipa": string, "meaning_vi": string}, ...], "sampleAnswer": string}. ' +
     '"vocabulary" must have 4-6 useful English words/collocations for this specific answer (each with an IPA transcription and a Vietnamese meaning — never skip either). ' +
-    '"sampleAnswer" must be ONE natural, coherent spoken-English paragraph, around band 6-6.5 level (clear and correct but not overly advanced/academic), that directly builds on and incorporates the student\'s own keywords/ideas rather than inventing an unrelated answer — if their idea is vague, use it as the seed and fill in reasonable, natural detail. Do NOT split the sample answer into bullet points — it must read as one paragraph a real person would say out loud.';
+    '"sampleAnswer" must be ONE natural, coherent spoken-English paragraph at the TARGET LEVEL given by the user (never above it), that directly builds on and incorporates the student\'s own keywords/ideas rather than inventing an unrelated answer — if their idea is vague, use it as the seed and fill in reasonable, natural detail. Do NOT split the sample answer into bullet points — it must read as one paragraph a real person would say out loud.';
+
+  // Học sinh tự chọn band muốn hướng tới -> câu mẫu và từ vựng vừa sức (band thấp: câu ngắn, từ thông dụng)
+  const IDEA_BANDS = {
+    '4.5': { vi: 'Câu ngắn, đơn giản, từ rất quen thuộc. Dễ nhớ để nói theo.', en: 'band 4.5 (CEFR A2). Use ONLY very common everyday words and short, simple sentences (mostly subject + verb + object). Linking words limited to and, but, because, so. Present simple / past simple only. No idioms, no phrasal verbs beyond the most basic (get up, go out). Vocabulary items must be simple single words or very easy 2-word phrases.' },
+    '5.0': { vi: 'Câu đơn giản, có lý do và ví dụ ngắn. Từ vựng thông dụng.', en: 'band 5.0 (CEFR A2-B1). Common everyday vocabulary, mostly simple sentences with a few compound ones (because, so, but, also). Give one reason and one short example. No idioms or advanced collocations.' },
+    '5.5': { vi: 'Có lý do + ví dụ, nối câu rõ ràng, vài cụm từ hay nhưng vẫn dễ.', en: 'band 5.5 (CEFR B1). Clear everyday vocabulary plus a few easy collocations, some complex sentences with when/because/if, simple linking (first of all, also, for example). Avoid idioms and rare words.' },
+    '6.0': { vi: 'Trả lời mở rộng, collocation tự nhiên, câu phức vừa phải.', en: 'band 6.0 (CEFR B1-B2). Natural collocations, a mix of simple and complex sentences, a range of linkers (actually, for instance, on top of that). At most one easy idiomatic expression.' },
+    '6.5': { vi: 'Ý phát triển tốt, từ vựng đa dạng hơn, câu phức linh hoạt.', en: 'band 6.5 (CEFR B2). Varied, precise vocabulary and collocations, flexible complex sentences, well-developed ideas with reasons and examples, natural spoken discourse markers.' },
+    '7.0': { vi: 'Từ vựng ít phổ biến, cụm từ tự nhiên như người bản xứ, ý sâu.', en: 'band 7.0+ (CEFR B2-C1). Less common vocabulary and idiomatic collocations used naturally (not forced), a wide range of structures, nuanced, well-extended ideas, sounding like a fluent natural speaker.' }
+  };
+  let __ideaBand = (function () { try { const b = localStorage.getItem('nightSpIdeaBand'); return IDEA_BANDS[b] ? b : '5.5'; } catch (e) { return '5.5'; } })();
+  function paintIdeaBand() {
+    document.querySelectorAll('#ideaBandPick button').forEach(b => { const on = b.dataset.b === __ideaBand; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+    const d = document.getElementById('ideaBandDesc'); if (d) d.textContent = IDEA_BANDS[__ideaBand].vi;
+  }
+  document.getElementById('ideaBandPick').addEventListener('click', e => {
+    const b = e.target.closest('[data-b]'); if (!b) return;
+    __ideaBand = b.dataset.b; try { localStorage.setItem('nightSpIdeaBand', __ideaBand); } catch (er) {}
+    paintIdeaBand();
+  });
+  paintIdeaBand();
+  function ideaLengthRule(q) {
+    const part = String((q && q.part) || (__pkg && __pkg.part) || '1');
+    const low = Number(__ideaBand) < 6;
+    if (part === '2') return low ? 'This is a Part 2 long turn: about 110-150 words, covering each cue point in simple order.' : 'This is a Part 2 long turn: about 170-230 words, covering each cue point with some detail.';
+    if (part === '3') return low ? 'This is a Part 3 discussion question: 3-5 sentences giving an opinion, one reason and one example.' : 'This is a Part 3 discussion question: 5-7 sentences with an opinion, reasons, an example and maybe a contrast.';
+    return low ? 'This is a Part 1 question: 2-3 short sentences.' : 'This is a Part 1 question: 3-4 sentences.';
+  }
 
   window.generateIdeaSuggestion = async function () {
     const input = document.getElementById('ideaKeywordsInput');
@@ -845,7 +884,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       try {
         parsed = await callGroqChatJson([
           { role: 'system', content: IDEA_SYSTEM_PROMPT },
-          { role: 'user', content: 'IELTS Speaking question: "' + q.text + '"\n\nStudent\'s keywords/ideas: "' + keywords + '"' }
+          { role: 'user', content: 'IELTS Speaking question: "' + q.text + '"\n\nStudent\'s keywords/ideas: "' + keywords + '"\n\nTARGET LEVEL: write the sampleAnswer AND choose the vocabulary at ' + IDEA_BANDS[__ideaBand].en + ' Do not write above this level — the student must be able to understand and say it. ' + ideaLengthRule(q) }
         ], { temperature: 0.5, maxTokens: 1400 });
       } catch (e) { throw new Error('AI trả về không đúng định dạng, vui lòng thử lại.'); }
 
@@ -853,6 +892,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         '<li class="mb-1"><b>' + escapeHtml(v.phrase || '') + '</b> <span class="ipa">/' + escapeHtml((v.ipa || '').replace(/^\/|\/$/g, '')) + '/</span> — ' + escapeHtml(v.meaning_vi || '') + '</li>'
       ).join('');
       document.getElementById('ideaSampleAnswer').textContent = parsed.sampleAnswer || '';
+      document.getElementById('ideaBandTag').textContent = 'Band ' + (__ideaBand === '7.0' ? '7.0+' : __ideaBand);
       resultBox.classList.remove('hidden');
     } catch (e) {
       alert('Lỗi khi tạo gợi ý: ' + e.message);
@@ -2348,6 +2388,247 @@ Is it better to read a physical book or an e-book?"></textarea>
     __started = true;
     await startApp(user.uid, role);
   });
+</script>
+<!-- ĐÁNH DẤU (annotate): bôi đen chữ ở gợi ý / câu trả lời mẫu / nhận xét / bản nâng cấp / bài nói
+     → tô màu, in đậm, nghiêng, gạch chân, gạch ngang, thêm ghi chú. Lưu trên máy này, theo đúng đoạn chữ. -->
+<style id="sp-ann-css">
+.ann-hl-y{background:#fff1a8;border-radius:2px;} .ann-hl-g{background:#cdeccf;border-radius:2px;} .ann-hl-p{background:#f8cbd4;border-radius:2px;} .ann-hl-b{background:#cfe3fb;border-radius:2px;}
+.ann-b{font-weight:700;color:var(--ink);} .ann-i{font-style:italic;} .ann-u{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px;}
+.ann-s{text-decoration:line-through;text-decoration-thickness:1.5px;text-decoration-color:#d64545;}
+.ann-u.ann-s,.ann-s .ann-u,.ann-u .ann-s{text-decoration:underline line-through;}
+.ann-note{border-bottom:2px dotted #e8a33d;background:rgba(253,230,138,.35);cursor:pointer;}
+.ann-note-end::after{content:"✎";font-size:.68em;font-weight:800;color:#c47a12;vertical-align:super;margin-left:1px;}
+#spAnnBar{position:fixed;z-index:9999;display:none;align-items:center;gap:4px;background:#fff;border:1px solid var(--rule);border-radius:12px;padding:6px 8px;box-shadow:0 10px 30px -8px rgba(34,28,43,.35);font-family:inherit;}
+#spAnnBar .c{width:24px;height:24px;border-radius:7px;border:1px solid rgba(0,0,0,.12);cursor:pointer;padding:0;}
+#spAnnBar .d{width:1px;height:20px;background:var(--rule);margin:0 2px;}
+#spAnnBar .b{background:none;border:none;cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px;color:var(--ink);font-weight:700;min-width:28px;}
+#spAnnBar .b:hover{background:#f3f0f7;}
+#spAnnBar .nt{display:none;align-items:center;gap:6px;}
+#spAnnBar.noting .tools{display:none;} #spAnnBar.noting .nt{display:flex;}
+#spAnnBar .tools{display:flex;align-items:center;gap:4px;}
+#spAnnBar input{border:1.5px solid var(--rule);border-radius:8px;padding:6px 9px;font:inherit;font-size:13.5px;width:min(64vw,280px);outline:none;}
+#spAnnBar input:focus{border-color:#e8a33d;}
+#spAnnBar .ok{background:#e8a33d;color:#fff;border:0;border-radius:8px;padding:6px 11px;font-weight:800;font-size:13px;cursor:pointer;}
+#spAnnPop{position:fixed;z-index:9999;display:none;max-width:min(86vw,320px);background:#fffbeb;border:1px solid #f5d38a;border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px -8px rgba(34,28,43,.3);font-size:13.5px;color:var(--ink);line-height:1.5;}
+#spAnnPop .t{white-space:pre-wrap;word-break:break-word;}
+#spAnnPop .a{display:flex;gap:6px;justify-content:flex-end;margin-top:8px;}
+#spAnnPop button{border:0;border-radius:7px;padding:4px 10px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;background:#fff;color:var(--ink-2);border:1px solid var(--rule);}
+#spAnnPop button.del{color:#d64545;}
+.sp-ann-tip{font-size:11.5px;color:var(--ink-3);margin-top:6px;}
+</style>
+<div id="spAnnBar" role="toolbar" aria-label="Đánh dấu">
+  <div class="tools">
+    <button class="c" data-a="hl-y" style="background:#fff1a8" title="Tô vàng"></button>
+    <button class="c" data-a="hl-g" style="background:#cdeccf" title="Tô xanh lá"></button>
+    <button class="c" data-a="hl-b" style="background:#cfe3fb" title="Tô xanh dương"></button>
+    <button class="c" data-a="hl-p" style="background:#f8cbd4" title="Tô hồng"></button>
+    <span class="d"></span>
+    <button class="b" data-a="b" title="In đậm"><b>B</b></button>
+    <button class="b" data-a="i" title="In nghiêng"><i>I</i></button>
+    <button class="b" data-a="u" title="Gạch chân"><u>U</u></button>
+    <button class="b" data-a="s" title="Gạch ngang"><s>S</s></button>
+    <span class="d"></span>
+    <button class="b" data-a="note" title="Thêm ghi chú">✎ Ghi chú</button>
+    <button class="b" data-a="clear" title="Xoá đánh dấu ở đoạn đã chọn" style="color:#d64545">✕</button>
+  </div>
+  <div class="nt">
+    <input id="spAnnNoteIn" type="text" placeholder="Ghi chú cho đoạn này..." maxlength="400">
+    <button class="ok" data-a="note-save">Lưu</button>
+    <button class="b" data-a="note-cancel" title="Huỷ">✕</button>
+  </div>
+</div>
+<div id="spAnnPop"><div class="t"></div><div class="a"><button data-p="edit">Sửa</button><button class="del" data-p="del">Xoá ghi chú</button></div></div>
+<script>
+(function () {
+  // Các vùng được đánh dấu. Khoá lưu = id vùng + mã của nội dung chữ, nên mỗi câu hỏi / mỗi lần chấm có đánh dấu riêng.
+  var TARGETS = ['qHintBox', 'ideaSampleAnswer', 'retryRefText', 'resWhy', 'resTranscript', 'resCriteria', 'resRefinedAnswer', 'resRefinementNotes'];
+  var STORE = 'nightSpAnn';
+  function load() { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { return {}; } }
+  function save(all) { try { localStorage.setItem(STORE, JSON.stringify(all)); } catch (e) {} }
+  function hash(s) { var h = 5381; for (var i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + s.length.toString(36); }
+  function textNodes(root) {
+    var out = [], pos = 0, n;
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: function (x) { return x.parentElement && x.parentElement.closest('button,textarea,input,select,audio,summary') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; } });
+    while ((n = w.nextNode())) { out.push({ n: n, s: pos }); pos += n.data.length; }
+    return out;
+  }
+  function fullText(root) { return textNodes(root).map(function (x) { return x.n.data; }).join(''); }
+  function keyOf(root) { return root.id + '|' + hash(fullText(root)); }
+  function locate(text, a) { var idx = -1, from = 0; for (var k = 0; k <= a.n; k++) { idx = text.indexOf(a.q, from); if (idx === -1) break; from = idx + 1; } return idx; }
+  function wrap(root, start, end, a, ai) {
+    var spans = [];
+    textNodes(root).forEach(function (o) {
+      var n = o.n, s = o.s, e = s + n.data.length;
+      if (e <= start || s >= end || !n.data.length) return;
+      var node = n, x = Math.max(0, start - s), y = Math.min(n.data.length, end - s);
+      if (y < node.data.length) node.splitText(y);
+      if (x > 0) node = node.splitText(x);
+      if (!node.data.trim() && node.parentNode && /^(UL|OL|TABLE|TBODY|TR)$/.test(node.parentNode.nodeName)) return;
+      var sp = document.createElement('span'); sp.className = 'ann ann-' + a.t;
+      if (a.t === 'note') sp.dataset.ai = ai;
+      node.parentNode.insertBefore(sp, node); sp.appendChild(node); spans.push(sp);
+    });
+    if (a.t === 'note' && spans.length) spans[spans.length - 1].classList.add('ann-note-end');
+  }
+  function unwrapAll(root) {
+    root.querySelectorAll('span.ann').forEach(function (sp) { var p = sp.parentNode; while (sp.firstChild) p.insertBefore(sp.firstChild, sp); p.removeChild(sp); });
+    root.normalize();
+  }
+  var busy = false, observers = {};
+  function refresh(root) {
+    if (!root) return;
+    busy = true;
+    try {
+      unwrapAll(root);
+      root.dataset.annKey = keyOf(root);
+      var list = load()[root.dataset.annKey] || [];
+      if (list.length) {
+        var text = fullText(root);
+        // ghi chú bọc sau cùng để nằm ngoài các kiểu chữ
+        list.map(function (a, i) { return { a: a, i: i }; }).sort(function (p, q) { return (p.a.t === 'note') - (q.a.t === 'note'); }).forEach(function (o) {
+          var idx = locate(text, o.a); if (idx !== -1) wrap(root, idx, idx + o.a.q.length, o.a, o.i);
+        });
+      }
+    } catch (e) { console.warn('annotate', e); }
+    if (observers[root.id]) observers[root.id].takeRecords();
+    busy = false;
+  }
+  var timers = {};
+  function watch(id) {
+    var el = document.getElementById(id); if (!el) return;
+    var ob = new MutationObserver(function () {
+      if (busy) return;
+      clearTimeout(timers[id]); timers[id] = setTimeout(function () { refresh(el); }, 40);
+    });
+    ob.observe(el, { childList: true, subtree: true, characterData: true });
+    observers[id] = ob;
+    refresh(el);
+  }
+
+  // ---- Thanh công cụ khi bôi đen ----
+  var bar = document.getElementById('spAnnBar'), noteIn = document.getElementById('spAnnNoteIn');
+  var pop = document.getElementById('spAnnPop');
+  var info = null;
+  function selInfo() {
+    var sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+    var r = sel.getRangeAt(0);
+    var c = r.commonAncestorContainer; c = c.nodeType === 1 ? c : c.parentElement;
+    var root = c && c.closest(TARGETS.map(function (t) { return '#' + t; }).join(','));
+    if (!root) return null;
+    var nodes = textNodes(root).filter(function (x) { return r.intersectsNode(x.n); });
+    if (!nodes.length) return null;
+    var f = nodes[0], l = nodes[nodes.length - 1];
+    var start = f.s + (f.n === r.startContainer ? r.startOffset : 0);
+    var end = l.s + (l.n === r.endContainer ? r.endOffset : l.n.data.length);
+    var text = fullText(root);
+    while (start < end && /\s/.test(text[start])) start++;
+    while (end > start && /\s/.test(text[end - 1])) end--;
+    if (end <= start) return null;
+    return { root: root, start: start, end: end, rect: r.getBoundingClientRect() };
+  }
+  function hide() { bar.style.display = 'none'; bar.classList.remove('noting'); info = null; }
+  function place(el, rect) {
+    var w = el.offsetWidth, h = el.offsetHeight;
+    var top = rect.top - h - 10; if (top < 8) top = rect.bottom + 10;
+    top = Math.max(8, Math.min(top, innerHeight - h - 8));
+    el.style.top = top + 'px';
+    el.style.left = Math.max(8, Math.min(rect.left + rect.width / 2 - w / 2, innerWidth - w - 8)) + 'px';
+  }
+  function maybeShow() {
+    if (bar.classList.contains('noting')) return;
+    var i = selInfo();
+    if (!i) { hide(); return; }
+    info = i; hidePop();
+    bar.style.display = 'flex'; place(bar, i.rect);
+  }
+  var t = null;
+  document.addEventListener('selectionchange', function () { clearTimeout(t); t = setTimeout(maybeShow, 180); });
+  document.addEventListener('scroll', function () { if (info && !bar.classList.contains('noting')) maybeShow(); if (popRef && popRef.sp.isConnected) place(pop, popRef.sp.getBoundingClientRect()); }, true);
+  bar.addEventListener('mousedown', function (e) { if (e.target !== noteIn) e.preventDefault(); });
+
+  function apply(act, note) {
+    if (!info) return;
+    var root = info.root, start = info.start, end = info.end;
+    var key = root.dataset.annKey || keyOf(root);
+    var text = fullText(root);
+    var all = load(), list = all[key] || [];
+    var located = list.map(function (a) { var s = locate(text, a); return { a: a, s: s, e: s + a.q.length }; });
+    if (act === 'clear') {
+      list = located.filter(function (x) { return x.s === -1 || x.e <= start || x.s >= end; }).map(function (x) { return x.a; });
+    } else {
+      var q = text.slice(start, end), n = 0, from = 0, idx;
+      while ((idx = text.indexOf(q, from)) !== -1 && idx < start) { n++; from = idx + 1; }
+      var same = located.find(function (x) { return x.s === start && x.e === end && x.a.t === act; });
+      if (act === 'note') {
+        if (same) same.a.note = note; else list.push({ q: q, n: n, t: 'note', note: note });
+      } else if (same) {
+        list = list.filter(function (a) { return a !== same.a; }); // bấm lại cùng kiểu = bỏ
+      } else {
+        if (act.indexOf('hl-') === 0) list = located.filter(function (x) { return !(x.a.t.indexOf('hl-') === 0 && x.s < end && x.e > start); }).map(function (x) { return x.a; });
+        list.push({ q: q, n: n, t: act });
+      }
+    }
+    if (list.length) all[key] = list; else delete all[key];
+    save(all);
+    refresh(root);
+    try { window.getSelection().removeAllRanges(); } catch (e) {}
+    hide();
+  }
+  function openNote(prefill) {
+    bar.classList.add('noting'); noteIn.value = prefill || '';
+    if (info) place(bar, info.rect);
+    setTimeout(function () { noteIn.focus(); }, 30);
+  }
+  bar.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-a]'); if (!b) return;
+    var a = b.dataset.a;
+    if (a === 'note') return openNote('');
+    if (a === 'note-cancel') { bar.classList.remove('noting'); return hide(); }
+    if (a === 'note-save') { var v = noteIn.value.trim(); if (!v) return noteIn.focus(); bar.classList.remove('noting'); return apply('note', v); }
+    apply(a);
+  });
+  noteIn.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); bar.querySelector('[data-a="note-save"]').click(); }
+    if (e.key === 'Escape') { bar.classList.remove('noting'); hide(); }
+  });
+
+  // ---- Bấm vào chữ có ghi chú: xem / sửa / xoá ----
+  var popRef = null;
+  function hidePop() { pop.style.display = 'none'; popRef = null; }
+  document.addEventListener('click', function (e) {
+    if (pop.contains(e.target) || bar.contains(e.target)) return;
+    var sp = e.target.closest && e.target.closest('span.ann-note');
+    var sel = window.getSelection();
+    if (!sp || (sel && !sel.isCollapsed)) { hidePop(); return; }
+    var root = sp.closest(TARGETS.map(function (t) { return '#' + t; }).join(','));
+    var list = load()[root.dataset.annKey] || [];
+    var a = list[Number(sp.dataset.ai)]; if (!a) return;
+    popRef = { root: root, idx: Number(sp.dataset.ai), sp: sp };
+    pop.querySelector('.t').textContent = a.note || '';
+    pop.style.display = 'block';
+    place(pop, sp.getBoundingClientRect());
+    e.stopPropagation();
+  }, true);
+  pop.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-p]'); if (!b || !popRef) return;
+    var root = popRef.root, key = root.dataset.annKey, all = load(), list = all[key] || [], a = list[popRef.idx];
+    if (!a) return hidePop();
+    if (b.dataset.p === 'del') {
+      list.splice(popRef.idx, 1);
+      if (list.length) all[key] = list; else delete all[key];
+      save(all); hidePop(); refresh(root);
+    } else {
+      var text = fullText(root), s = locate(text, a);
+      info = { root: root, start: s, end: s + a.q.length, rect: popRef.sp.getBoundingClientRect() };
+      hidePop(); bar.style.display = 'flex'; openNote(a.note);
+    }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hidePop(); });
+
+  function init() { TARGETS.forEach(watch); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script>
 </body>
 </html>
