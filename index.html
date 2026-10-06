@@ -3532,6 +3532,12 @@
                 const box = document.getElementById('teacher-heatmap-box');
                 try {
                     await loadStudentProgressLog(studentId, entries => {
+                        // Bài được giao đã xong nhưng học sinh chưa mở lại trang chủ -> progressLog chưa có dòng.
+                        // Bù tạm từ chính bài giao để ô hôm đó vẫn sáng đúng ngày làm.
+                        const have = new Set(entries.map(e => e.__id));
+                        const extra = s.tasks.filter(t => t.isDone && t.doneAt && !t.completedVia && !have.has(studentId + '_' + t.id))
+                            .map(t => ({ __id: studentId + '_' + t.id, assignmentId: t.id, title: t.title, kind: t.kind || 'assigned', resultText: t.scoreText || 'Đã hoàn thành', completedAt: t.doneAt }));
+                        if (extra.length) entries = entries.concat(extra).sort((x, y) => (y.completedAt || 0) - (x.completedAt || 0));
                         if (window.__currentProgressStudentId === studentId && box && box.isConnected) renderActivityHeatmap(box, entries);
                     });
                 } catch (e) {
