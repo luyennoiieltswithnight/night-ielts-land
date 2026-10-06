@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bài tập từ Docs — Night IELTS</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  :root{--ink:#1f2937;--ink2:#4b5563;--ink3:#9ca3af;--teal:#0d9488;--teal-d:#0f766e;--teal-w:#f0fdfa;--line:#eef0f3;}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink);background:radial-gradient(1200px 500px at 50% -10%,#ccfbf1 0,#f8fafc 60%);display:flex;justify-content:center;padding:32px 16px}
+  .card{width:100%;max-width:620px;background:#fff;border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 20px 40px -18px rgba(13,148,136,.35);align-self:flex-start}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
+  .back{color:var(--ink3);font-weight:800;font-size:13px;text-decoration:none}
+  .back:hover{color:var(--teal)}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;color:var(--teal-d);background:var(--teal-w);border:1px solid #ccfbf1;border-radius:999px;padding:3px 10px}
+  h1{font-size:24px;font-weight:900;margin:10px 0 6px;line-height:1.3}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:13px;font-weight:700;color:var(--ink2);margin-bottom:16px}
+  .meta .late{color:#dc2626}
+  .note{background:#fffbeb;border:1px solid #fde68a;border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.55;margin-bottom:18px;white-space:pre-wrap}
+  .note b{display:block;font-size:12px;color:#b45309;margin-bottom:2px}
+  .status{display:flex;align-items:center;gap:10px;border-radius:16px;padding:12px 14px;font-weight:800;font-size:14px;margin-bottom:18px}
+  .st-todo{background:#f3f4f6;color:var(--ink2)} .st-done{background:#fef3c7;color:#92400e} .st-graded{background:#d1fae5;color:#065f46}
+  .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:16px;padding:15px;font:inherit;font-weight:900;font-size:16px;cursor:pointer;text-decoration:none;transition:.15s}
+  .btn+.btn{margin-top:10px}
+  .b-open{background:var(--teal);color:#fff;box-shadow:0 10px 20px -10px rgba(13,148,136,.8)}
+  .b-open:hover{background:var(--teal-d)}
+  .b-sub{background:#fff;color:var(--teal-d);border:2px solid #99f6e4}
+  .b-sub:hover{background:var(--teal-w)}
+  .b-ghost{background:none;color:var(--ink3);font-size:13px;padding:8px}
+  .b-ghost:hover{color:var(--ink2)}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .help{font-size:12.5px;color:var(--ink3);font-weight:600;line-height:1.6;margin:14px 2px 0}
+  .msg{text-align:center;padding:40px 10px;color:var(--ink2);font-weight:700}
+  .err{color:#dc2626}
+  .tbox{margin-top:20px;border-top:1px dashed var(--line);padding-top:16px}
+  .tbox p{margin:0 0 8px;font-size:13px;font-weight:800;color:var(--ink2)}
+</style>
+</head>
+<body>
+<div class="card" id="card"><p class="msg">Đang tải bài...</p></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+  const app = initializeApp({
+    apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+    authDomain: "night-ielts-land.firebaseapp.com",
+    projectId: "night-ielts-land",
+    storageBucket: "night-ielts-land.firebasestorage.app",
+    messagingSenderId: "408519436407",
+    appId: "1:408519436407:web:a9f0b9ba23368b54427e72"
+  });
+  const auth = getAuth(app), db = getFirestore(app);
+  const id = new URLSearchParams(location.search).get('id');
+  const card = document.getElementById('card');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = ms => new Date(ms).toLocaleDateString('vi-VN');
+  let A = null, me = null, role = 'student';
+
+  function render() {
+    const now = Date.now();
+    const done = A.completed === true;
+    const graded = A.status === 'graded';
+    const late = A.deadlineAt && now > A.deadlineAt && !done;
+    const isTeacher = role === 'admin';
+    const mine = me && me.uid === A.studentId;
+    const st = graded ? ['st-graded', '✅ Thầy đã chữa bài — mở file để xem nhận xét']
+      : done ? ['st-done', '📩 Đã nộp' + (A.submittedAt ? ' lúc ' + new Date(A.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '') + (isTeacher ? ' — chờ Thầy chữa' : ' — Thầy sẽ chữa sớm')]
+      : ['st-todo', late ? '⚠️ Đã quá hạn, em làm ngay nhé' : '📝 Chưa nộp'];
+    let actions = `<a class="btn b-open" href="${esc(A.link)}" target="_blank" rel="noopener"><i class="fa-regular fa-file-word"></i> ${isTeacher && !mine ? 'Mở bài của học sinh trên Google Docs' : 'Mở bài trên Google Docs'}</a>`;
+    if (mine && !done) actions += `<button class="btn b-sub" id="submit"><i class="fa-solid fa-paper-plane"></i> Em làm xong rồi — Nộp bài</button>`;
+    if (mine && done && !graded) actions += `<button class="btn b-ghost" id="unsubmit">Huỷ nộp để sửa tiếp</button>`;
+    if (isTeacher && !mine) {
+      actions += graded
+        ? `<button class="btn b-ghost" id="ungrade">Bỏ đánh dấu đã chữa</button>`
+        : `<button class="btn b-sub" id="grade"><i class="fa-solid fa-check"></i> Đánh dấu đã chữa xong</button>`;
+    }
+    card.innerHTML = `
+      <div class="top"><a class="back" href="index.html">← Night IELTS</a><span class="chip">📄 Bài tập từ Docs</span></div>
+      <h1>${esc(A.title)}</h1>
+      <div class="meta">
+        <span>🗓️ Giao ngày ${fmt(A.createdAt)}</span>
+        ${A.deadlineAt ? `<span class="${late ? 'late' : ''}">⏰ Hạn nộp ${fmt(A.deadlineAt)}</span>` : ''}
+        ${isTeacher && A.__studentName ? `<span>👤 ${esc(A.__studentName)}</span>` : ''}
+      </div>
+      ${A.note ? `<div class="note"><b>Lời dặn của Thầy</b>${esc(A.note)}</div>` : ''}
+      <div class="status ${st[0]}">${st[1]}</div>
+      ${actions}
+      <p class="help">${isTeacher && !mine
+        ? 'Chữa bằng cách comment, bật chế độ Đề xuất (Suggesting) hoặc tô màu ngay trên file của học sinh. Xong bấm “Đánh dấu đã chữa xong” để học sinh biết.'
+        : 'Bài nằm ở 1 thẻ riêng trong file Bài tập của em (cột thẻ bên trái Google Docs). Em gõ đáp án thẳng vào đó, Docs tự lưu. Làm xong quay lại trang này bấm “Nộp bài”.<br>Mở bằng đúng Gmail em đăng nhập Night IELTS thì mới sửa được nhé.'}</p>`;
+    const on = (sel, fn) => { const el = document.getElementById(sel); if (el) el.onclick = () => fn(el); };
+    on('submit', el => save(el, { completed: true, percent: 100, status: 'submitted', submittedAt: Date.now(), completedAt: Date.now() }, true));
+    on('unsubmit', el => save(el, { completed: false, percent: 0, status: 'assigned' }));
+    on('grade', el => save(el, { status: 'graded', gradedAt: Date.now() }));
+    on('ungrade', el => save(el, { status: 'submitted' }));
+  }
+
+  async function save(btn, patch, logIt) {
+    btn.disabled = true;
+    try {
+      await updateDoc(doc(db, 'assignments', id), patch);
+      Object.assign(A, patch);
+      if (logIt && me) {
+        const now = Date.now();
+        setDoc(doc(db, 'progressLog', me.uid + '_' + id), {
+          studentId: me.uid, assignmentId: id, kind: 'docs', title: A.title, resultText: 'Đã nộp bài trên Google Docs',
+          completedAt: now, expiresAt: now + 365 * 24 * 60 * 60 * 1000
+        }).catch(() => {});
+      }
+      render();
+    } catch (e) { alert('Không lưu được: ' + e.message); btn.disabled = false; }
+  }
+
+  function showLogin() {
+    card.innerHTML = `<div class="top"><a class="back" href="index.html">← Night IELTS</a><span class="chip">📄 Bài tập từ Docs</span></div>
+      <p class="msg">Em đăng nhập bằng Gmail đã dùng ở Night IELTS để xem bài nhé.</p>
+      <button class="btn b-open" id="login"><i class="fa-brands fa-google"></i> Đăng nhập Gmail</button>`;
+    document.getElementById('login').onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => alert(e.message));
+  }
+
+  onAuthStateChanged(auth, async user => {
+    if (!id) { card.innerHTML = '<p class="msg err">Link bài không đúng.</p>'; return; }
+    if (!user) return showLogin();
+    me = user;
+    try {
+      const u = await getDoc(doc(db, 'users', user.uid));
+      role = (u.exists() && u.data().role) || 'student';
+      const s = await getDoc(doc(db, 'assignments', id));
+      if (!s.exists()) { card.innerHTML = '<p class="msg">Bài này không còn nữa (có thể Thầy đã xoá hoặc đã quá hạn lưu).</p><a class="btn b-ghost" href="index.html">Về trang chủ</a>'; return; }
+      A = s.data();
+      if (role === 'admin' && A.studentId !== user.uid) {
+        try { const su = await getDoc(doc(db, 'users', A.studentId)); if (su.exists()) A.__studentName = su.data().name || su.data().email; } catch (e) {}
+      } else if (A.studentId !== user.uid) {
+        card.innerHTML = '<p class="msg">Bài này giao cho bạn khác. Em kiểm tra lại đang đăng nhập đúng Gmail chưa nhé.</p><a class="btn b-ghost" href="index.html">Về trang chủ</a>'; return;
+      }
+      render();
+    } catch (e) { card.innerHTML = '<p class="msg err">Lỗi tải bài: ' + esc(e.message) + '</p>'; }
+  });
+</script>
+</body>
+</html>
