@@ -610,6 +610,20 @@
   // Link: ?room=ID (học sinh) · ?room=ID&hk=KHOÁ (thầy điều khiển). Dữ liệu: liveSessions/ID/...
   // =====================================================================
   var ROOM = { id: null, host: false, meta: {}, players: {}, last: '', panelOpen: true };
+  var ROOM_TTL = 1 * 24 * 60 * 60 * 1000;   // phòng Thi đua tự xoá sau 1 ngày
+  // Dọn phòng quá hạn: danh sách phòng nằm ở liveSessions/_rooms (nhỏ, đọc nhanh), mỗi lần Thầy tạo phòng mới thì quét 1 lượt
+  function sweepRooms(L) {
+    var now = Date.now();
+    return L.mod.get(L.mod.ref(L.db, 'liveSessions/_rooms')).then(function (sn) {
+      var all = sn.val() || {};
+      Object.keys(all).forEach(function (rid) {
+        if (now - (Number(all[rid]) || 0) > ROOM_TTL) {
+          L.mod.remove(L.mod.ref(L.db, 'liveSessions/' + rid)).catch(function () {});
+          L.mod.remove(L.mod.ref(L.db, 'liveSessions/_rooms/' + rid)).catch(function () {});
+        }
+      });
+    }).catch(function () {});
+  }
   function esc2(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function totalQ() {
     var t = Number(g('TOTAL_QUESTIONS')) || 0;
@@ -697,6 +711,8 @@
         var id = 'R' + rid6(), hk2 = rid6() + rid6();
         e.target.disabled = true; e.target.textContent = 'Đang tạo...';
         liveDb().then(function (L) {
+          sweepRooms(L);
+          L.mod.set(L.mod.ref(L.db, 'liveSessions/_rooms/' + id), Date.now()).catch(function () {});
           return L.mod.set(L.mod.ref(L.db, 'liveSessions/' + id + '/meta'), { kind: 'room', createdAt: Date.now(), title: document.title || '', reveal: false, hostKey: hk2 });
         }).then(function () {
           try { localStorage.setItem('nightRoomHost_' + id, hk2); } catch (er) {}
@@ -722,6 +738,17 @@
       var base = 'liveSessions/' + id;
       return L.mod.get(L.mod.ref(L.db, base + '/meta')).then(function (sn) {
         ROOM.meta = sn.val() || {};
+        if (!ROOM.meta.createdAt || Date.now() - ROOM.meta.createdAt > ROOM_TTL) {
+          // phòng không có hoặc đã quá hạn (1 ngày) -> xoá luôn, báo cho người mở link
+          if (ROOM.meta.createdAt) { L.mod.remove(L.mod.ref(L.db, base)).catch(function () {}); L.mod.remove(L.mod.ref(L.db, 'liveSessions/_rooms/' + id)).catch(function () {}); }
+          ROOM.id = null;
+          roomCss();
+          var ov = document.createElement('div'); ov.id = 'nt-room-modal';
+          ov.innerHTML = '<div id="nt-room-box"><h3>⏰ Phòng thi đua đã hết hạn</h3><p>Phòng thi đua chỉ giữ 1 ngày nên đã tự xoá. Nhờ Thầy tạo phòng mới và gửi lại link nhé. Bạn vẫn có thể tự làm bài như bình thường.</p><div class="row" style="justify-content:flex-end"><button data-x>OK</button></div></div>';
+          ov.addEventListener('click', function (e) { if (e.target === ov || e.target.closest('[data-x]')) ov.remove(); });
+          document.body.appendChild(ov);
+          return;
+        }
         var saved = null; try { saved = localStorage.getItem('nightRoomHost_' + id); } catch (e) {}
         ROOM.host = !!ROOM.meta.hostKey && (hk === ROOM.meta.hostKey || saved === ROOM.meta.hostKey);
         var go = function () { startRoom(L, base); };
@@ -748,10 +775,52 @@
         var w = function () { var r = o.apply(this, arguments); ROOM.done = true; push(true); return r; }; w.__ntRoom = true; window[fn] = w;
       });
     }
+    setupRoomAnnotations(L, base);
     L.mod.onValue(L.mod.ref(L.db, base + '/meta'), function (sn) { ROOM.meta = sn.val() || ROOM.meta; renderRoom(); });
     L.mod.onValue(L.mod.ref(L.db, base + '/players'), function (sn) { ROOM.players = sn.val() || {}; renderRoom(); });
     setInterval(renderRoom, 20000);
     renderRoom();
+  }
+  // Tô màu / gạch chân / gạch ngang / ghi chú trên bài đọc: DÙNG CHUNG cho cả phòng (đáp án thì riêng).
+  // Rê chuột vào chỗ được tô sẽ hiện tên người tô. Dựa trên 2 hook có sẵn của đề: __onAnnotCreate/__onAnnotRemove.
+  ROOM.ann = {};
+  var ANN_LABEL = { highlight: 'tô màu', underline: 'gạch chân', strike: 'gạch ngang', note: 'ghi chú' };
+  function tagAnn(id) {
+    var d = ROOM.ann[id]; if (!d) return;
+    var who = d.c === LIVE.cid ? 'Bạn' : (d.by || 'Ai đó');
+    document.querySelectorAll('[data-annot-id="' + id + '"]').forEach(function (el) {
+      el.title = who + ' · ' + (ANN_LABEL[d.type] || 'đánh dấu') + (d.type === 'note' && d.extra ? ': ' + d.extra : '');
+      el.style.cursor = 'help';
+    });
+  }
+  function replayAllAnn() {
+    Object.keys(ROOM.ann).forEach(function (id) {
+      var d = ROOM.ann[id];
+      if (d.c !== LIVE.cid && typeof window.__replayAnnotCreate === 'function') { try { window.__replayAnnotCreate(id, d.type, d.passageId, d.start, d.end, d.extra); } catch (e) {} }
+      tagAnn(id);
+    });
+  }
+  ROOM.replayAnn = replayAllAnn;
+  function setupRoomAnnotations(L, base) {
+    var annRef = L.mod.ref(L.db, base + '/annotations');
+    window.__onAnnotCreate = function (id, type, passageId, start, end, extra) {
+      var d = { type: type, passageId: passageId, start: start, end: end, extra: extra === undefined ? null : extra, by: ROOM.host ? 'Thầy' : (LIVE.nick || ''), c: LIVE.cid, ts: Date.now() };
+      ROOM.ann[id] = d;
+      L.mod.set(L.mod.child(annRef, id), d).catch(function () {});
+      setTimeout(function () { tagAnn(id); }, 30);
+    };
+    window.__onAnnotRemove = function (id) {
+      delete ROOM.ann[id];
+      L.mod.remove(L.mod.child(annRef, id)).catch(function () {});
+    };
+    L.mod.onValue(annRef, function (sn) {
+      var all = sn.val() || {};
+      Object.keys(ROOM.ann).forEach(function (id) {
+        if (!all[id]) { delete ROOM.ann[id]; if (typeof window.__replayAnnotRemove === 'function') { try { window.__replayAnnotRemove(id); } catch (e) {} } }
+      });
+      Object.keys(all).forEach(function (id) { ROOM.ann[id] = all[id]; });
+      replayAllAnn();
+    });
   }
   function showAnswers() { return ROOM.host || !!ROOM.meta.reveal; }
   function playerList() {
@@ -812,7 +881,7 @@
     if (id && /^R[A-Z0-9]{6}$/.test(id)) joinRoom(id, ps.get('hk') || '');
     // giao diện câu hỏi dựng xong (bấm Bắt đầu) / đổi passage -> vẽ lại chấm
     var o = window.startTest;
-    if (typeof o === 'function' && !o.__ntRoom) { var w = function () { var r = o.apply(this, arguments); setTimeout(renderRoom, 80); return r; }; w.__ntRoom = true; window.startTest = w; }
+    if (typeof o === 'function' && !o.__ntRoom) { var w = function () { var r = o.apply(this, arguments); setTimeout(function () { renderRoom(); if (ROOM.replayAnn) ROOM.replayAnn(); }, 80); return r; }; w.__ntRoom = true; window.startTest = w; }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initRoom); else initRoom();
 })();
