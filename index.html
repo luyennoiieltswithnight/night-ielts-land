@@ -4899,7 +4899,8 @@
             if (status === 401) { dropDocsTok(); return Object.assign(new Error('Kết nối Google Docs đã hết hạn (1 tiếng). Bấm “🔗 Kết nối Google Docs” để mở nhanh lại.'), { fallback: true }); }
             if (status === 403 && /has not been used|disabled|SERVICE_DISABLED/i.test(msg)) return Object.assign(new Error('Chưa bật Google Docs API cho dự án night-ielts-land (xem hướng dẫn cài). Tạm mở qua Apps Script.'), { fallback: true });
             if (status === 403 || status === 404) return new Error('Gmail giáo viên không mở được file này (' + status + '). File phải do Thầy tạo hoặc được chia sẻ quyền sửa cho Thầy.');
-            return Object.assign(new Error('Google Docs lỗi ' + status + (msg ? ': ' + msg : '')), { fallback: status >= 500 });
+            const det = body && body.error && Array.isArray(body.error.details) ? body.error.details.map(x => (x.fieldViolations || []).map(v => v.field + ': ' + v.description).join('; ')).filter(Boolean).join(' | ') : '';
+            return Object.assign(new Error('Google Docs lỗi ' + status + (msg ? ': ' + msg : '') + (det ? ' (' + det + ')' : '')), { fallback: status >= 500, status: status });
         }
         // Tải JSON có báo % (đọc từng phần dữ liệu đang về)
         async function fetchJsonProgress(url, tok, onPct, estKey) {
@@ -4964,7 +4965,17 @@
             const tok = docsTok(); if (!tok) throw Object.assign(new Error('no token'), { fallback: true, silent: true });
             const id = docIdOf(url); if (!id) throw new Error('Link Google Docs chưa đúng.');
             onPct(8);
-            const d = await fetchJsonProgress('https://docs.googleapis.com/v1/documents/' + id + '?includeTabsContent=true&fields=' + encodeURIComponent(DOCS_FIELDS), tok, onPct, id);
+            const base = 'https://docs.googleapis.com/v1/documents/' + id + '?includeTabsContent=true';
+            let d;
+            // Xin Google chỉ phần cần thiết cho nhẹ; nếu Google không nhận kiểu xin rút gọn (lỗi 400) thì tải bản đầy đủ
+            let useMask = true; try { useMask = localStorage.getItem('nightDocsNoMask') !== '1'; } catch (e) {}
+            try {
+                d = await fetchJsonProgress(useMask ? base + '&fields=' + encodeURIComponent(DOCS_FIELDS) : base, tok, onPct, id);
+            } catch (e) {
+                if (!(useMask && e.status === 400)) throw e;
+                try { localStorage.setItem('nightDocsNoMask', '1'); } catch (er) {}
+                d = await fetchJsonProgress(base, tok, onPct, id);
+            }
             onPct(90);
             const tabs = flatTabs(d.tabs).map(t => ({ id: t.tabProperties.tabId, title: t.tabProperties.title, blocks: compactContent(((t.documentTab || {}).body || {}).content, 0) }));
             return { ok: true, direct: true, id: id, title: d.title, url: 'https://docs.google.com/document/d/' + id + '/edit', tabs: tabs, tabId: tabs[0] && tabs[0].id };
