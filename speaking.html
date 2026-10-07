@@ -249,6 +249,38 @@ audio{width:100%;height:40px;}
 .band-pick button.on{background:var(--accent);border-color:var(--accent);color:#fff;}
 .band-desc{font-size:12.5px;color:var(--ink-3);margin:0 0 14px;line-height:1.5;}
 .band-tag{font-size:11.5px;font-weight:800;color:var(--accent-ink);background:var(--accent-wash);border-radius:999px;padding:2px 8px;margin-left:6px;}
+
+/* ---- Thầy chữa bài Speaking ---- */
+.teacher-rv{background:#f0fdf4;border-left:4px solid var(--good);}
+.teacher-rv .rv-h{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--good);font-size:14px;margin:0 0 6px}
+.teacher-rv .rv-band{margin-left:auto;font-size:12.5px;font-weight:800;color:#fff;background:var(--good);border-radius:999px;padding:2px 10px}
+.teacher-rv .rv-c{white-space:pre-wrap;font-size:15px;line-height:1.6;color:var(--ink);margin:0}
+.teacher-rv .rv-tip{font-size:12px;color:var(--ink-3);margin:8px 0 0}
+.rv-open-btn{border:1.5px solid var(--accent);background:var(--accent-wash);color:var(--accent-ink);font-weight:800;font-size:12.5px;border-radius:999px;padding:5px 12px;cursor:pointer}
+.rv-open-btn.done{border-color:var(--good);background:var(--good-wash);color:var(--good)}
+.rv-overlay{position:fixed;inset:0;z-index:300;background:rgba(34,28,43,.55);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:16px}
+.rv-overlay.show{display:flex}
+.rv-sheet{background:var(--sheet);border-radius:22px;width:100%;max-width:1180px;height:min(94vh,980px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px -12px rgba(34,28,43,.4)}
+.rv-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 22px 10px;border-bottom:1px solid var(--rule)}
+.rv-top h2{margin:0;font-size:19px;font-weight:800;color:var(--ink)}
+.rv-top p{margin:3px 0 0;font-size:13px;color:var(--ink-2)}
+.rv-x{border:0;background:none;font-size:20px;color:var(--ink-3);cursor:pointer}
+.rv-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 330px}
+.rv-main{overflow-y:auto;padding:16px 22px 30px}
+.rv-side{border-left:1px solid var(--rule);padding:16px 18px;overflow-y:auto;background:#fcfbfd;display:flex;flex-direction:column;gap:12px}
+.rv-sec{margin-bottom:18px}
+.rv-sec .sec-h{margin-bottom:8px}
+.rv-side label{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:700;color:var(--ink-2)}
+.rv-side textarea,.rv-side select{border:1.5px solid var(--rule);border-radius:12px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;outline:none}
+.rv-side textarea{min-height:170px;resize:vertical}
+.rv-side textarea:focus,.rv-side select:focus{border-color:var(--accent)}
+.rv-chk{flex-direction:row!important;align-items:center;gap:8px!important}
+.rv-send{border:0;border-radius:14px;background:var(--good);color:#fff;font-weight:800;font-size:15px;padding:13px;cursor:pointer}
+.rv-send:disabled{opacity:.6;cursor:wait}
+.rv-msg{font-size:13px;font-weight:700;min-height:18px}
+.rv-tipbox{font-size:12.5px;color:var(--ink-2);background:var(--accent-wash);border-radius:12px;padding:10px 12px;line-height:1.5}
+@media (max-width:900px){.rv-body{grid-template-columns:1fr;overflow-y:auto}.rv-main{overflow:visible}.rv-side{border-left:0;border-top:1px solid var(--rule)}}
+@media (max-width:640px){.rv-overlay{padding:0}.rv-sheet{border-radius:0;height:100%}}
 </style>
 <!-- Tailwind đã dựng sẵn (chỉ các class trang này dùng) thay cho bản CDN dịch lúc chạy — tải nhanh hơn nhiều.
      Nếu thêm class Tailwind mới mà không thấy tác dụng, nhắn để dựng lại khối này. -->
@@ -527,6 +559,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 
           <!-- Kết quả -->
           <div id="resultBox" class="hidden">
+            <div id="resTeacherBox" class="hidden sheet-sec teacher-rv"></div>
             <div class="sheet-sec">
               <div class="score-line">
                 <div class="score-main"><b id="resOverallBand">-</b><span>Band ước tính</span></div>
@@ -1443,6 +1476,10 @@ Is it better to read a physical book or an e-book?"></textarea>
             '</div></label>' +
             '<div class="band-chip" style="width:44px;height:44px;font-size:15px;">' + (a.scores ? fmtBand(a.scores.overall) : '-') + '</div>' +
           '</div>' +
+          '<div class="mt-2 flex items-center gap-2 flex-wrap">' +
+            '<button type="button" class="rv-open-btn' + (a.reviewedAt ? ' done' : '') + '" onclick="openReview(\'' + a.id + '\')">' + (a.reviewedAt ? '✅ Đã chữa · sửa lại' : '✏️ Chữa &amp; gửi lại cho học sinh') + '</button>' +
+            (a.reviewedAt ? '<span class="text-xs" style="color:var(--ink-3);">' + new Date(a.reviewedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) + (a.studentSeenReview ? ' · học sinh đã xem' : ' · học sinh chưa xem') + '</span>' : '') +
+          '</div>' +
           '<details class="mt-2"><summary class="text-xs font-bold cursor-pointer" style="color:var(--border-color);opacity:.75;">Nghe ghi âm &amp; xem bài sửa</summary>' +
             audio + teacherAttemptDetail(a) +
           '</details>' +
@@ -1659,8 +1696,25 @@ Is it better to read a physical book or an e-book?"></textarea>
 
     __qIdx = 0;
     let shown = false;
+    const wantAttempt = params.get('attempt');
+    let jumped = false;
+    const jump = () => {
+      if (jumped || !wantAttempt) return false;
+      for (const qid in __history) {
+        const rec = __history[qid].find(r => r.id === wantAttempt);
+        if (rec) {
+          const i = __pkg.questions.findIndex(q => q.id === qid);
+          if (i === -1) return false;
+          jumped = true; __qIdx = i; renderQNav(); renderQuestion(); showResult(rec);
+          setTimeout(() => { const b = document.getElementById('resTeacherBox'); if (b && !b.classList.contains('hidden')) b.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 300);
+          return true;
+        }
+      }
+      return false;
+    };
     const show = () => {
-      if (!shown) { shown = true; renderQNav(); renderQuestion(); showOnly('practiceView'); return; }
+      if (!shown) { shown = true; renderQNav(); renderQuestion(); showOnly('practiceView'); jump(); return; }
+      if (jump()) return;
       renderQNav();
       if (!practiceBusy()) renderQuestion();
     };
@@ -1818,7 +1872,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       }
       const d = r.createdAt ? new Date(r.createdAt) : null;
       html += '<button type="button" class="hist-chip' + (r.id === currentRec.id ? ' active' : '') + '" onclick="viewAttempt(\'' + r.id + '\')" title="Xem lại lần ' + (i + 1) + '">' +
-        '<b>' + fmtBand(r.scores.overall) + '</b><small>' + (d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Lần ' + (i + 1)) + '</small></button>';
+        '<b>' + fmtBand(r.scores.overall) + (r.reviewedAt ? ' <span title="Thầy đã chữa" style="color:var(--good)">✓</span>' : '') + '</b><small>' + (d ? d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : 'Lần ' + (i + 1)) + '</small></button>';
     });
     html += '</div>';
     const idx = list.findIndex(r => r.id === currentRec.id);
@@ -2130,9 +2184,43 @@ Is it better to read a physical book or an e-book?"></textarea>
     return bands + '<p class="transcript mt-2" style="font-size:14.5px;">' + body + '</p>';
   }
 
+  // Nhận xét 4 tiêu chí (dùng chung cho trang học sinh và cửa sổ Thầy chữa bài -> chữ giống hệt để đánh dấu khớp)
+  function critHtml(record) {
+    const crit = record.criteria || {};
+    const edits = record.edits || [];
+    const placedEdits = edits.length ? spPlace((record.transcript || '').trim(), edits, 'find') : [];
+    return SP_CRIT.map(k => {
+      const c = crit[k] || {};
+      const mine = placedEdits.map(p => edits[p.i]).filter(e => e.criterion === k);
+      const mineNotes = (record.refinementNotes || []).filter(n => n.criterion === k);
+      return '<div class="crit"><div class="crit-head"><i class="dot ' + k + '"></i><span class="crit-name">' + SP_NAME[k] + (k === 'pronunciation' ? ' <small>(ước tính qua văn bản)</small>' : '') + '</span><span class="crit-band" style="color:var(--' + k + ')">' + (c.band != null ? fmtBand(c.band) : '-') + '</span></div>' +
+        '<p class="crit-text">' + escapeHtml(c.feedback || '') + '</p>' +
+        (c.toNextBand && Number(c.band) < 9 ? '<div class="crit-next" style="--c:var(--' + k + ')"><b>Vì sao chưa lên ' + (Math.floor(Number(c.band)) + 1) + ':</b> ' + escapeHtml(c.toNextBand) + '</div>' : '') +
+        (mine.length || mineNotes.length ? '<details class="mt-2"><summary class="crit-sum">' + (mine.length ? mine.length + ' lỗi' : '') + (mine.length && mineNotes.length ? ' · ' : '') + (mineNotes.length ? mineNotes.length + ' chỗ nâng cấp' : '') + ' thuộc tiêu chí này</summary><ul class="crit-edits">' +
+          mine.map(e => '<li><del>' + escapeHtml(e.find) + '</del>' + (e.replace ? ' → <b style="color:var(--' + k + ')">' + escapeHtml(e.replace) + '</b>' : ' (bỏ)') + '<span>' + escapeHtml(e.why) + '</span></li>').join('') +
+          mineNotes.map(n => '<li><span class="tag-up">nâng cấp</span> ' + escapeHtml(n.change || ((n.from ? n.from + ' → ' : '') + n.to)) + '<span>' + escapeHtml(n.reason) + '</span></li>').join('') +
+          '</ul></details>' : '') +
+        '</div>';
+    }).join('');
+  }
+  // Bài nói (bản đã sửa) — dùng chung
+  function transcriptHtml(record) {
+    const tr = (record.transcript || '').trim(), edits = record.edits || [];
+    return edits.length ? spMarkTranscript(tr, edits).html : escapeHtml('“' + tr + '”');
+  }
+  function refinedHtml(record) {
+    const notes = record.refinementNotes || [], ra = record.refinedAnswer || '';
+    return notes.some(n => n.to) ? spMarkRefined(ra, notes) : escapeHtml(ra);
+  }
+  function whyHtml(record) {
+    return record.whyNotHigher ? '<b>Vì sao chưa đạt band ' + fmtBand(Math.min(9, (Number(record.scores.overall) || 0) + 0.5)) + '?</b> ' + escapeHtml(record.whyNotHigher) : '';
+  }
+
   let __res = null;   // { record, filter, view }
   function showResult(record) {
     __viewingAttemptId = record.id || null;
+    window.__spCurRecord = record;   // để phần đánh dấu áp dụng chỗ Thầy đã đánh dấu
+    paintTeacherReview(record);
     __res = { record: record, filter: 'all', view: 'marked' };
     document.getElementById('recSection').classList.add('hidden');
     document.getElementById('retryRefBox').classList.add('hidden');
@@ -2174,20 +2262,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     renderTranscript();
 
     // Nhận xét 4 tiêu chí: điểm, nhận xét, vì sao chưa lên band, các chỗ sửa thuộc tiêu chí
-    const placedEdits = hasEdits ? spPlace((record.transcript || '').trim(), edits, 'find') : [];
-    document.getElementById('resCriteria').innerHTML = SP_CRIT.map(k => {
-      const c = crit[k] || {};
-      const mine = placedEdits.map(p => edits[p.i]).filter(e => e.criterion === k);
-      const mineNotes = (record.refinementNotes || []).filter(n => n.criterion === k);
-      return '<div class="crit"><div class="crit-head"><i class="dot ' + k + '"></i><span class="crit-name">' + SP_NAME[k] + (k === 'pronunciation' ? ' <small>(ước tính qua văn bản)</small>' : '') + '</span><span class="crit-band" style="color:var(--' + k + ')">' + (c.band != null ? fmtBand(c.band) : '-') + '</span></div>' +
-        '<p class="crit-text">' + escapeHtml(c.feedback || '') + '</p>' +
-        (c.toNextBand && Number(c.band) < 9 ? '<div class="crit-next" style="--c:var(--' + k + ')"><b>Vì sao chưa lên ' + (Math.floor(Number(c.band)) + 1) + ':</b> ' + escapeHtml(c.toNextBand) + '</div>' : '') +
-        (mine.length || mineNotes.length ? '<details class="mt-2"><summary class="crit-sum">' + (mine.length ? mine.length + ' lỗi' : '') + (mine.length && mineNotes.length ? ' · ' : '') + (mineNotes.length ? mineNotes.length + ' chỗ nâng cấp' : '') + ' thuộc tiêu chí này</summary><ul class="crit-edits">' +
-          mine.map(e => '<li><del>' + escapeHtml(e.find) + '</del>' + (e.replace ? ' → <b style="color:var(--' + k + ')">' + escapeHtml(e.replace) + '</b>' : ' (bỏ)') + '<span>' + escapeHtml(e.why) + '</span></li>').join('') +
-          mineNotes.map(n => '<li><span class="tag-up">nâng cấp</span> ' + escapeHtml(n.change || ((n.from ? n.from + ' → ' : '') + n.to)) + '<span>' + escapeHtml(n.reason) + '</span></li>').join('') +
-          '</ul></details>' : '') +
-        '</div>';
-    }).join('');
+    document.getElementById('resCriteria').innerHTML = critHtml(record);
 
     // Bản nâng cấp: chỗ đổi được tô màu theo tiêu chí + đánh số khớp với danh sách bên dưới
     const notes = record.refinementNotes || [];
@@ -2362,6 +2437,104 @@ Is it better to read a physical book or an e-book?"></textarea>
     } catch (e) { console.warn('Không gửi được sang Google Docs:', e); }
   }
 
+
+  // ==========================================
+  // THẦY CHỮA BÀI: đánh dấu (lưu lên bài làm) + nhận xét + band -> học sinh thấy ở trang kết quả, có mail báo
+  // ==========================================
+  let __rv = null;   // { rec, ann: { rvTranscript: [...], ... } }
+  const RV_MAP = { rvTranscript: 'transcript', rvWhy: 'why', rvCriteria: 'criteria', rvRefined: 'refined' };
+  const RES_MAP = { resTranscript: 'transcript', resWhy: 'why', resCriteria: 'criteria', resRefinedAnswer: 'refined' };
+  // Phần đánh dấu (script cuối trang) hỏi 2 hàm này: vùng nào lưu vào bài chữa, vùng nào hiện dấu của Thầy
+  window.spAnnStore = {
+    owns: id => !!(__rv && RV_MAP[id]),
+    load: id => (__rv && __rv.ann[RV_MAP[id]]) || [],
+    save: (id, list) => { if (__rv) __rv.ann[RV_MAP[id]] = list; }
+  };
+  window.spAnnTeacherFor = id => {
+    const r = window.__spCurRecord;
+    if (!r || !r.teacherAnn || !RES_MAP[id]) return null;
+    if (id === 'resTranscript' && __res && __res.view !== 'marked' && (r.edits || []).length) return null;  // dấu của Thầy đặt trên bản đã sửa
+    return r.teacherAnn[RES_MAP[id]] || null;
+  };
+  function paintTeacherReview(rec) {
+    const box = document.getElementById('resTeacherBox');
+    if (!rec.reviewedAt) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    const nAnn = Object.values(rec.teacherAnn || {}).reduce((t, l) => t + (l || []).length, 0);
+    box.innerHTML = '<p class="rv-h">👨‍🏫 Thầy đã chữa bài này' + (rec.teacherBand ? '<span class="rv-band">Band Thầy chấm: ' + fmtBand(rec.teacherBand) + '</span>' : '') + '</p>' +
+      (rec.teacherComment ? '<p class="rv-c">' + escapeHtml(rec.teacherComment) + '</p>' : '') +
+      (nAnn ? '<p class="rv-tip">Những chỗ Thầy đánh dấu (tô màu, gạch, ✎ ghi chú) nằm ngay trong bài bên dưới, bấm vào chữ có ✎ để đọc ghi chú.</p>' : '');
+    box.classList.remove('hidden');
+    if (window.__spRole !== 'admin' && !rec.studentSeenReview && rec.id) {
+      rec.studentSeenReview = true;
+      updateDoc(doc(db, 'speakingAttempts', rec.id), { studentSeenReview: true, studentSeenReviewAt: Date.now() }).catch(() => {});
+    }
+  }
+  window.openReview = async function (id) {
+    const it = __spAttemptIndex[id]; if (!it) return;
+    const rec = it.rec;
+    __rv = { rec: rec, ann: JSON.parse(JSON.stringify(rec.teacherAnn || {})) };
+    document.getElementById('rvTitle').textContent = 'Chữa bài · ' + (__names[rec.studentId] || 'Học sinh');
+    document.getElementById('rvSub').textContent = (rec.packageTitle || '') + ' — ' + (rec.questionText || '') + ' · AI chấm ' + fmtBand(rec.scores && rec.scores.overall);
+    document.getElementById('rvTranscript').innerHTML = transcriptHtml(rec);
+    const why = whyHtml(rec);
+    document.getElementById('rvWhy').innerHTML = why;
+    document.getElementById('rvWhy').parentElement.style.display = why ? '' : 'none';
+    document.getElementById('rvCriteria').innerHTML = critHtml(rec);
+    document.getElementById('rvRefined').innerHTML = refinedHtml(rec);
+    document.getElementById('rvComment').value = rec.teacherComment || '';
+    const sel = document.getElementById('rvBand');
+    if (sel.options.length < 3) for (let b = 9; b >= 3; b -= 0.5) sel.insertAdjacentHTML('beforeend', '<option value="' + b + '">' + b.toFixed(1) + '</option>');
+    sel.value = rec.teacherBand ? String(rec.teacherBand) : '';
+    document.getElementById('rvMsg').textContent = '';
+    const au = document.getElementById('rvAudio');
+    au.innerHTML = (rec.audioBase64 || rec.audioChunkCount || rec.legacyAudio) ? '<button type="button" class="ni-nav-btn" onclick="rvLoadAudio(this)"><i class="fa-solid fa-play"></i> Nghe ghi âm của học sinh</button>' : '';
+    document.getElementById('rvModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  };
+  window.rvLoadAudio = async function (btn) {
+    if (!__rv) return;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Đang tải...';
+    const chunks = await ensureAudioChunks(__rv.rec);
+    const url = audioUrlFor(__rv.rec, chunks);
+    if (!url) { btn.outerHTML = '<p class="text-xs" style="opacity:.6;">Không tải được file ghi âm.</p>'; return; }
+    __teacherAudioSrcs.push(url);
+    document.getElementById('rvAudio').innerHTML = '<audio controls class="w-full" src="' + url + '"></audio>';
+  };
+  window.closeReview = function () {
+    document.getElementById('rvModal').classList.remove('show');
+    document.body.style.overflow = '';
+    __rv = null;
+  };
+  window.saveReview = async function () {
+    if (!__rv) return;
+    const rec = __rv.rec, btn = document.getElementById('rvSend'), msg = document.getElementById('rvMsg');
+    const comment = document.getElementById('rvComment').value.trim();
+    const band = document.getElementById('rvBand').value;
+    const nAnn = Object.values(__rv.ann).reduce((t, l) => t + (l || []).length, 0);
+    if (!comment && !nAnn && !band) { msg.style.color = 'var(--incorrect-color)'; msg.textContent = 'Thầy viết nhận xét hoặc đánh dấu ít nhất 1 chỗ đã nhé.'; return; }
+    btn.disabled = true; msg.style.color = 'var(--ink-3)'; msg.textContent = 'Đang lưu...';
+    const patch = { teacherAnn: __rv.ann, teacherComment: comment, teacherBand: band ? Number(band) : null, reviewedAt: Date.now(), studentSeenReview: false };
+    try {
+      await updateDoc(doc(db, 'speakingAttempts', rec.id), patch);
+      Object.assign(rec, patch);
+      const item = __spItems.find(x => x.id === rec.id); if (item && item !== rec) Object.assign(item, patch);
+      let mailNote = '';
+      if (document.getElementById('rvMail').checked) {
+        try {
+          const tok = await auth.currentUser.getIdToken();
+          const res = await fetch(DOCLOG_URL + '?p=' + encodeURIComponent(JSON.stringify({ action: 'spReviewed', idToken: tok, attemptId: rec.id })));
+          const out = await res.json().catch(() => null);
+          mailNote = out && out.ok ? ' Đã gửi mail cho học sinh.' : ' (Chưa gửi được mail: ' + ((out && out.error) || 'Apps Script chưa cập nhật bản mới') + ')';
+        } catch (e) { mailNote = ' (Chưa gửi được mail.)'; }
+      }
+      msg.style.color = 'var(--good)'; msg.textContent = '✔ Đã gửi lại cho học sinh.' + mailNote;
+      paintTeacherResults();
+    } catch (e) {
+      msg.style.color = 'var(--incorrect-color)'; msg.textContent = 'Lỗi khi lưu: ' + e.message;
+    } finally { btn.disabled = false; }
+  };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('rvModal').classList.contains('show')) closeReview(); });
+
   // ==========================================
   // BOOT
   // ==========================================
@@ -2403,6 +2576,33 @@ Is it better to read a physical book or an e-book?"></textarea>
     await startApp(user.uid, role);
   });
 </script>
+
+<!-- Cửa sổ THẦY CHỮA BÀI: đánh dấu + nhận xét rồi gửi lại cho học sinh (kèm mail) -->
+<div id="rvModal" class="rv-overlay">
+  <div class="rv-sheet">
+    <div class="rv-top">
+      <div><h2 id="rvTitle">Chữa bài Speaking</h2><p id="rvSub"></p></div>
+      <button type="button" class="rv-x" onclick="closeReview()" title="Đóng"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="rv-body">
+      <div class="rv-main">
+        <div id="rvAudio" class="rv-sec"></div>
+        <div class="rv-sec"><p class="sec-h">Bài nói của học sinh</p><p id="rvTranscript" class="transcript"></p></div>
+        <div class="rv-sec"><div id="rvWhy" class="why-box"></div></div>
+        <div class="rv-sec"><p class="sec-h">Nhận xét theo 4 tiêu chí (AI)</p><div id="rvCriteria"></div></div>
+        <div class="rv-sec"><div class="answer-card upgraded"><div class="answer-card-head"><span class="answer-card-title">Bản nâng cấp</span></div><p id="rvRefined" class="answer-card-text"></p></div></div>
+      </div>
+      <div class="rv-side">
+        <div class="rv-tipbox">✏️ <b>Bôi đen</b> chữ bất kỳ bên trái để tô màu, in đậm, gạch chân, gạch ngang hoặc <b>thêm ghi chú</b>. Học sinh sẽ thấy đúng những chỗ Thầy đánh dấu.</div>
+        <label>Nhận xét của Thầy<textarea id="rvComment" placeholder="vd: Ý trả lời tốt, nhưng em hay lặp 'I think'. Lần sau thử dùng 'In my view / Personally'..."></textarea></label>
+        <label>Band Thầy chấm (không bắt buộc)<select id="rvBand"><option value="">— Giữ band AI chấm —</option></select></label>
+        <label class="rv-chk"><input type="checkbox" id="rvMail" checked> Gửi mail báo học sinh “Thầy đã chữa bài”</label>
+        <button type="button" id="rvSend" class="rv-send" onclick="saveReview()">✅ Gửi lại cho học sinh</button>
+        <p id="rvMsg" class="rv-msg"></p>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- ĐÁNH DẤU (annotate): bôi đen chữ ở gợi ý / câu trả lời mẫu / nhận xét / bản nâng cấp / bài nói
      → tô màu, in đậm, nghiêng, gạch chân, gạch ngang, thêm ghi chú. Lưu trên máy này, theo đúng đoạn chữ. -->
 <style id="sp-ann-css">
@@ -2411,6 +2611,8 @@ Is it better to read a physical book or an e-book?"></textarea>
 .ann-s{text-decoration:line-through;text-decoration-thickness:1.5px;text-decoration-color:#d64545;}
 .ann-u.ann-s,.ann-s .ann-u,.ann-u .ann-s{text-decoration:underline line-through;}
 .ann-note{border-bottom:2px dotted #e8a33d;background:rgba(253,230,138,.35);cursor:pointer;}
+.ann-th.ann-note{border-bottom-color:#2f855a;background:rgba(198,246,213,.45);}
+.ann-th.ann-note-end::after{color:#2f855a;}
 .ann-note-end::after{content:"✎";font-size:.68em;font-weight:800;color:#c47a12;vertical-align:super;margin-left:1px;}
 #spAnnBar{position:fixed;z-index:9999;display:none;align-items:center;gap:4px;background:#fff;border:1px solid var(--rule);border-radius:12px;padding:6px 8px;box-shadow:0 10px 30px -8px rgba(34,28,43,.35);font-family:inherit;}
 #spAnnBar .c{width:24px;height:24px;border-radius:7px;border:1px solid rgba(0,0,0,.12);cursor:pointer;padding:0;}
@@ -2455,7 +2657,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 <script>
 (function () {
   // Các vùng được đánh dấu. Khoá lưu = id vùng + mã của nội dung chữ, nên mỗi câu hỏi / mỗi lần chấm có đánh dấu riêng.
-  var TARGETS = ['qHintBox', 'ideaSampleAnswer', 'retryRefText', 'resWhy', 'resTranscript', 'resCriteria', 'resRefinedAnswer', 'resRefinementNotes'];
+  var TARGETS = ['qHintBox', 'ideaSampleAnswer', 'retryRefText', 'resWhy', 'resTranscript', 'resCriteria', 'resRefinedAnswer', 'resRefinementNotes', 'rvTranscript', 'rvWhy', 'rvCriteria', 'rvRefined'];
   var STORE = 'nightSpAnn';
   function load() { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { return {}; } }
   function save(all) { try { localStorage.setItem(STORE, JSON.stringify(all)); } catch (e) {} }
@@ -2468,8 +2670,18 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
   function fullText(root) { return textNodes(root).map(function (x) { return x.n.data; }).join(''); }
   function keyOf(root) { return root.id + '|' + hash(fullText(root)); }
+  // Cửa sổ Thầy chữa bài: đánh dấu lưu vào bài chữa (gửi cho học sinh) thay vì lưu trên máy
+  function owns(root) { return !!(window.spAnnStore && window.spAnnStore.owns(root.id)); }
+  function getList(root) { return owns(root) ? (window.spAnnStore.load(root.id) || []).slice() : (load()[root.dataset.annKey || keyOf(root)] || []); }
+  function putList(root, list) {
+    if (owns(root)) { window.spAnnStore.save(root.id, list); return; }
+    var all = load(), key = root.dataset.annKey || keyOf(root);
+    if (list.length) all[key] = list; else delete all[key];
+    save(all);
+  }
+  function teacherList(root) { return (!owns(root) && window.spAnnTeacherFor && window.spAnnTeacherFor(root.id)) || []; }
   function locate(text, a) { var idx = -1, from = 0; for (var k = 0; k <= a.n; k++) { idx = text.indexOf(a.q, from); if (idx === -1) break; from = idx + 1; } return idx; }
-  function wrap(root, start, end, a, ai) {
+  function wrap(root, start, end, a, ai, fromTeacher) {
     var spans = [];
     textNodes(root).forEach(function (o) {
       var n = o.n, s = o.s, e = s + n.data.length;
@@ -2478,8 +2690,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       if (y < node.data.length) node.splitText(y);
       if (x > 0) node = node.splitText(x);
       if (!node.data.trim() && node.parentNode && /^(UL|OL|TABLE|TBODY|TR)$/.test(node.parentNode.nodeName)) return;
-      var sp = document.createElement('span'); sp.className = 'ann ann-' + a.t;
-      if (a.t === 'note') sp.dataset.ai = ai;
+      var sp = document.createElement('span'); sp.className = 'ann ann-' + a.t + (fromTeacher ? ' ann-th' : '');
+      if (a.t === 'note') { if (fromTeacher) sp.dataset.tai = ai; else sp.dataset.ai = ai; }
       node.parentNode.insertBefore(sp, node); sp.appendChild(node); spans.push(sp);
     });
     if (a.t === 'note' && spans.length) spans[spans.length - 1].classList.add('ann-note-end');
@@ -2495,14 +2707,15 @@ Is it better to read a physical book or an e-book?"></textarea>
     try {
       unwrapAll(root);
       root.dataset.annKey = keyOf(root);
-      var list = load()[root.dataset.annKey] || [];
-      if (list.length) {
-        var text = fullText(root);
+      var text = fullText(root);
+      var put = function (list, fromTeacher) {
         // ghi chú bọc sau cùng để nằm ngoài các kiểu chữ
         list.map(function (a, i) { return { a: a, i: i }; }).sort(function (p, q) { return (p.a.t === 'note') - (q.a.t === 'note'); }).forEach(function (o) {
-          var idx = locate(text, o.a); if (idx !== -1) wrap(root, idx, idx + o.a.q.length, o.a, o.i);
+          var idx = locate(text, o.a); if (idx !== -1) wrap(root, idx, idx + o.a.q.length, o.a, o.i, fromTeacher);
         });
-      }
+      };
+      put(teacherList(root), true);   // dấu Thầy chữa (chỉ xem)
+      put(getList(root), false);      // dấu của chính mình
     } catch (e) { console.warn('annotate', e); }
     if (observers[root.id]) observers[root.id].takeRecords();
     busy = false;
@@ -2558,15 +2771,14 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
   var t = null;
   document.addEventListener('selectionchange', function () { clearTimeout(t); t = setTimeout(maybeShow, 180); });
-  document.addEventListener('scroll', function () { if (info && !bar.classList.contains('noting')) maybeShow(); if (popRef && popRef.sp.isConnected) place(pop, popRef.sp.getBoundingClientRect()); }, true);
+  document.addEventListener('scroll', function () { if (info && !bar.classList.contains('noting')) maybeShow(); if (popRef && popRef.sp.isConnected) place(pop, popRef.sp.getBoundingClientRect()); else if (pop.style.display === 'block') hidePop(); }, true);
   bar.addEventListener('mousedown', function (e) { if (e.target !== noteIn) e.preventDefault(); });
 
   function apply(act, note) {
     if (!info) return;
     var root = info.root, start = info.start, end = info.end;
-    var key = root.dataset.annKey || keyOf(root);
     var text = fullText(root);
-    var all = load(), list = all[key] || [];
+    var list = getList(root);
     var located = list.map(function (a) { var s = locate(text, a); return { a: a, s: s, e: s + a.q.length }; });
     if (act === 'clear') {
       list = located.filter(function (x) { return x.s === -1 || x.e <= start || x.s >= end; }).map(function (x) { return x.a; });
@@ -2583,8 +2795,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         list.push({ q: q, n: n, t: act });
       }
     }
-    if (list.length) all[key] = list; else delete all[key];
-    save(all);
+    putList(root, list);
     refresh(root);
     try { window.getSelection().removeAllRanges(); } catch (e) {}
     hide();
@@ -2616,22 +2827,23 @@ Is it better to read a physical book or an e-book?"></textarea>
     var sel = window.getSelection();
     if (!sp || (sel && !sel.isCollapsed)) { hidePop(); return; }
     var root = sp.closest(TARGETS.map(function (t) { return '#' + t; }).join(','));
-    var list = load()[root.dataset.annKey] || [];
-    var a = list[Number(sp.dataset.ai)]; if (!a) return;
-    popRef = { root: root, idx: Number(sp.dataset.ai), sp: sp };
-    pop.querySelector('.t').textContent = a.note || '';
+    var fromT = sp.dataset.tai != null;
+    var list = fromT ? teacherList(root) : getList(root);
+    var a = list[Number(fromT ? sp.dataset.tai : sp.dataset.ai)]; if (!a) return;
+    popRef = fromT ? null : { root: root, idx: Number(sp.dataset.ai), sp: sp };
+    pop.querySelector('.t').textContent = (fromT ? '👨‍🏫 Thầy: ' : '') + (a.note || '');
+    pop.querySelector('.a').style.display = fromT ? 'none' : '';
     pop.style.display = 'block';
     place(pop, sp.getBoundingClientRect());
     e.stopPropagation();
   }, true);
   pop.addEventListener('click', function (e) {
     var b = e.target.closest('[data-p]'); if (!b || !popRef) return;
-    var root = popRef.root, key = root.dataset.annKey, all = load(), list = all[key] || [], a = list[popRef.idx];
+    var root = popRef.root, list = getList(root), a = list[popRef.idx];
     if (!a) return hidePop();
     if (b.dataset.p === 'del') {
       list.splice(popRef.idx, 1);
-      if (list.length) all[key] = list; else delete all[key];
-      save(all); hidePop(); refresh(root);
+      putList(root, list); hidePop(); refresh(root);
     } else {
       var text = fullText(root), s = locate(text, a);
       info = { root: root, start: s, end: s + a.q.length, rect: popRef.sp.getBoundingClientRect() };
