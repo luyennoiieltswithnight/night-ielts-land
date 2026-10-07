@@ -376,11 +376,13 @@
       '.nt-pp-f{font-size:11.5px;color:#999;margin-top:6px;}';
     document.head.appendChild(st);
   }
-  function askNick(cb) {
+  function askNick(cb, isRoom) {
     injectLiveCss();
     if (document.getElementById('nt-nick-overlay')) return;
     var ov = document.createElement('div'); ov.id = 'nt-nick-overlay';
-    ov.innerHTML = '<div id="nt-nick-box"><h3>👥 Làm bài chung</h3><p>Nhập tên hiển thị của bạn. Khi bạn chọn hoặc gõ đáp án, tên này hiện nhỏ cạnh câu đó để mọi người biết ai đã làm.</p>' +
+    ov.innerHTML = '<div id="nt-nick-box">' + (isRoom
+      ? '<h3>🏁 Làm thi đua</h3><p>Nhập tên của bạn. Bạn tự làm bài của mình; các bạn khác chỉ thấy bạn đã làm tới câu nào, không thấy đáp án của bạn.</p>'
+      : '<h3>👥 Làm bài chung</h3><p>Nhập tên hiển thị của bạn. Khi bạn chọn hoặc gõ đáp án, tên này hiện nhỏ cạnh câu đó để mọi người biết ai đã làm.</p>') +
       '<input id="nt-nick-input" maxlength="20" placeholder="Ví dụ: Minh Anh" autocomplete="off"><button type="button" id="nt-nick-ok">Vào làm bài</button></div>';
     document.body.appendChild(ov);
     var inp = document.getElementById('nt-nick-input');
@@ -601,4 +603,216 @@
   };
   function initLive() { var sid = sidFromUrl(); if (sid) beginLive(sid); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initLive); else initLive();
+
+  // =====================================================================
+  // 🏁 THI ĐUA: mỗi bạn TỰ LÀM bài của mình (không đè ô của nhau), nhưng thấy bạn khác đã điền
+  // những câu nào (chấm tên cạnh từng câu + bảng ô số). Thầy bấm "Hiện đáp án" thì mới thấy đáp án.
+  // Link: ?room=ID (học sinh) · ?room=ID&hk=KHOÁ (thầy điều khiển). Dữ liệu: liveSessions/ID/...
+  // =====================================================================
+  var ROOM = { id: null, host: false, meta: {}, players: {}, last: '', panelOpen: true };
+  function esc2(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function totalQ() {
+    var t = Number(g('TOTAL_QUESTIONS')) || 0;
+    if (!t) { var rs = ranges(); t = rs.length ? rs[rs.length - 1][1] : 0; }
+    return t;
+  }
+  function initials(n) { var w = String(n || '?').trim().split(/\s+/); return (w.length > 1 ? w[w.length - 1][0] : w[0][0] || '?').toUpperCase(); }
+  function roomCss() {
+    if (document.getElementById('nt-room-css')) return;
+    var st = document.createElement('style'); st.id = 'nt-room-css';
+    st.textContent =
+      '.nt-rm{display:inline-flex;flex-wrap:wrap;align-items:center;gap:3px;margin-left:6px;vertical-align:middle;font:600 11px/1.5 system-ui,-apple-system,sans-serif;}' +
+      '.nt-rm.corner{position:absolute;top:6px;right:8px;margin:0;justify-content:flex-end;max-width:60%;}' +
+      '.nt-rm-d{width:18px;height:18px;border-radius:999px;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;cursor:default;animation:ntPop .25s ease;}' +
+      '.nt-rm-a{display:inline-flex;align-items:center;gap:4px;padding:1px 7px 1px 2px;border-radius:999px;background:#f3f4f6;color:#222;border:1px solid #e5e7eb;max-width:220px;}' +
+      '.nt-rm-a b{width:16px;height:16px;border-radius:999px;color:#fff;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex:none;}' +
+      '.nt-rm-a span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;}' +
+      '#nt-room-panel{position:fixed;left:12px;bottom:12px;z-index:99990;width:min(340px,calc(100vw - 24px));max-height:min(60vh,520px);display:flex;flex-direction:column;background:#fff;border:1px solid #e3e3e8;border-radius:16px;box-shadow:0 16px 40px rgba(0,0,0,.18);font:13.5px/1.45 system-ui,-apple-system,sans-serif;color:#222;overflow:hidden;}' +
+      '#nt-room-panel.min .nt-rp-b,#nt-room-panel.min .nt-rp-host{display:none;}' +
+      '.nt-rp-h{display:flex;align-items:center;gap:8px;padding:10px 12px;background:linear-gradient(90deg,#fff7ed,#fff);border-bottom:1px solid #f1f1f4;cursor:pointer;font-weight:800;}' +
+      '.nt-rp-h small{font-weight:600;color:#888;}' +
+      '.nt-rp-h .tg{margin-left:auto;color:#999;font-size:12px;}' +
+      '.nt-rp-host{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid #f1f1f4;background:#fafafa;}' +
+      '.nt-rp-host button{border:1.5px solid #f59e0b;background:#fff7ed;color:#b45309;border-radius:999px;padding:4px 11px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;}' +
+      '.nt-rp-host button.on{background:#f59e0b;color:#fff;}' +
+      '.nt-rp-host .lk{font-size:11.5px;color:#888;}' +
+      '.nt-rp-b{overflow-y:auto;padding:4px 12px 10px;}' +
+      '.nt-rp-row{padding:7px 0;border-top:1px solid #f3f3f6;}' +
+      '.nt-rp-row:first-child{border-top:0;}' +
+      '.nt-rp-row.away{opacity:.45;}' +
+      '.nt-rp-top{display:flex;align-items:center;gap:7px;}' +
+      '.nt-rp-n{flex:1;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+      '.nt-rp-n i{font-weight:500;color:#999;}' +
+      '.nt-rp-c{font-size:12px;font-weight:800;color:#555;}' +
+      '.nt-rp-g{display:flex;flex-wrap:wrap;gap:2px;margin-top:5px;}' +
+      '.nt-rp-g span{width:17px;height:15px;border-radius:3px;background:#f0f0f3;color:#aaa;font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}' +
+      '.nt-rp-g span.f{color:#fff;}' +
+      '.nt-rp-e{color:#999;font-size:12.5px;padding:8px 0;}' +
+      '#nt-room-modal{position:fixed;inset:0;background:rgba(20,20,30,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:system-ui,-apple-system,sans-serif;}' +
+      '#nt-room-box{background:#fff;border-radius:16px;padding:22px;max-width:460px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);}' +
+      '#nt-room-box h3{margin:0 0 6px;font-size:18px;}' +
+      '#nt-room-box p{margin:0 0 12px;font-size:13.5px;color:#555;line-height:1.55;}' +
+      '#nt-room-box .row{display:flex;gap:6px;margin-bottom:10px;}' +
+      '#nt-room-box input{flex:1;min-width:0;padding:8px 10px;border:2px solid #e5e7eb;border-radius:10px;font-size:13px;}' +
+      '#nt-room-box button{border:0;border-radius:10px;padding:9px 14px;font-weight:800;font-size:14px;cursor:pointer;background:#f59e0b;color:#fff;}' +
+      '#nt-room-box button.ghost{background:#f3f4f6;color:#444;}' +
+      '#nt-room-box label{display:block;font-size:12px;font-weight:800;color:#777;margin:4px 0 4px;}';
+    document.head.appendChild(st);
+  }
+  function rid6() { var c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', o = ''; for (var i = 0; i < 6; i++) o += c[Math.floor(Math.random() * c.length)]; return o; }
+  function roomUrl(id, hk) { var u = new URL(location.href); u.searchParams.delete('liveSession'); u.searchParams.delete('hk'); u.searchParams.set('room', id); if (hk) u.searchParams.set('hk', hk); return u.toString(); }
+
+  // Nút "🏁 Thi đua" cạnh nút "🔴 Làm chung" có sẵn
+  function addRoomButton() {
+    if (document.getElementById('nt-room-btn')) return;
+    var anchor = document.querySelector('[onclick*="toggleLiveSessionBox"]');
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'nt-room-btn'; b.className = anchor ? anchor.className : 'nav-btn';
+    b.textContent = '🏁 Thi đua';
+    b.title = 'Mỗi bạn tự làm bài của mình, cùng thấy nhau đã làm tới câu nào';
+    b.addEventListener('click', openRoomModal);
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(b, anchor.nextSibling);
+    else { var hr = document.querySelector('.header-right'); if (hr) hr.insertBefore(b, hr.firstChild); }
+  }
+  function openRoomModal() {
+    roomCss();
+    var ov = document.createElement('div'); ov.id = 'nt-room-modal';
+    if (ROOM.id) {
+      var hk = ROOM.meta.hostKey;
+      ov.innerHTML = '<div id="nt-room-box"><h3>🏁 Phòng thi đua ' + esc2(ROOM.id) + '</h3>' +
+        '<label>Link gửi học sinh</label><div class="row"><input readonly value="' + esc2(roomUrl(ROOM.id)) + '"><button data-cp="0">Copy</button></div>' +
+        (ROOM.host && hk ? '<label>Link cho Thầy theo dõi (đừng gửi học sinh)</label><div class="row"><input readonly value="' + esc2(roomUrl(ROOM.id, hk)) + '"><button data-cp="1" class="ghost">Copy</button></div>' : '') +
+        '<div class="row" style="justify-content:flex-end"><button class="ghost" data-x>Đóng</button></div></div>';
+    } else {
+      ov.innerHTML = '<div id="nt-room-box"><h3>🏁 Làm thi đua</h3>' +
+        '<p>Mỗi bạn <b>tự làm bài của mình</b> (không ai đè đáp án của ai). Cạnh mỗi câu hiện chấm tên các bạn đã điền câu đó, và bảng bên trái cho thấy từng bạn đang làm tới câu nào — <b>không thấy đáp án</b> cho tới khi Thầy bấm “👁 Hiện đáp án”.</p>' +
+        '<div class="row" style="justify-content:flex-end"><button class="ghost" data-x>Huỷ</button><button data-new>Tạo phòng</button></div></div>';
+    }
+    document.body.appendChild(ov);
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov || e.target.closest('[data-x]')) { ov.remove(); return; }
+      var cp = e.target.closest('[data-cp]');
+      if (cp) { var inp = cp.parentNode.querySelector('input'); inp.select(); try { navigator.clipboard.writeText(inp.value); } catch (er) {} cp.textContent = '✔'; setTimeout(function () { cp.textContent = 'Copy'; }, 1200); return; }
+      if (e.target.closest('[data-new]')) {
+        var id = 'R' + rid6(), hk2 = rid6() + rid6();
+        e.target.disabled = true; e.target.textContent = 'Đang tạo...';
+        liveDb().then(function (L) {
+          return L.mod.set(L.mod.ref(L.db, 'liveSessions/' + id + '/meta'), { kind: 'room', createdAt: Date.now(), title: document.title || '', reveal: false, hostKey: hk2 });
+        }).then(function () {
+          try { localStorage.setItem('nightRoomHost_' + id, hk2); } catch (er) {}
+          history.replaceState(null, '', roomUrl(id, hk2));
+          ov.remove();
+          joinRoom(id, hk2);
+          setTimeout(openRoomModal, 400);
+        }).catch(function (er) { alert('Không tạo được phòng: ' + er.message); e.target.disabled = false; e.target.textContent = 'Tạo phòng'; });
+      }
+    });
+  }
+
+  function myAnswers() {
+    var n = totalQ(), out = {}, cnt = 0;
+    for (var q = 1; q <= n; q++) { var v = answerOf(q); if (v) { out[q] = String(v).slice(0, 80); cnt++; } }
+    return { a: out, c: cnt };
+  }
+  function joinRoom(id, hk) {
+    if (ROOM.id) return;
+    ROOM.id = id;
+    roomCss(); injectLiveCss();
+    liveDb().then(function (L) {
+      var base = 'liveSessions/' + id;
+      return L.mod.get(L.mod.ref(L.db, base + '/meta')).then(function (sn) {
+        ROOM.meta = sn.val() || {};
+        var saved = null; try { saved = localStorage.getItem('nightRoomHost_' + id); } catch (e) {}
+        ROOM.host = !!ROOM.meta.hostKey && (hk === ROOM.meta.hostKey || saved === ROOM.meta.hostKey);
+        var go = function () { startRoom(L, base); };
+        if (ROOM.host) go(); else askNick(go, true);
+      });
+    }).catch(function (e) { console.warn('Night room:', e); });
+  }
+  function startRoom(L, base) {
+    var meRef = L.mod.ref(L.db, base + '/players/' + LIVE.cid);
+    function push(force) {
+      if (ROOM.host) return;   // Thầy chỉ theo dõi
+      var m = myAnswers(), sig = JSON.stringify(m.a) + (ROOM.done ? '1' : '');
+      if (!force && sig === ROOM.last) return;
+      ROOM.last = sig;
+      L.mod.set(meRef, { n: LIVE.nick, a: m.a, c: m.c, total: totalQ(), t: Date.now(), done: !!ROOM.done }).catch(function () {});
+    }
+    ROOM.push = push;
+    if (!ROOM.host) {
+      L.mod.onValue(L.mod.ref(L.db, '.info/connected'), function (sn) { if (sn.val() === true) push(true); });
+      setInterval(function () { push(false); }, 1200);
+      setInterval(function () { push(true); }, 30000);   // nhịp tim: còn trong phòng
+      ['submitTest', 'saveProgressRecord'].forEach(function (fn) {
+        var o = window[fn]; if (typeof o !== 'function' || o.__ntRoom) return;
+        var w = function () { var r = o.apply(this, arguments); ROOM.done = true; push(true); return r; }; w.__ntRoom = true; window[fn] = w;
+      });
+    }
+    L.mod.onValue(L.mod.ref(L.db, base + '/meta'), function (sn) { ROOM.meta = sn.val() || ROOM.meta; renderRoom(); });
+    L.mod.onValue(L.mod.ref(L.db, base + '/players'), function (sn) { ROOM.players = sn.val() || {}; renderRoom(); });
+    setInterval(renderRoom, 20000);
+    renderRoom();
+  }
+  function showAnswers() { return ROOM.host || !!ROOM.meta.reveal; }
+  function playerList() {
+    var now = Date.now(), list = [];
+    Object.keys(ROOM.players).forEach(function (cid) {
+      var p = ROOM.players[cid]; if (!p || !p.n) return;
+      list.push({ cid: cid, n: p.n, a: p.a || {}, c: p.c || 0, done: !!p.done, away: now - (p.t || 0) > 90000, me: cid === LIVE.cid });
+    });
+    list.sort(function (x, y) { return (y.me - x.me) || (y.done - x.done) || (y.c - x.c) || x.n.localeCompare(y.n); });
+    return list;
+  }
+  function renderRoom() {
+    if (!ROOM.id) return;
+    var list = playerList(), total = totalQ();
+    // --- bảng bên trái ---
+    var pn = document.getElementById('nt-room-panel');
+    if (!pn) {
+      pn = document.createElement('div'); pn.id = 'nt-room-panel'; document.body.appendChild(pn);
+      pn.addEventListener('click', function (e) {
+        if (e.target.closest('.nt-rp-h')) { ROOM.panelOpen = !ROOM.panelOpen; pn.classList.toggle('min', !ROOM.panelOpen); return; }
+        if (e.target.closest('[data-rv]')) { liveDb().then(function (L) { L.mod.set(L.mod.ref(L.db, 'liveSessions/' + ROOM.id + '/meta/reveal'), !ROOM.meta.reveal); }); return; }
+        if (e.target.closest('[data-lk]')) { openRoomModal(); }
+      });
+    }
+    var others = list.filter(function (p) { return !p.me; });
+    pn.innerHTML = '<div class="nt-rp-h">🏁 Thi đua <small>· ' + list.length + ' bạn · phòng ' + esc2(ROOM.id) + '</small><span class="tg">' + (ROOM.panelOpen ? '▾ thu gọn' : '▸ mở') + '</span></div>' +
+      (ROOM.host ? '<div class="nt-rp-host"><button data-rv class="' + (ROOM.meta.reveal ? 'on' : '') + '">👁 Hiện đáp án cho học sinh: ' + (ROOM.meta.reveal ? 'BẬT' : 'TẮT') + '</button><button data-lk>🔗 Link</button><span class="lk">Thầy luôn thấy đáp án</span></div>' : '') +
+      '<div class="nt-rp-b">' + (list.length ? list.map(function (p) {
+        var col = nickColor(p.n), cells = '';
+        for (var q = 1; q <= total; q++) cells += '<span class="' + (p.a[q] ? 'f' : '') + '"' + (p.a[q] ? ' style="background:' + col + '"' : '') + '>' + q + '</span>';
+        return '<div class="nt-rp-row' + (p.away ? ' away' : '') + '"><div class="nt-rp-top"><span class="nt-pp-dot" style="background:' + col + '"></span><span class="nt-rp-n">' + esc2(p.n) + (p.me ? ' <i>(bạn)</i>' : '') + (p.away ? ' <i>(đã rời)</i>' : '') + '</span>' +
+          (p.done ? '🏁 ' : '') + '<span class="nt-rp-c">' + p.c + '/' + total + '</span></div><div class="nt-rp-g">' + cells + '</div></div>';
+      }).join('') : '<div class="nt-rp-e">Chưa có bạn nào vào phòng. Gửi link cho học sinh nhé.</div>') + '</div>';
+    pn.classList.toggle('min', !ROOM.panelOpen);
+    // --- chấm tên / đáp án cạnh từng câu ---
+    var reveal = showAnswers();
+    for (var q = 1; q <= total; q++) {
+      var who = others.filter(function (p) { return p.a[q]; });
+      var old = document.querySelector('.nt-rm[data-q="' + q + '"]');
+      if (!who.length) { if (old) old.remove(); continue; }
+      var hst = hostFor(String(q)); if (!hst) continue;
+      var box = old || document.createElement('span');
+      box.className = 'nt-rm' + (hst.corner ? ' corner' : '');
+      box.setAttribute('data-q', q);
+      box.innerHTML = reveal
+        ? who.map(function (p) { return '<span class="nt-rm-a" title="' + esc2(p.n) + '"><b style="background:' + nickColor(p.n) + '">' + esc2(initials(p.n)) + '</b><span>' + esc2(p.a[q]) + '</span></span>'; }).join('')
+        : who.slice(0, 8).map(function (p) { return '<span class="nt-rm-d" style="background:' + nickColor(p.n) + '" title="' + esc2(p.n) + ' đã làm câu này">' + esc2(initials(p.n)) + '</span>'; }).join('') + (who.length > 8 ? '<span class="nt-rp-c">+' + (who.length - 8) + '</span>' : '');
+      if (hst.inside) { if (box.parentNode !== hst.el) hst.el.appendChild(box); }
+      else if (hst.corner) { hst.el.classList.add('nt-who-host'); if (box.parentNode !== hst.el) hst.el.appendChild(box); }
+      else if (box.previousSibling !== hst.el) hst.el.parentNode.insertBefore(box, hst.el.nextSibling);
+    }
+  }
+  function initRoom() {
+    var ps = new URLSearchParams(location.search);
+    if (ps.get('liveSession')) return;          // đang ở chế độ "Làm chung" cũ
+    addRoomButton();
+    var id = ps.get('room');
+    if (id && /^R[A-Z0-9]{6}$/.test(id)) joinRoom(id, ps.get('hk') || '');
+    // giao diện câu hỏi dựng xong (bấm Bắt đầu) / đổi passage -> vẽ lại chấm
+    var o = window.startTest;
+    if (typeof o === 'function' && !o.__ntRoom) { var w = function () { var r = o.apply(this, arguments); setTimeout(renderRoom, 80); return r; }; w.__ntRoom = true; window.startTest = w; }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initRoom); else initRoom();
 })();
