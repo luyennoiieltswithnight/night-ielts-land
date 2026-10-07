@@ -222,6 +222,14 @@
         .hw-page ::selection{background:#99f6e4}
         .hw-picked{border:1.5px dashed #99f6e4;background:#f0fdfa;border-radius:12px;padding:9px 11px;font-size:13px;line-height:1.5;color:#134e4a;margin:0}
         .hw-picked button{border:0;background:none;color:#dc2626;font-weight:900;cursor:pointer;margin-left:4px}
+        .hw-conn{margin-left:auto;border:1.5px dashed #fcd34d;background:#fffbeb;color:#b45309;border-radius:999px;padding:7px 13px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+        .hw-conn small{font-weight:600;opacity:.8}
+        .hw-conn.on{border-style:solid;border-color:#99f6e4;background:#f0fdfa;color:#0f766e}
+        .hw-prog{max-width:420px;margin:70px auto;text-align:center}
+        .hw-prog-l{font-weight:800;color:#0f766e;font-size:14px;margin:0 0 10px}
+        .hw-prog-bar{height:10px;border-radius:99px;background:#e5e7eb;overflow:hidden}
+        .hw-prog-bar i{display:block;height:100%;width:3%;border-radius:99px;background:linear-gradient(90deg,#14b8a6,#0d9488);transition:width .25s ease}
+        .hw-prog-p{font-size:12px;font-weight:800;color:#6b7280;margin:6px 0 0}
         .hw-float{position:fixed;z-index:130;display:none;border:0;background:#0d9488;color:#fff;font:inherit;font-weight:800;font-size:13px;border-radius:999px;padding:8px 14px;box-shadow:0 8px 20px -6px rgba(13,148,136,.7);cursor:pointer}
         .hw-float.show{display:block}
         .hw-open input{flex:1;min-width:0;border:1.5px solid #e5e7eb;border-radius:12px;padding:10px 12px;font:inherit;font-size:14px;font-weight:600;outline:none}
@@ -4704,11 +4712,13 @@
             const u = auth.currentUser;
             if (!u) throw new Error('Thầy chưa đăng nhập.');
             const idToken = await u.getIdToken();
-            const res = await fetch(MAIL_WEBAPP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(Object.assign({ action: action, idToken: idToken }, data))
-            });
+            const body = JSON.stringify(Object.assign({ action: action, idToken: idToken }, data));
+            // Gửi bằng GET (?p=...) cho chắc: POST tới Apps Script đôi khi bị trình duyệt đổi thành GET giữa đường.
+            // Dữ liệu quá dài mới dùng POST.
+            const getUrl = MAIL_WEBAPP_URL + '?p=' + encodeURIComponent(body);
+            const res = getUrl.length < 7500
+                ? await fetch(getUrl)
+                : await fetch(MAIL_WEBAPP_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body });
             const raw = await res.text();
             let out;
             try { out = JSON.parse(raw); } catch (e) {
@@ -4781,6 +4791,7 @@
             <div class="hw-open">
                 <select id="hw-stu"><option value="">Đang tải học sinh...</option></select>
                 <span id="hw-stu-acts" class="hw-acts"></span>
+                <button id="hw-conn" class="hw-conn" type="button"></button>
             </div>
             <div class="hw-main">
                 <div class="hw-left">
@@ -4810,6 +4821,7 @@
             hwModal.classList.add('show');
             document.body.style.overflow = 'hidden';
             $hw('#hw-result').innerHTML = '';
+            paintConn();
             await loadHwStudents();
             if (studentId) selectStudent(studentId);
         };
@@ -4848,19 +4860,206 @@
             if (!HW.stu.hwDocUrl) { $hw('#hw-doc').innerHTML = '<div class="hw-empty">Em này chưa có file Bài tập.<br><span>Bấm “✨ Tạo file Bài tập” ở trên (web tạo file + cho em ấy quyền sửa), hoặc dán link 1 file Docs Thầy tự tạo.</span></div>'; return; }
             openDoc(false);
         }
-        async function openDoc(force) {
+        // Mỗi lần chỉ tải nội dung 1 thẻ (thẻ đang xem) cho nhanh; thẻ khác bấm vào mới tải
+        // ---- ĐỌC / ĐÁNH DẤU FILE DOCS TRỰC TIẾP TỪ TRÌNH DUYỆT (nhanh, có % tải). Chưa kết nối thì dùng Apps Script ----
+        const DOCS_SCOPE = 'https://www.googleapis.com/auth/documents';
+        const DT_KEY = 'nightDocsTok';
+        const DOCS_FIELDS = 'title,tabs(tabProperties(tabId,title),childTabs,documentTab(body(content(startIndex,endIndex,' +
+            'paragraph(elements(startIndex,endIndex,textRun(content,textStyle(bold,italic,underline,strikethrough,foregroundColor,backgroundColor,link)),inlineObjectElement(inlineObjectId),pageBreak,horizontalRule,footnoteReference),' +
+            'paragraphStyle(namedStyleType,alignment,shading,borderLeft,headingId),bullet(nestingLevel)),' +
+            'table(tableRows(tableCells(content))))))';
+        function docsTok() {
+            try { const t = JSON.parse(localStorage.getItem(DT_KEY) || 'null'); if (t && t.exp > Date.now() + 30000 && t.uid === (auth.currentUser && auth.currentUser.uid)) return t; } catch (e) {}
+            return null;
+        }
+        function dropDocsTok() { try { localStorage.removeItem(DT_KEY); } catch (e) {} paintConn(); }
+        async function connectDocs() {
+            const before = auth.currentUser;
+            const p = new GoogleAuthProvider();
+            p.addScope(DOCS_SCOPE);
+            p.setCustomParameters(before && before.email ? { login_hint: before.email } : { prompt: 'select_account' });
+            const res = await signInWithPopup(auth, p);
+            const cred = GoogleAuthProvider.credentialFromResult(res);
+            if (!cred || !cred.accessToken) throw new Error('Google không cấp quyền đọc file Docs.');
+            if (before && res.user.uid !== before.uid) throw new Error('Thầy vừa chọn Gmail khác với Gmail đang đăng nhập web. Bấm kết nối lại và chọn đúng Gmail giáo viên nhé.');
+            localStorage.setItem(DT_KEY, JSON.stringify({ t: cred.accessToken, exp: Date.now() + 55 * 60 * 1000, uid: res.user.uid }));
+            paintConn();
+            return cred.accessToken;
+        }
+        function paintConn() {
+            const b = $hw('#hw-conn'); if (!b) return;
+            const t = docsTok();
+            if (t) { b.className = 'hw-conn on'; b.innerHTML = '⚡ Đã kết nối Google Docs <small>(còn ' + Math.max(1, Math.round((t.exp - Date.now()) / 60000)) + ' phút)</small>'; b.title = 'Đang đọc file trực tiếp (nhanh). Bấm để kết nối lại.'; }
+            else { b.className = 'hw-conn'; b.innerHTML = '🔗 Kết nối Google Docs <small>(mở file nhanh hơn)</small>'; b.title = 'Cho phép web đọc & đánh dấu file Docs trực tiếp, nhanh hơn nhiều so với qua Apps Script'; }
+        }
+        setInterval(paintConn, 60000);
+
+        function docsErr(status, body) {
+            const msg = (body && body.error && body.error.message) || '';
+            if (status === 401) { dropDocsTok(); return Object.assign(new Error('Kết nối Google Docs đã hết hạn (1 tiếng). Bấm “🔗 Kết nối Google Docs” để mở nhanh lại.'), { fallback: true }); }
+            if (status === 403 && /has not been used|disabled|SERVICE_DISABLED/i.test(msg)) return Object.assign(new Error('Chưa bật Google Docs API cho dự án night-ielts-land (xem hướng dẫn cài). Tạm mở qua Apps Script.'), { fallback: true });
+            if (status === 403 || status === 404) return new Error('Gmail giáo viên không mở được file này (' + status + '). File phải do Thầy tạo hoặc được chia sẻ quyền sửa cho Thầy.');
+            return Object.assign(new Error('Google Docs lỗi ' + status + (msg ? ': ' + msg : '')), { fallback: status >= 500 });
+        }
+        // Tải JSON có báo % (đọc từng phần dữ liệu đang về)
+        async function fetchJsonProgress(url, tok, onPct, estKey) {
+            const res = await fetch(url, { headers: { Authorization: 'Bearer ' + tok.t } });
+            if (!res.ok) { let b = null; try { b = await res.json(); } catch (e) {} throw docsErr(res.status, b); }
+            const total = Number(res.headers.get('content-length')) || 0;
+            let est = total; if (!est) { try { est = Number(localStorage.getItem('nightDocSz_' + estKey)) || 0; } catch (e) {} }
+            if (!est) est = 250000;
+            if (!res.body || !res.body.getReader) { onPct(80); return res.json(); }
+            const reader = res.body.getReader(), parts = [];
+            let got = 0;
+            for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                parts.push(value); got += value.length;
+                onPct(15 + Math.min(70, Math.round(got / est * 70)), got);
+            }
+            try { localStorage.setItem('nightDocSz_' + estKey, String(got)); } catch (e) {}
+            const buf = new Uint8Array(got); let o = 0; parts.forEach(p => { buf.set(p, o); o += p.length; });
+            return JSON.parse(new TextDecoder().decode(buf));
+        }
+        function hexOfC(c) {
+            const rgb = c && c.color && c.color.rgbColor; if (!rgb) return null;
+            const f = x => ('0' + Math.round((x || 0) * 255).toString(16)).slice(-2);
+            return '#' + f(rgb.red) + f(rgb.green) + f(rgb.blue);
+        }
+        function compactContent(content, depth) {
+            const out = [];
+            (content || []).forEach(el => {
+                if (el.paragraph) {
+                    const P = el.paragraph, ps = P.paragraphStyle || {};
+                    const runs = [];
+                    (P.elements || []).forEach(e => {
+                        if (e.textRun) {
+                            const ts = e.textRun.textStyle || {};
+                            const r = { s: e.startIndex, x: e.textRun.content };
+                            if (ts.bold) r.b = 1; if (ts.italic) r.i = 1; if (ts.underline) r.u = 1; if (ts.strikethrough) r.k = 1;
+                            const fg = hexOfC(ts.foregroundColor); if (fg && fg !== '#000000') r.c = fg;
+                            const bg = hexOfC(ts.backgroundColor); if (bg) r.bg = bg;
+                            if (ts.link && ts.link.url) r.a = ts.link.url;
+                            runs.push(r);
+                        } else if (e.inlineObjectElement) runs.push({ s: e.startIndex, x: '￼', img: 1 });
+                        else if (e.startIndex != null && e.endIndex != null) runs.push({ s: e.startIndex, x: ' '.repeat(e.endIndex - e.startIndex), o: 1 });
+                    });
+                    const b = { t: 'p', ps: el.startIndex, pe: el.endIndex, st: ps.namedStyleType || 'NORMAL_TEXT', runs: runs };
+                    if (ps.alignment && ps.alignment !== 'START') b.al = ps.alignment;
+                    const sh = ps.shading && hexOfC(ps.shading.backgroundColor); if (sh) b.sh = sh;
+                    if (ps.borderLeft && ps.borderLeft.width && ps.borderLeft.width.magnitude) b.bl = hexOfC(ps.borderLeft.color) || '#999999';
+                    if (P.bullet) b.li = P.bullet.nestingLevel || 0;
+                    if (ps.headingId) b.hid = ps.headingId;
+                    if (depth) b.d = depth;
+                    out.push(b);
+                } else if (el.table) {
+                    out.push({ t: 'tbl', ts: el.startIndex, rows: (el.table.tableRows || []).slice(0, 150).map(r => (r.tableCells || []).map(c => compactContent(c.content, (depth || 0) + 1))) });
+                }
+            });
+            return out;
+        }
+        function flatTabs(tabs, out) { out = out || []; (tabs || []).forEach(t => { out.push(t); flatTabs(t.childTabs, out); }); return out; }
+        function docIdOf(url) { const m = String(url || '').match(/\/document\/(?:u\/\d+\/)?d\/([A-Za-z0-9_-]{20,})/); return m ? m[1] : null; }
+        async function readDocDirect(url, onPct) {
+            const tok = docsTok(); if (!tok) throw Object.assign(new Error('no token'), { fallback: true, silent: true });
+            const id = docIdOf(url); if (!id) throw new Error('Link Google Docs chưa đúng.');
+            onPct(8);
+            const d = await fetchJsonProgress('https://docs.googleapis.com/v1/documents/' + id + '?includeTabsContent=true&fields=' + encodeURIComponent(DOCS_FIELDS), tok, onPct, id);
+            onPct(90);
+            const tabs = flatTabs(d.tabs).map(t => ({ id: t.tabProperties.tabId, title: t.tabProperties.title, blocks: compactContent(((t.documentTab || {}).body || {}).content, 0) }));
+            return { ok: true, direct: true, id: id, title: d.title, url: 'https://docs.google.com/document/d/' + id + '/edit', tabs: tabs, tabId: tabs[0] && tabs[0].id };
+        }
+        // Đánh dấu bài ngay trong file (giống hệt bản Apps Script, chạy thẳng Docs API)
+        const MARK_BG = '#fff4e5', MARK_LINE = '#f59e0b', MARK_TITLE = '#c2410c';
+        function rgbOfHex(hex) { const n = parseInt(hex.slice(1), 16); return { color: { rgbColor: { red: ((n >> 16) & 255) / 255, green: ((n >> 8) & 255) / 255, blue: (n & 255) / 255 } } }; }
+        const ddmm = ms => { const d = new Date(ms); return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); };
+        async function markDirect(p) {
+            const tok = docsTok(); if (!tok) throw Object.assign(new Error('no token'), { fallback: true, silent: true });
+            const id = docIdOf(p.url), tabId = p.tabId;
+            const marker = '📌 BÀI TẬP ' + ddmm(Date.now()) + (p.deadlineAt ? ' · Hạn nộp ' + ddmm(p.deadlineAt) : '') + ' — ' + String(p.title).slice(0, 150);
+            const loc = i => ({ index: i, tabId: tabId });
+            const rng = (a, b) => ({ startIndex: a, endIndex: b, tabId: tabId });
+            const border = { color: rgbOfHex(MARK_LINE), width: { magnitude: 3, unit: 'PT' }, padding: { magnitude: 8, unit: 'PT' }, dashStyle: 'SOLID' };
+            const reqs = p.paras.map(x => ({ updateParagraphStyle: { range: rng(x[0], x[1]), paragraphStyle: { shading: { backgroundColor: rgbOfHex(MARK_BG) }, borderLeft: border }, fields: 'shading,borderLeft' } }));
+            const a = p.anchor || {};
+            let mStart;
+            if (a.before && a.at > 1) { reqs.push({ insertText: { location: loc(a.at - 1), text: '\n' + marker } }); mStart = a.at; }
+            else { const at = a.at || p.paras[0][0]; reqs.push({ insertText: { location: loc(at), text: marker + '\n' } }); mStart = at; }
+            const mEnd = mStart + marker.length + 1;
+            reqs.push({ updateParagraphStyle: { range: rng(mStart, mEnd), paragraphStyle: { namedStyleType: 'HEADING_3', shading: { backgroundColor: rgbOfHex(MARK_BG) }, borderLeft: border, spaceAbove: { magnitude: 10, unit: 'PT' } }, fields: 'namedStyleType,shading,borderLeft,spaceAbove' } });
+            reqs.push({ deleteParagraphBullets: { range: rng(mStart, mEnd) } });
+            reqs.push({ updateTextStyle: { range: rng(mStart, mEnd - 1), textStyle: { bold: true, foregroundColor: rgbOfHex(MARK_TITLE), backgroundColor: {} }, fields: 'bold,foregroundColor,backgroundColor' } });
+            if (p.note) {
+                const note = '💬 ' + String(p.note).slice(0, 500) + '\n';
+                reqs.push({ insertText: { location: loc(mEnd), text: note } });
+                reqs.push({ updateParagraphStyle: { range: rng(mEnd, mEnd + note.length), paragraphStyle: { namedStyleType: 'NORMAL_TEXT', shading: { backgroundColor: rgbOfHex(MARK_BG) }, borderLeft: border }, fields: 'namedStyleType,shading,borderLeft' } });
+                reqs.push({ deleteParagraphBullets: { range: rng(mEnd, mEnd + note.length) } });
+                reqs.push({ updateTextStyle: { range: rng(mEnd, mEnd + note.length - 1), textStyle: { italic: true, bold: false, foregroundColor: rgbOfHex('#92400e') }, fields: 'italic,bold,foregroundColor' } });
+            }
+            const res = await fetch('https://docs.googleapis.com/v1/documents/' + id + ':batchUpdate', {
+                method: 'POST', headers: { Authorization: 'Bearer ' + tok.t, 'Content-Type': 'application/json' }, body: JSON.stringify({ requests: reqs })
+            });
+            if (!res.ok) { let b = null; try { b = await res.json(); } catch (e) {} throw docsErr(res.status, b); }
+            // đọc lại file (vừa để vẽ lại trang, vừa lấy mã tiêu đề 📌 để link mở thẳng đúng chỗ)
+            const fresh = await readDocDirect(p.url, () => {});
+            const tab = fresh.tabs.find(t => t.id === tabId) || fresh.tabs[0];
+            const findH = blocks => { for (const b of blocks || []) { if (b.t === 'p' && b.ps === mStart) return b.hid || null; if (b.t === 'tbl') for (const r of b.rows) for (const c of r) { const h = findH(c); if (h) return h; } } return null; };
+            const headingId = findH(tab && tab.blocks);
+            return { ok: true, fresh: fresh, docId: id, tabId: tabId, headingId: headingId, link: 'https://docs.google.com/document/d/' + id + '/edit?tab=' + tabId + (headingId ? '#heading=' + headingId : '') };
+        }
+        // Thanh tiến trình
+        function showProgress(label, pct) {
+            const box = $hw('#hw-doc');
+            let pg = box.querySelector('.hw-prog');
+            if (!pg) { box.innerHTML = '<div class="hw-prog"><p class="hw-prog-l"></p><div class="hw-prog-bar"><i></i></div><p class="hw-prog-p"></p></div>'; pg = box.querySelector('.hw-prog'); }
+            pg.querySelector('.hw-prog-l').textContent = label;
+            pg.querySelector('i').style.width = Math.max(3, Math.min(100, pct)) + '%';
+            pg.querySelector('.hw-prog-p').textContent = Math.round(pct) + '%';
+        }
+
+        async function openDoc(force, tabId) {
             const s = HW.stu; if (!s || !s.hwDocUrl) return;
             const docBox = $hw('#hw-doc');
-            if (!force && HW.cache[s.hwDocUrl]) { HW.doc = HW.cache[s.hwDocUrl]; HW.tabIdx = Math.min(HW.tabIdx, HW.doc.tabs.length - 1); paintTabs(); paintDoc(); return; }
-            docBox.innerHTML = '<div class="hw-empty">⏳ Đang mở file của ' + hwEsc(s.name) + '...</div>';
+            const curTab = () => (HW.doc && HW.doc.tabs[HW.tabIdx] ? HW.doc.tabs[HW.tabIdx].id : '');
+            // Đọc trực tiếp: cả file nằm sẵn trong bộ nhớ, chuyển thẻ là hiện ngay
+            const full = HW.cache['D|' + s.hwDocUrl];
+            if (!force && full) { useDoc(Object.assign({}, full, { tabId: tabId || full.tabId })); return; }
+            const gasKey = 'A|' + s.hwDocUrl + '|' + (tabId || '');
+            if (!force && !docsTok() && HW.cache[gasKey]) { useDoc(HW.cache[gasKey]); return; }
+            const t0 = Date.now();
+            if (docsTok()) {
+                showProgress('Đang kết nối tới file của ' + s.name + '...', 5);
+                try {
+                    const out = await readDocDirect(s.hwDocUrl, (pct, got) => showProgress('Đang tải file' + (got ? ' · ' + Math.round(got / 1024) + ' KB' : '') + '...', pct));
+                    if (HW.stu !== s) return;
+                    showProgress('Đang vẽ trang...', 96);
+                    HW.cache['D|' + s.hwDocUrl] = out;
+                    useDoc(Object.assign({}, out, { tabId: tabId || out.tabId }));
+                    HW.lastLoadMs = Date.now() - t0;
+                    return;
+                } catch (e) {
+                    if (HW.stu !== s) return;
+                    if (!e.fallback) { docBox.innerHTML = '<div class="hw-empty hw-err">' + hwEsc(e.message) + '</div>'; return; }
+                    if (!e.silent) $hw('#hw-result').innerHTML = '<p class="hw-warn">' + hwEsc(e.message) + '</p>';
+                }
+            }
+            // Dự phòng: qua Apps Script (chậm hơn) — thanh % chạy ước lượng theo thời gian
+            let pct = 5; const label = 'Đang mở qua Apps Script (chậm hơn, kết nối Google Docs để nhanh hơn)...';
+            showProgress(label, pct);
+            const timer = setInterval(() => { pct += (90 - pct) * 0.07; showProgress(label, pct); }, 300);
             try {
-                const out = await callHw('hwOpen', { url: s.hwDocUrl });
+                const out = await callHw('hwOpen', { url: s.hwDocUrl, tabId: tabId || '' });
                 if (HW.stu !== s) return;
-                HW.doc = out; HW.cache[s.hwDocUrl] = out;
-                // mặc định mở thẻ cuối (thường là bài mới dán) nếu có nhiều thẻ
-                HW.tabIdx = force ? Math.min(HW.tabIdx, out.tabs.length - 1) : 0;
-                paintTabs(); paintDoc();
+                HW.cache[gasKey] = out; HW.cache['A|' + s.hwDocUrl + '|' + out.tabId] = out;
+                clearInterval(timer); showProgress('Đang vẽ trang...', 96);
+                useDoc(out);
             } catch (e) { docBox.innerHTML = '<div class="hw-empty hw-err">' + hwEsc(e.message) + '</div>'; }
+            finally { clearInterval(timer); }
+        }
+        function useDoc(out) {
+            HW.doc = out;
+            HW.tabIdx = Math.max(0, out.tabs.findIndex(t => t.id === out.tabId));
+            paintTabs(); paintDoc();
         }
         function paintTabs() {
             const tabs = (HW.doc && HW.doc.tabs) || [];
@@ -4896,7 +5095,7 @@
         function paintDoc() {
             const tab = HW.doc && HW.doc.tabs[HW.tabIdx];
             HW.pick = null; paintPick();
-            $hw('#hw-doc').innerHTML = tab && tab.blocks.length ? `<div class="hw-page" id="hw-page">${blocksHtml(tab.blocks)}</div>` : '<div class="hw-empty">Thẻ này đang trống. Thầy dán bài vào file trên Google Docs rồi bấm ↻ Tải lại.</div>';
+            $hw('#hw-doc').innerHTML = tab && tab.blocks && tab.blocks.length ? `<div class="hw-page" id="hw-page">${blocksHtml(tab.blocks)}</div>` : '<div class="hw-empty">Thẻ này đang trống. Thầy dán bài vào file trên Google Docs rồi bấm ↻ Tải lại.</div>';
         }
 
         // ---- Đổi vùng bôi đen trên trang -> chỉ số trong file Docs ----
@@ -4954,9 +5153,9 @@
         hwModal.addEventListener('click', async e => {
             const t = e.target;
             if (t === hwModal || t.closest('[data-hw="close"]')) return closeHw();
-            if (t.closest('[data-hw="reload"]')) return openDoc(true);
+            if (t.closest('[data-hw="reload"]')) return openDoc(true, HW.doc && HW.doc.tabs[HW.tabIdx] ? HW.doc.tabs[HW.tabIdx].id : '');
             if (t.closest('[data-hw="unpick"]')) { HW.pick = null; return paintPick(); }
-            const tb = t.closest('[data-tab]'); if (tb) { HW.tabIdx = Number(tb.dataset.tab); paintTabs(); paintDoc(); return; }
+            const tb = t.closest('[data-tab]'); if (tb) { const tt = HW.doc.tabs[Number(tb.dataset.tab)]; if (tt) openDoc(false, tt.id); return; }
             if (t.closest('#hw-float')) { $hw('#hw-float').classList.remove('show'); $hw('#hw-name').focus(); $hw('.hw-right').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); return; }
             if (t.closest('[data-hw="create"]')) {
                 const b = t.closest('button'); b.disabled = true; b.textContent = 'Đang tạo file...';
@@ -4978,6 +5177,11 @@
                 return;
             }
             if (t.closest('#hw-go')) return goAssign();
+            if (t.closest('#hw-conn')) {
+                try { await connectDocs(); if (HW.stu && HW.stu.hwDocUrl) openDoc(true, HW.doc && HW.doc.tabs[HW.tabIdx] ? HW.doc.tabs[HW.tabIdx].id : ''); }
+                catch (er) { if (!/popup-closed|cancelled-popup/i.test(er.code || er.message)) alert('Chưa kết nối được: ' + (er.message || er)); }
+                return;
+            }
         });
         $hw('#hw-stu').addEventListener('change', e => selectStudent(e.target.value));
         $hw('#hw-name').addEventListener('input', () => { HW.titleTouched = !!$hw('#hw-name').value.trim(); });
@@ -4997,7 +5201,12 @@
             HW.busy = true; btn.disabled = true; btn.textContent = 'Đang đánh dấu trong file...';
             $hw('#hw-result').innerHTML = '';
             try {
-                const out = await callHw('hwMark', { url: s.hwDocUrl, tabId: tab.id, paras: HW.pick.paras, anchor: HW.pick.anchor, title: title, note: note, deadlineAt: deadlineAt });
+                let out = null;
+                if (docsTok()) {
+                    try { out = await markDirect({ url: s.hwDocUrl, tabId: tab.id, paras: HW.pick.paras, anchor: HW.pick.anchor, title: title, note: note, deadlineAt: deadlineAt }); }
+                    catch (er) { if (!er.fallback) throw er; }
+                }
+                if (!out) out = await callHw('hwMark', { url: s.hwDocUrl, tabId: tab.id, paras: HW.pick.paras.map(x => x[0] + '-' + x[1]).join(','), anchor: HW.pick.anchor, title: title, note: note, deadlineAt: deadlineAt });
                 const now = Date.now(), emailNotify = $hw('#hw-mail').checked;
                 const ref = await addDoc(collection(db, 'assignments'), {
                     studentId: s.id, kind: 'docs', title: title, note: note || null,
@@ -5009,7 +5218,8 @@
                 $hw('#hw-result').innerHTML = `<p class="hw-ok">✔ Đã giao “${hwEsc(title)}” cho ${hwEsc(s.name)}${emailNotify ? ', mail đang được gửi' : ''}.</p><p class="hw-muted"><a href="${hwEsc(out.link)}" target="_blank" rel="noopener">Xem đoạn vừa đánh dấu trong file ↗</a></p>`;
                 HW.pick = null; HW.titleTouched = false; $hw('#hw-name').value = ''; $hw('#hw-note').value = '';
                 try { window.getSelection().removeAllRanges(); } catch (er) {}
-                openDoc(true);
+                if (out.fresh) { HW.cache['D|' + s.hwDocUrl] = out.fresh; useDoc(Object.assign({}, out.fresh, { tabId: tab.id })); }
+                else openDoc(true, tab.id);
             } catch (e) {
                 $hw('#hw-result').innerHTML = '<p class="hw-err">' + hwEsc(e.message) + '</p>';
             } finally { HW.busy = false; btn.disabled = false; btn.textContent = '📌 Giao đoạn này'; }
