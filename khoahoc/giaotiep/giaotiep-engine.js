@@ -124,39 +124,52 @@
     );
   }
   function Section({ id, step, title, desc, children }) {
-    return /* @__PURE__ */ React.createElement("section", { id, className: "scroll-mt-20" }, /* @__PURE__ */ React.createElement("div", { className: "mb-5 flex items-end gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-4xl font-extrabold leading-none text-primary/15" }, step), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold text-slate-900 sm:text-2xl" }, title), desc && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-500" }, desc))), children);
+    return /* @__PURE__ */ React.createElement("section", { id, className: "scroll-mt-20" }, /* @__PURE__ */ React.createElement("div", { className: "mb-5 flex items-end gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-4xl font-extrabold leading-none text-primary/15" }, step), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold text-slate-900 sm:text-2xl" }, title), desc && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-500" }, rich(desc)))), children);
   }
+  const BADGES = {
+    long: ["Dài", "bg-indigo-100 text-primary"],
+    short: ["Ngắn", "bg-amber-100 text-amber-700"],
+    diph: ["Đôi", "bg-sky-100 text-sky-700"],
+    voiceless: ["Vô thanh", "bg-rose-100 text-rose-600"],
+    voiced: ["Hữu thanh", "bg-emerald-100 text-emerald-700"],
+    other: ["Hữu thanh", "bg-emerald-100 text-emerald-700"]
+  };
   function VowelCard({ v }) {
     const [open, setOpen] = useState(false);
-    const badge = v.type === "long" ? "bg-indigo-100 text-primary" : v.type === "short" ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700";
-    const badgeText = v.type === "long" ? "Dài" : v.type === "short" ? "Ngắn" : "Đôi";
+    const [badgeText, badge] = BADGES[v.type] || BADGES.short;
+    const word = v.word || v.job;
+    const wordIpa = v.wordIpa || v.jobIpa;
     return /* @__PURE__ */ React.createElement(
       "div",
       {
         onClick: () => {
           setOpen(!open);
-          speak(v.job, 0.8);
+          speak(word, 0.8);
         },
         className: `cursor-pointer rounded-3xl border bg-white p-4 shadow-floating transition hover:-translate-y-0.5 ${open ? "border-primary/40" : "border-slate-200"}`
       },
-      /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "font-serif text-3xl font-bold text-slate-900" }, "/", v.ipa, "/"), /* @__PURE__ */ React.createElement("span", { className: `rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${badge}` }, badgeText)),
-      /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-base font-bold text-primary" }, v.job),
-      /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, v.jobIpa),
-      open && /* @__PURE__ */ React.createElement("div", { className: "mt-3 border-t border-slate-100 pt-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs leading-relaxed text-slate-600" }, v.tip), /* @__PURE__ */ React.createElement("div", { className: "mt-2 flex flex-wrap gap-1.5" }, v.more.split(" · ").map((w) => /* @__PURE__ */ React.createElement(SpeakButton, { key: w, text: w, label: w, rate: 0.8 }))))
+      /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-1" }, /* @__PURE__ */ React.createElement("span", { className: "font-serif text-3xl font-bold text-slate-900" }, "/", v.ipa, "/"), /* @__PURE__ */ React.createElement("span", { className: `rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${badge}` }, v.badge || badgeText)),
+      /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-base font-bold text-primary" }, word),
+      /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, wordIpa),
+      open && /* @__PURE__ */ React.createElement("div", { className: "mt-3 border-t border-slate-100 pt-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs leading-relaxed text-slate-600" }, rich(v.tip)), /* @__PURE__ */ React.createElement("div", { className: "mt-2 flex flex-wrap gap-1.5" }, v.more.split(" · ").map((w) => /* @__PURE__ */ React.createElement(SpeakButton, { key: w, text: w, label: w, rate: 0.8 }))))
     );
   }
-  function VowelChart({ mono = [], diph = [], mistakes = [] }) {
-    const [tab, setTab] = useState("mono");
-    const list = tab === "mono" ? mono : diph;
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mb-4 inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm" }, [["mono", `${mono.length} nguyên âm đơn`], ["diph", `${diph.length} nguyên âm đôi`]].map(([k, label]) => /* @__PURE__ */ React.createElement(
+  function VowelChart({ mono = [], diph = [], tabs, hint, mistakes = [], mistakesTitle }) {
+    const allTabs = tabs || [
+      { label: `${mono.length} nguyên âm đơn`, items: mono },
+      { label: `${diph.length} nguyên âm đôi`, items: diph }
+    ];
+    const [tab, setTab] = useState(0);
+    const list = (allTabs[tab] || allTabs[0]).items;
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mb-4 inline-flex flex-wrap rounded-3xl border border-slate-200 bg-white p-1 shadow-sm" }, allTabs.map((t, k) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: k,
         onClick: () => setTab(k),
         className: `rounded-full px-4 py-1.5 text-sm font-semibold transition ${tab === k ? "bg-primary text-white shadow-premium" : "text-slate-500 hover:text-slate-800"}`
       },
-      label
-    ))), /* @__PURE__ */ React.createElement("p", { className: "mb-4 text-sm text-slate-500" }, "Chạm vào từng thẻ để nghe từ ví dụ (tên một nghề) và xem mẹo khẩu hình."), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4" }, list.map((v) => /* @__PURE__ */ React.createElement(VowelCard, { key: v.ipa, v }))), mistakes.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-rose-100 bg-rose-50/60 p-5" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-rose-600" }, "Lỗi người Việt hay gặp"), /* @__PURE__ */ React.createElement("div", { className: "grid gap-3 sm:grid-cols-2" }, mistakes.map((m, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-2xl bg-white p-3 text-sm shadow-sm" }, /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-slate-800" }, "✗ ", m.wrong), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-slate-600" }, "✓ ", m.fix))))));
+      t.label
+    ))), /* @__PURE__ */ React.createElement("p", { className: "mb-4 text-sm text-slate-500" }, hint || "Chạm vào từng thẻ để nghe từ ví dụ và xem mẹo khẩu hình."), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4" }, list.map((v) => /* @__PURE__ */ React.createElement(VowelCard, { key: v.ipa, v }))), mistakes.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-rose-100 bg-rose-50/60 p-5" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-rose-600" }, mistakesTitle || "Lỗi người Việt hay gặp"), /* @__PURE__ */ React.createElement("div", { className: "grid gap-3 sm:grid-cols-2" }, mistakes.map((m, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-2xl bg-white p-3 text-sm shadow-sm" }, /* @__PURE__ */ React.createElement("p", { className: "font-semibold text-slate-800" }, "✗ ", rich(m.wrong)), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-slate-600" }, "✓ ", rich(m.fix)))))));
   }
   const QUIZ_ROUNDS = 10;
   function makeRound(pairs) {
@@ -314,10 +327,43 @@
     const all = groups.length ? groups : [{ phrases }];
     return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-amber-200 bg-amber-50/70 p-5" }, title && /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-amber-800" }, "💬 ", title), /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, all.map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-2 text-xs font-bold uppercase tracking-wide text-amber-700" }, g.label), /* @__PURE__ */ React.createElement("div", { className: "grid gap-3 sm:grid-cols-2" }, g.phrases.map((k) => /* @__PURE__ */ React.createElement("div", { key: k.phrase, className: "rounded-2xl bg-white p-3 shadow-sm" }, /* @__PURE__ */ React.createElement("p", { className: "flex items-center justify-between gap-2 font-semibold text-slate-800" }, k.phrase, /* @__PURE__ */ React.createElement(SpeakButton, { text: k.phrase })), k.note && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-xs text-slate-500" }, rich(k.note)))))))));
   }
+  function MarkedWord({ w }) {
+    const plain = w.replace(/[\[\]]/g, "");
+    const parts = w.split(/(\[[^\]]+\])/g);
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => speak(plain, 0.8),
+        className: "rounded-lg bg-white px-2 py-0.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:ring-primary/40"
+      },
+      parts.map((p, i) => p.startsWith("[") ? /* @__PURE__ */ React.createElement("span", { key: i, className: "rounded bg-amber-200/80 px-0.5 text-primary-dark" }, p.slice(1, -1)) : /* @__PURE__ */ React.createElement(React.Fragment, { key: i }, p))
+    );
+  }
+  function PhonicsCard({ row }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-3 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "font-serif text-2xl font-bold text-slate-900" }, "/", row.ipa, "/"), row.badge && /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold uppercase text-primary" }, row.badge)), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, row.sp.map(([pattern, words], i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-50 p-2" }, /* @__PURE__ */ React.createElement("span", { className: "mr-1 min-w-[3.5rem] rounded-full bg-primary px-2.5 py-0.5 text-center text-xs font-bold text-white" }, pattern), words.split(",").map((w) => w.trim()).filter(Boolean).map((w) => /* @__PURE__ */ React.createElement(MarkedWord, { key: w, w }))))), row.tip && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs leading-relaxed text-slate-500" }, "💡 ", rich(row.tip)));
+  }
+  function PhonicsGrid({ groups = [], rows = [], intro }) {
+    const all = groups.length ? groups : [{ rows }];
+    const [tab, setTab] = useState(0);
+    const g = all[tab] || all[0];
+    return /* @__PURE__ */ React.createElement("div", null, intro && /* @__PURE__ */ React.createElement("p", { className: "mb-4 rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)), all.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "mb-4 inline-flex flex-wrap rounded-3xl border border-slate-200 bg-white p-1 shadow-sm" }, all.map((x, k) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: k,
+        onClick: () => setTab(k),
+        className: `rounded-full px-4 py-1.5 text-sm font-semibold transition ${tab === k ? "bg-primary text-white shadow-premium" : "text-slate-500 hover:text-slate-800"}`
+      },
+      x.label
+    ))), /* @__PURE__ */ React.createElement("div", { className: "grid gap-4 md:grid-cols-2" }, g.rows.map((r) => /* @__PURE__ */ React.createElement(PhonicsCard, { key: r.ipa, row: r }))));
+  }
   function SectionBody({ s, lesson }) {
     switch (s.type) {
       case "vowels":
-        return /* @__PURE__ */ React.createElement(VowelChart, { mono: s.mono, diph: s.diph, mistakes: s.mistakes });
+      case "sounds":
+        return /* @__PURE__ */ React.createElement(VowelChart, { mono: s.mono, diph: s.diph, tabs: s.tabs, hint: s.hint, mistakes: s.mistakes, mistakesTitle: s.mistakesTitle });
+      case "phonics":
+        return /* @__PURE__ */ React.createElement(PhonicsGrid, { groups: s.groups, rows: s.rows, intro: s.intro });
       case "pairs":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-xl" }, /* @__PURE__ */ React.createElement(MinimalPairQuiz, { pairs: s.pairs }));
       case "grammar":
@@ -325,7 +371,7 @@
       case "quiz":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
       case "vocab":
-        return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3" }, s.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v }))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
+        return /* @__PURE__ */ React.createElement("div", null, (s.groups || [{ cards: s.cards }]).map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: gi ? "mt-8" : "" }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-3 flex items-center gap-2 text-sm font-bold text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "h-2 w-2 rounded-full bg-vocab-front" }), g.label, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "· ", g.cards.length, " từ")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 md:grid-cols-4" }, g.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v }))))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
       case "dialogue":
         return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "space-y-8" }, s.parts.map((p, i) => /* @__PURE__ */ React.createElement(ParagraphBlock, { key: i, index: i + 1, speakers: s.speakers, ...p }))), s.phrases && /* @__PURE__ */ React.createElement("div", { className: "mt-8" }, /* @__PURE__ */ React.createElement(PhraseBox, { ...s.phrases })));
       case "phrases":
