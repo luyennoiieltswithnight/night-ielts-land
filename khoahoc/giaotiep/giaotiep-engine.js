@@ -285,6 +285,316 @@
     };
     return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-4 flex items-center justify-between" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-500" }, "Hoàn thành ", done.length, "/", HOMEWORK.length), done.length === HOMEWORK.length && /* @__PURE__ */ React.createElement("span", { className: "text-sm font-bold text-emerald-600" }, "Xuất sắc! 🎉")), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, HOMEWORK.map((h, i) => /* @__PURE__ */ React.createElement("li", { key: i }, /* @__PURE__ */ React.createElement("label", { className: "flex cursor-pointer items-start gap-3 rounded-2xl p-2 hover:bg-slate-50" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: done.includes(i), onChange: () => toggle(i), className: "mt-1 h-4 w-4 accent-primary" }), /* @__PURE__ */ React.createElement("span", { className: `text-sm leading-relaxed ${done.includes(i) ? "text-slate-400 line-through" : "text-slate-700"}` }, h))))));
   }
+  const IPA_GROUPS = [
+    { label: "Nguyên âm đơn", items: [
+      ["i:", "iː", "sheep"],
+      ["I", "ɪ", "ship (hoặc /ih)"],
+      ["ae", "æ", "cat"],
+      ["^", "ʌ", "cup (hoặc /uh)"],
+      ["a:", "ɑː", "car"],
+      ["O", "ɒ", "hot (hoặc /oh)"],
+      ["o:", "ɔː", "door"],
+      ["U", "ʊ", "book"],
+      ["u:", "uː", "food"],
+      ["3:", "ɜː", "bird"],
+      ["3", "ɜ", "(không dài)"],
+      ["@", "ə", "about (schwa)"]
+    ] },
+    { label: "Nguyên âm đôi", items: [
+      ["ei", "eɪ", "day"],
+      ["ai", "aɪ", "my"],
+      ["oi", "ɔɪ", "boy"],
+      ["au", "aʊ", "now"],
+      ["ou", "əʊ", "go (hoặc /@u)"],
+      ["i@", "ɪə", "near"],
+      ["e@", "eə", "hair"],
+      ["u@", "ʊə", "tour"]
+    ] },
+    { label: "Phụ âm", items: [
+      ["th", "θ", "think"],
+      ["dh", "ð", "this"],
+      ["sh", "ʃ", "shop"],
+      ["zh", "ʒ", "usually"],
+      ["ch", "tʃ", "chair"],
+      ["d3", "dʒ", "job (hoặc /dj)"],
+      ["ng", "ŋ", "sing"]
+    ] },
+    { label: "Ký hiệu", items: [
+      ["'", "ˈ", "trọng âm chính"],
+      [",", "ˌ", "trọng âm phụ"],
+      [":", "ː", "âm dài"],
+      ["->", "→", "mũi tên"],
+      ["/", "∕", "gõ // để ra dấu / thường"]
+    ] }
+  ];
+  const IPA_CODES = { ih: "ɪ", uh: "ʌ", oh: "ɒ", "@u": "əʊ", dj: "dʒ" };
+  IPA_GROUPS.forEach((g) => g.items.forEach(([c, s]) => {
+    if (c !== "/") IPA_CODES[c] = s;
+  }));
+  const IPA_KEYS = Object.keys(IPA_CODES);
+  const hasLonger = (t) => IPA_KEYS.some((k) => k.length > t.length && k.startsWith(t));
+  function expandIpaAtCaret() {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.isCollapsed) return false;
+    const node = sel.anchorNode;
+    if (!node || node.nodeType !== 3) return false;
+    const off = sel.anchorOffset;
+    const full = node.textContent;
+    const T = full.slice(0, off);
+    let start, len, sym;
+    if (T.endsWith("//")) {
+      start = off - 2;
+      len = 2;
+      sym = "∕";
+    } else {
+      const idx = T.lastIndexOf("/");
+      if (idx < 0 || off - idx > 5) return false;
+      const tok = T.slice(idx + 1);
+      if (!tok) {
+        const T2 = T.slice(0, -1);
+        const i2 = T2.lastIndexOf("/");
+        const tok2 = i2 >= 0 ? T2.slice(i2 + 1) : "";
+        if (!tok2 || !IPA_CODES[tok2] || off - i2 > 6) return false;
+        start = i2;
+        len = tok2.length + 1;
+        sym = IPA_CODES[tok2];
+      } else if (IPA_CODES[tok] && !hasLonger(tok)) {
+        start = idx;
+        len = tok.length + 1;
+        sym = IPA_CODES[tok];
+      } else if (hasLonger(tok)) return false;
+      else {
+        const head = tok.slice(0, -1);
+        if (!head || !IPA_CODES[head]) return false;
+        start = idx;
+        len = head.length + 1;
+        sym = IPA_CODES[head];
+      }
+    }
+    node.textContent = full.slice(0, start) + sym + full.slice(start + len);
+    const r = document.createRange();
+    r.setStart(node, off - len + sym.length);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    return true;
+  }
+  const NOTE_COLORS = ["#0f172a", "#e11d48", "#4338ca", "#059669", "#ea580c", "#9333ea"];
+  const NOTE_BGS = ["#ffffff", "#fef9c3", "#e0f2fe", "#dcfce7", "#fce7f3"];
+  const clampN = (v, a, b) => Math.min(b, Math.max(a, v));
+  function NoteBox({ note, onChange, onDelete, ipaOn }) {
+    const ref = useRef(null);
+    const [focused, setFocused] = useState(false);
+    useEffect(() => {
+      if (ref.current) ref.current.innerHTML = note.html || "";
+    }, []);
+    const save = () => {
+      if (ref.current) onChange(note.id, { html: ref.current.innerHTML });
+    };
+    const cmd = (c, v) => {
+      try {
+        document.execCommand("styleWithCSS", false, true);
+      } catch (e) {
+      }
+      document.execCommand(c, false, v);
+      save();
+    };
+    const keep = (e) => e.preventDefault();
+    const startDrag = (e, mode) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const sx = e.clientX, sy = e.clientY;
+      const o = { x: note.x, y: note.y, w: note.w, h: note.h };
+      const move = (ev) => {
+        const dx = ev.clientX - sx, dy = ev.clientY - sy;
+        if (mode === "move") onChange(note.id, { x: Math.max(0, o.x + dx), y: Math.max(0, o.y + dy) });
+        else onChange(note.id, { w: Math.max(160, o.w + dx), h: Math.max(70, o.h + dy) });
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    };
+    const onKeyDown = (e) => {
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === "=" || e.key === "+") {
+          e.preventDefault();
+          onChange(note.id, { size: clampN(note.size + 2, 10, 120) });
+        } else if (e.key === "-" || e.key === "_") {
+          e.preventDefault();
+          onChange(note.id, { size: clampN(note.size - 2, 10, 120) });
+        }
+      }
+    };
+    const onInput = () => {
+      if (ipaOn) expandIpaAtCaret();
+      save();
+    };
+    const Btn = ({ title, onClick, children, className = "" }) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        title,
+        onMouseDown: keep,
+        onClick,
+        className: `flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-sm text-slate-700 hover:bg-slate-100 ${className}`
+      },
+      children
+    );
+    return /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", left: note.x, top: note.y, width: note.w, zIndex: focused ? 36 : 35 } }, focused && /* @__PURE__ */ React.createElement("div", { className: "absolute -top-11 left-0 flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-floating", style: { minWidth: "max-content" } }, /* @__PURE__ */ React.createElement(Btn, { title: "In đậm (Cmd+B)", onClick: () => cmd("bold") }, /* @__PURE__ */ React.createElement("b", null, "B")), /* @__PURE__ */ React.createElement(Btn, { title: "In nghiêng (Cmd+I)", onClick: () => cmd("italic") }, /* @__PURE__ */ React.createElement("i", { className: "font-serif" }, "I")), /* @__PURE__ */ React.createElement(Btn, { title: "Gạch chân (Cmd+U)", onClick: () => cmd("underline") }, /* @__PURE__ */ React.createElement("u", null, "U")), /* @__PURE__ */ React.createElement("span", { className: "mx-1 h-5 w-px bg-slate-200" }), NOTE_COLORS.map((c) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: c,
+        type: "button",
+        title: "Màu chữ",
+        onMouseDown: keep,
+        onClick: () => cmd("foreColor", c),
+        className: "mx-0.5 h-5 w-5 rounded-full ring-2 ring-white",
+        style: { background: c, boxShadow: "0 0 0 1px #cbd5e1" }
+      }
+    )), /* @__PURE__ */ React.createElement(Btn, { title: "Tô nền chữ (highlight)", onClick: () => cmd("hiliteColor", "#fde047") }, /* @__PURE__ */ React.createElement("span", { className: "rounded bg-yellow-300 px-1 text-xs font-bold" }, "ab")), /* @__PURE__ */ React.createElement(Btn, { title: "Bỏ định dạng", onClick: () => cmd("removeFormat") }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold" }, "T", /* @__PURE__ */ React.createElement("sub", null, "×"))), /* @__PURE__ */ React.createElement("span", { className: "mx-1 h-5 w-px bg-slate-200" }), /* @__PURE__ */ React.createElement(Btn, { title: "Giảm cỡ chữ (Cmd -)", onClick: () => onChange(note.id, { size: clampN(note.size - 2, 10, 120) }) }, "A−"), /* @__PURE__ */ React.createElement("span", { className: "w-7 text-center text-xs tabular-nums text-slate-400" }, note.size), /* @__PURE__ */ React.createElement(Btn, { title: "Tăng cỡ chữ (Cmd +)", onClick: () => onChange(note.id, { size: clampN(note.size + 2, 10, 120) }) }, "A+"), /* @__PURE__ */ React.createElement("span", { className: "mx-1 h-5 w-px bg-slate-200" }), NOTE_BGS.map((c) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: c,
+        type: "button",
+        title: "Màu nền ô",
+        onMouseDown: keep,
+        onClick: () => onChange(note.id, { bg: c }),
+        className: "mx-0.5 h-5 w-5 rounded-md",
+        style: { background: c, boxShadow: "0 0 0 1px #cbd5e1" }
+      }
+    ))), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "flex flex-col overflow-hidden rounded-2xl border-2 shadow-floating",
+        style: { height: note.h, background: note.bg, borderColor: focused ? "#4338CA" : "#e2e8f0" }
+      },
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          onPointerDown: (e) => startDrag(e, "move"),
+          className: "flex h-6 flex-shrink-0 cursor-move items-center justify-between bg-slate-900/5 px-2",
+          style: { touchAction: "none" }
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-bold tracking-widest text-slate-400" }, "⋮⋮ KÉO ĐỂ DI CHUYỂN"),
+        /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            type: "button",
+            onPointerDown: (e) => e.stopPropagation(),
+            onClick: () => onDelete(note.id),
+            className: "text-xs font-bold text-slate-400 hover:text-rose-500",
+            title: "Xóa ô này"
+          },
+          "✕"
+        )
+      ),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          ref,
+          contentEditable: true,
+          suppressContentEditableWarning: true,
+          spellCheck: false,
+          onFocus: () => setFocused(true),
+          onBlur: () => {
+            setFocused(false);
+            save();
+          },
+          onInput,
+          onKeyDown,
+          className: "flex-1 overflow-auto px-3 py-2 leading-snug text-slate-900 outline-none",
+          style: { fontSize: note.size, fontFamily: "'Plus Jakarta Sans', 'Segoe UI', 'Arial Unicode MS', sans-serif" }
+        }
+      )
+    ), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        onPointerDown: (e) => startDrag(e, "resize"),
+        title: "Kéo để đổi kích thước",
+        className: "absolute -bottom-1 -right-1 h-5 w-5 cursor-nwse-resize rounded-br-2xl",
+        style: { touchAction: "none" }
+      },
+      /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 20 20", className: "h-5 w-5 text-slate-400" }, /* @__PURE__ */ React.createElement("path", { d: "M18 8v10H8M18 13v5h-5", stroke: "currentColor", strokeWidth: "2", fill: "none", strokeLinecap: "round" }))
+    ));
+  }
+  function IpaCheatSheet({ onClose }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "max-h-[85vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-6 shadow-floating", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "mb-4 flex items-center justify-between" }, /* @__PURE__ */ React.createElement("p", { className: "text-lg font-extrabold text-slate-900" }, "⌨️ Bảng gõ tắt IPA"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "rounded-full px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "Đóng ✕")), /* @__PURE__ */ React.createElement("p", { className: "mb-4 text-sm text-slate-500" }, "Trong ô ghi chú, gõ ", /* @__PURE__ */ React.createElement("b", { className: "text-primary" }, "/"), " + mã → tự đổi thành ký hiệu. Ví dụ gõ ", /* @__PURE__ */ React.createElement("code", { className: "rounded bg-slate-100 px-1" }, "/ch/i:z"), " ra ", /* @__PURE__ */ React.createElement("b", null, "tʃiːz"), ". Mã có phân biệt chữ ", /* @__PURE__ */ React.createElement("b", null, "hoa/thường"), " (/I = ɪ, /O = ɒ, /U = ʊ). Các âm bàn phím có sẵn (p, b, t, d, k, g, f, v, s, z, h, m, n, l, r, w, j, e) gõ bình thường."), IPA_GROUPS.map((g) => /* @__PURE__ */ React.createElement("div", { key: g.label, className: "mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 text-xs font-bold uppercase tracking-wide text-primary" }, g.label), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2 sm:grid-cols-4" }, g.items.map(([c, s, ex]) => /* @__PURE__ */ React.createElement("div", { key: c, className: "rounded-2xl border border-slate-100 bg-slate-50 p-2" }, /* @__PURE__ */ React.createElement("p", { className: "flex items-baseline justify-between" }, /* @__PURE__ */ React.createElement("code", { className: "text-sm font-bold text-slate-700" }, "/", c === "/" ? "/" : c), /* @__PURE__ */ React.createElement("span", { className: "font-serif text-xl font-bold text-primary" }, s)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, ex)))))), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, "Mẹo: nếu viết “he/she” mà bị đổi thành ký hiệu, gõ “he//she” hoặc tắt Gõ tắt IPA trong menu ✏️.")));
+  }
+  function NotesLayer({ lessonId }) {
+    const KEY = `night-notes-${lessonId}`;
+    const [notes, setNotes] = useState(() => {
+      try {
+        return JSON.parse(localStorage.getItem(KEY)) || [];
+      } catch (e) {
+        return [];
+      }
+    });
+    const [open, setOpen] = useState(false);
+    const [hidden, setHidden] = useState(false);
+    const [sheet, setSheet] = useState(false);
+    const [ipaOn, setIpaOn] = useState(() => {
+      try {
+        return localStorage.getItem("night-notes-ipa") !== "off";
+      } catch (e) {
+        return true;
+      }
+    });
+    const [confirmClear, setConfirmClear] = useState(false);
+    useEffect(() => {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(notes));
+      } catch (e) {
+      }
+    }, [notes]);
+    useEffect(() => {
+      try {
+        localStorage.setItem("night-notes-ipa", ipaOn ? "on" : "off");
+      } catch (e) {
+      }
+    }, [ipaOn]);
+    const update = (id, patch) => setNotes((ns) => ns.map((n) => n.id === id ? { ...n, ...patch } : n));
+    const remove = (id) => setNotes((ns) => ns.filter((n) => n.id !== id));
+    const add = () => {
+      const w = Math.min(380, window.innerWidth - 40);
+      setNotes((ns) => [...ns, {
+        id: Date.now().toString(36),
+        html: "",
+        size: 20,
+        bg: "#fef9c3",
+        w,
+        h: 160,
+        x: Math.max(10, (document.documentElement.clientWidth - w) / 2 + ns.length % 4 * 24),
+        y: window.scrollY + 140 + ns.length % 4 * 24
+      }]);
+      setHidden(false);
+      setOpen(false);
+    };
+    const Item = ({ onClick, children, danger }) => /* @__PURE__ */ React.createElement("button", { onClick, className: `w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${danger ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-100"}` }, children);
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, !hidden && notes.map((n) => /* @__PURE__ */ React.createElement(NoteBox, { key: n.id, note: n, onChange: update, onDelete: remove, ipaOn })), sheet && /* @__PURE__ */ React.createElement(IpaCheatSheet, { onClose: () => setSheet(false) }), /* @__PURE__ */ React.createElement("div", { className: "fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" }, open && /* @__PURE__ */ React.createElement("div", { className: "w-60 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-floating" }, /* @__PURE__ */ React.createElement(Item, { onClick: add }, "＋ Thêm ô ghi chú"), /* @__PURE__ */ React.createElement(Item, { onClick: () => {
+      setSheet(true);
+      setOpen(false);
+    } }, "⌨️ Bảng gõ tắt IPA"), /* @__PURE__ */ React.createElement(Item, { onClick: () => setIpaOn(!ipaOn) }, ipaOn ? "✅" : "⬜", " Gõ tắt IPA (/d3 → dʒ)"), notes.length > 0 && /* @__PURE__ */ React.createElement(Item, { onClick: () => setHidden(!hidden) }, hidden ? "👁 Hiện" : "🙈 Ẩn", " ghi chú (", notes.length, ")"), notes.length > 0 && /* @__PURE__ */ React.createElement(Item, { danger: true, onClick: () => {
+      if (confirmClear) {
+        setNotes([]);
+        setConfirmClear(false);
+        setOpen(false);
+      } else setConfirmClear(true);
+    } }, "🗑 ", confirmClear ? "Bấm lần nữa để xóa hết" : "Xóa tất cả ghi chú")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          setOpen(!open);
+          setConfirmClear(false);
+        },
+        title: "Ghi chú khi giảng",
+        className: "flex h-12 w-12 items-center justify-center rounded-full bg-primary text-xl text-white shadow-premium transition hover:bg-primary-dark"
+      },
+      open ? "✕" : "✏️"
+    )));
+  }
   function rich(text) {
     if (!text) return null;
     const parts = String(text).split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
@@ -432,7 +742,7 @@
       setAccent(a);
     };
     const sections = lesson.sections || [];
-    return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, className: "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary" }, s.nav || s.title)), /* @__PURE__ */ React.createElement("div", { className: "ml-auto flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, sections.map((s, i) => /* @__PURE__ */ React.createElement(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc }, /* @__PURE__ */ React.createElement(SectionBody, { s, lesson })))), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || "../giaotiep.html", className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
+    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, className: "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary" }, s.nav || s.title)), /* @__PURE__ */ React.createElement("div", { className: "ml-auto flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, sections.map((s, i) => /* @__PURE__ */ React.createElement(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc }, /* @__PURE__ */ React.createElement(SectionBody, { s, lesson })))), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || "../giaotiep.html", className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
   }
   const ENGINE_CSS = `
   body { font-family: 'Plus Jakarta Sans', sans-serif; }
