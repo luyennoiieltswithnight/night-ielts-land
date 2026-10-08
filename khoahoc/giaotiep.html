@@ -683,9 +683,38 @@
             );
         };
 
+        // Tự nhận biết bài học đã được up lên chưa.
+        // Quy ước: "Buổi 05" ↔ file khoahoc/giaotiep/buoi-05.html
+        // Up file đúng tên lên là thẻ buổi đó tự hiện nút "Vào học".
+        const LESSON_FOLDER = 'giaotiep/';
+        const lessonCheckCache = {};
+        const lessonUrlFor = (session) => {
+            const num = (session.s.match(/\d+/) || ['0'])[0].padStart(2, '0');
+            return `${LESSON_FOLDER}buoi-${num}.html`;
+        };
+        const checkLesson = (url) => {
+            if (!lessonCheckCache[url]) {
+                lessonCheckCache[url] = fetch(url, { method: 'HEAD', cache: 'no-store' })
+                    .then((r) => r.ok)
+                    .catch(() => false);
+            }
+            return lessonCheckCache[url];
+        };
+        const useLessonAvailable = (url) => {
+            const [ready, setReady] = useState(null); // null = đang kiểm tra
+            useEffect(() => {
+                let alive = true;
+                checkLesson(url).then((ok) => { if (alive) setReady(ok); });
+                return () => { alive = false; };
+            }, [url]);
+            return ready;
+        };
+
         // Component Thẻ Buổi Học Độc Lập
         const SessionCard = ({ session }) => {
             const isPhonetics = session.type === 'phonetics';
+            const lessonUrl = lessonUrlFor(session);
+            const available = useLessonAvailable(lessonUrl);
 
             return (
                 <div className="group/session p-4 rounded-2xl bg-[#0c1220]/90 border border-slate-800/80 hover:border-slate-700 hover:bg-[#111a2e] transition-all duration-300 shadow-sm">
@@ -733,6 +762,21 @@
                                 {session.speaking}
                             </span>
                         </div>
+                    </div>
+
+                    <div className="mt-3 flex justify-end">
+                        {available ? (
+                            <a href={lessonUrl}
+                               className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-extrabold text-white transition-all ${
+                                   isPhonetics ? 'bg-cyan-600 hover:bg-cyan-500 shadow-neon-cyan' : 'bg-purple-600 hover:bg-purple-500 shadow-neon-purple'
+                               }`}>
+                                Vào học <span aria-hidden="true">→</span>
+                            </a>
+                        ) : (
+                            <span className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-2 text-[11px] font-bold text-slate-500">
+                                {available === null ? 'Đang kiểm tra…' : 'Sắp ra mắt'}
+                            </span>
+                        )}
                     </div>
                 </div>
             );
