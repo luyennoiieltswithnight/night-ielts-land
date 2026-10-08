@@ -357,11 +357,31 @@
       x.label
     ))), /* @__PURE__ */ React.createElement("div", { className: "grid gap-4 md:grid-cols-2" }, g.rows.map((r) => /* @__PURE__ */ React.createElement(PhonicsCard, { key: r.letters || r.ipa, row: r }))));
   }
+  function StressWord({ w }) {
+    const syl = w.split("·");
+    const isStress = (x) => x === x.toUpperCase() && /[A-Z]/.test(x);
+    const plain = syl.join("").toLowerCase();
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        onClick: () => speak(plain, 0.75),
+        className: "flex flex-col items-center rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200 transition hover:ring-primary/40"
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "flex items-end gap-1.5" }, syl.map((x, i) => isStress(x) ? /* @__PURE__ */ React.createElement("span", { key: i, className: "h-3.5 w-3.5 rounded-full bg-primary" }) : /* @__PURE__ */ React.createElement("span", { key: i, className: "mb-0.5 h-2 w-2 rounded-full bg-slate-300" }))),
+      /* @__PURE__ */ React.createElement("span", { className: "mt-1 text-sm text-slate-500" }, syl.map((x, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: isStress(x) ? "font-extrabold text-primary" : "" }, x.toLowerCase(), i < syl.length - 1 ? "·" : "")))
+    );
+  }
+  function StressGrid({ groups = [], intro }) {
+    return /* @__PURE__ */ React.createElement("div", null, intro && /* @__PURE__ */ React.createElement("p", { className: "mb-4 rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)), /* @__PURE__ */ React.createElement("div", { className: "grid gap-4 md:grid-cols-2" }, groups.map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-3 flex items-center justify-between gap-2" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono text-xl font-extrabold tracking-widest text-slate-900" }, g.pattern), /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, g.label)), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, g.words.map((w) => /* @__PURE__ */ React.createElement(StressWord, { key: w, w }))), g.tip && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs leading-relaxed text-slate-500" }, "💡 ", rich(g.tip))))));
+  }
   function SectionBody({ s, lesson }) {
     switch (s.type) {
       case "vowels":
       case "sounds":
         return /* @__PURE__ */ React.createElement(VowelChart, { mono: s.mono, diph: s.diph, tabs: s.tabs, hint: s.hint, mistakes: s.mistakes, mistakesTitle: s.mistakesTitle });
+      case "stress":
+        return /* @__PURE__ */ React.createElement(StressGrid, { groups: s.groups, intro: s.intro });
       case "phonics":
         return /* @__PURE__ */ React.createElement(PhonicsGrid, { groups: s.groups, rows: s.rows, intro: s.intro });
       case "pairs":
