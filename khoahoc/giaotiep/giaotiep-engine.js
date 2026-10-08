@@ -341,7 +341,7 @@
     );
   }
   function PhonicsCard({ row }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-3 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "font-serif text-2xl font-bold text-slate-900" }, "/", row.ipa, "/"), row.badge && /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold uppercase text-primary" }, row.badge)), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, row.sp.map(([pattern, words], i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-50 p-2" }, /* @__PURE__ */ React.createElement("span", { className: "mr-1 min-w-[3.5rem] rounded-full bg-primary px-2.5 py-0.5 text-center text-xs font-bold text-white" }, pattern), words.split(",").map((w) => w.trim()).filter(Boolean).map((w) => /* @__PURE__ */ React.createElement(MarkedWord, { key: w, w }))))), row.tip && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs leading-relaxed text-slate-500" }, "💡 ", rich(row.tip)));
+    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-3 flex items-center gap-3" }, row.letters ? /* @__PURE__ */ React.createElement("span", { className: "rounded-2xl bg-amber-100 px-3 py-0.5 text-2xl font-extrabold tracking-wide text-slate-900" }, row.letters) : /* @__PURE__ */ React.createElement("span", { className: "font-serif text-2xl font-bold text-slate-900" }, "/", row.ipa, "/"), row.badge && /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-2 py-0.5 text-[10px] font-bold uppercase text-primary" }, row.badge)), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, row.sp.map(([pattern, words], i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex flex-wrap items-center gap-1.5 rounded-2xl bg-slate-50 p-2" }, /* @__PURE__ */ React.createElement("span", { className: "mr-1 min-w-[3.5rem] rounded-full bg-primary px-2.5 py-0.5 text-center text-xs font-bold text-white" }, pattern), words.split(",").map((w) => w.trim()).filter(Boolean).map((w) => /* @__PURE__ */ React.createElement(MarkedWord, { key: w, w }))))), row.tip && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs leading-relaxed text-slate-500" }, "💡 ", rich(row.tip)));
   }
   function PhonicsGrid({ groups = [], rows = [], intro }) {
     const all = groups.length ? groups : [{ rows }];
@@ -355,7 +355,7 @@
         className: `rounded-full px-4 py-1.5 text-sm font-semibold transition ${tab === k ? "bg-primary text-white shadow-premium" : "text-slate-500 hover:text-slate-800"}`
       },
       x.label
-    ))), /* @__PURE__ */ React.createElement("div", { className: "grid gap-4 md:grid-cols-2" }, g.rows.map((r) => /* @__PURE__ */ React.createElement(PhonicsCard, { key: r.ipa, row: r }))));
+    ))), /* @__PURE__ */ React.createElement("div", { className: "grid gap-4 md:grid-cols-2" }, g.rows.map((r) => /* @__PURE__ */ React.createElement(PhonicsCard, { key: r.letters || r.ipa, row: r }))));
   }
   function SectionBody({ s, lesson }) {
     switch (s.type) {
