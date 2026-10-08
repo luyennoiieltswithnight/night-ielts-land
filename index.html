@@ -66,6 +66,13 @@
         .ch-empty{margin:auto;text-align:center;color:#9ca3af;font-size:13px;font-weight:700;line-height:1.6;padding:20px}
         .ch-day{align-self:center;font-size:11px;font-weight:800;color:#9ca3af;margin:8px 0 4px}
         .ch-row{display:flex;flex-direction:column;max-width:80%}
+        .ch-grp{display:flex;align-items:flex-end;gap:6px;align-self:flex-start;max-width:88%}
+        .ch-grp .ch-row{max-width:100%;min-width:0}
+        .ch-mav{width:26px;height:26px;border-radius:50%;background:#ede9fe;color:#6d28d9;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;flex:none;overflow:hidden;margin-bottom:20px}
+        .ch-mav.ch-sp{background:none}
+        .ch-av img,.ch-iav img,.ch-mav img{width:100%;height:100%;object-fit:cover;display:block}
+        .ch-head .ch-av{overflow:hidden}
+        .ch-item .ch-iav{overflow:hidden}
         .ch-row.me{align-self:flex-end;align-items:flex-end}
         .ch-row.them{align-self:flex-start;align-items:flex-start}
         .ch-bub{padding:8px 12px;border-radius:18px;font-size:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
@@ -3154,9 +3161,13 @@
             try { snap = await getDoc(userRef); }
             catch (e) { console.error(e); if (!quick) { __authResolve(); applySignedIn({ uid: user.uid, role: 'student', name: user.displayName, photo: user.photoURL }); } return; }
             let role = 'student', docUrl = '', hwDocUrl = '';
-            if (snap.exists()) { role = snap.data().role || 'student'; docUrl = snap.data().docUrl || ''; hwDocUrl = snap.data().hwDocUrl || ''; }
+            if (snap.exists()) {
+                role = snap.data().role || 'student'; docUrl = snap.data().docUrl || ''; hwDocUrl = snap.data().hwDocUrl || '';
+                // Lưu ảnh đại diện Gmail để hiện trong box chat
+                if (user.photoURL && snap.data().photo !== user.photoURL) updateDoc(userRef, { photo: user.photoURL }).catch(() => {});
+            }
             else {
-                await setDoc(userRef, { email: user.email, name: user.displayName, role: "student", createdAt: Date.now() });
+                await setDoc(userRef, { email: user.email, name: user.displayName, role: "student", createdAt: Date.now(), photo: user.photoURL || '' });
             }
             const sess = { uid: user.uid, role: role, name: user.displayName, photo: user.photoURL, docUrl: docUrl, hwDocUrl: hwDocUrl };
             try { localStorage.setItem(SESS_KEY, JSON.stringify(sess)); } catch (e) {}
@@ -5312,6 +5323,13 @@
             const dayLbl = t => { const d = new Date(t), n = new Date(); const k = x => x.toDateString(); if (k(d) === k(n)) return 'Hôm nay'; const y = new Date(n); y.setDate(n.getDate() - 1); if (k(d) === k(y)) return 'Hôm qua'; return d.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' }); };
             const shortTime = t => { const d = new Date(t); return d.toDateString() === new Date().toDateString() ? hhmm(t) : d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }); };
             const initial = n => (String(n || '?').trim().split(/\s+/).pop() || '?').charAt(0).toUpperCase();
+            // Ảnh Gmail (lỗi tải thì hiện chữ cái đầu / emoji)
+            const av = (url, name, cls, fb) => {
+                const t = fb || esc(initial(name));
+                return url ? `<span class="${cls}"><img src="${esc(url)}" alt="" referrerpolicy="no-referrer" onerror="this.parentNode.innerHTML='${String(t).replace(/'/g, '')}'"></span>` : `<span class="${cls}">${t}</span>`;
+            };
+            const studPhoto = sid => { const s = (C.studs || []).find(x => x.id === sid); return (s && s.photo) || (C.chats[sid] && C.chats[sid].photo) || ''; };
+            const tPhoto = () => C.isT ? (C.u && C.u.photo) || '' : ((C.chats[C.sid] && C.chats[C.sid].tPhoto) || '');
 
             const fab = document.createElement('button');
             fab.className = 'ch-fab'; fab.id = 'chat-fab'; fab.title = 'Tin nhắn';
@@ -5364,7 +5382,7 @@
                     const c = C.chats[s.id], un = c ? (c.tUnread || 0) : 0;
                     const sub = c && c.lastText ? (c.lastBy === 't' ? 'Thầy: ' : '') + c.lastText : (s.email || 'Chưa nhắn tin');
                     return `<button class="ch-item${un ? ' unread' : ''}" data-sid="${esc(s.id)}" data-n="${esc(s.name)}">
-                        <span class="ch-iav">${esc(initial(s.name))}</span>
+                        ${av(studPhoto(s.id), s.name, 'ch-iav')}
                         <span class="ch-im"><b>${esc(s.name)}</b><span>${esc(sub)}</span></span>
                         <span class="ch-ir">${c && c.lastText ? `<i>${shortTime(ms(c.lastAt))}</i>` : ''}${un ? `<em>${un}</em>` : ''}</span></button>`;
                 };
@@ -5381,7 +5399,7 @@
                 panel.innerHTML = `
                     <div class="ch-head">
                         ${C.isT ? '<button title="Quay lại" data-back><i class="fa-solid fa-arrow-left"></i></button>' : ''}
-                        <div class="ch-av">${C.isT ? esc(initial(title)) : '👨‍🏫'}</div>
+                        ${C.isT ? av(studPhoto(C.sid), title, 'ch-av') : av(tPhoto(), '', 'ch-av', '👨‍🏫')}
                         <div class="ch-t"><b>${esc(title)}</b><span>${C.isT ? 'Học viên' : 'Hỏi Thầy bất cứ lúc nào nhé'}</span></div>
                         <button title="Đóng" data-x><i class="fa-solid fa-xmark"></i></button>
                     </div>
@@ -5423,13 +5441,18 @@
                 }
                 let html = '', lastDay = '';
                 const lastMine = [...C.msgs].reverse().find(m => m.by === me);
-                C.msgs.forEach(m => {
+                const otherPic = C.isT ? av(studPhoto(C.sid), C.sname, 'ch-mav') : av(tPhoto(), '', 'ch-mav', '👨‍🏫');
+                C.msgs.forEach((m, i) => {
                     const t = ms(m.at), dl = dayLbl(t);
                     if (dl !== lastDay) { html += `<p class="ch-day">${dl}</p>`; lastDay = dl; }
                     const mine = m.by === me;
                     let meta = hhmm(t);
                     if (mine && lastMine && m.id === lastMine.id) meta += m.readAt ? ' · <span class="seen">✓✓ Đã xem</span>' : ' · ✓ Đã gửi';
-                    html += `<div class="ch-row ${mine ? 'me' : 'them'}"><div class="ch-bub">${linkify(m.text)}</div><div class="ch-meta">${meta}</div></div>`;
+                    if (mine) html += `<div class="ch-row me"><div class="ch-bub">${linkify(m.text)}</div><div class="ch-meta">${meta}</div></div>`;
+                    else {
+                        const nx = C.msgs[i + 1], lastOfGroup = !nx || nx.by !== m.by || dayLbl(ms(nx.at)) !== dl;
+                        html += `<div class="ch-grp">${lastOfGroup ? otherPic : '<span class="ch-mav ch-sp"></span>'}<div class="ch-row them"><div class="ch-bub">${linkify(m.text)}</div><div class="ch-meta">${meta}</div></div></div>`;
+                    }
                 });
                 const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 80 || !body.dataset.ready;
                 body.innerHTML = html; body.dataset.ready = '1';
@@ -5465,6 +5488,8 @@
                     top[C.isT ? 'sUnread' : 'tUnread'] = increment(1);
                     const nm = C.isT ? C.sname : (C.u.name || '');
                     if (nm) top.name = nm;
+                    const pic = (auth.currentUser && auth.currentUser.photoURL) || C.u.photo || '';
+                    if (pic) top[C.isT ? 'tPhoto' : 'photo'] = pic;
                     b.set(doc(db, 'chats', C.sid), top, { merge: true });
                     ta.value = ''; ta.style.height = 'auto';
                     await b.commit();
@@ -5505,6 +5530,7 @@
                         snap.forEach(d => { const x = d.data({ serverTimestamps: 'estimate' }); x.sid = d.id; C.chats[d.id] = x; tot += x.tUnread || 0; });
                         setBadge(tot);
                         if (panel.classList.contains('show') && C.view === 'list') renderList();
+                        if (panel.classList.contains('show') && C.view === 'thread') renderMsgs();
                     }, err => console.warn('chat list', err));
                 } else {
                     C.sid = u.uid;
@@ -5524,7 +5550,7 @@
                             else { fab.classList.remove('ping'); void fab.offsetWidth; fab.classList.add('ping'); }
                         }
                         first = false;
-                        if (panel.classList.contains('show')) markRead();
+                        if (panel.classList.contains('show')) { renderMsgs(); markRead(); }
                     }, err => console.warn('chat top', err));
                 }
             }
