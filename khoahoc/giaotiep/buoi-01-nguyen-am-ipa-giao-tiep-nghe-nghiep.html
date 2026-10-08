@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night IELTS — Buổi 01: Nguyên âm IPA & Giao tiếp Nghề nghiệp</title>
+
+<!-- Font -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+<!-- Tailwind CSS (Play CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Plus Jakarta Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        },
+        colors: {
+          primary: {
+            DEFAULT: '#4338CA',
+            light: '#EEF2FF',
+            dark: '#312E81',
+          },
+          vocab: {
+            bg: '#FDE68A',
+            front: '#FBBF24',
+            back: '#0EA5E9',
+          },
+        },
+        boxShadow: {
+          floating: '0 20px 45px -12px rgba(30, 41, 59, 0.25)',
+          premium: '0 10px 35px -8px rgba(67, 56, 202, 0.35)',
+        },
+        borderRadius: {
+          '3xl': '1.5rem',
+        },
+      },
+    },
+  };
+</script>
+
+<!-- React + Babel (CDN, no build step) -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  body { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+  /* 3D flip utilities (not in default Tailwind — defined manually) */
+  .perspective-1000 { perspective: 1000px; }
+  .transform-style-3d { transform-style: preserve-3d; }
+  .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+  .rotate-y-180 { transform: rotateY(180deg); }
+  .flip-card-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+  .flip-card-front, .flip-card-back {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .flip-card-back { transform: rotateY(180deg); }
+
+  /* Waveform wrapper must stay scrollable (never overflow-hidden) so users
+     can pan left/right once the waveform is zoomed wider than the frame. */
+  .waveform-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .waveform-scroll::-webkit-scrollbar { height: 6px; }
+  .waveform-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+/* ===========================================================
+   Speech helper (Web Speech API)
+   - Bài này chưa có file audio, nên mọi nút 🔊 dùng giọng đọc
+     có sẵn của thiết bị. Không hỗ trợ thì nút tự mờ đi.
+=========================================================== */
+const TTS_OK = typeof window !== 'undefined' && 'speechSynthesis' in window;
+let ACCENT = 'en-GB';
+
+function pickVoice(lang) {
+  if (!TTS_OK) return null;
+  const voices = window.speechSynthesis.getVoices() || [];
+  return (
+    voices.find((v) => v.lang === lang && /Google|Natural|Premium|Enhanced/i.test(v.name)) ||
+    voices.find((v) => v.lang === lang) ||
+    voices.find((v) => v.lang && v.lang.replace('_', '-').startsWith(lang)) ||
+    voices.find((v) => v.lang && v.lang.startsWith('en')) ||
+    null
+  );
+}
+
+function speak(text, rate = 0.9) {
+  if (!TTS_OK || !text) return;
+  try {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = ACCENT;
+    const v = pickVoice(ACCENT);
+    if (v) u.voice = v;
+    u.rate = rate;
+    window.speechSynthesis.speak(u);
+  } catch (e) { /* bỏ qua */ }
+}
+
+if (TTS_OK) {
+  // Một số trình duyệt nạp danh sách giọng muộn
+  window.speechSynthesis.onvoiceschanged = () => {};
+}
+
+function SpeakButton({ text, rate, label, className = '' }) {
+  return (
+    <button
+      type="button"
+      disabled={!TTS_OK}
+      onClick={(e) => { e.stopPropagation(); speak(text, rate); }}
+      aria-label={`Nghe: ${text}`}
+      className={`inline-flex items-center gap-1 rounded-full bg-primary-light px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-indigo-100 disabled:opacity-40 ${className}`}
+    >
+      <span aria-hidden="true">🔊</span>{label && <span>{label}</span>}
+    </button>
+  );
+}
+
+/* ===========================================================
+   InteractiveVocab
+   - 3D flip vocabulary card.
+   - Front (amber/vocab-front): word + phonetic (+ nút nghe).
+   - Back (sky-blue/vocab-back): meaning + example sentence.
+=========================================================== */
+function InteractiveVocab({ word, phonetic, meaning, example }) {
+  const [flipped, setFlipped] = useState(false);
+
+  return (
+    <div
+      className="perspective-1000 h-44 w-full max-w-[220px] cursor-pointer select-none"
+      onClick={() => setFlipped(!flipped)}
+    >
+      <div className={`flip-card-inner ${flipped ? 'rotate-y-180' : ''}`}>
+        <div className="flip-card-front flex h-full flex-col items-center justify-center rounded-3xl border border-amber-200 bg-vocab-bg p-4 text-center shadow-floating">
+          <p className="text-lg font-bold text-slate-800">{word}</p>
+          {phonetic && <p className="mt-1 text-sm text-slate-600">{phonetic}</p>}
+          <SpeakButton text={word} className="mt-2 bg-white/70" />
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Chạm để xem nghĩa</p>
+        </div>
+        <div className="flip-card-back flex h-full flex-col items-center justify-center rounded-3xl border border-sky-200 bg-vocab-back/90 p-4 text-center text-white shadow-floating">
+          <p className="text-base font-bold">{meaning}</p>
+          {example && <p className="mt-2 text-xs italic text-sky-50">"{example}"</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===========================================================
+   ParagraphBlock
+   - Numbered block with vocab callouts staggered left/right.
+   - Bản này nhận thêm `lines` (hội thoại theo vai) bên cạnh `text`.
+=========================================================== */
+function ParagraphBlock({ index, heading, text, lines, vocabHighlights = [], inlineImage }) {
+  const alignRight = index % 2 === 0;
+  const fullText = lines ? lines.map((l) => l.line).join(' ') : text;
+
+  return (
+    <div className={`flex flex-col gap-6 md:flex-row ${alignRight ? 'md:flex-row-reverse' : ''} items-start`}>
+      <div className="w-full flex-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-floating">
+        <div className="mb-3 flex items-center gap-3">
+          <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+            {index}
+          </span>
+          {heading && <p className="text-sm font-bold text-slate-700">{heading}</p>}
+          <div className="h-px flex-1 bg-slate-100" />
+          <SpeakButton text={fullText} rate={0.85} label="Cả đoạn" />
+        </div>
+        {text && <p className="leading-relaxed text-slate-700">{text}</p>}
+        {lines && (
+          <div className="space-y-2">
+            {lines.map((l, i) => (
+              <div key={i} className={`flex items-start gap-3 ${l.who === 'Tom' ? '' : 'flex-row-reverse text-right'}`}>
+                <span className={`mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${l.who === 'Tom' ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>{l.who}</span>
+                <p className="flex-1 leading-relaxed text-slate-700">
+                  {l.line}{' '}
+                  <button type="button" disabled={!TTS_OK} onClick={() => speak(l.line, 0.85)} className="text-xs text-primary/70 hover:text-primary disabled:opacity-30" aria-label="Nghe câu này">🔊</button>
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+        {inlineImage && (
+          <figure className="mt-4">
+            <img src={inlineImage.src} alt={inlineImage.caption || ''} className="w-full rounded-2xl object-cover" />
+            {inlineImage.caption && (
+              <figcaption className="mt-2 text-center text-xs text-slate-400">{inlineImage.caption}</figcaption>
+            )}
+          </figure>
+        )}
+      </div>
+
+      {vocabHighlights.length > 0 && (
+        <div className="grid w-full flex-shrink-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap md:w-56">
+          {vocabHighlights.map((v, i) => (
+            <InteractiveVocab key={i} {...v} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===========================================================
+   SelectionTranslateTooltip
+   - Wraps the reading area. When the student selects/highlights
+     text inside it, a small "Dịch" button pops up BELOW the
+     selection (with an up-arrow pointing at the text), so it never
+     covers the native OS selection menu that appears above the
+     selection on desktop/iPad.
+   - Tapping/clicking it opens Google Translate in a new tab with
+     the selected text pre-filled.
+   - Handles touch (iPad) explicitly: onTouchEnd on the reading
+     container detects the end of a drag-to-select gesture, and
+     onTouchEnd on the button itself (with preventDefault +
+     stopPropagation) stops the tap from being misread as a
+     "tap outside closes the tooltip" and firing before the button
+     action runs.
+=========================================================== */
+function SelectionTranslateTooltip({ containerRef }) {
+  const [tooltip, setTooltip] = useState(null); // { top, left, text }
+  const btnRef = useRef(null);
+
+  const readSelection = useCallback(() => {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : '';
+    if (!text || !containerRef.current || sel.rangeCount === 0) {
+      setTooltip(null);
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!containerRef.current.contains(range.commonAncestorContainer)) {
+      setTooltip(null);
+      return;
+    }
+    const rect = range.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) {
+      setTooltip(null);
+      return;
+    }
+    setTooltip({
+      top: rect.bottom + window.scrollY + 10,
+      left: rect.left + window.scrollX + rect.width / 2,
+      text,
+    });
+  }, [containerRef]);
+
+  useEffect(() => {
+    // A short delay lets the browser finish updating window.getSelection()
+    // after the pointer/finger lifts — this matters most on iPad.
+    const onMouseUp = () => setTimeout(readSelection, 0);
+    const onTouchEnd = () => setTimeout(readSelection, 10);
+    const onSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.toString().trim() === '') setTooltip(null);
+    };
+    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () => {
+      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('selectionchange', onSelectionChange);
+    };
+  }, [readSelection]);
+
+  const openTranslate = () => {
+    if (!tooltip) return;
+    const url = `https://translate.google.com/?sl=auto&tl=vi&text=${encodeURIComponent(tooltip.text)}&op=translate`;
+    window.open(url, '_blank', 'noopener');
+  };
+
+  if (!tooltip) return null;
+
+  return (
+    <button
+      ref={btnRef}
+      style={{ position: 'absolute', top: tooltip.top, left: tooltip.left, transform: 'translateX(-50%)' }}
+      className="z-[60] flex flex-col items-center"
+      onClick={openTranslate}
+      onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); openTranslate(); }}
+    >
+      <span className="-mb-1 text-sm leading-none text-primary">▲</span>
+      <span className="rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-premium">Dịch</span>
+    </button>
+  );
+}
+
+/* ===========================================================
+   DỮ LIỆU BUỔI 01 — Unit 1: Jobs
+=========================================================== */
+const LESSON = {
+  course: "Giao tiếp Thực chiến · Tháng 1",
+  session: "Buổi 01",
+  unit: "Unit 1: Jobs",
+  title: "Hệ thống Nguyên âm IPA & Giao tiếp Nghề nghiệp",
+  subtitle: "Phát âm & Phản xạ — Vowel Sounds · Talking about jobs",
+  audioSrc: null, // chưa có file audio → không render FloatingAudioPlayer
+  goals: [
+    "Nhận diện và phát âm đúng 12 nguyên âm đơn và 8 nguyên âm đôi trong IPA.",
+    "Phân biệt nguyên âm ngắn – dài (ship / sheep, full / fool) khi nghe và nói.",
+    "Dùng được 17 từ & cụm từ để nói về công việc của mình.",
+    "Hỏi – đáp tự nhiên 10 câu hỏi thường gặp về nghề nghiệp, giữ được mạch hội thoại.",
+  ],
+};
+
+const MONOPHTHONGS = [
+  { ipa: "iː", type: "long", tip: "“i” kéo dài, môi căng sang hai bên như đang cười.", job: "cleaner", jobIpa: "/ˈkliːnə/", more: "teach · speak · need" },
+  { ipa: "ɪ", type: "short", tip: "“i” ngắn, thả lỏng, hơi ngả về “ê”. Không kéo dài.", job: "builder", jobIpa: "/ˈbɪldə/", more: "business · sit · quick" },
+  { ipa: "e", type: "short", tip: "Gần giống “e” tiếng Việt, miệng mở vừa phải.", job: "chef", jobIpa: "/ʃef/", more: "well · help · desk" },
+  { ipa: "æ", type: "short", tip: "Giữa “a” và “e”: hạ hàm thật thấp, mở rộng miệng sang ngang.", job: "manager", jobIpa: "/ˈmænɪdʒə/", more: "bank · staff · plan" },
+  { ipa: "ʌ", type: "short", tip: "Giống “ă” ngắn, miệng mở vừa, thả lỏng.", job: "plumber", jobIpa: "/ˈplʌmə/", more: "run · company · money" },
+  { ipa: "ɑː", type: "long", tip: "“a” dài, mở to miệng, lưỡi lùi về sau.", job: "farmer", jobIpa: "/ˈfɑːmə/", more: "start · part-time · hard" },
+  { ipa: "ɒ", type: "short", tip: "“o” ngắn, môi hơi tròn, mở miệng khá rộng.", job: "doctor", jobIpa: "/ˈdɒktə/", more: "job · boss · office" },
+  { ipa: "ɔː", type: "long", tip: "“o” dài, môi tròn và hơi đưa ra trước.", job: "reporter", jobIpa: "/rɪˈpɔːtə/", more: "course · short · four" },
+  { ipa: "ʊ", type: "short", tip: "“u” ngắn, môi chỉ hơi tròn, không chu nhiều.", job: "cook", jobIpa: "/kʊk/", more: "good · book · full-time" },
+  { ipa: "uː", type: "long", tip: "“u” dài, chu môi tròn ra trước.", job: "tutor", jobIpa: "/ˈtjuːtə/", more: "school · choose · new" },
+  { ipa: "ɜː", type: "long", tip: "“ơ” dài, môi thả lỏng, lưỡi nằm giữa miệng.", job: "nurse", jobIpa: "/nɜːs/", more: "work · earn · early" },
+  { ipa: "ə", type: "short", tip: "Âm schwa: “ơ” rất ngắn, rất nhẹ, luôn ở âm tiết không nhấn.", job: "teacher", jobIpa: "/ˈtiːtʃə/", more: "about · police · computer" },
+];
+
+const DIPHTHONGS = [
+  { ipa: "eɪ", type: "diph", tip: "Trượt từ /e/ sang /ɪ/ — gần “ây”.", job: "waiter", jobIpa: "/ˈweɪtə/", more: "pay · train · make" },
+  { ipa: "aɪ", type: "diph", tip: "Trượt từ /a/ sang /ɪ/ — gần “ai”.", job: "pilot", jobIpa: "/ˈpaɪlət/", more: "time · deadline · hire" },
+  { ipa: "ɔɪ", type: "diph", tip: "Trượt từ /ɔ/ sang /ɪ/ — gần “oi”.", job: "lawyer", jobIpa: "/ˈlɔɪə/", more: "employ · choice · annoying" },
+  { ipa: "aʊ", type: "diph", tip: "Trượt từ /a/ sang /ʊ/ — gần “ao”.", job: "accountant", jobIpa: "/əˈkaʊntənt/", more: "hours · out · now" },
+  { ipa: "əʊ", type: "diph", tip: "Trượt từ /ə/ sang /ʊ/ — gần “âu”, không đọc thành “ô”.", job: "postman", jobIpa: "/ˈpəʊstmən/", more: "phone · go home · close" },
+  { ipa: "ɪə", type: "diph", tip: "Trượt từ /ɪ/ sang /ə/ — gần “ia”.", job: "engineer", jobIpa: "/ˌendʒɪˈnɪə/", more: "career · near · here" },
+  { ipa: "eə", type: "diph", tip: "Trượt từ /e/ sang /ə/ — gần “e-ơ”.", job: "hairdresser", jobIpa: "/ˈheədresə/", more: "there · care · share" },
+  { ipa: "ʊə", type: "diph", tip: "Trượt từ /ʊ/ sang /ə/ — gần “u-ơ”. Nhiều người Anh trẻ đọc thành /ɔː/.", job: "tour guide", jobIpa: "/ˈtʊə ɡaɪd/", more: "tour · sure · poor" },
+];
+
+const COMMON_MISTAKES = [
+  { wrong: "Đọc ship và sheep giống nhau", fix: "/ɪ/ ngắn & thả lỏng, /iː/ dài & căng môi. Độ dài làm thay đổi nghĩa." },
+  { wrong: "Đọc rõ “ơ” ở cuối teacher, doctor", fix: "Âm cuối là schwa /ə/ — đọc thật nhẹ và ngắn, dồn lực vào âm tiết đầu." },
+  { wrong: "Đọc man /mæn/ thành “men”", fix: "/æ/ phải hạ hàm thật thấp, mở miệng rộng hơn /e/." },
+  { wrong: "Đọc phone thành “phôn”", fix: "/əʊ/ là nguyên âm đôi: bắt đầu ở “ơ” rồi trượt về “u”." },
+];
+
+const MINIMAL_PAIRS = [
+  { a: "sheep", ai: "/ʃiːp/", b: "ship", bi: "/ʃɪp/" },
+  { a: "leave", ai: "/liːv/", b: "live", bi: "/lɪv/" },
+  { a: "seat", ai: "/siːt/", b: "sit", bi: "/sɪt/" },
+  { a: "fool", ai: "/fuːl/", b: "full", bi: "/fʊl/" },
+  { a: "pool", ai: "/puːl/", b: "pull", bi: "/pʊl/" },
+  { a: "bed", ai: "/bed/", b: "bad", bi: "/bæd/" },
+  { a: "pen", ai: "/pen/", b: "pan", bi: "/pæn/" },
+  { a: "cat", ai: "/kæt/", b: "cut", bi: "/kʌt/" },
+  { a: "cap", ai: "/kæp/", b: "cup", bi: "/kʌp/" },
+  { a: "heart", ai: "/hɑːt/", b: "hurt", bi: "/hɜːt/" },
+  { a: "walk", ai: "/wɔːk/", b: "work", bi: "/wɜːk/" },
+  { a: "cot", ai: "/kɒt/", b: "caught", bi: "/kɔːt/" },
+];
+
+const JOB_VOCAB = [
+  { word: "accountant", phonetic: "/əˈkaʊntənt/", meaning: "kế toán", example: "My sister is an accountant." },
+  { word: "engineer", phonetic: "/ˌendʒɪˈnɪə/", meaning: "kỹ sư", example: "He works as a software engineer." },
+  { word: "receptionist", phonetic: "/rɪˈsepʃənɪst/", meaning: "lễ tân", example: "The receptionist was very friendly." },
+  { word: "sales assistant", phonetic: "/ˈseɪlz əˌsɪstənt/", meaning: "nhân viên bán hàng", example: "I worked as a sales assistant last summer." },
+  { word: "civil servant", phonetic: "/ˌsɪvl ˈsɜːvənt/", meaning: "công chức nhà nước", example: "Her dad is a civil servant." },
+  { word: "freelancer", phonetic: "/ˈfriːlɑːnsə/", meaning: "người làm tự do", example: "As a freelancer, I choose my projects." },
+];
+
+const DIALOGUE = [
+  {
+    heading: "Mở đầu: hỏi nghề nghiệp",
+    lines: [
+      { who: "Tom", line: "So, what do you do, Linh?" },
+      { who: "Linh", line: "I'm an accountant. I work for a big company in District 1." },
+      { who: "Tom", line: "Oh really? Do you enjoy it?" },
+      { who: "Linh", line: "Yeah, most of the time. It's well-paid, but it can be quite stressful at the end of the year." },
+    ],
+    vocabHighlights: [
+      { word: "well-paid", phonetic: "/ˌwel ˈpeɪd/", meaning: "lương cao", example: "It's a well-paid job." },
+      { word: "stressful", phonetic: "/ˈstresfl/", meaning: "căng thẳng, áp lực", example: "Exams are stressful." },
+    ],
+  },
+  {
+    heading: "Hỏi lại: And you?",
+    lines: [
+      { who: "Tom", line: "How long have you worked there?" },
+      { who: "Linh", line: "About three years now. What about you?" },
+      { who: "Tom", line: "I'm self-employed. I run my own small design business." },
+      { who: "Linh", line: "That sounds great! So you can work from home?" },
+      { who: "Tom", line: "Yes, I have flexible hours, which is nice. But I work really long hours when there's a deadline." },
+    ],
+    vocabHighlights: [
+      { word: "self-employed", phonetic: "/ˌself ɪmˈplɔɪd/", meaning: "tự kinh doanh, làm chủ", example: "My uncle is self-employed." },
+      { word: "run a business", phonetic: "/rʌn ə ˈbɪznəs/", meaning: "điều hành công việc kinh doanh", example: "She runs a small café." },
+      { word: "flexible hours", phonetic: "/ˌfleksəbl ˈaʊəz/", meaning: "giờ giấc linh hoạt", example: "I love my flexible hours." },
+    ],
+  },
+  {
+    heading: "Đào sâu: công việc gồm những gì?",
+    lines: [
+      { who: "Linh", line: "What does your job involve?" },
+      { who: "Tom", line: "Mostly I deal with clients and design logos and websites." },
+      { who: "Tom", line: "I'm in charge of everything, from the creative side to the money side." },
+      { who: "Linh", line: "Wow, so you're your own boss!" },
+    ],
+    vocabHighlights: [
+      { word: "involve", phonetic: "/ɪnˈvɒlv/", meaning: "bao gồm, liên quan đến", example: "My job involves a lot of travel." },
+      { word: "deal with", phonetic: "/ˈdiːl wɪð/", meaning: "làm việc với, xử lý", example: "I deal with customers every day." },
+      { word: "be in charge of", phonetic: "/bi ɪn ˈtʃɑːdʒ əv/", meaning: "phụ trách", example: "She's in charge of the team." },
+    ],
+  },
+  {
+    heading: "Kết: điều tốt – điều chưa tốt",
+    lines: [
+      { who: "Tom", line: "Exactly. The only thing I don't like is that I don't get paid holidays." },
+      { who: "Tom", line: "And you? Do you have to commute far?" },
+      { who: "Linh", line: "Not really. It's only fifteen minutes by motorbike. But the traffic in the rush hour is terrible!" },
+    ],
+    vocabHighlights: [
+      { word: "paid holidays", phonetic: "/ˌpeɪd ˈhɒlədeɪz/", meaning: "ngày nghỉ có lương", example: "We get 12 paid holidays a year." },
+      { word: "commute", phonetic: "/kəˈmjuːt/", meaning: "đi lại (giữa nhà và nơi làm)", example: "I commute by bus." },
+      { word: "rush hour", phonetic: "/ˈrʌʃ aʊə/", meaning: "giờ cao điểm", example: "Avoid driving in the rush hour." },
+    ],
+  },
+];
+
+const QUESTIONS = [
+  { q: "What do you do?", vi: "Bạn làm nghề gì?", frames: ["I'm a / an …", "I work as a …", "I'm a student. I'm studying …"], sample: "I'm a nurse. I work at a hospital in Binh Thanh District." },
+  { q: "Where do you work?", vi: "Bạn làm ở đâu?", frames: ["I work for + công ty", "I work in + lĩnh vực / phòng ban", "I work at + địa điểm"], sample: "I work for a bank. I'm in the marketing department." },
+  { q: "What does your job involve?", vi: "Công việc của bạn gồm những gì?", frames: ["It involves + V-ing …", "I deal with …", "I'm in charge of …"], sample: "It involves talking to customers and solving their problems. I'm also in charge of training new staff." },
+  { q: "Do you enjoy it?", vi: "Bạn có thích công việc không?", frames: ["Yeah, I love it because …", "It's OK, but …", "Not really, to be honest. …"], sample: "Yeah, I really enjoy it because I meet different people every day. But it can be tiring." },
+  { q: "What hours do you work?", vi: "Bạn làm việc giờ giấc thế nào?", frames: ["I work nine to five.", "I do shift work.", "I have flexible hours."], sample: "I usually work nine to five, Monday to Friday, but sometimes I work late." },
+  { q: "How long have you worked there?", vi: "Bạn làm ở đó bao lâu rồi?", frames: ["For about … years.", "Since + năm.", "Not long — only a few months."], sample: "For about two years. I started there in 2024." },
+  { q: "How do you get to work?", vi: "Bạn đi làm bằng gì?", frames: ["I go by bus / motorbike.", "I commute about … minutes.", "I work from home, so …"], sample: "I go by motorbike. It's about twenty minutes, but longer in the rush hour." },
+  { q: "What's the best thing about your job?", vi: "Điều tuyệt nhất ở công việc của bạn?", frames: ["The best thing is (that) …", "I really like the fact that …"], sample: "The best thing is my colleagues. They're really friendly and helpful." },
+  { q: "Is there anything you don't like about it?", vi: "Có điều gì bạn không thích không?", frames: ["The only thing I don't like is …", "Sometimes it can be a bit …"], sample: "The only thing I don't like is the paperwork. There's so much of it!" },
+  { q: "Would you like to change jobs in the future?", vi: "Bạn có muốn đổi việc trong tương lai không?", frames: ["I'd love to … one day.", "I'm thinking of …", "No, I'm happy where I am."], sample: "Maybe. I'd love to run my own business one day, but not yet." },
+];
+
+const KEEP_GOING = [
+  { phrase: "And you? / What about you?", note: "Hỏi lại ngay sau khi trả lời — đừng để hội thoại dừng ở bạn." },
+  { phrase: "Oh really? How long have you done that?", note: "Phản ứng + câu hỏi nối tiếp." },
+  { phrase: "That sounds interesting / tiring / fun!", note: "Bình luận ngắn trước khi hỏi tiếp." },
+  { phrase: "So you…, right?", note: "Nhắc lại ý người kia để kiểm tra và thể hiện bạn đang nghe." },
+];
+
+const HOMEWORK = [
+  "Đọc to 20 từ nghề nghiệp ở bảng IPA, mỗi từ 3 lần — chú ý âm cuối /ə/.",
+  "Làm quiz cặp âm đến khi đạt ít nhất 8/10.",
+  "Ghi âm bài tự giới thiệu công việc / việc học của bạn (khoảng 1 phút), dùng ít nhất 5 từ vựng trong bài.",
+  "Đóng vai hội thoại Tom – Linh với một người bạn, thay thông tin bằng công việc thật của hai người.",
+  "Luyện phản xạ 10 câu hỏi ở chế độ đếm giờ, trả lời được ≥ 2 câu cho mỗi câu hỏi.",
+];
+
+/* ===========================================================
+   Section wrapper
+=========================================================== */
+function Section({ id, step, title, desc, children }) {
+  return (
+    <section id={id} className="scroll-mt-20">
+      <div className="mb-5 flex items-end gap-3">
+        <span className="text-4xl font-extrabold leading-none text-primary/15">{step}</span>
+        <div>
+          <h2 className="text-xl font-extrabold text-slate-900 sm:text-2xl">{title}</h2>
+          {desc && <p className="mt-1 text-sm text-slate-500">{desc}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/* ===========================================================
+   VowelChart — bảng 20 nguyên âm, chạm để nghe từ ví dụ
+=========================================================== */
+function VowelCard({ v }) {
+  const [open, setOpen] = useState(false);
+  const badge = v.type === 'long'
+    ? 'bg-indigo-100 text-primary'
+    : v.type === 'short'
+    ? 'bg-amber-100 text-amber-700'
+    : 'bg-sky-100 text-sky-700';
+  const badgeText = v.type === 'long' ? 'Dài' : v.type === 'short' ? 'Ngắn' : 'Đôi';
+
+  return (
+    <div
+      onClick={() => { setOpen(!open); speak(v.job, 0.8); }}
+      className={`cursor-pointer rounded-3xl border bg-white p-4 shadow-floating transition hover:-translate-y-0.5 ${open ? 'border-primary/40' : 'border-slate-200'}`}
+    >
+      <div className="flex items-start justify-between">
+        <span className="font-serif text-3xl font-bold text-slate-900">/{v.ipa}/</span>
+        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${badge}`}>{badgeText}</span>
+      </div>
+      <p className="mt-2 text-base font-bold text-primary">{v.job}</p>
+      <p className="text-xs text-slate-400">{v.jobIpa}</p>
+      {open && (
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <p className="text-xs leading-relaxed text-slate-600">{v.tip}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {v.more.split(' · ').map((w) => (
+              <SpeakButton key={w} text={w} label={w} rate={0.8} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VowelChart() {
+  const [tab, setTab] = useState('mono');
+  const list = tab === 'mono' ? MONOPHTHONGS : DIPHTHONGS;
+  return (
+    <div>
+      <div className="mb-4 inline-flex rounded-full border border-slate-200 bg-white p-1 shadow-sm">
+        {[['mono', '12 nguyên âm đơn'], ['diph', '8 nguyên âm đôi']].map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition ${tab === k ? 'bg-primary text-white shadow-premium' : 'text-slate-500 hover:text-slate-800'}`}
+          >{label}</button>
+        ))}
+      </div>
+      <p className="mb-4 text-sm text-slate-500">Chạm vào từng thẻ để nghe từ ví dụ (tên một nghề) và xem mẹo khẩu hình.</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {list.map((v) => <VowelCard key={v.ipa} v={v} />)}
+      </div>
+
+      <div className="mt-6 rounded-3xl border border-rose-100 bg-rose-50/60 p-5">
+        <p className="mb-3 text-sm font-bold text-rose-600">Lỗi người Việt hay gặp</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {COMMON_MISTAKES.map((m, i) => (
+            <div key={i} className="rounded-2xl bg-white p-3 text-sm shadow-sm">
+              <p className="font-semibold text-slate-800">✗ {m.wrong}</p>
+              <p className="mt-1 text-slate-600">✓ {m.fix}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ===========================================================
+   MinimalPairQuiz — nghe & chọn đúng từ
+=========================================================== */
+const QUIZ_ROUNDS = 10;
+
+function makeRound() {
+  const pair = MINIMAL_PAIRS[Math.floor(Math.random() * MINIMAL_PAIRS.length)];
+  const answer = Math.random() < 0.5 ? 'a' : 'b';
+  const swap = Math.random() < 0.5;
+  return { pair, answer, order: swap ? ['b', 'a'] : ['a', 'b'] };
+}
+
+function MinimalPairQuiz() {
+  const [round, setRound] = useState(() => makeRound());
+  const [n, setN] = useState(1);
+  const [score, setScore] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [done, setDone] = useState(false);
+
+  const word = round.pair[round.answer];
+  const play = () => speak(word, 0.8);
+
+  const choose = (k) => {
+    if (picked) return;
+    setPicked(k);
+    if (k === round.answer) setScore((s) => s + 1);
+  };
+
+  const next = () => {
+    if (n >= QUIZ_ROUNDS) { setDone(true); return; }
+    const r = makeRound();
+    setRound(r); setPicked(null); setN(n + 1);
+    setTimeout(() => speak(r.pair[r.answer], 0.8), 150);
+  };
+
+  const restart = () => { setRound(makeRound()); setN(1); setScore(0); setPicked(null); setDone(false); };
+
+  if (!TTS_OK) {
+    return <p className="rounded-3xl bg-white p-6 text-sm text-slate-500 shadow-floating">Thiết bị này chưa hỗ trợ giọng đọc — hãy mở bằng Chrome hoặc Safari để làm quiz.</p>;
+  }
+
+  if (done) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-floating">
+        <p className="text-sm font-semibold text-slate-500">Kết quả</p>
+        <p className="mt-1 text-5xl font-extrabold text-primary">{score}/{QUIZ_ROUNDS}</p>
+        <p className="mt-2 text-slate-600">{score >= 8 ? 'Tai nghe rất tốt! 🎉' : 'Nghe lại bảng nguyên âm rồi thử lần nữa nhé.'}</p>
+        <button onClick={restart} className="mt-5 rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white shadow-premium">Làm lại</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-floating">
+      <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
+        <span>Câu {n}/{QUIZ_ROUNDS}</span>
+        <span>Đúng: {score}</span>
+      </div>
+      <div className="mt-1 h-1.5 w-full rounded-full bg-slate-100">
+        <div className="h-1.5 rounded-full bg-primary transition-all" style={{ width: `${(n - 1) / QUIZ_ROUNDS * 100}%` }} />
+      </div>
+      <div className="mt-6 flex flex-col items-center">
+        <button onClick={play} className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-2xl text-white shadow-premium transition hover:bg-primary-dark">🔊</button>
+        <p className="mt-2 text-xs text-slate-400">Bấm để nghe — bạn nghe thấy từ nào?</p>
+      </div>
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        {round.order.map((k) => {
+          const w = round.pair[k];
+          const ipa = round.pair[k + 'i'];
+          let style = 'border-slate-200 bg-slate-50 hover:border-primary/40';
+          if (picked) {
+            if (k === round.answer) style = 'border-emerald-300 bg-emerald-50';
+            else if (k === picked) style = 'border-rose-300 bg-rose-50';
+            else style = 'border-slate-200 bg-slate-50 opacity-60';
+          }
+          return (
+            <button key={k} onClick={() => choose(k)} className={`rounded-2xl border-2 p-4 text-center transition ${style}`}>
+              <p className="text-xl font-bold text-slate-800">{w}</p>
+              <p className="text-sm text-slate-500">{ipa}</p>
+            </button>
+          );
+        })}
+      </div>
+      {picked && (
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <p className={`text-sm font-semibold ${picked === round.answer ? 'text-emerald-600' : 'text-rose-500'}`}>
+            {picked === round.answer ? 'Chính xác!' : `Chưa đúng — đáp án là “${word}”.`}
+          </p>
+          <div className="flex gap-2">
+            <SpeakButton text={round.pair.a} label={round.pair.a} rate={0.8} />
+            <SpeakButton text={round.pair.b} label={round.pair.b} rate={0.8} />
+            <button onClick={next} className="rounded-full bg-primary px-4 py-1.5 text-xs font-semibold text-white shadow-premium">
+              {n >= QUIZ_ROUNDS ? 'Xem kết quả' : 'Câu tiếp →'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===========================================================
+   ReflexDrill — luyện phản xạ có đếm giờ
+=========================================================== */
+const THINK_SECONDS = 15;
+
+function ReflexDrill() {
+  const [idx, setIdx] = useState(0);
+  const [phase, setPhase] = useState('ready'); // ready | answering | reveal
+  const [left, setLeft] = useState(THINK_SECONDS);
+  const [shuffle, setShuffle] = useState(false);
+  const [order, setOrder] = useState(QUESTIONS.map((_, i) => i));
+
+  const item = QUESTIONS[order[idx]];
+
+  useEffect(() => {
+    if (phase !== 'answering') return;
+    if (left <= 0) { setPhase('reveal'); return; }
+    const t = setTimeout(() => setLeft((l) => l - 1), 1000);
+    return () => clearTimeout(t);
+  }, [phase, left]);
+
+  const start = () => { setLeft(THINK_SECONDS); setPhase('answering'); speak(item.q, 0.9); };
+  const go = (d) => {
+    const ni = (idx + d + order.length) % order.length;
+    setIdx(ni); setPhase('ready'); setLeft(THINK_SECONDS);
+  };
+  const toggleShuffle = () => {
+    const next = !shuffle;
+    setShuffle(next);
+    const base = QUESTIONS.map((_, i) => i);
+    if (next) base.sort(() => Math.random() - 0.5);
+    setOrder(base); setIdx(0); setPhase('ready');
+  };
+
+  const pct = (left / THINK_SECONDS) * 100;
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-floating">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-slate-400">Câu {idx + 1}/{order.length}</span>
+        <button onClick={toggleShuffle} className={`rounded-full px-3 py-1 text-xs font-semibold ${shuffle ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500'}`}>🔀 Xáo trộn</button>
+      </div>
+
+      <div className="mt-5 text-center">
+        <p className="text-2xl font-extrabold text-slate-900 sm:text-3xl">{item.q}</p>
+        <p className="mt-1 text-sm text-slate-400">{item.vi}</p>
+        <SpeakButton text={item.q} label="Nghe câu hỏi" className="mt-3" />
+      </div>
+
+      {phase === 'ready' && (
+        <div className="mt-6 text-center">
+          <button onClick={start} className="rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-premium hover:bg-primary-dark">Bắt đầu trả lời ({THINK_SECONDS}s)</button>
+          <p className="mt-2 text-xs text-slate-400">Nói to câu trả lời của bạn trước khi hết giờ.</p>
+        </div>
+      )}
+
+      {phase === 'answering' && (
+        <div className="mt-6">
+          <div className="h-2 w-full rounded-full bg-slate-100">
+            <div className={`h-2 rounded-full transition-all duration-1000 ${left <= 5 ? 'bg-rose-400' : 'bg-primary'}`} style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mt-3 text-center text-4xl font-extrabold tabular-nums text-primary">{left}</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2">
+            {item.frames.map((f) => (
+              <span key={f} className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{f}</span>
+            ))}
+          </div>
+          <div className="mt-4 text-center">
+            <button onClick={() => setPhase('reveal')} className="text-xs font-semibold text-slate-400 underline">Xem câu mẫu luôn</button>
+          </div>
+        </div>
+      )}
+
+      {phase === 'reveal' && (
+        <div className="mt-6 rounded-2xl bg-sky-50 p-4">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-sky-700">Câu trả lời mẫu</p>
+          <p className="mt-1 leading-relaxed text-slate-800">{item.sample}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <SpeakButton text={item.sample} label="Nghe mẫu" rate={0.85} className="bg-white" />
+            <button onClick={start} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">↺ Thử lại</button>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex justify-between">
+        <button onClick={() => go(-1)} className="rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100">← Trước</button>
+        <button onClick={() => go(1)} className="rounded-full bg-primary-light px-4 py-2 text-sm font-semibold text-primary hover:bg-indigo-100">Câu tiếp →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ===========================================================
+   Homework checklist
+=========================================================== */
+function Homework() {
+  const KEY = 'night-giaotiep-b01-homework';
+  const [done, setDone] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; }
+  });
+  const toggle = (i) => {
+    const next = done.includes(i) ? done.filter((x) => x !== i) : [...done, i];
+    setDone(next);
+    try { localStorage.setItem(KEY, JSON.stringify(next)); } catch (e) {}
+  };
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-floating">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-500">Hoàn thành {done.length}/{HOMEWORK.length}</p>
+        {done.length === HOMEWORK.length && <span className="text-sm font-bold text-emerald-600">Xuất sắc! 🎉</span>}
+      </div>
+      <ul className="space-y-2">
+        {HOMEWORK.map((h, i) => (
+          <li key={i}>
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl p-2 hover:bg-slate-50">
+              <input type="checkbox" checked={done.includes(i)} onChange={() => toggle(i)} className="mt-1 h-4 w-4 accent-primary" />
+              <span className={`text-sm leading-relaxed ${done.includes(i) ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{h}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* ===========================================================
+   App
+=========================================================== */
+const NAV = [
+  ['phat-am', 'Nguyên âm'],
+  ['cap-am', 'Quiz cặp âm'],
+  ['tu-vung', 'Từ vựng'],
+  ['hoi-thoai', 'Hội thoại'],
+  ['phan-xa', 'Phản xạ'],
+  ['ve-nha', 'Về nhà'],
+];
+
+function App() {
+  const readingRef = useRef(null);
+  const [accent, setAccent] = useState(ACCENT);
+  const changeAccent = (a) => { ACCENT = a; setAccent(a); };
+
+  return (
+    <div className="min-h-screen pb-24">
+      <nav className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md">
+        <div className="mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2">
+          {NAV.map(([id, label]) => (
+            <a key={id} href={`#${id}`} className="flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary">{label}</a>
+          ))}
+          <div className="ml-auto flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5">
+            {[['en-GB', 'UK'], ['en-US', 'US']].map(([k, l]) => (
+              <button key={k} onClick={() => changeAccent(k)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? 'bg-white text-primary shadow-sm' : 'text-slate-400'}`}>{l}</button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      <header className="mx-auto max-w-3xl px-4 pt-10 text-center">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Night IELTS</p>
+        <p className="mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold">
+          <span className="rounded-full bg-primary-light px-3 py-1 text-primary">{LESSON.course}</span>
+          <span className="rounded-full bg-amber-100 px-3 py-1 text-amber-700">{LESSON.session} · {LESSON.unit}</span>
+        </p>
+        <h1 className="mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl">{LESSON.title}</h1>
+        <p className="mt-2 text-slate-500">{LESSON.subtitle}</p>
+      </header>
+
+      <div className="mx-auto mt-8 max-w-3xl px-4">
+        <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating">
+          <p className="mb-3 text-sm font-bold text-slate-700">🎯 Sau buổi học, bạn sẽ:</p>
+          <ul className="space-y-2">
+            {LESSON.goals.map((g, i) => (
+              <li key={i} className="flex gap-2 text-sm text-slate-600"><span className="font-bold text-primary">{i + 1}.</span>{g}</li>
+            ))}
+          </ul>
+          {!TTS_OK && <p className="mt-3 text-xs text-rose-500">Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động.</p>}
+        </div>
+      </div>
+
+      <main ref={readingRef} className="mx-auto mt-12 max-w-4xl space-y-16 px-4">
+        <Section id="phat-am" step="01" title="Hệ thống nguyên âm IPA" desc="20 nguyên âm tiếng Anh, mỗi âm gắn với tên một nghề nghiệp.">
+          <VowelChart />
+        </Section>
+
+        <Section id="cap-am" step="02" title="Quiz cặp âm tối thiểu" desc="Nghe và chọn đúng từ — luyện tai phân biệt nguyên âm ngắn/dài.">
+          <div className="mx-auto max-w-xl"><MinimalPairQuiz /></div>
+        </Section>
+
+        <Section id="tu-vung" step="03" title="Từ vựng nghề nghiệp" desc="Lật thẻ để xem nghĩa. Bấm 🔊 để nghe phát âm.">
+          <div className="grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3">
+            {JOB_VOCAB.map((v) => <InteractiveVocab key={v.word} {...v} />)}
+          </div>
+          <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating">
+            <p className="mb-2 font-bold text-slate-700">Giới từ đi với “work”</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p><b className="text-primary">work for</b> + công ty — <i>I work for a bank.</i></p>
+              <p><b className="text-primary">work in</b> + lĩnh vực/phòng ban — <i>I work in sales.</i></p>
+              <p><b className="text-primary">work at</b> + địa điểm — <i>I work at a hospital.</i></p>
+              <p><b className="text-primary">work as</b> + nghề — <i>I work as a tour guide.</i></p>
+            </div>
+          </div>
+        </Section>
+
+        <Section id="hoi-thoai" step="04" title="Hội thoại mẫu: What do you do?" desc="Tom và Linh gặp nhau ở một buổi tiệc. Đọc, nghe từng câu, rồi đóng vai.">
+          <div className="space-y-8">
+            {DIALOGUE.map((p, i) => <ParagraphBlock key={i} index={i + 1} {...p} />)}
+          </div>
+          <div className="mt-8 rounded-3xl border border-amber-200 bg-amber-50/70 p-5">
+            <p className="mb-3 text-sm font-bold text-amber-800">💬 Giữ mạch hội thoại</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {KEEP_GOING.map((k) => (
+                <div key={k.phrase} className="rounded-2xl bg-white p-3 shadow-sm">
+                  <p className="flex items-center justify-between gap-2 font-semibold text-slate-800">{k.phrase}<SpeakButton text={k.phrase} /></p>
+                  <p className="mt-1 text-xs text-slate-500">{k.note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Section>
+
+        <Section id="phan-xa" step="05" title="Phản xạ: Questions about jobs" desc="Nghe câu hỏi → trả lời to trong 15 giây → so với câu mẫu.">
+          <div className="mx-auto max-w-2xl"><ReflexDrill /></div>
+        </Section>
+
+        <Section id="ve-nha" step="06" title="Bài tập về nhà" desc="Đánh dấu khi hoàn thành — trang sẽ nhớ trên thiết bị này.">
+          <div className="mx-auto max-w-2xl"><Homework /></div>
+        </Section>
+      </main>
+
+      <SelectionTranslateTooltip containerRef={readingRef} />
+
+      <footer className="mx-auto mt-16 max-w-3xl px-4 text-center">
+        <p className="text-[11px] text-slate-400">Night IELTS · by Mr. Night</p>
+      </footer>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
