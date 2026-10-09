@@ -668,18 +668,23 @@
     ))), /* @__PURE__ */ React.createElement("div", { className: "grid gap-4 md:grid-cols-2" }, g.rows.map((r) => /* @__PURE__ */ React.createElement(PhonicsCard, { key: r.letters || r.ipa, row: r }))));
   }
   function StressWord({ w }) {
-    const syl = w.split("·");
-    const isStress = (x) => x === x.toUpperCase() && /[A-Z]/.test(x);
-    const plain = syl.join("").toLowerCase();
+    const sentence = w.indexOf(" ") >= 0;
+    const syl = sentence ? w.split(" ") : w.split("·");
+    const isStress = (x) => {
+      const core = x.replace(/[^A-Za-z']/g, "");
+      if (sentence) return core.length >= 2 && core === core.toUpperCase();
+      return x === x.toUpperCase() && /[A-Z]/.test(x);
+    };
+    const plain = sentence ? w.toLowerCase() : syl.join("").toLowerCase();
     return /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
-        onClick: () => speak(plain, 0.75),
-        className: "flex flex-col items-center rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200 transition hover:ring-primary/40"
+        onClick: () => speak(plain, sentence ? 0.85 : 0.75),
+        className: `flex flex-col items-center rounded-2xl bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200 transition hover:ring-primary/40 ${sentence ? "w-full" : ""}`
       },
       /* @__PURE__ */ React.createElement("span", { className: "flex items-end gap-1.5" }, syl.map((x, i) => isStress(x) ? /* @__PURE__ */ React.createElement("span", { key: i, className: "h-3.5 w-3.5 rounded-full bg-primary" }) : /* @__PURE__ */ React.createElement("span", { key: i, className: "mb-0.5 h-2 w-2 rounded-full bg-slate-300" }))),
-      /* @__PURE__ */ React.createElement("span", { className: "mt-1 text-sm text-slate-500" }, syl.map((x, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: isStress(x) ? "font-extrabold text-primary" : "" }, x.toLowerCase(), i < syl.length - 1 ? "·" : "")))
+      /* @__PURE__ */ React.createElement("span", { className: `mt-1 text-slate-500 ${sentence ? "text-base" : "text-sm"}` }, syl.map((x, i) => sentence ? /* @__PURE__ */ React.createElement("span", { key: i, className: isStress(x) ? "font-extrabold text-primary" : "" }, x, i < syl.length - 1 ? " " : "") : /* @__PURE__ */ React.createElement("span", { key: i, className: isStress(x) ? "font-extrabold text-primary" : "" }, x.toLowerCase(), i < syl.length - 1 ? "·" : "")))
     );
   }
   function StressGrid({ groups = [], intro }) {
