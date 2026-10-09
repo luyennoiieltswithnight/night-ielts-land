@@ -12,7 +12,7 @@
     if (!TTS_OK || !text) return;
     try {
       window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(String(text).replace(/‿/g, " "));
       u.lang = ACCENT;
       const v = pickVoice(ACCENT);
       if (v) u.voice = v;
