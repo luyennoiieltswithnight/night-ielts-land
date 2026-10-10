@@ -1684,12 +1684,37 @@ Is it better to read a physical book or an e-book?"></textarea>
     } catch (e) { return null; }
   }
 
+  // Bộ câu hỏi gửi kèm từ trang bài học khóa Speaking 6.0 (khoahoc/speaking6/buoi-XX.html):
+  // link dạng speaking.html?packageId=sp6-b01-p1&pkg=<base64url JSON {title, part, questions:[{part,text}]}>.
+  // Nếu Firebase chưa có bộ này thì dùng luôn bộ trong link và lưu lên Firebase (id cố định) —
+  // nên thầy KHÔNG phải tạo tay; nếu đã có (thầy sửa / thêm gợi ý AI) thì bản trên Firebase được ưu tiên.
+  function lessonSeedPackage() {
+    const raw = params.get('pkg');
+    if (!raw || !/^sp6-[a-z0-9-]{1,60}$/.test(packageId || '')) return null;
+    try {
+      const json = decodeURIComponent(escape(atob(raw.replace(/-/g, '+').replace(/_/g, '/'))));
+      const p = JSON.parse(json);
+      const qs = (Array.isArray(p.questions) ? p.questions : []).slice(0, 30)
+        .map(q => ({ part: String(q.part || p.part || '1'), text: String(q.text || '').trim().slice(0, 1500) }))
+        .filter(q => q.text)
+        .map((q, i) => ({ id: 'q' + i, part: q.part, text: q.text, tipHtml: '' }));
+      if (!qs.length) return null;
+      return { title: String(p.title || 'Speaking 6.0').slice(0, 120), part: String(p.part || qs[0].part), ownerId: 'lesson-speaking6', questions: qs, createdAt: Date.now() };
+    } catch (e) { return null; }
+  }
+
   async function enterPracticeView(uid, role) {
-    let snap;
+    let snap = null, connErr = false;
     try { snap = await cacheFirstDoc(doc(db, 'speakingPackages', packageId)); }
-    catch (e) { showError('Lỗi kết nối máy chủ. Kiểm tra lại mạng và thử tải lại trang.'); return; }
-    if (!snap.exists()) { showError('Bộ câu hỏi không tồn tại hoặc đã bị xoá.'); return; }
-    __pkg = Object.assign({ id: snap.id }, snap.data());
+    catch (e) { connErr = true; }
+    if (snap && snap.exists()) {
+      __pkg = Object.assign({ id: snap.id }, snap.data());
+    } else {
+      const seeded = lessonSeedPackage();
+      if (!seeded) { showError(connErr ? 'Lỗi kết nối máy chủ. Kiểm tra lại mạng và thử tải lại trang.' : 'Bộ câu hỏi không tồn tại hoặc đã bị xoá.'); return; }
+      __pkg = Object.assign({ id: packageId }, seeded);
+      authReady.then(() => setDoc(doc(db, 'speakingPackages', packageId), seeded)).catch(() => {});
+    }
     document.getElementById('pageTitle').textContent = __pkg.title;
     document.getElementById('pkgTitleLabel').textContent = __pkg.title;
     document.getElementById('pkgPartLabel').textContent = PART_LABELS[__pkg.part] || __pkg.part;
