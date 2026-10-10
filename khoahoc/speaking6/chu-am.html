@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night IELTS — Chữ ↔ Âm: nhìn chữ, đoán âm</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    fontFamily: { sans: ["Plus Jakarta Sans", "ui-sans-serif", "system-ui", "sans-serif"] },
+    colors: { primary: { DEFAULT: "#4338CA", light: "#EEF2FF", dark: "#312E81" } },
+    boxShadow: { floating: "0 20px 45px -12px rgba(30, 41, 59, 0.25)", premium: "0 10px 35px -8px rgba(67, 56, 202, 0.35)" }
+  } } };
+</script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="chu-am-core.js"></script>
+<style>
+  body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  .ipa { font-family: 'Charis SIL', 'Doulos SIL', 'Gentium Plus', 'Lucida Sans Unicode', 'Segoe UI', 'Plus Jakarta Sans', sans-serif; }
+  .blob { background: radial-gradient(ellipse at center, rgba(251, 113, 133, .28) 0%, rgba(251, 113, 133, .22) 55%, rgba(251, 113, 133, 0) 72%); }
+  @keyframes pop { 0% { transform: scale(.85); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+  .pop { animation: pop .25s ease-out; }
+  @keyframes shake { 0%,100% { transform: translateX(0) } 25% { transform: translateX(-4px) } 75% { transform: translateX(4px) } }
+  .shake { animation: shake .3s; }
+  .scroll-x::-webkit-scrollbar { height: 6px } .scroll-x::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9px }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+<div id="root"></div>
+<script>
+(function () {
+  const { useState, useEffect, useMemo } = React;
+  const h = React.createElement;
+  const { align } = window.ChuAm;
+
+  // 15 từ mẫu — phiên âm giọng Anh đã kiểm tay (ưu tiên hơn từ điển tự động)
+  const PRESETS = [
+    { level: "Dễ", words: [["cat", "kæt"], ["ship", "ʃɪp"], ["cake", "ˈkeɪk"], ["night", "naɪt"], ["phone", "fəʊn"]] },
+    { level: "Vừa", words: [["teacher", "ˈtiːtʃə"], ["school", "skuːl"], ["chef", "ʃef"], ["laugh", "lɑːf"], ["island", "ˈaɪlənd"]] },
+    { level: "Khó", words: [["chaos", "ˈkeɪɒs"], ["enough", "ɪˈnʌf"], ["Wednesday", "ˈwenzdeɪ"], ["comfortable", "ˈkʌmftəbl"], ["women", "ˈwɪmɪn"]] },
+  ];
+  const CHECKED = {};
+  PRESETS.forEach((g) => g.words.forEach(([w, ipa]) => { CHECKED[w.toLowerCase()] = ipa; }));
+  // Sửa vài từ thông dụng mà từ điển tự động đọc theo kiểu Mỹ / sai
+  Object.assign(CHECKED, { i: "aɪ", my: "maɪ", you: "juː", plant: "plɑːnt", plants: "plɑːnts", can: "kæn", ask: "ɑːsk", answer: "ˈɑːnsə", dance: "dɑːns", class: "klɑːs", last: "lɑːst", fast: "fɑːst", after: "ˈɑːftə", bath: "bɑːθ", half: "hɑːf", the: "ðə", a: "ə", and: "ənd", of: "əv", to: "tə", for: "fə", was: "wəz", are: "ɑː", routine: "ruːˈtiːn", certificate: "səˈtɪfɪkət", vegetables: "ˈvedʒtəblz", schedule: "ˈʃedjuːl", tomato: "təˈmɑːtəʊ", either: "ˈaɪðə", neither: "ˈnaɪðə", often: "ˈɒfn", been: "biːn", again: "əˈɡen" });
+
+  const COLORS = ["#2563EB", "#DC2626", "#059669", "#7C3AED", "#D97706", "#0891B2", "#DB2777", "#4F46E5", "#65A30D", "#B45309"];
+
+  // ---- Giọng đọc ----
+  const TTS = "speechSynthesis" in window;
+  function speak(text, rate) {
+    if (!TTS || !text) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text); u.lang = "en-GB"; u.rate = rate || 0.85;
+      const vs = speechSynthesis.getVoices() || [];
+      const v = vs.find((x) => x.lang === "en-GB" && /Google|Natural|Premium|Enhanced/i.test(x.name)) || vs.find((x) => x.lang === "en-GB") || vs.find((x) => /^en/.test(x.lang));
+      if (v) u.voice = v;
+      speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  const SpeakBtn = ({ text, label, rate, cls }) => h("button", { type: "button", disabled: !TTS, onClick: (e) => { e.stopPropagation(); speak(text, rate); }, className: `inline-flex items-center gap-1 rounded-full bg-primary-light px-3 py-1 text-xs font-semibold text-primary hover:bg-indigo-100 disabled:opacity-40 ${cls || ""}` }, "🔊", label ? h("span", null, label) : null);
+
+  // ---- Tra phiên âm: từ mẫu → từ điển trên site → từ điển online ----
+  let DICT = null, dictPromise = null;
+  function loadDict() {
+    if (DICT) return Promise.resolve(DICT);
+    if (!dictPromise) dictPromise = fetch("data/ipa-uk.txt").then((r) => { if (!r.ok) throw new Error(); return r.text(); }).then((t) => {
+      DICT = new Map(); t.split("\n").forEach((ln) => { const k = ln.indexOf("\t"); if (k > 0) DICT.set(ln.slice(0, k), ln.slice(k + 1)); });
+      return DICT;
+    }).catch(() => { dictPromise = null; DICT = new Map(); return DICT; });
+    return dictPromise;
+  }
+  async function lookup(word) {
+    const w = word.toLowerCase();
+    if (CHECKED[w]) return { ipa: CHECKED[w], src: "checked" };
+    const d = await loadDict();
+    if (d.get(w)) return { ipa: d.get(w), src: "dict" };
+    // dạng số nhiều / quá khứ đơn giản
+    try {
+      const r = await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(w));
+      if (r.ok) {
+        const js = await r.json();
+        const ph = (js[0] && (js[0].phonetic || ((js[0].phonetics || []).find((p) => p.text) || {}).text)) || "";
+        if (ph) return { ipa: ph, src: "online" };
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  // ---- Một cột: cụm chữ → các âm có thể đọc ----
+  function Column({ c, color, guess, onGuess, picked, onPick, compact, showAll, toggleAll }) {
+    const opts = c.options;
+    const max = compact ? 3 : 4;
+    const list = showAll ? opts : (() => {
+      const first = opts.slice(0, max);
+      if (!first.some((o) => o.snd === c.snd)) first[first.length - 1] = opts.find((o) => o.snd === c.snd);
+      return first;
+    })();
+    const answered = guess && c.guess !== undefined;
+    const reveal = !guess || answered;
+    return h("div", { className: "flex flex-col items-center", style: { minWidth: compact ? 52 : 64 } },
+      h("div", { className: "h-1.5 w-full rounded-full", style: { background: color, opacity: c.snd === "" ? 0.35 : 1 } }),
+      h("svg", { width: 14, height: compact ? 14 : 20, viewBox: "0 0 14 20", className: "my-0.5" }, h("path", { d: "M7 0 V16 M2 11 L7 17 L12 11", stroke: color, strokeWidth: 2.2, fill: "none", strokeLinecap: "round" })),
+      h("div", { className: "flex flex-col items-center gap-0.5" }, list.map((o, k) => {
+        const isAns = o.snd === c.snd;
+        const isPick = picked && picked.snd === o.snd;
+        const wrong = answered && c.guess === o.snd && !isAns;
+        const hl = reveal && isAns;
+        return h("button", {
+          key: k, type: "button",
+          onClick: () => { if (guess && !answered) onGuess(o.snd); else onPick(isPick ? null : o); },
+          title: o.note || "",
+          className: `ipa relative rounded-full px-2 ${compact ? "py-0 text-base" : "py-0.5 text-lg sm:text-xl"} font-semibold transition ${hl ? "blob pop" : ""} ${wrong ? "shake line-through" : ""} ${isPick ? "ring-2 ring-offset-1" : ""}`,
+          style: { color: wrong ? "#94a3b8" : color, opacity: reveal && !isAns ? 0.45 : 1, "--tw-ring-color": color },
+        }, o.snd === "" ? h("span", { className: "text-xs font-bold not-italic" }, "câm") : `/${o.snd}/`);
+      })),
+      opts.length > max && h("button", { type: "button", onClick: toggleAll, className: "mt-0.5 text-sm font-bold leading-none", style: { color } }, showAll ? "▴" : "…")
+    );
+  }
+
+  // ---- Bản đồ một từ (giống hình vẽ của thầy) ----
+  function WordMap({ data, compact, guessMode, src }) {
+    const [picked, setPicked] = useState(null); // {ci, o}
+    const [guesses, setGuesses] = useState({});
+    const [expand, setExpand] = useState({});
+    useEffect(() => { setPicked(null); setGuesses({}); setExpand({}); }, [data, guessMode]);
+    const chunks = data.chunks.map((c, i) => ({ ...c, guess: guesses[i] }));
+    const doneAll = !guessMode || chunks.every((c) => c.guess !== undefined);
+    const right = chunks.filter((c) => c.guess === c.snd).length;
+    const notes = chunks.map((c, i) => ({ c, i })).filter(({ c }) => c.snd === "" || c.magic || !c.known || c.note);
+    const big = compact ? "text-3xl" : "text-5xl sm:text-6xl";
+    return h("div", { className: `min-w-0 rounded-3xl border border-slate-200 bg-white ${compact ? "p-4" : "p-5 sm:p-7"} shadow-floating` },
+      h("div", { className: "flex flex-wrap items-center justify-between gap-2" },
+        h("div", { className: "flex items-center gap-2" },
+          h(SpeakBtn, { text: data.word, label: compact ? null : "Nghe từ" }),
+          !compact && h(SpeakBtn, { text: data.word, label: "Chậm", rate: 0.55 })),
+        src && h("span", { className: `rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${src === "checked" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}` }, src === "checked" ? "✓ Thầy đã kiểm" : src === "online" ? "Từ điển online" : "Từ điển tự động")),
+      h("div", { className: "scroll-x mt-3 overflow-x-auto pb-2" },
+        h("div", { className: "mx-auto flex w-max items-start gap-1.5 sm:gap-2.5 px-1" }, chunks.map((c, i) => {
+          const color = COLORS[i % COLORS.length];
+          return h("div", { key: i, className: "flex flex-col items-center" },
+            h("div", { className: `${compact ? "h-3" : "h-5"} flex items-end` }, doneAll && c.stress ? h("span", { className: "block rounded-full", style: { width: compact ? 4 : 6, height: compact ? 10 : 18, background: c.stress === 1 ? "#E11D48" : "#FDA4AF", transform: "rotate(12deg)" }, title: c.stress === 1 ? "âm tiết nhấn chính" : "nhấn phụ" }) : null),
+            h("div", { className: `${big} font-extrabold leading-tight tracking-tight`, style: { color, opacity: c.snd === "" ? 0.4 : 1, textDecoration: c.snd === "" ? "underline dotted" : "none" } }, c.g),
+            h(Column, {
+              c, color, compact, guess: guessMode,
+              onGuess: (snd) => setGuesses({ ...guesses, [i]: snd }),
+              picked: picked && picked.ci === i ? picked.o : null,
+              onPick: (o) => setPicked(o ? { ci: i, o } : null),
+              showAll: !!expand[i], toggleAll: () => setExpand({ ...expand, [i]: !expand[i] }),
+            }));
+        }))),
+      guessMode && h("div", { className: "mt-2 text-center text-sm font-semibold" },
+        doneAll ? h("span", { className: right === chunks.length ? "text-emerald-600" : "text-primary" }, `Đoán đúng ${right}/${chunks.length} cụm chữ ${right === chunks.length ? "🎉" : ""}`)
+          : h("span", { className: "text-slate-400" }, "Chạm vào âm bạn nghĩ cụm chữ đó đang đọc trong từ này")),
+      doneAll && h("div", { className: "mt-3 flex flex-wrap items-center justify-center gap-x-0.5 gap-y-1 rounded-2xl bg-slate-50 px-3 py-2" },
+        h("span", { className: "ipa text-2xl text-slate-400" }, "/"),
+        chunks.map((c, i) => h("span", { key: i, className: "ipa text-2xl font-semibold", style: { color: COLORS[i % COLORS.length] } }, (c.stress === 1 ? "ˈ" : c.stress === 2 ? "ˌ" : "") + c.snd)),
+        h("span", { className: "ipa text-2xl text-slate-400" }, "/")),
+      picked && h("div", { className: "pop mt-3 rounded-2xl border p-3 text-sm", style: { borderColor: COLORS[picked.ci % COLORS.length] + "55", background: COLORS[picked.ci % COLORS.length] + "0D" } },
+        h("p", { className: "font-semibold text-slate-800" },
+          h("b", { style: { color: COLORS[picked.ci % COLORS.length] } }, chunks[picked.ci].g), " → ",
+          h("span", { className: "ipa" }, picked.o.snd ? `/${picked.o.snd}/` : "câm"),
+          picked.o.note ? h("span", { className: "font-normal text-slate-500" }, " · ", picked.o.note) : null,
+          picked.o.snd === chunks[picked.ci].snd ? h("span", { className: "ml-1 text-rose-500" }, "← cách đọc trong từ này") : null),
+        picked.o.ex ? h("div", { className: "mt-2 flex flex-wrap gap-1.5" }, picked.o.ex.split(",").map((w) => w.trim()).filter((w) => w && !w.startsWith("-")).map((w) => h(SpeakBtn, { key: w, text: w, label: w, cls: "bg-white" })))
+          : h("p", { className: "mt-1 text-xs text-slate-500" }, "Trường hợp đặc biệt của riêng từ này — học thuộc cả từ.")),
+      doneAll && notes.length > 0 && !compact && h("ul", { className: "mt-3 space-y-1" }, notes.map(({ c, i }) => h("li", { key: i, className: "text-xs leading-relaxed text-slate-600" },
+        h("b", { style: { color: COLORS[i % COLORS.length] } }, c.g), ": ",
+        c.magic ? c.note : c.snd === "" ? (c.note || "chữ câm — viết nhưng không đọc") : c.note || `đọc /${c.snd}/ — trường hợp đặc biệt`)))
+    );
+  }
+
+  // ---- Ô dán chữ ----
+  function Analyzer({ guessMode }) {
+    const [text, setText] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [res, setRes] = useState([]);
+    const run = async () => {
+      const words = Array.from(new Set((text.match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || []).map((w) => w.replace(/'.*$/, "")).filter((w) => w.length > 0))).slice(0, 40);
+      if (!words.length) return;
+      setBusy(true);
+      const out = [];
+      for (const w of words) {
+        const r = await lookup(w);
+        out.push(r ? { w, src: r.src, data: align(w, r.ipa) } : { w, data: null });
+      }
+      setRes(out); setBusy(false);
+    };
+    return h("div", null,
+      h("div", { className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating sm:p-5" },
+        h("textarea", { value: text, onChange: (e) => setText(e.target.value), rows: 3, placeholder: "Dán từ, câu hoặc cả đoạn tiếng Anh vào đây… (vd: I usually water the plants on my balcony)", className: "w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-base outline-none focus:border-primary" }),
+        h("div", { className: "mt-3 flex flex-wrap items-center justify-between gap-2" },
+          h("p", { className: "text-xs text-slate-400" }, "Tối đa 40 từ khác nhau mỗi lần · giọng Anh"),
+          h("button", { onClick: run, disabled: busy, className: "rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-premium hover:bg-primary-dark disabled:opacity-60" }, busy ? "Đang tra…" : "Phân tích chữ ↔ âm"))),
+      res.length > 0 && h("div", { className: "mt-5 grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2" }, res.map((r, i) => r.data
+        ? h(WordMap, { key: r.w + i, data: r.data, compact: true, guessMode, src: r.src })
+        : h("div", { key: r.w + i, className: "rounded-3xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500" }, h("b", { className: "text-slate-700" }, r.w), " — chưa tra được phiên âm từ này (tên riêng, viết tắt hoặc gõ sai?)"))));
+  }
+
+  function App() {
+    const [sel, setSel] = useState(["chaos", "ˈkeɪɒs"]);
+    const [guessMode, setGuessMode] = useState(false);
+    const data = useMemo(() => align(sel[0], sel[1]), [sel]);
+    useEffect(() => { const t = setTimeout(loadDict, 1500); return () => clearTimeout(t); }, []);
+    const params = new URLSearchParams(location.search);
+    const back = params.get("from") || "../speaking6.html";
+    return h("div", { className: "mx-auto max-w-4xl px-4 pb-24 pt-8 sm:pt-12" },
+      h("div", { className: "flex flex-wrap items-center justify-between gap-2 text-sm font-semibold" },
+        h("a", { href: back, className: "rounded-full px-3 py-1.5 text-slate-500 hover:bg-slate-100" }, "← Lộ trình"),
+        h("a", { href: "../giaotiep/phonics.html", className: "rounded-full bg-amber-50 px-3 py-1.5 text-amber-700 hover:bg-amber-100" }, "📚 Bảng tra Phonics tổng hợp")),
+      h("header", { className: "mt-4 text-center" },
+        h("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS · Speaking 6.0"),
+        h("h1", { className: "mt-2 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, "Chữ ↔ Âm"),
+        h("p", { className: "mx-auto mt-2 max-w-xl text-slate-500" }, "Mỗi cụm chữ có thể đọc nhiều cách. Nhìn xem trong ", h("i", null, "từ này"), " nó chọn cách nào — làm nhiều lần, bạn sẽ dần “cảm” được chữ nào đọc ra sao.")),
+      h("div", { className: "mt-6 grid gap-2 sm:grid-cols-3" }, [
+        ["1", "Tách cụm chữ", "Từ được chia thành các cụm chữ cùng tạo ra 1 âm (ch, igh, ough…)."],
+        ["2", "Các âm có thể đọc", "Mũi tên chỉ xuống mọi cách cụm chữ đó hay được đọc."],
+        ["3", "Âm thật trong từ", "Âm được tô hồng là âm dùng trong từ này. Dấu ˈ đỏ = âm tiết nhấn."],
+      ].map(([n, t, d]) => h("div", { key: n, className: "rounded-2xl bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200" }, h("p", { className: "font-bold text-slate-800" }, h("span", { className: "mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] text-white" }, n), t), h("p", { className: "mt-1 text-xs leading-relaxed text-slate-500" }, d)))),
+      h("section", { className: "mt-10" },
+        h("div", { className: "mb-3 flex flex-wrap items-end justify-between gap-2" },
+          h("div", null, h("h2", { className: "text-xl font-extrabold text-slate-900" }, "15 từ mẫu"), h("p", { className: "text-sm text-slate-500" }, "Từ dễ đến khó — chạm vào một từ để xem bản đồ chữ ↔ âm.")),
+          h("label", { className: "flex cursor-pointer items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200" },
+            h("input", { type: "checkbox", checked: guessMode, onChange: () => setGuessMode(!guessMode), className: "accent-indigo-600" }), "🎯 Tự đoán trước")),
+        h("div", { className: "space-y-2" }, PRESETS.map((g) => h("div", { key: g.level, className: "flex flex-wrap items-center gap-1.5" },
+          h("span", { className: `w-12 shrink-0 text-xs font-bold uppercase ${g.level === "Dễ" ? "text-emerald-600" : g.level === "Vừa" ? "text-amber-600" : "text-rose-600"}` }, g.level),
+          g.words.map(([w, ipa]) => h("button", { key: w, onClick: () => setSel([w, ipa]), className: `rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${sel[0] === w ? "bg-primary text-white shadow-premium" : "bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-primary/40"}` }, w))))),
+        h("div", { className: "mt-5" }, data && h(WordMap, { data, guessMode, src: "checked" }))),
+      h("section", { className: "mt-14" },
+        h("h2", { className: "text-xl font-extrabold text-slate-900" }, "Tự phân tích từ bất kỳ"),
+        h("p", { className: "mb-3 text-sm text-slate-500" }, "Dán từ vựng của buổi học, câu trả lời mẫu hay một đoạn bài đọc — mỗi từ sẽ ra một bản đồ chữ ↔ âm."),
+        h(Analyzer, { guessMode })),
+      h("p", { className: "mt-16 text-center text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night · Phiên âm tự động dựa trên từ điển mở ipa-dict (MIT) — vài từ có thể lệch, từ có dấu ✓ đã được thầy kiểm."));
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+})();
+</script>
+</body>
+</html>
