@@ -91,20 +91,14 @@
   }
 
   // ---- Một cột: cụm chữ → các âm có thể đọc ----
-  function Column({ c, color, guess, onGuess, picked, onPick, compact, showAll, toggleAll }) {
-    const opts = c.options;
-    const max = compact ? 3 : 4;
-    const list = showAll ? opts : (() => {
-      const first = opts.slice(0, max);
-      if (!first.some((o) => o.snd === c.snd)) first[first.length - 1] = opts.find((o) => o.snd === c.snd);
-      return first;
-    })();
+  function Column({ c, color, guess, onGuess, picked, onPick, compact }) {
+    const opts = c.options; // hiện ĐỦ mọi cách đọc của cụm chữ, không rút gọn
     const answered = guess && c.guess !== undefined;
     const reveal = !guess || answered;
     return h("div", { className: "flex flex-col items-center", style: { minWidth: compact ? 52 : 64 } },
       h("div", { className: "h-1.5 w-full rounded-full", style: { background: color, opacity: c.snd === "" ? 0.35 : 1 } }),
       h("svg", { width: 14, height: compact ? 14 : 20, viewBox: "0 0 14 20", className: "my-0.5" }, h("path", { d: "M7 0 V16 M2 11 L7 17 L12 11", stroke: color, strokeWidth: 2.2, fill: "none", strokeLinecap: "round" })),
-      h("div", { className: "flex flex-col items-center gap-0.5" }, list.map((o, k) => {
+      h("div", { className: "flex flex-col items-center gap-0.5" }, opts.map((o, k) => {
         const isAns = o.snd === c.snd;
         const isPick = picked && picked.snd === o.snd;
         const wrong = answered && c.guess === o.snd && !isAns;
@@ -113,11 +107,11 @@
           key: k, type: "button",
           onClick: () => { if (guess && !answered) onGuess(o.snd); else onPick(isPick ? null : o); },
           title: o.note || "",
-          className: `ipa relative rounded-full px-2 ${compact ? "py-0 text-base" : "py-0.5 text-lg sm:text-xl"} font-semibold transition ${hl ? "blob pop" : ""} ${wrong ? "shake line-through" : ""} ${isPick ? "ring-2 ring-offset-1" : ""}`,
+          className: `ipa relative whitespace-nowrap rounded-full px-2 ${compact ? "py-0 text-base" : "py-0.5 text-lg sm:text-xl"} font-semibold transition ${hl ? "blob pop" : ""} ${wrong ? "shake line-through" : ""} ${isPick ? "ring-2 ring-offset-1" : ""}`,
           style: { color: wrong ? "#94a3b8" : color, opacity: reveal && !isAns ? 0.45 : 1, "--tw-ring-color": color },
         }, o.snd === "" ? h("span", { className: "text-xs font-bold not-italic" }, "câm") : `/${o.snd}/`);
       })),
-      opts.length > max && h("button", { type: "button", onClick: toggleAll, className: "mt-0.5 text-sm font-bold leading-none", style: { color } }, showAll ? "▴" : "…")
+      h("span", { className: "mt-1 text-[10px] font-semibold text-slate-400" }, opts.length, " cách")
     );
   }
 
@@ -125,8 +119,7 @@
   function WordMap({ data, compact, guessMode, src }) {
     const [picked, setPicked] = useState(null); // {ci, o}
     const [guesses, setGuesses] = useState({});
-    const [expand, setExpand] = useState({});
-    useEffect(() => { setPicked(null); setGuesses({}); setExpand({}); }, [data, guessMode]);
+      useEffect(() => { setPicked(null); setGuesses({}); }, [data, guessMode]);
     const chunks = data.chunks.map((c, i) => ({ ...c, guess: guesses[i] }));
     const doneAll = !guessMode || chunks.every((c) => c.guess !== undefined);
     const right = chunks.filter((c) => c.guess === c.snd).length;
@@ -149,7 +142,6 @@
               onGuess: (snd) => setGuesses({ ...guesses, [i]: snd }),
               picked: picked && picked.ci === i ? picked.o : null,
               onPick: (o) => setPicked(o ? { ci: i, o } : null),
-              showAll: !!expand[i], toggleAll: () => setExpand({ ...expand, [i]: !expand[i] }),
             }));
         }))),
       guessMode && h("div", { className: "mt-2 text-center text-sm font-semibold" },
@@ -165,7 +157,7 @@
           h("span", { className: "ipa" }, picked.o.snd ? `/${picked.o.snd}/` : "câm"),
           picked.o.note ? h("span", { className: "font-normal text-slate-500" }, " · ", picked.o.note) : null,
           picked.o.snd === chunks[picked.ci].snd ? h("span", { className: "ml-1 text-rose-500" }, "← cách đọc trong từ này") : null),
-        picked.o.ex ? h("div", { className: "mt-2 flex flex-wrap gap-1.5" }, picked.o.ex.split(",").map((w) => w.trim()).filter((w) => w && !w.startsWith("-")).map((w) => h(SpeakBtn, { key: w, text: w, label: w, cls: "bg-white" })))
+        picked.o.ex ? h("div", { className: "mt-2 flex flex-wrap gap-1.5" }, picked.o.ex.split(",").map((w) => w.trim()).filter((w) => w && !w.startsWith("-")).map((w) => { const t = w.replace(/\s*\(.*?\)\s*/g, ""); return h(SpeakBtn, { key: w, text: t, label: w, cls: "bg-white" }); }))
           : h("p", { className: "mt-1 text-xs text-slate-500" }, "Trường hợp đặc biệt của riêng từ này — học thuộc cả từ.")),
       doneAll && notes.length > 0 && !compact && h("ul", { className: "mt-3 space-y-1" }, notes.map(({ c, i }) => h("li", { key: i, className: "text-xs leading-relaxed text-slate-600" },
         h("b", { style: { color: COLORS[i % COLORS.length] } }, c.g), ": ",
