@@ -44,15 +44,67 @@
       label && /* @__PURE__ */ React.createElement("span", null, label)
     );
   }
-  function InteractiveVocab({ word, phonetic, meaning, example }) {
+  /* Ảnh minh họa thẻ từ vựng.
+     Thẻ có thể thêm: emoji: "🚌"  ·  img: "từ khóa tìm ảnh" | "https://…" | "img/b04/bus.jpg"
+     Từ khóa → tìm Wikimedia Commons trước, không có thì Openverse; không có ảnh → hiện emoji.
+     Ảnh chỉ tải khi thẻ cuộn tới, kết quả tìm được lưu lại trên máy học viên. */
+  const IMG_CACHE = "night-vocab-img-v1:";
+  const IMG_DIRECT = /^(https?:)?\/\/|^[\w./-]+\.(jpe?g|png|webp|gif|svg)$/i;
+  const imgPending = {};
+  function findVocabImage(q) {
+    try { const c = localStorage.getItem(IMG_CACHE + q); if (c) return Promise.resolve(JSON.parse(c)); } catch (e) {}
+    if (imgPending[q]) return imgPending[q];
+    const timeout = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r(null), 8000))]);
+    const wiki = () => fetch("https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url|mime&iiurlwidth=360&gsrsearch=" + encodeURIComponent(q + " filetype:bitmap"))
+      .then((r) => r.json()).then((j) => {
+        const pages = Object.values((j.query && j.query.pages) || {}).sort((a, b) => (a.index || 0) - (b.index || 0));
+        const p = pages.find((x) => x.imageinfo && /jpeg|png|webp/.test(x.imageinfo[0].mime || ""));
+        return p ? { u: p.imageinfo[0].thumburl, src: "Wikimedia Commons", page: p.imageinfo[0].descriptionurl } : null;
+      }).catch(() => null);
+    const ov = () => fetch("https://api.openverse.org/v1/images/?page_size=1&mature=false&q=" + encodeURIComponent(q))
+      .then((r) => r.json()).then((j) => { const x = j.results && j.results[0]; return x ? { u: x.thumbnail, src: "Openverse", page: x.foreign_landing_url } : null; }).catch(() => null);
+    imgPending[q] = timeout(wiki()).then((r) => r || timeout(ov())).then((r) => {
+      const v = r || { none: true };
+      try { localStorage.setItem(IMG_CACHE + q, JSON.stringify(v)); } catch (e) {}
+      delete imgPending[q];
+      return v;
+    });
+    return imgPending[q];
+  }
+  function VocabVisual({ img, emoji }) {
+    const direct = img && IMG_DIRECT.test(img);
+    const [res, setRes] = useState(direct ? { u: img } : null);
+    const [broken, setBroken] = useState(false);
+    const box = useRef(null);
+    useEffect(() => {
+      if (!img || direct) return;
+      let alive = true;
+      const go = () => findVocabImage(img).then((r) => alive && setRes(r));
+      if (!("IntersectionObserver" in window) || !box.current) { go(); return () => { alive = false; }; }
+      const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); go(); } }, { rootMargin: "300px" });
+      io.observe(box.current);
+      return () => { alive = false; io.disconnect(); };
+    }, [img]);
+    const showImg = res && res.u && !broken;
+    return React.createElement("div", { ref: box, className: "relative mb-2 flex h-20 w-full items-center justify-center overflow-hidden rounded-2xl " + (showImg ? "bg-white" : "bg-white/50") },
+      showImg
+        ? React.createElement("img", { src: res.u, alt: "", loading: "lazy", referrerPolicy: "no-referrer", onError: () => setBroken(true), className: "h-full w-full object-cover" })
+        : React.createElement("span", { className: "text-4xl leading-none" + (img && !res ? " animate-pulse opacity-60" : "") }, emoji || (img ? "🖼️" : "📘")),
+      showImg && res.src && React.createElement("a", {
+        href: res.page || "#", target: "_blank", rel: "noopener",
+        onClick: (e) => e.stopPropagation(),
+        className: "absolute bottom-0 right-0 rounded-tl-lg bg-black/45 px-1.5 text-[9px] font-medium text-white/90 no-underline"
+      }, "Ảnh: ", res.src));
+  }
+  function InteractiveVocab({ word, phonetic, meaning, example, img, emoji, visual }) {
     const [flipped, setFlipped] = useState(false);
     return /* @__PURE__ */ React.createElement(
       "div",
       {
-        className: "perspective-1000 h-44 w-full max-w-[220px] cursor-pointer select-none",
+        className: `perspective-1000 ${visual ? "h-60" : "h-44"} w-full max-w-[220px] cursor-pointer select-none`,
         onClick: () => setFlipped(!flipped)
       },
-      /* @__PURE__ */ React.createElement("div", { className: `flip-card-inner ${flipped ? "rotate-y-180" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: "flip-card-front flex h-full flex-col items-center justify-center rounded-3xl border border-amber-200 bg-vocab-bg p-4 text-center shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-lg font-bold text-slate-800" }, word), phonetic && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-600" }, phonetic), /* @__PURE__ */ React.createElement(SpeakButton, { text: word, className: "mt-2 bg-white/70" }), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500" }, "Chạm để xem nghĩa")), /* @__PURE__ */ React.createElement("div", { className: "flip-card-back flex h-full flex-col items-center justify-center rounded-3xl border border-sky-200 bg-vocab-back/90 p-4 text-center text-white shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-base font-bold" }, meaning), example && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs italic text-sky-50" }, '"', example, '"')))
+      /* @__PURE__ */ React.createElement("div", { className: `flip-card-inner ${flipped ? "rotate-y-180" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: `flip-card-front flex h-full flex-col items-center ${visual ? "justify-start p-3" : "justify-center p-4"} rounded-3xl border border-amber-200 bg-vocab-bg text-center shadow-floating` }, visual && React.createElement(VocabVisual, { img, emoji }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "text-base leading-tight" : "text-lg"} font-bold text-slate-800` }, word), phonetic && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-600" }, phonetic), /* @__PURE__ */ React.createElement(SpeakButton, { text: word, className: "mt-2 bg-white/70" }), !visual && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500" }, "Chạm để xem nghĩa")), /* @__PURE__ */ React.createElement("div", { className: "flip-card-back flex h-full flex-col items-center justify-center rounded-3xl border border-sky-200 bg-vocab-back/90 p-4 text-center text-white shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-base font-bold" }, meaning), example && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs italic text-sky-50" }, '"', example, '"')))
     );
   }
   function ParagraphBlock({ index, heading, text, lines, speakers = [], vocabHighlights = [], inlineImage }) {
@@ -971,7 +1023,7 @@
       case "quiz":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
       case "vocab":
-        return /* @__PURE__ */ React.createElement("div", null, (s.groups || [{ cards: s.cards }]).map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: gi ? "mt-8" : "" }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-3 flex items-center gap-2 text-sm font-bold text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "h-2 w-2 rounded-full bg-vocab-front" }), g.label, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "· ", g.cards.length, " từ")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 md:grid-cols-4" }, g.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v }))))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
+        return /* @__PURE__ */ React.createElement("div", null, (s.groups || [{ cards: s.cards }]).map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: gi ? "mt-8" : "" }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-3 flex items-center gap-2 text-sm font-bold text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "h-2 w-2 rounded-full bg-vocab-front" }), g.label, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "· ", g.cards.length, " từ")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 md:grid-cols-4" }, g.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v, visual: (s.groups || [{ cards: s.cards }]).some((gg) => (gg.cards || []).some((c) => c.img || c.emoji)) }))))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
       case "dialogue":
         return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "space-y-8" }, s.parts.map((p, i) => /* @__PURE__ */ React.createElement(ParagraphBlock, { key: i, index: i + 1, speakers: s.speakers, ...p }))), s.phrases && /* @__PURE__ */ React.createElement("div", { className: "mt-8" }, /* @__PURE__ */ React.createElement(PhraseBox, { ...s.phrases })));
       case "phrases":
