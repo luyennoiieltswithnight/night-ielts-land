@@ -86,7 +86,7 @@
       return () => { alive = false; io.disconnect(); };
     }, [img]);
     const showImg = res && res.u && !broken;
-    return React.createElement("div", { ref: box, className: "relative mb-2 flex h-20 w-full items-center justify-center overflow-hidden rounded-2xl " + (showImg ? "bg-white" : "bg-white/50") },
+    return React.createElement("div", { ref: box, className: "relative mb-2 flex h-24 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl " + (showImg ? "bg-white" : "bg-white/50") },
       showImg
         ? React.createElement("img", { src: res.u, alt: "", loading: "lazy", referrerPolicy: "no-referrer", onError: () => setBroken(true), className: "h-full w-full object-cover" })
         : React.createElement("span", { className: "text-4xl leading-none" + (img && !res ? " animate-pulse opacity-60" : "") }, emoji || (img ? "🖼️" : "📘")),
@@ -101,10 +101,10 @@
     return /* @__PURE__ */ React.createElement(
       "div",
       {
-        className: `perspective-1000 ${visual ? "h-60" : "h-44"} w-full max-w-[220px] cursor-pointer select-none`,
+        className: `perspective-1000 ${visual ? "h-64" : "h-44"} w-full max-w-[220px] cursor-pointer select-none`,
         onClick: () => setFlipped(!flipped)
       },
-      /* @__PURE__ */ React.createElement("div", { className: `flip-card-inner ${flipped ? "rotate-y-180" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: `flip-card-front flex h-full flex-col items-center ${visual ? "justify-start p-3" : "justify-center p-4"} rounded-3xl border border-amber-200 bg-vocab-bg text-center shadow-floating` }, visual && React.createElement(VocabVisual, { img, emoji }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "text-base leading-tight" : "text-lg"} font-bold text-slate-800` }, word), phonetic && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-600" }, phonetic), /* @__PURE__ */ React.createElement(SpeakButton, { text: word, className: "mt-2 bg-white/70" }), !visual && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500" }, "Chạm để xem nghĩa")), /* @__PURE__ */ React.createElement("div", { className: "flip-card-back flex h-full flex-col items-center justify-center rounded-3xl border border-sky-200 bg-vocab-back/90 p-4 text-center text-white shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-base font-bold" }, meaning), example && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs italic text-sky-50" }, '"', example, '"')))
+      /* @__PURE__ */ React.createElement("div", { className: `flip-card-inner ${flipped ? "rotate-y-180" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: `flip-card-front flex h-full flex-col items-center ${visual ? "justify-start p-3" : "justify-center p-4"} rounded-3xl border border-amber-200 bg-vocab-bg text-center shadow-floating` }, visual && React.createElement(VocabVisual, { img, emoji }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "text-base leading-tight" : "text-lg"} font-bold text-slate-800` }, word), phonetic && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-600" }, phonetic), /* @__PURE__ */ React.createElement(SpeakButton, { text: word, className: "mt-2 bg-white/70" }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "mt-auto pt-1 text-[10px]" : "mt-2 text-[11px]"} font-semibold uppercase tracking-wide text-slate-500` }, "Chạm để xem nghĩa")), /* @__PURE__ */ React.createElement("div", { className: "flip-card-back flex h-full flex-col items-center justify-center rounded-3xl border border-sky-200 bg-vocab-back/90 p-4 text-center text-white shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-base font-bold" }, meaning), example && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs italic text-sky-50" }, '"', example, '"')))
     );
   }
   function ParagraphBlock({ index, heading, text, lines, speakers = [], vocabHighlights = [], inlineImage }) {
