@@ -835,8 +835,8 @@
         ce(Btn, { title: selSize ? "Tăng cỡ phần đang bôi đen (Cmd +)" : "Tăng cỡ chữ cả ô (Cmd +) — bôi đen để chỉ đổi phần đó", onClick: () => changeSize(2) }, "A+"),
         ce(Sep),
         NOTE_BGS.map((c) => ce("button", { key: c, type: "button", title: "Màu nền ô", onMouseDown: keep, onClick: () => onChange(note.id, { bg: c }), className: "mx-0.5 h-5 w-5 rounded-md", style: { background: c, boxShadow: "0 0 0 1px #cbd5e1" } })),
-        ce(Sep),
-        ce(Btn, { title: recording ? "Dừng ghi giọng nói" : "Nói để nhập chữ (giọng nói → chữ)", onClick: startVoice, disabled: rec === "busy", className: recording ? "bg-rose-500 text-white hover:bg-rose-600" : "" }, recording ? "■ Dừng" : rec === "busy" ? "⏳" : "🎤"),
+        ce("div", { className: "h-0 basis-full" }), // hàng 2: giọng nói & AI
+        ce(Btn, { title: recording ? "Dừng ghi giọng nói" : "Nói để nhập chữ (giọng nói → chữ)", onClick: startVoice, disabled: rec === "busy", className: recording ? "bg-rose-500 text-white hover:bg-rose-600" : "" }, recording ? "■ Dừng" : rec === "busy" ? "⏳" : "🎤 Nói"),
         ce(Btn, { title: "Đổi ngôn ngữ nhận diện giọng nói", onClick: () => setLang(lang === "en" ? "vi" : "en"), disabled: recording, className: "text-[11px] font-bold" }, lang === "en" ? "🇬🇧 EN" : "🇻🇳 VI"),
         ce(Btn, { title: "Bôi đen đoạn chữ rồi bấm: AI sửa lặp từ, nhận diện sai, thêm dấu câu — không sửa quá tay", onClick: runAi, disabled: aiBusy, className: "font-semibold text-indigo-700" }, aiBusy ? "⏳ Đang xử lí…" : "✨ AI xử lí lại")
       ),
