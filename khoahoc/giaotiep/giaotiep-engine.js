@@ -964,15 +964,44 @@
       open ? "✕" : "✏️"
     )));
   }
+  // **đậm** và *nghiêng* — hỗ trợ lồng nhau (*câu có **từ đậm** bên trong*, ***on** foot*)
   function rich(text) {
     if (!text) return null;
-    const parts = String(text).split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
-    return parts.map((p, i) => {
-      if (p.startsWith("**") && p.endsWith("**")) return /* @__PURE__ */ React.createElement("b", { key: i, className: "font-bold text-primary" }, p.slice(2, -2));
-      if (p.startsWith("*") && p.endsWith("*") && p.length > 2) return /* @__PURE__ */ React.createElement("i", { key: i }, p.slice(1, -1));
-      return /* @__PURE__ */ React.createElement(React.Fragment, { key: i }, p);
-    });
+    const s = String(text);
+    if (s.indexOf("*") < 0) return s;
+    const root = { tag: null, kids: [] };
+    const stack = [root];
+    let buf = "", key = 0;
+    const flush = () => { if (buf) { stack[stack.length - 1].kids.push(buf); buf = ""; } };
+    const open = (tag) => { flush(); const n = { tag, kids: [] }; stack[stack.length - 1].kids.push(n); stack.push(n); };
+    const close = () => { flush(); stack.pop(); };
+    const top = () => stack[stack.length - 1].tag;
+    for (let i = 0; i < s.length; ) {
+      if (s[i] !== "*") { buf += s[i++]; continue; }
+      let j = i; while (j < s.length && s[j] === "*") j++;
+      let n = j - i;
+      const prev = i > 0 ? s[i - 1] : " ", next = j < s.length ? s[j] : " ";
+      const closing = !/\s/.test(prev) && !/[\p{L}\p{N}]/u.test(next);
+      if (closing) {
+        while (n > 0 && stack.length > 1) {
+          if (top() === "b" && n >= 2) { close(); n -= 2; }
+          else if (top() === "i" && n !== 2) { close(); n -= 1; }
+          else break;
+        }
+      }
+      while (n > 0) {
+        if (n >= 3) { open("i"); open("b"); n -= 3; }
+        else if (n === 2) { open("b"); n -= 2; }
+        else { open("i"); n -= 1; }
+      }
+      i = j;
+    }
+    flush();
+    const render = (node) => node.kids.map((k) => typeof k === "string" ? React.createElement(React.Fragment, { key: key++ }, k)
+      : React.createElement(k.tag, k.tag === "b" ? { key: key++, className: "font-bold text-primary" } : { key: key++ }, render(k)));
+    return render(root);
   }
+
   function GrammarBlock({ index, name, forms = [], uses = [], examples = [], signals, note }) {
     return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-4 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" }, index), /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-extrabold text-slate-900" }, name)), forms.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mb-4 grid gap-2 sm:grid-cols-3" }, forms.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-2xl bg-primary-light p-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-[11px] font-bold uppercase tracking-wide text-primary/70" }, f.label), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm font-semibold text-slate-800" }, rich(f.pattern))))), uses.length > 0 && /* @__PURE__ */ React.createElement("ul", { className: "mb-4 space-y-1.5" }, uses.map((u, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm leading-relaxed text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "text-primary" }, "▸"), /* @__PURE__ */ React.createElement("span", null, rich(u))))), examples.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, examples.map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, rich(e.en)), e.vi && /* @__PURE__ */ React.createElement("p", { className: "mt-0.5 text-xs text-slate-500" }, e.vi)), /* @__PURE__ */ React.createElement(SpeakButton, { text: String(e.en).replace(/\*/g, ""), rate: 0.85 })))), signals && /* @__PURE__ */ React.createElement("p", { className: "mt-4 text-xs text-slate-500" }, /* @__PURE__ */ React.createElement("b", { className: "text-slate-700" }, "Dấu hiệu:"), " ", rich(signals)), note && /* @__PURE__ */ React.createElement("p", { className: "mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note)));
   }
