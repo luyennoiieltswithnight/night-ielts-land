@@ -382,14 +382,169 @@
   const NOTE_COLORS = ["#0f172a", "#e11d48", "#4338ca", "#059669", "#ea580c", "#9333ea"];
   const NOTE_BGS = ["#ffffff", "#fef9c3", "#e0f2fe", "#dcfce7", "#fce7f3"];
   const clampN = (v, a, b) => Math.min(b, Math.max(a, v));
+
+  /* ---------- Ô ghi chú: tiện ích dùng chung ---------- */
+  // AI dùng CHUNG key Groq với cả web (localStorage "nightIeltsGroqCfg" — Speaking, Writing, Test Builder)
+  function getGroqCfg() { try { return JSON.parse(localStorage.getItem("nightIeltsGroqCfg") || "{}"); } catch (e) { return {}; } }
+  function saveGroqKey(key) { const c = getGroqCfg(); c.apiKey = key; try { localStorage.setItem("nightIeltsGroqCfg", JSON.stringify(c)); } catch (e) {} }
+  const NOTE_AI_PROMPT = "You clean up speech-to-text dictation for a teacher's notes. The text may be English, Vietnamese, or a mix.\n" +
+    "Rules:\n- Keep the SAME language(s) as the input. Never translate.\n" +
+    "- Make MINIMAL edits: remove filler words and accidental repetitions (uh, um, ờ, à, ừm, kiểu là, repeated words/phrases), fix words that were clearly misrecognised (use context), fix spelling, and restore missing Vietnamese diacritics.\n" +
+    "- Add correct punctuation, capitalisation and sentence breaks; split into short paragraphs or a list only if the speaker clearly listed items.\n" +
+    "- Do NOT add ideas, explanations or examples. Do NOT change the meaning. Do NOT make it more formal, academic or fancy. Keep the speaker's own words and level (no overcorrection). Keep IPA symbols, names and English example words as they are.\n" +
+    "- Output ONLY the cleaned text, no quotes, no comments.";
+  async function noteAiRewrite(text) {
+    const cfg = getGroqCfg();
+    if (!cfg.apiKey) { const e = new Error("NO_KEY"); e.code = "NO_KEY"; throw e; }
+    const model = cfg.model || "openai/gpt-oss-120b";
+    let payload = { model, temperature: 0.2, max_completion_tokens: 2000, messages: [{ role: "system", content: NOTE_AI_PROMPT }, { role: "user", content: text }] };
+    if (/gpt-oss/i.test(model)) payload.reasoning_effort = "low";
+    let res;
+    for (let i = 0; i < 3; i++) {
+      res = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.apiKey }, body: JSON.stringify(payload) });
+      if (res.status === 400 && payload.reasoning_effort) { payload = { ...payload }; delete payload.reasoning_effort; continue; }
+      if (res.status !== 429 || i === 2) break;
+      await new Promise((r) => setTimeout(r, 4000));
+    }
+    if (res.status === 401) throw new Error("Groq key không hợp lệ — kiểm tra lại key.");
+    if (!res.ok) throw new Error("AI lỗi (HTTP " + res.status + "), thử lại nhé.");
+    const j = await res.json();
+    const out = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+    if (!out) throw new Error("AI không trả lời, thử lại nhé.");
+    return out.replace(/^\s*["“]|["”]\s*$/g, "").trim();
+  }
+  async function groqTranscribe(blob, lang) {
+    const cfg = getGroqCfg();
+    if (!cfg.apiKey) { const e = new Error("NO_KEY"); e.code = "NO_KEY"; throw e; }
+    const fd = new FormData();
+    fd.append("file", blob, "voice." + (blob.type.includes("mp4") ? "m4a" : "webm"));
+    fd.append("model", "whisper-large-v3");
+    fd.append("language", lang === "vi" ? "vi" : "en");
+    const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { Authorization: "Bearer " + cfg.apiKey }, body: fd });
+    if (!res.ok) throw new Error("Không nhận diện được giọng nói (HTTP " + res.status + ").");
+    const j = await res.json();
+    return (j.text || "").trim();
+  }
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const escHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const textToHtml = (s) => escHtml(s).replace(/\r?\n/g, "<br>");
+
+  // Dán từ web: giữ định dạng (đậm, nghiêng, gạch chân, màu chữ, highlight, xuống dòng, danh sách, ảnh)
+  // nhưng bỏ cỡ chữ / font / khung / nền của thẻ — để vẫn chỉnh tiếp được bằng thanh công cụ.
+  function cleanPastedHtml(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const out = document.createElement("div");
+    const SKIP = /^(SCRIPT|STYLE|META|LINK|TITLE|BUTTON|INPUT|SELECT|TEXTAREA|SVG|NOSCRIPT|TEMPLATE|IFRAME|AUDIO|VIDEO|CANVAS|OBJECT)$/;
+    const BLOCK = /^(P|DIV|LI|H[1-6]|TR|BLOCKQUOTE|SECTION|ARTICLE|HEADER|FOOTER|ASIDE|NAV|MAIN|FIGURE|FIGCAPTION|DT|DD|PRE|TABLE|UL|OL|DL|FORM|FIELDSET|DETAILS|SUMMARY)$/;
+    const isGray = (c) => { const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/); if (!m) return /^(black|inherit|initial|currentcolor|#0{3,6})$/i.test(c.trim()); if (m[4] !== undefined && +m[4] < 0.2) return true; const [r, g, b] = [+m[1], +m[2], +m[3]]; return Math.max(r, g, b) - Math.min(r, g, b) < 30; };
+    const isClearBg = (c) => { const m = c.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/); if (!m) return /transparent|none|initial|inherit|white|#fff/i.test(c); if (m[4] !== undefined && +m[4] < 0.2) return true; return +m[1] > 245 && +m[2] > 245 && +m[3] > 245; };
+    const walk = (node, parent) => {
+      node.childNodes.forEach((c) => {
+        if (c.nodeType === 3) { const t = c.textContent.replace(/[\t\r\n ]+/g, " "); if (t) parent.appendChild(document.createTextNode(t)); return; }
+        if (c.nodeType !== 1) return;
+        const tag = c.tagName.toUpperCase();
+        if (SKIP.test(tag) || c.getAttribute("aria-hidden") === "true") return;
+        if (tag === "BR") { parent.appendChild(document.createElement("br")); return; }
+        if (tag === "IMG") {
+          const src = c.getAttribute("src") || "";
+          if (/^(data:image\/|https?:)/i.test(src)) { const im = document.createElement("img"); im.src = src; im.style.width = Math.min(+c.getAttribute("width") || 260, 320) + "px"; parent.appendChild(im); }
+          return;
+        }
+        const st = c.getAttribute("style") || "";
+        const get = (p) => { const m = st.match(new RegExp("(?:^|;)\\s*" + p + "\\s*:\\s*([^;]+)", "i")); return m ? m[1].trim() : ""; };
+        let host = parent;
+        const block = BLOCK.test(tag);
+        if (block && tag !== "UL" && tag !== "OL" && tag !== "TABLE") { const d = document.createElement("div"); if (tag === "LI") d.appendChild(document.createTextNode("• ")); parent.appendChild(d); host = d; }
+        const fw = get("font-weight");
+        if (/^(B|STRONG|H[1-6]|TH)$/.test(tag) || fw === "bold" || +fw >= 600) { const x = document.createElement("b"); host.appendChild(x); host = x; }
+        if (/^(I|EM)$/.test(tag) || /italic/i.test(get("font-style"))) { const x = document.createElement("i"); host.appendChild(x); host = x; }
+        if (tag === "U" || /underline/i.test(get("text-decoration") + get("text-decoration-line"))) { const x = document.createElement("u"); host.appendChild(x); host = x; }
+        const col = get("color");
+        const bg = !block ? (get("background-color") || get("background")) : "";
+        if ((col && !isGray(col)) || (bg && !isClearBg(bg) && !/url\(|gradient/i.test(bg))) {
+          const x = document.createElement("span");
+          if (col && !isGray(col)) x.style.color = col;
+          if (bg && !isClearBg(bg) && !/url\(|gradient/i.test(bg)) x.style.backgroundColor = bg;
+          host.appendChild(x); host = x;
+        }
+        if (tag === "MARK") { const x = document.createElement("span"); x.style.backgroundColor = "#fde047"; host.appendChild(x); host = x; }
+        walk(c, host);
+        if (tag === "TD" || tag === "TH") host.appendChild(document.createTextNode(" "));
+      });
+    };
+    walk(doc.body, out);
+    out.querySelectorAll("div,b,i,u,span").forEach((el) => { if (!el.textContent.trim() && !el.querySelector("img,br")) el.remove(); });
+    return out.innerHTML;
+  }
+  // Ảnh dán vào: thu nhỏ còn tối đa 1000px & nén JPEG để không làm đầy bộ nhớ trình duyệt
+  function imageFileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const k = Math.min(1, 1000 / Math.max(img.naturalWidth, img.naturalHeight));
+        const w = Math.round(img.naturalWidth * k), hh = Math.round(img.naturalHeight * k);
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = hh;
+        const x = cv.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, w, hh); x.drawImage(img, 0, 0, w, hh);
+        URL.revokeObjectURL(url);
+        resolve({ src: cv.toDataURL("image/jpeg", 0.8), w });
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Không đọc được ảnh")); };
+      img.src = url;
+    });
+  }
+
   function NoteBox({ note, onChange, onDelete, ipaOn }) {
+    const ce = React.createElement;
     const ref = useRef(null);
+    const rootRef = useRef(null);
+    const lastRange = useRef(null);
     const [focused, setFocused] = useState(false);
+    const [selSize, setSelSize] = useState(null); // cỡ chữ của đoạn đang bôi đen (null = không bôi đen)
+    const [msg, setMsg] = useState(null); // { text, tone }
+    const [needKey, setNeedKey] = useState(false);
+    const [keyInput, setKeyInput] = useState("");
+    const [aiBusy, setAiBusy] = useState(false);
+    const [lang, setLang] = useState(() => { try { return localStorage.getItem("night-notes-voice-lang") || "en"; } catch (e) { return "en"; } });
+    const [rec, setRec] = useState(null); // null | "live" | "record" | "busy"
+    const recRef = useRef(null);
+    const [selImg, setSelImg] = useState(null);
+    const [, force] = useState(0);
     useEffect(() => {
       if (ref.current) ref.current.innerHTML = note.html || "";
     }, []);
+    useEffect(() => { try { localStorage.setItem("night-notes-voice-lang", lang); } catch (e) {} }, [lang]);
+    useEffect(() => () => { const r = recRef.current; if (r) { r.stopping = true; try { r.stop(); } catch (e) {} } }, []);
+    const flash = (text, tone = "info", ms = 3500) => { setMsg({ text, tone }); if (ms) setTimeout(() => setMsg((m) => (m && m.text === text ? null : m)), ms); };
     const save = () => {
       if (ref.current) onChange(note.id, { html: ref.current.innerHTML });
+    };
+    const inEditor = (r) => r && ref.current && ref.current.contains(r.commonAncestorContainer);
+    // Nhớ vị trí con trỏ / vùng bôi đen trong ô (để mic & AI chèn đúng chỗ kể cả khi lỡ bấm ra ngoài)
+    useEffect(() => {
+      const onSel = () => {
+        const s = window.getSelection();
+        if (!s || !s.rangeCount) return;
+        const r = s.getRangeAt(0);
+        if (!inEditor(r)) return;
+        lastRange.current = r.cloneRange();
+        if (r.collapsed) { setSelSize(null); return; }
+        let el = r.startContainer.nodeType === 3 ? r.startContainer.parentElement : r.startContainer;
+        if (el === ref.current && el.childNodes[r.startOffset] && el.childNodes[r.startOffset].nodeType === 1) el = el.childNodes[r.startOffset];
+        setSelSize(Math.round(parseFloat(getComputedStyle(el).fontSize) || note.size));
+      };
+      document.addEventListener("selectionchange", onSel);
+      return () => document.removeEventListener("selectionchange", onSel);
+    }, [note.size]);
+    const restoreRange = () => {
+      const s = window.getSelection();
+      const cur0 = s && s.rangeCount ? s.getRangeAt(0).cloneRange() : null;
+      if (ref.current && document.activeElement !== ref.current) ref.current.focus({ preventScroll: true });
+      const cur = cur0;
+      let r = cur && inEditor(cur) ? cur : lastRange.current;
+      if (!r || !inEditor(r)) { r = document.createRange(); r.selectNodeContents(ref.current); r.collapse(false); }
+      s.removeAllRanges(); s.addRange(r);
+      return r;
     };
     const cmd = (c, v) => {
       try {
@@ -400,6 +555,222 @@
       save();
     };
     const keep = (e) => e.preventDefault();
+
+    /* --- Cỡ chữ: có bôi đen → chỉ đổi phần bôi đen; không bôi đen → đổi cỡ chữ mặc định cả ô --- */
+    const resizeSelection = (delta) => {
+      const s = window.getSelection();
+      if (!s || !s.rangeCount) return false;
+      const r = s.getRangeAt(0);
+      if (r.collapsed || !inEditor(r)) return false;
+      const px = clampN((selSize || note.size) + delta, 8, 160);
+      try { document.execCommand("styleWithCSS", false, false); } catch (e) {}
+      document.execCommand("fontSize", false, "7");
+      try { document.execCommand("styleWithCSS", false, true); } catch (e) {}
+      const marks = [...ref.current.querySelectorAll('font[size="7"], span[style*="xxx-large"]')];
+      const spans = marks.map((f) => {
+        const sp = document.createElement("span");
+        if (f.tagName === "FONT") { if (f.color) sp.style.color = f.color; while (f.firstChild) sp.appendChild(f.firstChild); }
+        else { sp.setAttribute("style", f.getAttribute("style")); while (f.firstChild) sp.appendChild(f.firstChild); }
+        sp.style.fontSize = px + "px";
+        sp.querySelectorAll("[style]").forEach((x) => { x.style.fontSize = ""; if (!x.getAttribute("style")) x.removeAttribute("style"); });
+        sp.querySelectorAll("font[size]").forEach((x) => x.removeAttribute("size"));
+        f.replaceWith(sp);
+        return sp;
+      });
+      if (spans.length) {
+        const nr = document.createRange();
+        nr.setStart(spans[0], 0);
+        const last = spans[spans.length - 1];
+        nr.setEnd(last, last.childNodes.length);
+        s.removeAllRanges(); s.addRange(nr);
+        lastRange.current = nr.cloneRange();
+      }
+      setSelSize(px);
+      save();
+      return true;
+    };
+    const changeSize = (delta) => {
+      if (!resizeSelection(delta)) onChange(note.id, { size: clampN(note.size + delta, 10, 120) });
+    };
+
+    /* --- Chèn chữ / HTML tại vị trí đã nhớ, rồi bôi đen đoạn vừa chèn --- */
+    const insertTextSelected = (text) => {
+      if (!text) return;
+      const r = restoreRange();
+      r.deleteContents();
+      const before = r.startContainer.nodeType === 3 ? r.startContainer.textContent.slice(0, r.startOffset) : "";
+      const t = (before && !/\s$/.test(before) ? " " : "") + text;
+      const node = document.createTextNode(t);
+      r.insertNode(node);
+      const nr = document.createRange();
+      nr.setStart(node, t.length - text.length); nr.setEnd(node, t.length);
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(nr);
+      lastRange.current = nr.cloneRange();
+      save();
+    };
+    const insertFragmentAtCaret = (html) => {
+      const r = restoreRange();
+      r.deleteContents();
+      const tmp = document.createElement("div"); tmp.innerHTML = html;
+      const frag = document.createDocumentFragment(); let lastNode = null;
+      while (tmp.firstChild) lastNode = frag.appendChild(tmp.firstChild);
+      r.insertNode(frag);
+      if (lastNode) { const nr = document.createRange(); nr.setStartAfter(lastNode); nr.collapse(true); const s = window.getSelection(); s.removeAllRanges(); s.addRange(nr); lastRange.current = nr.cloneRange(); }
+      save();
+    };
+
+    /* --- Giọng nói → chữ --- */
+    const stopVoice = () => { const r = recRef.current; if (r) { r.stopping = true; try { r.stop(); } catch (e) {} } };
+    const startVoice = async () => {
+      if (rec) { stopVoice(); return; }
+      restoreRange();
+      if (SpeechRec) {
+        // Chrome / Edge / Safari: nhận diện trực tiếp, chữ hiện ngay khi nói
+        const r = new SpeechRec();
+        r.lang = lang === "vi" ? "vi-VN" : "en-US";
+        r.continuous = true; r.interimResults = true;
+        const live = document.createElement("span");
+        live.style.color = "#94a3b8"; live.setAttribute("data-live", "1");
+        const range = restoreRange(); range.deleteContents();
+        const before = range.startContainer.nodeType === 3 ? range.startContainer.textContent.slice(0, range.startOffset) : "";
+        const pad = before && !/\s$/.test(before) ? " " : "";
+        range.insertNode(live);
+        let finalText = "";
+        r.onresult = (e) => {
+          let interim = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const t = e.results[i][0].transcript;
+            if (e.results[i].isFinal) finalText += (finalText && !/\s$/.test(finalText) ? " " : "") + t.trim();
+            else interim += t;
+          }
+          live.textContent = pad + finalText + (interim ? (finalText ? " " : "") + interim : "");
+        };
+        r.onerror = (e) => {
+          if (e.error === "not-allowed" || e.error === "service-not-allowed") { r.stopping = true; flash("Chưa cấp quyền micro — bấm cho phép micro rồi thử lại.", "error"); }
+          else if (e.error === "network") { r.stopping = true; flash("Nhận diện giọng nói cần mạng internet.", "error"); }
+        };
+        r.onend = () => {
+          if (!r.stopping) { try { r.start(); return; } catch (e) {} } // Chrome tự ngắt khi im lặng lâu → nghe tiếp
+          recRef.current = null; setRec(null);
+          const txt = (pad + finalText).replace(/\s+$/, "");
+          if (!live.parentNode) return;
+          if (!finalText) { live.remove(); save(); return; }
+          const node = document.createTextNode(txt);
+          live.replaceWith(node);
+          if (ref.current) ref.current.focus({ preventScroll: true });
+          const nr = document.createRange(); nr.setStart(node, pad.length); nr.setEnd(node, txt.length);
+          const s = window.getSelection(); s.removeAllRanges(); s.addRange(nr);
+          lastRange.current = nr.cloneRange();
+          save();
+          flash("Đã chèn đoạn vừa nói (đang được bôi đen) — bấm ✨ AI xử lí lại nếu cần.", "ok", 5000);
+        };
+        recRef.current = r;
+        try { r.start(); setRec("live"); } catch (e) { live.remove(); flash("Không bật được micro.", "error"); }
+        return;
+      }
+      // Trình duyệt không có nhận diện trực tiếp (vd Firefox) → ghi âm rồi gửi Groq Whisper (key chung của web)
+      if (!getGroqCfg().apiKey) { setNeedKey(true); flash("Trình duyệt này cần Groq key để chuyển giọng nói thành chữ.", "error", 0); return; }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mr = new MediaRecorder(stream);
+        const chunks = [];
+        mr.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        mr.onstop = async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          recRef.current = null; setRec("busy");
+          try { const text = await groqTranscribe(new Blob(chunks, { type: mr.mimeType || "audio/webm" }), lang); insertTextSelected(text); if (text) flash("Đã chèn đoạn vừa nói — bấm ✨ AI xử lí lại nếu cần.", "ok", 5000); else flash("Không nghe rõ, thử lại nhé.", "error"); }
+          catch (err) { flash(err.message, "error"); }
+          setRec(null);
+        };
+        recRef.current = mr; mr.start(); setRec("record");
+      } catch (e) { flash("Chưa cấp quyền micro — bấm cho phép micro rồi thử lại.", "error"); }
+    };
+
+    /* --- AI xử lí lại đoạn bôi đen --- */
+    const runAi = async () => {
+      if (aiBusy) return;
+      const s = window.getSelection();
+      let r = s && s.rangeCount ? s.getRangeAt(0) : null;
+      if (!r || r.collapsed || !inEditor(r)) r = lastRange.current && !lastRange.current.collapsed && inEditor(lastRange.current) ? lastRange.current : null;
+      if (!r) { flash("Bôi đen đoạn cần AI xử lí trước nhé.", "error"); return; }
+      const text = r.toString().trim();
+      if (!text) { flash("Đoạn bôi đen chưa có chữ.", "error"); return; }
+      if (!getGroqCfg().apiKey) { setNeedKey(true); return; }
+      const saved = r.cloneRange();
+      setSelImg(null);
+      setAiBusy(true); flash("✨ AI đang xử lí…", "info", 0);
+      try {
+        const out = await noteAiRewrite(text);
+        if (ref.current) ref.current.focus({ preventScroll: true });
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(saved);
+        document.execCommand("insertHTML", false, textToHtml(out)); // dùng insertHTML để Cmd/Ctrl+Z hoàn tác được
+        save();
+        flash("Xong! Không ưng thì bấm Ctrl+Z (Cmd+Z) để hoàn tác.", "ok", 5000);
+      } catch (e) {
+        if (e.code === "NO_KEY") setNeedKey(true); else flash(e.message, "error");
+      }
+      setAiBusy(false);
+    };
+
+    /* --- Dán: ảnh → chèn ảnh (chỉnh cỡ được); HTML từ web → giữ định dạng nhưng vẫn chỉnh được --- */
+    const onPaste = async (e) => {
+      const cd = e.clipboardData;
+      if (!cd) return;
+      const files = [...(cd.files || [])].filter((f) => /^image\//.test(f.type));
+      if (files.length) {
+        e.preventDefault();
+        lastRange.current = window.getSelection().rangeCount ? window.getSelection().getRangeAt(0).cloneRange() : lastRange.current;
+        for (const f of files) {
+          try {
+            const { src, w } = await imageFileToDataUrl(f);
+            const maxW = ref.current ? ref.current.clientWidth - 28 : 300;
+            insertFragmentAtCaret(`<img src="${src}" style="width:${Math.min(w, maxW, 320)}px">`);
+          } catch (err) { flash(err.message, "error"); }
+        }
+        return;
+      }
+      const html = cd.getData("text/html");
+      if (html) {
+        e.preventDefault();
+        insertFragmentAtCaret(cleanPastedHtml(html));
+        return;
+      }
+      const text = cd.getData("text/plain");
+      if (text) { e.preventDefault(); insertFragmentAtCaret(textToHtml(text)); }
+    };
+
+    /* --- Ảnh trong ô: bấm vào ảnh để chọn, kéo góc để đổi cỡ --- */
+    const onEditorClick = (e) => {
+      if (e.target && e.target.tagName === "IMG") setSelImg(e.target);
+      else if (selImg) setSelImg(null);
+    };
+    useEffect(() => {
+      if (!selImg) return;
+      const off = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setSelImg(null); };
+      const sc = () => force((n) => n + 1);
+      document.addEventListener("pointerdown", off);
+      const ed = ref.current; ed && ed.addEventListener("scroll", sc);
+      return () => { document.removeEventListener("pointerdown", off); ed && ed.removeEventListener("scroll", sc); };
+    }, [selImg]);
+    const imgBox = selImg && selImg.isConnected && rootRef.current ? (() => {
+      const a = selImg.getBoundingClientRect(), b = rootRef.current.getBoundingClientRect(), v = ref.current.getBoundingClientRect();
+      // chỉ vẽ khung chọn trong phần ô đang nhìn thấy (ảnh có thể bị cuộn khuất bên trong ô)
+      const L = Math.max(a.left, v.left), T = Math.max(a.top, v.top), R = Math.min(a.right, v.right), B = Math.min(a.bottom, v.bottom);
+      if (R - L < 30 || B - T < 30) return null;
+      return { left: L - b.left, top: T - b.top, width: R - L, height: B - T };
+    })() : null;
+    const startImgResize = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const sx = e.clientX, w0 = selImg.getBoundingClientRect().width;
+      const maxW = ref.current ? ref.current.clientWidth - 24 : 2000;
+      const move = (ev) => { selImg.style.width = clampN(Math.round(w0 + ev.clientX - sx), 40, Math.max(60, maxW)) + "px"; selImg.style.height = "auto"; force((n) => n + 1); };
+      const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); save(); };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    };
+    const setImgPct = (p) => { if (!selImg || !ref.current) return; selImg.style.width = Math.round((ref.current.clientWidth - 28) * p) + "px"; selImg.style.height = "auto"; force((n) => n + 1); save(); };
+    const delImg = () => { if (selImg) { selImg.remove(); setSelImg(null); save(); } };
+
     const startDrag = (e, mode) => {
       e.preventDefault();
       e.stopPropagation();
@@ -421,79 +792,62 @@
       if (e.metaKey || e.ctrlKey) {
         if (e.key === "=" || e.key === "+") {
           e.preventDefault();
-          onChange(note.id, { size: clampN(note.size + 2, 10, 120) });
+          changeSize(2);
         } else if (e.key === "-" || e.key === "_") {
           e.preventDefault();
-          onChange(note.id, { size: clampN(note.size - 2, 10, 120) });
+          changeSize(-2);
         }
       }
+      if (selImg && (e.key === "Backspace" || e.key === "Delete")) { e.preventDefault(); delImg(); }
     };
     const onInput = () => {
+      if (selImg) setSelImg(null);
       if (ipaOn) expandIpaAtCaret();
       save();
     };
-    const Btn = ({ title, onClick, children, className = "" }) => /* @__PURE__ */ React.createElement(
+    const Btn = ({ title, onClick, children, className = "", disabled }) => ce(
       "button",
       {
         type: "button",
         title,
+        disabled,
         onMouseDown: keep,
         onClick,
-        className: `flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-sm text-slate-700 hover:bg-slate-100 ${className}`
+        className: `flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50 ${className}`
       },
       children
     );
-    return /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", left: note.x, top: note.y, width: note.w, zIndex: focused ? 36 : 35 } }, focused && /* @__PURE__ */ React.createElement("div", { className: "absolute -top-11 left-0 flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-floating", style: { minWidth: "max-content" } }, /* @__PURE__ */ React.createElement(Btn, { title: "In đậm (Cmd+B)", onClick: () => cmd("bold") }, /* @__PURE__ */ React.createElement("b", null, "B")), /* @__PURE__ */ React.createElement(Btn, { title: "In nghiêng (Cmd+I)", onClick: () => cmd("italic") }, /* @__PURE__ */ React.createElement("i", { className: "font-serif" }, "I")), /* @__PURE__ */ React.createElement(Btn, { title: "Gạch chân (Cmd+U)", onClick: () => cmd("underline") }, /* @__PURE__ */ React.createElement("u", null, "U")), /* @__PURE__ */ React.createElement("span", { className: "mx-1 h-5 w-px bg-slate-200" }), NOTE_COLORS.map((c) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: c,
-        type: "button",
-        title: "Màu chữ",
-        onMouseDown: keep,
-        onClick: () => cmd("foreColor", c),
-        className: "mx-0.5 h-5 w-5 rounded-full ring-2 ring-white",
-        style: { background: c, boxShadow: "0 0 0 1px #cbd5e1" }
-      }
-    )), /* @__PURE__ */ React.createElement(Btn, { title: "Tô nền chữ (highlight)", onClick: () => cmd("hiliteColor", "#fde047") }, /* @__PURE__ */ React.createElement("span", { className: "rounded bg-yellow-300 px-1 text-xs font-bold" }, "ab")), /* @__PURE__ */ React.createElement(Btn, { title: "Bỏ định dạng", onClick: () => cmd("removeFormat") }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold" }, "T", /* @__PURE__ */ React.createElement("sub", null, "×"))), /* @__PURE__ */ React.createElement("span", { className: "mx-1 h-5 w-px bg-slate-200" }), /* @__PURE__ */ React.createElement(Btn, { title: "Giảm cỡ chữ (Cmd -)", onClick: () => onChange(note.id, { size: clampN(note.size - 2, 10, 120) }) }, "A−"), /* @__PURE__ */ React.createElement("span", { className: "w-7 text-center text-xs tabular-nums text-slate-400" }, note.size), /* @__PURE__ */ React.createElement(Btn, { title: "Tăng cỡ chữ (Cmd +)", onClick: () => onChange(note.id, { size: clampN(note.size + 2, 10, 120) }) }, "A+"), /* @__PURE__ */ React.createElement("span", { className: "mx-1 h-5 w-px bg-slate-200" }), NOTE_BGS.map((c) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: c,
-        type: "button",
-        title: "Màu nền ô",
-        onMouseDown: keep,
-        onClick: () => onChange(note.id, { bg: c }),
-        className: "mx-0.5 h-5 w-5 rounded-md",
-        style: { background: c, boxShadow: "0 0 0 1px #cbd5e1" }
-      }
-    ))), /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        className: "flex flex-col overflow-hidden rounded-2xl border-2 shadow-floating",
-        style: { height: note.h, background: note.bg, borderColor: focused ? "#4338CA" : "#e2e8f0" }
-      },
-      /* @__PURE__ */ React.createElement(
-        "div",
-        {
-          onPointerDown: (e) => startDrag(e, "move"),
-          className: "flex h-6 flex-shrink-0 cursor-move items-center justify-between bg-slate-900/5 px-2",
-          style: { touchAction: "none" }
-        },
-        /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-bold tracking-widest text-slate-400" }, "⋮⋮ KÉO ĐỂ DI CHUYỂN"),
-        /* @__PURE__ */ React.createElement(
-          "button",
-          {
-            type: "button",
-            onPointerDown: (e) => e.stopPropagation(),
-            onClick: () => onDelete(note.id),
-            className: "text-xs font-bold text-slate-400 hover:text-rose-500",
-            title: "Xóa ô này"
-          },
-          "✕"
-        )
+    const Sep = () => ce("span", { className: "mx-1 h-5 w-px bg-slate-200" });
+    const recording = rec === "live" || rec === "record";
+    const toneCls = { info: "bg-slate-800 text-white", ok: "bg-emerald-600 text-white", error: "bg-rose-600 text-white" };
+    return ce("div", { ref: rootRef, style: { position: "absolute", left: note.x, top: note.y, width: note.w, zIndex: focused || recording || needKey ? 36 : 35 } },
+      focused && ce("div", { className: "absolute bottom-full left-0 mb-2 flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-floating", style: { width: "max-content", maxWidth: "min(94vw, 640px)" } },
+        ce(Btn, { title: "In đậm (Cmd+B)", onClick: () => cmd("bold") }, ce("b", null, "B")),
+        ce(Btn, { title: "In nghiêng (Cmd+I)", onClick: () => cmd("italic") }, ce("i", { className: "font-serif" }, "I")),
+        ce(Btn, { title: "Gạch chân (Cmd+U)", onClick: () => cmd("underline") }, ce("u", null, "U")),
+        ce(Sep),
+        NOTE_COLORS.map((c) => ce("button", { key: c, type: "button", title: "Màu chữ", onMouseDown: keep, onClick: () => cmd("foreColor", c), className: "mx-0.5 h-5 w-5 rounded-full ring-2 ring-white", style: { background: c, boxShadow: "0 0 0 1px #cbd5e1" } })),
+        ce(Btn, { title: "Tô nền chữ (highlight)", onClick: () => cmd("hiliteColor", "#fde047") }, ce("span", { className: "rounded bg-yellow-300 px-1 text-xs font-bold" }, "ab")),
+        ce(Btn, { title: "Bỏ định dạng", onClick: () => cmd("removeFormat") }, ce("span", { className: "text-xs font-semibold" }, "T", ce("sub", null, "×"))),
+        ce(Sep),
+        ce(Btn, { title: selSize ? "Giảm cỡ phần đang bôi đen (Cmd −)" : "Giảm cỡ chữ cả ô (Cmd −) — bôi đen để chỉ đổi phần đó", onClick: () => changeSize(-2) }, "A−"),
+        ce("span", { className: `w-9 text-center text-xs tabular-nums ${selSize ? "font-bold text-indigo-600" : "text-slate-400"}`, title: selSize ? "Cỡ chữ phần đang bôi đen" : "Cỡ chữ mặc định của ô" }, selSize || note.size),
+        ce(Btn, { title: selSize ? "Tăng cỡ phần đang bôi đen (Cmd +)" : "Tăng cỡ chữ cả ô (Cmd +) — bôi đen để chỉ đổi phần đó", onClick: () => changeSize(2) }, "A+"),
+        ce(Sep),
+        NOTE_BGS.map((c) => ce("button", { key: c, type: "button", title: "Màu nền ô", onMouseDown: keep, onClick: () => onChange(note.id, { bg: c }), className: "mx-0.5 h-5 w-5 rounded-md", style: { background: c, boxShadow: "0 0 0 1px #cbd5e1" } })),
+        ce(Sep),
+        ce(Btn, { title: recording ? "Dừng ghi giọng nói" : "Nói để nhập chữ (giọng nói → chữ)", onClick: startVoice, disabled: rec === "busy", className: recording ? "bg-rose-500 text-white hover:bg-rose-600" : "" }, recording ? "■ Dừng" : rec === "busy" ? "⏳" : "🎤"),
+        ce(Btn, { title: "Đổi ngôn ngữ nhận diện giọng nói", onClick: () => setLang(lang === "en" ? "vi" : "en"), disabled: recording, className: "text-[11px] font-bold" }, lang === "en" ? "🇬🇧 EN" : "🇻🇳 VI"),
+        ce(Btn, { title: "Bôi đen đoạn chữ rồi bấm: AI sửa lặp từ, nhận diện sai, thêm dấu câu — không sửa quá tay", onClick: runAi, disabled: aiBusy, className: "font-semibold text-indigo-700" }, aiBusy ? "⏳ Đang xử lí…" : "✨ AI xử lí lại")
       ),
-      /* @__PURE__ */ React.createElement(
-        "div",
-        {
+      ce("div", { className: "flex flex-col overflow-hidden rounded-2xl border-2 shadow-floating", style: { height: note.h, background: note.bg, borderColor: recording ? "#f43f5e" : focused ? "#4338CA" : "#e2e8f0" } },
+        ce("div", { onPointerDown: (e) => startDrag(e, "move"), className: "flex h-6 flex-shrink-0 cursor-move items-center justify-between bg-slate-900/5 px-2", style: { touchAction: "none" } },
+          recording
+            ? ce("button", { type: "button", onPointerDown: (e) => e.stopPropagation(), onMouseDown: keep, onClick: stopVoice, className: "flex items-center gap-1.5 text-[10px] font-bold tracking-wide text-rose-600" }, ce("span", { className: "h-2 w-2 animate-pulse rounded-full bg-rose-500" }), rec === "live" ? "ĐANG NGHE (" + lang.toUpperCase() + ") — BẤM ĐỂ DỪNG" : "ĐANG GHI ÂM — BẤM ĐỂ DỪNG")
+            : ce("span", { className: "text-[10px] font-bold tracking-widest text-slate-400" }, rec === "busy" ? "⏳ ĐANG CHUYỂN GIỌNG NÓI THÀNH CHỮ…" : "⋮⋮ KÉO ĐỂ DI CHUYỂN"),
+          ce("button", { type: "button", onPointerDown: (e) => e.stopPropagation(), onClick: () => { stopVoice(); onDelete(note.id); }, className: "text-xs font-bold text-slate-400 hover:text-rose-500", title: "Xóa ô này" }, "✕")
+        ),
+        ce("div", {
           ref,
           contentEditable: true,
           suppressContentEditableWarning: true,
@@ -505,20 +859,32 @@
           },
           onInput,
           onKeyDown,
-          className: "flex-1 overflow-auto px-3 py-2 leading-snug text-slate-900 outline-none",
+          onPaste,
+          onClick: onEditorClick,
+          className: "night-note-ed flex-1 overflow-auto px-3 py-2 leading-snug text-slate-900 outline-none",
           style: { fontSize: note.size, fontFamily: "'Plus Jakarta Sans', 'Segoe UI', 'Arial Unicode MS', sans-serif" }
-        }
-      )
-    ), /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        onPointerDown: (e) => startDrag(e, "resize"),
-        title: "Kéo để đổi kích thước",
-        className: "absolute -bottom-1 -right-1 h-5 w-5 cursor-nwse-resize rounded-br-2xl",
-        style: { touchAction: "none" }
-      },
-      /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 20 20", className: "h-5 w-5 text-slate-400" }, /* @__PURE__ */ React.createElement("path", { d: "M18 8v10H8M18 13v5h-5", stroke: "currentColor", strokeWidth: "2", fill: "none", strokeLinecap: "round" }))
-    ));
+        })
+      ),
+      imgBox && ce(React.Fragment, null,
+        ce("div", { style: { position: "absolute", left: imgBox.left - 2, top: imgBox.top - 2, width: imgBox.width + 4, height: imgBox.height + 4, border: "2px solid #4338ca", borderRadius: 6, pointerEvents: "none" } }),
+        ce("div", { className: "flex items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-0.5 text-[11px] font-semibold shadow-floating", style: { position: "absolute", left: imgBox.left, top: imgBox.top + 4 } },
+          [["25%", 0.25], ["50%", 0.5], ["100%", 1]].map(([l, p]) => ce("button", { key: l, type: "button", onMouseDown: keep, onClick: () => setImgPct(p), className: "rounded-md px-1.5 py-0.5 text-slate-600 hover:bg-slate-100" }, l)),
+          ce("button", { type: "button", onMouseDown: keep, onClick: delImg, title: "Xóa ảnh", className: "rounded-md px-1.5 py-0.5 text-rose-500 hover:bg-rose-50" }, "🗑")),
+        ce("div", { onPointerDown: startImgResize, title: "Kéo để đổi cỡ ảnh", style: { position: "absolute", left: imgBox.left + imgBox.width - 7, top: imgBox.top + imgBox.height - 7, width: 14, height: 14, background: "#4338ca", border: "2px solid #fff", borderRadius: 4, cursor: "nwse-resize", touchAction: "none", boxShadow: "0 1px 3px rgba(0,0,0,.3)" } })
+      ),
+      (msg || needKey) && ce("div", { className: "absolute left-0 top-full mt-2 w-full space-y-1.5", style: { minWidth: 240 } },
+        msg && ce("p", { className: `rounded-xl px-3 py-1.5 text-xs font-semibold shadow-floating ${toneCls[msg.tone] || toneCls.info}` }, msg.text),
+        needKey && ce("div", { className: "rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-floating" },
+          ce("p", { className: "mb-1 font-bold text-slate-800" }, "🔑 Cần Groq API key (dùng chung với cả web)"),
+          ce("p", { className: "mb-2" }, "Key đã lưu ở trang Speaking AI / Writing sẽ tự dùng được ở đây. Chưa có thì lấy miễn phí tại ", ce("a", { href: "https://console.groq.com/keys", target: "_blank", rel: "noopener", className: "font-semibold text-indigo-600 underline" }, "console.groq.com/keys"), "."),
+          ce("div", { className: "flex gap-1.5" },
+            ce("input", { type: "password", value: keyInput, onChange: (e) => setKeyInput(e.target.value), placeholder: "gsk_...", className: "min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-indigo-400" }),
+            ce("button", { type: "button", onClick: () => { if (!keyInput.trim()) return; saveGroqKey(keyInput.trim()); setKeyInput(""); setNeedKey(false); setMsg(null); flash("Đã lưu key — bôi đen lại đoạn chữ rồi bấm ✨ AI xử lí lại.", "ok", 5000); }, className: "rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white" }, "Lưu"),
+            ce("button", { type: "button", onClick: () => { setNeedKey(false); setMsg(null); }, className: "rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100" }, "✕")))
+      ),
+      ce("div", { onPointerDown: (e) => startDrag(e, "resize"), title: "Kéo để đổi kích thước", className: "absolute -bottom-1 -right-1 h-5 w-5 cursor-nwse-resize rounded-br-2xl", style: { touchAction: "none" } },
+        ce("svg", { viewBox: "0 0 20 20", className: "h-5 w-5 text-slate-400" }, ce("path", { d: "M18 8v10H8M18 13v5h-5", stroke: "currentColor", strokeWidth: "2", fill: "none", strokeLinecap: "round" })))
+    );
   }
   function IpaCheatSheet({ onClose }) {
     return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "max-h-[85vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-6 shadow-floating", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "mb-4 flex items-center justify-between" }, /* @__PURE__ */ React.createElement("p", { className: "text-lg font-extrabold text-slate-900" }, "⌨️ Bảng gõ tắt IPA"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "rounded-full px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "Đóng ✕")), /* @__PURE__ */ React.createElement("p", { className: "mb-4 text-sm text-slate-500" }, "Trong ô ghi chú, gõ ", /* @__PURE__ */ React.createElement("b", { className: "text-primary" }, "/"), " + mã → tự đổi thành ký hiệu. Ví dụ gõ ", /* @__PURE__ */ React.createElement("code", { className: "rounded bg-slate-100 px-1" }, "/ch/i:z"), " ra ", /* @__PURE__ */ React.createElement("b", null, "tʃiːz"), ". Mã có phân biệt chữ ", /* @__PURE__ */ React.createElement("b", null, "hoa/thường"), " (/I = ɪ, /O = ɒ, /U = ʊ). Các âm bàn phím có sẵn (p, b, t, d, k, g, f, v, s, z, h, m, n, l, r, w, j, e) gõ bình thường."), IPA_GROUPS.map((g) => /* @__PURE__ */ React.createElement("div", { key: g.label, className: "mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 text-xs font-bold uppercase tracking-wide text-primary" }, g.label), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2 sm:grid-cols-4" }, g.items.map(([c, s, ex]) => /* @__PURE__ */ React.createElement("div", { key: c, className: "rounded-2xl border border-slate-100 bg-slate-50 p-2" }, /* @__PURE__ */ React.createElement("p", { className: "flex items-baseline justify-between" }, /* @__PURE__ */ React.createElement("code", { className: "text-sm font-bold text-slate-700" }, "/", c === "/" ? "/" : c), /* @__PURE__ */ React.createElement("span", { className: "font-serif text-xl font-bold text-primary" }, s)), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, ex)))))), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, "Mẹo: nếu viết “he/she” mà bị đổi thành ký hiệu, gõ “he//she” hoặc tắt Gõ tắt IPA trong menu ✏️.")));
@@ -543,10 +909,13 @@
       }
     });
     const [confirmClear, setConfirmClear] = useState(false);
+    const [storeFull, setStoreFull] = useState(false);
     useEffect(() => {
       try {
         localStorage.setItem(KEY, JSON.stringify(notes));
+        setStoreFull(false);
       } catch (e) {
+        setStoreFull(true);
       }
     }, [notes]);
     useEffect(() => {
@@ -573,7 +942,7 @@
       setOpen(false);
     };
     const Item = ({ onClick, children, danger }) => /* @__PURE__ */ React.createElement("button", { onClick, className: `w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${danger ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-100"}` }, children);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, !hidden && notes.map((n) => /* @__PURE__ */ React.createElement(NoteBox, { key: n.id, note: n, onChange: update, onDelete: remove, ipaOn })), sheet && /* @__PURE__ */ React.createElement(IpaCheatSheet, { onClose: () => setSheet(false) }), /* @__PURE__ */ React.createElement("div", { className: "fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" }, open && /* @__PURE__ */ React.createElement("div", { className: "w-60 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-floating" }, /* @__PURE__ */ React.createElement(Item, { onClick: add }, "＋ Thêm ô ghi chú"), /* @__PURE__ */ React.createElement(Item, { onClick: () => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, !hidden && notes.map((n) => /* @__PURE__ */ React.createElement(NoteBox, { key: n.id, note: n, onChange: update, onDelete: remove, ipaOn })), sheet && /* @__PURE__ */ React.createElement(IpaCheatSheet, { onClose: () => setSheet(false) }), /* @__PURE__ */ React.createElement("div", { className: "fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" }, storeFull && /* @__PURE__ */ React.createElement("p", { className: "max-w-xs rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-floating" }, "⚠️ Bộ nhớ trình duyệt đã đầy — ghi chú mới chưa được lưu. Xóa bớt ảnh hoặc thu nhỏ ảnh trong ghi chú."), open && /* @__PURE__ */ React.createElement("div", { className: "w-60 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-floating" }, /* @__PURE__ */ React.createElement(Item, { onClick: add }, "＋ Thêm ô ghi chú"), /* @__PURE__ */ React.createElement(Item, { onClick: () => {
       setSheet(true);
       setOpen(false);
     } }, "⌨️ Bảng gõ tắt IPA"), /* @__PURE__ */ React.createElement(Item, { onClick: () => setIpaOn(!ipaOn) }, ipaOn ? "✅" : "⬜", " Gõ tắt IPA (/d3 → dʒ)"), notes.length > 0 && /* @__PURE__ */ React.createElement(Item, { onClick: () => setHidden(!hidden) }, hidden ? "👁 Hiện" : "🙈 Ẩn", " ghi chú (", notes.length, ")"), notes.length > 0 && /* @__PURE__ */ React.createElement(Item, { danger: true, onClick: () => {
@@ -755,6 +1124,7 @@
   .transform-style-3d { transform-style: preserve-3d; }
   .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .rotate-y-180 { transform: rotateY(180deg); }
+  .night-note-ed img { max-width: 100%; height: auto; display: inline-block; vertical-align: bottom; border-radius: 6px; cursor: pointer; }
   .flip-card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; }
   .flip-card-front, .flip-card-back { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .flip-card-back { transform: rotateY(180deg); }
