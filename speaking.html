@@ -367,8 +367,17 @@ audio{width:100%;height:40px;}
 .pron-word small{font-weight:600;opacity:.75;margin-left:4px;}
 
 /* Cột phải */
-.pv-right{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:6px 18px 18px;position:sticky;top:12px;min-width:0;}
-@media (max-width:960px){.pv-right{position:static;}}
+.pv-right{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:6px 18px 18px;position:sticky;top:12px;min-width:0;max-height:calc(100vh - 24px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+@media (max-width:960px){.pv-right{position:static;max-height:none;overflow:visible;}}
+.fx.unc{outline:1.5px dashed var(--c);outline-offset:1px;}
+.fx.unc del{text-decoration-style:dashed;}
+.up-tabs{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 10px;padding:0 2px;}
+.up-tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:4px 0;font:inherit;font-size:14px;font-weight:700;color:var(--ink-3);cursor:pointer;}
+.up-tabs button.active{color:var(--magenta);border-bottom-color:var(--magenta);}
+.answer-card-title #upTitle{font-weight:800;color:var(--ink);}
+.up-intro{font-size:13.5px;color:var(--ink-2);line-height:1.6;margin:0 0 12px;}
+.up-gen{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:16px;border:1.5px dashed var(--lav-2);border-radius:16px;background:#fbfbff;}
+.up-gen .ni-submit-btn{padding:9px 18px;font-size:14px;}
 .side-tabs{display:flex;border-bottom:1px solid var(--rule);margin:0 -4px 16px;}
 .side-tabs span{padding:12px 4px;font-weight:800;font-size:15px;color:var(--ink-3);}
 .side-tabs span.on{color:var(--ink);border-bottom:2.5px solid var(--ink);margin-bottom:-1px;}
@@ -690,17 +699,25 @@ Is it better to read a physical book or an e-book?"></textarea>
           <div class="side-tabs"><span class="on">AI hỗ trợ</span></div>
 
           <div id="resSideBox" class="hidden">
-            <div class="answer-card upgraded side-answer">
-              <div class="answer-card-head">
-                <button type="button" class="play-dot" onclick="speakText(document.getElementById('resRefinedAnswer').textContent)" title="Nghe" aria-label="Nghe bản nâng cấp"><i class="fa-solid fa-play"></i></button>
-                <span class="answer-card-title">Bản nâng cấp <span id="resRefinedSub">từ chính câu trả lời của bạn</span></span>
-              </div>
-              <p id="resRefinedAnswer" class="answer-card-text"></p>
-              <p class="side-tip"><i class="fa-solid fa-circle-info"></i> Bôi đen cụm từ bất kỳ để đánh dấu hoặc ghi chú.</p>
+            <div id="upTabs" class="up-tabs" role="tablist" aria-label="Chọn kiểu nâng cấp">
+              <button type="button" data-u="refined" class="active" onclick="setUpTab('refined')">Bản nâng cấp</button>
+              <button type="button" data-u="vocab" onclick="setUpTab('vocab')">Nâng cấp từ vựng</button>
+              <button type="button" data-u="grammar" onclick="setUpTab('grammar')">Ngữ pháp &amp; trôi chảy</button>
             </div>
-            <p class="sec-h" style="margin:18px 0 6px;">Đã sửa gì và vì sao</p>
-            <div id="resRefinementNotes" class="refine-list"></div>
-            <button type="button" onclick="startRetry()" class="ni-submit-btn w-full mt-4">Nói lại theo bản nâng cấp</button>
+            <div id="upGenBox" class="up-gen hidden"></div>
+            <div id="upContent">
+              <div class="answer-card upgraded side-answer">
+                <div class="answer-card-head">
+                  <button type="button" class="play-dot" onclick="speakText(document.getElementById('resRefinedAnswer').textContent)" title="Nghe" aria-label="Nghe bản nâng cấp"><i class="fa-solid fa-play"></i></button>
+                  <span class="answer-card-title"><span id="upTitle">Bản nâng cấp</span> <span id="resRefinedSub">từ chính câu trả lời của bạn</span></span>
+                </div>
+                <p id="resRefinedAnswer" class="answer-card-text"></p>
+                <p class="side-tip"><i class="fa-solid fa-circle-info"></i> Bôi đen cụm từ bất kỳ để đánh dấu hoặc ghi chú.</p>
+              </div>
+              <p class="sec-h" style="margin:18px 0 6px;">Đã sửa gì và vì sao</p>
+              <div id="resRefinementNotes" class="refine-list"></div>
+              <button type="button" id="upRetryBtn" onclick="startRetry()" class="ni-submit-btn w-full mt-4">Nói lại theo bản nâng cấp</button>
+            </div>
           </div>
 
           <div class="side-actions">
@@ -758,9 +775,12 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v3',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v4',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
-    asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 để đo độ rõ
+    asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
+    // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
+    // CỐ Ý không có lỗi ngữ pháp trong câu mồi, để không khiến Whisper tự "bịa" thêm lỗi.
+    verbatimPrompt: 'Um, well, I I think, uh, the the main reason is... I mean, it is, like, really useful, you know. So, er, I went, I went there last year.',
     llmModelDefault: 'openai/gpt-oss-120b',
     llmTemperature: 0,
     rounding: 'down-to-half'            // xem overallBand()
@@ -1052,28 +1072,125 @@ Is it better to read a physical book or an e-book?"></textarea>
     return { enough: true, peaks: n, peaksPerSec: +(n / speech).toFixed(2),
       nPVI: pvi.length >= 5 ? Math.round(100 * pvi.reduce(function (a, b) { return a + b; }, 0) / pvi.length) : null };
   }
-  // So 2 lần nhận dạng (A = whisper-large-v3, B = whisper-large-v3-turbo) bằng LCS trên từ đã chuẩn hoá.
-  // Trả tỉ lệ khớp + các đoạn của A mà B nghe khác (kèm mốc thời gian của A).
-  function compareDecodes(A, B) {
+  // ---- So 2 lần nhận dạng ở mức từ: căn chỉnh LCS rồi phân loại từng chỗ khác nhau ----
+  function stemW(w) { w = norm(w).replace(/'s$/, ''); return w.replace(/ies$/, 'y').replace(/(es|s|ed|d)$/, ''); }
+  function alignDecodes(A, B) {
     A = A || []; B = B || [];
     var a = A.map(function (w) { return norm(w.w); }), b = B.map(function (w) { return norm(w.w); });
-    var n = a.length, m = b.length;
-    if (!n) return { agreement: null, unclear: [] };
-    var L = [], i, j;
-    for (i = 0; i <= n; i++) { L.push(new Array(m + 1).fill(0)); }
-    for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--) L[i][j] = a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
-    var matched = new Array(n).fill(false);
+    var n = a.length, m = b.length, L = [], i, j;
+    for (i = 0; i <= n; i++) L.push(new Array(m + 1).fill(0));
+    for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--) L[i][j] = a[i] && a[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    var blocks = [], cur = null, matched = 0;
+    function flush() { if (cur) { blocks.push(cur); cur = null; } }
     i = 0; j = 0;
-    while (i < n && j < m) { if (a[i] === b[j]) { matched[i] = true; i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++; }
-    var unclear = [], cur = null;
-    for (i = 0; i < n; i++) {
-      if (!matched[i]) { if (!cur) { cur = { words: [], s: A[i].s, e: A[i].e }; unclear.push(cur); } cur.words.push(A[i].w); cur.e = A[i].e; }
-      else cur = null;
+    while (i < n || j < m) {
+      if (i < n && j < m && a[i] && a[i] === b[j]) { flush(); matched++; i++; j++; continue; }
+      if (!cur) cur = { ai: [], bi: [] };
+      if (j >= m || (i < n && L[i + 1][j] >= L[i][j + 1])) { cur.ai.push(i); i++; } else { cur.bi.push(j); j++; }
     }
+    flush();
+    blocks.forEach(function (bk) {
+      var aw = bk.ai.map(function (k) { return a[k]; }), bw = bk.bi.map(function (k) { return b[k]; });
+      var one = bk.ai.length ? aw : bw, seq = bk.ai.length ? a : b, idx = bk.ai.length ? bk.ai : bk.bi;
+      bk.aText = bk.ai.map(function (k) { return A[k].w; }).join(' ');
+      bk.bText = bk.bi.map(function (k) { return B[k].w; }).join(' ');
+      var ref = bk.ai.length ? A[bk.ai[0]] : (B[bk.bi[0]] || {});
+      bk.s = ref.s; bk.e = bk.ai.length ? A[bk.ai[bk.ai.length - 1]].e : (B[bk.bi[bk.bi.length - 1]] || {}).e;
+      if (!bk.ai.length || !bk.bi.length) {
+        var k0 = idx[0], k1 = idx[idx.length - 1], len = idx.length;
+        var before = seq.slice(Math.max(0, k0 - len), k0).join(' '), after = seq.slice(k1 + 1, k1 + 1 + len).join(' ');
+        if (one.every(function (w) { return FILLERS.indexOf(w) !== -1; })) bk.category = 'filler';
+        else if (one.join(' ') === before || one.join(' ') === after) bk.category = 'repetition';
+        else bk.category = 'asr_disagreement';
+      } else if (aw.length === 1 && bw.length === 1 && stemW(aw[0]).length >= 2 && stemW(aw[0]) === stemW(bw[0])) bk.category = 'morphology';
+      else bk.category = 'asr_disagreement';
+    });
+    return { blocks: blocks, matched: matched, n: n, m: m };
+  }
+  // Độ khớp 2 lần nhận dạng — bỏ qua khác biệt do "um/uh" và lặp từ (lần 1 được nhắc ghi nguyên văn, lần 2 thì không)
+  function compareDecodes(A, B) {
+    A = A || []; B = B || [];
+    if (!A.length) return { agreement: null, unclear: [] };
+    var al = alignDecodes(A, B);
+    var ign = function (side) { return al.blocks.filter(function (bk) { return bk.category === 'filler' || bk.category === 'repetition'; }).reduce(function (t, bk) { return t + bk[side].length; }, 0); };
+    var na = al.n - ign('ai'), nb = al.m - ign('bi');
+    var unclear = al.blocks.filter(function (bk) { return (bk.category === 'asr_disagreement' || bk.category === 'morphology') && bk.ai.length; });
     return {
-      agreement: +(L[0][0] / Math.max(n, m)).toFixed(3),
-      unclear: unclear.map(function (u) { return { text: u.words.join(' '), s: +Number(u.s).toFixed(2), e: +Number(u.e).toFixed(2) }; }).slice(0, 12)
+      agreement: Math.max(na, nb) > 0 ? +(al.matched / Math.max(na, nb)).toFixed(3) : null,
+      unclear: unclear.map(function (u) { return { text: u.aText, s: +Number(u.s).toFixed(2), e: +Number(u.e).toFixed(2) }; }).slice(0, 12)
     };
+  }
+
+  /* ---------- 6b. Kiểm tra đuôi -s trên sóng âm ----------
+     Whisper hay "sửa" câu cho đúng ngữ pháp (student -> students). Âm /s/, /z/ cuối từ là tiếng xì tần số cao,
+     khác hẳn nguyên âm. Ở cuối mỗi từ đuôi -s (theo mốc thời gian Whisper) đo tỉ lệ năng lượng cao tần.
+     present = có tiếng xì; absent = rõ ràng không có; unclear = không kết luận được (mốc thời gian lệch, ồn...). */
+  var S_SKIP = ['is', 'was', 'has', 'does', 'this', 'us', 'yes', 'its', 'his', 'hers', 'ours', 'yours', 'theirs', 'always', 'sometimes', 'perhaps', 'because', 'plus', 'bus', 'gas', 'else', 'besides', 'towards', 'afterwards', 'whereas', 'news', 'means', 'series', 'species', 'christmas', 'thus', 'nowadays', 'as', 'whereas', 'lots', 'chess', 'unless', 'less', 'across'];
+  function wantsFinalS(w) { w = norm(w); return w.length >= 3 && /s$/.test(w) && !/(ss|us|is|'s)$/.test(w) && S_SKIP.indexOf(w) === -1; }
+  function finalSibilant(x16, s, e, noiseDb) {
+    var sr = 16000, fl = 160;
+    if (s == null || e == null || !x16 || !x16.length) return 'unclear';
+    var a = Math.max(0, Math.floor(Math.max(s, e - 0.18) * sr)), b = Math.min(x16.length - 1, Math.ceil((e + 0.10) * sr));
+    var hi = 0, energetic = 0, maxR = 0;
+    for (var st = a; st + fl <= b; st += fl) {
+      var E = 0, D = 0;
+      for (var k = st; k < st + fl; k++) { E += x16[k] * x16[k]; var d = x16[k] - (k ? x16[k - 1] : 0); D += d * d; }
+      E /= fl; D /= fl;
+      var dbv = 10 * Math.log10(E + 1e-12);
+      if (dbv < noiseDb + 10) continue;
+      energetic++;
+      var r = D / (E + 1e-12);
+      if (r > maxR) maxR = r;
+      if (r > 0.6) hi++;
+    }
+    if (hi >= 2) return 'present';
+    if (energetic >= 3 && maxR < 0.25) return 'absent';
+    return 'unclear';
+  }
+  function noiseFloor16(x16) {
+    var fl = 160, dbs = [];
+    for (var st = 0; st + fl <= x16.length; st += fl) { var E = 0; for (var k = st; k < st + fl; k++) E += x16[k] * x16[k]; dbs.push(10 * Math.log10(E / fl + 1e-12)); }
+    dbs.sort(function (x, y) { return x - y; });
+    return percentile(dbs, 0.10);
+  }
+  /* ---------- 6c. Bằng chứng "học sinh thật sự đã nói gì" ----------
+     Đầu vào: A = lần nhận dạng được nhắc ghi nguyên văn (whisper-large-v3 + prompt có um/uh/lặp từ),
+              B = lần nhận dạng thường (whisper-large-v3-turbo), x16 = âm thanh 16 kHz.
+     Đầu ra: danh sách phát hiện có cấu trúc, mỗi mục ghi rõ nguồn bằng chứng và mức chắc chắn.
+     Không có mục nào là "confirmed": 2 máy nghe giống nhau không chứng minh đúng, đo âm chỉ là dấu hiệu. */
+  function speechFindings(o) {
+    var A = o.A || [], B = o.B || [], x16 = o.x16, nf = o.noiseDb, out = [];
+    var al = B.length ? alignDecodes(A, B) : { blocks: [] };
+    var seenA = {};
+    al.blocks.forEach(function (bk) {
+      if (bk.category === 'filler' || bk.category === 'repetition') {
+        out.push({ category: bk.category, segment: bk.aText || bk.bText, time: bk.s != null ? +Number(bk.s).toFixed(2) : null,
+          asr: bk.aText, alt: bk.bText, likely: bk.aText || bk.bText, source: bk.ai.length ? 'verbatim_decode_only' : 'second_decode_only', status: bk.ai.length ? 'likely' : 'uncertain' });
+        return;
+      }
+      if (bk.category === 'morphology') {
+        var aw = bk.aText, bw = bk.bText, aHasS = /s$/i.test(norm(aw)) && !/s$/i.test(norm(bw)), bHasS = /s$/i.test(norm(bw)) && !/s$/i.test(norm(aw));
+        var f = { category: 'morphology', segment: aw, time: +Number(bk.s).toFixed(2), asr: aw, alt: bw, likely: null, source: 'two_decodes', status: 'uncertain' };
+        if ((aHasS || bHasS) && x16) {
+          var sib = finalSibilant(x16, bk.s, bk.e, nf);
+          f.source = 'two_decodes+audio_final_s'; f.audio = sib;
+          if (sib === 'present') { f.likely = aHasS ? aw : bw; f.status = 'likely'; }
+          else if (sib === 'absent') { f.likely = aHasS ? bw : aw; f.status = 'likely'; }
+        }
+        bk.ai.forEach(function (k) { seenA[k] = 1; });
+        out.push(f);
+        return;
+      }
+      if (bk.ai.length) out.push({ category: 'asr_disagreement', segment: bk.aText, time: bk.s != null ? +Number(bk.s).toFixed(2) : null, asr: bk.aText, alt: bk.bText, likely: null, source: 'two_decodes', status: 'uncertain' });
+    });
+    // Cả 2 máy cùng nghe "students" vẫn có thể là cùng "sửa" giống nhau -> kiểm tra đuôi -s trên âm thanh
+    if (x16) A.forEach(function (w, k) {
+      if (seenA[k] || !wantsFinalS(w.w)) return;
+      if (finalSibilant(x16, w.s, w.e, nf) === 'absent') {
+        out.push({ category: 'final_s', segment: w.w, time: +Number(w.s).toFixed(2), asr: w.w, alt: null, likely: String(w.w).replace(/s$/i, ''), source: 'audio_final_s', status: 'likely', audio: 'absent' });
+      }
+    });
+    return out.slice(0, 30);
   }
   // Gói bằng chứng Phát âm gửi cho AI chấm + lưu vào bài làm
   function pronunciationEvidence(o) {
@@ -1134,7 +1251,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       sampleAdequacy: { level: ['adequate', 'limited', 'insufficient'].indexOf(sa.level) !== -1 ? sa.level : 'limited', note: String(sa.note || sa.note_vi || '') },
       whyNotHigher: String(parsed.whyNotHigher || ''),
       edits: (Array.isArray(parsed.edits) ? parsed.edits : []).map(function (e) {
-        return { find: String(e.find || ''), replace: String(e.replace == null ? '' : e.replace), criterion: spCrit(e.criterion), why: String(e.why || ''), asrPossible: !!(e.asrPossible || e.asr_possible) };
+        var st = String(e.status || '').toLowerCase(); if (['confirmed', 'likely', 'uncertain'].indexOf(st) === -1) st = (e.asrPossible || e.asr_possible) ? 'uncertain' : 'likely';
+        return { find: String(e.find || ''), replace: String(e.replace == null ? '' : e.replace), criterion: spCrit(e.criterion), why: String(e.why || ''), status: st, asrPossible: st === 'uncertain', evidence: String(e.evidence || '') };
       }).filter(function (e) { return e.find && (pronAvailable || e.criterion !== 'pronunciation'); }).slice(0, 40),
       refinedAnswer: String(parsed.refinedAnswer || ''),
       refinementNotes: (Array.isArray(parsed.refinementNotes) ? parsed.refinementNotes : []).map(function (n) {
@@ -1177,7 +1295,8 @@ Is it better to read a physical book or an e-book?"></textarea>
     analyzePcm: analyzePcm, qualityCheck: qualityCheck,
     alignWords: alignWords, flowMarks: flowMarks, pauseMarks: pauseMarks, fluencyMetrics: fluencyMetrics,
     resampleLinear: resampleLinear, pitchTrack: pitchTrack, prosodyMetrics: prosodyMetrics, rhythmMetrics: rhythmMetrics,
-    compareDecodes: compareDecodes, pronunciationEvidence: pronunciationEvidence,
+    compareDecodes: compareDecodes, alignDecodes: alignDecodes, pronunciationEvidence: pronunciationEvidence,
+    finalSibilant: finalSibilant, noiseFloor16: noiseFloor16, wantsFinalS: wantsFinalS, speechFindings: speechFindings,
     normalizeScoring: normalizeScoring, spCrit: spCrit, agreement: agreement
   };
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -1363,7 +1482,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   // Whisper (Groq): xin thêm mốc thời gian từng từ + độ tin cậy từng đoạn (verbose_json) để làm
   // karaoke, đo ngập ngừng và nhận ra đoạn ASR nghe không chắc. Trả {text, words:[{w,s,e}], segments}.
-  async function callGroqTranscribe(blob, model) {
+  async function callGroqTranscribe(blob, model, prompt) {
     const cfg = getGroqConfig();
     if (!cfg.apiKey) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     const type = (blob.type || '').toLowerCase();
@@ -1374,6 +1493,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       fd.append('model', model || SPCore.ENGINE.asrModel);
       fd.append('language', 'en');
       fd.append('temperature', '0');
+      if (prompt) fd.append('prompt', prompt);
       if (verbose) { fd.append('response_format', 'verbose_json'); fd.append('timestamp_granularities[]', 'word'); fd.append('timestamp_granularities[]', 'segment'); }
       return fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + cfg.apiKey }, body: fd });
     };
@@ -2426,14 +2546,14 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   // Chế độ "ghi âm": ẩn kết quả, hiện nút micro. Nếu truyền vào 1 lần làm trước (khi bấm "Làm
   // lại") thì hiện bản nâng cấp của lần đó phía trên để học sinh dựa vào mà nói lại.
-  function showRecordMode(prevRecord) {
+  function showRecordMode(prevRecord, side) {
     document.getElementById('resultBox').classList.add('hidden');
     document.getElementById('resSideBox').classList.add('hidden');
     document.getElementById('recSection').classList.remove('hidden');
     const ref = document.getElementById('retryRefBox');
     if (prevRecord) {
-      document.getElementById('retryRefTitle').textContent = 'Bản nâng cấp lần trước (lần đó bạn được ' + fmtRecBand(prevRecord) + '). Nói theo hướng này để lên điểm';
-      document.getElementById('retryRefText').textContent = prevRecord.refinedAnswer || '(Lần trước không có bản nâng cấp)';
+      document.getElementById('retryRefTitle').textContent = ((side && side.title) || 'Bản nâng cấp') + ' lần trước (lần đó bạn được ' + fmtRecBand(prevRecord) + '). Nói theo hướng này để lên điểm';
+      document.getElementById('retryRefText').textContent = (side && side.text) || prevRecord.refinedAnswer || '(Lần trước không có bản nâng cấp)';
       ref.classList.remove('hidden');
     } else {
       ref.classList.add('hidden');
@@ -2442,10 +2562,10 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   window.startRetry = function () {
     const q = __pkg.questions[__qIdx];
-    const latest = __doneQIds[q.id];
+    const rec = (__res && __res.record && __res.record.questionId === q.id) ? __res.record : __doneQIds[q.id];
     __retryMode = true;
     discardRecording();
-    showRecordMode(latest || null);
+    showRecordMode(rec || null, rec ? currentSide(rec) : null);
     document.getElementById('retryRefBox').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -2660,12 +2780,9 @@ Is it better to read a physical book or an e-book?"></textarea>
     } finally { try { ctx.close(); } catch (e) {} }
   }
   // ---- Phát âm: bằng chứng đo từ âm thanh (độ rõ qua 2 lần nhận dạng + ngữ điệu + nhịp). Thiếu -> "chưa đủ bằng chứng" ----
-  async function assessPronunciation(blob, pcm, audio, asr, quality) {
+  async function assessPronunciation(pcm, audio, asr, second, quality) {
     if (!pcm || !audio) return { status: 'unavailable', reason: 'audio_undecodable' };
     if (!quality.pronunciationReliable) return { status: 'insufficient', reason: 'audio_quality' };
-    let second = null;
-    try { second = await callGroqTranscribe(blob, SPCore.ENGINE.asrModel2); }
-    catch (e) { console.warn('Lần nhận dạng thứ 2 lỗi:', e); }
     const prosody = SPCore.prosodyMetrics(SPCore.pitchTrack(pcm.samples, pcm.rate, audio));
     const rhythm = SPCore.rhythmMetrics(audio);
     return SPCore.pronunciationEvidence({
@@ -2714,8 +2831,12 @@ Is it better to read a physical book or an e-book?"></textarea>
       if (!quality.canScore) { const err = new Error('quality'); err.quality = quality; throw err; }
 
       // 2) Chuyển giọng nói thành chữ (kèm mốc thời gian từng từ)
-      spinnerMsg.textContent = 'Đang chuyển giọng nói thành văn bản...';
-      const asr = await callGroqTranscribe(recBlob);
+      // Lần 1: nhắc Whisper ghi NGUYÊN VĂN (giữ um/uh, lặp từ). Lần 2: model khác, không nhắc -> để so sánh.
+      spinnerMsg.textContent = 'Đang chuyển giọng nói thành văn bản (nguyên văn)...';
+      const asr = await callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel, SPCore.ENGINE.verbatimPrompt);
+      let asr2 = null;
+      try { spinnerMsg.textContent = 'Đang nghe lại lần 2 để đối chiếu...'; asr2 = await callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2); }
+      catch (e) { console.warn('Lần nhận dạng thứ 2 lỗi:', e); }
       const transcript = asr.text;
       if (!transcript) throw Object.assign(new Error('x'), { quality: { status: 'reject', issues: [{ code: 'no_text', level: 'reject', msg: 'Không nhận ra lời nói nào. Hãy nói rõ hơn và ghi lại.' }] } });
 
@@ -2725,10 +2846,16 @@ Is it better to read a physical book or an e-book?"></textarea>
       const flow = SPCore.flowMarks(transcript, tokens);
       const fluency = SPCore.fluencyMetrics(tokens, audio, pauses, flow.repetitions);
       const asrUncertain = asr.segments.filter(s => s.avgLogprob < -0.8 || s.noSpeechProb > 0.6).map(s => s.text).filter(Boolean).slice(0, 6);
+      // Đối chiếu: chỗ máy có thể đã "sửa" lời học sinh (số ít/số nhiều, lặp từ, um/uh, nghe nhầm), có kiểm tra đuôi -s trên âm thanh
+      let findings = [];
+      try {
+        const x16 = pcm ? SPCore.resampleLinear(pcm.samples, pcm.rate, 16000) : null;
+        findings = SPCore.speechFindings({ A: asr.words, B: asr2 ? asr2.words : [], x16: quality.pronunciationReliable ? x16 : null, noiseDb: x16 ? SPCore.noiseFloor16(x16) : 0 });
+      } catch (e) { console.warn('Không đối chiếu được:', e); }
 
       // 4) Phát âm: số đo từ âm thanh
       spinnerMsg.textContent = 'Đang đo độ rõ, ngữ điệu và nhịp từ âm thanh...';
-      const pron = await assessPronunciation(recBlob, pcm, audio, asr, quality);
+      const pron = await assessPronunciation(pcm, audio, asr, asr2, quality);
       const pronAvailable = pron.status === 'ok';
 
       // 5) AI chấm theo mô tả band chính thức, dựa trên bằng chứng ở trên
@@ -2736,6 +2863,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       const evidence = {
         part: part, question: q.text,
         transcript_asr_hypothesis: transcript,
+        transcript_second_asr: asr2 ? asr2.text : null,
+        speech_findings: findings,
         asr_low_confidence_segments: asrUncertain,
         audio_quality: { status: quality.status, issues: quality.issues.map(i => i.code) },
         fluency_measurements: audio ? fluency : Object.assign({}, fluency, { note: 'audio not analysable; timing-based measures unavailable' }),
@@ -2799,6 +2928,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         refinementNotes: norm.refinementNotes,
         // bằng chứng đo được (để xem lại / hiệu chuẩn sau này)
         words: asr.words.slice(0, 900).map(w => ({ w: w.w, s: +w.s.toFixed(2), e: +w.e.toFixed(2) })),
+        transcriptAlt: asr2 ? asr2.text : '', findings: findings,
         pauseMarks: pauses, fluency: fluency, asrUncertain: asrUncertain,
         audioMetrics: audio ? { duration: +audio.duration.toFixed(2), speechSec: audio.speechSec, snrDb: +audio.snrDb.toFixed(1), clipRatio: +audio.clipRatio.toFixed(4), peak: +audio.peak.toFixed(3) } : null,
         quality: { status: quality.status, issues: quality.issues },
@@ -2845,16 +2975,16 @@ Is it better to read a physical book or an e-book?"></textarea>
   // ==========================================
   const SCORING_SYSTEM_PROMPT = [
     'You are a calibrated IELTS Speaking examiner. You estimate the band a trained examiner would most likely award for the performance in ONE recorded answer, using only the evidence provided. Your output is an ESTIMATE for practice, not an official IELTS result.',
-    'INPUT (JSON): part, question, transcript_asr_hypothesis (an automatic speech-recognition transcript: it may contain recognition errors, invented punctuation and removed fillers; treat it as a hypothesis, not as truth), asr_low_confidence_segments, audio_quality, fluency_measurements (computed by code from the audio and word timings: words, speaking span, words per minute, pauses over 1s/2s, longest pause, mean words between pauses, immediate repetitions), pronunciation_evidence (measurements computed from the AUDIO by an acoustic pronunciation-assessment model, or null).',
+    'INPUT (JSON): part, question, transcript_asr_hypothesis (verbatim-oriented speech-recognition transcript: Whisper was prompted to keep fillers, repetitions and false starts, but it may still silently correct grammar, add plural endings, drop disfluencies, mishear words and invent punctuation; treat it as a hypothesis, not as truth), transcript_second_asr (an independent second recognition by another model, not prompted for verbatim; may be null), speech_findings (computed by code: places where the two recognitions differ, plus an acoustic check of final /s/ sounds; each item has category filler|repetition|morphology|final_s|asr_disagreement, segment, time, asr, alt, likely = the likely spoken form or null, source, status likely|uncertain; no item is confirmed), asr_low_confidence_segments, audio_quality, fluency_measurements (computed by code from the audio and word timings: words, speaking span, words per minute, pauses over 1s/2s, longest pause, mean words between pauses, immediate repetitions), pronunciation_evidence (measurements computed from the AUDIO by an acoustic pronunciation-assessment model, or null).',
     'BAND DESCRIPTORS (paraphrased from the public IELTS Speaking band descriptors). Award each criterion a WHOLE band 0-9 that best fits the evidence as a whole (best fit, not the lowest single feature).',
     'FLUENCY AND COHERENCE: 9 fluent, rare content-related hesitation, fully coherent, cohesive features fully appropriate, topics fully developed. 8 fluent, only occasional repetition or self-correction, hesitation usually content-related and rarely to search for language, topics developed coherently. 7 speaks at length without noticeable effort or loss of coherence, may show language-related hesitation or some repetition/self-correction, uses a range of connectives and discourse markers with some flexibility. 6 willing to speak at length though may lose coherence at times due to repetition, self-correction or hesitation; range of connectives not always used appropriately. 5 usually maintains flow but uses repetition, self-correction and/or slow speech to keep going; may over-use certain connectives; simple speech fluent, more complex communication causes fluency problems. 4 cannot respond without noticeable pauses, may speak slowly with frequent repetition and self-correction; links basic sentences with repetitious simple connectives; some breakdowns in coherence. 3 long pauses, limited ability to link simple sentences, simple responses, often unable to convey basic message.',
     'LEXICAL RESOURCE: 9 full flexibility and precision in all topics, idiomatic language naturally and accurately. 8 wide resource used readily and flexibly to convey precise meaning; less common and idiomatic vocabulary used skilfully with occasional inaccuracies; paraphrases effectively as required. 7 flexible enough to discuss a variety of topics; some less common and idiomatic vocabulary, awareness of style and collocation, with some inappropriate choices; paraphrases effectively. 6 wide enough to discuss topics at length and make meaning clear despite inappropriacies; generally paraphrases successfully. 5 manages to talk about familiar and unfamiliar topics but limited flexibility; attempts paraphrase with mixed success. 4 able to talk about familiar topics but only basic meaning on unfamiliar topics; frequent errors in word choice; rarely paraphrases. 3 simple vocabulary for personal information, insufficient for less familiar topics.',
     'GRAMMATICAL RANGE AND ACCURACY: 9 full range of structures naturally and appropriately; consistently accurate apart from slips characteristic of native speakers. 8 wide range used flexibly; majority of sentences error-free, only very occasional inappropriacies or basic/non-systematic errors. 7 range of complex structures with some flexibility; frequently error-free sentences though some grammatical mistakes persist. 6 mix of simple and complex structures but limited flexibility; frequent mistakes with complex structures though these rarely cause comprehension problems. 5 basic sentence forms with reasonable accuracy; limited range of complex structures, usually containing errors that may cause some comprehension problems. 4 basic sentence forms and some correct simple sentences, subordinate structures rare; errors frequent and may lead to misunderstanding. 3 attempts basic sentence forms with limited success or relies on memorised utterances; numerous errors.',
     'PRONUNCIATION: 9 full range of pronunciation features with precision and subtlety, sustained flexible use, effortless to understand, accent has no effect on intelligibility. 8 wide range of features, flexible use with occasional lapses, easy to understand throughout, accent has minimal effect. 7 all positive features of 6 and some, but not all, of 8. 6 range of features with mixed control; some effective use of features not sustained; generally understood though mispronunciation of individual words or sounds reduces clarity at times. 5 all positive features of 4 and some of 6. 4 limited range of features; attempts to control features but lapses are frequent; mispronunciations frequent and cause some difficulty for the listener. 3 some features of 2 and some of 4.',
-    'RULES. (1) Interpret every feature in context; never apply a fixed penalty for hesitation, self-correction, repetition, simple vocabulary, a few grammar mistakes, accent, slow speech, pauses or short answers. Speaking fast is not fluency; natural planning pauses are acceptable at high bands; penalise hesitation only when it is frequent, language-related or disrupts communication. A simple but coherent answer is not automatically low. (2) Do not reward rare words by themselves, do not penalise common words that express meaning precisely; sentence length is not grammatical range; complexity is not accuracy. (3) The transcript is ASR output: if an apparent error could plausibly be a recognition error (similar-sounding words, a segment in asr_low_confidence_segments, an odd word in otherwise fluent speech), do not count it as a lexical/grammar error with certainty: mark the edit asrPossible:true and lower confidence. Ignore punctuation and capitalisation; disfluencies are not grammar errors. Fillers such as um/uh are usually removed by the ASR, so their absence is not evidence of fluency. (4) Short or thin samples: if there is too little language to judge the full range (e.g. under ~40 words, or a Part 2 answer well under a minute), do NOT lower the band for that reason alone; judge what is shown and set confidence low, explaining why in uncertainty. (5) Bands 8 and 9 are reachable: award them when the evidence meets those descriptors. Do not inflate; do not pull scores towards an average; criteria may differ from each other. (6) PRONUNCIATION: if pronunciation_evidence is null you have NO evidence: set criteria.pronunciation to {"band": null, "confidence": "none"} with empty texts, never estimate pronunciation from the transcript, never create edits with criterion "pronunciation". If it is present, it contains only INDIRECT measurements computed from the audio: asr_agreement_two_models (share of words two different Whisper models recognised identically: low agreement and unclear_regions suggest stretches that were hard to understand; HIGH agreement does NOT prove accurate pronunciation because Whisper is robust to accents), mean_asr_logprob (closer to 0 = recogniser more certain), pitch.rangeSemitones / sdSemitones (very narrow pitch movement suggests flat intonation; wide movement shows some intonation use), rhythm.peaksPerSec (approximate syllable rate) and rhythm.nPVI (variability between syllable intervals; very even timing can indicate syllable-timed rather than stress-timed rhythm). Individual sounds, vowel/consonant contrasts and word stress were NOT measured: do not comment on them as facts. Estimate the band mainly from intelligibility evidence, then intonation and rhythm, without penalising a Vietnamese accent that remains intelligible; with only indirect evidence, avoid extreme bands unless the evidence is strong (e.g. many unclear regions -> low; high agreement with varied pitch -> 6-7 at most is defensible, 8-9 cannot be established from these measures). Set confidence "low" and say in uncertainty that sounds and word stress were not measured. Cite unclear regions with time_sec. (7) Only quote words that appear in the transcript; never invent quotations, pauses or audio events. Use fluency_measurements for fluency claims about pauses and speed.',
+    'RULES. (1) Interpret every feature in context; never apply a fixed penalty for hesitation, self-correction, repetition, simple vocabulary, a few grammar mistakes, accent, slow speech, pauses or short answers. Speaking fast is not fluency; natural planning pauses are acceptable at high bands; penalise hesitation only when it is frequent, language-related or disrupts communication. A simple but coherent answer is not automatically low. (2) Do not reward rare words by themselves, do not penalise common words that express meaning precisely; sentence length is not grammatical range; complexity is not accuracy. (3) The transcript is ASR output: if an apparent error could plausibly be a recognition error (similar-sounding words, a segment in asr_low_confidence_segments, an odd word in otherwise fluent speech), do not count it as a lexical/grammar error with certainty: mark the edit asrPossible:true and lower confidence. Ignore punctuation and capitalisation; disfluencies are not grammar errors. Fillers such as um/uh are usually removed by the ASR, so their absence is not evidence of fluency. (4) Short or thin samples: if there is too little language to judge the full range (e.g. under ~40 words, or a Part 2 answer well under a minute), do NOT lower the band for that reason alone; judge what is shown and set confidence low, explaining why in uncertainty. (5) Bands 8 and 9 are reachable: award them when the evidence meets those descriptors. Do not inflate; do not pull scores towards an average; criteria may differ from each other. (6) PRONUNCIATION: if pronunciation_evidence is null you have NO evidence: set criteria.pronunciation to {"band": null, "confidence": "none"} with empty texts, never estimate pronunciation from the transcript, never create edits with criterion "pronunciation". If it is present, it contains only INDIRECT measurements computed from the audio: asr_agreement_two_models (share of words two different Whisper models recognised identically: low agreement and unclear_regions suggest stretches that were hard to understand; HIGH agreement does NOT prove accurate pronunciation because Whisper is robust to accents), mean_asr_logprob (closer to 0 = recogniser more certain), pitch.rangeSemitones / sdSemitones (very narrow pitch movement suggests flat intonation; wide movement shows some intonation use), rhythm.peaksPerSec (approximate syllable rate) and rhythm.nPVI (variability between syllable intervals; very even timing can indicate syllable-timed rather than stress-timed rhythm). Individual sounds, vowel/consonant contrasts and word stress were NOT measured: do not comment on them as facts. Estimate the band mainly from intelligibility evidence, then intonation and rhythm, without penalising a Vietnamese accent that remains intelligible; with only indirect evidence, avoid extreme bands unless the evidence is strong (e.g. many unclear regions -> low; high agreement with varied pitch -> 6-7 at most is defensible, 8-9 cannot be established from these measures). Set confidence "low" and say in uncertainty that sounds and word stress were not measured. Cite unclear regions with time_sec. (7) WHAT WAS ACTUALLY SAID. Judge grammar and vocabulary on the words most likely spoken, not on a corrected transcript: where a speech_findings item with status "likely" gives a likely form (e.g. the audio has no final /s/, so "many students" was probably said as "many student"), assess that form and report the error with status "likely" and evidence naming the source. Where the item is "uncertain" (the two recognitions disagree and no acoustic check decides), do NOT count it as a learner error and do NOT lower any band for it: if you mention it, mark the edit status "uncertain". A disagreement between two recognisers does not prove which one is right, and a recognition error is never a pronunciation error by itself. Use status "confirmed" only when the same error is clear in both recognitions and nothing suggests a recognition problem. Repetitions, fillers and false starts are evidence for Fluency and Coherence only, judged by frequency and impact against the descriptors (natural hesitation, emphasis and self-correction are acceptable; frequent disruptive disfluency is not); they are never grammar errors. (8) Only quote words that appear in the transcript; never invent quotations, pauses or audio events. Use fluency_measurements for fluency claims about pauses and speed.',
     'For EACH criterion return: "evidence": 2-5 short items of OBSERVED evidence (quote the student\'s words in English, or cite a measurement); "interpretation": 1-3 Vietnamese sentences explaining which descriptor features this evidence matches and why that band, not the one above or below; "band"; "confidence": "high"|"medium"|"low"; "uncertainty": 1 Vietnamese sentence on what limits certainty (ASR, short sample, audio) or ""; "feedback": 2-4 natural Vietnamese sentences for the student (specific to THIS answer, not generic); "weaknesses": 1-3 Vietnamese items (most important first); "recommendations": 1-3 practical Vietnamese actions; "toNextBand": 1-2 Vietnamese sentences naming the missing feature of the next band with an example from this answer ("" if band 9).',
     '"sampleAdequacy": {"level": "adequate"|"limited"|"insufficient", "note": Vietnamese sentence}. "whyNotHigher": 2 Vietnamese sentences on which criteria hold the overall back and the single most useful change.',
-    '"edits": every real grammar / word-choice / collocation error and noticeable coherence problem, as {"find": text copied EXACTLY from the transcript (1-6 words, unique), "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 Vietnamese sentence, "asrPossible": boolean}. No punctuation/capitalisation edits. Edits must not overlap.',
+    '"edits": every real grammar / word-choice / collocation error and noticeable coherence problem, as {"find": text copied EXACTLY from the transcript (1-6 words, unique), "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 Vietnamese sentence, "status": "confirmed"|"likely"|"uncertain", "evidence": short note of the evidence source, e.g. "both recognitions", "audio: no final /s/", "recognitions disagree"}. If a finding shows the learner probably said a different form than the transcript (e.g. transcript "students", likely "student"), set "find" to the transcript text and explain in "why" that the recording suggests the learner said the other form. No punctuation/capitalisation edits. Edits must not overlap.',
     '"refinedAnswer": ONE natural spoken-style English paragraph: the student\'s OWN answer upgraded by about one band, reusing their ideas, order and as much wording as possible. "refinementNotes": each distinct change, in order (at least 4 unless the answer is under ~15 words, at most 10): {"from": exact text from the transcript ("" for a pure addition), "to": exact text from refinedAnswer, "criterion", "change": short English before -> after, "reason": 1-2 Vietnamese sentences}.',
     'Respond with ONE JSON object only, exactly this shape: {"sampleAdequacy": {...}, "criteria": {"fluency": {"evidence": [], "interpretation": "", "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "weaknesses": [], "recommendations": [], "toNextBand": ""}, "lexical": {...}, "grammar": {...}, "pronunciation": {...}}, "whyNotHigher": "", "edits": [], "refinedAnswer": "", "refinementNotes": []}'
   ].join('\n\n');
@@ -2891,7 +3021,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     let h = '', pos = 0;
     placed.forEach(p => {
       const e = edits[p.i];
-      h += escapeHtml(text.slice(pos, p.s)) + '<span class="fx c-' + e.criterion + '" data-k="e" data-i="' + p.i + '" tabindex="0"><del>' + escapeHtml(text.slice(p.s, p.e)) + '</del>' + (e.replace ? '<ins>' + escapeHtml(e.replace) + '</ins>' : '') + '</span>';
+      h += escapeHtml(text.slice(pos, p.s)) + '<span class="fx c-' + e.criterion + (e.status === 'uncertain' ? ' unc' : '') + '" data-k="e" data-i="' + p.i + '" tabindex="0"><del>' + escapeHtml(text.slice(p.s, p.e)) + '</del>' + (e.replace ? '<ins>' + escapeHtml(e.replace) + '</ins>' : '') + '</span>';
       pos = p.e;
     });
     return { html: h + escapeHtml(text.slice(pos)), placed: placed };
@@ -2916,6 +3046,8 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
 
   // Nhận xét 4 tiêu chí (dùng chung cho trang học sinh và cửa sổ Thầy chữa bài -> chữ giống hệt để đánh dấu khớp)
+  function isNewRubric(rec) { return rec && (rec.rubric === 'v3' || rec.rubric === 'v4'); }
+  const STATUS_VI = { confirmed: 'chắc chắn', likely: 'nhiều khả năng', uncertain: 'chưa chắc — có thể do máy nghe nhầm' };
   const CONF_VI = { high: 'tin cậy cao', medium: 'tin cậy vừa', low: 'tin cậy thấp', none: 'chưa chấm' };
   function fmtTime(s) { s = Math.max(0, Number(s) || 0); return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); }
   function pronStatusText(rec) {
@@ -2940,7 +3072,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   function critHtml(record) {
     const crit = record.criteria || {};
     const edits = record.edits || [];
-    const v3 = record.rubric === 'v3';
+    const v3 = isNewRubric(record);
     const placedEdits = edits.length ? spPlace((record.transcript || '').trim(), edits, 'find') : [];
     return SP_CRIT.map(k => {
       const c = crit[k] || {};
@@ -2961,7 +3093,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         (c.toNextBand && Number(c.band) < 9 ? '<div class="crit-next" style="--c:var(--' + k + ')"><b>Vì sao chưa lên ' + (Math.floor(Number(c.band)) + 1) + ':</b> ' + escapeHtml(c.toNextBand) + '</div>' : '') +
         (c.uncertainty ? '<p class="crit-meta"><i class="fa-solid fa-circle-info"></i> ' + escapeHtml(c.uncertainty) + '</p>' : '') +
         (mine.length || mineNotes.length ? '<details class="mt-2"><summary class="crit-sum">' + (mine.length ? mine.length + ' lỗi' : '') + (mine.length && mineNotes.length ? ' · ' : '') + (mineNotes.length ? mineNotes.length + ' chỗ nâng cấp' : '') + ' thuộc tiêu chí này</summary><ul class="crit-edits">' +
-          mine.map(e => '<li><del>' + escapeHtml(e.find) + '</del>' + (e.replace ? ' → <b style="color:var(--' + k + ')">' + escapeHtml(e.replace) + '</b>' : ' (bỏ)') + (e.asrPossible ? ' <small style="color:var(--ink-3)">(có thể do máy nghe nhầm)</small>' : '') + '<span>' + escapeHtml(e.why) + '</span></li>').join('') +
+          mine.map(e => '<li><del>' + escapeHtml(e.find) + '</del>' + (e.replace ? ' → <b style="color:var(--' + k + ')">' + escapeHtml(e.replace) + '</b>' : ' (bỏ)') + (e.status && e.status !== 'confirmed' ? ' <small style="color:var(--ink-3)">(' + STATUS_VI[e.status] + (e.evidence ? ' · ' + escapeHtml(e.evidence) : '') + ')</small>' : '') + '<span>' + escapeHtml(e.why) + '</span></li>').join('') +
           mineNotes.map(n => '<li><span class="tag-up">nâng cấp</span> ' + escapeHtml(n.change || ((n.from ? n.from + ' → ' : '') + n.to)) + '<span>' + escapeHtml(n.reason) + '</span></li>').join('') +
           '</ul></details>' : '') +
         '</div>';
@@ -3001,7 +3133,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     document.getElementById('resMiniBands').innerHTML = SP_CRIT.map(k => {
       const c = crit[k] || {};
       if (c.band == null) return '<span class="cpill na" title="' + escapeHtml(k === 'pronunciation' ? pronStatusText(record) : '') + '">' + SP_SHORT[k] + ': chưa chấm</span>';
-      return '<span class="cpill ' + k + '">' + SP_SHORT[k] + ': ' + (Number(c.band) % 1 ? fmtBand(c.band) : c.band) + (k === 'pronunciation' && record.rubric !== 'v3' ? ' <small>(từ văn bản)</small>' : '') + '</span>';
+      return '<span class="cpill ' + k + '">' + SP_SHORT[k] + ': ' + (Number(c.band) % 1 ? fmtBand(c.band) : c.band) + (k === 'pronunciation' && !isNewRubric(record) ? ' <small>(từ văn bản)</small>' : '') + '</span>';
     }).join('');
     const why = document.getElementById('resWhy');
     why.classList.toggle('hidden', !record.whyNotHigher);
@@ -3011,6 +3143,8 @@ Is it better to read a physical book or an e-book?"></textarea>
     const qEl = document.getElementById('resQuality');
     const notes = ((record.quality && record.quality.issues) || []).map(i => i.msg);
     if (record.sampleAdequacy && record.sampleAdequacy.level !== 'adequate' && record.sampleAdequacy.note) notes.push(record.sampleAdequacy.note);
+    const fUnc = (record.findings || []).filter(f => f.category === 'asr_disagreement' || (f.category === 'morphology' && f.status === 'uncertain'));
+    if (fUnc.length) notes.push('Có ' + fUnc.length + ' chỗ 2 lần máy nghe ra khác nhau (vd. “' + escapeHtml(fUnc[0].asr) + '” / “' + escapeHtml(fUnc[0].alt || '') + '”). Các chỗ này không bị tính là lỗi của bạn.');
     if (record.asrUncertain && record.asrUncertain.length) notes.push('Máy nghe chưa chắc ở: “' + record.asrUncertain.slice(0, 2).join('”, “') + '”. Lỗi ở các đoạn này có thể do nhận dạng, không hẳn do bạn.');
     qEl.classList.toggle('hidden', !notes.length);
     qEl.classList.remove('bad');
@@ -3019,7 +3153,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const eng = record.engine;
     document.getElementById('resEngineNote').textContent = 'Band ước tính bởi AI để luyện tập, không phải kết quả IELTS chính thức.' +
       (disp.partial ? ' * Chưa có điểm Phát âm đo từ âm thanh nên đây là trung bình 3 tiêu chí.' : '') +
-      (eng ? ' (Rubric ' + eng.rubric + ', ' + eng.llm + (eng.pron === 'acoustic-proxy' ? ', phát âm: số đo âm thanh' : '') + ')' : (record.rubric !== 'v3' ? ' (Chấm theo cách cũ: phát âm ước tính qua văn bản.)' : ''));
+      (eng ? ' (Rubric ' + eng.rubric + ', ' + eng.llm + (eng.pron === 'acoustic-proxy' ? ', phát âm: số đo âm thanh' : '') + ')' : (!isNewRubric(record) ? ' (Chấm theo cách cũ: phát âm ước tính qua văn bản.)' : ''));
 
     // Ghi âm: tải khi mở lần làm này (không tải sẵn mọi file)
     const audioPlayer = document.getElementById('resAudioPlayback');
@@ -3045,20 +3179,109 @@ Is it better to read a physical book or an e-book?"></textarea>
     // Nhận xét 4 tiêu chí: điểm, bằng chứng, vì sao chưa lên band, các chỗ sửa thuộc tiêu chí
     document.getElementById('resCriteria').innerHTML = critHtml(record);
 
-    // Bản nâng cấp (cột phải): chỗ đổi được tô màu theo tiêu chí + đánh số khớp với danh sách bên dưới
-    const rnotes = record.refinementNotes || [];
-    const ra = record.refinedAnswer || '';
-    document.getElementById('resRefinedAnswer').innerHTML = rnotes.some(n => n.to) ? spMarkRefined(ra, rnotes) : escapeHtml(ra);
-    document.getElementById('resRefinedSub').textContent = 'từ chính câu trả lời của bạn' + (disp.band != null ? ', hướng tới band ' + fmtBand(Math.min(9, Math.floor(disp.band + 1))) : '');
-    document.getElementById('resRefinementNotes').innerHTML = rnotes.length === 0
-      ? '<p class="text-sm" style="color:var(--ink-3);">Không có ghi chú nâng cấp cho câu trả lời này.</p>'
-      : rnotes.map((n, i) => {
+    // Cột phải: bản nâng cấp + 2 lựa chọn nâng cấp riêng (từ vựng / ngữ pháp & trôi chảy)
+    __upTab = 'refined';
+    renderSide(record);
+  }
+
+  // ==========================================
+  // 2 LỰA CHỌN NÂNG CẤP (cột phải, sau khi có điểm): Từ vựng / Ngữ pháp & trôi chảy.
+  // Tạo khi người học bấm, lưu vào bài làm (upgrades.vocab / upgrades.grammar) để lần sau mở lại không phải tạo lại.
+  // ==========================================
+  const UPGRADE_KINDS = {
+    vocab: {
+      label: 'Nâng cấp từ vựng', btn: 'Tạo bản nâng cấp từ vựng',
+      intro: 'Giữ nguyên ý và ngữ pháp của bạn, chỉ thay từ vựng: collocation, idiom, cụm từ văn nói tự nhiên để ăn điểm Từ vựng.',
+      band: rec => (rec.criteria && rec.criteria.lexical && rec.criteria.lexical.band) || bandOf(rec) || 5,
+      system: 'You rewrite a Vietnamese IELTS student\'s spoken answer. MODE: VOCABULARY UPGRADE ONLY. Keep the SAME ideas in the SAME order and keep the student\'s OWN sentence structures and grammar: do not merge or split sentences, do not change tenses, clause types or word order beyond what a replaced word requires. Change ONLY word choice: replace plain or repeated words with more precise and less common vocabulary, natural collocations, idiomatic expressions and natural spoken-English phrases (e.g. "a real game-changer", "to be honest", "I\'m really into"), at the TARGET band given. Use them naturally, never forced: at most one idiom every two or three sentences. Remove pure fillers (um, uh, er) and accidental stutters; keep everything else. Keep the length similar. ' +
+        'Respond with ONE JSON object: {"text": string (the upgraded answer, one spoken paragraph), "notes": [{"from": text copied EXACTLY from the original, "to": text copied EXACTLY from your "text", "type": "collocation"|"idiom"|"less_common"|"spoken"|"precise", "reason": one Vietnamese sentence on why it scores higher for Lexical Resource}]} with 4-10 notes in order.'
+    },
+    grammar: {
+      label: 'Ngữ pháp & trôi chảy', btn: 'Tạo bản nâng cấp ngữ pháp & trôi chảy',
+      intro: 'Giữ nguyên ý và từ vựng của bạn, nâng cấp câu: cấu trúc phức tạp và đa dạng hơn, sửa lỗi ngữ pháp, thêm từ nối và discourse marker để nói mượt, tự nhiên.',
+      band: rec => { const c = rec.criteria || {}; return Math.max((c.grammar && c.grammar.band) || 0, (c.fluency && c.fluency.band) || 0) || bandOf(rec) || 5; },
+      system: 'You rewrite a Vietnamese IELTS student\'s spoken answer. MODE: GRAMMAR AND FLUENCY UPGRADE ONLY. Keep the SAME ideas in the same order and reuse the student\'s OWN vocabulary: keep their content words, do not swap in fancier synonyms or idioms. Fix every grammar error. Raise grammatical range to the TARGET band: combine and vary sentences with relative clauses, participle clauses, conditionals, passives, comparatives, a mix of tenses and, where natural, cleft sentences. Add the linking words and discourse markers needed for smooth, natural SPEECH (e.g. "Well,", "Actually,", "To be honest,", "On top of that,", "That said,", "which is why", "so that", "whereas"). It must still sound like natural speech, not an essay: do not overload one sentence. Remove fillers and accidental repetitions. ' +
+        'Respond with ONE JSON object: {"text": string (the upgraded answer, one spoken paragraph), "notes": [{"from": text copied EXACTLY from the original ("" if purely added), "to": text copied EXACTLY from your "text", "type": "fix"|"complex"|"relative"|"conditional"|"tense"|"linker"|"discourse", "reason": one Vietnamese sentence on why it scores higher}]} with 4-10 notes in order.'
+    }
+  };
+  const UP_TYPE_VI = { collocation: 'collocation', idiom: 'idiom', less_common: 'từ ít phổ biến', spoken: 'văn nói tự nhiên', precise: 'từ chính xác hơn', fix: 'sửa lỗi', complex: 'câu phức', relative: 'mệnh đề quan hệ', conditional: 'câu điều kiện', tense: 'thì', linker: 'từ nối', discourse: 'discourse marker' };
+  let __upTab = 'refined';
+  const __upBusy = {};
+
+  function sideNotesHtml(notes) {
+    return notes.length === 0
+      ? '<p class="text-sm" style="color:var(--ink-3);">Không có ghi chú cho bản này.</p>'
+      : notes.map((n, i) => {
           const k = n.criterion;
           return '<div class="refine-note" id="rn' + i + '"><div class="refine-note-num"' + (k ? ' style="color:var(--' + k + ')"' : '') + '>' + (i + 1) + '</div><div>' +
-            (k ? '<span class="crit-tag" style="color:var(--' + k + ');background:var(--' + k + '-w)"><i class="dot ' + k + '"></i>' + SP_SHORT[k] + '</span>' : '') +
+            (k ? '<span class="crit-tag" style="color:var(--' + k + ');background:var(--' + k + '-w)"><i class="dot ' + k + '"></i>' + (n.type && UP_TYPE_VI[n.type] ? UP_TYPE_VI[n.type] : SP_SHORT[k]) + '</span>' : '') +
             '<b>' + escapeHtml(n.change || ((n.from ? '"' + n.from + '" → ' : 'thêm ') + '"' + n.to + '"')) + '</b><span>' + escapeHtml(n.reason || '') + '</span></div></div>';
         }).join('');
   }
+  // Nội dung đang hiện ở cột phải (để "Nói lại theo bản này" dùng đúng bản đang xem)
+  function currentSide(rec) {
+    if (__upTab !== 'refined' && rec.upgrades && rec.upgrades[__upTab]) return { text: rec.upgrades[__upTab].text, notes: rec.upgrades[__upTab].notes || [], title: UPGRADE_KINDS[__upTab].label };
+    return { text: rec.refinedAnswer || '', notes: rec.refinementNotes || [], title: 'Bản nâng cấp' };
+  }
+  function renderSide(rec) {
+    document.querySelectorAll('#upTabs button').forEach(b => b.classList.toggle('active', b.dataset.u === __upTab));
+    const kind = UPGRADE_KINDS[__upTab];
+    const have = __upTab === 'refined' || (rec.upgrades && rec.upgrades[__upTab]);
+    const gen = document.getElementById('upGenBox');
+    document.getElementById('upContent').classList.toggle('hidden', !have);
+    gen.classList.toggle('hidden', !!have);
+    if (!have) {
+      const busy = __upBusy[(rec.id || '') + __upTab];
+      gen.innerHTML = '<p class="up-intro" style="margin:0">' + escapeHtml(kind.intro) + '</p>' +
+        '<button type="button" class="ni-submit-btn" ' + (busy ? 'disabled' : '') + ' onclick="generateUpgrade(\'' + __upTab + '\')">' + (busy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> Đang tạo...' : '✨ ' + kind.btn) + '</button>';
+      return;
+    }
+    const side = currentSide(rec);
+    const disp = SPCore.displayBand(rec);
+    const tgt = kind ? Math.min(9, Math.floor(kind.band(rec)) + 1) : (disp.band != null ? Math.min(9, Math.floor(disp.band + 1)) : null);
+    document.getElementById('upTitle').textContent = side.title;
+    document.getElementById('resRefinedSub').textContent = kind ? kind.intro.split(':')[0] + (tgt ? ', hướng tới band ' + fmtBand(tgt) : '') : 'từ chính câu trả lời của bạn' + (tgt ? ', hướng tới band ' + fmtBand(tgt) : '');
+    document.getElementById('resRefinedAnswer').innerHTML = side.notes.some(n => n.to) ? spMarkRefined(side.text, side.notes) : escapeHtml(side.text);
+    document.getElementById('resRefinementNotes').innerHTML = sideNotesHtml(side.notes);
+    document.getElementById('upRetryBtn').textContent = 'Nói lại theo ' + (kind ? 'bản ' + kind.label.toLowerCase() : 'bản nâng cấp');
+  }
+  window.setUpTab = function (t) {
+    __upTab = t;
+    spHidePop();
+    if (__res) renderSide(__res.record);
+  };
+  window.generateUpgrade = async function (kindKey) {
+    if (!__res) return;
+    const rec = __res.record, kind = UPGRADE_KINDS[kindKey], busyKey = (rec.id || '') + kindKey;
+    if (__upBusy[busyKey]) return;
+    if (!getGroqConfig().apiKey) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
+    __upBusy[busyKey] = true; renderSide(rec);
+    const target = Math.min(9, Math.floor(kind.band(rec)) + 1);
+    try {
+      let parsed;
+      try {
+        parsed = await callGroqChatJson([
+          { role: 'system', content: kind.system },
+          { role: 'user', content: 'IELTS Speaking question: "' + (rec.questionText || '') + '"\n\nTARGET band: ' + target + '.\n\nStudent\'s original answer (speech transcript):\n"' + (rec.transcript || '') + '"' }
+        ], { temperature: 0.4, maxTokens: 5000, json: true, reasoning: 'low' });
+      } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
+      const text = String(parsed.text || '').trim();
+      if (!text) throw new Error('AI không trả về bản nâng cấp, thử lại nhé.');
+      const notes = (Array.isArray(parsed.notes) ? parsed.notes : []).map(n => {
+        const type = String(n.type || '');
+        return { from: String(n.from || ''), to: String(n.to || ''), type: type, reason: String(n.reason || ''),
+          criterion: kindKey === 'vocab' ? 'lexical' : (type === 'linker' || type === 'discourse' ? 'fluency' : 'grammar') };
+      }).filter(n => n.to).slice(0, 12);
+      const data = { text: text, notes: notes, target: target, createdAt: Date.now(), model: getGroqConfig().model || SPCore.ENGINE.llmModelDefault };
+      rec.upgrades = Object.assign({}, rec.upgrades, { [kindKey]: data });
+      if (rec.id) updateDoc(doc(db, 'speakingAttempts', rec.id), { ['upgrades.' + kindKey]: data }).catch(e => console.warn('Không lưu được bản nâng cấp:', e));
+    } catch (e) {
+      alert('Lỗi khi tạo bản nâng cấp: ' + e.message);
+    } finally {
+      delete __upBusy[busyKey];
+      if (__res && __res.record === rec) renderSide(rec);
+    }
+  };
 
   // Bản "Trôi chảy": mỗi từ là 1 ô bấm được (nghe lại từ chỗ đó), tô màu từ dẫn dắt / từ nối / lặp lại,
   // chèn dấu ngập ngừng dài. Mọi nhãn ở đây do CODE tính từ văn bản + mốc thời gian + âm thanh, không phải AI đoán.
@@ -3160,7 +3383,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       '<p class="pop-change">' + (isEdit ? '<del>' + escapeHtml(it.find) + '</del>' + (it.replace ? ' → <ins style="color:var(--' + k + ')">' + escapeHtml(it.replace) + '</ins>' : ' (bỏ)')
         : (it.from ? '<del>' + escapeHtml(it.from) + '</del> → ' : '<i>(thêm)</i> ') + '<ins' + (k ? ' style="color:var(--' + k + ')"' : '') + '>' + escapeHtml(it.to) + '</ins>') + '</p>' +
       '<div>' + escapeHtml(isEdit ? it.why : it.reason) + '</div>' +
-      (isEdit && it.asrPossible ? '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-3);">⚠️ Có thể do máy nghe nhầm chứ không hẳn là lỗi của bạn — nghe lại đoạn này để kiểm tra.</div>' : '');
+      (isEdit && it.status === 'uncertain' ? '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-3);">⚠️ Chưa chắc: có thể do máy nghe nhầm chứ không hẳn là lỗi của bạn, và không bị trừ điểm. Nghe lại đoạn này để kiểm tra.</div>'
+        : isEdit && it.status === 'likely' && it.evidence ? '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-3);">Căn cứ: ' + escapeHtml(it.evidence) + '</div>' : '');
     spPop.style.display = 'block';
     const r = el.getBoundingClientRect(), w = spPop.offsetWidth, h = spPop.offsetHeight;
     let top = r.bottom + 8; if (top + h > innerHeight - 8) top = Math.max(8, r.top - h - 8);
