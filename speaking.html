@@ -339,6 +339,8 @@ audio{width:100%;height:40px;}
 .kw.fm-disc{background:#f2c4f2}.kw.fm-link{background:#c4f0de}.kw.fm-rep{background:#fde68a}
 .kw.on{background:var(--accent)!important;color:#fff;}
 .kw.notime{cursor:default;}
+.fx .kw.on{background:var(--accent)!important;color:#fff;text-decoration-color:#fff;}
+#resFlowTools,#resKaraTip{}
 .fm-pause{display:inline-block;font-size:11px;font-weight:800;color:#fff;background:#e5534b;border-radius:999px;padding:0 6px;margin:0 3px;vertical-align:2px;line-height:16px;}
 .flow-stats{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--ink-2);margin:8px 0 2px;}
 .flow-stats b{color:var(--ink);}
@@ -384,6 +386,13 @@ audio{width:100%;height:40px;}
 .ck-i{flex-shrink:0;width:18px;height:18px;border-radius:5px;font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;}
 .ck-yes .ck-i{background:#e6f6ee;color:#1f7a4d}.ck-partly .ck-i{background:#fff4dc;color:#8a5a14}.ck-no .ck-i{background:#fdecec;color:#a23a3a}.ck-na .ck-i{background:#f1eff5;color:var(--ink-3)}
 .ck-na{opacity:.7}
+.up-boxes{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:10px 12px;margin:10px 0 0;}
+.up-gen .up-boxes{width:100%;margin:0;}
+.up-boxes-h{font-size:13px;font-weight:700;color:var(--ink);margin:0 0 6px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.up-boxes ul{list-style:none;margin:0;padding:0;}
+.up-boxes li{display:flex;gap:8px;font-size:12.5px;line-height:1.45;color:var(--ink-2);padding:2px 0;}
+.up-boxes li small{display:block;color:var(--ink-3);font-size:11.5px;font-style:italic;}
+.box-tag{display:inline-block;margin:0 0 4px 6px;font-size:11.5px;font-weight:700;color:var(--ink-2);background:#f1eff5;border-radius:6px;padding:1px 7px;}
 .up-intro{font-size:13.5px;color:var(--ink-2);line-height:1.6;margin:0 0 12px;}
 .up-gen{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:16px;border:1.5px dashed var(--lav-2);border-radius:16px;background:#fbfbff;}
 .up-gen .ni-submit-btn{padding:9px 18px;font-size:14px;}
@@ -682,7 +691,7 @@ Is it better to read a physical book or an e-book?"></textarea>
               </div>
 
               <div id="resTrTools" class="hidden">
-                <div class="legend"><span><del>chữ sai</del><ins>chữ đúng</ins></span><span class="muted">Màu = tiêu chí bị ảnh hưởng. Rê chuột hoặc chạm để xem giải thích.</span></div>
+                <div class="legend"><span><del>chữ sai</del><ins>chữ đúng</ins></span><span class="muted">Màu = tiêu chí bị ảnh hưởng. Rê chuột hoặc chạm để xem giải thích. Bấm 1 chữ để nghe lại từ chỗ đó.</span></div>
                 <div id="resTrFilters" class="filters"></div>
               </div>
               <p id="resTranscript" class="transcript"></p>
@@ -729,6 +738,7 @@ Is it better to read a physical book or an e-book?"></textarea>
                 </div>
                 <p id="resRefinedAnswer" class="answer-card-text"></p>
                 <p class="side-tip"><i class="fa-solid fa-circle-info"></i> Bôi đen cụm từ bất kỳ để đánh dấu hoặc ghi chú.</p>
+                <div id="upBoxes" class="hidden"></div>
                 <p id="upCaveat" class="side-tip hidden">Điểm trên là chấm bản <b>viết</b>. Khi bạn nói lại, điểm còn tuỳ bạn nói đúng như bản viết không, có ngập ngừng không, và máy nghe có rõ không — nên có thể thấp hơn.</p>
               </div>
               <p class="sec-h" style="margin:18px 0 6px;">Đã sửa gì và vì sao</p>
@@ -3401,15 +3411,26 @@ Is it better to read a physical book or an e-book?"></textarea>
     });
     return placed.sort((a, b) => a.s - b.s);
   }
-  function spMarkTranscript(text, edits) {
+  // Bọc từng chữ (đã có mốc thời gian) trong <span class="kw"> để chạy karaoke; toks = SPCore.alignWords(text, words)
+  function wrapWords(text, a, b, toks) {
+    if (!toks || !toks.length) return escapeHtml(text.slice(a, b));
+    let h = '', pos = a;
+    toks.forEach(t => {
+      if (t.start < a || t.end > b) return;
+      h += escapeHtml(text.slice(pos, t.start)) + (t.s != null ? '<span class="kw" data-s="' + t.s + '" data-e="' + t.e + '">' + escapeHtml(text.slice(t.start, t.end)) + '</span>' : escapeHtml(text.slice(t.start, t.end)));
+      pos = t.end;
+    });
+    return h + escapeHtml(text.slice(pos, b));
+  }
+  function spMarkTranscript(text, edits, toks) {
     const placed = spPlace(text, edits, 'find');
     let h = '', pos = 0;
     placed.forEach(p => {
       const e = edits[p.i];
-      h += escapeHtml(text.slice(pos, p.s)) + '<span class="fx c-' + e.criterion + (e.status === 'uncertain' ? ' unc' : '') + '" data-k="e" data-i="' + p.i + '" tabindex="0"><del>' + escapeHtml(text.slice(p.s, p.e)) + '</del>' + (e.replace ? '<ins>' + escapeHtml(e.replace) + '</ins>' : '') + '</span>';
+      h += wrapWords(text, pos, p.s, toks) + '<span class="fx c-' + e.criterion + (e.status === 'uncertain' ? ' unc' : '') + '" data-k="e" data-i="' + p.i + '" tabindex="0"><del>' + wrapWords(text, p.s, p.e, toks) + '</del>' + (e.replace ? '<ins>' + escapeHtml(e.replace) + '</ins>' : '') + '</span>';
       pos = p.e;
     });
-    return { html: h + escapeHtml(text.slice(pos)), placed: placed };
+    return { html: h + wrapWords(text, pos, text.length, toks), placed: placed };
   }
   function spMarkRefined(text, notes) {
     const placed = spPlace(text, notes, 'to');
@@ -3595,28 +3616,43 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
 
   // ==========================================
-  // 2 LỰA CHỌN NÂNG CẤP (cột phải, sau khi có điểm): Từ vựng / Ngữ pháp & trôi chảy.
-  // Tạo khi người học bấm, lưu vào bài làm (upgrades.vocab / upgrades.grammar) để lần sau mở lại không phải tạo lại.
+  // 2 LỰA CHỌN NÂNG CẤP — mỗi lựa chọn nâng ĐÚNG 1 band, bám các ô tiêu chí của band kế tiếp:
+  //   vocab   : Từ vựng (lexical) band hiện tại + 1
+  //   grammar : Ngữ pháp (grammar) + Trôi chảy (fluency), mỗi tiêu chí band hiện tại + 1
+  // Viết xong -> bộ chấm chấm thử -> thiếu ô hoặc vượt quá 1 band thì viết lại 1 lần theo đúng ô còn thiếu / thừa.
   // ==========================================
   const UPGRADE_KINDS = {
     vocab: {
-      label: 'Nâng cấp từ vựng', btn: 'Tạo bản nâng cấp từ vựng',
-      intro: 'Giữ nguyên ý và ngữ pháp của bạn, chỉ thay từ vựng: collocation, idiom, cụm từ văn nói tự nhiên để ăn điểm Từ vựng.',
-      band: rec => (rec.criteria && rec.criteria.lexical && rec.criteria.lexical.band) || bandOf(rec) || 5,
-      system: 'You rewrite a Vietnamese IELTS student\'s spoken answer. MODE: VOCABULARY UPGRADE ONLY. Keep the SAME ideas in the SAME order and keep the student\'s OWN sentence structures and grammar: do not merge or split sentences, do not change tenses, clause types or word order beyond what a replaced word requires. Change ONLY word choice: replace plain or repeated words with more precise and less common vocabulary, natural collocations, idiomatic expressions and natural spoken-English phrases (e.g. "a real game-changer", "to be honest", "I\'m really into"), at the TARGET band given. Use them naturally, never forced: at most one idiom every two or three sentences. Remove pure fillers (um, uh, er) and accidental stutters; keep everything else. Keep the length similar. ' +
-        'Respond with ONE JSON object: {"text": string (the upgraded answer, one spoken paragraph), "notes": [{"from": text copied EXACTLY from the original, "to": text copied EXACTLY from your "text", "type": "collocation"|"idiom"|"less_common"|"spoken"|"precise", "reason": one Vietnamese sentence on why it scores higher for Lexical Resource}]} with 4-10 notes in order.'
+      label: 'Nâng cấp từ vựng', btn: 'Tạo bản nâng cấp từ vựng', crits: ['lexical'], main: 'lexical',
+      intro: 'Giữ nguyên ý và ngữ pháp của bạn, chỉ thay từ vựng (collocation, idiom, cách nói tự nhiên) để đạt đúng các tiêu chí Từ vựng của band kế tiếp.',
+      rules: 'MODE: VOCABULARY UPGRADE ONLY. Keep the SAME ideas in the SAME order and keep the student\'s OWN sentence structures and grammar: do not merge or split sentences, do not change tenses, clause types or word order beyond what a replaced word requires. Change ONLY word choice (more precise or less common words, natural collocations, idiomatic expressions, natural spoken phrases). Use idioms naturally, never forced. Remove pure fillers (um, uh) and accidental stutters; keep everything else. Keep the length similar.',
+      types: '"collocation"|"idiom"|"less_common"|"spoken"|"precise"|"paraphrase"'
     },
     grammar: {
-      label: 'Ngữ pháp & trôi chảy', btn: 'Tạo bản nâng cấp ngữ pháp & trôi chảy',
-      intro: 'Giữ nguyên ý và từ vựng của bạn, nâng cấp câu: cấu trúc phức tạp và đa dạng hơn, sửa lỗi ngữ pháp, thêm từ nối và discourse marker để nói mượt, tự nhiên.',
-      band: rec => { const c = rec.criteria || {}; return Math.max((c.grammar && c.grammar.band) || 0, (c.fluency && c.fluency.band) || 0) || bandOf(rec) || 5; },
-      system: 'You rewrite a Vietnamese IELTS student\'s spoken answer. MODE: GRAMMAR AND FLUENCY UPGRADE ONLY. Keep the SAME ideas in the same order and reuse the student\'s OWN vocabulary: keep their content words, do not swap in fancier synonyms or idioms. Fix every grammar error. Raise grammatical range to the TARGET band: combine and vary sentences with relative clauses, participle clauses, conditionals, passives, comparatives, a mix of tenses and, where natural, cleft sentences. Add the linking words and discourse markers needed for smooth, natural SPEECH (e.g. "Well,", "Actually,", "To be honest,", "On top of that,", "That said,", "which is why", "so that", "whereas"). It must still sound like natural speech, not an essay: do not overload one sentence. Remove fillers and accidental repetitions. ' +
-        'Respond with ONE JSON object: {"text": string (the upgraded answer, one spoken paragraph), "notes": [{"from": text copied EXACTLY from the original ("" if purely added), "to": text copied EXACTLY from your "text", "type": "fix"|"complex"|"relative"|"conditional"|"tense"|"linker"|"discourse", "reason": one Vietnamese sentence on why it scores higher}]} with 4-10 notes in order.'
+      label: 'Ngữ pháp & trôi chảy', btn: 'Tạo bản nâng cấp ngữ pháp & trôi chảy', crits: ['grammar', 'fluency'], main: 'grammar',
+      intro: 'Giữ nguyên ý và từ vựng của bạn, nâng cấu trúc câu, sửa lỗi, thêm từ nối / discourse marker để đạt đúng các tiêu chí Ngữ pháp và Trôi chảy của band kế tiếp.',
+      rules: 'MODE: GRAMMAR AND FLUENCY UPGRADE ONLY. Keep the SAME ideas in the same order and reuse the student\'s OWN vocabulary: keep their content words, do not swap in fancier synonyms or idioms. Fix grammar errors. Change sentence structure and add linking words / discourse markers only as needed to meet the target boxes. It must still sound like natural speech, not an essay. Remove fillers and accidental repetitions.',
+      types: '"fix"|"complex"|"relative"|"conditional"|"passive"|"participle"|"tense"|"linker"|"discourse"|"development"'
     }
   };
-  const UP_TYPE_VI = { collocation: 'collocation', idiom: 'idiom', less_common: 'từ ít phổ biến', spoken: 'văn nói tự nhiên', precise: 'từ chính xác hơn', fix: 'sửa lỗi', complex: 'câu phức', relative: 'mệnh đề quan hệ', conditional: 'câu điều kiện', tense: 'thì', linker: 'từ nối', discourse: 'discourse marker' };
+  const UP_TYPE_VI = { collocation: 'collocation', idiom: 'idiom', less_common: 'từ ít phổ biến', spoken: 'văn nói tự nhiên', precise: 'từ chính xác hơn', paraphrase: 'diễn đạt lại', fix: 'sửa lỗi', complex: 'câu phức', relative: 'mệnh đề quan hệ', conditional: 'câu điều kiện', passive: 'bị động', participle: 'mệnh đề phân từ', tense: 'thì', linker: 'từ nối', discourse: 'discourse marker', development: 'phát triển ý' };
+  const BOX_VI = {}, BOX_EN = {};
+  Object.keys(SPCore.CHECKLIST).forEach(k => Object.keys(SPCore.CHECKLIST[k]).forEach(b => SPCore.CHECKLIST[k][b].forEach(it => { BOX_EN[it[0]] = it[1]; BOX_VI[it[0]] = it[2]; })));
+  const BOX_CRIT = id => ({ F: 'fluency', L: 'lexical', G: 'grammar', P: 'pronunciation' })[String(id).charAt(0)] || '';
   let __upTab = 'refined';
   const __upBusy = {};
+
+  // Band hiện tại -> mục tiêu (+1) cho từng tiêu chí của lựa chọn
+  function upTargets(rec, kind) {
+    const crit = rec.criteria || {};
+    return kind.crits.map(k => {
+      const cur = crit[k] && crit[k].band != null ? Number(crit[k].band) : null;
+      if (cur == null || cur >= 9) return { crit: k, cur: cur, target: null };
+      const target = Math.max(4, Math.min(9, Math.floor(cur) + 1));
+      const st = {}; (crit[k].checks || []).forEach(c => { st[c.id] = c.status; });
+      return { crit: k, cur: cur, target: target, boxes: SPCore.CHECKLIST[k][target].map(it => ({ id: it[0], before: st[it[0]] || null })) };
+    });
+  }
 
   function sideNotesHtml(notes) {
     return notes.length === 0
@@ -3625,6 +3661,7 @@ Is it better to read a physical book or an e-book?"></textarea>
           const k = n.criterion;
           return '<div class="refine-note" id="rn' + i + '"><div class="refine-note-num"' + (k ? ' style="color:var(--' + k + ')"' : '') + '>' + (i + 1) + '</div><div>' +
             (k ? '<span class="crit-tag" style="color:var(--' + k + ');background:var(--' + k + '-w)"><i class="dot ' + k + '"></i>' + (n.type && UP_TYPE_VI[n.type] ? UP_TYPE_VI[n.type] : SP_SHORT[k]) + '</span>' : '') +
+            (n.box && BOX_VI[n.box] ? '<span class="box-tag" title="' + escapeHtml(BOX_VI[n.box]) + '">ô ' + escapeHtml(n.box) + ': ' + escapeHtml(BOX_VI[n.box]) + '</span>' : '') +
             '<b>' + escapeHtml(n.change || ((n.from ? '"' + n.from + '" → ' : 'thêm ') + '"' + n.to + '"')) + '</b><span>' + escapeHtml(n.reason || '') + '</span></div></div>';
         }).join('');
   }
@@ -3632,6 +3669,21 @@ Is it better to read a physical book or an e-book?"></textarea>
   function currentSide(rec) {
     if (__upTab !== 'refined' && rec.upgrades && rec.upgrades[__upTab]) return { text: rec.upgrades[__upTab].text, notes: rec.upgrades[__upTab].notes || [], title: UPGRADE_KINDS[__upTab].label };
     return { text: rec.refinedAnswer || '', notes: rec.refinementNotes || [], title: 'Bản nâng cấp' };
+  }
+  // Danh sách ô tiêu chí band mục tiêu: trước (bài gốc) và sau (bộ chấm chấm thử bản nâng cấp)
+  function upBoxesHtml(rec, kind, up) {
+    const tg = up && up.targets ? up.targets : upTargets(rec, kind);
+    return tg.map(t => {
+      if (t.target == null) return '<p class="crit-meta"><i class="dot ' + t.crit + '"></i> ' + SP_SHORT[t.crit] + ': ' + (t.cur == null ? 'chưa có điểm để nâng.' : 'đã band 9, không cần nâng.') + '</p>';
+      const after = (up && up.after && up.after[t.crit]) || {};
+      const got = up && up.checkedBands ? up.checkedBands[t.crit] : null;
+      return '<div class="up-boxes"><p class="up-boxes-h"><i class="dot ' + t.crit + '"></i>' + SP_SHORT[t.crit] + ': band ' + fmtBand(t.cur) + ' → mục tiêu <b>' + fmtBand(t.target) + '</b>' +
+        (got != null ? ' · bộ chấm chấm thử: <b style="color:' + (got === t.target ? 'var(--good)' : '#b45309') + '">' + fmtBand(got) + '</b>' + (got === t.target ? ' ✓' : got > t.target ? ' (vượt mục tiêu)' : ' (chưa tới)') : '') + '</p><ul>' +
+        t.boxes.map(b => {
+          const st = after[b.id] || null;
+          return '<li class="ck-' + (st || 'na') + '"><span class="ck-i">' + (st ? CK_ICON[st] : '·') + '</span><span>' + escapeHtml(BOX_VI[b.id] || b.id) + (b.before && b.before !== 'yes' ? '<small>bài gốc: ' + CK_TIP[b.before].toLowerCase() + '</small>' : '') + '</span></li>';
+        }).join('') + '</ul></div>';
+    }).join('');
   }
   function renderSide(rec) {
     document.querySelectorAll('#upTabs button').forEach(b => b.classList.toggle('active', b.dataset.u === __upTab));
@@ -3642,22 +3694,26 @@ Is it better to read a physical book or an e-book?"></textarea>
     gen.classList.toggle('hidden', !!have);
     if (!have) {
       const busy = __upBusy[(rec.id || '') + __upTab];
-      gen.innerHTML = '<p class="up-intro" style="margin:0">' + escapeHtml(kind.intro) + '</p>' +
-        '<button type="button" class="ni-submit-btn" ' + (busy ? 'disabled' : '') + ' onclick="generateUpgrade(\'' + __upTab + '\')">' + (busy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + escapeHtml(typeof busy === 'string' ? busy : 'Đang tạo...') : '✨ ' + kind.btn) + '</button>' +
-        (busy ? '' : '<p class="up-intro" style="margin:0;font-size:12.5px;">Mất khoảng 20–60 giây: AI viết bản nâng cấp rồi cho bộ chấm chấm thử, chưa đạt thì viết lại 1 lần.</p>');
+      const tg = upTargets(rec, kind);
+      const can = tg.some(t => t.target != null);
+      gen.innerHTML = '<p class="up-intro" style="margin:0">' + escapeHtml(kind.intro) + '</p>' + upBoxesHtml(rec, kind, null) +
+        (can ? '<button type="button" class="ni-submit-btn" ' + (busy ? 'disabled' : '') + ' onclick="generateUpgrade(\'' + __upTab + '\')">' + (busy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + escapeHtml(typeof busy === 'string' ? busy : 'Đang tạo...') : '✨ ' + kind.btn) + '</button>' : '') +
+        (busy || !can ? '' : '<p class="up-intro" style="margin:0;font-size:12.5px;">Chỉ nâng đúng 1 band. Mất khoảng 20–60 giây: AI viết theo các ô trên rồi cho bộ chấm chấm thử; thiếu ô hoặc vượt band thì viết lại 1 lần.</p>');
       return;
     }
     const side = currentSide(rec);
     const disp = SPCore.displayBand(rec);
-    const tgt = kind ? Math.min(9, Math.floor(kind.band(rec)) + 1) : (disp.band != null ? Math.min(9, Math.floor(disp.band + 1)) : null);
     document.getElementById('upTitle').textContent = side.title;
     const up = kind && rec.upgrades && rec.upgrades[__upTab];
     let sub;
-    if (up && up.checkedBand != null) sub = 'Bộ chấm chấm thử bản này: ' + SP_SHORT[up.checkedCrit] + ' ' + fmtBand(up.checkedBand) + (up.checkedBand >= up.target ? ' (đạt mục tiêu band ' + fmtBand(up.target) + ')' : ' (chưa đạt mục tiêu band ' + fmtBand(up.target) + ')');
-    else if (up) sub = 'Mục tiêu band ' + fmtBand(up.target) + ' — chưa được chấm thử';
-    else sub = 'từ chính câu trả lời của bạn' + (tgt ? ', hướng tới band ' + fmtBand(tgt) : '');
+    if (up && up.targets) sub = up.targets.filter(t => t.target != null).map(t => SP_SHORT[t.crit] + ' ' + fmtBand(t.cur) + ' → ' + fmtBand(t.target)).join(' · ') + ' (lên đúng 1 band)';
+    else if (up && up.checkedBand != null) sub = 'Bộ chấm chấm thử bản này: ' + SP_SHORT[up.checkedCrit] + ' ' + fmtBand(up.checkedBand);
+    else sub = 'từ chính câu trả lời của bạn' + (disp.band != null ? ', hướng tới band ' + fmtBand(Math.min(9, Math.floor(disp.band + 1))) : '');
     document.getElementById('resRefinedSub').textContent = sub;
     document.getElementById('upCaveat').classList.toggle('hidden', !up);
+    const boxes = document.getElementById('upBoxes');
+    boxes.innerHTML = up && up.targets ? upBoxesHtml(rec, kind, up) : '';
+    boxes.classList.toggle('hidden', !(up && up.targets));
     document.getElementById('resRefinedAnswer').innerHTML = side.notes.some(n => n.to) ? spMarkRefined(side.text, side.notes) : escapeHtml(side.text);
     document.getElementById('resRefinementNotes').innerHTML = sideNotesHtml(side.notes);
     document.getElementById('upRetryBtn').textContent = 'Nói lại theo ' + (kind ? 'bản ' + kind.label.toLowerCase() : 'bản nâng cấp');
@@ -3667,68 +3723,99 @@ Is it better to read a physical book or an e-book?"></textarea>
     spHidePop();
     if (__res) renderSide(__res.record);
   };
-  // Chấm thử bản nâng cấp bằng CHÍNH bộ chấm (cùng prompt, temperature 0) -> chỉ ghi "đạt band X" khi bộ chấm thật sự cho X.
-  async function checkUpgradeText(rec, text, crit) {
+  // Chấm thử bản nâng cấp bằng CHÍNH bộ chấm (cùng prompt, temperature 0, cùng bảng ô) -> band + trạng thái từng ô
+  async function checkUpgradeText(rec, text) {
     const q = (__pkg && __pkg.questions.find(x => x.id === rec.questionId)) || {};
     const ev = {
       part: String(q.part || (__pkg && __pkg.part) || '1'), question: rec.questionText || '',
       transcript_asr_hypothesis: text, transcript_second_asr: null, speech_findings: [], asr_low_confidence_segments: [],
       audio_quality: { status: 'not_applicable' },
-      fluency_measurements: { note: 'WRITTEN MODEL ANSWER, not a recording: there is no audio and no timing data. Judge vocabulary and grammar as if it were spoken exactly as written.' },
+      fluency_measurements: { note: 'WRITTEN MODEL ANSWER, not a recording: there is no audio and no timing data. Judge it as if it were spoken exactly as written, fluently; mark boxes that need timing evidence as "na".' },
       pronunciation_evidence: null
     };
     const parsed = await callGroqChatJson([
       { role: 'system', content: SCORING_SYSTEM_PROMPT },
       { role: 'user', content: 'Assess this response. All evidence is below as JSON.\n\n' + JSON.stringify(ev) }
     ], { temperature: SPCore.ENGINE.llmTemperature, maxTokens: 14000, json: true, reasoning: 'medium' });
-    const c = SPCore.normalizeScoring(parsed, false).criteria[crit] || {};
-    return { band: c.band, toNext: c.toNextBand || '', weaknesses: c.weaknesses || [] };
+    return SPCore.normalizeScoring(parsed, false).criteria;
   }
-  const UP_CRIT = { vocab: 'lexical', grammar: 'grammar' };
+  function targetsPrompt(targets) {
+    return targets.filter(t => t.target != null).map(t =>
+      SP_NAME[t.crit] + ': current band ' + t.cur + ' -> target band ' + t.target + ' (exactly ONE band higher). The answer must clearly satisfy ALL of these band-' + t.target + ' boxes: ' +
+      t.boxes.map(b => b.id + ' "' + BOX_EN[b.id] + '"' + (b.before ? ' [original answer: ' + b.before + ']' : '')).join('; ') +
+      '. Keep every lower-band box satisfied. Do NOT go beyond band ' + t.target + (t.target < 9 ? ': do not add the features of band ' + (t.target + 1) + ' (' + SPCore.CHECKLIST[t.crit][t.target + 1].map(it => '"' + it[1] + '"').join('; ') + ')' : '') + '.'
+    ).join('\n');
+  }
 
   window.generateUpgrade = async function (kindKey) {
     if (!__res) return;
-    const rec = __res.record, kind = UPGRADE_KINDS[kindKey], busyKey = (rec.id || '') + kindKey, crit = UP_CRIT[kindKey];
+    const rec = __res.record, kind = UPGRADE_KINDS[kindKey], busyKey = (rec.id || '') + kindKey;
     if (__upBusy[busyKey]) return;
     if (!getGroqConfig().apiKey) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
+    const targets = upTargets(rec, kind).filter(t => t.target != null);
+    if (!targets.length) return;
     const step = msg => { __upBusy[busyKey] = msg; if (__res && __res.record === rec) renderSide(rec); };
-    const target = Math.min(9, Math.floor(kind.band(rec)) + 1);
+    const system = 'You rewrite a Vietnamese IELTS student\'s spoken answer so that it moves up EXACTLY ONE band on specific IELTS criteria, by meeting the descriptor boxes listed by the user. ' + kind.rules +
+      ' Every change must serve one of the target boxes; do not make changes that serve none. Respond with ONE JSON object: {"text": string (the upgraded answer, one spoken paragraph), "notes": [{"from": text copied EXACTLY from the original ("" if purely added), "to": text copied EXACTLY from your "text", "box": the id of the target box this change satisfies, "type": ' + kind.types + ', "reason": one Vietnamese sentence explaining how this change meets that box}]} with 3-10 notes in order.';
     const write = async (feedback) => {
       let parsed;
       try {
         parsed = await callGroqChatJson([
-          { role: 'system', content: kind.system },
-          { role: 'user', content: 'IELTS Speaking question: "' + (rec.questionText || '') + '"\n\nTARGET band: ' + target + '.\n\nStudent\'s original answer (speech transcript):\n"' + (rec.transcript || '') + '"' +
-            (feedback ? '\n\nA strict examiner using the official band descriptors rated your previous version only band ' + feedback.band + ' for ' + SP_NAME[crit] + ' and said: "' + feedback.toNext + (feedback.weaknesses.length ? ' ' + feedback.weaknesses.join('; ') : '') + '". Rewrite it so it genuinely meets the band ' + target + ' descriptor, still following every constraint above.\nYour previous version:\n"' + feedback.text + '"' : '') }
-        ], { temperature: 0.4, maxTokens: 5000, json: true, reasoning: 'low' });
+          { role: 'system', content: system },
+          { role: 'user', content: 'IELTS Speaking question: "' + (rec.questionText || '') + '"\n\nTARGETS\n' + targetsPrompt(targets) +
+            '\n\nStudent\'s original answer (speech transcript):\n"' + (rec.transcript || '') + '"' + (feedback ? '\n\n' + feedback : '') }
+        ], { temperature: 0.3, maxTokens: 5000, json: true, reasoning: 'low' });
       } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
       const text = String(parsed.text || '').trim();
       if (!text) throw new Error('AI không trả về bản nâng cấp, thử lại nhé.');
       const notes = (Array.isArray(parsed.notes) ? parsed.notes : []).map(n => {
-        const type = String(n.type || '');
-        return { from: String(n.from || ''), to: String(n.to || ''), type: type, reason: String(n.reason || ''),
-          criterion: kindKey === 'vocab' ? 'lexical' : (type === 'linker' || type === 'discourse' ? 'fluency' : 'grammar') };
+        const box = String(n.box || '').trim();
+        const bc = BOX_CRIT(box);
+        return { from: String(n.from || ''), to: String(n.to || ''), type: String(n.type || ''), box: BOX_VI[box] ? box : '', reason: String(n.reason || ''),
+          criterion: kind.crits.indexOf(bc) !== -1 ? bc : kind.main };
       }).filter(n => n.to).slice(0, 12);
       return { text: text, notes: notes };
     };
+    const judge = (crit) => {
+      const bands = {}, after = {};
+      targets.forEach(t => {
+        const c = crit[t.crit] || {};
+        bands[t.crit] = c.band != null ? c.band : null;
+        after[t.crit] = {}; (c.checks || []).forEach(x => { after[t.crit][x.id] = x.status; });
+      });
+      const off = targets.filter(t => bands[t.crit] != null && bands[t.crit] !== t.target);
+      return { bands: bands, after: after, off: off };
+    };
     try {
-      step('Đang viết bản nâng cấp...');
-      let best = await write(null);
+      step('Đang viết bản nâng cấp theo tiêu chí band kế tiếp...');
+      let best = await write(null), res = null;
       step('Đang cho bộ chấm chấm thử bản này...');
-      let chk = null;
-      try { chk = await checkUpgradeText(rec, best.text, crit); } catch (e) { console.warn('Chấm thử lỗi:', e); }
-      if (chk && chk.band != null && chk.band < target) {
-        step('Chưa đạt band ' + target + ', đang viết lại theo góp ý của bộ chấm...');
-        const v2 = await write({ band: chk.band, toNext: chk.toNext, weaknesses: chk.weaknesses, text: best.text });
+      try { res = judge(await checkUpgradeText(rec, best.text)); } catch (e) { console.warn('Chấm thử lỗi:', e); }
+      if (res && res.off.length) {
+        const fb = res.off.map(t => {
+          const got = res.bands[t.crit];
+          if (got > t.target) return SP_NAME[t.crit] + ': a strict examiner rated your version band ' + got + ', which is MORE than one band up. Tone it down to band ' + t.target + ': remove or simplify the features that go beyond the band-' + t.target + ' boxes, keeping those boxes satisfied.';
+          const missing = t.boxes.filter(b => res.after[t.crit][b.id] !== 'yes').map(b => b.id + ' "' + BOX_EN[b.id] + '" (rated ' + (res.after[t.crit][b.id] || 'not shown') + ')');
+          const lower = Object.keys(res.after[t.crit]).filter(id => res.after[t.crit][id] === 'no').map(id => id + ' "' + BOX_EN[id] + '"');
+          return SP_NAME[t.crit] + ': a strict examiner rated your version only band ' + got + '. Boxes still not met: ' + (missing.concat(lower).join('; ') || '(see target boxes)') + '. Fix exactly these.';
+        }).join('\n');
+        step('Chưa đúng band mục tiêu, đang viết lại theo đúng ô còn thiếu...');
+        const v2 = await write(fb + '\nYour previous version:\n"' + best.text + '"\nRewrite it, still following every constraint above.');
         step('Đang chấm thử lại...');
-        let chk2 = null;
-        try { chk2 = await checkUpgradeText(rec, v2.text, crit); } catch (e) { console.warn('Chấm thử lỗi:', e); }
-        if (chk2 && chk2.band != null && chk2.band >= chk.band) { best = v2; chk = chk2; }
+        let res2 = null;
+        try { res2 = judge(await checkUpgradeText(rec, v2.text)); } catch (e) { console.warn('Chấm thử lỗi:', e); }
+        const dist = r => r ? r.off.reduce((t, x) => t + Math.abs((r.bands[x.crit] || 0) - x.target), 0) : 99;
+        if (res2 && dist(res2) <= dist(res)) { best = v2; res = res2; }
       }
-      const data = { text: best.text, notes: best.notes, target: target, checkedCrit: crit, checkedBand: chk && chk.band != null ? chk.band : null,
-        createdAt: Date.now(), model: getGroqConfig().model || SPCore.ENGINE.llmModelDefault };
+      const data = {
+        text: best.text, notes: best.notes,
+        targets: targets.map(t => ({ crit: t.crit, cur: t.cur, target: t.target, boxes: t.boxes })),
+        target: targets[0].target, checkedCrit: kind.main,
+        checkedBands: res ? res.bands : null, checkedBand: res ? res.bands[kind.main] : null, after: res ? res.after : null,
+        createdAt: Date.now(), model: getGroqConfig().model || SPCore.ENGINE.llmModelDefault
+      };
       rec.upgrades = Object.assign({}, rec.upgrades, { [kindKey]: data });
-      if (rec.id) updateDoc(doc(db, 'speakingAttempts', rec.id), { ['upgrades.' + kindKey]: data }).catch(e => console.warn('Không lưu được bản nâng cấp:', e));
+      if (rec.id) updateDoc(doc(db, 'speakingAttempts', rec.id), { ['upgrades.' + kindKey]: JSON.parse(JSON.stringify(data)) }).catch(e => console.warn('Không lưu được bản nâng cấp:', e));
     } catch (e) {
       alert('Lỗi khi tạo bản nâng cấp: ' + e.message);
     } finally {
@@ -3785,10 +3872,12 @@ Is it better to read a physical book or an e-book?"></textarea>
       __kwNodes = Array.from(el.querySelectorAll('.kw[data-s]')).map(n => ({ n: n, s: +n.dataset.s, e: +n.dataset.e }));
       return;
     }
-    __kwNodes = [];
-    if (!marked) { el.innerHTML = escapeHtml('“' + tr + '”') + '<br><small style="color:var(--ink-3)">Không có lỗi cần sửa trong bài này.</small>'; return; }
-    const m = spMarkTranscript(tr, edits);
+    const toks = SPCore.alignWords(tr, rec.words || []);
+    const grabKw = () => { __kwNodes = Array.from(el.querySelectorAll('.kw[data-s]')).map(n => ({ n: n, s: +n.dataset.s, e: +n.dataset.e })); };
+    if (!marked) { el.innerHTML = '“' + wrapWords(tr, 0, tr.length, toks) + '”<br><small style="color:var(--ink-3)">Không có lỗi cần sửa trong bài này.</small>'; grabKw(); return; }
+    const m = spMarkTranscript(tr, edits, toks);
     el.innerHTML = m.html;
+    grabKw();
     const cnt = k => m.placed.filter(p => k === 'all' || edits[p.i].criterion === k).length;
     document.getElementById('resTrFilters').innerHTML = ['all'].concat(SP_CRIT).filter(k => k === 'all' || cnt(k)).map(k =>
       '<button type="button" class="chip' + (__res.filter === k ? ' active' : '') + '" onclick="setTrFilter(\'' + k + '\')">' + (k === 'all' ? 'Tất cả' : '<i class="dot ' + k + '"></i>' + SP_SHORT[k]) + ' <span style="opacity:.6">' + cnt(k) + '</span></button>').join('');
