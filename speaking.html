@@ -802,7 +802,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v5',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v6',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -1456,7 +1456,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       var id = String((c && c.id) || '').toUpperCase();
       if (!ids[id] || out.some(function (o) { return o.id === ids[id].id; })) return;
       var st = String(c.status || '').toLowerCase();
-      out.push({ id: ids[id].id, band: ids[id].b, status: CK_STATUS.indexOf(st) === -1 ? 'na' : st, evidence: String(c.evidence || '').slice(0, 200) });
+      out.push({ id: ids[id].id, band: ids[id].b, status: CK_STATUS.indexOf(st) === -1 ? 'na' : st, evidence: String(c.evidence || c.e || '').slice(0, 200) });
     });
     return out;
   }
@@ -1706,6 +1706,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     setTimeout(() => { closeGroqSettingsModal(); }, 700);
   };
 
+  const GROQ_TPM_BUDGET = 7600;
   async function callGroqChat(messages, opts) {
     const cfg = getGroqConfig();
     if (!cfg.apiKey) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
@@ -1713,12 +1714,16 @@ Is it better to read a physical book or an e-book?"></textarea>
     const model = cfg.model || 'openai/gpt-oss-120b';
     let useJson = !!(opts && opts.json);
     // Groq bản miễn phí giới hạn token/phút: gặp 429 thì chờ đúng số giây Groq báo rồi thử lại (tối đa 2 lần)
+    // Gói miễn phí của Groq: ~8.000 token/phút cho mỗi model, tính cả phần gửi đi lẫn phần xin viết ra.
+    // Ước lượng phần gửi đi (≈ 3,2 ký tự/token, dư cho tiếng Việt) rồi chỉ xin viết ra phần còn lại.
+    const estIn = Math.ceil(JSON.stringify(messages).length / 3.2);
+    const maxOut = Math.max(1200, Math.min((opts && opts.maxTokens) || 1800, GROQ_TPM_BUDGET - estIn));
     for (let attempt = 0; attempt < 3; attempt++) {
       const payload = {
         model: model,
         messages: messages,
         temperature: (opts && opts.temperature != null) ? opts.temperature : 0.3,
-        max_completion_tokens: (opts && opts.maxTokens) || 1800
+        max_completion_tokens: maxOut
       };
       // Model "suy nghĩ" (gpt-oss) tốn token cho phần nghĩ trước khi viết: nghĩ ít lại để còn chỗ cho câu trả lời
       if (opts && opts.reasoning && /gpt-oss/i.test(model)) payload.reasoning_effort = opts.reasoning;
@@ -1738,6 +1743,8 @@ Is it better to read a physical book or an e-book?"></textarea>
     }
     if (!res.ok) {
       const t = await res.text().catch(() => '');
+      if (res.status === 413 || (res.status === 429 && /tokens per minute|TPM/i.test(t))) throw new Error('Groq (gói miễn phí) đang hết lượt trong phút này. Đợi khoảng 1 phút rồi bấm lại nhé (bài ghi âm vẫn được giữ).');
+      if (res.status === 429) throw new Error('Groq đang giới hạn số lần gọi (gói miễn phí). Đợi một lát rồi bấm lại nhé.');
       throw new Error('Groq lỗi HTTP ' + res.status + ': ' + t.slice(0, 200));
     }
     const data = await res.json();
@@ -3249,8 +3256,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       const evidence = {
         part: part, question: q.text,
         transcript_asr_hypothesis: transcript,
-        transcript_second_asr: asr2 ? asr2.text : null,
-        speech_findings: findings,
+        transcript_second_asr: null,   // không gửi cả bài lần 2 (tốn token); các chỗ khác nhau đã nằm trong speech_findings
+        speech_findings: findings.slice(0, 15),
         asr_low_confidence_segments: asrUncertain,
         audio_quality: { status: quality.status, issues: quality.issues.map(i => i.code) },
         fluency_measurements: audio ? fluency : Object.assign({}, fluency, { note: 'audio not analysable; timing-based measures unavailable' }),
@@ -3277,10 +3284,10 @@ Is it better to read a physical book or an e-book?"></textarea>
         parsed = await callGroqChatJson([
           { role: 'system', content: SCORING_SYSTEM_PROMPT },
           { role: 'user', content: 'Assess this response. All evidence is below as JSON.\n\n' + JSON.stringify(evidence) }
-        ], { temperature: SPCore.ENGINE.llmTemperature, maxTokens: 14000, json: true, reasoning: 'medium' });
+        ], { temperature: SPCore.ENGINE.llmTemperature, maxTokens: 5200, json: true, reasoning: 'low' });
       } catch (e) {
         console.warn('Chấm điểm lỗi:', e);
-        throw new Error(/HTTP|hết lượt|không trả lời|API Key/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
+        throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
       }
       const norm = SPCore.normalizeScoring(parsed, true, pron.strength === 'phoneme_level' ? 'medium' : 'low');
 
@@ -3367,21 +3374,17 @@ Is it better to read a physical book or an e-book?"></textarea>
   // Mô tả band là bản DIỄN GIẢI (paraphrase) từ IELTS Speaking Band Descriptors công khai.
   // ==========================================
   const SCORING_SYSTEM_PROMPT = [
-    'You are a calibrated IELTS Speaking examiner. You estimate the band a trained examiner would most likely award for the performance in ONE recorded answer, using only the evidence provided. Your output is an ESTIMATE for practice, not an official IELTS result.',
-    'INPUT (JSON): part, question, transcript_asr_hypothesis (verbatim-oriented speech-recognition transcript: Whisper was prompted to keep fillers, repetitions and false starts, but it may still silently correct grammar, add plural endings, drop disfluencies, mishear words and invent punctuation; treat it as a hypothesis, not as truth), transcript_second_asr (an independent second recognition by another model, not prompted for verbatim; may be null), speech_findings (computed by code: places where the two recognitions differ, plus an acoustic check of final /s/ sounds; each item has category filler|repetition|morphology|final_s|asr_disagreement, segment, time, asr, alt, likely = the likely spoken form or null, source, status likely|uncertain; no item is confirmed), asr_low_confidence_segments, audio_quality, fluency_measurements (computed by code from the audio and word timings: words, speaking span, words per minute, pauses over 1s/2s, longest pause, mean words between pauses, immediate repetitions), pronunciation_evidence (measurements computed from the AUDIO by an acoustic pronunciation-assessment model, or null).',
-    'BAND DESCRIPTORS (paraphrased from the public IELTS Speaking band descriptors). Award each criterion a WHOLE band 0-9 that best fits the evidence as a whole (best fit, not the lowest single feature).',
-    'FLUENCY AND COHERENCE: 9 fluent, rare content-related hesitation, fully coherent, cohesive features fully appropriate, topics fully developed. 8 fluent, only occasional repetition or self-correction, hesitation usually content-related and rarely to search for language, topics developed coherently. 7 speaks at length without noticeable effort or loss of coherence, may show language-related hesitation or some repetition/self-correction, uses a range of connectives and discourse markers with some flexibility. 6 willing to speak at length though may lose coherence at times due to repetition, self-correction or hesitation; range of connectives not always used appropriately. 5 usually maintains flow but uses repetition, self-correction and/or slow speech to keep going; may over-use certain connectives; simple speech fluent, more complex communication causes fluency problems. 4 cannot respond without noticeable pauses, may speak slowly with frequent repetition and self-correction; links basic sentences with repetitious simple connectives; some breakdowns in coherence. 3 long pauses, limited ability to link simple sentences, simple responses, often unable to convey basic message.',
-    'LEXICAL RESOURCE: 9 full flexibility and precision in all topics, idiomatic language naturally and accurately. 8 wide resource used readily and flexibly to convey precise meaning; less common and idiomatic vocabulary used skilfully with occasional inaccuracies; paraphrases effectively as required. 7 flexible enough to discuss a variety of topics; some less common and idiomatic vocabulary, awareness of style and collocation, with some inappropriate choices; paraphrases effectively. 6 wide enough to discuss topics at length and make meaning clear despite inappropriacies; generally paraphrases successfully. 5 manages to talk about familiar and unfamiliar topics but limited flexibility; attempts paraphrase with mixed success. 4 able to talk about familiar topics but only basic meaning on unfamiliar topics; frequent errors in word choice; rarely paraphrases. 3 simple vocabulary for personal information, insufficient for less familiar topics.',
-    'GRAMMATICAL RANGE AND ACCURACY: 9 full range of structures naturally and appropriately; consistently accurate apart from slips characteristic of native speakers. 8 wide range used flexibly; majority of sentences error-free, only very occasional inappropriacies or basic/non-systematic errors. 7 range of complex structures with some flexibility; frequently error-free sentences though some grammatical mistakes persist. 6 mix of simple and complex structures but limited flexibility; frequent mistakes with complex structures though these rarely cause comprehension problems. 5 basic sentence forms with reasonable accuracy; limited range of complex structures, usually containing errors that may cause some comprehension problems. 4 basic sentence forms and some correct simple sentences, subordinate structures rare; errors frequent and may lead to misunderstanding. 3 attempts basic sentence forms with limited success or relies on memorised utterances; numerous errors.',
-    'PRONUNCIATION: 9 full range of pronunciation features with precision and subtlety, sustained flexible use, effortless to understand, accent has no effect on intelligibility. 8 wide range of features, flexible use with occasional lapses, easy to understand throughout, accent has minimal effect. 7 all positive features of 6 and some, but not all, of 8. 6 range of features with mixed control; some effective use of features not sustained; generally understood though mispronunciation of individual words or sounds reduces clarity at times. 5 all positive features of 4 and some of 6. 4 limited range of features; attempts to control features but lapses are frequent; mispronunciations frequent and cause some difficulty for the listener. 3 some features of 2 and some of 4.',
-    'RULES. (1) Interpret every feature in context; never apply a fixed penalty for hesitation, self-correction, repetition, simple vocabulary, a few grammar mistakes, accent, slow speech, pauses or short answers. Speaking fast is not fluency; natural planning pauses are acceptable at high bands; penalise hesitation only when it is frequent, language-related or disrupts communication. A simple but coherent answer is not automatically low. (2) Do not reward rare words by themselves, do not penalise common words that express meaning precisely; sentence length is not grammatical range; complexity is not accuracy. (3) The transcript is ASR output: if an apparent error could plausibly be a recognition error (similar-sounding words, a segment in asr_low_confidence_segments, an odd word in otherwise fluent speech), do not count it as a lexical/grammar error with certainty: mark the edit asrPossible:true and lower confidence. Ignore punctuation and capitalisation; disfluencies are not grammar errors. Fillers such as um/uh are usually removed by the ASR, so their absence is not evidence of fluency. (4) Short or thin samples: if there is too little language to judge the full range (e.g. under ~40 words, or a Part 2 answer well under a minute), do NOT lower the band for that reason alone; judge what is shown and set confidence low, explaining why in uncertainty. (5) Bands 8 and 9 are reachable: award them when the evidence meets those descriptors. Do not inflate; do not pull scores towards an average; criteria may differ from each other. (6) PRONUNCIATION is ALWAYS assessed with the PRONUNCIATION CHECKS below (never return a null band), using pronunciation_evidence. evidence_strength tells you how much there is: "phoneme_level" = a phone recogniser (OpenPronounce) checked the recording; "indirect" = audio measurements only; "minimal" = the audio could not be analysed (limitation says why), only speech-recognition results. How to read the evidence: intelligibility boxes (P4a, P5a, P6a, P7a, P8a, P9a) may use asr_agreement_two_models, unclear_regions and mean_asr_logprob (speech that two recognisers understand identically, with few unclear regions, is intelligible; many unclear regions mean reduced clarity). Intonation boxes may use pitch (a very narrow range suggests flat intonation; varied pitch suggests intonation use, but range alone does not prove it fits meaning). Chunking may use pauses and mean_words_between_pauses. Individual-sound boxes (P8c and the sound part of P5a/P6a) may use phoneme_check only: content_words_with_likely_sound_errors are words where the recogniser heard different sounds from the DICTIONARY form; several of them, or the same error repeated, are real evidence; one or two isolated ones are normal for any speaker. function_words_said_in_reduced_or_linked_form are NOT errors: reduced vowels, weak forms and linking in words like a, of, what, to, and, that (e.g. "a lot of" as /əlɒtəv/) are natural connected speech and are positive evidence for P7b. A Vietnamese accent that stays intelligible is never an error. When a box cannot be observed with this evidence (e.g. individual sounds with evidence_strength "indirect" or "minimal", word stress always), mark it "na", never "no" for lack of measurement. Never convert numbers into a band. Also set criteria.pronunciation.band to your own overall impression (stored only for comparison). Pronunciation confidence: "medium" at most with phoneme_level, otherwise "low"; say in uncertainty what could not be measured. (7) WHAT WAS ACTUALLY SAID. Judge grammar and vocabulary on the words most likely spoken, not on a corrected transcript: where a speech_findings item with status "likely" gives a likely form (e.g. the audio has no final /s/, so "many students" was probably said as "many student"), assess that form and report the error with status "likely" and evidence naming the source. Where the item is "uncertain" (the two recognitions disagree and no acoustic check decides), do NOT count it as a learner error and do NOT lower any band for it: if you mention it, mark the edit status "uncertain". A disagreement between two recognisers does not prove which one is right, and a recognition error is never a pronunciation error by itself. Use status "confirmed" only when the same error is clear in both recognitions and nothing suggests a recognition problem. Repetitions, fillers and false starts are evidence for Fluency and Coherence only, judged by frequency and impact against the descriptors (natural hesitation, emphasis and self-correction are acceptable; frequent disruptive disfluency is not); they are never grammar errors. (8) Only quote words that appear in the transcript; never invent quotations, pauses or audio events. Use fluency_measurements for fluency claims about pauses and speed.',
-    'CHECKLISTS FOR ALL FOUR CRITERIA. The band is NOT chosen by you: you tick boxes and the application computes the band with a fixed rule (band b is reached when no box of band b is "no", at least half of its assessable boxes are "yes", bands 8-9 need at least two "yes", and every lower band is also reached). Tick EVERY box below, for all bands 4-9, each as {"id", "status": "yes"|"partly"|"no"|"na", "evidence": a short quote of the student\'s words or a measurement}. "yes" = clearly shown in this answer; "partly" = shown but inconsistently or only once where more is expected; "no" = not shown although this answer gave the opportunity, or contradicted by the evidence; "na" = genuinely impossible to observe in a single answer of this kind (use it rarely; a short answer that simply does not attempt something is "no", not "na"). The boxes are cumulative: if a higher-band feature is clearly shown, the matching lower-band boxes are normally "yes". Be strict and literal: tick "yes" only with a concrete quote. Remember the transcript caveats in rule (7): an error that may come from speech recognition must not turn a box into "no".\n' + SPCore.checklistPromptText(),
-    'ONE ANSWER, NOT A FULL TEST. You are assessing a single answer, often a short Part 1 reply. Judge each box against what a strong candidate could reasonably show in one answer of this Part (Part 1: about 2-5 sentences; Part 2: a 1-2 minute long turn; Part 3: an extended discussion answer). A short but appropriate Part 1 answer can still show less common vocabulary, a complex structure or flexible linking, and should get credit for it; it is not penalised for being a single answer. Do not demand features that a single answer of this length could not contain (use "na" for those). If the sample is very short, still tick honestly and set sampleAdequacy and confidence accordingly.',
-    'For EACH criterion return: "checks" (all four criteria, every box); "evidence": 2-5 short items of OBSERVED evidence (quote the student\'s words in English, or cite a measurement); "interpretation": 1-3 Vietnamese sentences explaining which descriptor features this evidence matches and why that band, not the one above or below (for fluency, lexical and grammar explain it with the boxes: which box of the next band is missing); "band"; "confidence": "high"|"medium"|"low"; "uncertainty": 1 Vietnamese sentence on what limits certainty (ASR, short sample, audio) or ""; "feedback": 2-4 natural Vietnamese sentences for the student (specific to THIS answer, not generic); "weaknesses": 1-3 Vietnamese items (most important first); "recommendations": 1-3 practical Vietnamese actions; "toNextBand": 1-2 Vietnamese sentences naming the missing feature of the next band with an example from this answer ("" if band 9).',
-    '"sampleAdequacy": {"level": "adequate"|"limited"|"insufficient", "note": Vietnamese sentence}. "whyNotHigher": 2 Vietnamese sentences on which criteria hold the overall back and the single most useful change.',
-    '"edits": every real grammar / word-choice / collocation error and noticeable coherence problem, as {"find": text copied EXACTLY from the transcript (1-6 words, unique), "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 Vietnamese sentence, "status": "confirmed"|"likely"|"uncertain", "evidence": short note of the evidence source, e.g. "both recognitions", "audio: no final /s/", "recognitions disagree"}. If a finding shows the learner probably said a different form than the transcript (e.g. transcript "students", likely "student"), set "find" to the transcript text and explain in "why" that the recording suggests the learner said the other form. No punctuation/capitalisation edits. Edits must not overlap.',
-    '"refinedAnswer": ONE natural spoken-style English paragraph: the student\'s OWN answer upgraded by about one band, reusing their ideas, order and as much wording as possible. "refinementNotes": each distinct change, in order (at least 4 unless the answer is under ~15 words, at most 10): {"from": exact text from the transcript ("" for a pure addition), "to": exact text from refinedAnswer, "criterion", "change": short English before -> after, "reason": 1-2 Vietnamese sentences}.',
-    'Respond with ONE JSON object only, exactly this shape: {"sampleAdequacy": {...}, "criteria": {"fluency": {"checks": [{"id": "F4a", "status": "yes", "evidence": ""}], "evidence": [], "interpretation": "", "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "weaknesses": [], "recommendations": [], "toNextBand": ""}, "lexical": {...}, "grammar": {...}, "pronunciation": {...}}, "whyNotHigher": "", "edits": [], "refinedAnswer": "", "refinementNotes": []}'
+    'You are a calibrated IELTS Speaking examiner estimating, for practice, what a trained examiner would award ONE recorded answer. Use only the evidence given.',
+    'INPUT (JSON): part; question; transcript_asr_hypothesis (Whisper, prompted to keep fillers/repetitions, but it may still correct grammar, add plurals, drop disfluencies, mishear words, add punctuation: a hypothesis, not truth); speech_findings (code-computed from a second independent recognition and the audio: where the two recognitions differ and an audio check of final /s/; category filler|repetition|morphology|final_s|asr_disagreement, likely = probable spoken form or null, status likely|uncertain); asr_low_confidence_segments; audio_quality; fluency_measurements (code-computed from audio: words per minute, pauses over 1s/2s, longest pause, words between pauses, repetitions); pronunciation_evidence (see rule 6).',
+    'HOW BANDS ARE SET: you do NOT choose the band. For each criterion tick EVERY box of bands 4-9 listed below as "yes" (clearly shown, with a quote or measurement), "partly" (shown but inconsistent), "no" (not shown although the answer gave the chance, or contradicted) or "na" (impossible to observe in one answer of this kind; use rarely: a short answer that does not attempt something is "no"). Boxes are cumulative: if a higher feature is clearly shown, matching lower boxes are normally "yes". The application computes the band from your ticks (a band is reached when it has no "no", at least half of its assessable boxes are "yes", bands 8-9 need two "yes", and all lower bands are reached).\n' + SPCore.checklistPromptText(),
+    'RULES. (1) ONE ANSWER, NOT A FULL TEST: judge each box against what a strong candidate could show in one answer of this Part (Part 1 about 2-5 sentences; Part 2 a 1-2 minute turn; Part 3 an extended answer). A short Part 1 answer can still show less common vocabulary, a complex structure or flexible linking and gets credit for it. ' +
+      '(2) Interpret features in context; no fixed penalties. Speed is not fluency; planning pauses are fine; hesitation matters only when frequent, language-related or disruptive. Rare words alone earn nothing; common words used precisely are fine; sentence length is not range; complexity is not accuracy. Fillers are usually removed by the ASR, so their absence proves nothing. ' +
+      '(3) WHAT WAS ACTUALLY SAID: judge grammar and vocabulary on the most likely spoken words. A speech_findings item with status "likely" gives the probable form (e.g. no final /s/ heard, so "many student"): assess that form and report the error with status "likely". An "uncertain" item, or anything that could be a recognition error, must not count against the student and must not turn a box into "no"; if mentioned, mark the edit "uncertain". Repetitions, fillers and false starts are Fluency evidence only, never grammar errors. ' +
+      '(4) Do not inflate and do not pull criteria towards an average; bands 8-9 are reachable when the boxes are met. ' +
+      '(5) Quote only words that are in the transcript; never invent pauses or audio events; use fluency_measurements for claims about pauses and speed. ' +
+      '(6) PRONUNCIATION is always assessed with its boxes. pronunciation_evidence.evidence_strength: "phoneme_level" (a phone recogniser checked the audio), "indirect" (audio measurements only) or "minimal" (audio not analysable). Intelligibility boxes may use asr_agreement_two_models, unclear_regions and mean_asr_logprob. Intonation may use pitch (narrow range = flat; range alone does not prove it fits meaning). Chunking may use pauses. Individual sounds may use phoneme_check only: several content_words_with_likely_sound_errors, or the same error repeated, are real evidence; one or two isolated ones are normal. function_words_said_in_reduced_or_linked_form are natural connected speech (positive evidence for P7b), never errors. An intelligible Vietnamese accent is never an error. Boxes that cannot be observed with this evidence (word stress always; individual sounds unless phoneme_level) are "na", never "no". Never convert numbers into a band.',
+    'OUTPUT. Write all explanations in natural Vietnamese for a Vietnamese learner, short and specific to THIS answer. Per criterion: "checks": [{"id", "status", "e": evidence of at most 8 words, only for yes/no, otherwise ""}] covering every box; "band": your own overall impression (for comparison only); "confidence": "high"|"medium"|"low" (pronunciation: "medium" at most with phoneme_level, otherwise "low"); "uncertainty": "" or 1 short sentence on what limits certainty; "feedback": 2-3 sentences quoting the student\'s words: what was good, what was weak, which box decided the band; "toNextBand": 1 sentence naming the missing box of the next band with an example ("" at band 9). Also "sampleAdequacy": {"level": "adequate"|"limited"|"insufficient", "note": 1 sentence}; "whyNotHigher": 1-2 sentences on what holds the overall score back; "edits": real grammar / word-choice / collocation errors and clear coherence problems, at most 10, each {"find": exact transcript text of 1-6 words, "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 sentence, "status": "confirmed"|"likely"|"uncertain", "evidence": short source note}; no punctuation or capitalisation edits; edits must not overlap.',
+    'Respond with ONE JSON object only: {"sampleAdequacy": {}, "criteria": {"fluency": {"checks": [], "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "toNextBand": ""}, "lexical": {}, "grammar": {}, "pronunciation": {}}, "whyNotHigher": "", "edits": []}'
   ].join('\n\n');
 
   // Màu theo tiêu chí — dùng chung cho điểm, chỗ sửa, nhận xét, bản nâng cấp
@@ -3688,10 +3691,16 @@ Is it better to read a physical book or an e-book?"></textarea>
   function renderSide(rec) {
     document.querySelectorAll('#upTabs button').forEach(b => b.classList.toggle('active', b.dataset.u === __upTab));
     const kind = UPGRADE_KINDS[__upTab];
-    const have = __upTab === 'refined' || (rec.upgrades && rec.upgrades[__upTab]);
+    const have = __upTab === 'refined' ? !!rec.refinedAnswer : !!(rec.upgrades && rec.upgrades[__upTab]);
     const gen = document.getElementById('upGenBox');
     document.getElementById('upContent').classList.toggle('hidden', !have);
     gen.classList.toggle('hidden', !!have);
+    if (!have && __upTab === 'refined') {
+      const busy = __upBusy[(rec.id || '') + 'refined'];
+      gen.innerHTML = '<p class="up-intro" style="margin:0">Viết lại chính câu trả lời của bạn tốt hơn khoảng 1 band: giữ ý và thứ tự ý, sửa lỗi, nâng từ vựng và câu vừa đủ.</p>' +
+        '<button type="button" class="ni-submit-btn" ' + (busy ? 'disabled' : '') + ' onclick="generateRefined()">' + (busy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> Đang viết...' : '✨ Tạo bản nâng cấp') + '</button>';
+      return;
+    }
     if (!have) {
       const busy = __upBusy[(rec.id || '') + __upTab];
       const tg = upTargets(rec, kind);
@@ -3723,21 +3732,50 @@ Is it better to read a physical book or an e-book?"></textarea>
     spHidePop();
     if (__res) renderSide(__res.record);
   };
-  // Chấm thử bản nâng cấp bằng CHÍNH bộ chấm (cùng prompt, temperature 0, cùng bảng ô) -> band + trạng thái từng ô
-  async function checkUpgradeText(rec, text) {
+  // Bản nâng cấp chung (tab đầu): chỉ tạo khi bấm, để lần chấm điểm không vượt giới hạn token/phút của Groq
+  window.generateRefined = async function () {
+    if (!__res) return;
+    const rec = __res.record, busyKey = (rec.id || '') + 'refined';
+    if (__upBusy[busyKey]) return;
+    if (!getGroqConfig().apiKey) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
+    __upBusy[busyKey] = true; renderSide(rec);
+    const disp = SPCore.displayBand(rec);
+    const target = disp.band != null ? Math.min(9, Math.floor(disp.band) + 1) : 6;
+    try {
+      let parsed;
+      try {
+        parsed = await callGroqChatJson([
+          { role: 'system', content: 'You upgrade a Vietnamese IELTS student\'s spoken answer by about ONE band (target overall band given). Reuse their ideas, their order and as much of their wording as possible; fix errors and improve only what is needed; keep it natural spoken English and similar length. Respond with ONE JSON object: {"text": one paragraph, "notes": [{"from": exact text from the original ("" if added), "to": exact text from your text, "criterion": "fluency"|"lexical"|"grammar", "change": short English "before -> after", "reason": 1 Vietnamese sentence}]} with 3-8 notes in order.' },
+          { role: 'user', content: 'Question: "' + (rec.questionText || '') + '"\nTarget band: ' + target + '\nOriginal answer: "' + (rec.transcript || '') + '"' }
+        ], { temperature: 0.3, maxTokens: 2500, json: true, reasoning: 'low' });
+      } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
+      const text = String(parsed.text || '').trim();
+      if (!text) throw new Error('AI không trả về bản nâng cấp, thử lại nhé.');
+      rec.refinedAnswer = text;
+      rec.refinementNotes = (Array.isArray(parsed.notes) ? parsed.notes : []).map(n => ({ from: String(n.from || ''), to: String(n.to || ''), criterion: n.criterion ? spCrit(n.criterion) : '', change: String(n.change || ''), reason: String(n.reason || '') })).filter(n => n.to).slice(0, 10);
+      if (rec.id) updateDoc(doc(db, 'speakingAttempts', rec.id), { refinedAnswer: rec.refinedAnswer, refinementNotes: rec.refinementNotes }).catch(e => console.warn('Không lưu được bản nâng cấp:', e));
+    } catch (e) {
+      alert('Lỗi khi tạo bản nâng cấp: ' + e.message);
+    } finally {
+      delete __upBusy[busyKey];
+      if (__res && __res.record === rec) renderSide(rec);
+    }
+  };
+  // Chấm thử bản nâng cấp: CHỈ tích các ô của đúng tiêu chí cần (gọn, để vừa giới hạn token/phút), band do code tính như lúc chấm thật
+  async function checkUpgradeText(rec, text, crits) {
     const q = (__pkg && __pkg.questions.find(x => x.id === rec.questionId)) || {};
-    const ev = {
-      part: String(q.part || (__pkg && __pkg.part) || '1'), question: rec.questionText || '',
-      transcript_asr_hypothesis: text, transcript_second_asr: null, speech_findings: [], asr_low_confidence_segments: [],
-      audio_quality: { status: 'not_applicable' },
-      fluency_measurements: { note: 'WRITTEN MODEL ANSWER, not a recording: there is no audio and no timing data. Judge it as if it were spoken exactly as written, fluently; mark boxes that need timing evidence as "na".' },
-      pronunciation_evidence: null
-    };
+    const boxes = crits.map(k => SP_NAME[k] + ' (' + k + '): ' + [4, 5, 6, 7, 8, 9].map(b => SPCore.CHECKLIST[k][b].map(it => it[0] + ' "' + it[1] + '"').join('; ')).join(' | ')).join('\n');
     const parsed = await callGroqChatJson([
-      { role: 'system', content: SCORING_SYSTEM_PROMPT },
-      { role: 'user', content: 'Assess this response. All evidence is below as JSON.\n\n' + JSON.stringify(ev) }
-    ], { temperature: SPCore.ENGINE.llmTemperature, maxTokens: 14000, json: true, reasoning: 'medium' });
-    return SPCore.normalizeScoring(parsed, false).criteria;
+      { role: 'system', content: 'You are a strict IELTS Speaking examiner. The text is a WRITTEN model answer to one Part ' + String(q.part || (__pkg && __pkg.part) || '1') + ' question; judge it as if spoken exactly as written. Tick EVERY box below as "yes" (clearly shown, quote it), "partly", "no" or "na" (cannot be observed in a written single answer, e.g. pauses or hesitation). Judge against what one answer of this Part can show. Boxes are cumulative.\n' + boxes + '\nRespond with ONE JSON object: {"criteria": {"<criterion>": {"checks": [{"id", "status", "e": quote of at most 6 words or ""}]}}} for: ' + crits.join(', ') + '.' },
+      { role: 'user', content: 'Question: "' + (rec.questionText || '') + '"\nAnswer: "' + text + '"' }
+    ], { temperature: 0, maxTokens: 2200, json: true, reasoning: 'low' });
+    const out = {};
+    crits.forEach(k => {
+      const c = (parsed.criteria && parsed.criteria[k]) || {};
+      const checks = SPCore.normChecks(k, c.checks);
+      out[k] = { band: checks.length ? SPCore.checklistBand(k, checks).band : null, checks: checks };
+    });
+    return out;
   }
   function targetsPrompt(targets) {
     return targets.filter(t => t.target != null).map(t =>
@@ -3764,8 +3802,8 @@ Is it better to read a physical book or an e-book?"></textarea>
           { role: 'system', content: system },
           { role: 'user', content: 'IELTS Speaking question: "' + (rec.questionText || '') + '"\n\nTARGETS\n' + targetsPrompt(targets) +
             '\n\nStudent\'s original answer (speech transcript):\n"' + (rec.transcript || '') + '"' + (feedback ? '\n\n' + feedback : '') }
-        ], { temperature: 0.3, maxTokens: 5000, json: true, reasoning: 'low' });
-      } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
+        ], { temperature: 0.3, maxTokens: 2500, json: true, reasoning: 'low' });
+      } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
       const text = String(parsed.text || '').trim();
       if (!text) throw new Error('AI không trả về bản nâng cấp, thử lại nhé.');
       const notes = (Array.isArray(parsed.notes) ? parsed.notes : []).map(n => {
@@ -3790,7 +3828,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       step('Đang viết bản nâng cấp theo tiêu chí band kế tiếp...');
       let best = await write(null), res = null;
       step('Đang cho bộ chấm chấm thử bản này...');
-      try { res = judge(await checkUpgradeText(rec, best.text)); } catch (e) { console.warn('Chấm thử lỗi:', e); }
+      try { res = judge(await checkUpgradeText(rec, best.text, kind.crits)); } catch (e) { console.warn('Chấm thử lỗi:', e); }
       if (res && res.off.length) {
         const fb = res.off.map(t => {
           const got = res.bands[t.crit];
@@ -3803,7 +3841,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         const v2 = await write(fb + '\nYour previous version:\n"' + best.text + '"\nRewrite it, still following every constraint above.');
         step('Đang chấm thử lại...');
         let res2 = null;
-        try { res2 = judge(await checkUpgradeText(rec, v2.text)); } catch (e) { console.warn('Chấm thử lỗi:', e); }
+        try { res2 = judge(await checkUpgradeText(rec, v2.text, kind.crits)); } catch (e) { console.warn('Chấm thử lỗi:', e); }
         const dist = r => r ? r.off.reduce((t, x) => t + Math.abs((r.bands[x.crit] || 0) - x.target), 0) : 99;
         if (res2 && dist(res2) <= dist(res)) { best = v2; res = res2; }
       }
