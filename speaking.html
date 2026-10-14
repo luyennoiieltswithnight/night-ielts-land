@@ -1372,6 +1372,44 @@ Is it better to read a physical book or an e-book?"></textarea>
           ['G9b', 'Consistently accurate apart from native-like slips', 'Luôn chính xác, ngoài lỗi nhỏ kiểu người bản xứ']]
     }
   };
+  // Phát âm: ô tích diễn giải từ mô tả band Pronunciation, chỉ giữ những gì quan sát được trong 1 câu trả lời
+  CHECKLIST.pronunciation = {
+    4: [['P4a', 'Speech is mostly understandable; the listener can follow the main message', 'Phần lớn nghe hiểu được; người nghe theo được ý chính'],
+        ['P4b', 'Some attempt to control stress or intonation, even with frequent lapses', 'Có cố kiểm soát trọng âm / ngữ điệu, dù còn hay sai']],
+    5: [['P5a', 'Generally understood, though some words or sounds are unclear', 'Nhìn chung hiểu được, dù vài từ / âm chưa rõ'],
+        ['P5b', 'Some correct word stress and sentence rhythm', 'Có chỗ đúng trọng âm từ và nhịp câu']],
+    6: [['P6a', 'Understood throughout; mispronunciations reduce clarity only at times', 'Hiểu được suốt bài; phát âm sai chỉ thỉnh thoảng làm kém rõ'],
+        ['P6b', 'Uses a range of features (stress, intonation, linking) with mixed control', 'Dùng nhiều yếu tố (trọng âm, ngữ điệu, nối âm), kiểm soát chưa đều'],
+        ['P6c', 'Speech is divided into sensible phrase groups (chunking)', 'Ngắt nhóm từ hợp lý (chunking)']],
+    7: [['P7a', 'Easy to understand for most of the answer; few unclear words', 'Dễ hiểu ở phần lớn bài; rất ít từ không rõ'],
+        ['P7b', 'Uses connected-speech features (linking, weak forms, contractions) effectively in places', 'Có dùng tốt nối âm, dạng yếu (weak form), rút gọn ở nhiều chỗ'],
+        ['P7c', 'Intonation varies to fit meaning; not flat', 'Ngữ điệu lên xuống theo ý, không đều đều']],
+    8: [['P8a', 'Easy to understand throughout; accent has minimal effect on intelligibility', 'Dễ hiểu suốt bài; giọng (accent) gần như không ảnh hưởng'],
+        ['P8b', 'Wide range of features used flexibly with only occasional lapses', 'Dùng linh hoạt nhiều yếu tố phát âm, chỉ thỉnh thoảng lỡ'],
+        ['P8c', 'Individual sounds are clear; errors are rare and never affect understanding', 'Từng âm rõ ràng; lỗi hiếm và không ảnh hưởng hiểu']],
+    9: [['P9a', 'Effortless to understand; accent has no effect on intelligibility', 'Nghe hiểu không chút khó khăn; giọng không ảnh hưởng'],
+        ['P9b', 'Full range of features used precisely and subtly, sustained throughout', 'Dùng đủ mọi yếu tố phát âm chính xác, tinh tế, suốt bài']]
+  };
+  // Từ chức năng: trong câu nói tự nhiên thường đọc dạng yếu / nối âm (a lot of -> /əlɒtəv/, what -> /wət/),
+  // nên máy so với cách đọc từ điển hay báo "sai" oan. Những từ này KHÔNG tính là lỗi.
+  var WEAK_FORM_WORDS = ['a', 'an', 'the', 'of', 'to', 'for', 'from', 'at', 'in', 'on', 'and', 'but', 'or', 'as', 'than', 'that', 'what', 'which', 'who',
+    'is', 'are', 'was', 'were', 'be', 'been', 'am', 'do', 'does', 'did', 'have', 'has', 'had', 'can', 'could', 'will', 'would', 'shall', 'should', 'must',
+    'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their', 'there', 'some', 'just', 'so', 'not',
+    "i'm", "it's", "don't", "i've", "that's", "there's", "you're", "we're", "they're", "can't", "didn't", "isn't", "wasn't", 'gonna', 'wanna', 'kind', 'sort', 'lot'];
+  /* Lọc lỗi máy chấm phát âm. Giữ lại chỉ những từ NỘI DUNG mà máy chắc chắn (≥ 0.7) và không bị nghi do Whisper chép sai.
+     Lỗi ở từ chức năng => đếm như bằng chứng có nối âm / dạng yếu (điểm cộng cho P7b), không phải lỗi. */
+  function filterPronFlags(op) {
+    var all = ((op && op.errors) || []).concat((op && op.uncertainErrors) || []);
+    var kept = [], weak = [], dropped = 0;
+    all.forEach(function (e) {
+      var w = norm(e.word);
+      if (WEAK_FORM_WORDS.indexOf(w) !== -1) { weak.push(e.word); return; }
+      if (e.status !== 'flagged' || e.confidence == null || e.confidence < 0.7 || w.length < 3) { dropped++; return; }
+      kept.push(e);
+    });
+    return { kept: kept.slice(0, 12), weakForms: weak.slice(0, 15), dropped: dropped, wordsAssessed: (op && op.wordsAssessed) || 0 };
+  }
+
   var CK_BANDS = [4, 5, 6, 7, 8, 9];
   var CK_STATUS = ['yes', 'partly', 'no', 'na'];
   /* LUẬT TÍNH BAND (cố định, không do AI quyết):
@@ -1414,7 +1452,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
   // Danh sách ô cho prompt
   function checklistPromptText() {
-    return ['fluency', 'lexical', 'grammar'].map(function (k) {
+    return ['fluency', 'lexical', 'grammar', 'pronunciation'].map(function (k) {
       return k.toUpperCase() + ' CHECKS: ' + CK_BANDS.map(function (b) { return 'band ' + b + ': ' + CHECKLIST[k][b].map(function (it) { return it[0] + ' "' + it[1] + '"'; }).join('; '); }).join(' | ');
     }).join('\n');
   }
@@ -1441,7 +1479,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       var band = isFinite(raw) && c.band !== null && c.band !== '' ? Math.max(0, Math.min(9, Math.round(raw))) : null;
       if (k === 'pronunciation' && !pronAvailable) band = null;
       var llmBand = band, checks = null, ckDetail = null;
-      if (CHECKLIST[k] && Array.isArray(c.checks) && c.checks.length) {
+      if (CHECKLIST[k] && Array.isArray(c.checks) && c.checks.length && !(k === 'pronunciation' && !pronAvailable)) {
         checks = normChecks(k, c.checks);
         if (checks.length) { var r = checklistBand(k, checks, llmBand); band = r.band; ckDetail = r.detail; }
       }
@@ -1513,7 +1551,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     compareDecodes: compareDecodes, alignDecodes: alignDecodes, pronunciationEvidence: pronunciationEvidence,
     encodeWav16: encodeWav16, opTokens: opTokens, planPronChunks: planPronChunks, mapPronErrors: mapPronErrors, aggregateOpenPronounce: aggregateOpenPronounce, OP_MAX_SEC: OP_MAX_SEC,
     finalSibilant: finalSibilant, noiseFloor16: noiseFloor16, wantsFinalS: wantsFinalS, speechFindings: speechFindings,
-    CHECKLIST: CHECKLIST, checklistBand: checklistBand, normChecks: normChecks, checklistPromptText: checklistPromptText,
+    CHECKLIST: CHECKLIST, filterPronFlags: filterPronFlags, WEAK_FORM_WORDS: WEAK_FORM_WORDS, checklistBand: checklistBand, normChecks: normChecks, checklistPromptText: checklistPromptText,
     normalizeScoring: normalizeScoring, spCrit: spCrit, agreement: agreement
   };
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -3101,8 +3139,13 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   // ---- Phát âm: (1) máy chấm OpenPronounce nếu có, (2) số đo gián tiếp (độ rõ 2 lần nghe, ngữ điệu, nhịp) luôn kèm theo ----
   async function assessPronunciation(pcm, audio, asr, second, quality, findings, onStep) {
-    if (!pcm || !audio) return { status: 'unavailable', reason: 'audio_undecodable' };
-    if (!quality.pronunciationReliable) return { status: 'insufficient', reason: 'audio_quality' };
+    // Luôn trả bằng chứng (dù ít) để Phát âm LUÔN có điểm; mức bằng chứng ghi ở "strength"
+    const asrOnly = SPCore.pronunciationEvidence({
+      decodes: second && second.words.length && asr.words.length ? [asr.words, second.words] : null,
+      segments: asr.segments, prosody: { enough: false }, rhythm: { enough: false }, speechSec: audio ? audio.speechSec : 0
+    });
+    if (!pcm || !audio) return Object.assign({}, asrOnly, { status: 'ok', method: 'minimal', strength: 'minimal', limitReason: 'audio_undecodable' });
+    if (!quality.pronunciationReliable) return Object.assign({}, asrOnly, { status: 'ok', method: 'minimal', strength: 'minimal', limitReason: 'audio_quality' });
     const prosody = SPCore.prosodyMetrics(SPCore.pitchTrack(pcm.samples, pcm.rate, audio));
     const rhythm = SPCore.rhythmMetrics(audio);
     const ind = SPCore.pronunciationEvidence({
@@ -3114,8 +3157,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     catch (e) { op = { status: 'error', reason: String(e.message || e).slice(0, 160) }; }
     const opOk = op.status === 'ok' || op.status === 'partial';
     return Object.assign({}, ind, {
-      status: opOk ? 'ok' : ind.status, reason: opOk ? undefined : ind.reason,
+      status: 'ok', reason: undefined,
       method: opOk ? 'openpronounce' : 'acoustic-proxy',
+      strength: opOk ? 'phoneme_level' : (ind.status === 'ok' ? 'indirect' : 'minimal'),
+      opFiltered: opOk ? SPCore.filterPronFlags(op) : null,
       openpronounce: opOk ? op : null,
       opError: opOk ? null : (op.reason === 'not_configured' || op.reason === 'offline' ? null : op.reason),
       opOffline: !opOk && op.reason === 'offline'
@@ -3187,7 +3232,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       // 4) Phát âm: số đo từ âm thanh
       spinnerMsg.textContent = 'Đang đo phát âm từ âm thanh...';
       const pron = await assessPronunciation(pcm, audio, asr, asr2, quality, findings, (i, n, warming) => { spinnerMsg.textContent = 'Đang gửi tới máy chấm phát âm' + (n > 1 ? ' (đoạn ' + i + '/' + n + ')' : '') + (warming ? ' — máy chấm vừa bật, đang tải model' : '') + '...'; });
-      const pronAvailable = pron.status === 'ok';
+      const pronAvailable = true;   // Phát âm luôn được chấm; độ tin cậy theo mức bằng chứng
 
       // 5) AI chấm theo mô tả band chính thức, dựa trên bằng chứng ở trên
       spinnerMsg.textContent = 'Đang chấm theo 4 tiêu chí IELTS Speaking...';
@@ -3199,21 +3244,22 @@ Is it better to read a physical book or an e-book?"></textarea>
         asr_low_confidence_segments: asrUncertain,
         audio_quality: { status: quality.status, issues: quality.issues.map(i => i.code) },
         fluency_measurements: audio ? fluency : Object.assign({}, fluency, { note: 'audio not analysable; timing-based measures unavailable' }),
-        pronunciation_evidence: pronAvailable ? {
-          method: 'indirect acoustic measurements computed from the recorded audio (no phoneme-level model available)',
+        pronunciation_evidence: {
+          evidence_strength: pron.strength,
+          limitation: pron.limitReason || null,
           asr_agreement_two_models: pron.asrAgreement,
-          unclear_regions: pron.unclear.map(u => ({ text: u.text, time_sec: u.s })),
+          unclear_regions: (pron.unclear || []).map(u => ({ text: u.text, time_sec: u.s })),
           mean_asr_logprob: pron.meanAsrLogprob,
-          pitch: pron.pitch, rhythm: pron.rhythm,
+          pitch: pron.pitch || null, rhythm: pron.rhythm || null,
+          pauses_over_1s: fluency.pausesOver1s, mean_words_between_pauses: fluency.meanWordsBetweenPauses,
           speech_seconds: pron.speechSec, low_sample: pron.lowSample,
-          not_measured: pron.openpronounce ? ['word_stress', 'sentence_stress'] : pron.notMeasured,
-          openpronounce: pron.openpronounce ? {
-            raw_score_0_100: pron.openpronounce.score, phoneme_error_rate: pron.openpronounce.phonemeErrorRate, word_error_rate: pron.openpronounce.wordErrorRate,
-            words_assessed: pron.openpronounce.wordsAssessed, chunks_failed: pron.openpronounce.chunks - pron.openpronounce.chunksOk,
-            flagged_words: pron.openpronounce.errors.map(e => ({ word: e.word, time_sec: e.time, expected_ipa: e.expected, heard_ipa: e.heard, confidence: e.confidence, status: e.status })),
-            excluded_as_possible_transcript_errors: pron.openpronounce.uncertainErrors.map(e => e.word)
+          phoneme_check: pron.opFiltered ? {
+            content_words_with_likely_sound_errors: pron.opFiltered.kept.map(e => ({ word: e.word, time_sec: e.time, dictionary_ipa: e.expected, heard_ipa: e.heard })),
+            function_words_said_in_reduced_or_linked_form: pron.opFiltered.weakForms,
+            low_confidence_flags_ignored: pron.opFiltered.dropped,
+            words_checked: pron.opFiltered.wordsAssessed
           } : null
-        } : null
+        }
       };
       const model = cfg.model || SPCore.ENGINE.llmModelDefault;
       let parsed;
@@ -3226,7 +3272,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         console.warn('Chấm điểm lỗi:', e);
         throw new Error(/HTTP|hết lượt|không trả lời|API Key/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
       }
-      const norm = SPCore.normalizeScoring(parsed, pronAvailable, pron.method === 'openpronounce' ? 'medium' : 'low');
+      const norm = SPCore.normalizeScoring(parsed, true, pron.strength === 'phoneme_level' ? 'medium' : 'low');
 
       // 6) Lưu: mỗi lần chấm là 1 document RIÊNG (id có thời gian) -> giữ lịch sử. File ghi âm chia mảnh.
       spinnerMsg.textContent = 'Đang lưu bài làm và file ghi âm...';
@@ -3318,10 +3364,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     'LEXICAL RESOURCE: 9 full flexibility and precision in all topics, idiomatic language naturally and accurately. 8 wide resource used readily and flexibly to convey precise meaning; less common and idiomatic vocabulary used skilfully with occasional inaccuracies; paraphrases effectively as required. 7 flexible enough to discuss a variety of topics; some less common and idiomatic vocabulary, awareness of style and collocation, with some inappropriate choices; paraphrases effectively. 6 wide enough to discuss topics at length and make meaning clear despite inappropriacies; generally paraphrases successfully. 5 manages to talk about familiar and unfamiliar topics but limited flexibility; attempts paraphrase with mixed success. 4 able to talk about familiar topics but only basic meaning on unfamiliar topics; frequent errors in word choice; rarely paraphrases. 3 simple vocabulary for personal information, insufficient for less familiar topics.',
     'GRAMMATICAL RANGE AND ACCURACY: 9 full range of structures naturally and appropriately; consistently accurate apart from slips characteristic of native speakers. 8 wide range used flexibly; majority of sentences error-free, only very occasional inappropriacies or basic/non-systematic errors. 7 range of complex structures with some flexibility; frequently error-free sentences though some grammatical mistakes persist. 6 mix of simple and complex structures but limited flexibility; frequent mistakes with complex structures though these rarely cause comprehension problems. 5 basic sentence forms with reasonable accuracy; limited range of complex structures, usually containing errors that may cause some comprehension problems. 4 basic sentence forms and some correct simple sentences, subordinate structures rare; errors frequent and may lead to misunderstanding. 3 attempts basic sentence forms with limited success or relies on memorised utterances; numerous errors.',
     'PRONUNCIATION: 9 full range of pronunciation features with precision and subtlety, sustained flexible use, effortless to understand, accent has no effect on intelligibility. 8 wide range of features, flexible use with occasional lapses, easy to understand throughout, accent has minimal effect. 7 all positive features of 6 and some, but not all, of 8. 6 range of features with mixed control; some effective use of features not sustained; generally understood though mispronunciation of individual words or sounds reduces clarity at times. 5 all positive features of 4 and some of 6. 4 limited range of features; attempts to control features but lapses are frequent; mispronunciations frequent and cause some difficulty for the listener. 3 some features of 2 and some of 4.',
-    'RULES. (1) Interpret every feature in context; never apply a fixed penalty for hesitation, self-correction, repetition, simple vocabulary, a few grammar mistakes, accent, slow speech, pauses or short answers. Speaking fast is not fluency; natural planning pauses are acceptable at high bands; penalise hesitation only when it is frequent, language-related or disrupts communication. A simple but coherent answer is not automatically low. (2) Do not reward rare words by themselves, do not penalise common words that express meaning precisely; sentence length is not grammatical range; complexity is not accuracy. (3) The transcript is ASR output: if an apparent error could plausibly be a recognition error (similar-sounding words, a segment in asr_low_confidence_segments, an odd word in otherwise fluent speech), do not count it as a lexical/grammar error with certainty: mark the edit asrPossible:true and lower confidence. Ignore punctuation and capitalisation; disfluencies are not grammar errors. Fillers such as um/uh are usually removed by the ASR, so their absence is not evidence of fluency. (4) Short or thin samples: if there is too little language to judge the full range (e.g. under ~40 words, or a Part 2 answer well under a minute), do NOT lower the band for that reason alone; judge what is shown and set confidence low, explaining why in uncertainty. (5) Bands 8 and 9 are reachable: award them when the evidence meets those descriptors. Do not inflate; do not pull scores towards an average; criteria may differ from each other. (6) PRONUNCIATION: if pronunciation_evidence is null you have NO evidence: set criteria.pronunciation to {"band": null, "confidence": "none"} with empty texts, never estimate pronunciation from the transcript, never create edits with criterion "pronunciation". When present it may contain two kinds of evidence. (a) "openpronounce" (may be null): output of the open-source OpenPronounce engine run on the actual recording. A wav2vec2 phone recogniser heard the sounds without a language model and compared them with the phones expected for the transcript, word by word. raw_score_0_100 = 30% acoustic distance to a synthetic text-to-speech voice + 40% phone-level accuracy + 30% word recognition accuracy. Its author reports Spearman 0.65 with expert overall pronunciation ratings on the speechocean762 corpus (Mandarin-L1 learners reading sentences, a different situation from spontaneous Vietnamese speech) and that only about 1 in 5 flagged words was judged mispronounced by humans. So: NEVER convert raw_score_0_100 or the error rates into a band arithmetically; treat flagged_words as candidates, giving weight to recurring patterns (e.g. many dropped final consonants, the same vowel confusion repeated) and to errors that would affect intelligibility; words in excluded_as_possible_transcript_errors may be recognition errors and must not count. It does not measure word or sentence stress. (b) Indirect measurements: asr_agreement_two_models (share of words two Whisper models recognised identically; high agreement does NOT show that pronunciation is correct, because both are tolerant of accents and guess words from context), unclear_regions, mean_asr_logprob, pitch.rangeSemitones / sdSemitones, rhythm.peaksPerSec and rhythm.nPVI (approximate). Pitch, speed and rhythm must never on their own push the band up or down. Judge against the Pronunciation descriptors using all evidence together, with the OpenPronounce word and phone evidence as the main evidence when available; do not penalise a Vietnamese accent that remains intelligible; do not apply any fixed cap or anchor band. No mapping from these measurements to IELTS bands has been validated: confidence must be "medium" at most with OpenPronounce and "low" with indirect measurements only, and say in uncertainty what was not measured (stress always; individual sounds when OpenPronounce is absent). Cite flagged words or unclear regions with time_sec. (7) WHAT WAS ACTUALLY SAID. Judge grammar and vocabulary on the words most likely spoken, not on a corrected transcript: where a speech_findings item with status "likely" gives a likely form (e.g. the audio has no final /s/, so "many students" was probably said as "many student"), assess that form and report the error with status "likely" and evidence naming the source. Where the item is "uncertain" (the two recognitions disagree and no acoustic check decides), do NOT count it as a learner error and do NOT lower any band for it: if you mention it, mark the edit status "uncertain". A disagreement between two recognisers does not prove which one is right, and a recognition error is never a pronunciation error by itself. Use status "confirmed" only when the same error is clear in both recognitions and nothing suggests a recognition problem. Repetitions, fillers and false starts are evidence for Fluency and Coherence only, judged by frequency and impact against the descriptors (natural hesitation, emphasis and self-correction are acceptable; frequent disruptive disfluency is not); they are never grammar errors. (8) Only quote words that appear in the transcript; never invent quotations, pauses or audio events. Use fluency_measurements for fluency claims about pauses and speed.',
-    'CHECKLISTS FOR FLUENCY, LEXICAL AND GRAMMAR. For these three criteria the band is NOT chosen by you: you tick boxes and the application computes the band with a fixed rule (band b is reached when no box of band b is "no", at least half of its assessable boxes are "yes", bands 8-9 need at least two "yes", and every lower band is also reached). Tick EVERY box below, for all bands 4-9, each as {"id", "status": "yes"|"partly"|"no"|"na", "evidence": a short quote of the student\'s words or a measurement}. "yes" = clearly shown in this answer; "partly" = shown but inconsistently or only once where more is expected; "no" = not shown although this answer gave the opportunity, or contradicted by the evidence; "na" = genuinely impossible to observe in a single answer of this kind (use it rarely; a short answer that simply does not attempt something is "no", not "na"). The boxes are cumulative: if a higher-band feature is clearly shown, the matching lower-band boxes are normally "yes". Be strict and literal: tick "yes" only with a concrete quote. Remember the transcript caveats in rule (7): an error that may come from speech recognition must not turn a box into "no".\n' + SPCore.checklistPromptText(),
+    'RULES. (1) Interpret every feature in context; never apply a fixed penalty for hesitation, self-correction, repetition, simple vocabulary, a few grammar mistakes, accent, slow speech, pauses or short answers. Speaking fast is not fluency; natural planning pauses are acceptable at high bands; penalise hesitation only when it is frequent, language-related or disrupts communication. A simple but coherent answer is not automatically low. (2) Do not reward rare words by themselves, do not penalise common words that express meaning precisely; sentence length is not grammatical range; complexity is not accuracy. (3) The transcript is ASR output: if an apparent error could plausibly be a recognition error (similar-sounding words, a segment in asr_low_confidence_segments, an odd word in otherwise fluent speech), do not count it as a lexical/grammar error with certainty: mark the edit asrPossible:true and lower confidence. Ignore punctuation and capitalisation; disfluencies are not grammar errors. Fillers such as um/uh are usually removed by the ASR, so their absence is not evidence of fluency. (4) Short or thin samples: if there is too little language to judge the full range (e.g. under ~40 words, or a Part 2 answer well under a minute), do NOT lower the band for that reason alone; judge what is shown and set confidence low, explaining why in uncertainty. (5) Bands 8 and 9 are reachable: award them when the evidence meets those descriptors. Do not inflate; do not pull scores towards an average; criteria may differ from each other. (6) PRONUNCIATION is ALWAYS assessed with the PRONUNCIATION CHECKS below (never return a null band), using pronunciation_evidence. evidence_strength tells you how much there is: "phoneme_level" = a phone recogniser (OpenPronounce) checked the recording; "indirect" = audio measurements only; "minimal" = the audio could not be analysed (limitation says why), only speech-recognition results. How to read the evidence: intelligibility boxes (P4a, P5a, P6a, P7a, P8a, P9a) may use asr_agreement_two_models, unclear_regions and mean_asr_logprob (speech that two recognisers understand identically, with few unclear regions, is intelligible; many unclear regions mean reduced clarity). Intonation boxes may use pitch (a very narrow range suggests flat intonation; varied pitch suggests intonation use, but range alone does not prove it fits meaning). Chunking may use pauses and mean_words_between_pauses. Individual-sound boxes (P8c and the sound part of P5a/P6a) may use phoneme_check only: content_words_with_likely_sound_errors are words where the recogniser heard different sounds from the DICTIONARY form; several of them, or the same error repeated, are real evidence; one or two isolated ones are normal for any speaker. function_words_said_in_reduced_or_linked_form are NOT errors: reduced vowels, weak forms and linking in words like a, of, what, to, and, that (e.g. "a lot of" as /əlɒtəv/) are natural connected speech and are positive evidence for P7b. A Vietnamese accent that stays intelligible is never an error. When a box cannot be observed with this evidence (e.g. individual sounds with evidence_strength "indirect" or "minimal", word stress always), mark it "na", never "no" for lack of measurement. Never convert numbers into a band. Also set criteria.pronunciation.band to your own overall impression (stored only for comparison). Pronunciation confidence: "medium" at most with phoneme_level, otherwise "low"; say in uncertainty what could not be measured. (7) WHAT WAS ACTUALLY SAID. Judge grammar and vocabulary on the words most likely spoken, not on a corrected transcript: where a speech_findings item with status "likely" gives a likely form (e.g. the audio has no final /s/, so "many students" was probably said as "many student"), assess that form and report the error with status "likely" and evidence naming the source. Where the item is "uncertain" (the two recognitions disagree and no acoustic check decides), do NOT count it as a learner error and do NOT lower any band for it: if you mention it, mark the edit status "uncertain". A disagreement between two recognisers does not prove which one is right, and a recognition error is never a pronunciation error by itself. Use status "confirmed" only when the same error is clear in both recognitions and nothing suggests a recognition problem. Repetitions, fillers and false starts are evidence for Fluency and Coherence only, judged by frequency and impact against the descriptors (natural hesitation, emphasis and self-correction are acceptable; frequent disruptive disfluency is not); they are never grammar errors. (8) Only quote words that appear in the transcript; never invent quotations, pauses or audio events. Use fluency_measurements for fluency claims about pauses and speed.',
+    'CHECKLISTS FOR ALL FOUR CRITERIA. The band is NOT chosen by you: you tick boxes and the application computes the band with a fixed rule (band b is reached when no box of band b is "no", at least half of its assessable boxes are "yes", bands 8-9 need at least two "yes", and every lower band is also reached). Tick EVERY box below, for all bands 4-9, each as {"id", "status": "yes"|"partly"|"no"|"na", "evidence": a short quote of the student\'s words or a measurement}. "yes" = clearly shown in this answer; "partly" = shown but inconsistently or only once where more is expected; "no" = not shown although this answer gave the opportunity, or contradicted by the evidence; "na" = genuinely impossible to observe in a single answer of this kind (use it rarely; a short answer that simply does not attempt something is "no", not "na"). The boxes are cumulative: if a higher-band feature is clearly shown, the matching lower-band boxes are normally "yes". Be strict and literal: tick "yes" only with a concrete quote. Remember the transcript caveats in rule (7): an error that may come from speech recognition must not turn a box into "no".\n' + SPCore.checklistPromptText(),
     'ONE ANSWER, NOT A FULL TEST. You are assessing a single answer, often a short Part 1 reply. Judge each box against what a strong candidate could reasonably show in one answer of this Part (Part 1: about 2-5 sentences; Part 2: a 1-2 minute long turn; Part 3: an extended discussion answer). A short but appropriate Part 1 answer can still show less common vocabulary, a complex structure or flexible linking, and should get credit for it; it is not penalised for being a single answer. Do not demand features that a single answer of this length could not contain (use "na" for those). If the sample is very short, still tick honestly and set sampleAdequacy and confidence accordingly.',
-    'For EACH criterion return: "checks" (fluency, lexical and grammar only, see above); "evidence": 2-5 short items of OBSERVED evidence (quote the student\'s words in English, or cite a measurement); "interpretation": 1-3 Vietnamese sentences explaining which descriptor features this evidence matches and why that band, not the one above or below (for fluency, lexical and grammar explain it with the boxes: which box of the next band is missing); "band"; "confidence": "high"|"medium"|"low"; "uncertainty": 1 Vietnamese sentence on what limits certainty (ASR, short sample, audio) or ""; "feedback": 2-4 natural Vietnamese sentences for the student (specific to THIS answer, not generic); "weaknesses": 1-3 Vietnamese items (most important first); "recommendations": 1-3 practical Vietnamese actions; "toNextBand": 1-2 Vietnamese sentences naming the missing feature of the next band with an example from this answer ("" if band 9).',
+    'For EACH criterion return: "checks" (all four criteria, every box); "evidence": 2-5 short items of OBSERVED evidence (quote the student\'s words in English, or cite a measurement); "interpretation": 1-3 Vietnamese sentences explaining which descriptor features this evidence matches and why that band, not the one above or below (for fluency, lexical and grammar explain it with the boxes: which box of the next band is missing); "band"; "confidence": "high"|"medium"|"low"; "uncertainty": 1 Vietnamese sentence on what limits certainty (ASR, short sample, audio) or ""; "feedback": 2-4 natural Vietnamese sentences for the student (specific to THIS answer, not generic); "weaknesses": 1-3 Vietnamese items (most important first); "recommendations": 1-3 practical Vietnamese actions; "toNextBand": 1-2 Vietnamese sentences naming the missing feature of the next band with an example from this answer ("" if band 9).',
     '"sampleAdequacy": {"level": "adequate"|"limited"|"insufficient", "note": Vietnamese sentence}. "whyNotHigher": 2 Vietnamese sentences on which criteria hold the overall back and the single most useful change.',
     '"edits": every real grammar / word-choice / collocation error and noticeable coherence problem, as {"find": text copied EXACTLY from the transcript (1-6 words, unique), "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 Vietnamese sentence, "status": "confirmed"|"likely"|"uncertain", "evidence": short note of the evidence source, e.g. "both recognitions", "audio: no final /s/", "recognitions disagree"}. If a finding shows the learner probably said a different form than the transcript (e.g. transcript "students", likely "student"), set "find" to the transcript text and explain in "why" that the recording suggests the learner said the other form. No punctuation/capitalisation edits. Edits must not overlap.',
     '"refinedAnswer": ONE natural spoken-style English paragraph: the student\'s OWN answer upgraded by about one band, reusing their ideas, order and as much wording as possible. "refinementNotes": each distinct change, in order (at least 4 unless the answer is under ~15 words, at most 10): {"from": exact text from the transcript ("" for a pure addition), "to": exact text from refinedAnswer, "criterion", "change": short English before -> after, "reason": 1-2 Vietnamese sentences}.',
@@ -3400,21 +3446,16 @@ Is it better to read a physical book or an e-book?"></textarea>
     const p = rec.pronunciation || {};
     if (p.status !== 'ok') return '';
     let out = '';
-    const op = p.openpronounce;
-    if (p.method === 'openpronounce' && op) {
-      out += '<p class="crit-meta"><b>Máy chấm phát âm (OpenPronounce, nghe từng âm trên file ghi âm):</b> điểm thô ' + (op.score != null ? op.score : '-') + '/100 · sai khoảng ' + (op.phonemeErrorRate != null ? Math.round(op.phonemeErrorRate * 100) : '-') + '% số âm · ' + op.wordsAssessed + ' từ được chấm' + (op.chunksOk < op.chunks ? ' (' + (op.chunks - op.chunksOk) + ' đoạn chấm lỗi)' : '') + '. Điểm thô này <b>không đổi thẳng</b> ra band: band ở trên do bộ chấm so với mô tả band IELTS, chưa được kiểm chứng với giám khảo thật.</p>';
-      const show = (op.errors || []).slice(0, 12);
-      if (show.length) out += '<p class="crit-meta" style="margin-top:8px;">Từ máy chấm nghi phát âm chưa đúng (bấm để nghe lại; khoảng 1/5 số từ bị báo thường là sai thật, nên hãy nghe lại để tự kiểm tra):</p><div class="pron-words">' + show.map(e =>
-        '<button type="button" class="pron-word" ' + (e.time != null ? 'onclick="seekRes(' + e.time + ')"' : '') + ' title="Đúng: /' + escapeHtml(e.expected) + '/ · Máy nghe: /' + escapeHtml(e.heard || '—') + '/">' + escapeHtml(e.word) + ' <span style="font-weight:500">/' + escapeHtml(e.expected) + '/ → /' + escapeHtml(e.heard || '—') + '/</span>' + (e.time != null ? '<small>' + fmtTime(e.time) + (e.status === 'possible' ? ' · chưa chắc' : '') + '</small>' : '') + '</button>').join('') + '</div>';
-      if ((op.uncertainErrors || []).length) out += '<p class="crit-meta">Không tính (có thể do máy nghe chữ sai hoặc là từ đệm): ' + op.uncertainErrors.map(e => escapeHtml(e.word)).join(', ') + '.</p>';
-    } else if (p.method === 'acoustic-proxy') {
-      out += '<p class="crit-meta">' + (p.opError ? '⚠️ Máy chấm phát âm báo lỗi lần này (' + escapeHtml(p.opError) + '), nên Phát âm được chấm theo cách thường: ' : 'Lần này Phát âm được chấm theo cách thường (máy chấm phát âm chuyên sâu của Thầy đang tắt): ') + '<b>ước tính gián tiếp</b>, chưa chỉ ra được từng âm sai. Khi Thầy bật máy chấm, kết quả Phát âm sẽ chi tiết hơn.</p>';
+    const f = p.opFiltered;
+    if (p.strength === 'phoneme_level' && f) {
+      out += '<p class="crit-meta"><b>Máy chấm phát âm của Thầy đã nghe từng âm.</b> Chỉ giữ lại những từ máy khá chắc là âm khác cách đọc chuẩn; bỏ qua từ đọc nhẹ / nối âm (đó là cách nói tự nhiên, không phải lỗi).</p>';
+      if (f.kept.length) out += '<p class="crit-meta" style="margin-top:8px;">Từ nên nghe lại (bấm để nghe; máy so với cách đọc trong từ điển nên có thể báo nhầm — tin tai mình):</p><div class="pron-words">' + f.kept.map(e =>
+        '<button type="button" class="pron-word" ' + (e.time != null ? 'onclick="seekRes(' + e.time + ')"' : '') + '>' + escapeHtml(e.word) + ' <span style="font-weight:500">/' + escapeHtml(e.expected) + '/ → /' + escapeHtml(e.heard || '—') + '/</span>' + (e.time != null ? '<small>' + fmtTime(e.time) + '</small>' : '') + '</button>').join('') + '</div>';
+      else out += '<p class="crit-meta">Không có từ nào bị máy nghi là sai âm.</p>';
+      if (f.weakForms.length) out += '<p class="crit-meta">Bạn đọc nhẹ / nối âm tự nhiên ở: ' + Array.from(new Set(f.weakForms.map(w => String(w).toLowerCase()))).map(escapeHtml).join(', ') + ' — được tính là điểm cộng.</p>';
+    } else {
+      out += '<p class="crit-meta">' + (p.limitReason === 'audio_quality' ? 'File ghi âm bị ồn / vỡ tiếng nên chỉ chấm được sơ bộ, độ tin cậy thấp.' : p.limitReason === 'audio_undecodable' ? 'Trình duyệt không phân tích được file ghi âm nên chỉ chấm được sơ bộ, độ tin cậy thấp.' : p.opError ? 'Máy chấm phát âm báo lỗi lần này (' + escapeHtml(p.opError) + '), nên chấm theo cách thường: chưa chỉ ra được từng âm sai.' : 'Chấm theo cách thường (máy chấm phát âm của Thầy đang tắt): dựa vào độ rõ, ngữ điệu, cách ngắt nhịp; chưa chỉ ra được từng âm sai.') + '</p>';
     }
-    const bits = [];
-    if (p.asrAgreement != null) bits.push('2 lần máy nghe khớp nhau <b>' + Math.round(p.asrAgreement * 100) + '%</b>');
-    if (p.pitch && p.pitch.enough) bits.push('cao độ giọng dao động <b>' + p.pitch.rangeSemitones + '</b> nửa cung');
-    if (p.rhythm && p.rhythm.enough) bits.push('khoảng <b>' + p.rhythm.peaksPerSec + '</b> âm tiết/giây');
-    if (bits.length) out += '<p class="crit-meta">Số đo phụ: ' + bits.join(' · ') + '.</p>';
     const un = (p.unclear || []).slice(0, 8);
     if (un.length) out += '<p class="crit-meta" style="margin-top:8px;">Chỗ máy nghe chưa rõ:</p><div class="pron-words">' + un.map(u =>
       '<button type="button" class="pron-word" onclick="seekRes(' + u.s + ')">' + escapeHtml(u.text) + '<small>' + fmtTime(u.s) + '</small></button>').join('') + '</div>';
@@ -3447,7 +3488,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       const c = crit[k] || {};
       const mine = placedEdits.map(p => edits[p.i]).filter(e => e.criterion === k);
       const mineNotes = (record.refinementNotes || []).filter(n => n.criterion === k);
-      const sub = k !== 'pronunciation' ? '' : (!v3 ? ' <small>(cách chấm cũ: ước tính qua văn bản)</small>' : (c.band != null ? ' <small>(' + ((record.pronunciation || {}).method === 'openpronounce' ? 'chấm từ âm thanh bằng OpenPronounce' : 'ước tính gián tiếp từ âm thanh') + ')</small>' : ''));
+      const sub = k !== 'pronunciation' ? '' : (!v3 ? ' <small>(cách chấm cũ: ước tính qua văn bản)</small>' : (c.band != null ? ' <small>(' + ({ phoneme_level: 'có máy nghe từng âm', indirect: 'chấm theo cách thường', minimal: 'chấm sơ bộ, ít bằng chứng' }[(record.pronunciation || {}).strength] || 'ước tính từ âm thanh') + ')</small>' : ''));
       const confBadge = v3 && c.confidence ? '<span class="conf ' + c.confidence + '">' + (CONF_VI[c.confidence] || c.confidence) + '</span>' : '';
       if (v3 && k === 'pronunciation' && c.band == null) {
         return '<div class="crit"><div class="crit-head"><i class="dot ' + k + '"></i><span class="crit-name">' + SP_NAME[k] + '</span><span class="crit-band" style="color:var(--ink-3)">—</span>' + confBadge + '</div>' +
@@ -3458,7 +3499,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         '<p class="crit-text">' + escapeHtml(c.feedback || '') + '</p>' +
         (v3 && c.interpretation && c.interpretation !== c.feedback ? '<p class="crit-meta"><b>Vì sao band này:</b> ' + escapeHtml(c.interpretation) + '</p>' : '') +
         (v3 ? list('Bằng chứng', c.evidence) + list('Điểm yếu chính', c.weaknesses) + list('Nên luyện', c.recommendations) : '') +
-        (k === 'pronunciation' ? pronWordsHtml(record) : checklistHtml(k, c)) +
+        (k === 'pronunciation' ? pronWordsHtml(record) : '') + checklistHtml(k, c) +
         (c.toNextBand && Number(c.band) < 9 ? '<div class="crit-next" style="--c:var(--' + k + ')"><b>Vì sao chưa lên ' + (Math.floor(Number(c.band)) + 1) + ':</b> ' + escapeHtml(c.toNextBand) + '</div>' : '') +
         (c.uncertainty ? '<p class="crit-meta"><i class="fa-solid fa-circle-info"></i> ' + escapeHtml(c.uncertainty) + '</p>' : '') +
         (mine.length || mineNotes.length ? '<details class="mt-2"><summary class="crit-sum">' + (mine.length ? mine.length + ' lỗi' : '') + (mine.length && mineNotes.length ? ' · ' : '') + (mineNotes.length ? mineNotes.length + ' chỗ nâng cấp' : '') + ' thuộc tiêu chí này</summary><ul class="crit-edits">' +
