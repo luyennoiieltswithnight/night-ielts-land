@@ -1447,12 +1447,12 @@
         return null;
     }
   }
-  /* ===================== PHỤ ĐỀ TRỰC TIẾP (CC) — dịch 2 chiều Anh ⇄ Việt =====================
+  /* ===================== PHỤ ĐỀ TRỰC TIẾP (CC) — nghe EN → dịch VI, hoặc nghe VI → dịch EN =====================
      Chuyển từ mindset0/docsach.html (giữ nguyên cách làm & các bản sửa lỗi ở đó). Bật bằng nút "CC" góc dưới.
      • 2 "động cơ" nghe micro:
-       - 'speech' (mặc định, chế độ EN→VI / VI→EN): Web Speech API của Chrome/Edge — chữ hiện tức thời từng từ,
+       - 'speech' (mặc định): Web Speech API của Chrome/Edge — chữ hiện tức thời từng từ,
          không cần key. Tự chốt dòng khi ngừng nói ~1 giây hoặc câu dở quá dài.
-       - 'whisper' (chế độ VI⇄EN tự nhận diện, hoặc trình duyệt không có Web Speech như Safari/iPad): ghi âm từng
+       - 'whisper' (trình duyệt không có Web Speech như Safari/iPad): ghi âm từng
          đoạn ~2,5 giây rồi gửi Groq Whisper (dùng chung key Groq của cả web). Đoạn gần như im lặng thì bỏ qua.
      • "Âm thanh máy tính": lấy âm thanh hệ thống qua hộp thoại chia sẻ màn hình (getDisplayMedia), chạy 1 vòng
        Whisper RIÊNG song song — micro vẫn giữ động cơ nhanh, không bị chậm theo.
@@ -1466,7 +1466,6 @@
   const CC_PAUSE_MS = 1000;
   const CC_MAX_WORDS = 14;
   const CC_SILENCE_RMS = 0.008;
-  const CC_VI_RE = /[ăâđêôơưàảãáạằẳẵắặầẩẫấậèẻẽéẹềểễếệìỉĩíịòỏõóọồổỗốộờởỡớợùủũúụừửữứựỳỷỹýỵ]/i;
   const CC_HALLU_RE = /^\s*(you|bye|thank you( so much)?( for watching)?|thanks for watching|please subscribe|subscribe|cảm ơn (các bạn )?đã (theo dõi|xem)( video)?( này)?|hãy (đăng ký|subscribe) kênh.*|ghiền mì gõ.*)[\s.!]*$/i;
   function ccGroqKey() {
     const k = getGroqCfg().apiKey;
@@ -1487,7 +1486,6 @@
       .then((d) => { const t = d && d.responseData && d.responseData.translatedText; if (!t) throw new Error("empty"); return t; });
   }
   const ccTranslate = (text, sl, tl) => ccTranslateGoogle(text, sl, tl).catch(() => ccTranslateMyMemory(text, sl, tl));
-  const ccDetectLang = (text, wl) => ((wl || "").toLowerCase().startsWith("vi") || CC_VI_RE.test(text) ? "vi" : "en");
   function ccPickMime() {
     for (const c of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]) {
       if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
@@ -1530,7 +1528,7 @@
     const [needKey, setNeedKey] = useState(false);
     const [keyInput, setKeyInput] = useState("");
     const [mode, setMode] = useState(() => {
-      try { const m = localStorage.getItem(CC_MODE_KEY); if (m === "auto" || m === "en" || m === "vi") return m; } catch (e) {}
+      try { const m = localStorage.getItem(CC_MODE_KEY); if (m === "en" || m === "vi") return m; } catch (e) {} // chế độ "auto" (VI⇄EN) đã bỏ → về EN→VI
       return "en";
     });
     const [lines, setLines] = useState([]);
@@ -1575,15 +1573,15 @@
       if (!key) { fail("Cần Groq API key (miễn phí, dùng chung cả web) — dán vào ô bên dưới.", true); return; }
       const ext = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
       const m = R.mode;
-      const models = m === "en" ? CC_WHISPER_EN : CC_WHISPER_MULTI;
+      const models = m === "vi" ? CC_WHISPER_MULTI : CC_WHISPER_EN;
       for (let i = 0; i < models.length; i++) {
         const last = i === models.length - 1;
         try {
           const fd = new FormData();
           fd.append("file", blob, "chunk." + ext);
           fd.append("model", models[i]);
-          if (m !== "auto") fd.append("language", m);
-          fd.append("response_format", m === "auto" ? "verbose_json" : "json");
+          fd.append("language", m === "vi" ? "vi" : "en");
+          fd.append("response_format", "json");
           fd.append("temperature", "0");
           const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { Authorization: "Bearer " + key }, body: fd });
           if (res.status === 401) { fail("Groq API key không hợp lệ — dán lại key đúng vào ô bên dưới.", true); return; }
@@ -1592,7 +1590,7 @@
           const text = ((d && d.text) || "").trim();
           if (text) {
             setStatus((s) => (s === "error" ? "listening" : s)); setError("");
-            if (!CC_HALLU_RE.test(text)) pushLine(text, m === "auto" ? ccDetectLang(text, d.language) : m);
+            if (!CC_HALLU_RE.test(text)) pushLine(text, m === "vi" ? "vi" : "en");
           }
           return;
         } catch (e) {
@@ -1681,12 +1679,10 @@
 
     const startMic = useCallback(async () => {
       const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (R.mode !== "auto" && Ctor) { R.engine = "speech"; if (startSpeech()) return; }
+      if (Ctor) { R.engine = "speech"; if (startSpeech()) return; }
       R.engine = "whisper";
       if (!ccGroqKey()) {
-        fail(R.mode === "auto"
-          ? "Chế độ VI ⇄ EN (tự nhận tiếng) cần Groq API key miễn phí — dán vào ô bên dưới. Hoặc chọn EN → VI / VI → EN để dùng ngay không cần key."
-          : "Trình duyệt này không có nhận diện giọng nói tức thời (dùng Chrome/Edge), hoặc dán Groq API key để dùng chế độ theo đoạn.", true);
+        fail("Trình duyệt này không có nhận diện giọng nói tức thời (dùng Chrome/Edge), hoặc dán Groq API key để dùng chế độ theo đoạn.", true);
         return;
       }
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { fail("Trình duyệt không cho dùng micro (cần mở trang qua https)."); return; }
@@ -1806,7 +1802,6 @@
     useEffect(() => () => stop(), [stop]); // rời trang → tắt micro
 
     const MODES = [
-      { key: "auto", label: "VI ⇄ EN", hint: "Tự nhận tiếng Anh/Việt rồi dịch sang tiếng còn lại (cần Groq key, chữ hiện theo đoạn ~2–3 giây)" },
       { key: "en", label: "EN → VI", hint: "Nghe tiếng Anh, dịch sang tiếng Việt — chữ hiện tức thời" },
       { key: "vi", label: "VI → EN", hint: "Nghe tiếng Việt, dịch sang tiếng Anh — chữ hiện tức thời" },
     ];
@@ -1817,7 +1812,7 @@
     if (!active) {
       return h("button", {
         onClick: start,
-        title: "Phụ đề trực tiếp — nghe micro (và âm thanh máy tính), hiện chữ + dịch Anh ⇄ Việt",
+        title: "Phụ đề trực tiếp — nghe micro (và âm thanh máy tính), hiện chữ + bản dịch (EN → VI hoặc VI → EN)",
         className: "night-cc-btn fixed bottom-4 right-[4.75rem] z-[60] flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-extrabold tracking-wide text-slate-700 shadow-floating transition hover:border-primary hover:text-primary",
       }, "CC");
     }
@@ -1862,7 +1857,7 @@
                   lines.length === 0 && !interim && h("p", { className: "text-center text-sm " + (silenceHint ? "font-semibold text-amber-300" : "italic text-slate-400") },
                     status === "paused" ? "Đã tạm dừng — bấm nút micro để nghe tiếp, phụ đề vẫn giữ nguyên."
                       : status === "yield" ? "Ô ghi chú đang dùng micro — ghi xong phụ đề sẽ tự nghe tiếp."
-                      : silenceHint || (mode === "auto" ? "Cứ nói tiếng Anh hoặc tiếng Việt, phụ đề tự dịch sang tiếng còn lại…" : mode === "vi" ? "Đang chờ tiếng Việt…" : "Đang chờ tiếng Anh…")),
+                      : silenceHint || (mode === "vi" ? "Đang chờ tiếng Việt…" : "Đang chờ tiếng Anh…")),
                   lines.length > 0 && silenceHint && h("p", { className: "text-center text-xs font-semibold text-amber-300" }, silenceHint),
                   lines.map((l) => h("div", { key: l.id },
                     h("p", { className: "flex items-baseline gap-2 text-base font-bold leading-snug sm:text-lg" }, tag(l.lang, "bg-white/15 text-slate-300"), h("span", null, l.text)),
