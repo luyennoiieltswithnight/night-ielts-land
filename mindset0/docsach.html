@@ -1798,6 +1798,9 @@
         // cơ dự phòng 'whisper' (không có Web Speech API, hoặc đã bật thêm âm thanh laptop) — động cơ
         // chính 'speech' hiện chữ theo thời gian thực, không qua cơ chế đoạn này. 3 giây là mức vừa phải.
         const SUBTITLE_CHUNK_MS = 2500;
+        // Tự chốt 1 dòng phụ đề (động cơ 'speech') khi ngừng nói ngần này ms, hoặc khi câu dở quá dài.
+        const SUBTITLE_SPEECH_PAUSE_MS = 1000;
+        const SUBTITLE_SPEECH_MAX_WORDS = 14;
         // Ngưỡng năng lượng âm thanh (RMS, tính trên dữ liệu waveform -1..1) để coi 1 đoạn ghi âm là
         // "có tiếng nói thật" — nếu đoạn ghi âm gần như im lặng hoàn toàn (dưới ngưỡng này) thì BỎ QUA,
         // không gửi cho Whisper: (1) đỡ tốn request/tiền vô ích, (2) tránh đúng lỗi "ảo giác" nổi tiếng
@@ -3746,21 +3749,50 @@
                 recognition.lang = recLang === 'vi' ? 'vi-VN' : 'en-US';
                 recognition.continuous = true;
                 recognition.interimResults = true;
+                // TỰ NGẮT CÂU (cho EN → VI giống VI → EN): trình nhận diện tiếng Việt của Chrome tự
+                // "chốt" câu rất sớm (mỗi nhịp ngắt hơi là 1 dòng + bản dịch ngay), còn tiếng Anh thì hay
+                // giữ 1 câu "đang nói dở" kéo dài rất lâu mới chốt. Nên tự chốt dòng khi: ngừng nói
+                // ~1 giây, hoặc câu đang nói dở đã quá dài. committed[i] = số từ của kết quả i đã được
+                // đẩy thành dòng rồi — khi trình duyệt chốt thật, chỉ đẩy nốt phần còn lại, không lặp.
+                let committed = {};
+                let pendingIdx = -1, pendingWords = null, flushTimer = null;
+                const flushPending = () => {
+                    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+                    if (recognitionRef.current !== recognition || pendingIdx < 0 || !pendingWords) return;
+                    const rest = pendingWords.slice(committed[pendingIdx] || 0);
+                    if (rest.length) {
+                        pushSubtitleLine(rest.join(' '), recLang);
+                        committed[pendingIdx] = pendingWords.length;
+                    }
+                    pendingIdx = -1; pendingWords = null;
+                    setSubtitleInterimText('');
+                };
                 recognition.onresult = (event) => {
-                    let interim = '';
+                    const interimParts = [];
+                    let lastIdx = -1, lastWords = null;
                     for (let i = event.resultIndex; i < event.results.length; i++) {
                         const result = event.results[i];
-                        const text = result[0].transcript;
+                        const words = result[0].transcript.trim().split(/\s+/).filter(Boolean);
+                        const rest = words.slice(committed[i] || 0);
                         if (result.isFinal) {
-                            const clean = text.trim();
-                            if (clean) pushSubtitleLine(clean, recLang);
+                            if (rest.length) pushSubtitleLine(rest.join(' '), recLang);
+                            committed[i] = Math.max(committed[i] || 0, words.length);
+                            if (pendingIdx === i) { pendingIdx = -1; pendingWords = null; }
                         } else {
-                            interim += text;
+                            if (rest.length) interimParts.push(rest.join(' '));
+                            lastIdx = i; lastWords = words;
                         }
                     }
-                    setSubtitleInterimText(interim.trim());
+                    setSubtitleInterimText(interimParts.join(' '));
                     setSubtitleStatus('listening');
                     setSubtitleError('');
+                    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+                    if (lastIdx >= 0) {
+                        pendingIdx = lastIdx; pendingWords = lastWords;
+                        const restCount = lastWords.length - (committed[lastIdx] || 0);
+                        if (restCount >= SUBTITLE_SPEECH_MAX_WORDS) flushPending();
+                        else flushTimer = setTimeout(flushPending, SUBTITLE_SPEECH_PAUSE_MS);
+                    }
                 };
                 recognition.onerror = (event) => {
                     // 'no-speech' (im lặng quá lâu) và 'aborted' (do chính app chủ động stop()) là bình
@@ -3775,6 +3807,8 @@
                     // QUAN TRỌNG: Web Speech API tự động dừng hẳn sau 1 khoảng im lặng dù đã đặt
                     // continuous:true (giới hạn của chính trình duyệt, không phải bug ở đây) — phải tự
                     // phát hiện việc này rồi start() lại để phụ đề không bị "chết" giữa buổi dạy dài.
+                    flushPending();
+                    committed = {};
                     if (subtitleActiveRef.current && !subtitlePausedRef.current && subtitleEngineRef.current === 'speech') {
                         try { recognition.start(); } catch (e) {}
                     }
@@ -4966,20 +5000,14 @@
                                             <i className="fas fa-volume-high text-[10px]"></i> <span className="hidden sm:inline">Đang nghe máy tính</span>
                                         </span>
                                     )}
-                                    <button
-                                        onClick={() => { subtitlePaused ? resumeSubtitles() : pauseSubtitles(); }}
-                                        className={"w-8 h-8 rounded-full flex items-center justify-center transition-colors shrink-0 " + (subtitlePaused ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white')}
-                                        title={subtitlePaused ? 'Tiếp tục nghe (bật lại mic)' : 'Tạm dừng (tắt mic, giữ nguyên phụ đề đang hiện)'}
-                                    >
-                                        <i className={"fas text-xs " + (subtitlePaused ? 'fa-microphone' : 'fa-pause')}></i>
-                                    </button>
                                     <button onClick={stopSubtitles} className="w-8 h-8 rounded-full bg-white/10 hover:bg-red-500 flex items-center justify-center transition-colors shrink-0" title="Tắt hẳn phụ đề">
                                         <i className="fas fa-times text-xs"></i>
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="w-full max-w-4xl mx-auto text-left max-h-[38vh] overflow-hidden flex flex-col justify-end gap-2.5">
+                            <div className="flex items-center gap-4">
+                            <div className="flex-1 min-w-0 max-w-4xl mx-auto text-left max-h-[38vh] overflow-hidden flex flex-col justify-end gap-2.5">
                                 {subtitleStatus === 'error' && subtitleError ? (
                                     <button onClick={openAiSettings} className="text-sm sm:text-base font-bold text-rose-300 hover:text-rose-200 underline decoration-dotted text-center">
                                         {subtitleError}
@@ -5020,6 +5048,16 @@
                                         )}
                                     </React.Fragment>
                                 )}
+                            </div>
+                            {/* NÚT TẠM DỪNG TO — nằm bên phải thanh phụ đề cho dễ bấm (gấp ~3 lần nút cũ). */}
+                            <button
+                                onClick={() => { subtitlePaused ? resumeSubtitles() : pauseSubtitles(); }}
+                                className={"w-24 h-24 shrink-0 rounded-full flex flex-col items-center justify-center gap-1 transition-all active:scale-95 shadow-lg " + (subtitlePaused ? 'bg-emerald-500 hover:bg-emerald-600 text-white' : 'bg-white/15 hover:bg-white/25 text-white border border-white/20')}
+                                title={subtitlePaused ? 'Tiếp tục nghe (bật lại mic)' : 'Tạm dừng (tắt mic, giữ nguyên phụ đề đang hiện)'}
+                            >
+                                <i className={"fas text-3xl " + (subtitlePaused ? 'fa-microphone' : 'fa-pause')}></i>
+                                <span className="text-[10px] font-extrabold uppercase tracking-wide">{subtitlePaused ? 'Nghe tiếp' : 'Tạm dừng'}</span>
+                            </button>
                             </div>
                         </div>
                     )}
