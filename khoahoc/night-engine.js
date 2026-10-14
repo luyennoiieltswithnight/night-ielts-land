@@ -1,6 +1,9 @@
-/* Night IELTS · IELTS Speaking 6.0 — khung bài học dùng chung (speaking-engine.js).
-   Dựa trên giaotiep-engine.js (giữ nguyên giọng đọc, dịch khi bôi đen, ô ghi chú, quiz, từ vựng...)
-   + thêm: cards, criteria, formula, models, speak (bấm giờ + ghi âm + nút AI). Mỗi buổi gọi NightLesson.render({...}). */
+/* Night IELTS — khung bài học dùng chung cho MỌI khóa (khoahoc/night-engine.js).
+   Mỗi trang bài học nằm trong thư mục khóa (khoahoc/<khóa>/buoi-XX.html), nạp <script src="../night-engine.js"></script>
+   rồi gọi NightLesson.render({...}). Tên thư mục = mã khóa (giaotiep, speaking6, …) → dùng cho link "Lộ trình"
+   mặc định (../<khóa>.html) và key lưu checklist bài về nhà (night-<khóa>-<id>-homework).
+   Gồm: giọng đọc UK/US, dịch khi bôi đen, ô ghi chú, phụ đề trực tiếp (CC), quiz, từ vựng (emoji/ảnh), các khối
+   Speaking (cards, criteria, formula, models, speak + nút AI). Trước đây là giaotiep-engine.js + speaking-engine.js. */
 (function() {
   const { useState, useRef, useEffect, useCallback } = React;
   const TTS_OK = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -705,7 +708,7 @@
         };
         r.onend = () => {
           if (!r.stopping) { try { r.start(); return; } catch (e) {} } // Chrome tự ngắt khi im lặng lâu → nghe tiếp
-          recRef.current = null; setRec(null);
+          recRef.current = null; setRec(null); window.dispatchEvent(new Event("night-dictation-end"));
           const txt = (pad + finalText).replace(/\s+$/, "");
           if (!live.parentNode) return;
           if (!finalText) { live.remove(); save(); return; }
@@ -719,7 +722,7 @@
           flash("Đã chèn đoạn vừa nói (đang được bôi đen) — bấm ✨ AI xử lí lại nếu cần.", "ok", 5000);
         };
         recRef.current = r;
-        try { r.start(); setRec("live"); } catch (e) { live.remove(); flash("Không bật được micro.", "error"); }
+        try { r.start(); setRec("live"); window.dispatchEvent(new Event("night-dictation-start")); } catch (e) { live.remove(); flash("Không bật được micro.", "error"); }
         return;
       }
       // Trình duyệt không có nhận diện trực tiếp (vd Firefox) → ghi âm rồi gửi Groq Whisper (key chung của web)
@@ -996,7 +999,7 @@
       setOpen(false);
     };
     const Item = ({ onClick, children, danger }) => /* @__PURE__ */ React.createElement("button", { onClick, className: `w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${danger ? "text-rose-600 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-100"}` }, children);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, !hidden && notes.map((n) => /* @__PURE__ */ React.createElement(NoteBox, { key: n.id, note: n, onChange: update, onDelete: remove, ipaOn })), sheet && /* @__PURE__ */ React.createElement(IpaCheatSheet, { onClose: () => setSheet(false) }), /* @__PURE__ */ React.createElement("div", { className: "fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" }, storeFull && /* @__PURE__ */ React.createElement("p", { className: "max-w-xs rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-floating" }, "⚠️ Bộ nhớ trình duyệt đã đầy — ghi chú mới chưa được lưu. Xóa bớt ảnh hoặc thu nhỏ ảnh trong ghi chú."), open && /* @__PURE__ */ React.createElement("div", { className: "w-60 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-floating" }, /* @__PURE__ */ React.createElement(Item, { onClick: add }, "＋ Thêm ô ghi chú"), /* @__PURE__ */ React.createElement(Item, { onClick: () => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, !hidden && notes.map((n) => /* @__PURE__ */ React.createElement(NoteBox, { key: n.id, note: n, onChange: update, onDelete: remove, ipaOn })), sheet && /* @__PURE__ */ React.createElement(IpaCheatSheet, { onClose: () => setSheet(false) }), /* @__PURE__ */ React.createElement("div", { className: "night-fab fixed bottom-4 right-4 z-[60] flex flex-col items-end gap-2" }, storeFull && /* @__PURE__ */ React.createElement("p", { className: "max-w-xs rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-floating" }, "⚠️ Bộ nhớ trình duyệt đã đầy — ghi chú mới chưa được lưu. Xóa bớt ảnh hoặc thu nhỏ ảnh trong ghi chú."), open && /* @__PURE__ */ React.createElement("div", { className: "w-60 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-floating" }, /* @__PURE__ */ React.createElement(Item, { onClick: add }, "＋ Thêm ô ghi chú"), /* @__PURE__ */ React.createElement(Item, { onClick: () => {
       setSheet(true);
       setOpen(false);
     } }, "⌨️ Bảng gõ tắt IPA"), /* @__PURE__ */ React.createElement(Item, { onClick: () => setIpaOn(!ipaOn) }, ipaOn ? "✅" : "⬜", " Gõ tắt IPA (/d3 → dʒ)"), notes.length > 0 && /* @__PURE__ */ React.createElement(Item, { onClick: () => setHidden(!hidden) }, hidden ? "👁 Hiện" : "🙈 Ẩn", " ghi chú (", notes.length, ")"), notes.length > 0 && /* @__PURE__ */ React.createElement(Item, { danger: true, onClick: () => {
@@ -1429,7 +1432,7 @@
       case "reflex":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ReflexDrill, { questions: s.questions }));
       case "homework":
-        return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(Homework, { tasks: s.tasks, storageKey: `night-speaking6-${lesson.id}-homework` }));
+        return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(Homework, { tasks: s.tasks, storageKey: `night-${courseKeyOf(lesson)}-${lesson.id}-homework` }));
       case "cards":
         return h(InfoCards, { cards: s.cards, cols: s.cols, intro: s.intro });
       case "criteria":
@@ -1443,6 +1446,444 @@
       default:
         return null;
     }
+  }
+  /* ===================== PHỤ ĐỀ TRỰC TIẾP (CC) — dịch 2 chiều Anh ⇄ Việt =====================
+     Chuyển từ mindset0/docsach.html (giữ nguyên cách làm & các bản sửa lỗi ở đó). Bật bằng nút "CC" góc dưới.
+     • 2 "động cơ" nghe micro:
+       - 'speech' (mặc định, chế độ EN→VI / VI→EN): Web Speech API của Chrome/Edge — chữ hiện tức thời từng từ,
+         không cần key. Tự chốt dòng khi ngừng nói ~1 giây hoặc câu dở quá dài.
+       - 'whisper' (chế độ VI⇄EN tự nhận diện, hoặc trình duyệt không có Web Speech như Safari/iPad): ghi âm từng
+         đoạn ~2,5 giây rồi gửi Groq Whisper (dùng chung key Groq của cả web). Đoạn gần như im lặng thì bỏ qua.
+     • "Âm thanh máy tính": lấy âm thanh hệ thống qua hộp thoại chia sẻ màn hình (getDisplayMedia), chạy 1 vòng
+       Whisper RIÊNG song song — micro vẫn giữ động cơ nhanh, không bị chậm theo.
+     • Dịch: Google Translate (không chính thức), lỗi thì MyMemory.
+     • Ô ghi chú dùng micro (đọc chính tả) → phụ đề tạm nhường micro, ghi xong tự nghe tiếp. */
+  const CC_MODE_KEY = "nightIeltsSubtitleMode"; // dùng chung với docsach.html
+  const CC_SYS_AUDIO_WARN_KEY = "nightIeltsSystemAudioWarningSeen";
+  const CC_WHISPER_EN = ["distil-whisper-large-v3-en", "whisper-large-v3-turbo", "whisper-large-v3"];
+  const CC_WHISPER_MULTI = ["whisper-large-v3-turbo", "whisper-large-v3"];
+  const CC_CHUNK_MS = 2500;
+  const CC_PAUSE_MS = 1000;
+  const CC_MAX_WORDS = 14;
+  const CC_SILENCE_RMS = 0.008;
+  const CC_VI_RE = /[ăâđêôơưàảãáạằẳẵắặầẩẫấậèẻẽéẹềểễếệìỉĩíịòỏõóọồổỗốộờởỡớợùủũúụừửữứựỳỷỹýỵ]/i;
+  const CC_HALLU_RE = /^\s*(you|bye|thank you( so much)?( for watching)?|thanks for watching|please subscribe|subscribe|cảm ơn (các bạn )?đã (theo dõi|xem)( video)?( này)?|hãy (đăng ký|subscribe) kênh.*|ghiền mì gõ.*)[\s.!]*$/i;
+  function ccGroqKey() {
+    const k = getGroqCfg().apiKey;
+    if (k) return k;
+    try { return localStorage.getItem("nightIeltsGroqApiKey") || ""; } catch (e) { return ""; }
+  }
+  function ccTranslateGoogle(text, sl, tl) {
+    const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" + sl + "&tl=" + tl + "&dt=t&q=" + encodeURIComponent(text);
+    return fetch(url).then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then((d) => {
+      const out = d && d[0] ? d[0].map((c) => c[0] || "").join("") : "";
+      if (!out) throw new Error("empty");
+      return out;
+    });
+  }
+  function ccTranslateMyMemory(text, sl, tl) {
+    return fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + sl + "|" + tl)
+      .then((r) => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+      .then((d) => { const t = d && d.responseData && d.responseData.translatedText; if (!t) throw new Error("empty"); return t; });
+  }
+  const ccTranslate = (text, sl, tl) => ccTranslateGoogle(text, sl, tl).catch(() => ccTranslateMyMemory(text, sl, tl));
+  const ccDetectLang = (text, wl) => ((wl || "").toLowerCase().startsWith("vi") || CC_VI_RE.test(text) ? "vi" : "en");
+  function ccPickMime() {
+    for (const c of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]) {
+      if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+    }
+    return "";
+  }
+  // Đồ thị âm thanh: nguồn → (destination để ghi âm + analyser đo độ lớn). Trả về { ctx, dest, peak(), reset(), close() }
+  function ccAudioGraph(stream) {
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctor();
+    if (ctx.state === "suspended") ctx.resume().catch(() => {}); // context "suspended" → ghi ra toàn im lặng
+    const dest = ctx.createMediaStreamDestination();
+    const an = ctx.createAnalyser();
+    an.fftSize = 512;
+    const src = ctx.createMediaStreamSource(stream);
+    src.connect(dest);
+    src.connect(an);
+    let peak = 0;
+    const timer = setInterval(() => {
+      const d = new Uint8Array(an.fftSize);
+      an.getByteTimeDomainData(d);
+      let s = 0;
+      for (let i = 0; i < d.length; i++) { const v = (d[i] - 128) / 128; s += v * v; }
+      const rms = Math.sqrt(s / d.length);
+      if (rms > peak) peak = rms;
+    }, 80);
+    return {
+      dest,
+      peak: () => peak,
+      reset: () => { peak = 0; },
+      close: () => { clearInterval(timer); try { ctx.close(); } catch (e) {} },
+    };
+  }
+
+  function LiveCaptions() {
+    const [active, setActive] = useState(false);
+    const [paused, setPaused] = useState(false);
+    const [status, setStatus] = useState("idle"); // idle | listening | paused | yield | error
+    const [error, setError] = useState("");
+    const [needKey, setNeedKey] = useState(false);
+    const [keyInput, setKeyInput] = useState("");
+    const [mode, setMode] = useState(() => {
+      try { const m = localStorage.getItem(CC_MODE_KEY); if (m === "auto" || m === "en" || m === "vi") return m; } catch (e) {}
+      return "en";
+    });
+    const [lines, setLines] = useState([]);
+    const [interim, setInterim] = useState("");
+    const [interimTr, setInterimTr] = useState("");
+    const [hasTab, setHasTab] = useState(false);
+    const [silenceHint, setSilenceHint] = useState("");
+    const [showWarn, setShowWarn] = useState(false);
+    const barRef = useRef(null);
+    const R = useRef({ active: false, paused: false, yielded: false, engine: "speech", mode, gen: 0, tabGen: 0, rec: null, mic: null, micGraph: null, micRec: null, tab: null, tabGraph: null, tabRec: null, hasTab: false, silent: 0 }).current;
+
+    // Đẩy nút ✏️ và nội dung trang lên trên thanh phụ đề
+    useEffect(() => {
+      document.body.classList.toggle("night-cc-on", active);
+      if (!active || !barRef.current || typeof ResizeObserver === "undefined") return;
+      const ro = new ResizeObserver(() => { if (barRef.current) document.documentElement.style.setProperty("--night-cc-h", barRef.current.offsetHeight + "px"); });
+      ro.observe(barRef.current);
+      return () => ro.disconnect();
+    }, [active]);
+
+    const pushLine = useCallback((text, lang) => {
+      const id = Date.now() + Math.random();
+      setLines((p) => [...p, { id, text, lang, tr: "" }].slice(-2));
+      ccTranslate(text, lang, lang === "vi" ? "en" : "vi")
+        .then((tr) => setLines((p) => p.map((l) => l.id === id ? { ...l, tr } : l)))
+        .catch(() => setLines((p) => p.map((l) => l.id === id ? { ...l, tr: "(chưa dịch được)" } : l)));
+    }, []);
+
+    // Dịch luôn câu đang nói dở sau ~0,5 giây ngừng đổi
+    useEffect(() => {
+      if (!interim) { setInterimTr(""); return; }
+      const lang = R.mode === "vi" ? "vi" : "en";
+      let off = false;
+      const t = setTimeout(() => { ccTranslateGoogle(interim, lang, lang === "vi" ? "en" : "vi").then((tr) => { if (!off) setInterimTr(tr); }).catch(() => {}); }, 500);
+      return () => { off = true; clearTimeout(t); };
+    }, [interim]);
+
+    const fail = (msg, key) => { setStatus("error"); setError(msg); setNeedKey(!!key); };
+
+    const transcribe = useCallback(async (blob) => {
+      const key = ccGroqKey();
+      if (!key) { fail("Cần Groq API key (miễn phí, dùng chung cả web) — dán vào ô bên dưới.", true); return; }
+      const ext = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
+      const m = R.mode;
+      const models = m === "en" ? CC_WHISPER_EN : CC_WHISPER_MULTI;
+      for (let i = 0; i < models.length; i++) {
+        const last = i === models.length - 1;
+        try {
+          const fd = new FormData();
+          fd.append("file", blob, "chunk." + ext);
+          fd.append("model", models[i]);
+          if (m !== "auto") fd.append("language", m);
+          fd.append("response_format", m === "auto" ? "verbose_json" : "json");
+          fd.append("temperature", "0");
+          const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { Authorization: "Bearer " + key }, body: fd });
+          if (res.status === 401) { fail("Groq API key không hợp lệ — dán lại key đúng vào ô bên dưới.", true); return; }
+          if (!res.ok) { if (!last && (res.status === 404 || res.status === 400)) continue; throw new Error("HTTP " + res.status); }
+          const d = await res.json();
+          const text = ((d && d.text) || "").trim();
+          if (text) {
+            setStatus((s) => (s === "error" ? "listening" : s)); setError("");
+            if (!CC_HALLU_RE.test(text)) pushLine(text, m === "auto" ? ccDetectLang(text, d.language) : m);
+          }
+          return;
+        } catch (e) {
+          if (last) fail("Lỗi kết nối tới Groq — đang tự thử lại…");
+        }
+      }
+    }, [pushLine]);
+
+    // Vòng ghi âm theo đoạn (micro ở chế độ whisper, hoặc âm thanh máy tính)
+    const recordLoop = useCallback(async (which, gen) => {
+      const graph = which === "mic" ? R.micGraph : R.tabGraph;
+      const alive = () => R.active && !R.paused && (which === "mic" ? gen === R.gen && R.micGraph === graph : gen === R.tabGen && R.hasTab && R.tabGraph === graph);
+      if (!graph || !alive()) return;
+      let rec;
+      try { const mt = ccPickMime(); rec = new MediaRecorder(graph.dest.stream, mt ? { mimeType: mt } : undefined); }
+      catch (e) { if (which === "mic") fail("Trình duyệt này không ghi âm được (MediaRecorder)."); return; }
+      if (which === "mic") R.micRec = rec; else R.tabRec = rec;
+      graph.reset();
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      const stopped = new Promise((r) => { rec.onstop = r; });
+      rec.start();
+      await new Promise((r) => setTimeout(r, CC_CHUNK_MS));
+      if (rec.state !== "inactive") rec.stop();
+      await stopped;
+      if (!alive()) return;
+      if (graph.peak() >= CC_SILENCE_RMS && chunks.length) {
+        if (which === "tab") { R.silent = 0; setSilenceHint(""); }
+        transcribe(new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
+      } else if (which === "tab" && ++R.silent >= 4) {
+        setSilenceHint("Chưa nghe thấy âm thanh máy tính — trong hộp thoại chia sẻ, chọn \"Toàn bộ màn hình\" và bật \"Also share system audio\"; kiểm tra máy có đang tắt tiếng không.");
+      }
+      recordLoop(which, gen);
+    }, [transcribe]);
+
+    const startSpeech = useCallback(() => {
+      const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!Ctor) return false;
+      const r = new Ctor();
+      const lang = R.mode === "vi" ? "vi" : "en";
+      r.lang = lang === "vi" ? "vi-VN" : "en-US";
+      r.continuous = true;
+      r.interimResults = true;
+      let committed = {}, pIdx = -1, pWords = null, timer = null;
+      const flush = () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (R.rec !== r || pIdx < 0 || !pWords) return;
+        const rest = pWords.slice(committed[pIdx] || 0);
+        if (rest.length) { pushLine(rest.join(" "), lang); committed[pIdx] = pWords.length; }
+        pIdx = -1; pWords = null; setInterim("");
+      };
+      r.onresult = (ev) => {
+        const parts = [];
+        let li = -1, lw = null;
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const res = ev.results[i];
+          const words = res[0].transcript.trim().split(/\s+/).filter(Boolean);
+          const rest = words.slice(committed[i] || 0);
+          if (res.isFinal) {
+            if (rest.length) pushLine(rest.join(" "), lang);
+            committed[i] = Math.max(committed[i] || 0, words.length);
+            if (pIdx === i) { pIdx = -1; pWords = null; }
+          } else { if (rest.length) parts.push(rest.join(" ")); li = i; lw = words; }
+        }
+        setInterim(parts.join(" "));
+        setStatus("listening"); setError("");
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (li >= 0) {
+          pIdx = li; pWords = lw;
+          if (lw.length - (committed[li] || 0) >= CC_MAX_WORDS) flush(); else timer = setTimeout(flush, CC_PAUSE_MS);
+        }
+      };
+      r.onerror = (ev) => {
+        if (ev.error === "no-speech" || ev.error === "aborted") return;
+        if (ev.error === "not-allowed" || ev.error === "service-not-allowed") fail("Chưa cấp quyền micro — bấm biểu tượng ổ khóa cạnh thanh địa chỉ để cho phép.");
+        else if (ev.error === "network") fail("Nhận diện giọng nói cần mạng internet.");
+      };
+      r.onend = () => { // Chrome tự ngắt sau một lúc im lặng → tự nghe lại
+        flush(); committed = {};
+        if (R.rec === r && R.active && !R.paused && !R.yielded && R.engine === "speech") { try { r.start(); } catch (e) {} }
+      };
+      try { r.start(); } catch (e) { return false; }
+      R.rec = r;
+      return true;
+    }, [pushLine]);
+
+    const startMic = useCallback(async () => {
+      const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (R.mode !== "auto" && Ctor) { R.engine = "speech"; if (startSpeech()) return; }
+      R.engine = "whisper";
+      if (!ccGroqKey()) {
+        fail(R.mode === "auto"
+          ? "Chế độ VI ⇄ EN (tự nhận tiếng) cần Groq API key miễn phí — dán vào ô bên dưới. Hoặc chọn EN → VI / VI → EN để dùng ngay không cần key."
+          : "Trình duyệt này không có nhận diện giọng nói tức thời (dùng Chrome/Edge), hoặc dán Groq API key để dùng chế độ theo đoạn.", true);
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { fail("Trình duyệt không cho dùng micro (cần mở trang qua https)."); return; }
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (!R.active || R.paused) { s.getTracks().forEach((t) => t.stop()); return; }
+        R.mic = s; R.micGraph = ccAudioGraph(s);
+        recordLoop("mic", R.gen);
+      } catch (e) { fail("Chưa cấp quyền micro — bấm biểu tượng ổ khóa cạnh thanh địa chỉ để cho phép."); }
+    }, [startSpeech, recordLoop]);
+
+    const stopMic = useCallback(() => {
+      R.gen++;
+      if (R.rec) { const r = R.rec; R.rec = null; try { r.onend = null; r.stop(); } catch (e) {} }
+      if (R.micRec && R.micRec.state !== "inactive") { try { R.micRec.stop(); } catch (e) {} }
+      R.micRec = null;
+      if (R.mic) { R.mic.getTracks().forEach((t) => t.stop()); R.mic = null; }
+      if (R.micGraph) { R.micGraph.close(); R.micGraph = null; }
+      setInterim("");
+    }, []);
+
+    const stopTab = useCallback(() => {
+      R.hasTab = false; R.tabGen++; setHasTab(false);
+      if (R.tabRec && R.tabRec.state !== "inactive") { try { R.tabRec.stop(); } catch (e) {} }
+      R.tabRec = null;
+      if (R.tab) { R.tab.getTracks().forEach((t) => t.stop()); R.tab = null; }
+      if (R.tabGraph) { R.tabGraph.close(); R.tabGraph = null; }
+    }, []);
+
+    const start = useCallback(async () => {
+      if (R.active) return;
+      Object.assign(R, { active: true, paused: false, yielded: false, silent: 0, hasTab: false });
+      setActive(true); setPaused(false); setStatus("listening"); setError(""); setNeedKey(false);
+      setLines([]); setInterim(""); setHasTab(false); setSilenceHint("");
+      await startMic();
+    }, [startMic]);
+
+    const stop = useCallback(() => {
+      Object.assign(R, { active: false, paused: false, yielded: false });
+      stopMic(); stopTab();
+      R.engine = "speech";
+      setActive(false); setPaused(false); setStatus("idle"); setError(""); setNeedKey(false);
+      setLines([]); setInterim(""); setSilenceHint("");
+    }, [stopMic, stopTab]);
+
+    const pause = useCallback(() => {
+      if (!R.active || R.paused) return;
+      R.paused = true; setPaused(true); setStatus("paused");
+      stopMic();
+      R.tabGen++;
+      if (R.tabRec && R.tabRec.state !== "inactive") { try { R.tabRec.stop(); } catch (e) {} }
+    }, [stopMic]);
+
+    const resume = useCallback(async () => {
+      if (!R.active || !R.paused) return;
+      R.paused = false; R.silent = 0;
+      setPaused(false); setStatus("listening"); setError(""); setNeedKey(false); setSilenceHint("");
+      if (R.hasTab) recordLoop("tab", R.tabGen);
+      await startMic();
+    }, [startMic, recordLoop]);
+
+    const switchMode = useCallback((m) => {
+      if (m === R.mode) return;
+      R.mode = m; setMode(m);
+      try { localStorage.setItem(CC_MODE_KEY, m); } catch (e) {}
+      if (R.active && !R.paused && !R.yielded) { stopMic(); setStatus("listening"); setError(""); setNeedKey(false); startMic(); }
+    }, [stopMic, startMic]);
+
+    const addTabAudio = useCallback(async () => {
+      if (!R.active) return;
+      if (!ccGroqKey()) { fail("Nghe âm thanh máy tính cần Groq API key miễn phí — dán vào ô bên dưới.", true); return; }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { fail("Trình duyệt này không lấy được âm thanh máy tính (dùng Chrome/Edge trên máy tính)."); return; }
+      try {
+        const ds = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor", frameRate: { ideal: 1, max: 5 } }, audio: { systemAudio: "include" }, preferCurrentTab: false });
+        const tracks = ds.getAudioTracks();
+        ds.getVideoTracks().forEach((t) => t.stop());
+        if (!tracks.length) { setSilenceHint("Chưa lấy được âm thanh — trong hộp thoại, chọn \"Toàn bộ màn hình\" (Entire Screen) rồi bật \"Also share system audio\" trước khi bấm Chia sẻ."); return; }
+        if (R.hasTab) stopTab();
+        const s = new MediaStream(tracks);
+        R.tab = s; R.tabGraph = ccAudioGraph(s); R.hasTab = true; R.silent = 0;
+        setHasTab(true); setSilenceHint("");
+        tracks[0].addEventListener("ended", stopTab); // bấm "Dừng chia sẻ" trên thanh của trình duyệt
+        if (!R.paused) recordLoop("tab", R.tabGen);
+      } catch (e) { /* bấm Hủy ở hộp thoại chia sẻ */ }
+    }, [stopTab, recordLoop]);
+
+    const clickTabAudio = () => {
+      let seen = false;
+      try { seen = localStorage.getItem(CC_SYS_AUDIO_WARN_KEY) === "1"; } catch (e) {}
+      if (seen) addTabAudio(); else setShowWarn(true);
+    };
+
+    const saveKey = () => {
+      const k = keyInput.trim();
+      if (!k) return;
+      saveGroqKey(k);
+      setKeyInput(""); setNeedKey(false); setError(""); setStatus("listening");
+      if (R.active && !R.paused) { stopMic(); startMic(); }
+    };
+
+    // Ô ghi chú bật đọc chính tả → nhường micro, xong thì nghe tiếp
+    useEffect(() => {
+      const onStart = () => {
+        if (!R.active || R.paused || R.engine !== "speech") return;
+        R.yielded = true; stopMic(); setStatus("yield");
+      };
+      const onEnd = () => {
+        if (!R.yielded) return;
+        R.yielded = false;
+        if (R.active && !R.paused) { setStatus("listening"); startMic(); }
+      };
+      window.addEventListener("night-dictation-start", onStart);
+      window.addEventListener("night-dictation-end", onEnd);
+      return () => { window.removeEventListener("night-dictation-start", onStart); window.removeEventListener("night-dictation-end", onEnd); };
+    }, [stopMic, startMic]);
+
+    useEffect(() => () => stop(), [stop]); // rời trang → tắt micro
+
+    const MODES = [
+      { key: "auto", label: "VI ⇄ EN", hint: "Tự nhận tiếng Anh/Việt rồi dịch sang tiếng còn lại (cần Groq key, chữ hiện theo đoạn ~2–3 giây)" },
+      { key: "en", label: "EN → VI", hint: "Nghe tiếng Anh, dịch sang tiếng Việt — chữ hiện tức thời" },
+      { key: "vi", label: "VI → EN", hint: "Nghe tiếng Việt, dịch sang tiếng Anh — chữ hiện tức thời" },
+    ];
+    const statusText = { error: "Lỗi", paused: "Tạm dừng", yield: "Nhường mic cho ghi chú", listening: "Đang nghe", idle: "" }[status];
+    const dot = status === "error" ? "bg-rose-500" : status === "paused" || status === "yield" ? "bg-amber-400" : "bg-emerald-400 animate-pulse";
+    const tag = (lang, cls) => h("span", { className: "relative -top-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-extrabold " + cls }, lang === "vi" ? "VI" : "EN");
+
+    if (!active) {
+      return h("button", {
+        onClick: start,
+        title: "Phụ đề trực tiếp — nghe micro (và âm thanh máy tính), hiện chữ + dịch Anh ⇄ Việt",
+        className: "night-cc-btn fixed bottom-4 right-[4.75rem] z-[60] flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white text-sm font-extrabold tracking-wide text-slate-700 shadow-floating transition hover:border-primary hover:text-primary",
+      }, "CC");
+    }
+
+    return h(React.Fragment, null,
+      showWarn && h("div", { className: "fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm", onClick: () => setShowWarn(false) },
+        h("div", { className: "w-full max-w-md space-y-3 rounded-3xl bg-white p-6 shadow-2xl", onClick: (e) => e.stopPropagation() },
+          h("h3", { className: "text-lg font-extrabold text-slate-800" }, "⚠️ Lưu ý trước khi chia sẻ âm thanh"),
+          h("p", { className: "text-sm leading-relaxed text-slate-600" }, "Hộp thoại chia sẻ màn hình sẽ hiện ra: chọn ", h("b", null, "Toàn bộ màn hình"), " và bật ", h("b", null, "Also share system audio"), " rồi bấm Chia sẻ. Trang chỉ lấy âm thanh, không ghi hình."),
+          h("p", { className: "rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-sm font-semibold leading-relaxed text-rose-600" }, "Trên Mac, lần đầu dùng có thể phải cấp quyền \"Screen & System Audio Recording\" cho Chrome và Chrome sẽ tự khởi động lại. Ghi chú vẫn được lưu, nhưng bản ghi âm đang làm dở sẽ mất."),
+          h("p", { className: "text-xs leading-relaxed text-slate-400" }, "Để không bị gián đoạn giữa buổi: vào System Settings → Privacy & Security → Screen & System Audio Recording, bật sẵn cho Chrome rồi mở lại Chrome một lần trước khi dạy."),
+          h("button", {
+            onClick: () => { try { localStorage.setItem(CC_SYS_AUDIO_WARN_KEY, "1"); } catch (e) {} setShowWarn(false); addTabAudio(); },
+            className: "w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white hover:bg-amber-600",
+          }, "Đã hiểu, chia sẻ âm thanh"))),
+      h("div", { ref: barRef, className: "fixed bottom-0 left-0 right-0 z-[70] flex flex-col gap-1.5 border-t border-white/10 bg-slate-950/85 px-4 pb-3 pt-2 text-white shadow-[0_-4px_24px_rgba(0,0,0,0.25)] backdrop-blur-md sm:px-6" },
+        h("div", { className: "flex flex-wrap items-center gap-2 sm:gap-3" },
+          h("div", { className: "flex shrink-0 items-center gap-1.5" },
+            h("span", { className: "h-2.5 w-2.5 rounded-full " + dot }),
+            h("span", { className: "text-[11px] font-bold uppercase tracking-wide text-slate-300" }, statusText)),
+          h("div", { className: "flex shrink-0 items-center rounded-full border border-white/15 bg-white/10 p-0.5", title: "Chọn chiều dịch" },
+            MODES.map((m) => h("button", {
+              key: m.key, onClick: () => switchMode(m.key), title: m.hint,
+              className: "h-6 whitespace-nowrap rounded-full px-2.5 text-[11px] font-extrabold transition-colors " + (mode === m.key ? "bg-white text-slate-900" : "text-slate-300 hover:text-white"),
+            }, m.label))),
+          h("div", { className: "flex-1" }),
+          h("div", { className: "flex shrink-0 items-center gap-2" },
+            hasTab
+              ? h("button", { onClick: stopTab, title: "Thôi nghe âm thanh máy tính", className: "flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full border border-emerald-400/30 bg-emerald-500/20 px-3 text-[11px] font-bold text-emerald-300" }, "🔊 ", h("span", { className: "hidden sm:inline" }, "Đang nghe máy tính"))
+              : h("button", { onClick: clickTabAudio, title: "Nghe thêm âm thanh máy tính (video, nhạc, Zoom…) — cần Groq key", className: "flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/20 bg-white/10 px-3 text-[11px] font-bold transition-colors hover:bg-white/20" }, "🔊 ", h("span", { className: "hidden sm:inline" }, "Âm thanh máy tính")),
+            h("button", { onClick: stop, title: "Tắt phụ đề", className: "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs transition-colors hover:bg-rose-500" }, "✕"))),
+        h("div", { className: "flex items-center gap-4" },
+          h("div", { className: "mx-auto flex max-h-[24vh] min-w-0 max-w-4xl flex-1 flex-col justify-end gap-1.5 overflow-hidden text-left" },
+            status === "error" && error
+              ? h("div", { className: "space-y-2 text-center" },
+                  h("p", { className: "text-sm font-bold text-rose-300 sm:text-base" }, error),
+                  needKey && h("div", { className: "mx-auto flex max-w-lg gap-2" },
+                    h("input", { value: keyInput, onChange: (e) => setKeyInput(e.target.value), onKeyDown: (e) => { if (e.key === "Enter") saveKey(); }, placeholder: "gsk_…", className: "min-w-0 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white outline-none placeholder:text-slate-400 focus:border-white/50" }),
+                    h("button", { onClick: saveKey, className: "rounded-xl bg-white px-3 py-1.5 text-sm font-bold text-slate-900 hover:bg-slate-200" }, "Lưu key")),
+                  needKey && h("a", { href: "https://console.groq.com/keys", target: "_blank", rel: "noopener", className: "text-xs text-slate-400 underline" }, "Lấy key miễn phí ở console.groq.com/keys"))
+              : h(React.Fragment, null,
+                  lines.length === 0 && !interim && h("p", { className: "text-center text-sm " + (silenceHint ? "font-semibold text-amber-300" : "italic text-slate-400") },
+                    status === "paused" ? "Đã tạm dừng — bấm nút micro để nghe tiếp, phụ đề vẫn giữ nguyên."
+                      : status === "yield" ? "Ô ghi chú đang dùng micro — ghi xong phụ đề sẽ tự nghe tiếp."
+                      : silenceHint || (mode === "auto" ? "Cứ nói tiếng Anh hoặc tiếng Việt, phụ đề tự dịch sang tiếng còn lại…" : mode === "vi" ? "Đang chờ tiếng Việt…" : "Đang chờ tiếng Anh…")),
+                  lines.length > 0 && silenceHint && h("p", { className: "text-center text-xs font-semibold text-amber-300" }, silenceHint),
+                  lines.map((l) => h("div", { key: l.id },
+                    h("p", { className: "flex items-baseline gap-2 text-base font-bold leading-snug sm:text-lg" }, tag(l.lang, "bg-white/15 text-slate-300"), h("span", null, l.text)),
+                    h("p", { className: "pl-8 text-sm font-semibold leading-snug text-orange-300 sm:text-base" }, l.tr || h("span", { className: "opacity-60" }, "đang dịch…")))),
+                  interim && h("div", null,
+                    h("p", { className: "flex items-baseline gap-2 text-base font-bold leading-snug text-sky-300 sm:text-lg" }, tag(mode === "vi" ? "vi" : "en", "bg-sky-400/20 text-sky-200"), h("span", null, interim)),
+                    interimTr && h("p", { className: "pl-8 text-sm font-semibold leading-snug text-orange-300/80 sm:text-base" }, interimTr)))),
+          h("button", {
+            onClick: () => (paused ? resume() : pause()),
+            title: paused ? "Nghe tiếp (bật lại micro)" : "Tạm dừng (tắt micro, giữ phụ đề đang hiện)",
+            className: "flex h-16 w-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-full shadow-lg transition-all active:scale-95 " + (paused ? "bg-emerald-500 text-white hover:bg-emerald-600" : "border border-white/20 bg-white/15 text-white hover:bg-white/25"),
+          }, h("span", { className: "text-xl leading-none" }, paused ? "🎙️" : "⏸"), h("span", { className: "text-[8px] font-extrabold uppercase tracking-wide" }, paused ? "Nghe tiếp" : "Tạm dừng")))));
+  }
+
+  // Mã khóa = tên thư mục chứa trang (khoahoc/giaotiep/buoi-01.html → "giaotiep"); có thể ghi đè bằng lesson.courseKey
+  function courseKeyOf(lesson) {
+    if (lesson && lesson.courseKey) return lesson.courseKey;
+    const parts = (location.pathname || "").split("/").filter(Boolean);
+    const dir = parts.length >= 2 ? parts[parts.length - 2] : "";
+    if (dir && dir !== "khoahoc") return dir;
+    return lesson && /^sp6-/.test(lesson.id || "") ? "speaking6" : "giaotiep";
   }
   function LessonLink({ link, className = "", children }) {
     const [ok, setOk] = useState(false);
@@ -1472,7 +1913,7 @@
       setAccent(a);
     };
     const sections = lesson.sections || [];
-    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, className: "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary" }, s.nav || s.title)), /* @__PURE__ */ React.createElement("div", { className: "ml-auto flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, sections.map((s, i) => /* @__PURE__ */ React.createElement(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc }, /* @__PURE__ */ React.createElement(SectionBody, { s, lesson })))), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || "../speaking6.html", className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
+    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, className: "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary" }, s.nav || s.title)), /* @__PURE__ */ React.createElement("div", { className: "ml-auto flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, sections.map((s, i) => /* @__PURE__ */ React.createElement(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc }, /* @__PURE__ */ React.createElement(SectionBody, { s, lesson })))), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), h(LiveCaptions, null), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
   }
   const ENGINE_CSS = `
   body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -1485,6 +1926,8 @@
   .flip-card-front, .flip-card-back { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .flip-card-back { transform: rotateY(180deg); }
   html { scroll-behavior: smooth; }
+  body.night-cc-on { padding-bottom: var(--night-cc-h, 170px); }
+  body.night-cc-on .night-fab { bottom: calc(var(--night-cc-h, 170px) + 12px); }
 `;
   if (window.tailwind) {
     window.tailwind.config = {
