@@ -473,6 +473,7 @@ audio{width:100%;height:40px;}
     <div id="loadingBox" class="view-center text-center">
       <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-4" style="color:var(--border-color);"></i>
       <p class="font-bold" style="color:var(--border-color);">Đang tải...</p>
+      <p id="loadingSlowHint" class="hidden text-sm mt-3" style="color:var(--ink-3);max-width:340px;margin-left:auto;margin-right:auto;">Tải hơi lâu... Nếu quá 20 giây: đóng bớt các tab khác của trang này rồi tải lại trang.</p>
     </div>
 
     <div id="loginBox" class="hidden view-center text-center">
@@ -1570,7 +1571,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-  import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, getDocFromCache, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, getDocs, getDocsFromCache } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache, doc, getDoc, getDocFromCache, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, getDocs, getDocsFromCache } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
@@ -1584,23 +1585,34 @@ Is it better to read a physical book or an e-book?"></textarea>
   };
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  // Lưu bản sao dữ liệu trên máy (IndexedDB): mở trang là hiện ngay từ bản lưu, rồi mới cập nhật từ máy chủ
+  // Lưu bản sao dữ liệu trên máy (IndexedDB): mở trang là hiện ngay từ bản lưu, rồi mới cập nhật từ máy chủ.
+  // NGOẠI TRỪ iPad / iPhone: IndexedDB của Safari hay bị kẹt khi mở nhiều tab cùng trang (vòng tròn quay mãi)
+  // và ghi file ghi âm vào đó rất chậm -> dùng bộ nhớ tạm trong tab, đọc thẳng từ máy chủ.
+  const IS_APPLE_MOBILE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   let db;
-  try { db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) }); }
-  catch (e) { db = getFirestore(app); }
+  try {
+    db = initializeFirestore(app, IS_APPLE_MOBILE
+      ? { localCache: memoryLocalCache() }
+      : { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+  } catch (e) { db = getFirestore(app); }
+  // Hạn giờ: đọc bản lưu trên máy quá 1 giây coi như không có; hỏi máy chủ quá 20 giây thì báo lỗi rõ ràng
+  function withTimeout(p, ms, msg) {
+    let t; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error(msg || 'timeout')), ms); })]).finally(() => clearTimeout(t));
+  }
+  const NET_SLOW_MSG = 'Mạng chậm, chưa tải được dữ liệu. Kiểm tra mạng rồi tải lại trang.';
   // Đăng nhập Google mất 0,5–2 giây: hiện dữ liệu đã lưu trên máy trước, chờ đăng nhập xong mới hỏi máy chủ
   let __authResolve; const authReady = new Promise(r => { __authResolve = r; });
   async function swrDocs(q, onData) {
     let shown = false;
-    try { const c = await getDocsFromCache(q); if (!c.empty) { onData(c, true); shown = true; } } catch (e) {}
+    if (!IS_APPLE_MOBILE) { try { const c = await withTimeout(getDocsFromCache(q), 1000); if (!c.empty) { onData(c, true); shown = true; } } catch (e) {} }
     await authReady;
-    try { const sn = await getDocs(q); onData(sn, false); }
+    try { const sn = await withTimeout(getDocs(q), 20000, NET_SLOW_MSG); onData(sn, false); }
     catch (e) { if (!shown) throw e; console.warn('Không cập nhật được từ máy chủ:', e); }
   }
   async function cacheFirstDoc(ref) {
-    try { const c = await getDocFromCache(ref); if (c.exists()) return c; } catch (e) {}
+    if (!IS_APPLE_MOBILE) { try { const c = await withTimeout(getDocFromCache(ref), 1000); if (c.exists()) return c; } catch (e) {} }
     await authReady;
-    return getDoc(ref);
+    return withTimeout(getDoc(ref), 20000, NET_SLOW_MSG);
   }
   const __names = {};
   try { Object.assign(__names, JSON.parse(localStorage.getItem('nightSpNames') || '{}')); } catch (e) {}
@@ -1629,6 +1641,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   const assignmentId = params.get('assignmentId');
 
   const ALL_VIEWS = ['loadingBox', 'loginBox', 'errorBox', 'teacherView', 'studentHomeView', 'practiceView'];
+  setTimeout(() => { const lb = document.getElementById('loadingBox'); if (lb && !lb.classList.contains('hidden')) document.getElementById('loadingSlowHint').classList.remove('hidden'); }, 7000);
   function showOnly(id) {
     ALL_VIEWS.forEach(v => document.getElementById(v).classList.toggle('hidden', v !== id));
     const backLink = document.getElementById('backToSpeakingListLink');
@@ -1707,7 +1720,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     setTimeout(() => { closeGroqSettingsModal(); }, 700);
   };
 
-  const APP_VERSION = '14/10 · v6.2';
+  const APP_VERSION = '15/10 · v6.3';
   const GROQ_TPM_BUDGET = 7600;
   try { document.getElementById('appVersionLabel').textContent = APP_VERSION; } catch (e) {}
   async function callGroqChat(messages, opts) {
