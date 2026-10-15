@@ -797,7 +797,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v7',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v8',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -1603,32 +1603,94 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   var CK_BANDS = [4, 5, 6, 7, 8, 9];
   var CK_STATUS = ['yes', 'partly', 'no', 'na'];
-  /* LUẬT TÍNH BAND (cố định, không do AI quyết):
-     - Band b "đạt" khi: không ô nào ở band b bị "no"; có ít nhất 1 ô chấm được (không phải "na");
-       số ô "yes" ≥ một nửa số ô chấm được; riêng band 8–9 cần ≥ 2 ô "yes".
-     - Các band cộng dồn: band cuối cùng = band cao nhất mà MỌI band từ 4 tới đó đều đạt.
-     - Không đạt nổi band 4 => dùng band AI tự cho nếu ≤ 3, còn lại 3. */
+  /* LUẬT TÍNH BAND (cố định, không do AI quyết) — bản 2:
+     - Mỗi band: ✓ = 1 điểm, ½ = 0,5 điểm, – (không chấm được) = không tính.
+       Band "đạt" khi: không có ô ✗, có ít nhất 1 ô ✓, điểm ≥ một nửa số ô chấm được, band 8–9 cần ≥ 2 ô ✓.
+       Band mà mọi ô đều "–" = "không rõ": KHÔNG chặn (vd. band 5 đạt rõ thì band 4 đương nhiên qua).
+     - Band cuối = band cao nhất "đạt" mà mọi band bên dưới đều "đạt" hoặc "không rõ".
+     - Không có band nào đạt => dùng band AI tự cho (nếu có), không thì 3. */
   function checklistBand(crit, checks, llmBand) {
     var bands = CHECKLIST[crit];
     if (!bands) return null;
     var map = {};
     (checks || []).forEach(function (c) { if (c && c.id) map[String(c.id).toUpperCase()] = String(c.status || '').toLowerCase(); });
-    var got = null, detail = [];
+    var got = null, detail = [], blocked = false;
     for (var i = 0; i < CK_BANDS.length; i++) {
-      var b = CK_BANDS[i], items = bands[b], yes = 0, no = 0, assessable = 0;
+      var b = CK_BANDS[i], items = bands[b], yes = 0, partly = 0, no = 0, assessable = 0;
       items.forEach(function (it) {
         var key = it[0].toUpperCase(), st = CK_STATUS.indexOf(map[key]) === -1 ? 'na' : map[key];
         if (st !== 'na') assessable++;
         if (st === 'yes') yes++;
+        if (st === 'partly') partly++;
         if (st === 'no') no++;
       });
-      var ok = no === 0 && assessable > 0 && yes >= Math.ceil(assessable / 2) && (b < 8 || yes >= 2);
-      detail.push({ band: b, ok: ok, yes: yes, no: no, assessable: assessable });
-      if (!ok) break;
-      got = b;
+      var state = assessable === 0 ? 'unknown' : (no === 0 && yes >= 1 && yes + 0.5 * partly >= assessable / 2 && (b < 8 || yes >= 2) ? 'ok' : 'fail');
+      detail.push({ band: b, state: state, ok: state === 'ok', yes: yes, partly: partly, no: no, assessable: assessable });
+      if (blocked) continue;
+      if (state === 'fail') { blocked = true; continue; }
+      if (state === 'ok') got = b;
     }
-    if (got == null) { var lb = Number(llmBand); got = isFinite(lb) && lb <= 3 ? Math.max(0, Math.round(lb)) : 3; }
+    if (got == null) { var lb = Number(llmBand); got = isFinite(lb) && llmBand !== null && llmBand !== '' ? Math.max(0, Math.min(9, Math.round(lb))) : 3; }
     return { band: got, detail: detail };
+  }
+  /* Phát âm: ô nào AI bỏ "–" (hoặc không trả) mà trang ĐÃ ĐO được thì code tự tích theo số đo.
+     Ngưỡng là ước lượng do người viết đặt, CHƯA kiểm chứng với giám khảo; mỗi ô tự tích ghi "📏 đo: ..." để thấy rõ. */
+  function pronAutoTicks(ev) {
+    var t = {};
+    if (!ev) return t;
+    var put = function (id, st, why) { t[id] = { status: st, evidence: '📏 đo: ' + why }; };
+    var pct = ev.pct_words_affected, full = ev.evidence_strength === 'groq_intent' && pct != null;
+    if (full) {
+      var w = 'khoảng ' + pct + '% số từ bị máy nghe thành từ khác';
+      var tiers = pct <= 2 ? { P4a: 'yes', P5a: 'yes', P6a: 'yes', P7a: 'yes', P8a: 'yes', P9a: 'partly' }
+        : pct <= 5 ? { P4a: 'yes', P5a: 'yes', P6a: 'yes', P7a: 'yes', P8a: 'partly', P9a: 'no' }
+        : pct <= 10 ? { P4a: 'yes', P5a: 'yes', P6a: 'yes', P7a: 'partly', P8a: 'no' }
+        : pct <= 20 ? { P4a: 'yes', P5a: 'yes', P6a: 'partly', P7a: 'no' }
+        : { P4a: 'yes', P5a: 'partly', P6a: 'no' };
+      Object.keys(tiers).forEach(function (id) { put(id, tiers[id], w); });
+      var nLikely = (ev.likely_mispronounced || []).filter(function (d) { return d.level === 'likely'; }).length;
+      put('P8c', nLikely <= 1 && pct <= 3 ? 'yes' : nLikely <= 3 ? 'partly' : 'no', nLikely + ' từ khá chắc bị phát âm lệch');
+    }
+    var lk = ev.linking, wf = ev.weak_forms, st = ev.sentence_stress, it = ev.intonation;
+    var linkR = lk && lk.opportunities >= 2 ? lk.linked / lk.opportunities : null;
+    var weakOk = wf && wf.functionVsContentDurRatio != null ? wf.functionVsContentDurRatio < 0.85 : null;
+    var intonR = it && it.phrasesJudged >= 2 ? it.phrasesWithPitchMovement / it.phrasesJudged : null;
+    if (intonR == null && ev.pitch_range_semitones != null) intonR = ev.pitch_range_semitones >= 5 ? 0.6 : ev.pitch_range_semitones >= 3 ? 0.3 : 0;
+    var stressDb = st && st.contentLouderDb != null ? st.contentLouderDb : null;
+    if (linkR != null || weakOk != null) {
+      var good = (linkR != null && linkR >= 0.5) && weakOk !== false;
+      var some = (linkR != null && linkR >= 0.25) || weakOk === true;
+      put('P7b', good ? 'yes' : some ? 'partly' : 'no', (linkR != null ? 'nối ' + lk.linked + '/' + lk.opportunities + ' chỗ' : '') + (weakOk != null ? (linkR != null ? ', ' : '') + (weakOk ? 'có đọc nhẹ từ phụ' : 'chưa đọc nhẹ từ phụ') : ''));
+    }
+    if (intonR != null) put('P7c', intonR >= 0.5 ? 'yes' : intonR >= 0.25 ? 'partly' : 'no', it && it.phrasesJudged >= 2 ? it.phrasesWithPitchMovement + '/' + it.phrasesJudged + ' cụm có lên xuống giọng' : 'dải cao độ ' + ev.pitch_range_semitones + ' nửa cung');
+    var mwp = ev.mean_words_between_pauses;
+    if (mwp != null) put('P6c', mwp >= 4 && mwp <= 20 ? 'yes' : mwp >= 2.5 ? 'partly' : 'no', 'trung bình ' + mwp + ' từ mỗi cụm giữa các chỗ ngừng');
+    if (stressDb != null || intonR != null) {
+      put('P4b', (stressDb != null && stressDb >= 1) || (intonR != null && intonR > 0) ? 'yes' : 'partly', 'có nhấn / lên xuống giọng');
+      put('P5b', (stressDb != null && stressDb >= 1.5) || (intonR != null && intonR >= 0.25) ? 'yes' : 'partly', stressDb != null ? 'từ quan trọng to hơn từ phụ ' + stressDb + ' dB' : 'ngữ điệu');
+    }
+    var pos = [stressDb != null && stressDb >= 2, linkR != null && linkR >= 0.4, intonR != null && intonR >= 0.4], known = [stressDb != null, linkR != null, intonR != null].filter(Boolean).length;
+    var nPos = pos.filter(Boolean).length;
+    if (known >= 2) {
+      put('P6b', nPos >= 2 ? 'yes' : nPos === 1 ? 'partly' : 'no', nPos + '/' + known + ' yếu tố (nhấn từ, nối âm, ngữ điệu) đạt');
+      var strong = [stressDb != null && stressDb >= 3, linkR != null && linkR >= 0.6, intonR != null && intonR >= 0.6].filter(Boolean).length;
+      put('P8b', strong >= 3 ? 'yes' : strong === 2 ? 'partly' : 'no', strong + '/3 yếu tố đạt mức cao');
+    }
+    return t;
+  }
+  function fillPronChecks(checks, ev) {
+    var auto = pronAutoTicks(ev), byId = {};
+    (checks || []).forEach(function (c) { byId[c.id] = c; });
+    var out = [];
+    CK_BANDS.forEach(function (b) {
+      CHECKLIST.pronunciation[b].forEach(function (it) {
+        var c = byId[it[0]], a = auto[it[0]];
+        if ((!c || c.status === 'na') && a) out.push({ id: it[0], band: b, status: a.status, evidence: a.evidence, auto: true });
+        else if (c) out.push(c);
+        else out.push({ id: it[0], band: b, status: 'na', evidence: '' });
+      });
+    });
+    return out;
   }
   function normChecks(crit, raw) {
     var ids = {}, out = [];
@@ -1661,7 +1723,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   function conf(x) { x = String(x || '').toLowerCase(); return x === 'high' || x === 'medium' || x === 'low' ? x : 'low'; }
   function strList(a, n) { return (Array.isArray(a) ? a : []).map(function (x) { return String(x || '').trim(); }).filter(Boolean).slice(0, n || 6); }
   // pronAvailable=false: bỏ qua mọi điểm Phát âm AI trả về (không cho đoán phát âm từ văn bản)
-  function normalizeScoring(parsed, pronAvailable, pronConfCap) {
+  function normalizeScoring(parsed, pronAvailable, pronConfCap, pronEv) {
     parsed = parsed || {};
     var crit = {};
     CRITS.forEach(function (k) {
@@ -1670,9 +1732,11 @@ Is it better to read a physical book or an e-book?"></textarea>
       var band = isFinite(raw) && c.band !== null && c.band !== '' ? Math.max(0, Math.min(9, Math.round(raw))) : null;
       if (k === 'pronunciation' && !pronAvailable) band = null;
       var llmBand = band, checks = null, ckDetail = null;
-      if (CHECKLIST[k] && Array.isArray(c.checks) && c.checks.length && !(k === 'pronunciation' && !pronAvailable)) {
-        checks = normChecks(k, c.checks);
+      if (CHECKLIST[k] && !(k === 'pronunciation' && !pronAvailable)) {
+        checks = Array.isArray(c.checks) && c.checks.length ? normChecks(k, c.checks) : [];
+        if (k === 'pronunciation' && pronEv) checks = fillPronChecks(checks, pronEv);
         if (checks.length) { var r = checklistBand(k, checks, llmBand); band = r.band; ckDetail = r.detail; }
+        else checks = null;
       }
       crit[k] = {
         band: band, llmBand: llmBand, checks: checks, checkDetail: ckDetail,
@@ -1743,6 +1807,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     encodeWav16: encodeWav16, opTokens: opTokens, planPronChunks: planPronChunks, mapPronErrors: mapPronErrors, aggregateOpenPronounce: aggregateOpenPronounce, OP_MAX_SEC: OP_MAX_SEC,
     finalSibilant: finalSibilant, noiseFloor16: noiseFloor16, wantsFinalS: wantsFinalS, speechFindings: speechFindings,
     phoneticKey: phoneticKey, phonSim: phonSim, pronDiffs: pronDiffs, prosodyByWords: prosodyByWords, groqPronEvidence: groqPronEvidence,
+    pronAutoTicks: pronAutoTicks, fillPronChecks: fillPronChecks,
     CHECKLIST: CHECKLIST, filterPronFlags: filterPronFlags, WEAK_FORM_WORDS: WEAK_FORM_WORDS, checklistBand: checklistBand, normChecks: normChecks, checklistPromptText: checklistPromptText,
     normalizeScoring: normalizeScoring, spCrit: spCrit, agreement: agreement
   };
@@ -1900,7 +1965,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     setTimeout(() => { closeGroqSettingsModal(); }, 700);
   };
 
-  const APP_VERSION = '15/10 · v7';
+  const APP_VERSION = '15/10 · v8';
   const GROQ_TPM_BUDGET = 7600;
   try { document.getElementById('appVersionLabel').textContent = APP_VERSION; } catch (e) {}
   async function callGroqChat(messages, opts) {
@@ -3531,7 +3596,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
       }
       lap('llm', tL);
-      const norm = SPCore.normalizeScoring(parsed, true, pron.strength === 'groq_intent' ? 'medium' : 'low');
+      const norm = SPCore.normalizeScoring(parsed, true, pron.strength === 'groq_intent' ? 'medium' : 'low', evidence.pronunciation_evidence);
 
       // 6) File ghi âm đã được lưu song song từ đầu; chỉ cần chờ nó xong (thường đã xong từ lâu)
       spinnerMsg.textContent = 'Đang lưu bài làm...';
@@ -3610,7 +3675,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       '(3) WHAT WAS ACTUALLY SAID: judge grammar and vocabulary on the most likely spoken words. A speech_findings item with status "likely" gives the probable form (e.g. no final /s/ heard, so "many student"): assess that form and report the error with status "likely". An "uncertain" item, or anything that could be a recognition error, must not count against the student and must not turn a box into "no"; if mentioned, mark the edit "uncertain". Repetitions, fillers and false starts are Fluency evidence only, never grammar errors. ' +
       '(4) Do not inflate and do not pull criteria towards an average; bands 8-9 are reachable when the boxes are met. ' +
       '(5) Quote only words that are in the transcript; never invent pauses or audio events; use fluency_measurements for claims about pauses and speed. ' +
-      '(6) PRONUNCIATION is always assessed with its boxes, from pronunciation_evidence (all code-computed except intended_text). evidence_strength: "groq_intent" (full analysis), "indirect" (partial) or "minimal" (audio not analysable). likely_mispronounced lists places where the recogniser heard a different word that sounds similar to the word the learner meant (heard vs meant, sound_similarity 0-1, level likely/possible; kind "ending" = a dropped final -s/-ed that may be grammar instead). pct_words_affected is the share of words affected: few isolated cases are normal even for strong speakers; frequent ones, or the same sound repeatedly, show that individual sounds reduce clarity. sentence_stress: contentLouderDb / contentHigherSt > 0 means content words are made more prominent than function words (stress-timed, positive); near 0 means every word gets equal weight (flat, syllable-timed). weak_forms.functionVsContentDurRatio < 0.8 suggests function words are reduced (positive). linking: linked / opportunities = consonant-to-vowel links realised. intonation: phrases with pitch movement and phrase-final falls/rises; pitch_range_semitones small = flat. All of these are approximate measurements from word timings (accurate to a few hundredths of a second): use them as supporting evidence, never alone to decide a band, and never convert numbers into a band. An intelligible Vietnamese accent is never an error. Word stress inside words is not measured: mark it "na". Pronunciation confidence: "medium" at most with groq_intent, otherwise "low".',
+      '(6) PRONUNCIATION is always assessed with its boxes, from pronunciation_evidence (all code-computed except intended_text). evidence_strength: "groq_intent" (full analysis), "indirect" (partial) or "minimal" (audio not analysable). likely_mispronounced lists places where the recogniser heard a different word that sounds similar to the word the learner meant (heard vs meant, sound_similarity 0-1, level likely/possible; kind "ending" = a dropped final -s/-ed that may be grammar instead). pct_words_affected is the share of words affected: few isolated cases are normal even for strong speakers; frequent ones, or the same sound repeatedly, show that individual sounds reduce clarity. sentence_stress: contentLouderDb / contentHigherSt > 0 means content words are made more prominent than function words (stress-timed, positive); near 0 means every word gets equal weight (flat, syllable-timed). weak_forms.functionVsContentDurRatio < 0.8 suggests function words are reduced (positive). linking: linked / opportunities = consonant-to-vowel links realised. intonation: phrases with pitch movement and phrase-final falls/rises; pitch_range_semitones small = flat. All of these are approximate measurements from word timings (accurate to a few hundredths of a second): use them as supporting evidence, never alone to decide a band, and never convert numbers into a band. An intelligible Vietnamese accent is never an error. Use "na" for pronunciation ONLY for things truly not measured (word stress inside words; individual sounds when evidence_strength is not groq_intent). Intelligibility, chunking, linking/weak forms and intonation boxes can always be judged from the evidence above: tick them yes/partly/no. Pronunciation confidence: "medium" at most with groq_intent, otherwise "low".',
     'OUTPUT. Write all explanations in natural Vietnamese for a Vietnamese learner, short and specific to THIS answer. Per criterion: "checks": [{"id", "status", "e": evidence of at most 8 words, only for yes/no, otherwise ""}] covering every box; "band": your own overall impression (for comparison only); "confidence": "high"|"medium"|"low" (pronunciation: "medium" at most with phoneme_level, otherwise "low"); "uncertainty": "" or 1 short sentence on what limits certainty; "feedback": 2-3 sentences quoting the student\'s words: what was good, what was weak, which box decided the band; "toNextBand": 1 sentence naming the missing box of the next band with an example ("" at band 9). Also "sampleAdequacy": {"level": "adequate"|"limited"|"insufficient", "note": 1 sentence}; "whyNotHigher": 1-2 sentences on what holds the overall score back; "edits": real grammar / word-choice / collocation errors and clear coherence problems, at most 10, each {"find": exact transcript text of 1-6 words, "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 sentence, "status": "confirmed"|"likely"|"uncertain", "evidence": short source note}; no punctuation or capitalisation edits; edits must not overlap.',
     'Respond with ONE JSON object only: {"sampleAdequacy": {}, "criteria": {"fluency": {"checks": [], "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "toNextBand": ""}, "lexical": {}, "grammar": {}, "pronunciation": {}}, "whyNotHigher": "", "edits": []}'
   ].join('\n\n');
@@ -3758,7 +3823,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         }).join('') + '</ul></div>';
     }).join('');
     return '<details class="ck-wrap"><summary class="crit-sum">Bảng tiêu chí: tích được tới band ' + fmtBand(c.band) + ' — xem từng ô</summary>' +
-      '<p class="crit-meta" style="margin:6px 0 8px;">Band = band cao nhất mà <b>mọi</b> band bên dưới cũng đạt. Một band đạt khi không có ô ✗, ít nhất một nửa số ô là ✓ (band 8–9 cần ít nhất 2 ô ✓). ½ = mới đạt một phần, – = 1 câu trả lời chưa đủ để chấm ô này.</p>' + rows + '</details>';
+      '<p class="crit-meta" style="margin:6px 0 8px;">Band = band cao nhất đạt được, với mọi band bên dưới cũng đạt (band toàn ô – thì bỏ qua, không tính trượt). Một band đạt khi: không có ô ✗, có ít nhất 1 ô ✓, và ✓ (1 điểm) + ½ (nửa điểm) ≥ một nửa số ô chấm được; band 8–9 cần ít nhất 2 ô ✓. – = chưa chấm được ô này. 📏 = trang tự tích theo số đo trên file ghi âm.</p>' + rows + '</details>';
   }
   function critHtml(record) {
     const crit = record.criteria || {};
