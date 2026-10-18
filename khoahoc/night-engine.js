@@ -2,7 +2,7 @@
    Mỗi trang bài học nằm trong thư mục khóa (khoahoc/<khóa>/buoi-XX.html), nạp <script src="../night-engine.js"></script>
    rồi gọi NightLesson.render({...}). Tên thư mục = mã khóa (giaotiep, speaking6, …) → dùng cho link "Lộ trình"
    mặc định (../<khóa>.html) và key lưu checklist bài về nhà (night-<khóa>-<id>-homework).
-   Gồm: giọng đọc UK/US, dịch khi bôi đen, ô ghi chú, phụ đề trực tiếp (CC), quiz, từ vựng (emoji/ảnh), các khối
+   Gồm: giọng đọc UK/US, dịch khi bôi đen, ô ghi chú, phụ đề trực tiếp (CC), quiz, từ vựng (ảnh Irasutoya/ảnh/emoji), các khối
    Speaking (cards, criteria, formula, models, speak + nút AI). Trước đây là giaotiep-engine.js + speaking-engine.js. */
 (function() {
   const { useState, useRef, useEffect, useCallback } = React;
@@ -48,9 +48,13 @@
     );
   }
   /* Ảnh minh họa thẻ từ vựng.
-     Thẻ có thể thêm: emoji: "🚌"  ·  img: "từ khóa tìm ảnh" | "https://…" | "img/b04/bus.jpg"
-     Từ khóa → tìm Wikimedia Commons trước, không có thì Openverse; không có ảnh → hiện emoji.
-     Ảnh chỉ tải khi thẻ cuộn tới, kết quả tìm được lưu lại trên máy học viên. */
+     Thẻ có thể thêm (ưu tiên từ trái sang phải): ira: "ten_anh.webp"  ·  img: "từ khóa tìm ảnh" | "https://…" | "img/b04/bus.jpg"  ·  emoji: "🚌"
+     ira = ảnh Irasutoya (いらすとや) đã tải sẵn trong khoahoc/img/ira/ — đường dẫn tính theo vị trí file engine này,
+     nên dùng được cho mọi khóa. Ảnh hỏng/không có → hiện emoji.
+     img từ khóa → tìm Wikimedia Commons trước, không có thì Openverse (kết quả lưu lại trên máy học viên).
+     Ảnh chỉ tải khi thẻ cuộn tới. */
+  const ENGINE_SRC = (document.currentScript && document.currentScript.src) || "";
+  const IRA_BASE = (() => { try { return new URL("img/ira/", ENGINE_SRC || location.href).href; } catch (e) { return "../img/ira/"; } })();
   const IMG_CACHE = "night-vocab-img-v1:";
   const IMG_DIRECT = /^(https?:)?\/\/|^[\w./-]+\.(jpe?g|png|webp|gif|svg)$/i;
   const imgPending = {};
@@ -74,12 +78,14 @@
     });
     return imgPending[q];
   }
-  function VocabVisual({ img, emoji }) {
-    const direct = img && IMG_DIRECT.test(img);
-    const [res, setRes] = useState(direct ? { u: img } : null);
+  function VocabVisual({ img, emoji, ira }) {
+    const local = !!ira;
+    const direct = local || (img && IMG_DIRECT.test(img));
+    const [res, setRes] = useState(local ? { u: IRA_BASE + ira, ira: true } : direct ? { u: img } : null);
     const [broken, setBroken] = useState(false);
     const box = useRef(null);
     useEffect(() => {
+      if (local) { setRes({ u: IRA_BASE + ira, ira: true }); setBroken(false); return; }
       if (!img || direct) return;
       let alive = true;
       const go = () => findVocabImage(img).then((r) => alive && setRes(r));
@@ -87,11 +93,11 @@
       const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); go(); } }, { rootMargin: "300px" });
       io.observe(box.current);
       return () => { alive = false; io.disconnect(); };
-    }, [img]);
+    }, [img, ira]);
     const showImg = res && res.u && !broken;
     return React.createElement("div", { ref: box, className: "relative mb-2 flex h-24 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl " + (showImg ? "bg-white" : "bg-white/50") },
       showImg
-        ? React.createElement("img", { src: res.u, alt: "", loading: "lazy", referrerPolicy: "no-referrer", onError: () => setBroken(true), className: "h-full w-full object-cover" })
+        ? React.createElement("img", { src: res.u, alt: "", loading: "lazy", decoding: "async", draggable: false, referrerPolicy: "no-referrer", onError: () => setBroken(true), className: res.ira ? "h-full w-full object-contain p-1" : "h-full w-full object-cover" })
         : React.createElement("span", { className: "text-4xl leading-none" + (img && !res ? " animate-pulse opacity-60" : "") }, emoji || (img ? "🖼️" : "📘")),
       showImg && res.src && React.createElement("a", {
         href: res.page || "#", target: "_blank", rel: "noopener",
@@ -99,7 +105,7 @@
         className: "absolute bottom-0 right-0 rounded-tl-lg bg-black/45 px-1.5 text-[9px] font-medium text-white/90 no-underline"
       }, "Ảnh: ", res.src));
   }
-  function InteractiveVocab({ word, phonetic, meaning, example, img, emoji, visual }) {
+  function InteractiveVocab({ word, phonetic, meaning, example, img, emoji, ira, visual }) {
     const [flipped, setFlipped] = useState(false);
     return /* @__PURE__ */ React.createElement(
       "div",
@@ -107,7 +113,7 @@
         className: `perspective-1000 ${visual ? "h-64" : "h-44"} w-full max-w-[220px] cursor-pointer select-none`,
         onClick: () => setFlipped(!flipped)
       },
-      /* @__PURE__ */ React.createElement("div", { className: `flip-card-inner ${flipped ? "rotate-y-180" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: `flip-card-front flex h-full flex-col items-center ${visual ? "justify-start p-3" : "justify-center p-4"} rounded-3xl border border-amber-200 bg-vocab-bg text-center shadow-floating` }, visual && React.createElement(VocabVisual, { img, emoji }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "text-base leading-tight" : "text-lg"} font-bold text-slate-800` }, word), phonetic && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-600" }, phonetic), /* @__PURE__ */ React.createElement(SpeakButton, { text: word, className: "mt-2 bg-white/70" }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "mt-auto pt-1 text-[10px]" : "mt-2 text-[11px]"} font-semibold uppercase tracking-wide text-slate-500` }, "Chạm để xem nghĩa")), /* @__PURE__ */ React.createElement("div", { className: "flip-card-back flex h-full flex-col items-center justify-center rounded-3xl border border-sky-200 bg-vocab-back/90 p-4 text-center text-white shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-base font-bold" }, meaning), example && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs italic text-sky-50" }, '"', example, '"')))
+      /* @__PURE__ */ React.createElement("div", { className: `flip-card-inner ${flipped ? "rotate-y-180" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: `flip-card-front flex h-full flex-col items-center ${visual ? "justify-start p-3" : "justify-center p-4"} rounded-3xl border border-amber-200 bg-vocab-bg text-center shadow-floating` }, visual && React.createElement(VocabVisual, { img, emoji, ira }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "text-base leading-tight" : "text-lg"} font-bold text-slate-800` }, word), phonetic && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-600" }, phonetic), /* @__PURE__ */ React.createElement(SpeakButton, { text: word, className: "mt-2 bg-white/70" }), /* @__PURE__ */ React.createElement("p", { className: `${visual ? "mt-auto pt-1 text-[10px]" : "mt-2 text-[11px]"} font-semibold uppercase tracking-wide text-slate-500` }, "Chạm để xem nghĩa")), /* @__PURE__ */ React.createElement("div", { className: "flip-card-back flex h-full flex-col items-center justify-center rounded-3xl border border-sky-200 bg-vocab-back/90 p-4 text-center text-white shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-base font-bold" }, meaning), example && /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs italic text-sky-50" }, '"', example, '"')))
     );
   }
   function ParagraphBlock({ index, heading, text, lines, speakers = [], vocabHighlights = [], inlineImage }) {
@@ -1424,7 +1430,7 @@
       case "quiz":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
       case "vocab":
-        return /* @__PURE__ */ React.createElement("div", null, (s.groups || [{ cards: s.cards }]).map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: gi ? "mt-8" : "" }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-3 flex items-center gap-2 text-sm font-bold text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "h-2 w-2 rounded-full bg-vocab-front" }), g.label, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "· ", g.cards.length, " từ")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 md:grid-cols-4" }, g.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v, visual: (s.groups || [{ cards: s.cards }]).some((gg) => (gg.cards || []).some((c) => c.img || c.emoji)) }))))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
+        return /* @__PURE__ */ React.createElement("div", null, (s.groups || [{ cards: s.cards }]).map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: gi ? "mt-8" : "" }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-3 flex items-center gap-2 text-sm font-bold text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "h-2 w-2 rounded-full bg-vocab-front" }), g.label, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "· ", g.cards.length, " từ")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 md:grid-cols-4" }, g.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v, visual: (s.groups || [{ cards: s.cards }]).some((gg) => (gg.cards || []).some((c) => c.ira || c.img || c.emoji)) }))))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
       case "dialogue":
         return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "space-y-8" }, s.parts.map((p, i) => /* @__PURE__ */ React.createElement(ParagraphBlock, { key: i, index: i + 1, speakers: s.speakers, ...p }))), s.phrases && /* @__PURE__ */ React.createElement("div", { className: "mt-8" }, /* @__PURE__ */ React.createElement(PhraseBox, { ...s.phrases })));
       case "phrases":
