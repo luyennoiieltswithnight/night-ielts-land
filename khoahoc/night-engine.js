@@ -2,7 +2,7 @@
    Mỗi trang bài học nằm trong thư mục khóa (khoahoc/<khóa>/buoi-XX.html), nạp <script src="../night-engine.js"></script>
    rồi gọi NightLesson.render({...}). Tên thư mục = mã khóa (giaotiep, speaking6, …) → dùng cho link "Lộ trình"
    mặc định (../<khóa>.html) và key lưu checklist bài về nhà (night-<khóa>-<id>-homework).
-   Gồm: giọng đọc UK/US, dịch khi bôi đen, ô ghi chú, phụ đề trực tiếp (CC), quiz, từ vựng (ảnh Irasutoya/ảnh/emoji), các khối
+   Gồm: giọng đọc UK/US, dịch khi bôi đen, ô ghi chú, phụ đề trực tiếp (CC), quiz, từ vựng (ảnh Irasutoya/ảnh/emoji), nút In / PDF, các khối
    Speaking (cards, criteria, formula, models, speak + nút AI). Trước đây là giaotiep-engine.js + speaking-engine.js. */
 (function() {
   const { useState, useRef, useEffect, useCallback } = React;
@@ -1878,6 +1878,276 @@
           }, h("span", { className: "text-xl leading-none" }, paused ? "🎙️" : "⏸"), h("span", { className: "text-[8px] font-extrabold uppercase tracking-wide" }, paused ? "Nghe tiếp" : "Tạm dừng")))));
   }
 
+  /* ===================== IN / LƯU PDF =====================
+     Nút "🖨 In" trên thanh menu → mở màn hình soạn bản in (phiếu học tập) từ dữ liệu bài:
+     • Chọn phần cần in, 1 hoặc 2 trang trên 1 mặt giấy (2 trang = A4 ngang chia đôi), cỡ chữ.
+     • Từ vựng: hiện / ẩn nghĩa (để học viên tự điền), hiện / ẩn ảnh. Hiện / ẩn đáp án & câu mẫu, dòng kẻ để viết.
+     • Bấm vào chữ để sửa trực tiếp; nút ✕ ở góc mỗi khối để bỏ khối đó khỏi bản in.
+     • "In / Lưu PDF" mở hộp thoại in của trình duyệt — chọn máy in, hoặc "Lưu dưới dạng PDF".
+     Chỉ dựng bằng DOM thường (không React) để chỉnh sửa tay không bị mất khi đổi tùy chọn. */
+  const PRINT_CSS = `
+  #np-root { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; background: #e2e8f0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #0f172a; }
+  #np-root .np-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 14px; background: #fff; border-bottom: 1px solid #cbd5e1; box-shadow: 0 4px 14px -8px rgba(15,23,42,.25); font-size: 13px; }
+  #np-root .np-bar b { font-weight: 800; }
+  #np-root .np-grp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  #np-root .np-grp > span.np-lbl { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+  #np-root .np-seg { display: inline-flex; background: #f1f5f9; border-radius: 999px; padding: 2px; }
+  #np-root .np-seg button { border: 0; background: transparent; padding: 5px 11px; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 700; color: #64748b; cursor: pointer; }
+  #np-root .np-seg button.on { background: #fff; color: #4338ca; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+  #np-root .np-chk { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; white-space: nowrap; }
+  #np-root .np-btn { border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+  #np-root .np-btn.main { background: #4338ca; color: #fff; box-shadow: 0 8px 20px -8px rgba(67,56,202,.7); }
+  #np-root .np-btn.ghost { background: #f1f5f9; color: #334155; }
+  #np-root .np-secs { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+  #np-root .np-tip { font-size: 11px; color: #64748b; padding: 6px 14px; background: #fffbeb; border-bottom: 1px solid #fde68a; }
+  #np-root .np-scroll { flex: 1; overflow: auto; padding: 24px 12px 60px; }
+  .np-sheet { --np-fs: 11pt; box-sizing: border-box; background: #fff; margin: 0 auto; width: 210mm; min-height: 297mm; padding: 14mm 14mm; box-shadow: 0 10px 40px -12px rgba(15,23,42,.35); font-size: var(--np-fs); line-height: 1.45; color: #0f172a; outline: none; }
+  .np-sheet.two { width: 297mm; min-height: 210mm; padding: 10mm 10mm; column-count: 2; column-gap: 14mm; column-rule: 1px dashed #cbd5e1; font-size: calc(var(--np-fs) * .86); }
+  .np-sheet * { box-sizing: border-box; }
+  .np-sheet h1 { font-size: 1.65em; font-weight: 800; margin: .1em 0 .15em; line-height: 1.2; }
+  .np-sheet h2 { font-size: 1.2em; font-weight: 800; margin: 0 0 .25em; color: #312e81; display: flex; gap: .45em; align-items: baseline; }
+  .np-sheet h2 .np-num { font-size: .8em; color: #fff; background: #4338ca; border-radius: 6px; padding: 0 .4em; }
+  .np-sheet h3 { font-size: 1em; font-weight: 800; margin: .7em 0 .3em; color: #334155; }
+  .np-sheet p { margin: .2em 0; }
+  .np-sheet ul, .np-sheet ol { margin: .2em 0 .2em 1.3em; padding: 0; }
+  .np-sheet li { margin: .12em 0; }
+  .np-sheet .np-head { border-bottom: 2px solid #4338ca; padding-bottom: .5em; margin-bottom: .8em; break-inside: avoid; }
+  .np-sheet .np-brand { font-size: .78em; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #4338ca; }
+  .np-sheet .np-meta { font-size: .85em; color: #475569; }
+  .np-sheet .np-who { display: flex; gap: 1.5em; margin-top: .5em; font-size: .9em; }
+  .np-sheet .np-who span { flex: 1; border-bottom: 1px dotted #94a3b8; padding-bottom: .15em; }
+  .np-sheet .np-who span:first-child { flex: 2; }
+  .np-sheet .np-sec { margin: 0 0 1.1em; }
+  .np-sheet .np-desc { color: #475569; font-size: .9em; margin-bottom: .45em; }
+  .np-sheet .np-blk { position: relative; }
+  .np-sheet .np-avoid { break-inside: avoid; page-break-inside: avoid; }
+  .np-sheet .np-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: .5em .7em; margin: .4em 0; }
+  .np-sheet .np-box.np-avoid, .np-sheet .np-avoid .np-box { break-inside: avoid; page-break-inside: avoid; }
+  .np-sheet ul { list-style: disc; } .np-sheet ol { list-style: decimal; }
+  .np-sheet .np-soft { color: #64748b; font-size: .88em; }
+  .np-sheet .np-ipa { color: #4338ca; font-size: .9em; }
+  .np-sheet .np-tag { display: inline-block; font-size: .78em; font-weight: 800; background: #eef2ff; color: #4338ca; border-radius: 4px; padding: 0 .35em; margin-right: .3em; }
+  .np-sheet table { width: 100%; border-collapse: collapse; font-size: .92em; margin: .3em 0; }
+  .np-sheet th, .np-sheet td { border: 1px solid #cbd5e1; padding: .25em .4em; vertical-align: top; text-align: left; }
+  .np-sheet th { background: #f1f5f9; font-weight: 800; }
+  .np-sheet tr { break-inside: avoid; }
+  .np-sheet .np-vgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45em; }
+  .np-sheet.two .np-vgrid { grid-template-columns: repeat(2, 1fr); }
+  .np-sheet .np-v { border: 1px solid #cbd5e1; border-radius: 8px; padding: .35em .45em; display: flex; gap: .45em; align-items: flex-start; break-inside: avoid; }
+  .np-sheet .np-v img { width: 3.6em; height: 3.6em; object-fit: contain; flex: none; }
+  .np-sheet .np-v .np-w { font-weight: 800; line-height: 1.2; }
+  .np-sheet .np-v .np-ex { font-style: italic; color: #475569; font-size: .85em; }
+  .np-sheet .np-mean { color: #0369a1; font-weight: 600; font-size: .92em; }
+  .np-sheet .np-blank { display: none; border-bottom: 1px solid #94a3b8; min-height: 1.3em; }
+  .np-sheet.hide-mean .np-mean { display: none; }
+  .np-sheet.hide-mean .np-blank { display: block; }
+  .np-sheet.hide-img .np-v img { display: none; }
+  .np-sheet .np-ans { color: #047857; }
+  .np-sheet .np-anskey { border-top: 1px dashed #94a3b8; margin-top: .5em; padding-top: .3em; font-size: .88em; }
+  .np-sheet.hide-ans .np-ans, .np-sheet.hide-ans .np-anskey { display: none; }
+  .np-sheet .np-lines { display: none; }
+  .np-sheet.show-lines .np-lines { display: block; }
+  .np-sheet .np-lines div { border-bottom: 1px solid #cbd5e1; height: 1.75em; }
+  .np-sheet .np-line { margin: .1em 0; }
+  .np-sheet .np-line b.np-sp { display: inline-block; min-width: 3.2em; color: #4338ca; }
+  .np-sheet .np-opts { margin: .1em 0 0 1.2em; } .np-sheet .np-opt { display: inline-block; margin-right: 1.6em; }
+  .np-sheet .np-check::before { content: "☐ "; }
+  .np-sheet u { text-decoration: none; background: #fde68a; border-radius: 2px; padding: 0 .05em; }
+  .np-sheet .np-x { display: none; position: absolute; top: -.2em; right: -.2em; z-index: 2; width: 1.5em; height: 1.5em; border-radius: 999px; border: 0; background: #f43f5e; color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; line-height: 1.5em; text-align: center; }
+  .np-sheet.editing .np-blk:hover { outline: 1px dashed #a5b4fc; outline-offset: 2px; }
+  .np-sheet.editing .np-blk:hover > .np-x { display: block; }
+  .np-sheet .np-pb { break-before: page; }
+  @media print {
+    body.np-open > *:not(#np-root) { display: none !important; }
+    body.np-open { padding: 0 !important; background: #fff !important; }
+    #np-root { position: static !important; display: block !important; background: #fff !important; }
+    #np-root .np-bar, #np-root .np-secs, #np-root .np-tip, .np-sheet .np-x { display: none !important; }
+    #np-root .np-scroll { overflow: visible !important; padding: 0 !important; }
+    .np-sheet, .np-sheet.two { width: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; outline: none !important; }
+    .np-sheet .np-blk { outline: none !important; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }`;
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  // **đậm**, *nghiêng*, [chữ] → tô vàng (dùng cho bảng âm–chữ)
+  const rh = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>").replace(/\[([^\]]+)\]/g, "<u>$1</u>");
+  const blk = (inner, cls = "") => `<div class="np-blk ${cls}"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button>${inner}</div>`;
+  const lines = (n) => `<div class="np-lines">${"<div></div>".repeat(n)}</div>`;
+  const li = (arr, f = rh) => (arr && arr.length) ? `<ul>${arr.map((x) => `<li>${f(x)}</li>`).join("")}</ul>` : "";
+  const ABC = "abcdefgh";
+
+  function printGeneric(v, depth = 0) {
+    if (v == null || depth > 5) return "";
+    if (typeof v === "string") return /^(#|https?:|[\w-]+\.(webp|png|jpe?g|mp3))/.test(v) ? "" : `<p>${rh(v)}</p>`;
+    if (typeof v === "number" || typeof v === "boolean") return "";
+    if (Array.isArray(v)) return v.map((x) => printGeneric(x, depth + 1)).join("");
+    const skip = new Set(["type", "id", "nav", "title", "desc", "ira", "img", "emoji", "ai", "mode", "talk", "target", "prep", "cols"]);
+    return `<div class="np-box">${Object.entries(v).filter(([k]) => !skip.has(k)).map(([, x]) => printGeneric(x, depth + 1)).join("")}</div>`;
+  }
+
+  const PRINTERS = {
+    vocab(s) {
+      const groups = s.groups || [{ cards: s.cards || [] }];
+      let out = groups.map((g) => blk(`${g.label ? `<h3>${rh(g.label)} <span class="np-soft">· ${g.cards.length} từ</span></h3>` : ""}<div class="np-vgrid">${g.cards.map((c) => blk(`<div class="np-v">${c.ira ? `<img src="${esc(IRA_BASE + c.ira)}" alt="">` : c.emoji ? `<span style="font-size:2em;line-height:1">${esc(c.emoji)}</span>` : ""}<div style="min-width:0;flex:1"><div class="np-w">${esc(c.word)}</div>${c.phonetic ? `<div class="np-ipa">${esc(c.phonetic)}</div>` : ""}<div class="np-mean">${rh(c.meaning)}</div><div class="np-blank"></div>${c.example ? `<div class="np-ex">${rh(c.example)}</div>` : ""}</div></div>`)).join("")}</div>`)).join("");
+      if (s.note) out += blk(`<div class="np-box"><b>${rh(s.note.title)}</b>${li(s.note.rows)}</div>`);
+      return out;
+    },
+    dialogue(s) {
+      const sp = s.speakers || [];
+      let out = (s.parts || []).map((p, i) => blk(`<div class="np-box">${p.heading ? `<h3 style="margin-top:0">${i + 1}. ${rh(p.heading)}</h3>` : ""}${p.text ? `<p>${rh(p.text)}</p>` : ""}${(p.lines || []).map((l) => `<p class="np-line"><b class="np-sp">${esc(l.who)}:</b> ${rh(l.line)}</p>`).join("")}${(p.vocabHighlights || []).length ? `<p class="np-soft" style="margin-top:.35em">📌 ${p.vocabHighlights.map((v) => `<b>${esc(v.word)}</b> <span class="np-ipa">${esc(v.phonetic || "")}</span> <span class="np-mean">${rh(v.meaning)}</span>`).join(" · ")}</p>` : ""}</div>`, "np-avoid")).join("");
+      if (s.phrases) out += PRINTERS.phrases({ boxTitle: s.phrases.title, groups: s.phrases.groups, phrases: s.phrases.phrases });
+      return out;
+    },
+    phrases(s) {
+      const groups = s.groups || [{ phrases: s.phrases || [] }];
+      return blk(`<div class="np-box">${s.boxTitle ? `<b>${rh(s.boxTitle)}</b>` : ""}${groups.map((g) => `${g.label ? `<h3>${rh(g.label)}</h3>` : ""}<ul>${(g.phrases || []).map((p) => typeof p === "string" ? `<li>${rh(p)}</li>` : `<li><b>${rh(p.phrase || p.en || "")}</b>${p.vi ? ` — ${rh(p.vi)}` : ""}${p.note ? ` <span class="np-soft">(${rh(p.note)})</span>` : ""}</li>`).join("")}</ul>`).join("")}</div>`);
+    },
+    grammar(s) {
+      return (s.points || []).map((g, i) => blk(`<div class="np-box"><h3 style="margin-top:0">${i + 1}. ${rh(g.name)}</h3>${(g.forms || []).length ? `<table>${g.forms.map((f) => `<tr><th style="width:28%">${rh(f.label)}</th><td>${rh(f.pattern)}</td></tr>`).join("")}</table>` : ""}${(g.uses || []).length ? `<p><b>Cách dùng:</b></p>${li(g.uses)}` : ""}${(g.examples || []).length ? `<p><b>Ví dụ:</b></p><ul>${g.examples.map((e) => `<li>${rh(e.en)}${e.vi ? ` <span class="np-soft">— ${rh(e.vi)}</span>` : ""}</li>`).join("")}</ul>` : ""}${g.signals ? `<p><b>Dấu hiệu:</b> ${rh(g.signals)}</p>` : ""}${g.note ? `<p class="np-soft">💡 ${rh(g.note)}</p>` : ""}</div>`)).join("");
+    },
+    quiz(s) {
+      const items = s.items || [];
+      return items.map((q, i) => blk(`<div class="np-avoid" style="margin:.35em 0"><p><b>${i + 1}.</b> ${rh(q.q)}</p><p class="np-opts">${(q.options || []).map((o, k) => `<span class="np-opt">${ABC[k]}) ${rh(o)}</span>`).join("")}</p></div>`)).join("") +
+        blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((q, i) => `${i + 1}${ABC[q.answer] || ""}`).join(" · ")}${items.some((q) => q.explain) ? `<ol>${items.map((q) => `<li>${rh((q.options || [])[q.answer] || "")}${q.explain ? ` — <span class="np-soft">${rh(q.explain)}</span>` : ""}</li>`).join("")}</ol>` : ""}</div>`);
+    },
+    reflex(s) {
+      return (s.questions || []).map((q, i) => blk(`<div class="np-box np-avoid"><p><b>${i + 1}. ${rh(q.q)}</b>${q.vi ? ` <span class="np-soft">(${rh(q.vi)})</span>` : ""}</p>${(q.frames || []).length ? `<p class="np-soft">Gợi ý: ${q.frames.map(rh).join(" · ")}</p>` : ""}${lines(2)}${q.sample ? `<p class="np-ans"><b>Mẫu:</b> ${rh(q.sample)}</p>` : ""}</div>`)).join("");
+    },
+    homework(s) {
+      return blk(`<div class="np-box">${(s.tasks || []).map((t) => `<p class="np-check">${rh(typeof t === "string" ? t : t.text || t.title || "")}</p>`).join("")}</div>`);
+    },
+    stress(s) {
+      return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + blk(`<table><tr><th>Nhịp</th><th>Từ</th><th>Ghi chú</th></tr>${(s.groups || []).map((g) => `<tr><td><b>${esc(g.pattern)}</b><br><span class="np-soft">${rh(g.label)}</span></td><td>${(g.words || []).map(esc).join(" · ")}</td><td>${rh(g.tip || "")}</td></tr>`).join("")}</table>`);
+    },
+    phonics(s) {
+      const groups = s.groups || [{ rows: s.rows || [] }];
+      return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + groups.map((g) => blk(`${g.label ? `<h3>${rh(g.label)}</h3>` : ""}<table><tr><th>Âm</th><th>Cách viết</th><th>Ghi chú</th></tr>${(g.rows || []).map((r) => `<tr><td class="np-ipa"><b>/${esc(r.ipa)}/</b></td><td>${(r.sp || []).map((x) => `<b>${esc(x[0])}</b>: ${rh(x[1])}`).join("<br>")}</td><td>${rh(r.tip || "")}</td></tr>`).join("")}</table>`)).join("");
+    },
+    vowels(s) {
+      const tabs = s.tabs || [{ label: "Nguyên âm đơn", items: s.mono || [] }, { label: "Nguyên âm đôi", items: s.diph || [] }];
+      let out = tabs.filter((t) => (t.items || []).length).map((t) => blk(`<h3>${rh(t.label)}</h3><table><tr><th>Âm</th><th>Từ ví dụ</th><th>Cách đọc</th><th>Thêm</th></tr>${t.items.map((x) => `<tr><td class="np-ipa"><b>/${esc(x.ipa)}/</b></td><td><b>${esc(x.job || x.word || "")}</b><br><span class="np-ipa">${esc(x.jobIpa || x.wordIpa || "")}</span></td><td>${rh(x.tip || "")}</td><td class="np-soft">${esc(x.more || "")}</td></tr>`).join("")}</table>`)).join("");
+      if ((s.mistakes || []).length) out += blk(`<div class="np-box"><b>${rh(s.mistakesTitle || "Lỗi hay gặp")}</b><ul>${s.mistakes.map((m) => `<li>✗ ${rh(m.wrong)} → <span class="np-ans">${rh(m.fix)}</span></li>`).join("")}</ul></div>`);
+      return out;
+    },
+    pairs(s) {
+      return blk(`<table><tr><th>#</th><th>Từ A</th><th>Từ B</th></tr>${(s.pairs || []).map((p, i) => `<tr><td>${i + 1}</td><td><b>${esc(p.a)}</b> <span class="np-ipa">${esc(p.ai || "")}</span></td><td><b>${esc(p.b)}</b> <span class="np-ipa">${esc(p.bi || "")}</span></td></tr>`).join("")}</table>`);
+    },
+    cards(s) {
+      return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.cards || []).map((c) => blk(`<div class="np-box np-avoid">${c.tag ? `<span class="np-tag">${rh(c.tag)}</span>` : ""}${c.sub ? `<span class="np-soft">${rh(c.sub)}</span>` : ""}${c.title ? `<p><b>${rh(c.title)}</b></p>` : ""}${c.body ? `<p>${rh(c.body)}</p>` : ""}${li(c.bullets)}${c.foot ? `<p class="np-soft">💡 ${rh(c.foot)}</p>` : ""}</div>`)).join("");
+    },
+    criteria(s) {
+      return (s.items || []).map((c, i) => blk(`<div class="np-box np-avoid"><p><b>${i + 1}. ${rh(c.name)}</b> <span class="np-soft">${rh(c.en || "")}</span></p>${c.short ? `<p>${rh(c.short)}</p>` : ""}${li(c.check)}${c.band5 ? `<p><span class="np-tag">Band 5</span>${rh(c.band5)}</p>` : ""}${c.band6 ? `<p><span class="np-tag">Band 6</span>${rh(c.band6)}</p>` : ""}</div>`)).join("") + (s.note ? blk(`<p class="np-soft">💡 ${rh(s.note)}</p>`) : "");
+    },
+    formula(s) {
+      return blk(`<div class="np-box" style="text-align:center"><b>${rh(s.formula)}</b></div>`) +
+        ((s.steps || []).length ? blk(`<table>${s.steps.map((st) => `<tr><th style="width:22%">${rh(st.tag)}</th><td><b>${rh(st.label || "")}</b>${st.text ? `<br><span class="np-soft">${rh(st.text)}</span>` : ""}</td></tr>`).join("")}</table>`) : "") +
+        (s.examples || []).map((e) => blk(`<div class="np-box np-avoid np-ans"><p><b>${rh(e.q)}</b></p>${(e.parts || []).map((p) => `<p><span class="np-tag">${rh(p.tag)}</span>${rh(p.text)}</p>`).join("")}</div>`)).join("") +
+        (s.note ? blk(`<p class="np-soft">💡 ${rh(s.note)}</p>`) : "");
+    },
+    speak(s) {
+      return (s.tabs || []).map((t) => blk(`<h3>${rh(t.label)}</h3>${t.intro ? `<p class="np-soft">${rh(t.intro)}</p>` : ""}${(t.items || []).map((it, i) => it.card ? `<div class="np-box"><p><b>${rh(it.card.topic)}</b></p><p class="np-soft">You should say:</p>${li(it.card.points)}${it.card.explain ? `<p>${rh(it.card.explain)}</p>` : ""}${lines(6)}${it.sample ? `<p class="np-ans"><b>Bài mẫu:</b> ${rh(it.sample)}</p>` : ""}</div>` : `<div class="np-box np-avoid"><p><b>${i + 1}. ${rh(it.q)}</b>${it.vi ? ` <span class="np-soft">(${rh(it.vi)})</span>` : ""}</p>${(it.hints || []).length ? `<p class="np-soft">Gợi ý: ${it.hints.map(rh).join(" · ")}</p>` : ""}${lines(2)}${it.sample ? `<p class="np-ans"><b>Mẫu:</b> ${rh(it.sample)}</p>` : ""}</div>`).join("")}${(t.checklist || []).length ? `<div class="np-box"><b>Tự kiểm tra:</b>${t.checklist.map((c) => `<p class="np-check">${rh(c)}</p>`).join("")}</div>` : ""}`)).join("");
+    }
+  };
+  PRINTERS.sounds = PRINTERS.vowels;
+
+  function buildPrintHtml(lesson, sections) {
+    const head = `<div class="np-blk np-head"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button><div class="np-brand">Night IELTS · ${esc(lesson.course || "")}</div><h1>${esc(lesson.session ? lesson.session + ": " : "")}${rh(lesson.title || "")}</h1><div class="np-meta">${esc(lesson.unit || "")}${lesson.subtitle ? " — " + rh(lesson.subtitle) : ""}</div><div class="np-who"><span>Họ tên:</span><span>Lớp:</span><span>Ngày:</span></div></div>`;
+    const goals = (lesson.goals || []).length ? blk(`<div class="np-box"><b>🎯 Sau buổi học, bạn sẽ:</b><ol>${lesson.goals.map((g) => `<li>${rh(g)}</li>`).join("")}</ol></div>`) : "";
+    const body = sections.map((s, i) => {
+      let inner = "";
+      try { inner = (PRINTERS[s.type] || printGeneric)(s); } catch (e) { inner = printGeneric(s); }
+      return `<section class="np-sec np-blk" data-sec="${esc(s.id)}"><button class="np-x" contenteditable="false" title="Bỏ cả phần này">✕</button><h2><span class="np-num">${String(i + 1).padStart(2, "0")}</span>${rh(s.title || s.nav || "")}</h2>${s.desc ? `<p class="np-desc">${rh(s.desc)}</p>` : ""}${inner}</section>`;
+    }).join("");
+    return head + goals + body;
+  }
+
+  const PRINT_PREF = "night-print-prefs-v1";
+  function openPrintStudio(lesson) {
+    if (document.getElementById("np-root")) return;
+    if (!document.getElementById("np-style")) { const st = document.createElement("style"); st.id = "np-style"; st.textContent = PRINT_CSS; document.head.appendChild(st); }
+    const sections = (lesson.sections || []).filter((s) => s && s.type);
+    let pref = {};
+    try { pref = JSON.parse(localStorage.getItem(PRINT_PREF) || "{}"); } catch (e) {}
+    const opt = Object.assign({ two: false, fs: 11, mean: true, img: true, ans: false, lines: true }, pref.opt || {});
+    const skipDefault = new Set(["pairs", "homework"]);
+    const on = {}; sections.forEach((s) => { on[s.id] = !skipDefault.has(s.type); });
+    const savePref = () => { try { localStorage.setItem(PRINT_PREF, JSON.stringify({ opt })); } catch (e) {} };
+
+    const root = document.createElement("div");
+    root.id = "np-root";
+    root.innerHTML = `
+      <div class="np-bar">
+        <b>🖨 Bản in / PDF</b>
+        <div class="np-grp"><span class="np-lbl">Mỗi mặt giấy</span><span class="np-seg" data-k="two"><button data-v="0">1 trang (A4 dọc)</button><button data-v="1">2 trang (A4 ngang)</button></span></div>
+        <div class="np-grp"><span class="np-lbl">Cỡ chữ</span><span class="np-seg" data-k="fs"><button data-v="9.5">Nhỏ</button><button data-v="11">Vừa</button><button data-v="12.5">To</button></span></div>
+        <div class="np-grp">
+          <label class="np-chk"><input type="checkbox" data-o="mean"> Hiện nghĩa từ</label>
+          <label class="np-chk"><input type="checkbox" data-o="img"> Ảnh minh họa</label>
+          <label class="np-chk"><input type="checkbox" data-o="ans"> Đáp án & câu mẫu</label>
+          <label class="np-chk"><input type="checkbox" data-o="lines"> Dòng kẻ để viết</label>
+        </div>
+        <div class="np-grp" style="margin-left:auto">
+          <button class="np-btn ghost" data-act="reset" title="Bỏ mọi chỉnh sửa tay, tạo lại từ bài học">↺ Làm lại</button>
+          <button class="np-btn ghost" data-act="close">Đóng</button>
+          <button class="np-btn main" data-act="print">🖨 In / Lưu PDF</button>
+        </div>
+      </div>
+      <div class="np-secs"><span class="np-lbl" style="font-weight:800;color:#64748b">PHẦN CẦN IN:</span>${sections.map((s) => `<label class="np-chk"><input type="checkbox" data-s="${esc(s.id)}"> ${esc(s.nav || s.title)}</label>`).join("")}</div>
+      <div class="np-tip">✏️ Bấm vào chữ trên trang để sửa trực tiếp · rê chuột vào một khối rồi bấm <b style="color:#e11d48">✕</b> để bỏ khối đó · Muốn có file PDF: bấm "In / Lưu PDF" rồi ở mục <b>Máy in</b> chọn <b>Lưu dưới dạng PDF</b>.</div>
+      <div class="np-scroll"><div class="np-sheet editing" contenteditable="true" spellcheck="false"></div><style class="np-page"></style><style class="np-hide"></style></div>`;
+    document.body.appendChild(root);
+    document.body.classList.add("np-open");
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const sheet = root.querySelector(".np-sheet");
+    const pageStyle = root.querySelector(".np-page");
+    const hideStyle = root.querySelector(".np-hide");
+    const fill = () => { sheet.innerHTML = buildPrintHtml(lesson, sections); };
+    const apply = () => {
+      sheet.classList.toggle("two", !!opt.two);
+      sheet.style.setProperty("--np-fs", opt.fs + "pt");
+      sheet.classList.toggle("hide-mean", !opt.mean);
+      sheet.classList.toggle("hide-img", !opt.img);
+      sheet.classList.toggle("hide-ans", !opt.ans);
+      sheet.classList.toggle("show-lines", !!opt.lines);
+      pageStyle.textContent = `@page { size: A4 ${opt.two ? "landscape" : "portrait"}; margin: ${opt.two ? "9mm" : "12mm"}; }`;
+      hideStyle.textContent = sections.filter((s) => !on[s.id]).map((s) => `.np-sheet [data-sec="${CSS.escape(s.id)}"]{display:none!important}`).join("\n");
+      root.querySelectorAll(".np-seg").forEach((seg) => seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", String(seg.dataset.k === "two" ? (opt.two ? 1 : 0) : opt[seg.dataset.k]) === b.dataset.v)));
+      root.querySelectorAll("[data-o]").forEach((c) => { c.checked = !!opt[c.dataset.o]; });
+      root.querySelectorAll("[data-s]").forEach((c) => { c.checked = !!on[c.dataset.s]; });
+    };
+    const close = () => {
+      root.remove();
+      document.body.classList.remove("np-open");
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+    const onKey = (e) => { if (e.key === "Escape" && !sheet.contains(document.activeElement)) close(); };
+    document.addEventListener("keydown", onKey);
+    root.addEventListener("click", (e) => {
+      const x = e.target.closest(".np-x");
+      if (x) { e.preventDefault(); const b = x.parentElement; if (b) b.remove(); return; }
+      const sb = e.target.closest(".np-seg button");
+      if (sb) { const k = sb.parentElement.dataset.k; opt[k] = k === "two" ? sb.dataset.v === "1" : parseFloat(sb.dataset.v); apply(); savePref(); return; }
+      const act = e.target.closest("[data-act]");
+      if (!act) return;
+      if (act.dataset.act === "close") close();
+      else if (act.dataset.act === "reset") { if (confirm("Bỏ mọi chỉnh sửa tay và tạo lại bản in từ bài học?")) { fill(); apply(); } }
+      else if (act.dataset.act === "print") {
+        sheet.classList.remove("editing");
+        const imgs = [...sheet.querySelectorAll("img")].filter((im) => !im.complete);
+        Promise.race([Promise.all(imgs.map((im) => new Promise((r) => { im.onload = im.onerror = r; }))), new Promise((r) => setTimeout(r, 4000))])
+          .then(() => { window.print(); sheet.classList.add("editing"); });
+      }
+    });
+    root.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t.dataset.o) { opt[t.dataset.o] = t.checked; apply(); savePref(); }
+      else if (t.dataset.s) { on[t.dataset.s] = t.checked; apply(); }
+    });
+    fill();
+    apply();
+  }
+
   // Mã khóa = tên thư mục chứa trang (khoahoc/giaotiep/buoi-01.html → "giaotiep"); có thể ghi đè bằng lesson.courseKey
   function courseKeyOf(lesson) {
     if (lesson && lesson.courseKey) return lesson.courseKey;
@@ -1914,7 +2184,7 @@
       setAccent(a);
     };
     const sections = lesson.sections || [];
-    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, className: "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary" }, s.nav || s.title)), /* @__PURE__ */ React.createElement("div", { className: "ml-auto flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, sections.map((s, i) => /* @__PURE__ */ React.createElement(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc }, /* @__PURE__ */ React.createElement(SectionBody, { s, lesson })))), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), h(LiveCaptions, null), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
+    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, className: "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary" }, s.nav || s.title)), h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "ml-auto flex-shrink-0 rounded-full bg-primary-light px-3 py-1.5 text-xs font-bold text-primary hover:bg-indigo-100" }, "🖨 In / PDF"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, sections.map((s, i) => /* @__PURE__ */ React.createElement(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc }, /* @__PURE__ */ React.createElement(SectionBody, { s, lesson })))), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), h(LiveCaptions, null), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
   }
   const ENGINE_CSS = `
   body { font-family: 'Plus Jakarta Sans', sans-serif; }
