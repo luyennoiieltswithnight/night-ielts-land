@@ -2129,7 +2129,7 @@ async function installProgressTrackerOnAll(paths, kind, owner, repo, token, bran
                 const rows = [];
                 Object.entries(manifest.listening || {}).forEach(([prefix, books]) => {
                     Object.entries(books).forEach(([book, tests]) => {
-                        Object.entries(tests).forEach(([testNum, info]) => rows.push(info));
+                        Object.entries(tests).forEach(([testNum, info]) => rows.push({ ...info, prefix, book, testNum }));
                     });
                 });
                 box.innerHTML = '';
@@ -2144,10 +2144,77 @@ async function installProgressTrackerOnAll(paths, kind, owner, repo, token, bran
                     box.appendChild(el('div', { class: 'card', style: { padding: '10px 14px', marginBottom: '8px' } }, [
                         el('div', { style: { fontWeight: '700' } }, [info.title || info.path]),
                         el('a', { href: `https://${owner}.github.io/${repo}/${info.path}`, target: '_blank', class: 'hint' }, [info.path]),
+                        el('div', {}, [el('button', {
+                            type: 'button', class: 'btn btn-sm btn-danger', style: { marginTop: '6px' },
+                            onclick: (e) => deletePublishedTest(info, owner, repo, token, branch, e.target),
+                        }, ['🗑️ Xoá đề này trên GitHub'])]),
                     ]));
                 });
             } catch (err) {
                 box.innerHTML = `<p class="hint" style="color:var(--danger)">Lỗi tải danh sách: ${err.message}</p>`;
+            }
+        }
+
+        // Xoá HẲN 1 đề đã xuất bản: gỡ khỏi manifest.json (menu trang chủ), xoá file .html
+        // và file audio đi kèm trong repo, xoá luôn bản lưu cục bộ trên máy này.
+        async function deletePublishedTest(info, owner, repo, token, branch, btn) {
+            if (!confirm(`Xoá HẲN đề "${info.title || info.path}" trên GitHub?\n\nSẽ gỡ đề khỏi menu (manifest), xoá file đề và file audio đi kèm. KHÔNG hoàn tác được.`)) return;
+            btn.disabled = true;
+            btn.textContent = '⏳ Đang xoá...';
+            try {
+                // 1) Gỡ khỏi manifest (thử lại nếu bị ghi trùng)
+                let manifestOk = false;
+                for (let attempt = 0; attempt < 3 && !manifestOk; attempt++) {
+                    const mf = await ghGetFile(owner, repo, 'listening/manifest.json', token, branch);
+                    if (!mf) { manifestOk = true; break; }
+                    const manifest = JSON.parse(b64ToUtf8(mf.content));
+                    const books = manifest.listening && manifest.listening[info.prefix];
+                    const tests = books && books[info.book];
+                    if (!tests || !tests[info.testNum]) { manifestOk = true; break; }
+                    delete tests[info.testNum];
+                    if (Object.keys(tests).length === 0) delete books[info.book];
+                    if (Object.keys(books).length === 0) delete manifest.listening[info.prefix];
+                    try {
+                        await ghPutFile(owner, repo, 'listening/manifest.json', token, branch, JSON.stringify(manifest, null, 2),
+                            `Gỡ đề Listening khỏi manifest: ${info.title || info.path}`, mf.sha);
+                        manifestOk = true;
+                    } catch (err) {
+                        if (err.status === 409 || err.status === 422) continue;
+                        throw err;
+                    }
+                }
+                if (!manifestOk) throw new Error('Không cập nhật được manifest sau 3 lần thử — thử lại sau.');
+
+                // 2) Xoá file đề .html
+                if (info.path) {
+                    const f = await ghGetFile(owner, repo, info.path, token, branch);
+                    if (f && f.sha) await ghDeleteFile(owner, repo, info.path, token, branch, f.sha, `Xoá đề Listening: ${info.title || info.path}`);
+
+                    // 3) Xoá file audio đi kèm (testN-audio.mp3/.wav... cùng thư mục)
+                    const dir = info.path.replace(/\/[^/]+$/, '');
+                    const baseName = info.path.split('/').pop().replace(/\.html$/i, '');
+                    const listing = await ghGetFile(owner, repo, dir, token, branch);
+                    if (Array.isArray(listing)) {
+                        for (const item of listing) {
+                            if (item.type === 'file' && item.name.startsWith(baseName + '-audio.')) {
+                                await ghDeleteFile(owner, repo, item.path, token, branch, item.sha, `Xoá audio đề: ${info.title || info.path}`);
+                            }
+                        }
+                    }
+                }
+
+                // 4) Xoá bản lưu cục bộ (nếu có)
+                try {
+                    const all = JSON.parse(localStorage.getItem(SAVED_TESTS_KEY) || '{}');
+                    if (all[info.path]) { delete all[info.path]; localStorage.setItem(SAVED_TESTS_KEY, JSON.stringify(all)); renderSavedTestsLocal(); }
+                } catch (e) {}
+
+                alert('✅ Đã xoá trên GitHub. Trang web cần khoảng 1–2 phút để cập nhật; nếu vẫn thấy đề cũ, tải lại trang bằng Ctrl+Shift+R (Mac: Cmd+Shift+R).');
+                loadGithubTestsList();
+            } catch (err) {
+                alert('❌ Xoá thất bại: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = '🗑️ Xoá đề này trên GitHub';
             }
         }
         document.getElementById('load-github-tests-btn').addEventListener('click', loadGithubTestsList);
