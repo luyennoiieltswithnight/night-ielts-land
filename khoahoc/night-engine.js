@@ -1142,10 +1142,11 @@
   const fmt = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, "0")}`;
 
   // Thẻ thông tin: type "cards" — cards:[{tag, title, sub, body, bullets:[], foot}], cols
-  function InfoCards({ cards = [], cols = 3, intro }) {
+  function InfoCards({ cards = [], cols = 3, intro, img }) {
     const grid = { 1: "", 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" }[cols] || "sm:grid-cols-2 lg:grid-cols-3";
     return h("div", null,
       intro && h("p", { className: "mb-4 rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
+      img && h("figure", { className: "mb-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-3xl rounded-2xl" })),
       h("div", { className: `grid gap-4 ${grid}` }, cards.map((c, i) => h("div", { key: i, className: "flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
         h("div", { className: "flex items-center justify-between gap-2" },
           c.tag && h("span", { className: "rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white" }, c.tag),
@@ -1182,12 +1183,13 @@
 
   // Công thức trả lời: type "formula" — formula, steps:[{tag, label, text}], examples:[{q, parts:[{tag, text}]}]
   const STEP_COLORS = ["bg-cyan-100 text-cyan-800", "bg-indigo-100 text-indigo-800", "bg-amber-100 text-amber-800", "bg-emerald-100 text-emerald-800", "bg-pink-100 text-pink-800"];
-  function Formula({ formula, steps = [], examples = [], note }) {
+  function Formula({ formula, steps = [], examples = [], note, img }) {
     const colorOf = (tag) => STEP_COLORS[Math.max(0, steps.findIndex((s) => s.tag === tag)) % STEP_COLORS.length];
     return h("div", { className: "space-y-5" },
       formula && h("div", { className: "rounded-3xl bg-primary p-5 text-center text-white shadow-premium" },
         h("p", { className: "text-[11px] font-bold uppercase tracking-widest text-white/70" }, "Công thức"),
         h("p", { className: "mt-1 text-lg font-extrabold sm:text-xl" }, rich(formula))),
+      img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-2xl rounded-2xl" })),
       steps.length > 0 && h("div", { className: `grid gap-3 sm:grid-cols-${Math.min(steps.length, 4)}` }, steps.map((s, i) => h("div", { key: i, className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" },
         h("span", { className: `rounded-full px-3 py-0.5 text-xs font-extrabold ${STEP_COLORS[i % STEP_COLORS.length]}` }, s.tag),
         h("p", { className: "mt-2 text-sm font-bold text-slate-800" }, rich(s.label)),
@@ -1487,9 +1489,10 @@
         checked && h("span", { className: `text-xs font-bold ${ok.every(Boolean) ? "text-emerald-600" : "text-rose-600"}` }, ok.every(Boolean) ? "✓ Chính xác!" : `Đúng ${ok.filter(Boolean).length}/${gaps.length}`)),
       (checked || shown) && it.explain && h("p", { className: "mt-3 text-xs leading-relaxed text-slate-600" }, "💡 ", rich(it.explain)));
   }
-  function Fill({ items = [], intro }) {
+  function Fill({ items = [], intro, img }) {
     return h("div", { className: "mx-auto max-w-3xl space-y-4" },
       intro && h("p", { className: "rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
+      img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full rounded-2xl" })),
       items.map((it, i) => h(FillItem, { key: i, it, i })));
   }
   const wordCount = (s) => (String(s).trim().match(/[A-Za-zÀ-ỹ0-9]+(?:['’-][A-Za-zÀ-ỹ0-9]+)*/g) || []).length;
@@ -1554,11 +1557,11 @@
       case "homework":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(Homework, { tasks: s.tasks, storageKey: `night-${courseKeyOf(lesson)}-${lesson.id}-homework` }));
       case "cards":
-        return h(InfoCards, { cards: s.cards, cols: s.cols, intro: s.intro });
+        return h(InfoCards, { cards: s.cards, cols: s.cols, intro: s.intro, img: s.img });
       case "criteria":
         return h(Criteria, { items: s.items, note: s.note, labels: s.labels });
       case "formula":
-        return h(Formula, { formula: s.formula, steps: s.steps, examples: s.examples, note: s.note });
+        return h(Formula, { formula: s.formula, steps: s.steps, examples: s.examples, note: s.note, img: s.img });
       case "models":
         return h("div", { className: "mx-auto max-w-3xl" }, h(ModelAnswers, { items: s.items }));
       case "speak":
@@ -1570,7 +1573,7 @@
       case "checklist":
         return h(Checklist, { groups: s.groups, note: s.note, storeKey: `night-${courseKeyOf(lesson)}-${lesson.id}-${s.id}-check` });
       case "fill":
-        return h(Fill, { items: s.items, intro: s.intro });
+        return h(Fill, { items: s.items, intro: s.intro, img: s.img });
       case "write":
         return h(WriteBox, { tasks: s.tasks, lessonId: lesson.id, sectionId: s.id, lesson });
       default:
@@ -2163,6 +2166,7 @@
     },
     formula(s) {
       return blk(`<div class="np-box" style="text-align:center"><b>${rh(s.formula)}</b></div>`) +
+        (s.img ? blk(`<img src="${esc(s.img)}" alt="" style="max-width:100%;max-height:8cm">`) : "") +
         ((s.steps || []).length ? blk(`<table>${s.steps.map((st) => `<tr><th style="width:22%">${rh(st.tag)}</th><td><b>${rh(st.label || "")}</b>${st.text ? `<br><span class="np-soft">${rh(st.text)}</span>` : ""}</td></tr>`).join("")}</table>`) : "") +
         (s.examples || []).map((e) => blk(`<div class="np-box np-avoid np-ans"><p><b>${rh(e.q)}</b></p>${(e.parts || []).map((p) => `<p><span class="np-tag">${rh(p.tag)}</span>${rh(p.text)}</p>`).join("")}</div>`)).join("") +
         (s.note ? blk(`<p class="np-soft">💡 ${rh(s.note)}</p>`) : "");
@@ -2175,7 +2179,7 @@
   PRINTERS.figure = (s) => blk(`<div class="np-box">${(s.items || []).map((f) => `<figure style="margin:.4em 0"><img src="${esc(f.src)}" alt="" style="max-width:100%;max-height:9cm">${f.caption ? `<figcaption class="np-soft">${rh(f.caption)}</figcaption>` : ""}</figure>`).join("")}${s.note ? `<p>💡 ${rh(s.note)}</p>` : ""}</div>`);
   PRINTERS.compare = (s) => (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.items || []).map((v) => blk(`<div class="np-box np-avoid"><b>${rh(v.label)}</b><p>${rh(v.text)}</p>${v.comment ? `<p class="np-soft">💬 ${rh(v.comment)}</p>` : ""}</div>`)).join("") + (s.takeaway ? blk(`<p>💡 ${rh(s.takeaway)}</p>`) : "");
   PRINTERS.checklist = (s) => { let n = 0; return (s.groups || []).map((g) => blk(`<div class="np-box np-avoid"><b>${rh(g.label)}</b>${g.items.map((x) => `<p class="np-check">${++n}) ${rh(x)}</p>`).join("")}</div>`)).join(""); };
-  PRINTERS.fill = (s) => { const items = s.items || []; return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + items.map((it, i) => blk(`<p class="np-avoid"><b>${i + 1}.</b> ${rh(String(it.text).replace(/\[\[(.+?)\]\]/g, "________"))}</p>`)).join("") + blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((it, i) => `${i + 1}. ${(String(it.text).match(/\[\[(.+?)\]\]/g) || []).map((g) => esc(g.slice(2, -2).split("|")[0])).join(" / ")}`).join(" · ")}</div>`, "np-ans"); };
+  PRINTERS.fill = (s) => { const items = s.items || []; return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.img ? blk(`<img src="${esc(s.img)}" alt="" style="max-width:100%;max-height:8cm">`) : "") + items.map((it, i) => blk(`<p class="np-avoid"><b>${i + 1}.</b> ${rh(String(it.text).replace(/\[\[(.+?)\]\]/g, "________"))}</p>`)).join("") + blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((it, i) => `${i + 1}. ${(String(it.text).match(/\[\[(.+?)\]\]/g) || []).map((g) => esc(g.slice(2, -2).split("|")[0])).join(" / ")}`).join(" · ")}</div>`, "np-ans"); };
   PRINTERS.write = (s) => (s.tasks || []).map((t, i) => blk(`<div class="np-box"><p><b>✍️ ${i + 1}.</b> ${rh(t.prompt)}</p>${t.img ? `<img src="${esc(t.img)}" alt="" style="max-width:100%;max-height:8cm">` : ""}${t.hint ? `<p class="np-soft">${rh(t.hint)}</p>` : ""}${lines(t.lines || Math.max(4, Math.round((t.min || 60) / 12)))}</div>`) + (t.model ? blk(`<div class="np-anskey"><b>Bài mẫu:</b><p>${rh(t.model).replace(/\n/g, "<br>")}</p></div>`, "np-ans") : "")).join("");
 
   function buildPrintHtml(lesson, sections) {
