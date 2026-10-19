@@ -1439,7 +1439,7 @@
         return h("div", { key: i, className: `flex flex-col rounded-3xl border-2 p-5 ${t[0]}` },
           h("span", { className: `self-start rounded-full px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wide ${t[1]}` }, v.label),
           h("div", { className: "mt-3 flex flex-1 flex-col" }, h(Cover, null, h("div", null,
-            h("p", { className: "text-sm leading-relaxed text-slate-800" }, rich(v.text)),
+            h("p", { className: "whitespace-pre-line text-sm leading-relaxed text-slate-800" }, rich(v.text)),
             v.comment && h("p", { className: "mt-3 border-t border-slate-200/70 pt-3 text-xs leading-relaxed text-slate-600" }, "💬 ", rich(v.comment))))));
       })),
       takeaway && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm leading-relaxed text-amber-900" }, "💡 ", rich(takeaway)));
