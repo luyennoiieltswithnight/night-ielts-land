@@ -1146,7 +1146,7 @@
     const grid = { 1: "", 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" }[cols] || "sm:grid-cols-2 lg:grid-cols-3";
     return h("div", null,
       intro && h("p", { className: "mb-4 rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
-      img && h("figure", { className: "mb-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-3xl rounded-2xl" })),
+      img && h("figure", { className: "mb-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-3xl rounded-2xl" }))),
       h("div", { className: `grid gap-4 ${grid}` }, cards.map((c, i) => h("div", { key: i, className: "flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
         h("div", { className: "flex items-center justify-between gap-2" },
           c.tag && h("span", { className: "rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white" }, c.tag),
@@ -1189,7 +1189,7 @@
       formula && h("div", { className: "rounded-3xl bg-primary p-5 text-center text-white shadow-premium" },
         h("p", { className: "text-[11px] font-bold uppercase tracking-widest text-white/70" }, "Công thức"),
         h("p", { className: "mt-1 text-lg font-extrabold sm:text-xl" }, rich(formula))),
-      img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-2xl rounded-2xl" })),
+      img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-2xl rounded-2xl" }))),
       steps.length > 0 && h("div", { className: `grid gap-3 sm:grid-cols-${Math.min(steps.length, 4)}` }, steps.map((s, i) => h("div", { key: i, className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" },
         h("span", { className: `rounded-full px-3 py-0.5 text-xs font-extrabold ${STEP_COLORS[i % STEP_COLORS.length]}` }, s.tag),
         h("p", { className: "mt-2 text-sm font-bold text-slate-800" }, rich(s.label)),
@@ -1492,7 +1492,7 @@
   function Fill({ items = [], intro, img }) {
     return h("div", { className: "mx-auto max-w-3xl space-y-4" },
       intro && h("p", { className: "rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
-      img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full rounded-2xl" })),
+      img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full rounded-2xl" }))),
       items.map((it, i) => h(FillItem, { key: i, it, i })));
   }
   const wordCount = (s) => (String(s).trim().match(/[A-Za-zÀ-ỹ0-9]+(?:['’-][A-Za-zÀ-ỹ0-9]+)*/g) || []).length;
