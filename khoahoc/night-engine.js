@@ -119,41 +119,26 @@
   function ParagraphBlock({ index, heading, text, lines, speakers = [], vocabHighlights = [], inlineImage }) {
     const alignRight = index % 2 === 0;
     const fullText = lines ? lines.map((l) => l.line).join(" ") : text;
-    return /* @__PURE__ */ React.createElement("div", { className: `flex flex-col gap-6 md:flex-row ${alignRight ? "md:flex-row-reverse" : ""} items-start` }, /* @__PURE__ */ React.createElement("div", { className: "w-full flex-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-3 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" }, index), heading && /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-slate-700" }, heading), /* @__PURE__ */ React.createElement("div", { className: "h-px flex-1 bg-slate-100" }), /* @__PURE__ */ React.createElement(SpeakButton, { text: fullText, rate: 0.85, label: "Cả đoạn" })), text && /* @__PURE__ */ React.createElement("p", { className: "leading-relaxed text-slate-700" }, text), lines && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, lines.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `flex items-start gap-3 ${l.who === speakers[0] ? "" : "flex-row-reverse text-right"}` }, /* @__PURE__ */ React.createElement("span", { className: `mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${l.who === speakers[0] ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"}` }, l.who), /* @__PURE__ */ React.createElement("p", { className: "flex-1 leading-relaxed text-slate-700" }, l.line, " ", /* @__PURE__ */ React.createElement("button", { type: "button", disabled: !TTS_OK, onClick: () => speak(l.line, 0.85), className: "text-xs text-primary/70 hover:text-primary disabled:opacity-30", "aria-label": "Nghe câu này" }, "🔊"))))), inlineImage && /* @__PURE__ */ React.createElement("figure", { className: "mt-4" }, /* @__PURE__ */ React.createElement("img", { src: inlineImage.src, alt: inlineImage.caption || "", className: "w-full rounded-2xl object-cover" }), inlineImage.caption && /* @__PURE__ */ React.createElement("figcaption", { className: "mt-2 text-center text-xs text-slate-400" }, inlineImage.caption))), vocabHighlights.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grid w-full flex-shrink-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap md:w-56" }, vocabHighlights.map((v, i) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: i, ...v }))));
+    return /* @__PURE__ */ React.createElement("div", { className: `flex flex-col gap-6 md:flex-row ${alignRight ? "md:flex-row-reverse" : ""} items-start` }, /* @__PURE__ */ React.createElement("div", { className: "w-full flex-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-3 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" }, index), heading && /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-slate-700" }, heading), /* @__PURE__ */ React.createElement("div", { className: "h-px flex-1 bg-slate-100" }), /* @__PURE__ */ React.createElement(SpeakButton, { text: fullText, rate: 0.85, label: "Cả đoạn" })), text && /* @__PURE__ */ React.createElement("p", { className: "leading-relaxed text-slate-700" }, text), lines && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, lines.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `flex items-start gap-3 ${l.who === speakers[0] ? "" : "flex-row-reverse text-right"}` }, /* @__PURE__ */ React.createElement("span", { className: `mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${l.who === speakers[0] ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"}` }, l.who), React.createElement(Cover, null, React.createElement("p", { className: "flex-1 leading-relaxed text-slate-700" }, l.line, " ", /* @__PURE__ */ React.createElement("button", { type: "button", disabled: !TTS_OK, onClick: () => speak(l.line, 0.85), className: "text-xs text-primary/70 hover:text-primary disabled:opacity-30", "aria-label": "Nghe câu này" }, "🔊")))))), inlineImage && /* @__PURE__ */ React.createElement("figure", { className: "mt-4" }, /* @__PURE__ */ React.createElement("img", { src: inlineImage.src, alt: inlineImage.caption || "", className: "w-full rounded-2xl object-cover" }), inlineImage.caption && /* @__PURE__ */ React.createElement("figcaption", { className: "mt-2 text-center text-xs text-slate-400" }, inlineImage.caption))), vocabHighlights.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grid w-full flex-shrink-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap md:w-56" }, vocabHighlights.map((v, i) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: i, ...v }))));
   }
+  // Bôi đen chữ trong bài → thanh nhỏ: in đậm, gạch chân, tô màu, chữ đỏ, bỏ định dạng, Dịch
   function SelectionTranslateTooltip({ containerRef }) {
     const [tooltip, setTooltip] = useState(null);
-    const btnRef = useRef(null);
     const readSelection = useCallback(() => {
       const sel = window.getSelection();
       const text = sel ? sel.toString().trim() : "";
-      if (!text || !containerRef.current || sel.rangeCount === 0) {
-        setTooltip(null);
-        return;
-      }
+      if (!text || !containerRef.current || sel.rangeCount === 0) { setTooltip(null); return; }
       const range = sel.getRangeAt(0);
-      if (!containerRef.current.contains(range.commonAncestorContainer)) {
-        setTooltip(null);
-        return;
-      }
+      if (!containerRef.current.contains(range.commonAncestorContainer)) { setTooltip(null); return; }
       const rect = range.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) {
-        setTooltip(null);
-        return;
-      }
-      setTooltip({
-        top: rect.bottom + window.scrollY + 10,
-        left: rect.left + window.scrollX + rect.width / 2,
-        text
-      });
+      if (rect.width === 0 && rect.height === 0) { setTooltip(null); return; }
+      const left = Math.min(Math.max(rect.left + rect.width / 2, 170), window.innerWidth - 170) + window.scrollX;
+      setTooltip({ top: rect.bottom + window.scrollY + 10, left, text, range: range.cloneRange() });
     }, [containerRef]);
     useEffect(() => {
       const onMouseUp = () => setTimeout(readSelection, 0);
       const onTouchEnd = () => setTimeout(readSelection, 10);
-      const onSelectionChange = () => {
-        const sel = window.getSelection();
-        if (!sel || sel.toString().trim() === "") setTooltip(null);
-      };
+      const onSelectionChange = () => { const sel = window.getSelection(); if (!sel || sel.toString().trim() === "") setTooltip(null); };
       document.addEventListener("mouseup", onMouseUp);
       document.addEventListener("touchend", onTouchEnd);
       document.addEventListener("selectionchange", onSelectionChange);
@@ -163,28 +148,20 @@
         document.removeEventListener("selectionchange", onSelectionChange);
       };
     }, [readSelection]);
-    const openTranslate = () => {
-      if (!tooltip) return;
-      const url = `https://translate.google.com/?sl=auto&tl=vi&text=${encodeURIComponent(tooltip.text)}&op=translate`;
-      window.open(url, "_blank", "noopener");
-    };
     if (!tooltip) return null;
-    return /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        ref: btnRef,
-        style: { position: "absolute", top: tooltip.top, left: tooltip.left, transform: "translateX(-50%)" },
-        className: "z-[60] flex flex-col items-center",
-        onClick: openTranslate,
-        onTouchEnd: (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          openTranslate();
-        }
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "-mb-1 text-sm leading-none text-primary" }, "▲"),
-      /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-premium" }, "Dịch")
-    );
+    const done = () => { try { window.getSelection().removeAllRanges(); } catch (e) {} setTooltip(null); };
+    const act = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
+    const openTranslate = () => window.open(`https://translate.google.com/?sl=auto&tl=vi&text=${encodeURIComponent(tooltip.text)}&op=translate`, "_blank", "noopener");
+    const E = React.createElement;
+    return E("div", { style: { position: "absolute", top: tooltip.top, left: tooltip.left, transform: "translateX(-50%)" }, className: "z-[60] flex flex-col items-center", onMouseDown: (e) => e.preventDefault() },
+      E("span", { className: "-mb-1 text-sm leading-none text-slate-800" }, "▲"),
+      E("div", { className: "flex items-center gap-0.5 rounded-full bg-slate-800 p-1 shadow-premium" },
+        HL_OK && MARKS.map((m) => E("button", { key: m.k, type: "button", title: m.title, "aria-label": m.title, onPointerDown: act(() => { markRange(m.k, tooltip.range); done(); }),
+          className: "flex h-8 w-8 items-center justify-center rounded-full text-sm text-white hover:bg-white/15" },
+          m.dot ? E("span", { className: "h-4 w-4 rounded-full ring-2 ring-white/60", style: { background: m.dot } }) : E("span", { className: m.cls }, m.label))),
+        HL_OK && E("button", { type: "button", title: "Bỏ định dạng", "aria-label": "Bỏ định dạng", onPointerDown: act(() => { unmarkRange(tooltip.range); done(); }), className: "flex h-8 w-8 items-center justify-center rounded-full text-sm text-white/70 hover:bg-white/15" }, "⌫"),
+        HL_OK && E("span", { className: "mx-0.5 h-5 w-px bg-white/25" }),
+        E("button", { type: "button", onPointerDown: act(openTranslate), className: "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white" }, "Dịch")));
   }
   function Section({ id, step, title, desc, children, sticker, band8 }) {
     const E = React.createElement;
@@ -961,9 +938,11 @@
   }
   function NotesLayer({ lessonId }) {
     const KEY = `night-notes-${lessonId}`;
+    // Ghi chú chỉ sống trong tab đang mở (sessionStorage): tải lại trang vẫn còn, đóng tab là mất.
     const [notes, setNotes] = useState(() => {
+      try { localStorage.removeItem(KEY); } catch (e) {}
       try {
-        return JSON.parse(localStorage.getItem(KEY)) || [];
+        return JSON.parse(sessionStorage.getItem(KEY)) || [];
       } catch (e) {
         return [];
       }
@@ -982,7 +961,7 @@
     const [storeFull, setStoreFull] = useState(false);
     useEffect(() => {
       try {
-        localStorage.setItem(KEY, JSON.stringify(notes));
+        sessionStorage.setItem(KEY, JSON.stringify(notes));
         setStoreFull(false);
       } catch (e) {
         setStoreFull(true);
@@ -1073,7 +1052,7 @@
   }
 
   function GrammarBlock({ index, name, forms = [], uses = [], examples = [], signals, note }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-4 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" }, index), /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-extrabold text-slate-900" }, name)), forms.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mb-4 grid gap-2 sm:grid-cols-3" }, forms.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-2xl bg-primary-light p-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-[11px] font-bold uppercase tracking-wide text-primary/70" }, f.label), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm font-semibold text-slate-800" }, rich(f.pattern))))), uses.length > 0 && /* @__PURE__ */ React.createElement("ul", { className: "mb-4 space-y-1.5" }, uses.map((u, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm leading-relaxed text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "text-primary" }, "▸"), /* @__PURE__ */ React.createElement("span", null, rich(u))))), examples.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, examples.map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, rich(e.en)), e.vi && /* @__PURE__ */ React.createElement("p", { className: "mt-0.5 text-xs text-slate-500" }, e.vi)), /* @__PURE__ */ React.createElement(SpeakButton, { text: String(e.en).replace(/\*/g, ""), rate: 0.85 })))), signals && /* @__PURE__ */ React.createElement("p", { className: "mt-4 text-xs text-slate-500" }, /* @__PURE__ */ React.createElement("b", { className: "text-slate-700" }, "Dấu hiệu:"), " ", rich(signals)), note && /* @__PURE__ */ React.createElement("p", { className: "mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note)));
+    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-4 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" }, index), /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-extrabold text-slate-900" }, name)), forms.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mb-4 grid gap-2 sm:grid-cols-3" }, forms.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-2xl bg-primary-light p-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-[11px] font-bold uppercase tracking-wide text-primary/70" }, f.label), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm font-semibold text-slate-800" }, rich(f.pattern))))), uses.length > 0 && /* @__PURE__ */ React.createElement("ul", { className: "mb-4 space-y-1.5" }, uses.map((u, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm leading-relaxed text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "text-primary" }, "▸"), /* @__PURE__ */ React.createElement("span", null, rich(u))))), examples.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, examples.map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, rich(e.en)), e.vi && React.createElement(Cover, null, React.createElement("p", { className: "mt-0.5 text-xs text-slate-500" }, e.vi))), /* @__PURE__ */ React.createElement(SpeakButton, { text: String(e.en).replace(/\*/g, ""), rate: 0.85 })))), signals && /* @__PURE__ */ React.createElement("p", { className: "mt-4 text-xs text-slate-500" }, /* @__PURE__ */ React.createElement("b", { className: "text-slate-700" }, "Dấu hiệu:"), " ", rich(signals)), note && /* @__PURE__ */ React.createElement("p", { className: "mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note)));
   }
   function ChoiceQuiz({ items = [] }) {
     const [picked, setPicked] = useState({});
@@ -1195,8 +1174,8 @@
         h("p", { className: "text-sm leading-relaxed text-slate-700" }, rich(items[open].short)),
         items[open].check && h("ul", { className: "mt-3 space-y-1.5" }, items[open].check.map((b, k) => h("li", { key: k, className: "flex gap-2 text-sm text-slate-700" }, h("span", { className: "text-primary" }, "✓"), h("span", null, rich(b))))),
         h("div", { className: "mt-4 grid gap-3 sm:grid-cols-2" },
-          h("div", { className: "rounded-2xl bg-slate-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-slate-500" }, labels[0]), h("p", { className: "mt-1 text-sm leading-relaxed text-slate-700" }, rich(items[open].band5))),
-          h("div", { className: "rounded-2xl bg-emerald-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-emerald-700" }, labels[1]), h("p", { className: "mt-1 text-sm leading-relaxed text-slate-800" }, rich(items[open].band6))))),
+          h("div", { className: "rounded-2xl bg-slate-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-slate-500" }, labels[0]), h(Cover, null, h("p", { className: "mt-1 text-sm leading-relaxed text-slate-700" }, rich(items[open].band5)))),
+          h("div", { className: "rounded-2xl bg-emerald-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-emerald-700" }, labels[1]), h(Cover, null, h("p", { className: "mt-1 text-sm leading-relaxed text-slate-800" }, rich(items[open].band6)))))),
       note && h("p", { className: "mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note))
     );
   }
@@ -1219,7 +1198,7 @@
           h(SpeakButton, { text: ex.q })),
         h("div", { className: "mt-3 space-y-2" }, ex.parts.map((p, k) => h("div", { key: k, className: "flex items-start gap-2" },
           h("span", { className: `mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${colorOf(p.tag)}` }, p.tag),
-          h("p", { className: "text-sm leading-relaxed text-slate-800" }, rich(p.text))))),
+          h(Cover, null, h("p", { className: "text-sm leading-relaxed text-slate-800" }, rich(p.text)))))),
         h("div", { className: "mt-3" }, h(SpeakButton, { text: ex.parts.map((p) => String(p.text).replace(/\*/g, "")).join(" "), label: "Nghe cả câu trả lời", rate: 0.9 })))),
       note && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note))
     );
@@ -1457,8 +1436,9 @@
         const t = TONES[v.tone] || TONES.ok;
         return h("div", { key: i, className: `flex flex-col rounded-3xl border-2 p-5 ${t[0]}` },
           h("span", { className: `self-start rounded-full px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wide ${t[1]}` }, v.label),
-          h("p", { className: "mt-3 text-sm leading-relaxed text-slate-800" }, rich(v.text)),
-          v.comment && h("p", { className: "mt-auto border-t border-slate-200/70 pt-3 text-xs leading-relaxed text-slate-600" }, "💬 ", rich(v.comment)));
+          h("div", { className: "mt-3 flex flex-1 flex-col" }, h(Cover, null, h("div", null,
+            h("p", { className: "text-sm leading-relaxed text-slate-800" }, rich(v.text)),
+            v.comment && h("p", { className: "mt-3 border-t border-slate-200/70 pt-3 text-xs leading-relaxed text-slate-600" }, "💬 ", rich(v.comment))))));
       })),
       takeaway && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm leading-relaxed text-amber-900" }, "💡 ", rich(takeaway)));
   }
@@ -2325,28 +2305,323 @@
     if (!link || !ok) return /* @__PURE__ */ React.createElement("span", { className: "min-w-[6rem]" });
     return /* @__PURE__ */ React.createElement("a", { href: link.href, className: `rounded-full px-4 py-2 text-sm font-semibold ${className}` }, children);
   }
+  /* ===================== CÔNG CỤ GIẢNG DẠY (nút 🎓 góc trái dưới) =====================
+     ✏️ Bút vẽ đè (phím D, Z = hoàn tác) · 📽 Trình chiếu (P, ←/→) · 🙈 Che đáp án (C, N = mở câu kế tiếp) · ⏱ Đồng hồ (T)
+     · Bôi đen chữ → in đậm / gạch chân / tô màu / chữ đỏ (dùng CSS Highlight API, không sửa nội dung trang).
+     KHÔNG lưu gì: đóng hoặc tải lại trang là sạch, hôm sau dạy lớp khác. */
+  const TeachCtx = React.createContext({ cover: false, gen: 0, all: false });
+  function Cover({ children, className = "" }) {
+    const { cover, gen, all } = React.useContext(TeachCtx);
+    const [open, setOpen] = useState(false);
+    useEffect(() => { setOpen(false); }, [gen]);
+    if (!cover || open || all) return children;
+    return h("div", { role: "button", tabIndex: 0, "data-night-cover": "1", title: "Bấm để mở",
+      onClick: (e) => { e.stopPropagation(); setOpen(true); }, onKeyDown: (e) => { if (e.key === "Enter") setOpen(true); },
+      className: `group relative min-w-0 flex-1 cursor-pointer rounded-xl ${className}` },
+      h("div", { "aria-hidden": "true", className: "pointer-events-none select-none opacity-30 blur-[6px]" }, children),
+      h("span", { className: "absolute inset-0 flex items-center justify-center" },
+        h("span", { className: "rounded-full bg-slate-800/85 px-3 py-1 text-[11px] font-bold text-white shadow group-hover:bg-primary" }, "👆 Bấm để mở")));
+  }
+  function revealNextCover() {
+    const els = [...document.querySelectorAll("[data-night-cover]")];
+    if (!els.length) return;
+    const el = els.find((x) => x.getBoundingClientRect().bottom > 70) || els[0];
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    el.click();
+  }
+
+  // Định dạng tạm khi bôi đen
+  const HL_OK = typeof CSS !== "undefined" && !!CSS.highlights && typeof Highlight !== "undefined";
+  const MARKS = [
+    { k: "night-b", label: "B", title: "In đậm", cls: "font-black" },
+    { k: "night-u", label: "U", title: "Gạch chân", cls: "underline decoration-rose-400 decoration-2 underline-offset-2" },
+    { k: "night-hy", title: "Tô vàng", dot: "#fde047" },
+    { k: "night-hg", title: "Tô xanh", dot: "#86efac" },
+    { k: "night-hp", title: "Tô hồng", dot: "#f9a8d4" },
+    { k: "night-red", label: "A", title: "Chữ đỏ", cls: "font-black text-rose-400" }
+  ];
+  const MARK_CSS = `
+  ::highlight(night-b) { color: #0b1020; text-shadow: .4px 0 0 currentColor, -.4px 0 0 currentColor, 0 0 .6px currentColor; }
+  ::highlight(night-u) { text-decoration-line: underline; text-decoration-color: #e11d48; text-decoration-thickness: 3px; }
+  ::highlight(night-hy) { background-color: rgba(253, 224, 71, .7); }
+  ::highlight(night-hg) { background-color: rgba(134, 239, 172, .75); }
+  ::highlight(night-hp) { background-color: rgba(249, 168, 212, .75); }
+  ::highlight(night-red) { color: #dc2626; }
+  html.night-present { font-size: 18px; }
+  @media (min-width: 1280px) { html.night-present { font-size: 20px; } }
+  html.night-present body { padding-bottom: 5rem; }
+`;
+  function markRange(k, range) {
+    if (!HL_OK || !range) return;
+    let hl = CSS.highlights.get(k);
+    if (!hl) { hl = new Highlight(); CSS.highlights.set(k, hl); }
+    hl.add(range.cloneRange());
+  }
+  const rangesTouch = (a, b) => a.compareBoundaryPoints(Range.END_TO_START, b) < 0 && a.compareBoundaryPoints(Range.START_TO_END, b) > 0;
+  function unmarkRange(range) {
+    if (!HL_OK || !range) return;
+    MARKS.forEach((m) => { const hl = CSS.highlights.get(m.k); if (!hl) return; [...hl].forEach((r) => { try { if (rangesTouch(r, range)) hl.delete(r); } catch (e) {} }); });
+  }
+  function clearMarks() { if (HL_OK) MARKS.forEach((m) => CSS.highlights.delete(m.k)); }
+
+  // Đồng hồ
+  function beep() {
+    try {
+      const C = window.AudioContext || window.webkitAudioContext; const ctx = new C();
+      [0, 0.4, 0.8].forEach((t) => {
+        const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+        const t0 = ctx.currentTime + t;
+        g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+        o.start(t0); o.stop(t0 + 0.32);
+      });
+    } catch (e) {}
+  }
+  const mmss = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  function TeachTimer({ onClose }) {
+    const [total, setTotal] = useState(20 * 60);
+    const [left, setLeft] = useState(20 * 60);
+    const [run, setRun] = useState(false);
+    const [big, setBig] = useState(false);
+    const endAt = useRef(0);
+    const leftRef = useRef(left); leftRef.current = left;
+    useEffect(() => {
+      if (!run) return;
+      endAt.current = Date.now() + leftRef.current * 1000;
+      const id = setInterval(() => {
+        const l = Math.max(0, Math.round((endAt.current - Date.now()) / 1000));
+        setLeft(l);
+        if (l === 0) { setRun(false); beep(); }
+      }, 250);
+      return () => clearInterval(id);
+    }, [run]);
+    const preset = (m) => { setRun(false); setTotal(m * 60); setLeft(m * 60); };
+    const adjust = (d) => {
+      if (run) { endAt.current = Math.max(Date.now(), endAt.current + d * 60000); }
+      setLeft((l) => Math.max(0, l + d * 60)); setTotal((t) => Math.max(60, t + d * 60));
+    };
+    const tone = left === 0 ? "text-rose-600 animate-pulse" : left <= 60 ? "text-rose-600" : left <= total * 0.2 ? "text-amber-600" : "text-slate-900";
+    const bar = left <= 60 ? "bg-rose-500" : left <= total * 0.2 ? "bg-amber-500" : "bg-primary";
+    const pct = total ? (left / total) * 100 : 0;
+    if (big) return h("div", { className: "fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 bg-white/95 backdrop-blur", onClick: () => setBig(false) },
+      h("p", { className: `font-extrabold tabular-nums leading-none ${tone}`, style: { fontSize: "min(28vw, 40vh)" } }, mmss(left)),
+      h("div", { className: "h-3 w-3/4 max-w-3xl overflow-hidden rounded-full bg-slate-200" }, h("div", { className: `h-full ${bar} transition-all`, style: { width: pct + "%" } })),
+      h("div", { className: "flex gap-3", onClick: (e) => e.stopPropagation() },
+        h("button", { onClick: () => setRun(!run), className: "rounded-full bg-primary px-8 py-3 text-lg font-bold text-white" }, run ? "Tạm dừng" : left === 0 ? "Hết giờ" : "Bắt đầu"),
+        h("button", { onClick: () => setBig(false), className: "rounded-full bg-slate-100 px-6 py-3 text-lg font-bold text-slate-600" }, "Thu nhỏ")));
+    return h("div", { className: "fixed right-3 top-14 z-[56] w-60 rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-floating backdrop-blur" },
+      h("div", { className: "flex items-center justify-between" },
+        h("span", { className: "text-[11px] font-bold uppercase tracking-wider text-slate-400" }, "⏱ Đồng hồ"),
+        h("button", { onClick: onClose, className: "rounded-full px-2 text-slate-400 hover:bg-slate-100", "aria-label": "Đóng đồng hồ" }, "✕")),
+      h("button", { onClick: () => setBig(true), title: "Phóng to", className: `mt-1 block w-full text-center text-5xl font-extrabold tabular-nums ${tone}` }, mmss(left)),
+      h("div", { className: "mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100" }, h("div", { className: `h-full ${bar} transition-all`, style: { width: pct + "%" } })),
+      h("div", { className: "mt-3 grid grid-cols-6 gap-1" }, [1, 2, 5, 10, 20, 40].map((m) => h("button", { key: m, onClick: () => preset(m), className: `rounded-lg py-1 text-xs font-bold ${total === m * 60 ? "bg-primary text-white" : "bg-slate-100 text-slate-600 hover:bg-primary-light"}` }, m, "'"))),
+      h("div", { className: "mt-2 flex items-center gap-1" },
+        h("button", { onClick: () => adjust(-1), className: "rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-bold text-slate-600" }, "−1'"),
+        h("button", { onClick: () => setRun(!run), disabled: left === 0 && !run, className: "flex-1 rounded-lg bg-primary py-1.5 text-sm font-bold text-white disabled:opacity-50" }, run ? "Tạm dừng" : "Bắt đầu"),
+        h("button", { onClick: () => adjust(1), className: "rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-bold text-slate-600" }, "+1'"),
+        h("button", { onClick: () => { setRun(false); setLeft(total); }, title: "Đặt lại", className: "rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-bold text-slate-600" }, "↺")));
+  }
+
+  // Bút vẽ đè: nét lưu theo toạ độ trang nên cuộn trang thì nét đi theo nội dung
+  const PEN = { red: "#e11d48", blue: "#2563eb", green: "#16a34a", black: "#0f172a" };
+  function DrawLayer({ on, tool, color, pageKey, cmd }) {
+    const cv = useRef(null), store = useRef({}), cur = useRef(null), raf = useRef(0);
+    const list = () => (store.current[pageKey] = store.current[pageKey] || []);
+    const redraw = () => {
+      cancelAnimationFrame(raf.current);
+      raf.current = requestAnimationFrame(() => {
+        const c = cv.current; if (!c) return;
+        const dpr = window.devicePixelRatio || 1, w = window.innerWidth, hh = window.innerHeight;
+        if (c.width !== Math.round(w * dpr) || c.height !== Math.round(hh * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(hh * dpr); }
+        const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, hh);
+        const sx = window.scrollX, sy = window.scrollY;
+        (cur.current ? [...list(), cur.current] : list()).forEach((s) => {
+          g.save(); g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = s.color; g.lineWidth = s.w; g.globalAlpha = s.a;
+          if (s.hl) g.globalCompositeOperation = "multiply";
+          g.beginPath();
+          s.pts.forEach((p, i) => (i ? g.lineTo(p[0] - sx, p[1] - sy) : g.moveTo(p[0] - sx, p[1] - sy)));
+          if (s.pts.length === 1) g.lineTo(s.pts[0][0] - sx + 0.1, s.pts[0][1] - sy);
+          g.stroke(); g.restore();
+        });
+      });
+    };
+    useEffect(() => {
+      window.addEventListener("scroll", redraw, { passive: true }); window.addEventListener("resize", redraw);
+      redraw();
+      return () => { window.removeEventListener("scroll", redraw); window.removeEventListener("resize", redraw); };
+    }, [pageKey]);
+    useEffect(() => {
+      if (!cmd) return;
+      if (cmd.t === "undo") list().pop();
+      if (cmd.t === "clear") store.current[pageKey] = [];
+      if (cmd.t === "clearAll") store.current = {};
+      redraw();
+    }, [cmd]);
+    const pt = (e) => [e.clientX + window.scrollX, e.clientY + window.scrollY];
+    const erase = (p) => { store.current[pageKey] = list().filter((s) => !s.pts.some((q) => Math.abs(q[0] - p[0]) < 16 && Math.abs(q[1] - p[1]) < 16)); redraw(); };
+    const down = (e) => {
+      if (!on) return; e.preventDefault();
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+      const p = pt(e);
+      if (tool === "erase") { cur.current = { erasing: true }; erase(p); return; }
+      const hl = tool === "hl";
+      cur.current = { pts: [p], color: hl ? "#facc15" : PEN[color] || PEN.red, w: hl ? 22 : 3.5, a: hl ? 0.4 : 1, hl };
+      redraw();
+    };
+    const move = (e) => {
+      if (!on || !cur.current) return;
+      const p = pt(e);
+      if (cur.current.erasing) { erase(p); return; }
+      cur.current.pts.push(p); redraw();
+    };
+    const up = () => { if (cur.current && !cur.current.erasing && cur.current.pts) list().push(cur.current); cur.current = null; redraw(); };
+    return h("canvas", { ref: cv, onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up,
+      style: { position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 45, pointerEvents: on ? "auto" : "none", touchAction: on ? "none" : "auto", cursor: on ? (tool === "erase" ? "cell" : "crosshair") : "default" } });
+  }
+
+  // Thanh công cụ giảng dạy
+  function TeachBar({ t, set, present, onPresent, onClearAll, hasMarks }) {
+    const btn = (active, onClick, icon, label, key, extra = "") => h("button", { onClick, title: `${label} (phím ${key})`,
+      className: `flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm font-semibold transition ${active ? "bg-primary text-white shadow-premium" : "bg-white text-slate-700 hover:bg-primary-light"} ${extra}` },
+      h("span", { className: "w-5 text-center" }, icon), h("span", { className: "flex-1" }, label), h("kbd", { className: `rounded px-1.5 text-[10px] font-bold ${active ? "bg-white/20" : "bg-slate-100 text-slate-400"}` }, key));
+    return h("div", { className: "fixed z-[57] flex flex-col items-start gap-2", style: { left: "max(12px, env(safe-area-inset-left, 0px))", bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" } },
+      t.open && h("div", { className: "w-60 space-y-1.5 rounded-3xl border border-slate-200 bg-slate-50/95 p-2.5 shadow-floating backdrop-blur" },
+        h("p", { className: "px-2 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400" }, "Công cụ giảng dạy"),
+        btn(t.draw, () => set({ draw: !t.draw }), "✏️", "Bút vẽ", "D"),
+        t.draw && h("div", { className: "flex flex-wrap items-center gap-1.5 rounded-2xl bg-white p-2" },
+          Object.entries(PEN).map(([k, c]) => h("button", { key: k, onClick: () => set({ tool: "pen", color: k }), "aria-label": "Bút " + k,
+            className: `h-7 w-7 rounded-full ring-offset-2 ${t.tool === "pen" && t.color === k ? "ring-2 ring-slate-500" : ""}`, style: { background: c } })),
+          h("button", { onClick: () => set({ tool: "hl" }), title: "Bút dạ quang", className: `h-7 rounded-full px-2 text-xs font-bold ${t.tool === "hl" ? "bg-yellow-300 ring-2 ring-slate-500 ring-offset-2" : "bg-yellow-200"}` }, "🖍"),
+          h("button", { onClick: () => set({ tool: "erase" }), title: "Tẩy (quẹt lên nét)", className: `h-7 rounded-full px-2 text-xs font-bold ${t.tool === "erase" ? "bg-slate-700 text-white" : "bg-slate-100"}` }, "🧽"),
+          h("button", { onClick: () => set({ cmd: { t: "undo", n: Date.now() } }), title: "Hoàn tác (Z)", className: "h-7 rounded-full bg-slate-100 px-2 text-xs font-bold" }, "↶"),
+          h("button", { onClick: () => set({ cmd: { t: "clear", n: Date.now() } }), title: "Xoá nét vẽ ở trang này", className: "h-7 rounded-full bg-slate-100 px-2 text-xs font-bold text-rose-600" }, "Xoá")),
+        btn(present, onPresent, "📽", present ? "Thoát trình chiếu" : "Trình chiếu", "P"),
+        btn(t.cover, () => set(t.cover ? { cover: false } : { cover: true, gen: t.gen + 1, all: false }), "🙈", "Che đáp án", "C"),
+        t.cover && h("div", { className: "flex gap-1.5 px-1" },
+          h("button", { onClick: revealNextCover, className: "flex-1 rounded-xl bg-white py-1.5 text-xs font-bold text-primary" }, "Mở câu kế (N)"),
+          h("button", { onClick: () => set({ all: true }), className: "flex-1 rounded-xl bg-white py-1.5 text-xs font-bold text-slate-600" }, "Mở hết"),
+          h("button", { onClick: () => set({ gen: t.gen + 1, all: false }), className: "rounded-xl bg-white px-2 py-1.5 text-xs font-bold text-slate-600", title: "Che lại tất cả" }, "↺")),
+        btn(t.timer, () => set({ timer: !t.timer }), "⏱", "Đồng hồ", "T"),
+        h("button", { onClick: onClearAll, className: "w-full rounded-2xl px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50" }, "🧹 Xoá hết đánh dấu & nét vẽ"),
+        h("p", { className: "px-2 pb-1 text-[10px] leading-relaxed text-slate-400" }, HL_OK ? "Bôi đen chữ để in đậm, gạch chân, tô màu. " : "", "Không lưu gì: đóng trang là sạch.")),
+      h("button", { onClick: () => set({ open: !t.open }), title: "Công cụ giảng dạy", "aria-label": "Công cụ giảng dạy",
+        className: `flex h-12 w-12 items-center justify-center rounded-full text-xl shadow-premium transition ${t.open || t.draw || t.cover || present ? "bg-primary text-white" : "bg-white text-primary hover:bg-primary-light"}` }, "🎓"));
+  }
   function LessonApp({ lesson }) {
     const readingRef = useRef(null);
     const [accent, setAccent] = useState(ACCENT);
-    const changeAccent = (a) => {
-      ACCENT = a;
-      setAccent(a);
-    };
+    const changeAccent = (a) => { ACCENT = a; setAccent(a); };
     const sections = lesson.sections || [];
     const B8KEY = `night-${courseKeyOf(lesson)}-${lesson.id}-band8`;
     const [b8open, setB8open] = useState(() => lsGet(B8KEY, false) || /^#b8-|^#band8$/.test(location.hash) || sections.some((x) => x.band8 && location.hash === "#" + x.id));
     const setB8 = (v) => { setB8open(v); lsSet(B8KEY, v); };
     const navClick = (s) => (e) => { if (s.band8 && !b8open) { e.preventDefault(); setB8(true); setTimeout(() => { const el = document.getElementById(s.id); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 60); } };
-    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, onClick: navClick(s), className: `flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${s.band8 ? "text-amber-600 hover:bg-amber-50" : "text-slate-500 hover:bg-primary-light hover:text-primary"}` }, s.band8 ? "★ " : "", s.nav || s.title)), h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "ml-auto flex-shrink-0 rounded-full bg-primary-light px-3 py-1.5 text-xs font-bold text-primary hover:bg-indigo-100" }, "🖨 In / PDF"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, (() => {
-      const out = []; let gateDone = false;
-      const b8count = sections.filter((x) => x.band8).length;
-      sections.forEach((s, i) => {
-        if (s.band8 && !gateDone) { gateDone = true; out.push(h(Band8Gate, { key: "band8-gate", open: b8open, onToggle: () => setB8(!b8open), info: lesson.band8, count: b8count })); }
-        if (s.band8 && !b8open) return;
-        out.push(h(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc, sticker: s.sticker, band8: s.band8 }, h(SectionBody, { s, lesson })));
+
+    // Công cụ giảng dạy — chỉ giữ trong bộ nhớ, không lưu
+    const [t, setT] = useState({ open: false, draw: false, tool: "pen", color: "red", cover: false, gen: 0, all: false, timer: false, cmd: null });
+    const set = (patch) => setT((o) => ({ ...o, ...patch }));
+    const [present, setPresent] = useState(false);
+    const [slide, setSlide] = useState(0);
+
+    // Danh sách "trang" theo đúng thứ tự hiển thị: tiêu đề, các phần, cổng Band 8, các phần Band 8 (nếu đã mở)
+    const items = [];
+    let gateDone = false;
+    const b8count = sections.filter((x) => x.band8).length;
+    sections.forEach((s, i) => {
+      if (s.band8 && !gateDone) { gateDone = true; items.push({ k: "gate", label: "Band 8" }); }
+      if (s.band8 && !b8open) return;
+      items.push({ k: "sec", s, i, label: s.nav || s.title });
+    });
+    const slides = [{ k: "title", label: lesson.title }, ...items];
+    const cur = Math.min(slide, slides.length - 1);
+    const go = (d) => setSlide((x) => Math.max(0, Math.min(slides.length - 1, Math.min(x, slides.length - 1) + d)));
+    const togglePresent = () => {
+      setPresent((p) => {
+        const np = !p;
+        if (np) {
+          // bắt đầu từ phần đang xem
+          const ids = slides.map((x) => (x.k === "sec" ? x.s.id : x.k === "gate" ? "band8" : null));
+          let start = 0;
+          ids.forEach((id, k) => { const el = id && document.getElementById(id); if (el && el.getBoundingClientRect().top < window.innerHeight * 0.4) start = k; });
+          setSlide(start);
+        }
+        return np;
       });
-      return out;
-    })()), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), h(LiveCaptions, null), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
+    };
+    useEffect(() => {
+      document.documentElement.classList.toggle("night-present", present);
+      window.scrollTo(0, 0);
+      if (!present && document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) {} }
+    }, [present]);
+    useEffect(() => { if (present) window.scrollTo(0, 0); }, [cur, present]);
+    const fullscreen = () => { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} };
+    const clearAll = () => { clearMarks(); set({ cmd: { t: "clearAll", n: Date.now() } }); };
+
+    // Phím tắt (bỏ qua khi đang gõ chữ)
+    const keyRef = useRef(null);
+    keyRef.current = (e) => {
+      const tg = e.target;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (tg && (tg.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(tg.tagName))) return;
+      const k = e.key;
+      if (k === "d" || k === "D") set({ draw: !t.draw });
+      else if (k === "p" || k === "P") togglePresent();
+      else if (k === "c" || k === "C") set(t.cover ? { cover: false } : { cover: true, gen: t.gen + 1, all: false });
+      else if ((k === "n" || k === "N") && t.cover) revealNextCover();
+      else if (k === "t" || k === "T") set({ timer: !t.timer });
+      else if ((k === "z" || k === "Z") && t.draw) set({ cmd: { t: "undo", n: Date.now() } });
+      else if (k === "Escape") { if (t.draw) set({ draw: false }); else if (present) setPresent(false); }
+      else if (present && (k === "ArrowRight" || k === "PageDown")) { e.preventDefault(); go(1); }
+      else if (present && (k === "ArrowLeft" || k === "PageUp")) { e.preventDefault(); go(-1); }
+      else return;
+    };
+    useEffect(() => { const f = (e) => keyRef.current(e); window.addEventListener("keydown", f); return () => window.removeEventListener("keydown", f); }, []);
+
+    const renderItem = (it) => it.k === "gate"
+      ? h(Band8Gate, { key: "band8-gate", open: b8open, onToggle: () => setB8(!b8open), info: lesson.band8, count: b8count })
+      : h(Section, { key: it.s.id, id: it.s.id, step: String(it.i + 1).padStart(2, "0"), title: it.s.title, desc: it.s.desc, sticker: it.s.sticker, band8: it.s.band8 }, h(SectionBody, { s: it.s, lesson }));
+    const showTitle = !present || slides[cur].k === "title";
+
+    return h(TeachCtx.Provider, { value: { cover: t.cover, gen: t.gen, all: t.all } },
+      h("div", { className: "relative min-h-screen pb-24" },
+        !present && h("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" },
+          h("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" },
+            sections.map((s) => h("a", { key: s.id, href: `#${s.id}`, onClick: navClick(s), className: `flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${s.band8 ? "text-amber-600 hover:bg-amber-50" : "text-slate-500 hover:bg-primary-light hover:text-primary"}` }, s.band8 ? "★ " : "", s.nav || s.title)),
+            h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "ml-auto flex-shrink-0 rounded-full bg-primary-light px-3 py-1.5 text-xs font-bold text-primary hover:bg-indigo-100" }, "🖨 In / PDF"),
+            h("div", { className: "flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => h("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))),
+        showTitle && h("header", { className: `mx-auto max-w-3xl px-4 text-center ${present ? "pt-16" : "pt-10"}` },
+          h("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"),
+          h("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" },
+            h("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course),
+            h("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)),
+          h("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title),
+          h("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)),
+        showTitle && lesson.goals && h("div", { className: "mx-auto mt-8 max-w-3xl px-4" },
+          h("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" },
+            h("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"),
+            h("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => h("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, h("span", { className: "font-bold text-primary" }, i + 1, "."), h("span", null, rich(g))))),
+            !TTS_OK && h("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))),
+        h("main", { ref: readingRef, className: `mx-auto max-w-4xl space-y-16 px-4 ${present ? "mt-10" : "mt-12"}` },
+          present ? (slides[cur].k === "title" ? null : renderItem(slides[cur])) : items.map(renderItem)),
+        h(SelectionTranslateTooltip, { containerRef: readingRef }),
+        h(NotesLayer, { lessonId: lesson.id }),
+        h(LiveCaptions, null),
+        !present && h("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" },
+          h("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" },
+            h(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label),
+            h("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"),
+            h(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")),
+          h("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")),
+        present && h("div", { className: "fixed inset-x-0 z-[50] flex justify-center px-20", style: { bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" } },
+          h("div", { className: "flex max-w-full items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-floating backdrop-blur" },
+            h("button", { onClick: () => go(-1), disabled: cur === 0, "aria-label": "Phần trước", className: "rounded-full px-4 py-2 text-lg font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-30" }, "←"),
+            h("span", { className: "min-w-0 truncate px-2 text-xs font-semibold text-slate-500" }, h("b", { className: "text-primary" }, cur + 1, " / ", slides.length), " · ", slides[cur].label),
+            h("button", { onClick: () => go(1), disabled: cur === slides.length - 1, "aria-label": "Phần sau", className: "rounded-full bg-primary px-4 py-2 text-lg font-bold text-white disabled:opacity-30" }, "→"),
+            h("button", { onClick: fullscreen, title: "Toàn màn hình", className: "hidden rounded-full px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 sm:block" }, "⛶"),
+            h("button", { onClick: () => setPresent(false), title: "Thoát trình chiếu (Esc)", className: "rounded-full px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100" }, "✕"))),
+        h(DrawLayer, { on: t.draw, tool: t.tool, color: t.color, pageKey: present ? "slide-" + cur : "page", cmd: t.cmd }),
+        t.timer && h(TeachTimer, { onClose: () => set({ timer: false }) }),
+        h(TeachBar, { t, set, present, onPresent: togglePresent, onClearAll: clearAll })));
   }
   const ENGINE_CSS = `
   body { font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -2383,7 +2658,7 @@
   window.NightLesson = {
     render(lesson) {
       const style = document.createElement("style");
-      style.textContent = ENGINE_CSS;
+      style.textContent = ENGINE_CSS + MARK_CSS;
       document.head.appendChild(style);
       if (!document.querySelector("link[data-night-font]")) {
         const link = document.createElement("link");
