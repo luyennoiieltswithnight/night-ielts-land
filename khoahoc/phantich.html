@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night Lens — Phân tích Reading & Listening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   NIGHT LENS — engine phân tích Reading / Listening
+   1) Copy prompt → dán vào ChatGPT (kèm bài đọc / transcript)
+   2) Dán JSON GPT trả về → "Hoàn thành" → giao diện trình chiếu
+   3) In / Lưu PDF với các tuỳ chọn
+   Ảnh minh hoạ: 100% Irasutoya trong khoahoc/img/ira/
+   Dữ liệu bài lưu trong trình duyệt (thư viện) + xuất / nhập file .json
+   ============================================================ */
+:root {
+  --bg: #eef1f8; --ink: #0f172a; --soft: #64748b; --line: #e2e8f0;
+  --pri: #4338ca; --pri2: #6366f1; --pri-l: #eef2ff;
+  --amber: #f59e0b; --amber-l: #fffbeb; --rose: #e11d48; --emer: #059669;
+  --card: rgba(255,255,255,.86);
+  --shadow: 0 18px 40px -22px rgba(30,41,59,.45);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--ink); background:
+  radial-gradient(1200px 600px at -10% -10%, #e0e7ff 0%, transparent 60%),
+  radial-gradient(900px 500px at 110% 0%, #fde68a55 0%, transparent 55%), var(--bg); min-height: 100vh; }
+button { font: inherit; cursor: pointer; }
+input, textarea, select { font: inherit; }
+img { -webkit-user-drag: none; }
+.hidden { display: none !important; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 80px; }
+.brand { font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--pri); }
+h1.big { font-size: clamp(26px, 4vw, 38px); font-weight: 800; margin: 6px 0 4px; line-height: 1.15; }
+.lead { color: var(--soft); margin: 0; font-size: 15px; }
+.glass { background: var(--card); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.9); border-radius: 26px; box-shadow: var(--shadow); }
+.btn { border: 0; border-radius: 999px; padding: 10px 18px; font-weight: 800; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; transition: transform .12s, box-shadow .12s, background .12s; }
+.btn:active { transform: scale(.97); }
+.btn.main { background: var(--pri); color: #fff; box-shadow: 0 10px 22px -10px rgba(67,56,202,.8); }
+.btn.main:hover { background: #3730a3; }
+.btn.ghost { background: #f1f5f9; color: #334155; }
+.btn.ghost:hover { background: #e2e8f0; }
+.btn.amber { background: var(--amber); color: #fff; box-shadow: 0 10px 22px -10px rgba(245,158,11,.9); }
+.btn.sm { padding: 6px 12px; font-size: 12.5px; }
+.btn.danger { background: #fff1f2; color: var(--rose); }
+.seg { display: inline-flex; background: #f1f5f9; border-radius: 999px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; padding: 7px 14px; border-radius: 999px; font-weight: 700; font-size: 13px; color: #64748b; }
+.seg button.on { background: #fff; color: var(--pri); box-shadow: 0 1px 4px rgba(0,0,0,.14); }
+.lbl { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: .06em; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer; }
+.chk input { accent-color: var(--pri); width: 16px; height: 16px; }
+
+/* ---------- Trang chủ ---------- */
+.hero { display: flex; gap: 18px; align-items: center; margin-bottom: 22px; }
+.hero img { width: 110px; height: 110px; object-fit: contain; flex: none; filter: drop-shadow(0 10px 14px rgba(0,0,0,.12)); }
+.steps { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 860px) { .steps { grid-template-columns: 1fr; } .hero img { width: 76px; height: 76px; } }
+.step { padding: 22px; position: relative; }
+.step h2 { margin: 0 0 4px; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.step h2 .n { width: 30px; height: 30px; border-radius: 10px; background: var(--pri); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; }
+.step .stk { position: absolute; top: -18px; right: 14px; width: 74px; height: 74px; object-fit: contain; pointer-events: none; }
+.step p.d { color: var(--soft); font-size: 14px; margin: 0 0 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 10px 0; }
+.modepick { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 6px 0 12px; }
+.modepick button { border: 2px solid var(--line); background: #fff; border-radius: 20px; padding: 12px; display: flex; gap: 10px; align-items: center; text-align: left; transition: .15s; }
+.modepick button img { width: 54px; height: 54px; object-fit: contain; }
+.modepick button b { display: block; font-size: 16px; }
+.modepick button span { font-size: 12px; color: var(--soft); }
+.modepick button.on { border-color: var(--pri); background: var(--pri-l); box-shadow: 0 8px 20px -14px var(--pri); }
+.howto { background: var(--amber-l); border: 1px solid #fde68a; border-radius: 16px; padding: 10px 14px; font-size: 13px; color: #78350f; margin-top: 12px; }
+.howto ol { margin: 4px 0 0 18px; padding: 0; }
+textarea.big { width: 100%; min-height: 190px; border: 1.5px solid var(--line); border-radius: 18px; padding: 12px 14px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: #fff; resize: vertical; outline: none; }
+textarea.big:focus { border-color: var(--pri2); box-shadow: 0 0 0 4px #e0e7ff; }
+.err { color: var(--rose); font-weight: 700; font-size: 13px; margin-top: 8px; white-space: pre-wrap; }
+.ok { color: var(--emer); font-weight: 700; font-size: 13px; margin-top: 8px; }
+details.peek summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--pri); margin-top: 10px; }
+details.peek textarea { min-height: 220px; margin-top: 8px; }
+.lib { margin-top: 22px; padding: 22px; }
+.lib h2 { margin: 0; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.lib h2 img { width: 44px; height: 44px; object-fit: contain; }
+.libgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
+.libcard { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.libcard .t { font-weight: 800; font-size: 15px; line-height: 1.3; }
+.libcard .m { font-size: 12px; color: var(--soft); }
+.libcard .thumbs { display: flex; gap: 4px; }
+.libcard .thumbs img { width: 34px; height: 34px; object-fit: contain; background: #f8fafc; border-radius: 8px; }
+.libcard .acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.empty { color: var(--soft); font-size: 14px; padding: 18px; text-align: center; border: 2px dashed var(--line); border-radius: 18px; margin-top: 14px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
+.pill.read { background: #eef2ff; color: var(--pri); }
+.pill.listen { background: #fdf2f8; color: #be185d; }
+
+/* ---------- Trình chiếu ---------- */
+#present { min-height: 100vh; }
+.pbar { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.pbar .in { max-width: 1280px; margin: 0 auto; padding: 8px 14px; display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; }
+.pbar .ttl { font-weight: 800; font-size: 15px; min-width: 0; flex: 1 1 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pbar .ttl small { display: block; font-size: 11px; color: var(--soft); font-weight: 600; }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { border: 0; background: #f1f5f9; color: #475569; font-weight: 800; font-size: 13px; min-width: 34px; height: 32px; padding: 0 10px; border-radius: 10px; }
+.chip.on { background: var(--pri); color: #fff; box-shadow: 0 6px 14px -8px var(--pri); }
+.chip.all { background: #fef3c7; color: #92400e; }
+.chip.all.on { background: var(--amber); color: #fff; }
+.pmain { max-width: 1280px; margin: 0 auto; padding: 16px 14px 120px; --pfs: 1; }
+.passage { position: sticky; top: 58px; z-index: 20; padding: 18px 22px 16px; margin-bottom: 18px; max-height: 48vh; overflow: auto; }
+.passage.free { position: static; max-height: none; }
+@media (max-width: 760px) { .passage { position: static; max-height: none; } }
+.passage .ph { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.passage .ph .lab { background: var(--pri); color: #fff; font-weight: 800; border-radius: 10px; padding: 3px 11px; font-size: 14px; }
+.passage .ph .cnt { color: var(--soft); font-size: 12.5px; font-weight: 600; }
+.passage .ph .sp { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.ptext { font-size: calc(19px * var(--pfs)); line-height: 1.75; color: #1e293b; }
+.ptext p { margin: 0 0 .5em; }
+.ptext b.spk { color: var(--pri); font-weight: 800; }
+mark.v { background: linear-gradient(transparent 52%, var(--hl, #c7d2fe) 52%); color: inherit; border-radius: 2px; padding: 0 1px; cursor: pointer; transition: background .15s; }
+mark.v:hover, mark.v.hot { background: var(--hl, #c7d2fe); }
+mark.v sup { font-size: .55em; font-weight: 800; color: var(--pri); margin-left: 1px; }
+.gist, .trans { margin-top: 10px; border-radius: 16px; padding: 10px 14px; font-size: calc(15px * var(--pfs)); line-height: 1.6; }
+.gist { background: var(--amber-l); border: 1px solid #fde68a; color: #78350f; }
+.trans { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+.gist b, .trans b { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; display: block; margin-bottom: 2px; }
+.vhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 2px 12px; }
+.vhead h3 { margin: 0; font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.vhead h3 img { width: 40px; height: 40px; object-fit: contain; }
+.vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 14px; }
+.vc { background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 12px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: transform .15s, box-shadow .15s, border-color .15s; position: relative; box-shadow: 0 10px 24px -20px rgba(15,23,42,.6); }
+.vc:hover { transform: translateY(-3px); box-shadow: 0 20px 34px -22px rgba(67,56,202,.6); border-color: #c7d2fe; }
+.vc.hot { border-color: var(--pri); box-shadow: 0 0 0 3px #c7d2fe; }
+.vc .im { height: 128px; border-radius: 18px; background: linear-gradient(180deg, #f8fafc, #fff); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.vc .im img { max-width: 100%; max-height: 100%; object-fit: contain; padding: 6px; }
+.vc .no { position: absolute; top: 10px; left: 10px; width: 24px; height: 24px; border-radius: 8px; background: var(--pri); color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; z-index: 1; }
+.vc .w { font-weight: 800; font-size: 16.5px; line-height: 1.25; }
+.vc .ipa { color: var(--pri); font-size: 13px; }
+.vc .mini { color: var(--soft); font-size: 12.5px; line-height: 1.4; }
+.vc.reveal .mini.mean { color: #0369a1; font-weight: 700; }
+.vc .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: auto; }
+.tag { font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 2px 8px; background: #f1f5f9; color: #475569; white-space: nowrap; }
+.tag.t-collocation { background: #eef2ff; color: #4338ca; } .tag.t-phrasal { background: #ecfdf5; color: #047857; }
+.tag.t-structure { background: #fffbeb; color: #b45309; } .tag.t-idiom { background: #fff1f2; color: #be123c; }
+.tag.t-word { background: #f0f9ff; color: #0369a1; } .tag.t-linker { background: #f8fafc; color: #334155; } .tag.t-chunk { background: #f5f3ff; color: #6d28d9; }
+.tag.s-speaking { background: #fdf2f8; color: #be185d; } .tag.s-writing { background: #eff6ff; color: #1d4ed8; }
+.tag.s-daily { background: #f0fdf4; color: #15803d; } .tag.s-recognise { background: #f8fafc; color: #64748b; }
+.editon .vc .im::after { content: "🖼 Đổi hình"; position: absolute; inset: auto 6px 6px auto; background: rgba(15,23,42,.75); color: #fff; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
+@media (max-width: 520px) { .vgrid { grid-template-columns: 1fr 1fr; gap: 10px; } .vc { padding: 9px; border-radius: 20px; } .vc .im { height: 96px; } .vc .w { font-size: 14.5px; } }
+.pnav { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }
+.overview { display: grid; gap: 16px; }
+.overview .op { padding: 18px 22px; }
+.fs-ctl { display: inline-flex; gap: 2px; background: #f1f5f9; border-radius: 999px; padding: 3px; }
+.fs-ctl button { border: 0; background: transparent; border-radius: 999px; padding: 4px 10px; font-weight: 800; color: #475569; }
+.fs-ctl button:hover { background: #fff; }
+.tog.on { background: var(--pri-l); color: var(--pri); }
+
+/* ---------- Thẻ chi tiết ---------- */
+.ov { position: fixed; inset: 0; z-index: 80; background: rgba(15,23,42,.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dlg { background: #fff; border-radius: 30px; width: min(980px, 100%); max-height: calc(100vh - 32px); overflow: auto; box-shadow: 0 40px 80px -30px rgba(0,0,0,.6); position: relative; animation: pop .18s ease-out; }
+@keyframes pop { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+.dlg .x { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 999px; border: 0; background: #f1f5f9; font-size: 18px; font-weight: 800; z-index: 2; }
+.det { display: grid; grid-template-columns: 330px 1fr; }
+@media (max-width: 780px) { .det { grid-template-columns: 1fr; } }
+.det .l { background: linear-gradient(160deg, #eef2ff, #fffbeb); padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; border-radius: 30px 0 0 30px; }
+@media (max-width: 780px) { .det .l { border-radius: 30px 30px 0 0; } }
+.det .l .pic { width: 100%; aspect-ratio: 1; background: #fff; border-radius: 24px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px #e2e8f0; }
+.det .l .pic img { max-width: 92%; max-height: 92%; object-fit: contain; }
+@media (max-width: 780px) { .det .l .pic { width: 200px; } }
+.det .r { padding: 26px 28px 24px; display: flex; flex-direction: column; gap: 12px; }
+.det .w { font-size: clamp(26px, 3.4vw, 36px); font-weight: 800; line-height: 1.15; margin: 0; padding-right: 40px; }
+.det .base { color: var(--soft); font-size: 14px; font-weight: 600; }
+.det .ipa { color: var(--pri); font-size: 17px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.say { border: 0; background: var(--pri-l); color: var(--pri); border-radius: 999px; padding: 4px 11px; font-size: 13px; font-weight: 800; }
+.say:hover { background: #e0e7ff; }
+.det .mean { font-size: 21px; font-weight: 800; color: #0369a1; }
+.formula { background: #fffbeb; border: 1.5px dashed #f59e0b; border-radius: 18px; padding: 11px 14px 11px 58px; position: relative; }
+.formula img { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; object-fit: contain; }
+.formula .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; color: #b45309; }
+.formula .f { font-size: 18px; font-weight: 800; color: #78350f; }
+.formula .u { font-size: 14.5px; color: #78350f; margin-top: 3px; line-height: 1.55; }
+.blockq { border-left: 4px solid var(--pri2); background: #f8fafc; border-radius: 0 14px 14px 0; padding: 9px 13px; font-size: 15.5px; line-height: 1.6; }
+.blockq .k, .skillbox .k, .soundbox .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; color: var(--soft); display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.blockq em { font-style: normal; background: linear-gradient(transparent 55%, #fde68a 55%); font-weight: 700; }
+.blockq .vi { color: var(--soft); font-size: 14px; margin-top: 2px; }
+.blockq.ex { border-left-color: var(--emer); background: #f0fdf4; }
+.skillbox { background: #fdf2f8; border-radius: 16px; padding: 10px 13px; font-size: 14.5px; display: flex; gap: 12px; align-items: center; }
+.skillbox img { width: 46px; height: 46px; object-fit: contain; flex: none; }
+.soundbox { background: #f5f3ff; border-radius: 16px; padding: 10px 13px; font-size: 14.5px; color: #4c1d95; }
+.det .nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
+
+/* ---------- Chọn hình ---------- */
+.pick { width: min(1100px, 100%); padding: 22px; }
+.pick h3 { margin: 0 0 4px; font-size: 20px; font-weight: 800; padding-right: 40px; }
+.pick input[type=search] { width: 100%; border: 1.5px solid var(--line); border-radius: 999px; padding: 10px 16px; margin: 10px 0; outline: none; }
+.pick input[type=search]:focus { border-color: var(--pri2); }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.pgrid button { border: 1.5px solid var(--line); background: #fff; border-radius: 16px; padding: 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.pgrid button:hover { border-color: var(--pri); }
+.pgrid button.cur { border-color: var(--emer); box-shadow: 0 0 0 3px #bbf7d0; }
+.pgrid img { width: 84px; height: 84px; object-fit: contain; }
+.pgrid span { font-size: 9.5px; color: var(--soft); word-break: break-all; line-height: 1.2; max-height: 2.4em; overflow: hidden; }
+.pick .sub { font-size: 12px; font-weight: 800; color: var(--soft); text-transform: uppercase; letter-spacing: .08em; margin: 12px 0 6px; }
+
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: 14px; z-index: 200; box-shadow: 0 14px 30px -12px rgba(0,0,0,.6); }
+
+/* ---------- Bản in (giống bản in của khoá học) ---------- */
+#np-root { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; background: #e2e8f0; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #0f172a; }
+#np-root .np-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 14px; background: #fff; border-bottom: 1px solid #cbd5e1; box-shadow: 0 4px 14px -8px rgba(15,23,42,.25); font-size: 13px; }
+#np-root .np-bar b { font-weight: 800; }
+#np-root .np-grp { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+#np-root .np-lbl { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+#np-root .np-seg { display: inline-flex; background: #f1f5f9; border-radius: 999px; padding: 2px; }
+#np-root .np-seg button { border: 0; background: transparent; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #64748b; }
+#np-root .np-seg button.on { background: #fff; color: #4338ca; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+#np-root .np-chk { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #334155; cursor: pointer; white-space: nowrap; }
+#np-root .np-btn { border: 0; border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 800; }
+#np-root .np-btn.main { background: #4338ca; color: #fff; box-shadow: 0 8px 20px -8px rgba(67,56,202,.7); }
+#np-root .np-btn.ghost { background: #f1f5f9; color: #334155; }
+#np-root .np-secs { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+#np-root .np-tip { font-size: 11px; color: #64748b; padding: 6px 14px; background: #fffbeb; border-bottom: 1px solid #fde68a; }
+#np-root .np-scroll { flex: 1; overflow: auto; padding: 24px 12px 60px; }
+.np-sheet { --np-fs: 11pt; background: #fff; margin: 0 auto; width: 210mm; min-height: 297mm; padding: 14mm; box-shadow: 0 10px 40px -12px rgba(15,23,42,.35); font-size: var(--np-fs); line-height: 1.45; color: #0f172a; outline: none; }
+.np-sheet.two { width: 297mm; min-height: 210mm; padding: 10mm; column-count: 2; column-gap: 14mm; column-rule: 1px dashed #cbd5e1; font-size: calc(var(--np-fs) * .86); }
+.np-sheet * { box-sizing: border-box; }
+.np-sheet h1 { font-size: 1.6em; font-weight: 800; margin: .1em 0 .15em; line-height: 1.2; }
+.np-sheet h2 { font-size: 1.2em; font-weight: 800; margin: 0 0 .3em; color: #312e81; display: flex; gap: .45em; align-items: baseline; break-after: avoid; }
+.np-sheet h2 .np-num { font-size: .8em; color: #fff; background: #4338ca; border-radius: 6px; padding: 0 .4em; }
+.np-sheet p { margin: .2em 0; }
+.np-sheet .np-head { border-bottom: 2px solid #4338ca; padding-bottom: .5em; margin-bottom: .8em; break-inside: avoid; position: relative; }
+.np-sheet .np-head .np-stk { position: absolute; right: 0; top: 0; width: 3.6em; height: 3.6em; object-fit: contain; }
+.np-sheet .np-brand { font-size: .78em; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #4338ca; }
+.np-sheet .np-meta { font-size: .85em; color: #475569; padding-right: 4.5em; }
+.np-sheet .np-who { display: flex; gap: 1.5em; margin-top: .5em; font-size: .9em; }
+.np-sheet .np-who span { flex: 1; border-bottom: 1px dotted #94a3b8; padding-bottom: .15em; }
+.np-sheet .np-who span:first-child { flex: 2; }
+.np-sheet .np-sec { margin: 0 0 1.1em; }
+.np-sheet .np-blk { position: relative; }
+.np-sheet .np-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: .5em .7em; margin: .4em 0; }
+.np-sheet .np-soft { color: #64748b; font-size: .88em; }
+.np-sheet .np-pass { line-height: 1.65; text-align: justify; }
+.np-sheet .np-pass u { text-decoration: none; background: #fef08a; border-radius: 2px; padding: 0 .05em; font-weight: 600; }
+.np-sheet .np-pass u sup { font-size: .6em; color: #4338ca; font-weight: 800; }
+.np-sheet .np-pass b.spk { color: #4338ca; }
+.np-sheet .np-gist { background: #fffbeb; border-color: #fde68a; font-size: .92em; }
+.np-sheet .np-trans { background: #f0fdf4; border-color: #bbf7d0; font-size: .9em; }
+.np-sheet .np-k { font-size: .72em; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: #92400e; margin-right: .4em; }
+.np-sheet .np-vgrid { display: grid; grid-template-columns: 1fr 1fr; gap: .45em; margin-top: .45em; }
+.np-sheet.two .np-vgrid { grid-template-columns: 1fr; }
+.np-sheet .np-v { border: 1px solid #cbd5e1; border-radius: 9px; padding: .4em .5em; display: flex; gap: .5em; align-items: flex-start; break-inside: avoid; page-break-inside: avoid; }
+.np-sheet .np-v > img { width: 4.2em; height: 4.2em; object-fit: contain; flex: none; }
+.np-sheet .np-vb { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: .12em; }
+.np-sheet .np-w { font-weight: 800; line-height: 1.2; }
+.np-sheet .np-w sup { color: #4338ca; font-size: .7em; margin-right: .2em; }
+.np-sheet .np-ipa { color: #4338ca; font-size: .88em; font-weight: 400; }
+.np-sheet .np-tag { display: inline-block; font-size: .7em; font-weight: 800; background: #eef2ff; color: #4338ca; border-radius: 4px; padding: 0 .35em; margin-left: .3em; vertical-align: middle; }
+.np-sheet .np-mean { color: #0369a1; font-weight: 700; font-size: .93em; }
+.np-sheet .np-blank { display: none; border-bottom: 1px solid #94a3b8; min-height: 1.35em; }
+.np-sheet .np-pat { font-size: .86em; background: #fffbeb; border-radius: 5px; padding: .1em .35em; color: #78350f; }
+.np-sheet .np-pat b { color: #92400e; }
+.np-sheet .np-ctx { font-size: .84em; color: #334155; }
+.np-sheet .np-ctx i { font-style: normal; background: #fef08a; }
+.np-sheet .np-ex { font-size: .85em; font-style: italic; color: #047857; }
+.np-sheet .np-ex span { font-style: normal; color: #64748b; }
+.np-sheet .np-sk { font-size: .8em; color: #9d174d; }
+.np-sheet .np-snd { font-size: .8em; color: #5b21b6; }
+.np-sheet .np-lines { display: none; }
+.np-sheet .np-lines div { border-bottom: 1px solid #cbd5e1; height: 1.6em; }
+.np-sheet.hide-passage .np-pass, .np-sheet.hide-gist .np-gist, .np-sheet.hide-trans .np-trans,
+.np-sheet.hide-img .np-v > img, .np-sheet.hide-mean .np-mean, .np-sheet.hide-pat .np-pat,
+.np-sheet.hide-ctx .np-ctx, .np-sheet.hide-ex .np-ex, .np-sheet.hide-sk .np-sk, .np-sheet.hide-snd .np-snd,
+.np-sheet.hide-sum .np-sum { display: none !important; }
+.np-sheet.hide-mean .np-blank { display: block; }
+.np-sheet.show-lines .np-lines { display: block; }
+.np-sheet.exfirst .np-ctx, .np-sheet.exfirst .np-ex { order: -1; }
+.np-sheet.exfirst .np-w { order: -2; }
+.np-sheet .np-x { display: none; position: absolute; top: -.2em; right: -.2em; z-index: 2; width: 1.5em; height: 1.5em; border-radius: 999px; border: 0; background: #f43f5e; color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; line-height: 1.5em; text-align: center; }
+.np-sheet.editing .np-blk:hover { outline: 1px dashed #a5b4fc; outline-offset: 2px; }
+.np-sheet.editing .np-blk:hover > .np-x { display: block; }
+.np-sheet .np-pb { break-before: page; }
+@media print {
+  body.np-open > *:not(#np-root) { display: none !important; }
+  body.np-open { background: #fff !important; }
+  #np-root { position: static !important; display: block !important; background: #fff !important; }
+  #np-root .np-bar, #np-root .np-secs, #np-root .np-tip, .np-sheet .np-x { display: none !important; }
+  #np-root .np-scroll { overflow: visible !important; padding: 0 !important; }
+  .np-sheet, .np-sheet.two { width: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; outline: none !important; }
+  .np-sheet .np-blk { outline: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= TRANG CHỦ ================= -->
+<div id="home" class="wrap">
+  <div class="hero">
+    <img src="img/ira/reading_girl_3694.webp" alt="" />
+    <div>
+      <div class="brand">Night IELTS · Công cụ giáo viên</div>
+      <h1 class="big">Night Lens — Phân tích Reading & Listening</h1>
+      <p class="lead">Copy prompt → nhờ ChatGPT phân tích từng đoạn → dán kết quả vào đây → có ngay trang trình chiếu để dạy và bản in PDF gửi học sinh.</p>
+    </div>
+  </div>
+
+  <div class="steps">
+    <section class="step glass">
+      <img class="stk" src="img/ira/copy_and_paste_2451.webp" alt="" />
+      <h2><span class="n">1</span> Copy prompt</h2>
+      <p class="d">Chọn loại bài, copy prompt rồi dán vào ChatGPT / Gemini / Claude. Dán bài đọc hoặc transcript ngay bên dưới prompt và gửi đi.</p>
+      <div class="modepick">
+        <button data-mode="reading"><img src="img/ira/reading_girl_3694.webp" alt="" /><div><b>📖 Reading</b><span>Passage → từng đoạn, collocation, công thức, IPA</span></div></button>
+        <button data-mode="listening"><img src="img/ira/radio_3313.webp" alt="" /><div><b>🎧 Listening</b><span>Transcript → cụm nói tự nhiên, nối âm, hội thoại hằng ngày</span></div></button>
+      </div>
+      <div class="row"><span class="lbl">Trình độ học sinh</span>
+        <span class="seg" data-k="lvl"><button data-v="Band 4.0–5.0">4–5</button><button data-v="Band 5.0–6.0">5–6</button><button data-v="Band 6.0–7.0+">6–7+</button></span></div>
+      <div class="row"><span class="lbl">Số mục mỗi đoạn</span>
+        <span class="seg" data-k="per"><button data-v="5–8">5–8</button><button data-v="8–12">8–12</button><button data-v="12–15">12–15</button></span></div>
+      <div class="row"><label class="chk"><input type="checkbox" id="optTrans" checked /> Kèm bản dịch cả đoạn</label></div>
+      <div class="row">
+        <button class="btn main" id="btnCopy">📋 Copy prompt</button>
+        <span class="lbl" id="promptInfo"></span>
+      </div>
+      <details class="peek"><summary>Xem / sửa prompt trước khi copy</summary><textarea class="big" id="promptBox" spellcheck="false"></textarea></details>
+      <div class="howto"><b>Cách dùng:</b><ol>
+        <li>Bấm <b>Copy prompt</b> → dán vào ChatGPT.</li>
+        <li>Xuống dòng cuối, dán <b>bài Reading</b> (hoặc <b>transcript</b>) rồi gửi.</li>
+        <li>GPT trả về một khối JSON → bấm nút copy của khối đó → dán vào ô bước 2.</li>
+        <li>Bài dài GPT trả lời làm nhiều lần: gõ <b>tiếp</b>, rồi dán <i>tất cả</i> các khối vào cùng một ô.</li>
+      </ol></div>
+    </section>
+
+    <section class="step glass">
+      <img class="stk" src="img/ira/teacher_tensaku_woman.webp" alt="" />
+      <h2><span class="n">2</span> Dán kết quả</h2>
+      <p class="d">Dán nguyên câu trả lời của GPT (có thể dán nhiều khối JSON liền nhau). Bấm <b>Hoàn thành</b> để mở trang trình chiếu — bài tự lưu vào thư viện bên dưới.</p>
+      <textarea class="big" id="jsonBox" spellcheck="false" placeholder='```json&#10;{ "mode": "reading", "title": "…", "paragraphs": [ … ] }&#10;```'></textarea>
+      <div class="err" id="jsonErr"></div>
+      <div class="row">
+        <button class="btn amber" id="btnDone">✅ Hoàn thành</button>
+        <button class="btn ghost sm" id="btnDemo">Xem thử bài mẫu</button>
+        <label class="btn ghost sm" style="cursor:pointer">⬆ Mở file .json<input type="file" id="fileIn" accept=".json,application/json" multiple hidden /></label>
+      </div>
+    </section>
+  </div>
+
+  <section class="lib glass">
+    <h2><img src="img/ira/book_2458.webp" alt="" /> Thư viện bài đã phân tích</h2>
+    <div id="libList"></div>
+  </section>
+</div>
+
+<!-- ================= TRÌNH CHIẾU ================= -->
+<div id="present" class="hidden">
+  <div class="pbar"><div class="in">
+    <button class="btn ghost sm" id="btnBack">← Thư viện</button>
+    <div class="ttl" id="pTitle"></div>
+    <div class="chips" id="pChips"></div>
+    <div class="fs-ctl" title="Cỡ chữ đoạn văn"><button data-fs="-1">A−</button><button data-fs="1">A+</button></div>
+    <button class="btn ghost sm tog" id="tGist">💡 Ý chính</button>
+    <button class="btn ghost sm tog" id="tTrans">🇻🇳 Dịch</button>
+    <button class="btn ghost sm tog" id="tMean" title="Hiện nghĩa ngay trên thẻ">👀 Nghĩa</button>
+    <button class="btn ghost sm tog" id="tEdit" title="Bấm vào hình trên thẻ để đổi hình">🖼 Đổi hình</button>
+    <button class="btn main sm" id="btnPrint">🖨 In / PDF</button>
+  </div></div>
+  <div class="pmain" id="pMain"></div>
+</div>
+
+<script>
+(() => {
+"use strict";
+/* ===================== Kho ảnh Irasutoya ===================== */
+const IRA = "img/ira/";
+const REPO_TREE = "https://api.github.com/repos/luyennoiieltswithnight/night-ielts-land/git/trees/main?recursive=1";
+const LIB_KEY = "night-lens-lib-v1", PREF_KEY = "night-lens-pref-v1", CAT_KEY = "night-lens-ira-v1";
+const STK = { read: "reading_girl_3694.webp", listen: "radio_3313.webp", bulb: "denkyuu_on.webp", speak: "cafe_talk_couple.webp", write: "book_sakubun_kodomo_girl.webp", daily: "communication_hanashiai_0612.webp", think: "kangaeruhito_1840.webp", vocab: "study_english_ondoku_6827.webp", print: "teacher_saiten_man.webp", trophy: "trophy_school_boy.webp" };
+const FALLBACK = ["kangaeruhito_1840.webp", "denkyuu_on.webp", "study_english_ondoku_6827.webp", "magnifier6_girl.webp", "pose_puzzle_kumiawaseru.webp", "book_2458.webp"];
+
+// romaji → English (để tìm hình bằng tiếng Anh khi GPT không chọn đúng tên)
+const GLOSS = {kaisya:"company office work",kaigi:"meeting",tatemono:"building",kaden:"appliance electronics",kagu:"furniture",jitensya:"bicycle",norimono:"vehicle transport",saigai:"disaster",yaruki:"motivation energetic",kouji:"construction",kaigo:"care elderly nursing",jiko:"accident",kodomo:"child kids",ojiisan:"grandfather old man",obaasan:"grandmother old woman",omoide:"memory memories",megane:"glasses",kega:"injury",kawa:"river",kankou:"tourism sightseeing",kandou:"moved emotional touched",hone:"bone",hikkoshi:"moving house",hanataba:"bouquet flowers",gomi:"rubbish waste garbage",fukei:"scenery landscape",douro:"road",denwa:"phone call",zou:"elephant",yuubin:"post mail",youki:"cheerful",yatai:"food stall",yama:"mountain",tozan:"climbing hiking",tenin:"shop staff clerk",tenbin:"balance scales compare",takuhaiin:"delivery",suiei:"swimming",suidou:"water tap",soudan:"consult advice",sotsugyo:"graduation",shippai:"failure mistake",shiharai:"payment pay",shigoto:"work job",sensei:"teacher",sanpo:"walk stroll",saihou:"sewing",roujin:"elderly old",oyako:"parent child",omatsuri:"festival",ojisan:"middle aged man",ofuro:"bath",nimotsu:"luggage baggage",mushi:"insect",mori:"forest",moeru:"burn fire",kyuryou:"salary",kyousou:"competition race",kuma:"bear",kowai:"scary afraid",koujou:"factory industry",kouen:"park",kinshi:"prohibited ban",kaidan:"stairs",kafun:"pollen allergy",itai:"pain hurt",iryou:"medical healthcare",inu:"dog",hitsuji:"sheep",gyouretsu:"queue line",gomibako:"bin",gassyou:"choir",fukkin:"exercise abs",fufu:"couple married",eto:"zodiac",bokin:"donation charity",zoukin:"cloth cleaning",zenshin:"whole body",yusyou:"victory win champion",yuderu:"boil",yakuzaishi:"pharmacist",toushi:"investment",toudai:"lighthouse",tosyokan:"library",tomare:"stop",tensai:"genius",tenchou:"manager shop",tedukuri:"handmade",tasukeru:"help rescue",tana:"shelf",tameiki:"sigh",takujou:"desk",takuhai:"delivery parcel",taisyoku:"retire resign",tabako:"smoking cigarette",syukatsu:"job hunting",syoutengai:"shopping street",syougakukin:"scholarship",syokuji:"meal eating",syokki:"dishes tableware",syakkin:"debt loan",suwaru:"sit",shizensaigai:"natural disaster",shiro:"castle",shinkokyu:"deep breath",shinken:"serious",shingou:"traffic light",shimekiri:"deadline",shiikuin:"zookeeper",setsuden:"save electricity energy",sekitan:"coal",seki:"seat",seiri:"tidy organize",seikou:"success",seibishi:"mechanic",sara:"plate",saiten:"marking grading",sagashi:"search look for",ryouri:"cooking dish",ryougae:"exchange money",rikon:"divorce",reji:"cashier",ouendan:"cheering",ouen:"cheer support",oshiro:"castle",osara:"plate",omori:"babysit",omocha:"toy",okujou:"rooftop",okashi:"snack sweets",oekaki:"drawing",obentou:"lunch box",obasan:"middle aged woman",nougyou:"farming agriculture",nou:"brain",nomu:"drink",nigeru:"escape run away",neko:"cat",nefuda:"price tag",necchusyou:"heatstroke",nebusoku:"lack of sleep tired",nangoku:"tropical",naisyo:"secret",mushimegane:"magnifying glass",mura:"village",miraijin:"future",mikaku:"taste",migaki:"brush polish",manpuku:"full stomach",manin:"crowded",maigo:"lost child",machi:"town city",kyukyusya:"ambulance",kyoushitsu:"classroom",kyoudai:"siblings",kutsu:"shoes",kusuri:"medicine",kurumaisu:"wheelchair",kozeni:"coins",kouyou:"autumn leaves",koutsu:"traffic transport",kousou:"high rise",koukan:"exchange",kotei:"fixed",kossetsu:"fracture",kojin:"individual personal",kensa:"test check examination",kenkyu:"research",kazoku:"family",kataduke:"tidy up",kasa:"umbrella",kansyou:"appreciation viewing",kakusa:"gap inequality",kakaeru:"hold worry",kaji:"housework fire",kaizoku:"pirate",kaimono:"shopping",kabu:"stock shares",kabe:"wall",jutakugai:"residential",juken:"exam entrance",jugyou:"lesson class",joushi:"boss",jinkou:"population",jibun:"self",ie:"house home",ichijiteishi:"pause stop",houryu:"release",honya:"bookshop",hodoukyou:"footbridge",hitorigurashi:"living alone",hitori:"alone",hikaku:"compare comparison",hatsuden:"power generation",hashi:"bridge chopsticks",haru:"spring",hanashiai:"discussion talk",hakase:"professor doctor scientist",hagemasu:"encourage",gyousei:"government",genba:"site",gekijou:"theatre",gakkari:"disappointed",futago:"twins",fuku:"clothes",doubutsuen:"zoo",doubutsu:"animal",dorobou:"thief",dougu:"tool",denryoku:"electricity power",denpa:"signal radio",denkyuu:"light bulb idea",daigakusei:"university student",chumon:"order",butai:"stage",bukatsu:"club activity",bijutsu:"art",atsui:"hot",atama:"head",akusyu:"handshake",aki:"autumn",akachan:"baby",zutsuu:"headache",zeikin:"tax",zei:"tax",zazen:"meditation",zasshi:"magazine",zangyou:"overtime",zaitaku:"work from home",yuukyuu:"paid leave",yume:"dream",yuenchi:"amusement park",yubisashi:"pointing",yoyaku:"reservation booking",yowai:"weak",youfuku:"clothes",youchien:"kindergarten",yorokobi:"joy happy",yomu:"read",yomikikase:"reading aloud",yokeru:"avoid",yohou:"forecast",yogore:"dirt dirty",yobou:"prevention",yasui:"cheap",yaseika:"diet",yarigai:"rewarding",yakkyoku:"pharmacy",yakei:"night view",yakedo:"burn",wasureta:"forgot",wasuremono:"forgotten item",waribiki:"discount",wareru:"break",wakamono:"young people",wakaremichi:"crossroads choice",uwasa:"rumour gossip",usotsuki:"liar",urayamashii:"envy jealous",undou:"exercise sport",umigame:"sea turtle",uketsuke:"reception",tsuuhan:"online shopping",tsuuhou:"report call police",tsukareta:"tired",tsukare:"tired",tsukau:"use",tsumi:"crime guilt",tokubetsu:"special",toukoukyohi:"school refusal",touhyo:"vote election",tougei:"pottery",tetsuya:"all nighter",tetsudai:"help",tensyoku:"change job",tensaku:"correct marking",tegami:"letter",tantei:"detective",tanoshimi:"looking forward",tanken:"explore",tasyumi:"hobby",nayamu:"worry trouble",kangaeru:"think",kangaeruhito:"think thinking",shock:"shock surprise",pose:"pose gesture",chikyuu:"earth globe",kankyou:"environment",osen:"pollution",ondanka:"global warming",kyusyoku:"school lunch",keiki:"economy",okane:"money",ryokou:"travel trip"};
+const STOP = new Set("a an the of to in on at for and or with by from as is are be sth sb n v adj adv into up out off about over this that it its your their his her one someone something".split(" "));
+
+let CAT = [], CATSET = new Set(), STEM = {}, TOK = {};
+const stemOf = (f) => String(f).toLowerCase().trim().replace(/^.*\//, "").replace(/(\.(webp|png|jpe?g|gif))+\.?$/g, "").replace(/\.jpg$/, "").replace(/^thumbnail_/, "").replace(/_\d{3,5}$/, "").replace(/_+$/, "");
+const opaque = (f) => /^avvx|^[a-z0-9]{25,}/i.test(f);
+function setCatalog(list) {
+  CAT = list.filter((f) => /\.(webp|png|jpe?g|gif)\.?$/i.test(f)).sort();
+  CATSET = new Set(CAT); STEM = {}; TOK = {};
+  CAT.forEach((f) => {
+    const s = stemOf(f);
+    if (!STEM[s]) STEM[s] = f;
+    const toks = s.split(/[_\-\s]+/).filter(Boolean);
+    let words = new Set(toks);
+    toks.forEach((t) => { const base = t.replace(/\d+$/, ""); words.add(base); if (GLOSS[base]) GLOSS[base].split(" ").forEach((g) => words.add(g)); });
+    TOK[f] = words;
+  });
+}
+async function loadCatalog() {
+  try { const c = JSON.parse(localStorage.getItem(CAT_KEY) || "null"); if (c && Date.now() - c.t < 6 * 3600e3 && c.list.length > 100) { setCatalog(c.list); return; } } catch (e) {}
+  let list = null;
+  try {
+    const r = await fetch(REPO_TREE, { cache: "no-store" });
+    if (r.ok) { const j = await r.json(); list = (j.tree || []).filter((x) => x.type === "blob" && x.path.startsWith("khoahoc/img/ira/")).map((x) => x.path.slice(16)).filter((p) => !p.includes("/")); }
+  } catch (e) {}
+  if (!list || list.length < 100) { try { const r = await fetch(IRA + "list.json", { cache: "no-store" }); if (r.ok) list = await r.json(); } catch (e) {} }
+  if (list && list.length) { setCatalog(list); try { localStorage.setItem(CAT_KEY, JSON.stringify({ t: Date.now(), list })); } catch (e) {} }
+}
+function wordsOf(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9\s_\-]/g, " ").split(/[\s_\-]+/).filter((w) => w.length > 1 && !STOP.has(w)); }
+function scoreFiles(words, limit = 30) {
+  if (!words.length || !CAT.length) return [];
+  const out = [];
+  for (const f of CAT) {
+    if (opaque(f)) continue;
+    const T = TOK[f]; let s = 0;
+    for (const w of words) {
+      if (T.has(w)) s += 3;
+      else if (w.length >= 4) { for (const t of T) { if (t.length >= 4 && (t.startsWith(w) || w.startsWith(t))) { s += 1.5; break; } } }
+    }
+    if (s > 0) out.push([s - stemOf(f).length / 200, f]);
+  }
+  return out.sort((a, b) => b[0] - a[0]).slice(0, limit).map((x) => x[1]);
+}
+function hashPick(s, arr) { let h = 0; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return arr[h % arr.length]; }
+function resolveImg(it) {
+  if (it.img && (!CAT.length || CATSET.has(it.img))) return it.img;
+  for (const c of it.ira || []) {
+    const s = String(c).trim();
+    if (CATSET.has(s)) return s;
+    if (CATSET.has(s + ".webp")) return s + ".webp";
+    const st = stemOf(s);
+    if (STEM[st]) return STEM[st];
+  }
+  if (!CAT.length) { const c = (it.ira || [])[0]; return c ? (/\.\w+$/.test(c) ? c : c + ".webp") : FALLBACK[0]; }
+  const words = [...(it.ira || []).flatMap(wordsOf), ...wordsOf(it.img_hint), ...wordsOf(it.base || it.in_text)];
+  return scoreFiles(words, 1)[0] || hashPick(it.in_text || it.base, FALLBACK);
+}
+const imgSrc = (f) => IRA + encodeURIComponent(f).replace(/%2F/g, "/");
+
+/* ===================== Tiện ích ===================== */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const rh = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
+function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
+let voices = [];
+function loadVoices() { try { voices = speechSynthesis.getVoices(); } catch (e) {} }
+if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function speak(text, rate = 0.9) {
+  if (!("speechSynthesis" in window) || !text) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(String(text).replace(/\s*\.\.\.\s*/g, " "));
+  u.lang = "en-GB"; u.rate = rate;
+  const v = voices.find((v) => /en-GB/i.test(v.lang) && /Google|Natural|Daniel|Serena|Libby|Sonia/i.test(v.name)) || voices.find((v) => /en-GB/i.test(v.lang)) || voices.find((v) => /^en/i.test(v.lang));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) {
+    const ta = document.createElement("textarea"); ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch (e2) {} ta.remove(); return ok;
+  }
+}
+function download(name, text) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+const slug = (s) => String(s || "bai").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50) || "bai";
+
+/* ===================== Tuỳ chọn ===================== */
+let PREF = { mode: "reading", lvl: "Band 5.0–6.0", per: "8–12", trans: true, fs: 1, gist: false, tr: false, mean: false, print: {} };
+try { Object.assign(PREF, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); } catch (e) {}
+const savePref = () => { try { localStorage.setItem(PREF_KEY, JSON.stringify(PREF)); } catch (e) {} };
+
+/* ===================== PROMPT ===================== */
+const TYPE_LIST = `"collocation" | "phrasal verb" | "structure" | "idiom" | "word" | "linker" | "chunk"`;
+function promptStems() {
+  if (!CAT.length) return "(Không tải được danh sách ảnh — hãy chọn tên theo kiểu Irasutoya bằng romaji, vd: study_night_boy, graph_up, kangaeruhito, pose_shock_man)";
+  const seen = new Set(), out = [];
+  CAT.forEach((f) => { if (opaque(f)) return; const s = stemOf(f); if (!seen.has(s)) { seen.add(s); out.push(s); } });
+  return out.join(", ");
+}
+function buildPrompt() {
+  const R = PREF.mode === "reading", n = PREF.per, lvl = PREF.lvl, tr = PREF.trans;
+  const sample = R ? {
+    mode: "reading", title: "The history of chocolate", source: "Cambridge 15 – Test 1 – Passage 1", topic: "Food & history",
+    summary_vi: "Tóm tắt cả bài 2–3 câu tiếng Việt.",
+    paragraphs: [{ label: "A", text: "Nguyên văn đoạn A …", gist_vi: "Ý chính đoạn A.", ...(tr ? { translation_vi: "Bản dịch cả đoạn A." } : {}), items: [
+      { in_text: "grew tired of", base: "grow/get tired of + N/V-ing", type: "structure", pattern: "grow/get + adj (= become: trở nên) + of + N/V-ing", ipa: "/ɡruː ˈtaɪəd əv/", meaning_vi: "dần chán, ngán", usage_vi: "get/grow + tính từ diễn tả sự thay đổi trạng thái (get tired, get bored, grow old). Sau tired of dùng N hoặc V-ing, không dùng to V.", context: "Câu nguyên văn trong bài chứa mục này.", example: "I grew tired of scrolling social media every night.", example_vi: "Tôi dần chán việc lướt mạng xã hội mỗi tối.", skills: ["speaking", "writing"], skill_tip_vi: "Speaking Part 1 (Hobbies): 'I used to …, but I grew tired of it.'", ira: ["pose_akiru", "kangaeruhito"], img_hint: "bored tired person" }
+    ] }], continue: false
+  } : {
+    mode: "listening", title: "Booking a city tour", source: "Cambridge 15 – Test 2 – Part 1", topic: "Travel",
+    summary_vi: "Tóm tắt nội dung hội thoại 2–3 câu tiếng Việt.",
+    paragraphs: [{ label: "1", text: "Woman: Good morning, I'd like to book a tour for this Saturday.\nMan: Sure, let me just check what's available.", gist_vi: "Khách gọi đặt tour cho thứ Bảy.", ...(tr ? { translation_vi: "Bản dịch cả đoạn." } : {}), items: [
+      { in_text: "let me just check", base: "Let me (just) check …", type: "chunk", pattern: "Let me + V (bare) = để tôi … (xin phép làm gì ngay)", ipa: "/let mi dʒəst tʃek/", meaning_vi: "để tôi kiểm tra chút nhé", usage_vi: "Câu lịch sự để 'câu giờ' khi cần xem thông tin; 'just' làm câu mềm hơn.", context: "Sure, let me just check what's available.", example: "Let me just check my calendar and get back to you.", example_vi: "Để mình xem lịch rồi báo lại bạn nhé.", skills: ["speaking", "daily"], skill_tip_vi: "Dùng khi gọi điện, làm việc nhóm; Speaking Part 1 khi cần thời gian nghĩ.", sound_vi: "'let me' đọc nối /ˈlemi/, 'just' gần như mất /t/: /dʒəs tʃek/.", ira: ["pose_yubisashi_kakunin_businessman", "calender_takujou"], img_hint: "person checking schedule" }
+    ] }], continue: false
+  };
+  const head = R
+    ? `BẠN LÀ: giáo viên IELTS giàu kinh nghiệm, soạn tài liệu "Hiểu sâu bài đọc qua từ vựng" cho học sinh Việt Nam trình độ ${lvl}.
+
+NHIỆM VỤ: Phân tích bài READING tôi dán ở CUỐI tin nhắn này, lần lượt TỪNG ĐOẠN, không bỏ đoạn nào. Mỗi đoạn chọn các mục từ vựng sao cho học sinh chỉ cần học các mục đó là hiểu tường tận cả đoạn, đồng thời biết cách dùng để áp dụng vào Speaking / Writing.`
+    : `BẠN LÀ: giáo viên IELTS giàu kinh nghiệm, soạn tài liệu "Học ngôn ngữ thật qua bài nghe" cho học sinh Việt Nam trình độ ${lvl}.
+
+NHIỆM VỤ: Phân tích TRANSCRIPT bài LISTENING tôi dán ở CUỐI tin nhắn này, lần lượt TỪNG ĐOẠN, không bỏ đoạn nào. Trọng tâm là CÁCH DÙNG NGÔN NGỮ TRONG NGỮ CẢNH: cụm nói tự nhiên, collocation, phrasal verb, câu giao tiếp chức năng — để học sinh nghe hiểu và dùng lại được khi nói.`;
+  const rules = R ? `
+QUY TẮC
+1. Giữ NGUYÊN VĂN từng đoạn (không sửa, không bỏ câu). Bài có nhãn đoạn (A, B, C…) thì dùng đúng nhãn; không có thì đánh 1, 2, 3… Tiêu đề bài không tính là một đoạn.
+2. Mỗi đoạn chọn ${n} mục, ưu tiên: collocation (verb + noun, adj + noun, adv + adj…), phrasal verb, cấu trúc/công thức (vd get + adj, be likely to + V), idiom/cụm cố định, từ nối, từ học thuật, từ ít gặp hoặc khó đọc. Không chọn từ quá dễ (A1–A2) trừ khi dùng theo nghĩa lạ. Có cụm thì lấy cả cụm thay vì từ lẻ.` : `
+QUY TẮC
+1. Chia transcript thành các ĐOẠN theo ngữ cảnh (mỗi đoạn khoảng 60–150 từ, hoặc theo Part/Section). Giữ NGUYÊN VĂN, mỗi lượt lời một dòng dạng "Tên/Vai: lời nói", các dòng nối bằng \\n. Nhãn đoạn đánh 1, 2, 3…
+2. Mỗi đoạn chọn ${n} mục, ưu tiên: cụm nói tự nhiên (chunk) và câu giao tiếp chức năng (xin phép, đề nghị, xác nhận, phàn nàn, đổi ý…), collocation, phrasal verb, idiom/cụm cố định, từ hay là "bẫy" trong đề (paraphrase, số, chính tả tên riêng), từ ít gặp/khó nghe.`;
+  const rules2 = `
+3. "in_text": chép NGUYÊN VĂN đúng như trong đoạn (đúng chính tả, đúng dạng chia, viết liền một mạch). Nếu cụm bị chen bởi từ khác thì nối các phần bằng " ... " (vd "put ... into practice").
+4. "base": dạng gốc để học (vd "get involved in + N", "a wide range of + N").
+5. "type": một trong ${TYPE_LIST}.
+6. "pattern": CÔNG THỨC đúng với cách dùng TRONG BÀI NÀY. Từ nhiều nghĩa thì chỉ giải thích nghĩa/cấu trúc đang dùng. Vd "get" có rất nhiều nghĩa, nhưng trong bài là "get tired" thì pattern = "get + adj (= become: trở nên)" và usage_vi nói rõ cách dùng get + tính từ.
+7. "ipa": IPA giọng Anh–Anh của cả mục — BẮT BUỘC, nhất là từ dài, ít gặp, khó đọc.
+8. "meaning_vi": nghĩa tiếng Việt ĐÚNG NGỮ CẢNH, ngắn gọn.
+9. "usage_vi": 1–2 câu tiếng Việt: dùng khi nào, đi với từ gì, sắc thái (trang trọng/thân mật), lỗi học sinh Việt hay mắc.
+10. "context": câu trong bài chứa mục đó (nguyên văn).
+11. "example": 1 câu ví dụ MỚI, dễ hiểu, gần đời sống học sinh hoặc chủ đề IELTS; "example_vi": dịch câu đó.
+12. "skills": mảng các nhãn phù hợp trong: ${R ? `"speaking" (nói tự nhiên được trong IELTS Speaking), "writing" (dùng tốt trong Writing Task 1/2), "recognise" (chỉ cần hiểu khi đọc, ít khi tự dùng)` : `"speaking" (dùng được trong IELTS Speaking), "daily" (dùng được trong hội thoại hằng ngày), "writing" (dùng được trong Writing), "recognise" (chỉ cần nghe hiểu)`}. "skill_tip_vi": gợi ý CỤ THỂ dùng ở đâu, kèm một khung câu ngắn.${R ? "" : `
+13. "sound_vi": trong băng cụm này được NÓI thế nào: nối âm, nuốt âm, dạng yếu, trọng âm, âm dễ nghe nhầm (vd "want to → /ˈwɒnə/", "a lot of → /əˈlɒtəv/"). Bắt buộc với mục khó nghe.`}
+${R ? 13 : 14}. "ira": chọn 2 tên hình trong KHO ẢNH IRASUTOYA ở cuối prompt, chép ĐÚNG Y tên, hình đầu là hình hợp nhất. MỌI mục BẮT BUỘC có hình. Từ trừu tượng thì chọn hình gợi ý/ẩn dụ dễ nhớ (vd increase → graph_up, consider → kangaeruhito, achieve → trophy…). Không dùng một hình cho quá nhiều mục. "img_hint": 2–4 từ khoá tiếng Anh tả hình mong muốn.
+${R ? 14 : 15}. Mỗi đoạn có "gist_vi" (ý chính 1–2 câu)${tr ? ` và "translation_vi" (dịch sát, mượt cả đoạn)` : ""}.
+${R ? 15 : 16}. Cả bài có "title", "source" (nếu biết, vd "Cambridge 15 – Test 2 – ${R ? "Passage 1" : "Part 1"}"), "topic", "summary_vi" (2–3 câu).
+
+ĐỊNH DẠNG TRẢ LỜI
+- CHỈ trả về MỘT khối \`\`\`json … \`\`\` hợp lệ: dùng dấu ngoặc kép thẳng ", không chú thích, không dấu phẩy thừa, không viết gì ngoài khối JSON.
+- Bài dài không đủ chỗ: dừng ở CUỐI một đoạn, đóng JSON hợp lệ và thêm "continue": true. Khi tôi gõ "tiếp", trả khối JSON mới chỉ gồm {"paragraphs": [ …các đoạn tiếp theo… ], "continue": true hoặc false}.
+
+MẪU JSON (đúng tên trường, đúng kiểu dữ liệu):
+${JSON.stringify(sample, null, 1)}
+
+KHO ẢNH IRASUTOYA (chỉ chọn trong danh sách này, cách nhau bằng dấu phẩy):
+${promptStems()}
+
+===== ${R ? "BÀI READING" : "TRANSCRIPT LISTENING"} (dán ngay bên dưới dòng này) =====
+`;
+  return head + "\n" + rules + rules2;
+}
+
+/* ===================== Đọc JSON GPT ===================== */
+function extractBlocks(text) {
+  const blocks = [];
+  const fence = /```(?:json)?\s*([\s\S]*?)```/gi; let m;
+  while ((m = fence.exec(text))) blocks.push(m[1]);
+  if (blocks.length) return blocks;
+  let depth = 0, start = -1, inStr = false, escp = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) { if (escp) escp = false; else if (c === "\\") escp = true; else if (c === '"') inStr = false; continue; }
+    if (c === '"') { inStr = true; continue; }
+    if (c === "{") { if (depth === 0) start = i; depth++; }
+    else if (c === "}") { depth--; if (depth === 0 && start >= 0) { blocks.push(text.slice(start, i + 1)); start = -1; } if (depth < 0) depth = 0; }
+  }
+  return blocks;
+}
+function tryParse(s) {
+  const t = s.trim().replace(/^﻿/, "");
+  try { return JSON.parse(t); } catch (e) {
+    const fixed = t.replace(/,\s*([}\]])/g, "$1");
+    return JSON.parse(fixed);
+  }
+}
+const arr = (x) => Array.isArray(x) ? x : x == null || x === "" ? [] : String(x).split(/\s*[,;|]\s*/);
+function normType(t) {
+  t = String(t || "").toLowerCase();
+  if (/phrasal/.test(t)) return "phrasal"; if (/struct|pattern|grammar|cấu/.test(t)) return "structure";
+  if (/idiom|fixed|expression/.test(t)) return "idiom"; if (/link|connect|discourse/.test(t)) return "linker";
+  if (/chunk|phrase|function|sentence/.test(t)) return "chunk"; if (/colloc/.test(t)) return "collocation";
+  return t ? "word" : "collocation";
+}
+const TYPE_VI = { collocation: "Collocation", phrasal: "Phrasal verb", structure: "Cấu trúc", idiom: "Idiom", word: "Từ mới", linker: "Từ nối", chunk: "Cụm giao tiếp" };
+const TYPE_HL = { collocation: "#c7d2fe", phrasal: "#a7f3d0", structure: "#fde68a", idiom: "#fecdd3", word: "#bae6fd", linker: "#e2e8f0", chunk: "#ddd6fe" };
+const SKILL_VI = { speaking: "🗣 Speaking", writing: "✍️ Writing", daily: "💬 Hằng ngày", recognise: "👁 Hiểu là đủ" };
+function normSkill(s) { s = String(s).toLowerCase(); if (/speak|nói/.test(s)) return "speaking"; if (/writ|viết/.test(s)) return "writing"; if (/daily|everyday|convers|giao|hằng/.test(s)) return "daily"; return "recognise"; }
+function normItem(x) {
+  if (typeof x === "string") x = { in_text: x };
+  const it = {
+    in_text: String(x.in_text || x.term || x.phrase || x.text || x.word || "").trim(),
+    base: String(x.base || x.lemma || x.headword || "").trim(),
+    type: normType(x.type || x.category),
+    pattern: x.pattern || x.formula || "", ipa: x.ipa || x.phonetic || x.IPA || "",
+    meaning_vi: x.meaning_vi || x.meaning || x.vi || "", usage_vi: x.usage_vi || x.usage || x.note || "",
+    context: x.context || x.sentence || "", example: x.example || x.example_en || "", example_vi: x.example_vi || "",
+    skills: [...new Set(arr(x.skills || x.skill).map(normSkill))], skill_tip_vi: x.skill_tip_vi || x.skill_tip || x.apply_vi || "",
+    sound_vi: x.sound_vi || x.sound || x.pronunciation_note || "",
+    ira: arr(x.ira || x.images || x.image), img_hint: x.img_hint || x.image_hint || "",
+  };
+  if (x.img) it.img = x.img;
+  if (!it.ipa) it.ipa = ""; else if (!/^\//.test(it.ipa)) it.ipa = "/" + it.ipa.replace(/^\[|\]$/g, "") + "/";
+  return it;
+}
+function normPara(p, i) {
+  return {
+    label: String(p.label || p.id || p.paragraph || i + 1),
+    text: String(p.text || p.original || p.content || "").replace(/\r/g, ""),
+    gist_vi: p.gist_vi || p.gist || p.main_idea_vi || "",
+    translation_vi: p.translation_vi || p.translation || "",
+    items: (p.items || p.vocab || p.vocabulary || []).map(normItem).filter((it) => it.in_text || it.base),
+  };
+}
+function parseResult(text) {
+  const blocks = extractBlocks(text);
+  if (!blocks.length) throw new Error("Không thấy khối JSON nào. Hãy dán nguyên câu trả lời của GPT (có ```json … ```).");
+  let base = null, errs = [];
+  blocks.forEach((b, k) => {
+    let o; try { o = tryParse(b); } catch (e) { errs.push(`Khối ${k + 1} lỗi JSON: ${e.message}`); return; }
+    if (Array.isArray(o)) o = { paragraphs: o };
+    if (!o || !Array.isArray(o.paragraphs)) { errs.push(`Khối ${k + 1} không có "paragraphs".`); return; }
+    if (!base) base = o; else base.paragraphs = base.paragraphs.concat(o.paragraphs);
+  });
+  if (!base) throw new Error(errs.join("\n") || "JSON không hợp lệ.");
+  const L = {
+    id: "nl-" + Date.now().toString(36), savedAt: Date.now(),
+    mode: /listen/i.test(base.mode || "") ? "listening" : /read/i.test(base.mode || "") ? "reading" : PREF.mode,
+    title: base.title || "Bài chưa đặt tên", source: base.source || "", topic: base.topic || "", summary_vi: base.summary_vi || base.summary || "",
+    paragraphs: base.paragraphs.map(normPara).filter((p) => p.text || p.items.length),
+  };
+  if (!L.paragraphs.length) throw new Error("Không có đoạn nào có nội dung.");
+  L.paragraphs.forEach((p) => p.items.forEach((it) => { it.img = resolveImg(it); }));
+  return { L, warn: errs, more: !!blocks.length && /"continue"\s*:\s*true/.test(blocks[blocks.length - 1]) };
+}
+
+/* ===================== Thư viện ===================== */
+let LIB = [];
+try { LIB = JSON.parse(localStorage.getItem(LIB_KEY) || "[]"); } catch (e) { LIB = []; }
+function saveLib() { try { localStorage.setItem(LIB_KEY, JSON.stringify(LIB)); } catch (e) { toast("⚠️ Bộ nhớ trình duyệt đầy — hãy xuất .json rồi xoá bớt bài cũ"); } }
+function upsert(L) { const i = LIB.findIndex((x) => x.id === L.id); if (i >= 0) LIB[i] = L; else LIB.unshift(L); saveLib(); }
+function renderLib() {
+  const el = $("#libList");
+  if (!LIB.length) { el.innerHTML = `<div class="empty">Chưa có bài nào. Làm bước 1–2, hoặc bấm <b>Xem thử bài mẫu</b>.</div>`; return; }
+  el.innerHTML = `<div class="libgrid">${LIB.map((L) => {
+    const n = L.paragraphs.reduce((a, p) => a + p.items.length, 0);
+    const th = L.paragraphs.flatMap((p) => p.items).slice(0, 6).map((it) => `<img src="${esc(imgSrc(it.img))}" alt="" loading="lazy">`).join("");
+    return `<div class="libcard"><div><span class="pill ${L.mode === "listening" ? "listen" : "read"}">${L.mode === "listening" ? "🎧 Listening" : "📖 Reading"}</span></div>
+      <div class="t">${esc(L.title)}</div><div class="m">${esc(L.source || L.topic || "")}${L.source || L.topic ? " · " : ""}${L.paragraphs.length} đoạn · ${n} mục · ${new Date(L.savedAt).toLocaleDateString("vi-VN")}</div>
+      <div class="thumbs">${th}</div>
+      <div class="acts"><button class="btn main sm" data-open="${L.id}">▶ Trình chiếu</button><button class="btn ghost sm" data-print="${L.id}">🖨 In</button><button class="btn ghost sm" data-exp="${L.id}">⬇ .json</button><button class="btn danger sm" data-del="${L.id}">Xoá</button></div></div>`;
+  }).join("")}</div>`;
+}
+
+/* ===================== Highlight trong đoạn ===================== */
+const low = (s) => String(s).toLowerCase().replace(/[’‘]/g, "'").replace(/[“”]/g, '"').replace(/–|—/g, "-");
+function findRanges(text, items) {
+  const T = low(text), ranges = [];
+  const isW = (c) => /[a-z0-9]/i.test(c || "");
+  const findAt = (needle, from, to) => {
+    let i = from;
+    while ((i = T.indexOf(needle, i)) >= 0 && i <= to) {
+      if (!isW(T[i - 1]) || !isW(needle[0])) if (!isW(T[i + needle.length]) || !isW(needle[needle.length - 1])) return i;
+      i++;
+    }
+    return -1;
+  };
+  items.forEach((it, k) => {
+    const parts = low(it.in_text).split(/\s*(?:\.\.\.|…)\s*/).map((s) => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    let pos = 0, got = [];
+    for (let tries = 0; tries < 6 && got.length < parts.length; tries++) {
+      got = []; let from = pos, ok = true;
+      for (let j = 0; j < parts.length; j++) {
+        const at = findAt(parts[j], from, j === 0 ? T.length : from + 90);
+        if (at < 0) { ok = false; break; }
+        got.push([at, at + parts[j].length]); from = at + parts[j].length;
+      }
+      if (ok) break;
+      if (!got.length) break; pos = got[0][0] + 1; got = [];
+    }
+    if (got.length === parts.length) got.forEach(([a, b], j) => ranges.push({ a, b, k, first: j === 0 }));
+  });
+  ranges.sort((x, y) => x.a - y.a || (y.b - y.a) - (x.b - x.a));
+  const out = []; let end = -1;
+  ranges.forEach((r) => { if (r.a >= end) { out.push(r); end = r.b; } });
+  return out;
+}
+function markText(text, items, tagFn) {
+  const R = findRanges(text, items); let html = "", p = 0;
+  R.forEach((r) => { html += esc(text.slice(p, r.a)) + tagFn(r, esc(text.slice(r.a, r.b))); p = r.b; });
+  html += esc(text.slice(p));
+  return html.split(/\n+/).map((line) => line.replace(/^\s*([A-Z][A-Za-z .'’\-]{0,22}|[A-Z]{1,3}\d?):\s/, '<b class="spk">$1:</b> ')).map((l) => `<p>${l}</p>`).join("");
+}
+const foundSet = (text, items) => new Set(findRanges(text, items).map((r) => r.k));
+
+/* ===================== Trình chiếu ===================== */
+let CUR = null, PI = 0, FILTER = "all", EDIT = false;
+function openLesson(L) {
+  CUR = L; PI = 0; FILTER = "all"; EDIT = false;
+  $("#home").classList.add("hidden"); $("#present").classList.remove("hidden");
+  document.title = "Night Lens — " + L.title;
+  history.replaceState(null, "", "#" + L.id);
+  renderPresent(); window.scrollTo(0, 0);
+}
+function goHome() { CUR = null; closeOv(); $("#present").classList.add("hidden"); $("#home").classList.remove("hidden"); document.title = "Night Lens — Phân tích Reading & Listening"; history.replaceState(null, "", location.pathname + location.search); renderLib(); }
+function syncToggles() {
+  $("#tGist").classList.toggle("on", !!PREF.gist); $("#tTrans").classList.toggle("on", !!PREF.tr); $("#tMean").classList.toggle("on", !!PREF.mean); $("#tEdit").classList.toggle("on", EDIT);
+  $("#pMain").style.setProperty("--pfs", PREF.fs);
+}
+function renderPresent() {
+  const L = CUR, R = L.mode !== "listening";
+  $("#pTitle").innerHTML = `${esc(L.title)}<small>${R ? "📖 Reading" : "🎧 Listening"}${L.source ? " · " + esc(L.source) : ""}</small>`;
+  $("#pChips").innerHTML = `<button class="chip all ${PI === -1 ? "on" : ""}" data-pi="-1">Toàn bài</button>` + L.paragraphs.map((p, i) => `<button class="chip ${PI === i ? "on" : ""}" data-pi="${i}">${esc(p.label)}</button>`).join("");
+  syncToggles();
+  const M = $("#pMain"); M.classList.toggle("editon", EDIT);
+  if (PI === -1) {
+    M.innerHTML = `${L.summary_vi ? `<div class="gist glass" style="margin-bottom:16px"><b>Tóm tắt cả bài</b>${rh(L.summary_vi)}</div>` : ""}<div class="overview">${L.paragraphs.map((p, i) => `
+      <div class="op glass"><div class="passage free" style="padding:0;margin:0;box-shadow:none;background:none;border:0">${paraHead(p, i)}<div class="ptext">${markText(p.text, p.items, (r, s) => `<mark class="v" style="--hl:${TYPE_HL[p.items[r.k].type]}" data-p="${i}" data-k="${r.k}">${s}${r.first ? `<sup>${r.k + 1}</sup>` : ""}</mark>`)}</div>${extraBoxes(p)}</div></div>`).join("")}</div>`;
+    return;
+  }
+  const p = L.paragraphs[PI];
+  const found = foundSet(p.text, p.items);
+  const skillsHere = [...new Set(p.items.flatMap((it) => it.skills))].filter((s) => s !== "recognise");
+  const list = p.items.map((it, k) => [it, k]).filter(([it]) => FILTER === "all" || it.skills.includes(FILTER));
+  M.innerHTML = `
+    <div class="passage glass">${paraHead(p, PI)}
+      <div class="ptext">${markText(p.text, p.items, (r, s) => `<mark class="v" style="--hl:${TYPE_HL[p.items[r.k].type]}" data-p="${PI}" data-k="${r.k}">${s}${r.first ? `<sup>${r.k + 1}</sup>` : ""}</mark>`)}</div>
+      ${extraBoxes(p)}
+    </div>
+    <div class="vhead"><h3><img src="${imgSrc(STK.vocab)}" alt="">Từ vựng đoạn ${esc(p.label)} <span class="lbl">· ${p.items.length} mục</span></h3>
+      ${skillsHere.length ? `<span class="seg" id="fSeg"><button data-f="all" class="${FILTER === "all" ? "on" : ""}">Tất cả</button>${skillsHere.map((s) => `<button data-f="${s}" class="${FILTER === s ? "on" : ""}">${SKILL_VI[s]}</button>`).join("")}</span>` : ""}</div>
+    <div class="vgrid ${PREF.mean ? "" : ""}">${list.map(([it, k]) => vcard(it, k, found.has(k))).join("") || `<div class="empty">Không có mục nào thuộc nhóm này.</div>`}</div>
+    <div class="pnav">
+      <button class="btn ghost" data-go="-1" ${PI === 0 ? "disabled style='visibility:hidden'" : ""}>← Đoạn ${PI > 0 ? esc(L.paragraphs[PI - 1].label) : ""}</button>
+      ${PI < L.paragraphs.length - 1 ? `<button class="btn main" data-go="1">Đoạn ${esc(L.paragraphs[PI + 1].label)} →</button>` : `<button class="btn amber" data-pi="-1">📖 Đọc lại toàn bài</button>`}
+    </div>`;
+}
+function paraHead(p, i) {
+  return `<div class="ph"><span class="lab">${CUR.mode === "listening" ? "Đoạn " : ""}${esc(p.label)}</span><span class="cnt">${p.items.length} mục từ vựng</span>
+    <span class="sp"><button class="say" data-say-p="${i}">🔊 Đọc đoạn</button><button class="say" data-say-stop>⏹</button></span></div>`;
+}
+function extraBoxes(p) {
+  return `${PREF.gist && p.gist_vi ? `<div class="gist"><b>💡 Ý chính</b>${rh(p.gist_vi)}</div>` : ""}${PREF.tr && p.translation_vi ? `<div class="trans"><b>🇻🇳 Bản dịch</b>${rh(p.translation_vi)}</div>` : ""}`;
+}
+function vcard(it, k, inText) {
+  return `<div class="vc ${PREF.mean ? "reveal" : ""}" data-k="${k}" title="${inText ? "" : "Mục này không tìm thấy nguyên văn trong đoạn"}">
+    <div class="im"><span class="no">${k + 1}</span><img src="${esc(imgSrc(it.img))}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${imgSrc(FALLBACK[0])}'"></div>
+    <div class="w">${esc(it.base || it.in_text)}</div>
+    ${it.ipa ? `<div class="ipa">${esc(it.ipa)}</div>` : ""}
+    ${PREF.mean ? `<div class="mini mean">${rh(it.meaning_vi)}</div>` : it.pattern ? `<div class="mini">${rh(it.pattern)}</div>` : ""}
+    <div class="tags"><span class="tag t-${it.type}">${TYPE_VI[it.type]}</span>${it.skills.filter((s) => s !== "recognise").map((s) => `<span class="tag s-${s}">${SKILL_VI[s]}</span>`).join("")}</div>
+  </div>`;
+}
+
+/* ---------- Thẻ chi tiết ---------- */
+let OVK = null;
+function closeOv() { $$(".ov").forEach((o) => o.remove()); OVK = null; }
+function openDetail(pi, k) {
+  closeOv();
+  const p = CUR.paragraphs[pi], it = p.items[k]; if (!it) return;
+  OVK = { pi, k };
+  const ctx = it.context || sentenceOf(p.text, it.in_text);
+  const ctxHtml = ctx ? markText(ctx, [it], (r, s) => `<em>${s}</em>`).replace(/<\/?p>/g, " ") : "";
+  const exHtml = it.example ? markText(it.example, [{ in_text: it.in_text }, { in_text: it.base.replace(/\s*\+.*$/, "").replace(/\b(sth|sb|someone|something)\b/g, "...") }], (r, s) => `<em>${s}</em>`).replace(/<\/?p>/g, " ") : "";
+  const sk = it.skills.filter((s) => s !== "recognise");
+  const skImg = sk.includes("writing") && !sk.includes("speaking") ? STK.write : sk.includes("daily") ? STK.daily : STK.speak;
+  const ov = document.createElement("div"); ov.className = "ov";
+  ov.innerHTML = `<div class="dlg"><button class="x" data-close>✕</button><div class="det">
+    <div class="l"><div class="pic"><img src="${esc(imgSrc(it.img))}" alt="" onerror="this.onerror=null;this.src='${imgSrc(FALLBACK[0])}'"></div>
+      <div class="tags" style="justify-content:center"><span class="tag t-${it.type}">${TYPE_VI[it.type]}</span>${it.skills.map((s) => `<span class="tag s-${s}">${SKILL_VI[s]}</span>`).join("")}</div>
+      <button class="btn ghost sm" data-pickimg>🖼 Đổi hình</button>
+      <div class="lbl">Đoạn ${esc(p.label)} · mục ${k + 1}/${p.items.length}</div>
+    </div>
+    <div class="r">
+      <div><h2 class="w">${esc(it.base || it.in_text)}</h2>${it.base && low(it.base) !== low(it.in_text) ? `<div class="base">Trong bài: “${esc(it.in_text)}”</div>` : ""}</div>
+      <div class="ipa">${esc(it.ipa)} <button class="say" data-say="${esc(it.in_text || it.base)}">🔊 Nghe</button><button class="say" data-say-slow="${esc(it.in_text || it.base)}">🐢 Chậm</button></div>
+      ${it.meaning_vi ? `<div class="mean">${rh(it.meaning_vi)}</div>` : ""}
+      ${it.pattern || it.usage_vi ? `<div class="formula"><img src="${imgSrc(STK.bulb)}" alt=""><div class="k">Công thức & cách dùng</div>${it.pattern ? `<div class="f">${rh(it.pattern)}</div>` : ""}${it.usage_vi ? `<div class="u">${rh(it.usage_vi)}</div>` : ""}</div>` : ""}
+      ${ctxHtml ? `<div class="blockq"><div class="k">📖 Trong bài <button class="say" data-say="${esc(ctx)}">🔊</button></div>${ctxHtml}</div>` : ""}
+      ${it.example ? `<div class="blockq ex"><div class="k">✨ Ví dụ <button class="say" data-say="${esc(it.example)}">🔊</button></div>${exHtml}${it.example_vi ? `<div class="vi">${rh(it.example_vi)}</div>` : ""}</div>` : ""}
+      ${it.sound_vi ? `<div class="soundbox"><div class="k">🎧 Nghe cho chuẩn</div>${rh(it.sound_vi)}</div>` : ""}
+      ${it.skill_tip_vi ? `<div class="skillbox"><img src="${imgSrc(skImg)}" alt=""><div><div class="k" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:#9d174d">Áp dụng</div>${rh(it.skill_tip_vi)}</div></div>` : ""}
+      <div class="nav"><button class="btn ghost sm" data-dk="-1" ${k === 0 ? "disabled style='visibility:hidden'" : ""}>← Mục trước</button><button class="btn main sm" data-dk="1" ${k >= p.items.length - 1 ? "disabled style='visibility:hidden'" : ""}>Mục sau →</button></div>
+    </div></div></div>`;
+  document.body.appendChild(ov);
+  $$("mark.v.hot, .vc.hot").forEach((e) => e.classList.remove("hot"));
+  $$(`mark.v[data-p="${pi}"][data-k="${k}"]`).forEach((e) => e.classList.add("hot"));
+  const card = $(`.vc[data-k="${k}"]`); if (card) card.classList.add("hot");
+}
+function sentenceOf(text, term) {
+  const parts = low(term).split(/\s*(?:\.\.\.|…)\s*/).filter(Boolean); if (!parts.length) return "";
+  const ss = text.replace(/\n/g, " ").match(/[^.!?]+[.!?]+["”’)]*|[^.!?]+$/g) || [];
+  return (ss.find((s) => low(s).includes(parts[0])) || "").trim();
+}
+
+/* ---------- Chọn hình ---------- */
+function openPicker(pi, k) {
+  const it = CUR.paragraphs[pi].items[k];
+  closeOv();
+  const sugg = scoreFiles([...(it.ira || []).flatMap(wordsOf), ...wordsOf(it.img_hint), ...wordsOf(it.base || it.in_text), ...wordsOf(it.meaning_vi && "")], 36);
+  const ov = document.createElement("div"); ov.className = "ov";
+  ov.innerHTML = `<div class="dlg pick"><button class="x" data-close>✕</button>
+    <h3>Chọn hình cho “${esc(it.base || it.in_text)}”</h3><div class="lbl">Kho Irasutoya · ${CAT.length} hình · gõ tiếng Anh hoặc romaji (vd: money, study, kaimono)</div>
+    <input type="search" placeholder="Tìm hình…" value="">
+    <div class="sub">Gợi ý</div><div class="pgrid" data-g="s"></div>
+    <div class="sub" data-allh>Tất cả</div><div class="pgrid" data-g="a"></div></div>`;
+  document.body.appendChild(ov);
+  const cell = (f) => `<button data-img="${esc(f)}" class="${f === it.img ? "cur" : ""}"><img src="${esc(imgSrc(f))}" loading="lazy" alt=""><span>${esc(stemOf(f))}</span></button>`;
+  $('[data-g="s"]', ov).innerHTML = sugg.map(cell).join("") || `<span class="lbl">Chưa có gợi ý — hãy tìm ở ô trên.</span>`;
+  const all = $('[data-g="a"]', ov), inp = $("input", ov);
+  const draw = () => {
+    const q = wordsOf(inp.value);
+    const list = q.length ? scoreFiles(q, 400) : CAT.filter((f) => !opaque(f)).slice(0, 240);
+    all.innerHTML = list.map(cell).join("") || `<span class="lbl">Không tìm thấy.</span>`;
+    $("[data-allh]", ov).textContent = q.length ? `Kết quả (${list.length})` : `Tất cả (đang hiện ${list.length}/${CAT.length} — gõ để tìm)`;
+  };
+  let tm; inp.addEventListener("input", () => { clearTimeout(tm); tm = setTimeout(draw, 160); });
+  draw(); setTimeout(() => inp.focus(), 50);
+  ov.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-img]"); if (!b) return;
+    it.img = b.dataset.img; it.ira = [b.dataset.img].concat((it.ira || []).filter((x) => x !== b.dataset.img));
+    upsert(CUR); closeOv(); renderPresent(); toast("Đã đổi hình ✓");
+  });
+}
+
+/* ===================== Bản in / PDF ===================== */
+const PO_DEF = { two: true, fs: 11, passage: true, gist: true, trans: false, sum: true, img: true, mean: true, pat: true, ctx: true, ex: true, exfirst: false, sk: true, snd: true, lines: false };
+function buildPrint(L) {
+  const R = L.mode !== "listening";
+  const blk = (inner, cls = "", attr = "") => `<div class="np-blk ${cls}" ${attr}><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button>${inner}</div>`;
+  const head = blk(`<img class="np-stk" src="${imgSrc(R ? STK.read : STK.listen)}" alt=""><div class="np-brand">Night IELTS · ${R ? "Reading" : "Listening"} · Từ vựng theo đoạn</div><h1>${esc(L.title)}</h1><div class="np-meta">${esc([L.source, L.topic].filter(Boolean).join(" · "))}</div><div class="np-who"><span>Họ tên:</span><span>Lớp:</span><span>Ngày:</span></div>`, "np-head");
+  const sum = L.summary_vi ? blk(`<div class="np-box np-gist np-sum"><span class="np-k">Tóm tắt</span>${rh(L.summary_vi)}</div>`) : "";
+  const body = L.paragraphs.map((p, i) => {
+    const pass = markText(p.text, p.items, (r, s) => `<u>${s}${r.first ? `<sup>${r.k + 1}</sup>` : ""}</u>`).replace(/<p>/g, "<p class='np-pass'>");
+    const cards = p.items.map((it, k) => {
+      const ctx = it.context || sentenceOf(p.text, it.in_text);
+      return blk(`<div class="np-v"><img src="${esc(imgSrc(it.img))}" alt=""><div class="np-vb">
+        <div class="np-w"><sup>${k + 1}</sup>${esc(it.base || it.in_text)} ${it.ipa ? `<span class="np-ipa">${esc(it.ipa)}</span>` : ""}<span class="np-tag">${TYPE_VI[it.type]}</span></div>
+        ${it.meaning_vi ? `<div class="np-mean">${rh(it.meaning_vi)}</div><div class="np-blank"></div>` : ""}
+        ${it.pattern || it.usage_vi ? `<div class="np-pat">${it.pattern ? `<b>${rh(it.pattern)}</b>` : ""}${it.pattern && it.usage_vi ? " — " : ""}${rh(it.usage_vi)}</div>` : ""}
+        ${ctx ? `<div class="np-ctx">📖 ${markText(ctx, [it], (r, s) => `<i>${s}</i>`).replace(/<\/?p>/g, " ")}</div>` : ""}
+        ${it.example ? `<div class="np-ex">✨ ${esc(it.example)}${it.example_vi ? ` <span>— ${esc(it.example_vi)}</span>` : ""}</div>` : ""}
+        ${it.sound_vi ? `<div class="np-snd">🎧 ${rh(it.sound_vi)}</div>` : ""}
+        ${it.skill_tip_vi || it.skills.some((s) => s !== "recognise") ? `<div class="np-sk">${it.skills.filter((s) => s !== "recognise").map((s) => SKILL_VI[s]).join(" · ")}${it.skill_tip_vi ? " — " + rh(it.skill_tip_vi) : ""}</div>` : ""}
+        <div class="np-lines"><div></div></div></div></div>`);
+    }).join("");
+    return `<section class="np-sec np-blk" data-sec="${i}"><button class="np-x" contenteditable="false" title="Bỏ cả đoạn này">✕</button>
+      <h2><span class="np-num">${esc(p.label)}</span>${R ? "Đoạn" : "Phần"} ${esc(p.label)} <span class="np-soft" style="font-weight:600">· ${p.items.length} mục</span></h2>
+      ${blk(pass)}
+      ${p.gist_vi ? blk(`<div class="np-box np-gist"><span class="np-k">Ý chính</span>${rh(p.gist_vi)}</div>`) : ""}
+      ${p.translation_vi ? blk(`<div class="np-box np-trans"><span class="np-k" style="color:#166534">Dịch</span>${rh(p.translation_vi)}</div>`) : ""}
+      <div class="np-vgrid">${cards}</div></section>`;
+  }).join("");
+  return head + sum + body;
+}
+function openPrint(L) {
+  if ($("#np-root")) return;
+  closeOv();
+  const opt = Object.assign({}, PO_DEF, PREF.print || {});
+  const on = {}; L.paragraphs.forEach((_, i) => { on[i] = true; });
+  const R = L.mode !== "listening";
+  const root = document.createElement("div"); root.id = "np-root";
+  const C = (k, t) => `<label class="np-chk"><input type="checkbox" data-o="${k}"> ${t}</label>`;
+  root.innerHTML = `
+    <div class="np-bar">
+      <b>🖨 Bản in / PDF</b>
+      <div class="np-grp"><span class="np-lbl">Mỗi mặt giấy</span><span class="np-seg" data-k="two"><button data-v="0">1 trang (A4 dọc)</button><button data-v="1">2 trang (A4 ngang)</button></span></div>
+      <div class="np-grp"><span class="np-lbl">Cỡ chữ</span><span class="np-seg" data-k="fs"><button data-v="9.5">Nhỏ</button><button data-v="11">Vừa</button><button data-v="12.5">To</button></span></div>
+      <div class="np-grp" style="margin-left:auto">
+        <button class="np-btn ghost" data-act="reset" title="Bỏ mọi chỉnh sửa tay">↺ Làm lại</button>
+        <button class="np-btn ghost" data-act="close">Đóng</button>
+        <button class="np-btn main" data-act="print">🖨 In / Lưu PDF</button>
+      </div>
+    </div>
+    <div class="np-secs"><span class="np-lbl" style="font-weight:800">HIỂN THỊ:</span>
+      ${C("passage", "Đoạn văn")}${C("sum", "Tóm tắt bài")}${C("gist", "Ý chính")}${C("trans", "Bản dịch")}${C("img", "Ảnh minh họa")}${C("mean", "Nghĩa (bỏ = chừa trống)")}${C("pat", "Công thức & cách dùng")}${C("ctx", "Câu trong bài")}${C("ex", "Câu ví dụ")}${C("exfirst", "Câu ví dụ lên trước nghĩa")}${C("sk", "Áp dụng Speaking/Writing")}${R ? "" : C("snd", "Nghe cho chuẩn")}${C("lines", "Dòng kẻ tự đặt câu")}
+    </div>
+    <div class="np-secs"><span class="np-lbl" style="font-weight:800">${R ? "ĐOẠN" : "PHẦN"} CẦN IN:</span>${L.paragraphs.map((p, i) => `<label class="np-chk"><input type="checkbox" data-s="${i}"> ${esc(p.label)}</label>`).join("")}</div>
+    <div class="np-tip">✏️ Bấm vào chữ trên trang để sửa trực tiếp · rê chuột vào một khối rồi bấm <b style="color:#e11d48">✕</b> để bỏ khối đó · Muốn có file PDF: bấm "In / Lưu PDF" rồi ở mục <b>Máy in</b> chọn <b>Lưu dưới dạng PDF</b>. Nhớ bật <b>Hình nền (Background graphics)</b> để giữ màu.</div>
+    <div class="np-scroll"><div class="np-sheet editing" contenteditable="true" spellcheck="false"></div><style class="np-page"></style><style class="np-hide"></style></div>`;
+  document.body.appendChild(root); document.body.classList.add("np-open");
+  const prevOv = document.body.style.overflow; document.body.style.overflow = "hidden";
+  const sheet = $(".np-sheet", root), pageStyle = $(".np-page", root), hideStyle = $(".np-hide", root);
+  const fill = () => { sheet.innerHTML = buildPrint(L); };
+  const apply = () => {
+    sheet.classList.toggle("two", !!opt.two); sheet.style.setProperty("--np-fs", opt.fs + "pt");
+    ["passage", "gist", "trans", "img", "mean", "pat", "ctx", "ex", "sk", "snd", "sum"].forEach((k) => sheet.classList.toggle("hide-" + k, !opt[k]));
+    sheet.classList.toggle("show-lines", !!opt.lines); sheet.classList.toggle("exfirst", !!opt.exfirst);
+    pageStyle.textContent = `@page { size: A4 ${opt.two ? "landscape" : "portrait"}; margin: ${opt.two ? "9mm" : "12mm"}; }`;
+    hideStyle.textContent = L.paragraphs.map((_, i) => on[i] ? "" : `.np-sheet [data-sec="${i}"]{display:none!important}`).join("\n");
+    $$(".np-seg", root).forEach((seg) => $$("button", seg).forEach((b) => b.classList.toggle("on", String(seg.dataset.k === "two" ? (opt.two ? 1 : 0) : opt[seg.dataset.k]) === b.dataset.v)));
+    $$("[data-o]", root).forEach((c) => { c.checked = !!opt[c.dataset.o]; });
+    $$("[data-s]", root).forEach((c) => { c.checked = !!on[c.dataset.s]; });
+  };
+  const persist = () => { PREF.print = opt; savePref(); };
+  const close = () => { root.remove(); document.body.classList.remove("np-open"); document.body.style.overflow = prevOv; document.removeEventListener("keydown", onKey); };
+  const onKey = (e) => { if (e.key === "Escape" && !sheet.contains(document.activeElement)) close(); };
+  document.addEventListener("keydown", onKey);
+  root.addEventListener("click", (e) => {
+    const x = e.target.closest(".np-x"); if (x) { e.preventDefault(); x.parentElement && x.parentElement.remove(); return; }
+    const sb = e.target.closest(".np-seg button");
+    if (sb) { const k = sb.parentElement.dataset.k; opt[k] = k === "two" ? sb.dataset.v === "1" : parseFloat(sb.dataset.v); apply(); persist(); return; }
+    const a = e.target.closest("[data-act]"); if (!a) return;
+    if (a.dataset.act === "close") close();
+    else if (a.dataset.act === "reset") { if (confirm("Bỏ mọi chỉnh sửa tay và tạo lại bản in?")) { fill(); apply(); } }
+    else if (a.dataset.act === "print") {
+      sheet.classList.remove("editing");
+      const imgs = $$("img", sheet).filter((im) => !im.complete);
+      Promise.race([Promise.all(imgs.map((im) => new Promise((r) => { im.onload = im.onerror = r; }))), new Promise((r) => setTimeout(r, 5000))])
+        .then(() => { const t = document.title; document.title = "Night IELTS - " + L.title; window.print(); document.title = t; sheet.classList.add("editing"); });
+    }
+  });
+  root.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t.dataset.o) { opt[t.dataset.o] = t.checked; apply(); persist(); }
+    else if (t.dataset.s != null) { on[t.dataset.s] = t.checked; apply(); }
+  });
+  fill(); apply();
+}
+
+/* ===================== Bài mẫu ===================== */
+const DEMO = { mode: "reading", title: "Why we should all walk more", source: "Bài mẫu Night IELTS", topic: "Health & cities",
+  summary_vi: "Đi bộ là cách đơn giản để khoẻ hơn; nhiều thành phố đang thiết kế lại đường phố để khuyến khích người dân đi bộ.",
+  paragraphs: [
+    { label: "A", text: "Walking is often overlooked as a form of exercise. Yet doctors argue that a brisk thirty-minute walk can significantly reduce the risk of heart disease. People who get used to walking every day also tend to sleep better and feel less stressed.",
+      gist_vi: "Đi bộ bị xem nhẹ nhưng mang lại nhiều lợi ích sức khoẻ.", translation_vi: "Đi bộ thường bị xem nhẹ như một hình thức tập thể dục. Thế nhưng các bác sĩ cho rằng đi bộ nhanh 30 phút có thể giảm đáng kể nguy cơ bệnh tim. Những người quen đi bộ mỗi ngày cũng thường ngủ ngon hơn và bớt căng thẳng.",
+      items: [
+        { in_text: "overlooked", base: "be overlooked (as …)", type: "word", pattern: "be overlooked + as + N", ipa: "/ˌəʊvəˈlʊkt/", meaning_vi: "bị xem nhẹ, bị bỏ qua", usage_vi: "Dạng bị động hay dùng trong Writing để nói một vấn đề chưa được chú ý đúng mức.", example: "The role of grandparents is often overlooked.", example_vi: "Vai trò của ông bà thường bị xem nhẹ.", skills: ["writing"], skill_tip_vi: "Writing Task 2 mở bài: 'X is often overlooked, yet …'", ira: ["pose_mimi_fusagu_woman", "magnifier6_girl"], img_hint: "ignore not notice" },
+        { in_text: "a brisk thirty-minute walk", base: "a brisk walk", type: "collocation", pattern: "a brisk + walk/pace (adj + N)", ipa: "/ə brɪsk wɔːk/", meaning_vi: "cuộc đi bộ nhanh, rảo bước", usage_vi: "brisk = nhanh và đầy năng lượng; hay đi với walk, pace. 'thirty-minute' có gạch nối và không thêm s.", example: "I take a brisk walk around the park after dinner.", example_vi: "Tôi rảo bước quanh công viên sau bữa tối.", skills: ["speaking"], skill_tip_vi: "Speaking Part 1 (Exercise): 'I'm not a gym person, but I try to take a brisk walk every evening.'", ira: ["walking"], img_hint: "person walking fast" },
+        { in_text: "significantly reduce the risk of", base: "reduce the risk of + N/V-ing", type: "collocation", pattern: "(significantly) reduce the risk of + N/V-ing", ipa: "/rɪˈdjuːs ðə rɪsk əv/", meaning_vi: "giảm (đáng kể) nguy cơ…", usage_vi: "Collocation 'vàng' cho chủ đề sức khoẻ; có thể thay reduce bằng lower/minimise.", example: "Wearing a helmet can significantly reduce the risk of serious injury.", example_vi: "Đội mũ bảo hiểm có thể giảm đáng kể nguy cơ chấn thương nặng.", skills: ["writing", "speaking"], skill_tip_vi: "Writing Task 2 (Health): 'Regular exercise can significantly reduce the risk of …'", ira: ["graph_down", "iryou_geka_doctor"], img_hint: "graph going down" },
+        { in_text: "get used to walking", base: "get used to + N/V-ing", type: "structure", pattern: "get + adj (= become): get used to + V-ing", ipa: "/ɡet ˈjuːst tə/", meaning_vi: "dần quen với…", usage_vi: "'get' ở đây = trở nên (get + tính từ). Sau 'used to' là V-ing vì 'to' là giới từ — khác 'used to + V' (đã từng).", example: "It took me a month to get used to waking up at 6 a.m.", example_vi: "Mình mất một tháng để quen dậy lúc 6 giờ sáng.", skills: ["speaking", "writing"], skill_tip_vi: "Speaking Part 2 (thay đổi thói quen): 'At first it was hard, but I soon got used to …'", ira: ["kangaeruhito"], img_hint: "routine habit" },
+      ] },
+    { label: "B", text: "Many cities are now redesigning their streets to put pedestrians first. Wider pavements and car-free zones make walking more appealing, and local businesses often benefit from the extra foot traffic.",
+      gist_vi: "Các thành phố thiết kế lại đường phố ưu tiên người đi bộ, có lợi cho cả kinh doanh.",
+      translation_vi: "Nhiều thành phố hiện đang thiết kế lại đường phố để ưu tiên người đi bộ. Vỉa hè rộng hơn và khu vực cấm ô tô khiến việc đi bộ hấp dẫn hơn, và các cửa hàng địa phương thường hưởng lợi từ lượng khách đi bộ tăng thêm.",
+      items: [
+        { in_text: "put pedestrians first", base: "put sb/sth first", type: "idiom", pattern: "put + N + first = ưu tiên ai/cái gì", ipa: "/pʊt pəˈdestriənz fɜːst/", meaning_vi: "ưu tiên người đi bộ", usage_vi: "Cụm tự nhiên, dùng được cả Speaking lẫn Writing.", example: "Good parents always put their children first.", example_vi: "Cha mẹ tốt luôn đặt con cái lên hàng đầu.", skills: ["speaking", "writing"], skill_tip_vi: "Writing (City planning): 'Governments should put public transport first.'", ira: ["car_douro_kousaten"], img_hint: "pedestrian crossing" },
+        { in_text: "car-free zones", base: "a car-free zone", type: "collocation", pattern: "N-free = không có N (car-free, smoke-free, sugar-free)", ipa: "/ˈkɑː friː zəʊnz/", meaning_vi: "khu vực cấm ô tô", usage_vi: "Hậu tố -free tạo tính từ 'không có…'; rất hữu ích cho chủ đề môi trường/giao thông.", example: "The old town has become a car-free zone at weekends.", example_vi: "Phố cổ trở thành khu cấm ô tô vào cuối tuần.", skills: ["writing"], skill_tip_vi: "Writing Task 2 (Traffic/Pollution): 'Creating car-free zones in city centres would …'", ira: ["eco_car", "douro"], img_hint: "no cars street" },
+        { in_text: "benefit from", base: "benefit from + N", type: "phrasal", pattern: "S + benefit from + N (= được lợi từ)", ipa: "/ˈbenɪfɪt frəm/", meaning_vi: "hưởng lợi từ", usage_vi: "Chủ ngữ là bên ĐƯỢC lợi. Lỗi hay gặp: 'benefit for'.", example: "Students benefit from small class sizes.", example_vi: "Học sinh được lợi từ lớp sĩ số nhỏ.", skills: ["writing", "speaking"], skill_tip_vi: "Writing Task 2 thân bài: 'Local communities would benefit greatly from …'", ira: ["money"], img_hint: "gain profit" },
+        { in_text: "foot traffic", base: "foot traffic", type: "collocation", pattern: "foot traffic (N, không đếm được)", ipa: "/ˈfʊt ˌtræfɪk/", meaning_vi: "lượng người đi bộ qua lại", usage_vi: "Hay dùng khi nói về kinh doanh bán lẻ: more foot traffic = nhiều khách ghé hơn.", example: "The new metro station brought more foot traffic to the market.", example_vi: "Ga metro mới mang thêm lượng người qua lại cho khu chợ.", skills: ["recognise"], skill_tip_vi: "", ira: ["syoutengai", "gyouretsu"], img_hint: "busy shopping street" },
+      ] },
+  ] };
+
+/* ===================== Sự kiện ===================== */
+function refreshPrompt() {
+  $$(".modepick button").forEach((b) => b.classList.toggle("on", b.dataset.mode === PREF.mode));
+  $$(".step .seg").forEach((seg) => $$("button", seg).forEach((b) => b.classList.toggle("on", PREF[seg.dataset.k] === b.dataset.v)));
+  $("#optTrans").checked = !!PREF.trans;
+  const p = buildPrompt();
+  $("#promptBox").value = p;
+  $("#promptInfo").textContent = `${PREF.mode === "reading" ? "Reading" : "Listening"} · ${Math.round(p.length / 1000)}k ký tự · kho ${CAT.length || "?"} hình`;
+}
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  const mb = t.closest(".modepick button"); if (mb) { PREF.mode = mb.dataset.mode; savePref(); refreshPrompt(); return; }
+  const sg = t.closest(".step .seg button"); if (sg) { PREF[sg.parentElement.dataset.k] = sg.dataset.v; savePref(); refreshPrompt(); return; }
+  if (t.closest("#btnCopy")) { copyText($("#promptBox").value).then((ok) => toast(ok ? "Đã copy prompt ✓ — dán vào ChatGPT, rồi dán bài ở cuối" : "Không copy được — mở 'Xem prompt' để copy tay")); return; }
+  if (t.closest("#btnDone")) {
+    const err = $("#jsonErr"); err.textContent = ""; err.className = "err";
+    try {
+      const { L, warn, more } = parseResult($("#jsonBox").value);
+      upsert(L); $("#jsonBox").value = "";
+      if (warn.length || more) toast((more ? "GPT chưa xong — gõ 'tiếp' rồi dán thêm. " : "") + warn.join(" "));
+      openLesson(L);
+    } catch (ex) { err.textContent = "⚠️ " + ex.message; }
+    return;
+  }
+  if (t.closest("#btnDemo")) { const r = parseResult(JSON.stringify(DEMO)); r.L.title += " (mẫu)"; upsert(r.L); openLesson(r.L); return; }
+  const op = t.closest("[data-open]"); if (op) { const L = LIB.find((x) => x.id === op.dataset.open); if (L) openLesson(L); return; }
+  const pr = t.closest("[data-print]"); if (pr) { const L = LIB.find((x) => x.id === pr.dataset.print); if (L) openPrint(L); return; }
+  const ex = t.closest("[data-exp]"); if (ex) { const L = LIB.find((x) => x.id === ex.dataset.exp); if (L) download(`night-lens-${slug(L.title)}.json`, JSON.stringify(L, null, 1)); return; }
+  const dl = t.closest("[data-del]"); if (dl) { const L = LIB.find((x) => x.id === dl.dataset.del); if (L && confirm(`Xoá bài “${L.title}” khỏi thư viện?`)) { LIB = LIB.filter((x) => x !== L); saveLib(); renderLib(); } return; }
+
+  if (!CUR) return;
+  if (t.closest("#btnBack")) { goHome(); return; }
+  if (t.closest("#btnPrint")) { openPrint(CUR); return; }
+  const fsb = t.closest("[data-fs]"); if (fsb) { PREF.fs = Math.min(1.8, Math.max(0.7, +(PREF.fs + 0.1 * +fsb.dataset.fs).toFixed(2))); savePref(); syncToggles(); return; }
+  if (t.closest("#tGist")) { PREF.gist = !PREF.gist; savePref(); renderPresent(); return; }
+  if (t.closest("#tTrans")) { PREF.tr = !PREF.tr; savePref(); renderPresent(); return; }
+  if (t.closest("#tMean")) { PREF.mean = !PREF.mean; savePref(); renderPresent(); return; }
+  if (t.closest("#tEdit")) { EDIT = !EDIT; renderPresent(); toast(EDIT ? "Bấm vào hình trên thẻ để đổi" : "Đã tắt chế độ đổi hình"); return; }
+  const pc = t.closest("[data-pi]"); if (pc) { PI = +pc.dataset.pi; FILTER = "all"; renderPresent(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  const go = t.closest("[data-go]"); if (go) { PI = Math.max(0, Math.min(CUR.paragraphs.length - 1, PI + +go.dataset.go)); FILTER = "all"; renderPresent(); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+  const fb = t.closest("#fSeg button"); if (fb) { FILTER = fb.dataset.f; renderPresent(); return; }
+  const sp = t.closest("[data-say-p]"); if (sp) { speak(CUR.paragraphs[+sp.dataset.sayP].text.replace(/^\s*[A-Z][\w .'’-]{0,22}:\s/gm, ""), 0.92); return; }
+  if (t.closest("[data-say-stop]")) { try { speechSynthesis.cancel(); } catch (e2) {} return; }
+  const sy = t.closest("[data-say]"); if (sy) { speak(sy.dataset.say); return; }
+  const ss = t.closest("[data-say-slow]"); if (ss) { speak(ss.dataset.saySlow, 0.6); return; }
+  if (t.closest("[data-close]") || t.classList.contains("ov")) { closeOv(); return; }
+  if (t.closest("[data-pickimg]") && OVK) { openPicker(OVK.pi, OVK.k); return; }
+  const dk = t.closest("[data-dk]"); if (dk && OVK) { openDetail(OVK.pi, OVK.k + +dk.dataset.dk); return; }
+  const mk = t.closest("mark.v"); if (mk) { openDetail(+mk.dataset.p, +mk.dataset.k); return; }
+  const vc = t.closest(".vc"); if (vc) { if (EDIT && t.closest(".im")) openPicker(PI, +vc.dataset.k); else openDetail(PI, +vc.dataset.k); return; }
+});
+$("#optTrans").addEventListener("change", (e) => { PREF.trans = e.target.checked; savePref(); refreshPrompt(); });
+$("#fileIn").addEventListener("change", async (e) => {
+  let n = 0;
+  for (const f of e.target.files) {
+    try {
+      const o = JSON.parse(await f.text());
+      const list = Array.isArray(o) ? o : [o];
+      list.forEach((x) => { if (x && x.paragraphs) { if (!x.id) { const r = parseResult(JSON.stringify(x)); x = r.L; } else x.paragraphs.forEach((p) => p.items.forEach((it) => { if (!it.img) it.img = resolveImg(it); })); upsert(x); n++; } });
+    } catch (ex) { toast("File lỗi: " + f.name); }
+  }
+  e.target.value = ""; renderLib(); if (n) toast(`Đã nhập ${n} bài ✓`);
+});
+document.addEventListener("keydown", (e) => {
+  if ($("#np-root") || !CUR) return;
+  if (/INPUT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName)) { if (e.key === "Escape") closeOv(); return; }
+  if (e.key === "Escape") { closeOv(); return; }
+  if (OVK && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { const nk = OVK.k + (e.key === "ArrowRight" ? 1 : -1); if (CUR.paragraphs[OVK.pi].items[nk]) openDetail(OVK.pi, nk); e.preventDefault(); return; }
+  if (!OVK && PI >= 0 && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { const np = PI + (e.key === "ArrowRight" ? 1 : -1); if (CUR.paragraphs[np]) { PI = np; FILTER = "all"; renderPresent(); window.scrollTo(0, 0); } }
+});
+
+/* ===================== Khởi động ===================== */
+refreshPrompt(); renderLib();
+loadCatalog().then(() => {
+  refreshPrompt();
+  let changed = false;
+  LIB.forEach((L) => L.paragraphs.forEach((p) => p.items.forEach((it) => { if (CAT.length && !CATSET.has(it.img)) { it.img = resolveImg(it); changed = true; } })));
+  if (changed) saveLib();
+  renderLib(); if (CUR) renderPresent();
+});
+const hid = location.hash.slice(1); if (hid) { const L = LIB.find((x) => x.id === hid); if (L) openLesson(L); }
+})();
+</script>
+</body>
+</html>
