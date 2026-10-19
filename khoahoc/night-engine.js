@@ -186,8 +186,15 @@
       /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-premium" }, "Dịch")
     );
   }
-  function Section({ id, step, title, desc, children }) {
-    return /* @__PURE__ */ React.createElement("section", { id, className: "scroll-mt-20" }, /* @__PURE__ */ React.createElement("div", { className: "mb-5 flex items-end gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-4xl font-extrabold leading-none text-primary/15" }, step), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold text-slate-900 sm:text-2xl" }, title), desc && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-500" }, rich(desc)))), children);
+  function Section({ id, step, title, desc, children, sticker, band8 }) {
+    const E = React.createElement;
+    return E("section", { id, className: "scroll-mt-20" }, E("div", { className: "mb-5 flex items-end gap-3" },
+      E("span", { className: `text-4xl font-extrabold leading-none ${band8 ? "text-amber-400/60" : "text-primary/15"}` }, step),
+      E("div", { className: "min-w-0 flex-1" },
+        band8 && E("span", { className: "mb-1 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-amber-700" }, "★ Band 8"),
+        E("h2", { className: "text-xl font-extrabold text-slate-900 sm:text-2xl" }, title),
+        desc && E("p", { className: "mt-1 text-sm text-slate-500" }, rich(desc))),
+      sticker && E("img", { src: IRA_BASE + sticker, alt: "", "aria-hidden": "true", loading: "lazy", className: "-mb-1 h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20", onError: (e) => { e.currentTarget.style.display = "none"; } })), children);
   }
   const BADGES = {
     long: ["Dài", "bg-indigo-100 text-primary"],
@@ -1074,7 +1081,7 @@
     const correct = items.filter((it, i) => picked[i] === it.answer).length;
     return /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, items.map((it, i) => {
       const p = picked[i];
-      return /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, /* @__PURE__ */ React.createElement("span", { className: "mr-2 text-primary" }, i + 1, "."), rich(it.q)), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex flex-wrap gap-2" }, it.options.map((o, k) => {
+      return /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, /* @__PURE__ */ React.createElement("span", { className: "mr-2 text-primary" }, i + 1, "."), rich(it.q)), it.img && React.createElement("img", { src: it.img, alt: "", loading: "lazy", className: "mt-3 w-full max-w-xl rounded-2xl border border-slate-100" }), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex flex-wrap gap-2" }, it.options.map((o, k) => {
         let style = "border-slate-200 bg-slate-50 text-slate-700 hover:border-primary/40";
         if (p !== void 0) {
           if (k === it.answer) style = "border-emerald-300 bg-emerald-50 text-emerald-700";
@@ -1173,7 +1180,7 @@
   }
 
   // 4 tiêu chí: type "criteria" — items:[{name, en, short, check:[...], band5, band6}]
-  function Criteria({ items = [], note }) {
+  function Criteria({ items = [], note, labels = ["Band 5.0 thường là", "Band 6.0 cần"] }) {
     const [open, setOpen] = useState(0);
     const colors = ["bg-cyan-500", "bg-indigo-500", "bg-purple-500", "bg-pink-500"];
     return h("div", null,
@@ -1188,8 +1195,8 @@
         h("p", { className: "text-sm leading-relaxed text-slate-700" }, rich(items[open].short)),
         items[open].check && h("ul", { className: "mt-3 space-y-1.5" }, items[open].check.map((b, k) => h("li", { key: k, className: "flex gap-2 text-sm text-slate-700" }, h("span", { className: "text-primary" }, "✓"), h("span", null, rich(b))))),
         h("div", { className: "mt-4 grid gap-3 sm:grid-cols-2" },
-          h("div", { className: "rounded-2xl bg-slate-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-slate-500" }, "Band 5.0 thường là"), h("p", { className: "mt-1 text-sm leading-relaxed text-slate-700" }, rich(items[open].band5))),
-          h("div", { className: "rounded-2xl bg-emerald-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-emerald-700" }, "Band 6.0 cần"), h("p", { className: "mt-1 text-sm leading-relaxed text-slate-800" }, rich(items[open].band6))))),
+          h("div", { className: "rounded-2xl bg-slate-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-slate-500" }, labels[0]), h("p", { className: "mt-1 text-sm leading-relaxed text-slate-700" }, rich(items[open].band5))),
+          h("div", { className: "rounded-2xl bg-emerald-50 p-4" }, h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-emerald-700" }, labels[1]), h("p", { className: "mt-1 text-sm leading-relaxed text-slate-800" }, rich(items[open].band6))))),
       note && h("p", { className: "mt-4 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note))
     );
   }
@@ -1414,6 +1421,133 @@
       h("span", { className: "text-xl" }, "→"));
   }
 
+  /* ===================== KHỐI CHO KHÓA WRITING (dùng được cho mọi khóa) =====================
+     figure    — ảnh trang sách/biểu đồ: items:[{src, caption, wide}], note
+     compare   — đặt các phiên bản bài viết cạnh nhau: intro, items:[{label, tone:"weak"|"ok"|"good", text, comment}], takeaway
+     checklist — tự kiểm sau khi viết (tích được, lưu trên máy): groups:[{label, items:[...]}], note
+     fill      — điền chỗ trống: items:[{text:"… [[đáp án|đáp án khác]] …", explain}]
+     write     — ô viết có đếm từ, lưu nháp, xem bài mẫu: tasks:[{prompt, img, min, hint, frame, model, notes}]
+     Section có band8:true → gom sau nút vàng "Band 8" (xem LessonApp). Section có sticker:"ten.webp" → ảnh Irasutoya cạnh tiêu đề. */
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  function Sticker({ ira, className = "" }) {
+    const [bad, setBad] = useState(false);
+    if (!ira || bad) return null;
+    return h("img", { src: IRA_BASE + ira, alt: "", "aria-hidden": "true", loading: "lazy", draggable: false, onError: () => setBad(true), className: `pointer-events-none select-none object-contain ${className}` });
+  }
+  function Figures({ items = [], note, sticker }) {
+    return h("div", { className: "space-y-4" },
+      h("div", { className: "grid gap-4 sm:grid-cols-2" }, items.map((f, i) => h("figure", { key: i, className: `overflow-hidden rounded-3xl border border-slate-200 bg-white p-3 shadow-floating ${f.wide ? "sm:col-span-2" : ""}` },
+        h("a", { href: f.src, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: f.src, alt: f.caption || "", loading: "lazy", className: "mx-auto w-full rounded-2xl" })),
+        f.caption && h("figcaption", { className: "mt-2 px-1 text-xs leading-relaxed text-slate-500" }, rich(f.caption))))),
+      note && h("div", { className: "flex items-center gap-3 rounded-3xl bg-amber-50 p-4" },
+        h(Sticker, { ira: sticker, className: "h-16 w-16 shrink-0" }),
+        h("p", { className: "text-sm leading-relaxed text-amber-900" }, rich(note))));
+  }
+  const TONES = {
+    weak: ["border-rose-200 bg-rose-50/60", "bg-rose-100 text-rose-700"],
+    ok: ["border-sky-200 bg-sky-50/60", "bg-sky-100 text-sky-700"],
+    good: ["border-emerald-200 bg-emerald-50/60", "bg-emerald-100 text-emerald-700"]
+  };
+  function Compare({ intro, items = [], takeaway }) {
+    const cols = items.length >= 3 ? "lg:grid-cols-3" : "md:grid-cols-2";
+    return h("div", { className: "space-y-4" },
+      intro && h("p", { className: "rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
+      h("div", { className: `grid gap-4 ${cols}` }, items.map((v, i) => {
+        const t = TONES[v.tone] || TONES.ok;
+        return h("div", { key: i, className: `flex flex-col rounded-3xl border-2 p-5 ${t[0]}` },
+          h("span", { className: `self-start rounded-full px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wide ${t[1]}` }, v.label),
+          h("p", { className: "mt-3 text-sm leading-relaxed text-slate-800" }, rich(v.text)),
+          v.comment && h("p", { className: "mt-auto border-t border-slate-200/70 pt-3 text-xs leading-relaxed text-slate-600" }, "💬 ", rich(v.comment)));
+      })),
+      takeaway && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm leading-relaxed text-amber-900" }, "💡 ", rich(takeaway)));
+  }
+  function Checklist({ groups = [], note, storeKey }) {
+    const [done, setDone] = useState(() => lsGet(storeKey, {}));
+    const total = groups.reduce((n, g) => n + g.items.length, 0);
+    const count = Object.values(done).filter(Boolean).length;
+    const toggle = (k) => { const n = { ...done, [k]: !done[k] }; setDone(n); lsSet(storeKey, n); };
+    let num = 0;
+    return h("div", { className: "space-y-4" },
+      h("div", { className: "grid gap-4 md:grid-cols-3" }, groups.map((g, gi) => h("div", { key: gi, className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
+        h("p", { className: "mb-3 text-sm font-extrabold text-slate-900" }, g.label),
+        h("ul", { className: "space-y-2" }, g.items.map((it) => {
+          num += 1; const k = `${gi}-${num}`; const n = num;
+          return h("li", { key: k }, h("label", { className: "flex cursor-pointer items-start gap-2 text-sm leading-relaxed text-slate-700" },
+            h("input", { type: "checkbox", checked: !!done[k], onChange: () => toggle(k), className: "mt-1 h-4 w-4 shrink-0 accent-indigo-600" }),
+            h("span", { className: done[k] ? "text-slate-400 line-through" : "" }, h("b", { className: "text-primary" }, n, ") "), rich(it))));
+        }))))),
+      h("div", { className: "flex items-center justify-between rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" },
+        h("span", null, "Đã kiểm ", count, "/", total), count > 0 && h("button", { onClick: () => { setDone({}); lsSet(storeKey, {}); }, className: "text-xs underline" }, "Bỏ tích hết")),
+      note && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note)));
+  }
+  const normAns = (s) => String(s || "").toLowerCase().replace(/[’']/g, "'").replace(/[.,;:!?]+$/g, "").replace(/\s+/g, " ").trim();
+  function FillItem({ it, i }) {
+    const parts = String(it.text).split(/\[\[(.+?)\]\]/);
+    const gaps = parts.filter((_, k) => k % 2 === 1).map((g) => g.split("|"));
+    const [vals, setVals] = useState(gaps.map(() => ""));
+    const [checked, setChecked] = useState(false);
+    const [shown, setShown] = useState(false);
+    const ok = gaps.map((g, k) => g.some((a) => normAns(a) === normAns(vals[k])));
+    let gi = -1;
+    return h("div", { className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
+      h("p", { className: "text-sm leading-loose text-slate-800" }, h("span", { className: "mr-2 font-bold text-primary" }, i + 1, "."), parts.map((p, k) => {
+        if (k % 2 === 0) return h(React.Fragment, { key: k }, rich(p));
+        gi += 1; const g = gi;
+        const st = !checked ? "border-slate-300 focus:border-primary" : ok[g] ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-rose-400 bg-rose-50 text-rose-700";
+        return h("span", { key: k, className: "inline-flex items-baseline gap-1" },
+          h("input", { value: shown ? gaps[g][0] : vals[g], readOnly: shown, onChange: (e) => { const n = vals.slice(); n[g] = e.target.value; setVals(n); setChecked(false); },
+            "aria-label": `Chỗ trống ${g + 1}`, autoCapitalize: "off", autoComplete: "off", spellCheck: false,
+            style: { width: `${Math.max(5, gaps[g][0].length + 2)}ch` },
+            className: `mx-1 rounded-lg border-b-2 border-t-0 border-x-0 bg-slate-50 px-1.5 py-0.5 text-center text-sm font-semibold outline-none ${st}` }));
+      })),
+      h("div", { className: "mt-3 flex flex-wrap items-center gap-2" },
+        h("button", { onClick: () => setChecked(true), className: "rounded-full bg-primary px-4 py-1.5 text-xs font-bold text-white" }, "Kiểm tra"),
+        h("button", { onClick: () => setShown(!shown), className: "rounded-full bg-primary-light px-4 py-1.5 text-xs font-semibold text-primary" }, shown ? "Ẩn đáp án" : "Xem đáp án"),
+        checked && h("span", { className: `text-xs font-bold ${ok.every(Boolean) ? "text-emerald-600" : "text-rose-600"}` }, ok.every(Boolean) ? "✓ Chính xác!" : `Đúng ${ok.filter(Boolean).length}/${gaps.length}`)),
+      (checked || shown) && it.explain && h("p", { className: "mt-3 text-xs leading-relaxed text-slate-600" }, "💡 ", rich(it.explain)));
+  }
+  function Fill({ items = [], intro }) {
+    return h("div", { className: "mx-auto max-w-3xl space-y-4" },
+      intro && h("p", { className: "rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
+      items.map((it, i) => h(FillItem, { key: i, it, i })));
+  }
+  const wordCount = (s) => (String(s).trim().match(/[A-Za-zÀ-ỹ0-9]+(?:['’-][A-Za-zÀ-ỹ0-9]+)*/g) || []).length;
+  function WriteTask({ t, i, storeKey }) {
+    const [txt, setTxt] = useState(() => lsGet(storeKey, ""));
+    const [show, setShow] = useState(false);
+    const n = wordCount(txt);
+    const min = t.min || 0;
+    return h("div", { className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
+      h("p", { className: "text-sm font-bold leading-relaxed text-slate-900" }, h("span", { className: "mr-2 text-primary" }, "✍️ ", i + 1, "."), rich(t.prompt)),
+      t.img && h("img", { src: t.img, alt: "", loading: "lazy", className: "mt-3 w-full rounded-2xl border border-slate-100" }),
+      t.hint && h("p", { className: "mt-3 rounded-2xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600" }, "🧭 ", rich(t.hint)),
+      h("textarea", { value: txt, rows: t.rows || 6, placeholder: t.frame || "Viết vào đây… (bài được lưu trên máy này)",
+        onChange: (e) => { setTxt(e.target.value); lsSet(storeKey, e.target.value); },
+        className: "mt-3 w-full rounded-2xl border border-slate-200 bg-slate-50/60 p-3 text-sm leading-relaxed text-slate-800 outline-none focus:border-primary focus:bg-white" }),
+      h("div", { className: "mt-2 flex flex-wrap items-center justify-between gap-2" },
+        h("span", { className: `text-xs font-bold ${min && n < min ? "text-amber-600" : "text-emerald-600"}` }, n, " từ", min ? ` / tối thiểu ${min}` : ""),
+        t.model && h("button", { onClick: () => setShow(!show), className: "rounded-full bg-primary-light px-4 py-1.5 text-xs font-semibold text-primary" }, show ? "Ẩn bài mẫu" : "Viết xong → xem bài mẫu")),
+      show && t.model && h("div", { className: "mt-3 rounded-2xl bg-sky-50 p-4" },
+        h("p", { className: "whitespace-pre-line text-sm leading-relaxed text-slate-800" }, rich(t.model)),
+        t.notes && h("ul", { className: "mt-3 space-y-1" }, t.notes.map((x, k) => h("li", { key: k, className: "text-xs leading-relaxed text-slate-600" }, "▸ ", rich(x))))));
+  }
+  function WriteBox({ tasks = [], lessonId, sectionId, lesson }) {
+    return h("div", { className: "mx-auto max-w-3xl space-y-4" }, tasks.map((t, i) => h(WriteTask, { key: i, t, i, storeKey: `night-${courseKeyOf(lesson)}-${lessonId}-${sectionId}-w${i}` })));
+  }
+  function Band8Gate({ open, onToggle, info = {}, count }) {
+    return h("div", { id: "band8", className: "scroll-mt-20" },
+      h("div", { className: "relative overflow-hidden rounded-[2rem] border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-100 p-6 shadow-floating sm:p-8" },
+        h("div", { className: "flex flex-col items-center gap-5 sm:flex-row" },
+          h(Sticker, { ira: info.sticker || "trophy_school_boy.webp", className: "h-28 w-28 shrink-0" }),
+          h("div", { className: "flex-1 text-center sm:text-left" },
+            h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-amber-700" }, "Nâng cao · ", count, " phần"),
+            h("h2", { className: "mt-1 text-2xl font-extrabold text-slate-900" }, info.title || "Nội dung Band 8"),
+            h("p", { className: "mt-2 text-sm leading-relaxed text-slate-600" }, rich(info.desc || "Dành cho bạn nhắm 7.0+. Học cùng thầy trên lớp hoặc tự đọc ở nhà.")),
+            h("button", { onClick: onToggle, "aria-expanded": open,
+              className: `mt-4 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-extrabold shadow-sm transition ${open ? "bg-white text-amber-700 ring-2 ring-amber-300" : "bg-amber-500 text-white hover:bg-amber-600"}` },
+              open ? "Thu gọn Band 8" : "★ Mở nội dung Band 8", h("span", { "aria-hidden": "true" }, open ? "▴" : "▾"))))));
+  }
   function SectionBody({ s, lesson }) {
     switch (s.type) {
       case "vowels":
@@ -1442,13 +1576,23 @@
       case "cards":
         return h(InfoCards, { cards: s.cards, cols: s.cols, intro: s.intro });
       case "criteria":
-        return h(Criteria, { items: s.items, note: s.note });
+        return h(Criteria, { items: s.items, note: s.note, labels: s.labels });
       case "formula":
         return h(Formula, { formula: s.formula, steps: s.steps, examples: s.examples, note: s.note });
       case "models":
         return h("div", { className: "mx-auto max-w-3xl" }, h(ModelAnswers, { items: s.items }));
       case "speak":
         return h(SpeakPractice, { tabs: s.tabs, lessonId: lesson.id, sectionId: s.id, lesson });
+      case "figure":
+        return h(Figures, { items: s.items, note: s.note, sticker: s.noteSticker });
+      case "compare":
+        return h(Compare, { intro: s.intro, items: s.items, takeaway: s.takeaway });
+      case "checklist":
+        return h(Checklist, { groups: s.groups, note: s.note, storeKey: `night-${courseKeyOf(lesson)}-${lesson.id}-${s.id}-check` });
+      case "fill":
+        return h(Fill, { items: s.items, intro: s.intro });
+      case "write":
+        return h(WriteBox, { tasks: s.tasks, lessonId: lesson.id, sectionId: s.id, lesson });
       default:
         return null;
     }
@@ -2048,6 +2192,11 @@
     }
   };
   PRINTERS.sounds = PRINTERS.vowels;
+  PRINTERS.figure = (s) => blk(`<div class="np-box">${(s.items || []).map((f) => `<figure style="margin:.4em 0"><img src="${esc(f.src)}" alt="" style="max-width:100%;max-height:9cm">${f.caption ? `<figcaption class="np-soft">${rh(f.caption)}</figcaption>` : ""}</figure>`).join("")}${s.note ? `<p>💡 ${rh(s.note)}</p>` : ""}</div>`);
+  PRINTERS.compare = (s) => (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.items || []).map((v) => blk(`<div class="np-box np-avoid"><b>${rh(v.label)}</b><p>${rh(v.text)}</p>${v.comment ? `<p class="np-soft">💬 ${rh(v.comment)}</p>` : ""}</div>`)).join("") + (s.takeaway ? blk(`<p>💡 ${rh(s.takeaway)}</p>`) : "");
+  PRINTERS.checklist = (s) => { let n = 0; return (s.groups || []).map((g) => blk(`<div class="np-box np-avoid"><b>${rh(g.label)}</b>${g.items.map((x) => `<p class="np-check">${++n}) ${rh(x)}</p>`).join("")}</div>`)).join(""); };
+  PRINTERS.fill = (s) => { const items = s.items || []; return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + items.map((it, i) => blk(`<p class="np-avoid"><b>${i + 1}.</b> ${rh(String(it.text).replace(/\[\[(.+?)\]\]/g, "________"))}</p>`)).join("") + blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((it, i) => `${i + 1}. ${(String(it.text).match(/\[\[(.+?)\]\]/g) || []).map((g) => esc(g.slice(2, -2).split("|")[0])).join(" / ")}`).join(" · ")}</div>`, "np-ans"); };
+  PRINTERS.write = (s) => (s.tasks || []).map((t, i) => blk(`<div class="np-box"><p><b>✍️ ${i + 1}.</b> ${rh(t.prompt)}</p>${t.img ? `<img src="${esc(t.img)}" alt="" style="max-width:100%;max-height:8cm">` : ""}${t.hint ? `<p class="np-soft">${rh(t.hint)}</p>` : ""}${lines(t.lines || Math.max(4, Math.round((t.min || 60) / 12)))}</div>`) + (t.model ? blk(`<div class="np-anskey"><b>Bài mẫu:</b><p>${rh(t.model).replace(/\n/g, "<br>")}</p></div>`, "np-ans") : "")).join("");
 
   function buildPrintHtml(lesson, sections) {
     const head = `<div class="np-blk np-head"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button><div class="np-brand">Night IELTS · ${esc(lesson.course || "")}</div><h1>${esc(lesson.session ? lesson.session + ": " : "")}${rh(lesson.title || "")}</h1><div class="np-meta">${esc(lesson.unit || "")}${lesson.subtitle ? " — " + rh(lesson.subtitle) : ""}</div><div class="np-who"><span>Họ tên:</span><span>Lớp:</span><span>Ngày:</span></div></div>`;
@@ -2055,7 +2204,7 @@
     const body = sections.map((s, i) => {
       let inner = "";
       try { inner = (PRINTERS[s.type] || printGeneric)(s); } catch (e) { inner = printGeneric(s); }
-      return `<section class="np-sec np-blk" data-sec="${esc(s.id)}"><button class="np-x" contenteditable="false" title="Bỏ cả phần này">✕</button><h2><span class="np-num">${String(i + 1).padStart(2, "0")}</span>${rh(s.title || s.nav || "")}</h2>${s.desc ? `<p class="np-desc">${rh(s.desc)}</p>` : ""}${inner}</section>`;
+      return `<section class="np-sec np-blk" data-sec="${esc(s.id)}"><button class="np-x" contenteditable="false" title="Bỏ cả phần này">✕</button><h2><span class="np-num">${String(i + 1).padStart(2, "0")}</span>${s.band8 ? "★ Band 8 · " : ""}${rh(s.title || s.nav || "")}</h2>${s.desc ? `<p class="np-desc">${rh(s.desc)}</p>` : ""}${inner}</section>`;
     }).join("");
     return head + goals + body;
   }
@@ -2184,7 +2333,20 @@
       setAccent(a);
     };
     const sections = lesson.sections || [];
-    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, className: "flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 hover:bg-primary-light hover:text-primary" }, s.nav || s.title)), h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "ml-auto flex-shrink-0 rounded-full bg-primary-light px-3 py-1.5 text-xs font-bold text-primary hover:bg-indigo-100" }, "🖨 In / PDF"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, sections.map((s, i) => /* @__PURE__ */ React.createElement(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc }, /* @__PURE__ */ React.createElement(SectionBody, { s, lesson })))), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), h(LiveCaptions, null), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
+    const B8KEY = `night-${courseKeyOf(lesson)}-${lesson.id}-band8`;
+    const [b8open, setB8open] = useState(() => lsGet(B8KEY, false) || /^#b8-|^#band8$/.test(location.hash) || sections.some((x) => x.band8 && location.hash === "#" + x.id));
+    const setB8 = (v) => { setB8open(v); lsSet(B8KEY, v); };
+    const navClick = (s) => (e) => { if (s.band8 && !b8open) { e.preventDefault(); setB8(true); setTimeout(() => { const el = document.getElementById(s.id); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 60); } };
+    return /* @__PURE__ */ React.createElement("div", { className: "relative min-h-screen pb-24" }, /* @__PURE__ */ React.createElement("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" }, sections.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.id, href: `#${s.id}`, onClick: navClick(s), className: `flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${s.band8 ? "text-amber-600 hover:bg-amber-50" : "text-slate-500 hover:bg-primary-light hover:text-primary"}` }, s.band8 ? "★ " : "", s.nav || s.title)), h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "ml-auto flex-shrink-0 rounded-full bg-primary-light px-3 py-1.5 text-xs font-bold text-primary hover:bg-indigo-100" }, "🖨 In / PDF"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => /* @__PURE__ */ React.createElement("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))), /* @__PURE__ */ React.createElement("header", { className: "mx-auto max-w-3xl px-4 pt-10 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"), /* @__PURE__ */ React.createElement("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" }, /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course), /* @__PURE__ */ React.createElement("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)), /* @__PURE__ */ React.createElement("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)), lesson.goals && /* @__PURE__ */ React.createElement("div", { className: "mx-auto mt-8 max-w-3xl px-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"), /* @__PURE__ */ React.createElement("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-primary" }, i + 1, "."), /* @__PURE__ */ React.createElement("span", null, rich(g))))), !TTS_OK && /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))), /* @__PURE__ */ React.createElement("main", { ref: readingRef, className: "mx-auto mt-12 max-w-4xl space-y-16 px-4" }, (() => {
+      const out = []; let gateDone = false;
+      const b8count = sections.filter((x) => x.band8).length;
+      sections.forEach((s, i) => {
+        if (s.band8 && !gateDone) { gateDone = true; out.push(h(Band8Gate, { key: "band8-gate", open: b8open, onToggle: () => setB8(!b8open), info: lesson.band8, count: b8count })); }
+        if (s.band8 && !b8open) return;
+        out.push(h(Section, { key: s.id, id: s.id, step: String(i + 1).padStart(2, "0"), title: s.title, desc: s.desc, sticker: s.sticker, band8: s.band8 }, h(SectionBody, { s, lesson })));
+      });
+      return out;
+    })()), /* @__PURE__ */ React.createElement(SelectionTranslateTooltip, { containerRef: readingRef }), /* @__PURE__ */ React.createElement(NotesLayer, { lessonId: lesson.id }), h(LiveCaptions, null), /* @__PURE__ */ React.createElement("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label), /* @__PURE__ */ React.createElement("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"), /* @__PURE__ */ React.createElement(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")), /* @__PURE__ */ React.createElement("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")));
   }
   const ENGINE_CSS = `
   body { font-family: 'Plus Jakarta Sans', sans-serif; }
