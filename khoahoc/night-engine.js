@@ -121,9 +121,242 @@
     const fullText = lines ? lines.map((l) => l.line).join(" ") : text;
     return /* @__PURE__ */ React.createElement("div", { className: `flex flex-col gap-6 md:flex-row ${alignRight ? "md:flex-row-reverse" : ""} items-start` }, /* @__PURE__ */ React.createElement("div", { className: "w-full flex-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-3 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" }, index), heading && /* @__PURE__ */ React.createElement("p", { className: "text-sm font-bold text-slate-700" }, heading), /* @__PURE__ */ React.createElement("div", { className: "h-px flex-1 bg-slate-100" }), /* @__PURE__ */ React.createElement(SpeakButton, { text: fullText, rate: 0.85, label: "Cả đoạn" })), text && /* @__PURE__ */ React.createElement("p", { className: "leading-relaxed text-slate-700" }, text), lines && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, lines.map((l, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: `flex items-start gap-3 ${l.who === speakers[0] ? "" : "flex-row-reverse text-right"}` }, /* @__PURE__ */ React.createElement("span", { className: `mt-0.5 flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${l.who === speakers[0] ? "bg-amber-100 text-amber-700" : "bg-sky-100 text-sky-700"}` }, l.who), React.createElement(Cover, null, React.createElement("p", { className: "flex-1 leading-relaxed text-slate-700" }, l.line, " ", /* @__PURE__ */ React.createElement("button", { type: "button", disabled: !TTS_OK, onClick: () => speak(l.line, 0.85), className: "text-xs text-primary/70 hover:text-primary disabled:opacity-30", "aria-label": "Nghe câu này" }, "🔊")))))), inlineImage && /* @__PURE__ */ React.createElement("figure", { className: "mt-4" }, /* @__PURE__ */ React.createElement("img", { src: inlineImage.src, alt: inlineImage.caption || "", className: "w-full rounded-2xl object-cover" }), inlineImage.caption && /* @__PURE__ */ React.createElement("figcaption", { className: "mt-2 text-center text-xs text-slate-400" }, inlineImage.caption))), vocabHighlights.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "grid w-full flex-shrink-0 grid-cols-2 gap-3 sm:flex sm:flex-wrap md:w-56" }, vocabHighlights.map((v, i) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: i, ...v }))));
   }
+  /* ---------- 🎀 Giảng vocab: bôi đen 1 từ → "Giảng vocab" → thẻ to, dễ thương cho cả lớp nhìn ----------
+     Nghĩa: thầy tự gõ, hoặc bấm ✨ AI (có key Groq → dịch theo ngữ cảnh câu; không có key → Google Dịch miễn phí).
+     Ảnh: Irasutoya (dịch từ sang tiếng Nhật rồi tìm) · ảnh thật Openverse/Wikimedia · dán ảnh (Ctrl+V) / kéo thả / nút Google Ảnh.
+     Lưu theo từ trong localStorage của máy thầy, lần sau mở lại có sẵn. */
+  const VT_KEY = "night-vocab-teach-v1:";
+  const vtLoad = (w) => { try { return JSON.parse(localStorage.getItem(VT_KEY + w.toLowerCase()) || "null"); } catch (e) { return null; } };
+  const vtSave = (w, d) => { try { localStorage.setItem(VT_KEY + w.toLowerCase(), JSON.stringify(d)); } catch (e) {} };
+  function vtIrasutoya(q) {
+    return new Promise((res) => {
+      if (!q) return res([]);
+      const cb = "__nightIra" + Date.now() + Math.floor(Math.random() * 1e5);
+      const s = document.createElement("script");
+      const cleanup = () => { clearTimeout(t); try { delete window[cb]; } catch (e) { window[cb] = undefined; } s.remove(); };
+      const t = setTimeout(() => { cleanup(); res([]); }, 9000);
+      window[cb] = (j) => {
+        cleanup();
+        const es = (j && j.feed && j.feed.entry) || [];
+        res(es.map((e) => e["media$thumbnail"] && { u: e["media$thumbnail"].url.replace(/\/s72-c\//, "/s400/").replace(/=s72-c$/, "=s400"), src: "Irasutoya", title: e.title && e.title.$t }).filter(Boolean));
+      };
+      s.onerror = () => { cleanup(); res([]); };
+      s.src = "https://www.irasutoya.com/feeds/posts/summary?alt=json-in-script&max-results=10&q=" + encodeURIComponent(q) + "&callback=" + cb;
+      document.head.appendChild(s);
+    });
+  }
+  function vtPhotos(q) {
+    const to = (p) => Promise.race([p, new Promise((r) => setTimeout(() => r([]), 9000))]);
+    const ov = fetch("https://api.openverse.org/v1/images/?page_size=10&mature=false&q=" + encodeURIComponent(q))
+      .then((r) => r.json()).then((j) => (j.results || []).map((x) => ({ u: x.thumbnail || x.url, src: "Openverse", page: x.foreign_landing_url }))).catch(() => []);
+    const wk = fetch("https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=6&prop=imageinfo&iiprop=url|mime&iiurlwidth=500&gsrsearch=" + encodeURIComponent(q + " filetype:bitmap"))
+      .then((r) => r.json()).then((j) => Object.values((j.query && j.query.pages) || {}).sort((a, b) => (a.index || 0) - (b.index || 0))
+        .filter((p) => p.imageinfo && /jpeg|png|webp/.test(p.imageinfo[0].mime || "")).map((p) => ({ u: p.imageinfo[0].thumburl, src: "Wikimedia", page: p.imageinfo[0].descriptionurl }))).catch(() => []);
+    return Promise.all([to(ov), to(wk)]).then(([a, b]) => a.concat(b));
+  }
+  function vtDict(w) {
+    if (/\s/.test(w.trim())) return Promise.resolve(null);
+    return fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(w.trim().toLowerCase()))
+      .then((r) => (r.ok ? r.json() : null)).then((j) => {
+        if (!Array.isArray(j) || !j[0]) return null;
+        const e = j[0];
+        const ipa = e.phonetic || ((e.phonetics || []).find((p) => p.text) || {}).text || "";
+        const m = (e.meanings || [])[0] || {};
+        const POS = { noun: "n.", verb: "v.", adjective: "adj.", adverb: "adv.", preposition: "prep.", conjunction: "conj.", pronoun: "pron." };
+        return { ipa, pos: POS[m.partOfSpeech] || m.partOfSpeech || "", def: ((m.definitions || [])[0] || {}).definition || "" };
+      }).catch(() => null);
+  }
+  const VT_AI_PROMPT = "You help a Vietnamese IELTS teacher explain one English word or phrase to students.\n" +
+    "Given the WORD and (optionally) the SENTENCE where it appears, reply with ONLY a JSON object:\n" +
+    '{"meaning":"short natural Vietnamese meaning that fits the sentence (max 10 words)","pos":"n. | v. | adj. | adv. | phr. | idiom","ipa":"British IPA with slashes","example":"the SENTENCE if given (trimmed to one short sentence), otherwise a short natural IELTS-style example","example_vi":"Vietnamese translation of example","ja":"1-2 word Japanese keyword to search a cute illustration of this idea on irasutoya.com","img":"2-4 word concrete English photo search query that shows this idea"}';
+  async function vtAi(word, sentence) {
+    const cfg = getGroqCfg();
+    if (cfg.apiKey) {
+      try {
+        const model = cfg.model || "openai/gpt-oss-120b";
+        let payload = { model, temperature: 0.2, max_completion_tokens: 600, response_format: { type: "json_object" }, messages: [{ role: "system", content: VT_AI_PROMPT }, { role: "user", content: "WORD: " + word + (sentence ? "\nSENTENCE: " + sentence : "") }] };
+        if (/gpt-oss/i.test(model)) payload.reasoning_effort = "low";
+        let res;
+        for (let i = 0; i < 2; i++) {
+          res = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.apiKey }, body: JSON.stringify(payload) });
+          if (res.status === 400) { payload = { ...payload }; delete payload.reasoning_effort; delete payload.response_format; continue; }
+          break;
+        }
+        if (res.ok) {
+          const j = await res.json();
+          const txt = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
+          const m = txt.match(/\{[\s\S]*\}/);
+          if (m) { const o = JSON.parse(m[0]); if (o.meaning) return { ...o, via: "AI" }; }
+        }
+      } catch (e) {}
+    }
+    // Không có key / AI lỗi → Google Dịch miễn phí + từ điển
+    const [vi, d, exVi] = await Promise.all([
+      ccTranslate(word, "en", "vi").catch(() => ""),
+      vtDict(word),
+      sentence ? ccTranslate(sentence, "en", "vi").catch(() => "") : Promise.resolve("")
+    ]);
+    if (!vi) throw new Error("Không dịch được — kiểm tra mạng rồi thử lại nhé.");
+    return { meaning: vi, pos: d ? d.pos : "", ipa: d ? d.ipa : "", example: sentence || "", example_vi: exVi, via: "Google Dịch" };
+  }
+  function vtSentence(range, word) {
+    try {
+      let n = range.startContainer; if (n.nodeType === 3) n = n.parentNode;
+      while (n && n.parentNode && !/^(P|LI|TD|BLOCKQUOTE|H\d)$/.test(n.tagName) && (n.textContent || "").length < 40) n = n.parentNode;
+      const t = ((n && n.textContent) || "").replace(/\s+/g, " ").trim();
+      const parts = t.match(/[^.!?]+[.!?]*/g) || [t];
+      const s = (parts.find((p) => p.toLowerCase().includes(word.toLowerCase())) || "").trim();
+      return s.length > 220 || s.toLowerCase() === word.toLowerCase() ? "" : s;
+    } catch (e) { return ""; }
+  }
+  let vtCssDone = false;
+  function vtCss() {
+    if (vtCssDone) return; vtCssDone = true;
+    const st = document.createElement("style");
+    st.textContent = "@keyframes vtPop{0%{opacity:0;transform:scale(.6) rotate(-4deg)}60%{opacity:1;transform:scale(1.04) rotate(1deg)}100%{transform:scale(1) rotate(0)}}" +
+      "@keyframes vtFloat{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-14px) rotate(12deg)}}" +
+      "@keyframes vtShine{0%{background-position:0% 50%}100%{background-position:200% 50%}}" +
+      "@keyframes vtWiggle{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}" +
+      "@keyframes vtFade{from{opacity:0}to{opacity:1}}" +
+      ".vt-pop{animation:vtPop .55s cubic-bezier(.2,1.4,.4,1) both}.vt-float{animation:vtFloat 3.2s ease-in-out infinite}.vt-fade{animation:vtFade .25s ease both}" +
+      ".vt-word{background:linear-gradient(90deg,#ec4899,#8b5cf6,#f59e0b,#ec4899);background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:vtShine 4s linear infinite}" +
+      ".vt-ring{background:linear-gradient(120deg,#f9a8d4,#c4b5fd,#fde68a,#99f6e4,#f9a8d4);background-size:300% 300%;animation:vtShine 6s linear infinite}" +
+      ".vt-wiggle:hover{animation:vtWiggle .4s ease-in-out 2}" +
+      ".vt-meaning:empty:before{content:attr(data-ph);color:#cbd5e1;font-weight:600}";
+    document.head.appendChild(st);
+  }
+  function VocabTeachModal({ word, sentence, onClose }) {
+    const E = React.createElement;
+    const saved = vtLoad(word) || {};
+    const [d, setD] = useState({ meaning: "", pos: "", ipa: "", example: sentence || "", example_vi: "", img: null, ...saved });
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const [tab, setTab] = useState(saved.tab || "ira");
+    const [pics, setPics] = useState({ ira: null, photo: null });
+    const [idx, setIdx] = useState(0);
+    const [hide, setHide] = useState(false);
+    const [urlBox, setUrlBox] = useState(false);
+    const meaningRef = useRef(null);
+    const kwRef = useRef({ ja: "", img: "" });
+    vtCss();
+    const upd = (p) => setD((o) => { const n = { ...o, ...p }; vtSave(word, { meaning: n.meaning, pos: n.pos, ipa: n.ipa, example: n.example, example_vi: n.example_vi, img: n.img, tab }); return n; });
+    const loadPics = useCallback(async (which, kw) => {
+      setPics((p) => ({ ...p, [which]: "loading" }));
+      let list = [];
+      if (which === "ira") {
+        const ja = kw || kwRef.current.ja || (await ccTranslate(word, "en", "ja").catch(() => ""));
+        list = await vtIrasutoya(ja);
+        if (!list.length && ja && ja.length > 2) list = await vtIrasutoya(ja.slice(0, 2));
+      } else {
+        list = await vtPhotos(kw || kwRef.current.img || word);
+      }
+      setPics((p) => ({ ...p, [which]: list }));
+      setIdx(0);
+      return list;
+    }, [word]);
+    useEffect(() => {
+      if (!saved.img) loadPics(tab);
+      if (!saved.ipa) vtDict(word).then((x) => x && setD((o) => ({ ...o, ipa: o.ipa || x.ipa, pos: o.pos || x.pos })));
+      try { speak(word, 0.8); } catch (e) {}
+      const onKey = (e) => { if (e.key === "Escape") onClose(); };
+      const onPaste = (e) => {
+        if (meaningRef.current && meaningRef.current.contains(document.activeElement)) return;
+        const items = (e.clipboardData && e.clipboardData.items) || [];
+        for (const it of items) if (it.type && it.type.startsWith("image/")) { const f = it.getAsFile(); const r = new FileReader(); r.onload = () => upd({ img: { u: r.result, src: "Ảnh của thầy" } }); r.readAsDataURL(f); e.preventDefault(); return; }
+        const t = e.clipboardData && e.clipboardData.getData("text");
+        if (t && /^https?:\/\/\S+$/i.test(t.trim())) { upd({ img: { u: t.trim(), src: "Ảnh của thầy" } }); e.preventDefault(); }
+      };
+      document.addEventListener("keydown", onKey);
+      document.addEventListener("paste", onPaste);
+      return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("paste", onPaste); };
+    }, []);
+    useEffect(() => { if (meaningRef.current && meaningRef.current.textContent !== d.meaning) meaningRef.current.textContent = d.meaning || ""; }, [d.meaning]);
+    const list = Array.isArray(pics[tab]) ? pics[tab] : [];
+    const shown = d.img || list[idx] || null;
+    const pickTab = (t) => { setTab(t); upd({ img: null }); if (!Array.isArray(pics[t])) loadPics(t); else setIdx(0); };
+    const step = (k) => { if (!list.length) return; const ni = (idx + k + list.length) % list.length; setIdx(ni); upd({ img: list[ni] }); };
+    const runAi = async () => {
+      setBusy(true); setMsg("");
+      try {
+        const r = await vtAi(word, sentence);
+        kwRef.current = { ja: r.ja || "", img: r.img || "" };
+        upd({ meaning: r.meaning || d.meaning, pos: r.pos || d.pos, ipa: r.ipa || d.ipa, example: r.example || d.example, example_vi: r.example_vi || d.example_vi });
+        setMsg(r.via === "AI" ? "✨ AI dịch theo đúng câu trong bài" : "✨ Đã dịch bằng Google Dịch (thêm key Groq để AI dịch theo ngữ cảnh)");
+        if (!d.img && (r.ja || r.img)) loadPics(tab, tab === "ira" ? r.ja : r.img);
+      } catch (e) { setMsg("⚠️ " + e.message); }
+      setBusy(false);
+    };
+    const onDrop = (e) => {
+      e.preventDefault();
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f && f.type.startsWith("image/")) { const r = new FileReader(); r.onload = () => upd({ img: { u: r.result, src: "Ảnh của thầy" } }); r.readAsDataURL(f); return; }
+      const u = e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text");
+      if (u && /^https?:/.test(u)) upd({ img: { u: u.trim(), src: "Ảnh của thầy" } });
+    };
+    const hiEx = (s) => {
+      if (!s) return null;
+      const i = s.toLowerCase().indexOf(word.toLowerCase());
+      if (i < 0) return s;
+      return [s.slice(0, i), E("mark", { key: "m", className: "rounded-md bg-pink-200/80 px-1 font-extrabold text-pink-700" }, s.slice(i, i + word.length)), s.slice(i + word.length)];
+    };
+    const chip = "rounded-full px-3 py-1 text-sm font-bold";
+    const sbtn = "flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-pink-600 hover:ring-pink-300";
+    const deco = ["✨", "⭐", "💖", "🌸", "✨", "💫"];
+    return ReactDOM.createPortal(E("div", { className: "vt-fade fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-slate-900/55 p-3 backdrop-blur-md sm:p-6", onMouseDown: (e) => { if (e.target === e.currentTarget) onClose(); }, onDragOver: (e) => e.preventDefault(), onDrop },
+      deco.map((c, i) => E("span", { key: i, "aria-hidden": "true", className: "vt-float pointer-events-none absolute select-none text-2xl sm:text-4xl", style: { top: [8, 15, 80, 70, 40, 88][i] + "%", left: [6, 88, 10, 85, 94, 50][i] + "%", animationDelay: i * 0.45 + "s", opacity: 0.85 } }, c)),
+      E("div", { className: "vt-pop vt-ring relative my-auto w-full max-w-4xl rounded-[2.2rem] p-[5px] shadow-2xl", role: "dialog", "aria-label": "Giảng vocab: " + word },
+        E("div", { className: "relative rounded-[2rem] bg-gradient-to-br from-white via-pink-50/60 to-violet-50/70 p-5 sm:p-8" },
+          E("button", { type: "button", onClick: onClose, "aria-label": "Đóng", className: "absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl text-slate-400 shadow ring-1 ring-slate-200 hover:rotate-90 hover:text-pink-500 transition" }, "×"),
+          E("div", { className: "mb-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-4 py-1.5 text-xs font-extrabold uppercase tracking-widest text-white shadow" }, "🎀 New word"),
+          E("div", { className: "grid gap-6 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] md:items-center" },
+            // ẢNH
+            E("div", { className: "flex flex-col items-center" },
+              E("div", { className: "relative w-full max-w-[340px] -rotate-2 rounded-3xl bg-white p-3 pb-4 shadow-xl ring-1 ring-slate-100 transition hover:rotate-0" },
+                E("span", { "aria-hidden": "true", className: "absolute -top-3 left-1/2 h-6 w-24 -translate-x-1/2 rotate-2 rounded-sm bg-pink-200/80 shadow-sm" }),
+                E("div", { className: "flex aspect-square w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-amber-50 to-pink-50" },
+                  shown ? E("img", { key: shown.u, src: shown.u, alt: word, referrerPolicy: "no-referrer", className: "vt-fade h-full w-full " + (shown.src === "Irasutoya" ? "object-contain p-2" : "object-cover"), onError: () => { if (d.img) upd({ img: null }); else step(1); } })
+                    : E("div", { className: "p-6 text-center text-sm font-semibold text-slate-400" }, pics[tab] === "loading" ? E("span", { className: "vt-float inline-block text-5xl" }, "🔍") : "Chưa tìm được ảnh 🥲", E("p", { className: "mt-3 text-xs font-normal" }, "Dán ảnh (Ctrl+V), kéo thả ảnh vào đây, hoặc bấm 🔎 Google"))),
+                E("p", { className: "mt-2 text-center text-[10px] text-slate-400" }, shown ? (shown.src + (list.length > 1 && !d.img ? " · " + (idx + 1) + "/" + list.length : "")) : " ")),
+              E("div", { className: "mt-4 flex flex-wrap justify-center gap-1.5" },
+                E("button", { type: "button", onClick: () => pickTab("ira"), className: sbtn + (tab === "ira" ? " !bg-pink-500 !text-white !ring-pink-500" : "") }, "🎨 Dễ thương"),
+                E("button", { type: "button", onClick: () => pickTab("photo"), className: sbtn + (tab === "photo" ? " !bg-violet-500 !text-white !ring-violet-500" : "") }, "📷 Ảnh thật"),
+                E("button", { type: "button", onClick: () => step(1), disabled: list.length < 2, className: sbtn + " disabled:opacity-40" }, "🔄 Ảnh khác"),
+                E("a", { href: "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(word), target: "_blank", rel: "noopener", className: sbtn }, "🔎 Google"),
+                E("button", { type: "button", onClick: () => setUrlBox((v) => !v), className: sbtn }, "🔗 Link ảnh")),
+              urlBox && E("input", { autoFocus: true, placeholder: "Dán link ảnh rồi Enter (Google: chuột phải ảnh → Sao chép địa chỉ hình ảnh)", className: "mt-2 w-full max-w-[340px] rounded-full border border-pink-200 bg-white px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-pink-300",
+                onKeyDown: (e) => { if (e.key === "Enter" && e.currentTarget.value.trim()) { upd({ img: { u: e.currentTarget.value.trim(), src: "Ảnh của thầy" } }); setUrlBox(false); } } })),
+            // CHỮ
+            E("div", { className: "min-w-0" },
+              E("div", { className: "flex flex-wrap items-center gap-3" },
+                E("h2", { className: "vt-word min-w-0 break-words font-black leading-tight tracking-tight", style: { fontSize: "clamp(2.2rem, " + Math.max(3.2, Math.min(9, 60 / Math.max(word.length, 4))).toFixed(2) + "vw, " + Math.max(2.6, Math.min(4.8, 46 / Math.max(word.length, 4))).toFixed(2) + "rem)" } }, word),
+                E("button", { type: "button", onClick: () => speak(word, 0.8), title: "Nghe", className: "vt-wiggle flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-violet-500 text-2xl text-white shadow-lg hover:scale-110 transition" }, "🔊")),
+              E("div", { className: "mt-3 flex flex-wrap items-center gap-2" },
+                d.ipa && E("span", { className: chip + " bg-white font-mono text-violet-600 ring-1 ring-violet-200" }, d.ipa),
+                d.pos && E("span", { className: chip + " bg-amber-100 text-amber-700" }, d.pos)),
+              E("div", { className: "relative mt-5 rounded-3xl bg-white p-5 shadow-lg ring-2 ring-pink-100" },
+                E("div", { className: "mb-2 flex items-center justify-between gap-2" },
+                  E("span", { className: "text-xs font-extrabold uppercase tracking-widest text-pink-500" }, "💡 Nghĩa"),
+                  E("div", { className: "flex gap-1.5" },
+                    E("button", { type: "button", onClick: () => setHide((v) => !v), title: "Che nghĩa để học sinh đoán", className: sbtn }, hide ? "👀 Mở" : "🙈 Che"),
+                    E("button", { type: "button", onClick: runAi, disabled: busy, className: "flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-500 to-pink-500 px-4 py-1.5 text-xs font-extrabold text-white shadow-md transition hover:scale-105 disabled:opacity-60" }, busy ? "⏳ Đang dịch…" : "✨ AI dịch"))),
+                E("div", { className: "relative" },
+                  E("div", { ref: meaningRef, contentEditable: true, suppressContentEditableWarning: true, "data-ph": "Thầy gõ nghĩa ở đây…", onInput: (e) => upd({ meaning: e.currentTarget.textContent }),
+                    className: "vt-meaning min-h-[3rem] text-2xl font-extrabold leading-snug text-slate-800 outline-none transition sm:text-3xl" + (hide ? " select-none blur-lg" : "") }),
+                  hide && E("button", { type: "button", onClick: () => setHide(false), className: "absolute inset-0 flex items-center justify-center text-lg font-extrabold text-pink-500" }, "🤔 Đoán xem nghĩa là gì?")),
+                msg && E("p", { className: "mt-2 text-[11px] text-slate-400" }, msg)),
+              (d.example || d.example_vi) && E("div", { className: "mt-4 rounded-3xl bg-gradient-to-r from-amber-50 to-pink-50 p-4 ring-1 ring-amber-100" },
+                E("div", { className: "flex items-start gap-2" },
+                  E("span", { className: "text-xl" }, "📝"),
+                  E("div", { className: "min-w-0 flex-1" },
+                    E("p", { className: "text-base font-semibold leading-relaxed text-slate-700 sm:text-lg" }, hiEx(d.example), " ",
+                      d.example && E("button", { type: "button", onClick: () => speak(d.example, 0.85), className: "text-sm text-pink-400 hover:text-pink-600", "aria-label": "Nghe câu" }, "🔊")),
+                    d.example_vi && !hide && E("p", { className: "mt-1 text-sm italic text-slate-500" }, d.example_vi)))))),
+          E("p", { className: "mt-5 text-center text-[11px] text-slate-400" }, "Esc để đóng · nghĩa & ảnh được nhớ trên máy thầy cho lần sau")))), document.body);
+  }
   // Bôi đen chữ trong bài → thanh nhỏ: in đậm, gạch chân, tô màu, chữ đỏ, bỏ định dạng, Dịch
   function SelectionTranslateTooltip({ containerRef }) {
     const [tooltip, setTooltip] = useState(null);
+    const [teach, setTeach] = useState(null);
     const readSelection = useCallback(() => {
       const sel = window.getSelection();
       const text = sel ? sel.toString().trim() : "";
@@ -148,12 +381,14 @@
         document.removeEventListener("selectionchange", onSelectionChange);
       };
     }, [readSelection]);
-    if (!tooltip) return null;
+    const teachModal = teach && React.createElement(VocabTeachModal, { key: teach.word, word: teach.word, sentence: teach.sentence, onClose: () => setTeach(null) });
+    if (!tooltip) return teachModal || null;
     const done = () => { try { window.getSelection().removeAllRanges(); } catch (e) {} setTooltip(null); };
     const act = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
     const openTranslate = () => window.open(`https://translate.google.com/?sl=auto&tl=vi&text=${encodeURIComponent(tooltip.text)}&op=translate`, "_blank", "noopener");
     const E = React.createElement;
     return E("div", { style: { position: "absolute", top: tooltip.top, left: tooltip.left, transform: "translateX(-50%)" }, className: "z-[60] flex flex-col items-center", onMouseDown: (e) => e.preventDefault() },
+      teachModal,
       E("span", { className: "-mb-1 text-sm leading-none text-slate-800" }, "▲"),
       E("div", { className: "flex items-center gap-0.5 rounded-full bg-slate-800 p-1 shadow-premium" },
         HL_OK && MARKS.map((m) => E("button", { key: m.k, type: "button", title: m.title, "aria-label": m.title, onPointerDown: act(() => { markRange(m.k, tooltip.range); done(); }),
@@ -161,7 +396,9 @@
           m.dot ? E("span", { className: "h-4 w-4 rounded-full ring-2 ring-white/60", style: { background: m.dot } }) : E("span", { className: m.cls }, m.label))),
         HL_OK && E("button", { type: "button", title: "Bỏ định dạng", "aria-label": "Bỏ định dạng", onPointerDown: act(() => { unmarkRange(tooltip.range); done(); }), className: "flex h-8 w-8 items-center justify-center rounded-full text-sm text-white/70 hover:bg-white/15" }, "⌫"),
         HL_OK && E("span", { className: "mx-0.5 h-5 w-px bg-white/25" }),
-        E("button", { type: "button", onPointerDown: act(openTranslate), className: "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white" }, "Dịch")));
+        E("button", { type: "button", onPointerDown: act(openTranslate), className: "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white" }, "Dịch"),
+        tooltip.text.split(/\s+/).length <= 6 && tooltip.text.length <= 60 && E("button", { type: "button", title: "Mở thẻ giảng từ này cho cả lớp", onPointerDown: act(() => { const w = tooltip.text.replace(/^[^\w]+|[^\w]+$/g, "") || tooltip.text; const sn = vtSentence(tooltip.range, w); done(); setTeach({ word: w, sentence: sn }); }),
+          className: "ml-0.5 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-3 py-1.5 text-xs font-extrabold text-white shadow" }, "🎀 Giảng vocab")));
   }
   function Section({ id, step, title, desc, children, sticker, band8 }) {
     const E = React.createElement;
