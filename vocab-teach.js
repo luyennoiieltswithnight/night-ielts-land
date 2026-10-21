@@ -196,7 +196,7 @@
       '@media (max-width:767px){.nvt-grid{grid-template-columns:1fr}.nvt-card{padding:20px}.nvt-deco{font-size:24px}.nvt-mean{font-size:24px}}',
       /* nút nổi khi bôi đen (trang không dùng night-engine) */
       '.nvt-pill{position:absolute;z-index:2147482000;transform:translateX(-50%);border:0;border-radius:999px;padding:7px 14px;font:800 12px/1.2 "Plus Jakarta Sans",system-ui,sans-serif;color:#fff;cursor:pointer;white-space:nowrap;background:linear-gradient(90deg,#ec4899,#8b5cf6);box-shadow:0 6px 16px rgba(139,92,246,.4);animation:nvtPop .35s cubic-bezier(.2,1.4,.4,1) both}',
-      '.nvt-pill:after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;transform:translateX(-50%) rotate(45deg);background:#a855f7;border-radius:2px;z-index:-1}'
+      '.nvt-pill:after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;transform:translateX(-50%) rotate(45deg);background:#a855f7;border-radius:2px;z-index:-1}.nvt-pill.below:after{bottom:auto;top:-5px}.nvt-tb-btn{white-space:nowrap;font-weight:700;color:#db2777!important}'
     ].join('');
     document.head.appendChild(st);
   }
@@ -359,8 +359,48 @@
     if (isCJK(t)) return t.replace(/\s/g, '').length <= 12;
     return /[A-Za-z]/.test(t) && t.split(/\s+/).length <= 6;
   }
+  // Trang có thanh bôi đen riêng (#annot-toolbar ở các đề Reading / Listening) → gắn nút vào CHÍNH thanh đó
+  function hostToolbar() { return document.getElementById('annot-toolbar'); }
+  function hookToolbar() {
+    var tb = hostToolbar();
+    if (!tb || tb.querySelector('.nvt-tb-btn')) return !!tb;
+    css();
+    var bt = document.createElement('button');
+    bt.type = 'button'; bt.className = 'annot-btn nvt-tb-btn'; bt.title = 'Giảng vocab này cho cả lớp'; bt.textContent = '🎀 Vocab';
+    bt.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    bt.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var sel = window.getSelection(), t = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
+      if (!t || !sel.rangeCount) return;
+      var w = cleanWord(t), sn = sentenceOf(sel.getRangeAt(0), w);
+      tb.style.display = 'none';
+      try { sel.removeAllRanges(); } catch (er) {}
+      open(w, { sentence: sn });
+    });
+    var tr = tb.querySelector('#annot-translate-btn, .annot-translate');
+    if (tr) tb.insertBefore(bt, tr); else tb.appendChild(bt);
+    // chỉ hiện khi bôi đen từ / cụm ngắn
+    var sync = function () { var t = (window.getSelection() || '').toString().replace(/\s+/g, ' ').trim(); bt.style.display = okText(t) ? '' : 'none'; };
+    document.addEventListener('selectionchange', sync); sync();
+    return true;
+  }
+  // Ô chữ nhật r có đè lên thanh nổi (fixed/absolute) nào của trang không?
+  function collides(r, anchorEl) {
+    var pts = [[r.left + 4, r.top + 4], [r.right - 4, r.top + 4], [r.left + 4, r.bottom - 4], [r.right - 4, r.bottom - 4], [(r.left + r.right) / 2, (r.top + r.bottom) / 2]];
+    for (var i = 0; i < pts.length; i++) {
+      var x = pts[i][0], y = pts[i][1];
+      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return true;
+      var top = document.elementFromPoint(x, y);
+      for (var n = top; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+        if (anchorEl && n.contains(anchorEl)) break;
+        var pos = getComputedStyle(n).position;
+        if (pos === 'fixed' || pos === 'absolute' || pos === 'sticky') return true;
+      }
+    }
+    return false;
+  }
   function onSelEnd() {
-    if (hasEngine()) return;
+    if (hasEngine() || hookToolbar()) return;
     setTimeout(function () {
       var sel = window.getSelection(), t = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
       if (!t || !sel.rangeCount || !okText(t)) return hidePill();
@@ -372,20 +412,35 @@
       css(); hidePill();
       pill = document.createElement('button');
       pill.type = 'button'; pill.className = 'nvt-pill'; pill.textContent = '🎀 Giảng vocab';
-      var top = r.top + window.scrollY - 42; if (r.top < 50) top = r.bottom + window.scrollY + 10;
-      pill.style.top = top + 'px';
-      pill.style.left = Math.min(Math.max(r.left + r.width / 2, 70), document.documentElement.clientWidth - 70) + window.scrollX + 'px';
+      pill.style.visibility = 'hidden'; pill.style.top = '0px'; pill.style.left = '0px';
+      document.body.appendChild(pill);
+      var pw = pill.offsetWidth || 130, ph = pill.offsetHeight || 30, vw = document.documentElement.clientWidth;
+      var cx = Math.min(Math.max(r.left + r.width / 2, pw / 2 + 8), vw - pw / 2 - 8);
+      // thử: trên chữ → dưới chữ → xa hơn phía trên / dưới (né thanh nổi có sẵn của trang)
+      var tops = [r.top - ph - 12, r.bottom + 12, r.top - ph - 64, r.bottom + 64, r.top - ph - 116, r.bottom + 116];
+      var pick = null;
+      pill.style.display = 'none';
+      for (var i = 0; i < tops.length; i++) {
+        var cand = { left: cx - pw / 2, right: cx + pw / 2, top: tops[i], bottom: tops[i] + ph };
+        if (!collides(cand, el)) { pick = tops[i]; break; }
+      }
+      pill.style.display = '';
+      if (pick == null) pick = r.top < 60 ? r.bottom + 12 : r.top - ph - 12;
+      pill.style.top = pick + window.scrollY + 'px';
+      pill.style.left = cx + window.scrollX + 'px';
+      pill.classList.toggle('below', pick > r.top);
+      pill.style.visibility = '';
       var w = cleanWord(t), sn = sentenceOf(range, w);
       var go = function (e) { e.preventDefault(); e.stopPropagation(); hidePill(); try { sel.removeAllRanges(); } catch (er) {} open(w, { sentence: sn }); };
       pill.addEventListener('mousedown', function (e) { e.preventDefault(); e.stopPropagation(); });
       pill.addEventListener('pointerdown', go);
-      document.body.appendChild(pill);
-    }, 10);
+    }, 120);
   }
   document.addEventListener('mouseup', function (e) { if (pill && pill.contains(e.target)) return; onSelEnd(); });
   document.addEventListener('touchend', function (e) { if (pill && pill.contains(e.target)) return; setTimeout(onSelEnd, 250); });
   document.addEventListener('selectionchange', function () { var s = window.getSelection(); if (pill && (!s || !s.toString().trim())) hidePill(); });
   window.addEventListener('scroll', function () { if (pill && !window.getSelection().toString().trim()) hidePill(); }, { passive: true });
 
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hookToolbar); else hookToolbar();
   window.NightVocabTeach = { open: open, close: close, sentenceOf: sentenceOf };
 })();
