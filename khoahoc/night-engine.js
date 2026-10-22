@@ -1197,26 +1197,88 @@
 
   // Công thức trả lời: type "formula" — formula, steps:[{tag, label, text}], examples:[{q, parts:[{tag, text}]}]
   const STEP_COLORS = ["bg-cyan-100 text-cyan-800", "bg-indigo-100 text-indigo-800", "bg-amber-100 text-amber-800", "bg-emerald-100 text-emerald-800", "bg-pink-100 text-pink-800"];
+  const NV_STEP = [
+    { solid: "bg-peach text-white", tint: "bg-peach-light", text: "text-peach-dark", bar: "bg-peach" },
+    { solid: "bg-primary text-white", tint: "bg-primary-light", text: "text-primary", bar: "bg-primary" },
+    { solid: "bg-amber-400 text-ink", tint: "bg-amber-50", text: "text-amber-700", bar: "bg-amber-400" },
+    { solid: "bg-emerald-500 text-white", tint: "bg-emerald-50", text: "text-emerald-700", bar: "bg-emerald-500" },
+    { solid: "bg-pink-500 text-white", tint: "bg-pink-50", text: "text-pink-700", bar: "bg-pink-500" }
+  ];
+  // Tách các cụm mẫu *in nghiêng* (cách nhau bởi " / ") ra thành nhãn; phần chữ còn lại là lời giải thích
+  function splitPhrases(text) {
+    const src = String(text || "");
+    const re = /(^|[^*])\*([^*]+?)\*(?!\*)/g;
+    const phrases = []; let m;
+    while ((m = re.exec(src))) m[2].split(/\s+\/\s+|(?<=…),\s+/).forEach((x) => { const t = x.trim(); if (t) phrases.push(t); });
+    const rest = src.replace(re, "$1").replace(/^[\s—–:,.;-]+|[\s—–:,;-]+$/g, "").replace(/\s{2,}/g, " ").trim();
+    return { phrases, rest };
+  }
+  function FormulaStep({ s, i, c }) {
+    const [more, setMore] = useState(false);
+    const { phrases, rest } = splitPhrases(s.text);
+    return h("div", { className: "flex flex-col overflow-hidden rounded-3xl bg-white shadow-floating" },
+      h("div", { className: `flex items-center gap-2 px-4 py-2.5 ${c.solid}` },
+        h("span", { className: "flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/30 text-xs font-extrabold" }, i + 1),
+        h("span", { className: "text-sm font-extrabold" }, s.tag)),
+      h("div", { className: "flex flex-1 flex-col p-4" },
+        h("p", { className: "font-extrabold leading-snug text-ink" }, rich(s.label)),
+        phrases.length > 0 && h("div", { className: "mt-2.5 flex flex-wrap gap-1.5" }, phrases.map((t, k) => h("span", { key: k, className: `rounded-full px-2.5 py-1 text-[13px] font-semibold ${c.tint} ${c.text}` }, t))),
+        s.text && (phrases.length === 0
+          ? h("p", { className: "mt-1.5 text-sm leading-relaxed text-slate-500" }, rich(s.text))
+          : rest && h("div", { className: "mt-auto pt-2.5" },
+            more ? h("p", { className: "text-xs leading-relaxed text-slate-500" }, rich(rest), " ", h("button", { onClick: () => setMore(false), className: "font-bold text-slate-400" }, "Ẩn"))
+              : h("button", { onClick: () => setMore(true), className: "rounded-full bg-panel px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-ink" }, "ⓘ Giải thích")))));
+  }
+  function FormulaExamples({ examples, colorOf }) {
+    const [i, setI] = useState(0);
+    const [stepMode, setStepMode] = useState(false);
+    const [shown, setShown] = useState(1);
+    const ex = examples[Math.min(i, examples.length - 1)];
+    const pick = (k) => { setI(k); setShown(1); };
+    const total = ex.parts.length;
+    const visible = stepMode ? shown : total;
+    return h("div", { className: "rounded-[28px] bg-white p-4 shadow-floating sm:p-6" },
+      h("div", { className: "flex flex-wrap items-center gap-2" },
+        h("span", { className: "mr-1 text-xs font-extrabold uppercase tracking-widest text-slate-400" }, "Ví dụ"),
+        examples.length > 1 && examples.map((_, k) => h("button", { key: k, onClick: () => pick(k), className: `flex h-9 min-w-[2.25rem] items-center justify-center rounded-full px-3 text-sm font-extrabold transition ${k === i ? "bg-ink text-white" : "bg-panel text-slate-500 hover:text-ink"}` }, k + 1)),
+        h("button", { onClick: () => { setStepMode(!stepMode); setShown(1); }, title: "Hiện từng bước cho học sinh đoán", className: `ml-auto rounded-full px-3 py-2 text-xs font-bold transition ${stepMode ? "bg-primary text-white" : "bg-primary-light text-primary"}` }, stepMode ? "✓ Từng bước" : "▶ Từng bước")),
+      h("div", { className: "mt-4 flex items-start justify-between gap-3" },
+        h("p", { className: "text-lg font-extrabold leading-snug text-ink sm:text-xl" }, ex.q),
+        h(SpeakButton, { text: ex.q })),
+      h("div", { className: "mt-4 space-y-2.5" }, ex.parts.map((p, k) => {
+        const c = colorOf(p.tag);
+        if (k >= visible) return h("button", { key: k, onClick: () => setShown(k + 1), className: `flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 p-3 text-left text-sm font-bold text-slate-400 hover:border-slate-300` },
+          h("span", { className: `h-2.5 w-2.5 rounded-full ${c.bar}` }), p.tag, " — bấm để hiện");
+        return h("div", { key: k, className: `flex gap-3 rounded-2xl p-3 ${c.tint}` },
+          h("span", { className: `w-1.5 shrink-0 rounded-full ${c.bar}` }),
+          h("div", { className: "min-w-0" },
+            h("p", { className: `text-[10px] font-extrabold uppercase tracking-widest ${c.text}` }, p.tag),
+            h(Cover, null, h("p", { className: "mt-0.5 leading-relaxed text-slate-800" }, rich(p.text)))));
+      })),
+      h("div", { className: "mt-4 flex flex-wrap items-center gap-2" },
+        h(SpeakButton, { text: ex.parts.map((p) => String(p.text).replace(/\*/g, "")).join(" "), label: "Nghe cả câu trả lời", rate: 0.9 }),
+        examples.length > 1 && h("div", { className: "ml-auto flex gap-1.5" },
+          h("button", { onClick: () => pick((i - 1 + examples.length) % examples.length), "aria-label": "Ví dụ trước", className: "flex h-10 w-10 items-center justify-center rounded-full bg-panel text-lg text-slate-600 hover:bg-slate-200" }, "←"),
+          h("button", { onClick: () => pick((i + 1) % examples.length), "aria-label": "Ví dụ sau", className: "flex h-10 w-10 items-center justify-center rounded-full bg-ink text-lg text-white" }, "→"))));
+  }
   function Formula({ formula, steps = [], examples = [], note, img }) {
-    const colorOf = (tag) => STEP_COLORS[Math.max(0, steps.findIndex((s) => s.tag === tag)) % STEP_COLORS.length];
-    return h("div", { className: "space-y-5" },
-      formula && h("div", { className: "rounded-3xl bg-primary p-5 text-center text-white shadow-premium" },
-        h("p", { className: "text-[11px] font-bold uppercase tracking-widest text-white/70" }, "Công thức"),
-        h("p", { className: "mt-1 text-lg font-extrabold sm:text-xl" }, rich(formula))),
-      img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-2xl rounded-2xl" }))),
-      steps.length > 0 && h("div", { className: `grid gap-3 sm:grid-cols-${Math.min(steps.length, 4)}` }, steps.map((s, i) => h("div", { key: i, className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" },
-        h("span", { className: `rounded-full px-3 py-0.5 text-xs font-extrabold ${STEP_COLORS[i % STEP_COLORS.length]}` }, s.tag),
-        h("p", { className: "mt-2 text-sm font-bold text-slate-800" }, rich(s.label)),
-        s.text && h("p", { className: "mt-1 text-xs leading-relaxed text-slate-500" }, rich(s.text))))),
-      examples.map((ex, i) => h("div", { key: i, className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
-        h("div", { className: "flex items-start justify-between gap-3" },
-          h("p", { className: "text-sm font-bold text-slate-900" }, "❓ ", ex.q),
-          h(SpeakButton, { text: ex.q })),
-        h("div", { className: "mt-3 space-y-2" }, ex.parts.map((p, k) => h("div", { key: k, className: "flex items-start gap-2" },
-          h("span", { className: `mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${colorOf(p.tag)}` }, p.tag),
-          h(Cover, null, h("p", { className: "text-sm leading-relaxed text-slate-800" }, rich(p.text)))))),
-        h("div", { className: "mt-3" }, h(SpeakButton, { text: ex.parts.map((p) => String(p.text).replace(/\*/g, "")).join(" "), label: "Nghe cả câu trả lời", rate: 0.9 })))),
-      note && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note))
+    const colorOf = (tag) => NV_STEP[Math.max(0, steps.findIndex((s) => s.tag === tag)) % NV_STEP.length];
+    return h("div", { className: "space-y-4" },
+      (formula || steps.length > 0) && h("div", { className: "relative overflow-hidden rounded-[28px] bg-ink p-5 text-white sm:p-6" },
+        h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full border-[20px] border-white/5" }),
+        h("p", { className: "relative text-[11px] font-extrabold uppercase tracking-[0.2em] text-peach" }, "Công thức"),
+        steps.length > 0
+          ? h("div", { className: "relative mt-3 flex flex-wrap items-center gap-2" }, steps.map((s, i) => [
+              i > 0 && h("span", { key: "a" + i, className: "text-lg font-bold text-white/35" }, "→"),
+              h("span", { key: "s" + i, className: `inline-flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-extrabold sm:text-base ${NV_STEP[i % NV_STEP.length].solid}` },
+                h("span", { className: "flex h-7 w-7 items-center justify-center rounded-full bg-white/30 text-xs" }, i + 1), s.tag)
+            ]))
+          : h("p", { className: "relative mt-2 text-lg font-extrabold sm:text-xl" }, rich(formula)),
+        steps.length > 0 && formula && h("p", { className: "relative mt-3 text-xs leading-relaxed text-white/50" }, rich(formula))),
+      img && h("figure", { className: "rounded-3xl bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-2xl rounded-2xl" }))),
+      steps.length > 0 && h("div", { className: `grid gap-3 sm:grid-cols-2 ${steps.length >= 4 ? "lg:grid-cols-4" : steps.length === 3 ? "lg:grid-cols-3" : ""}` }, steps.map((s, i) => h(FormulaStep, { key: i, s, i, c: NV_STEP[i % NV_STEP.length] }))),
+      examples.length > 0 && h(FormulaExamples, { examples, colorOf }),
+      note && h("div", { className: "flex gap-3 rounded-3xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-900" }, h("span", { className: "text-lg" }, "💡"), h("div", null, rich(note)))
     );
   }
 
