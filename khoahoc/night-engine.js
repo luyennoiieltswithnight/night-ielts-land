@@ -174,15 +174,18 @@
         tooltip.text.split(/\s+/).length <= 6 && tooltip.text.length <= 60 && E("button", { type: "button", title: "Mở thẻ giảng từ này cho cả lớp", onPointerDown: act(() => { const w = tooltip.text.replace(/^[^\w]+|[^\w]+$/g, "") || tooltip.text; const rg = tooltip.range; done(); openVocabTeach(w, rg); }),
           className: "ml-0.5 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-3 py-1.5 text-xs font-extrabold text-white shadow" }, "🎀 Giảng vocab")));
   }
+  const NV_TONES = ["bg-peach text-white", "bg-primary text-white", "bg-ink text-white"];
   function Section({ id, step, title, desc, children, sticker, band8 }) {
     const E = React.createElement;
-    return E("section", { id, className: "scroll-mt-20" }, E("div", { className: "mb-5 flex items-end gap-3" },
-      E("span", { className: `text-4xl font-extrabold leading-none ${band8 ? "text-amber-400/60" : "text-primary/15"}` }, step),
+    const tone = band8 ? "bg-amber-400 text-ink" : NV_TONES[(parseInt(step, 10) - 1 + 3) % 3];
+    return E("section", { id, className: "scroll-mt-24" }, E("div", { className: "mb-5 flex items-center gap-3 sm:gap-4" },
+      E("span", { className: `flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-extrabold shadow-sm sm:h-14 sm:w-14 sm:rounded-[20px] sm:text-xl ${tone}` }, step),
       E("div", { className: "min-w-0 flex-1" },
         band8 && E("span", { className: "mb-1 inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-amber-700" }, "★ Band 8"),
-        E("h2", { className: "text-xl font-extrabold text-slate-900 sm:text-2xl" }, title),
+        E("h2", { className: "text-xl font-extrabold leading-tight tracking-tight text-ink sm:text-[1.7rem]" }, title),
         desc && E("p", { className: "mt-1 text-sm text-slate-500" }, rich(desc))),
-      sticker && E("img", { src: IRA_BASE + sticker, alt: "", "aria-hidden": "true", loading: "lazy", className: "-mb-1 h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20", onError: (e) => { e.currentTarget.style.display = "none"; } })), children);
+      sticker && E("img", { src: IRA_BASE + sticker, alt: "", "aria-hidden": "true", loading: "lazy", className: "nv-float -mb-1 h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20", onError: (e) => { e.currentTarget.style.display = "none"; } })),
+      E("div", { className: "rounded-[26px] bg-panel p-3 sm:rounded-[32px] sm:p-5" }, children));
   }
   const BADGES = {
     long: ["Dài", "bg-indigo-100 text-primary"],
@@ -1530,16 +1533,20 @@
     return h("div", { className: "mx-auto max-w-3xl space-y-4" }, tasks.map((t, i) => h(WriteTask, { key: i, t, i, storeKey: `night-${courseKeyOf(lesson)}-${lessonId}-${sectionId}-w${i}` })));
   }
   function Band8Gate({ open, onToggle, info = {}, count }) {
-    return h("div", { id: "band8", className: "scroll-mt-20" },
-      h("div", { className: "relative overflow-hidden rounded-[2rem] border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-amber-100 p-6 shadow-floating sm:p-8" },
-        h("div", { className: "flex flex-col items-center gap-5 sm:flex-row" },
-          h(Sticker, { ira: info.sticker || "trophy_school_boy.webp", className: "h-28 w-28 shrink-0" }),
+    return h("div", { id: "band8", className: "scroll-mt-24" },
+      h("div", { className: "relative overflow-hidden rounded-[30px] bg-peach p-6 text-white shadow-floating sm:rounded-[36px] sm:p-8" },
+        h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-16 -top-20 h-72 w-72 rounded-full border-[28px] border-white/15" }),
+        h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -bottom-24 left-1/3 h-56 w-56 rounded-full border-[22px] border-white/10" }),
+        h("div", { className: "relative flex flex-col items-center gap-5 sm:flex-row" },
+          h("div", { className: "relative shrink-0" },
+            h("span", { className: "absolute -left-2 -top-2 flex h-12 w-12 items-center justify-center rounded-full bg-ink text-xl text-amber-300 shadow-lg" }, "★"),
+            h("div", { className: "flex h-32 w-32 items-center justify-center rounded-[28px] bg-white/25" }, h(Sticker, { ira: info.sticker || "trophy_school_boy.webp", className: "nv-float h-28 w-28" }))),
           h("div", { className: "flex-1 text-center sm:text-left" },
-            h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-amber-700" }, "Nâng cao · ", count, " phần"),
-            h("h2", { className: "mt-1 text-2xl font-extrabold text-slate-900" }, info.title || "Nội dung Band 8"),
-            h("p", { className: "mt-2 text-sm leading-relaxed text-slate-600" }, rich(info.desc || "Dành cho bạn nhắm 7.0+. Học cùng thầy trên lớp hoặc tự đọc ở nhà.")),
+            h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/80" }, "Nâng cao · ", count, " phần"),
+            h("h2", { className: "mt-1 text-2xl font-extrabold leading-tight sm:text-3xl" }, info.title || "Nội dung Band 8"),
+            h("p", { className: "mt-2 text-sm leading-relaxed text-white/90 [&_*]:!text-white [&_b]:underline [&_b]:decoration-white/50 [&_strong]:underline" }, rich(info.desc || "Dành cho bạn nhắm 7.0+. Học cùng thầy trên lớp hoặc tự đọc ở nhà.")),
             h("button", { onClick: onToggle, "aria-expanded": open,
-              className: `mt-4 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-extrabold shadow-sm transition ${open ? "bg-white text-amber-700 ring-2 ring-amber-300" : "bg-amber-500 text-white hover:bg-amber-600"}` },
+              className: `mt-5 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-extrabold shadow-lg transition hover:-translate-y-0.5 ${open ? "bg-white text-peach-dark" : "bg-ink text-white"}` },
               open ? "Thu gọn Band 8" : "★ Mở nội dung Band 8", h("span", { "aria-hidden": "true" }, open ? "▴" : "▾"))))));
   }
   function SectionBody({ s, lesson }) {
@@ -2300,7 +2307,7 @@
     if (dir && dir !== "khoahoc") return dir;
     return lesson && /^sp6-/.test(lesson.id || "") ? "speaking6" : "giaotiep";
   }
-  function LessonLink({ link, className = "", children }) {
+  function LessonLink({ link, className = "", children, plain }) {
     const [ok, setOk] = useState(false);
     useEffect(() => {
       if (!link) return;
@@ -2318,7 +2325,7 @@
       };
     }, [link && link.href]);
     if (!link || !ok) return /* @__PURE__ */ React.createElement("span", { className: "min-w-[6rem]" });
-    return /* @__PURE__ */ React.createElement("a", { href: link.href, className: `rounded-full px-4 py-2 text-sm font-semibold ${className}` }, children);
+    return /* @__PURE__ */ React.createElement("a", { href: link.href, className: plain ? className : `rounded-full px-4 py-2 text-sm font-semibold ${className}` }, children);
   }
   /* ===================== CÔNG CỤ GIẢNG DẠY (nút 🎓 góc trái dưới) =====================
      ✏️ Bút vẽ đè (phím D, Z = hoàn tác) · 📽 Trình chiếu (P, ←/→) · 🙈 Che đáp án (C, N = mở câu kế tiếp) · ⏱ Đồng hồ (T)
@@ -2522,6 +2529,81 @@
       h("button", { onClick: () => set({ open: !t.open }), title: "Công cụ giảng dạy", "aria-label": "Công cụ giảng dạy",
         className: `flex h-12 w-12 items-center justify-center rounded-full text-xl shadow-premium transition ${t.open || t.draw || t.cover || present ? "bg-primary text-white" : "bg-white text-primary hover:bg-primary-light"}` }, "🎓"));
   }
+  /* ===================== KHUNG TRANG (phong cách bento: viền tối, thẻ tím / cam) ===================== */
+  function NvTopBar({ lesson, sections, navClick, accent, changeAccent, active }) {
+    const ref = useRef(null);
+    useEffect(() => {
+      const c = ref.current; const a = c && c.querySelector('[data-active="1"]');
+      if (a) c.scrollTo({ left: a.offsetLeft - c.clientWidth / 2 + a.offsetWidth / 2, behavior: "smooth" });
+    }, [active]);
+    return h("div", { className: "sticky top-1.5 z-40 rounded-[22px] bg-ink px-2 py-2 sm:top-2 sm:rounded-[34px] sm:px-3 sm:py-2.5" },
+      h("div", { className: "flex items-center gap-2 sm:gap-3" },
+        h("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, title: "Lộ trình khóa học", className: "flex shrink-0 items-center gap-2.5" },
+          h("span", { className: "flex h-10 w-10 items-center justify-center rounded-full bg-primary text-lg ring-4 ring-white/10 sm:h-12 sm:w-12 sm:text-xl" }, "🌙"),
+          h("span", { className: "hidden leading-tight lg:block" },
+            h("b", { className: "block text-base font-extrabold text-white" }, "Night IELTS"),
+            h("span", { className: "block max-w-[10rem] truncate text-[11px] font-medium text-white/45" }, lesson.course))),
+        h("div", { ref, className: "nv-noscroll relative flex min-w-0 flex-1 items-center gap-1 overflow-x-auto rounded-full bg-black/35 p-1" },
+          sections.map((s) => {
+            const on = active === s.id;
+            return h("a", { key: s.id, href: `#${s.id}`, onClick: navClick(s), "data-active": on ? "1" : "0",
+              className: `flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition ${on ? (s.band8 ? "bg-amber-400 text-ink" : "bg-white text-ink shadow") : s.band8 ? "text-amber-300/80 hover:text-amber-200" : "text-white/55 hover:text-white"}` },
+              on && h("span", { className: `h-2 w-2 rounded-full ${s.band8 ? "bg-ink" : "bg-primary"}` }), s.band8 ? "★ " : "", s.nav || s.title);
+          })),
+        h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "flex h-10 shrink-0 items-center gap-1 rounded-full bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/20" }, "🖨", h("span", { className: "hidden sm:inline" }, " In / PDF")),
+        h("div", { className: "flex shrink-0 items-center rounded-full bg-white/10 p-1" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => h("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1.5 text-[11px] font-extrabold transition ${accent === k ? "bg-primary text-white" : "text-white/50 hover:text-white"}` }, l)))));
+  }
+  function NvStat({ label, value, icon, tone }) {
+    const T = tone === "peach" ? ["border-peach bg-peach-light", "bg-peach/25 text-peach-dark"] : ["border-primary bg-primary-light", "bg-primary/20 text-primary"];
+    return h("div", { className: `relative overflow-hidden rounded-[26px] border-2 p-4 pl-16 ${T[0]}` },
+      h("span", { className: `absolute left-0 top-0 flex h-14 w-14 items-center justify-center rounded-br-[22px] text-xl ${T[1]}` }, icon),
+      h("p", { className: "text-xs font-bold text-slate-500" }, label),
+      h("p", { className: "mt-1 text-4xl font-extrabold leading-none tracking-tight text-ink" }, value));
+  }
+  function NvHero({ lesson, sections, b8count, firstId, present }) {
+    const nMain = sections.length - b8count;
+    const NV_DEFAULT_STICKER = { writing: "book_sakubun_kodomo_girl.webp", giaotiep: "kaisya_kaiwa_communication_6867.webp", speaking6: "speech_woman_1523.webp" };
+    const sticker = lesson.heroSticker || (lesson.band8 && lesson.band8.sticker) || (sections.find((x) => x.sticker && !x.band8) || {}).sticker || NV_DEFAULT_STICKER[courseKeyOf(lesson)] || "book_2458.webp";
+    const goals = lesson.goals || [];
+    const NUM = ["bg-peach text-white", "bg-primary text-white", "bg-ink text-white", "bg-amber-300 text-ink"];
+    return h("header", { className: "grid gap-4 lg:grid-cols-12" },
+      h("div", { className: `relative flex flex-col overflow-hidden rounded-[30px] bg-primary p-6 text-white sm:p-8 ${goals.length ? "lg:col-span-7" : "lg:col-span-12"}` },
+        h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-white/10" }),
+        ["top-6 right-1/3", "top-1/2 right-8", "bottom-8 right-1/4", "top-10 right-10"].map((pos, i) => h("span", { key: i, "aria-hidden": "true", className: `pointer-events-none absolute hidden sm:block ${pos} text-${i % 2 ? "amber-200" : "white/60"} text-lg` }, i % 2 ? "★" : "✦")),
+        h("div", { className: `relative z-10 ${sticker ? "sm:pr-40" : ""}` },
+          h("div", { className: "flex flex-wrap gap-2 text-[11px] font-bold" },
+            lesson.session && h("span", { className: "rounded-full bg-ink px-3 py-1 text-white" }, lesson.session),
+            lesson.course && h("span", { className: "rounded-full bg-white/20 px-3 py-1" }, lesson.course)),
+          h("h1", { className: "mt-4 text-[1.9rem] font-extrabold leading-[1.12] tracking-tight sm:text-[2.6rem]" }, lesson.title),
+          lesson.subtitle && h("p", { className: "mt-3 text-sm leading-relaxed text-white/85 sm:text-base" }, lesson.subtitle),
+          lesson.unit && h("p", { className: "mt-3 text-xs font-semibold text-amber-200" }, "📖 ", lesson.unit)),
+        h("div", { className: "relative z-10 mt-auto flex items-end justify-between gap-4 pt-6" },
+          !present && firstId ? h("a", { href: "#" + firstId, "aria-label": "Vào bài", className: "nv-go relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-ink text-2xl text-white transition hover:scale-105" }, "→") : h("span"),
+          sticker && h(Sticker, { ira: sticker, className: "nv-float -mb-3 -mr-2 h-32 w-32 sm:absolute sm:-bottom-4 sm:right-0 sm:mb-0 sm:h-44 sm:w-44" }))),
+      goals.length > 0 && h("div", { className: "flex flex-col gap-4 lg:col-span-5" },
+        h("div", { className: "grid grid-cols-2 gap-3 sm:gap-4" },
+          h(NvStat, { label: "Phần học", value: nMain, icon: "📚", tone: "peach" }),
+          h(NvStat, { label: b8count ? "Phần Band 8" : "Mục tiêu", value: b8count || goals.length, icon: b8count ? "★" : "🎯", tone: "lilac" })),
+        h("div", { className: "flex-1 rounded-[30px] bg-panel p-4 sm:p-5" },
+          h("p", { className: "mb-3 flex items-center gap-2 text-lg font-extrabold tracking-tight text-ink" }, "Sau buổi học, bạn sẽ ", h("span", { "aria-hidden": "true" }, "🎯")),
+          h("ul", { className: "space-y-2" }, goals.map((g, i) => h("li", { key: i, className: "flex items-start gap-3 rounded-2xl bg-white p-3 text-sm leading-relaxed text-slate-600 shadow-sm" },
+            h("span", { className: `flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${NUM[i % 4]}` }, i + 1),
+            h("span", { className: "min-w-0 pt-0.5" }, rich(g))))),
+          !TTS_OK && h("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))));
+  }
+  function NvFooter({ lesson }) {
+    return h("footer", { className: "mt-16" },
+      h("div", { className: "grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-4" },
+        lesson.prev ? h(LessonLink, { link: lesson.prev, plain: true, className: "flex items-center gap-4 rounded-[28px] bg-primary-light p-4 text-ink transition hover:-translate-y-0.5 sm:p-5" },
+          h("span", { className: "flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-xl text-primary shadow-sm" }, "←"),
+          h("span", { className: "min-w-0" }, h("span", { className: "block text-[11px] font-bold uppercase tracking-widest text-primary" }, "Buổi trước"), h("b", { className: "block truncate text-lg font-extrabold" }, lesson.prev.label))) : h("span"),
+        h("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "flex items-center justify-center gap-2 rounded-[28px] bg-panel px-6 py-4 text-sm font-extrabold text-slate-600 transition hover:bg-slate-200" }, "☰ Lộ trình"),
+        lesson.next ? h(LessonLink, { link: lesson.next, plain: true, className: "nv-next relative flex items-center justify-between gap-4 overflow-hidden rounded-[28px] bg-ink p-4 text-white transition hover:-translate-y-0.5 sm:p-5" },
+          h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full border-[18px] border-white/5" }),
+          h("span", { className: "relative min-w-0" }, h("span", { className: "block text-[11px] font-bold uppercase tracking-widest text-peach" }, "Buổi tiếp theo"), h("b", { className: "block truncate text-lg font-extrabold" }, lesson.next.label)),
+          h("span", { className: "nv-arrow relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-xl text-ink ring-4 ring-peach transition" }, "→")) : h("span")),
+      h("p", { className: "mt-6 text-center text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night"));
+  }
   function LessonApp({ lesson }) {
     const readingRef = useRef(null);
     const [accent, setAccent] = useState(ACCENT);
@@ -2596,37 +2678,27 @@
       ? h(Band8Gate, { key: "band8-gate", open: b8open, onToggle: () => setB8(!b8open), info: lesson.band8, count: b8count })
       : h(Section, { key: it.s.id, id: it.s.id, step: String(it.i + 1).padStart(2, "0"), title: it.s.title, desc: it.s.desc, sticker: it.s.sticker, band8: it.s.band8 }, h(SectionBody, { s: it.s, lesson }));
     const showTitle = !present || slides[cur].k === "title";
+    const [active, setActive] = useState(null);
+    useEffect(() => {
+      if (present || typeof IntersectionObserver === "undefined") return;
+      const io = new IntersectionObserver((ents) => ents.forEach((e) => { if (e.isIntersecting) setActive(e.target.id); }), { rootMargin: "-25% 0px -65% 0px" });
+      sections.forEach((s) => { const el = document.getElementById(s.id); if (el) io.observe(el); });
+      return () => io.disconnect();
+    }, [present, b8open, sections.length]);
+    const firstSec = items.find((x) => x.k === "sec");
 
     return h(TeachCtx.Provider, { value: { cover: t.cover, gen: t.gen, all: t.all } },
-      h("div", { className: "relative min-h-screen pb-24" },
-        !present && h("nav", { className: "sticky top-0 z-40 border-b border-slate-200/70 bg-white/70 backdrop-blur-md" },
-          h("div", { className: "mx-auto flex max-w-4xl items-center gap-2 overflow-x-auto px-4 py-2" },
-            sections.map((s) => h("a", { key: s.id, href: `#${s.id}`, onClick: navClick(s), className: `flex-shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${s.band8 ? "text-amber-600 hover:bg-amber-50" : "text-slate-500 hover:bg-primary-light hover:text-primary"}` }, s.band8 ? "★ " : "", s.nav || s.title)),
-            h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "ml-auto flex-shrink-0 rounded-full bg-primary-light px-3 py-1.5 text-xs font-bold text-primary hover:bg-indigo-100" }, "🖨 In / PDF"),
-            h("div", { className: "flex flex-shrink-0 items-center gap-1 rounded-full bg-slate-100 p-0.5" }, [["en-GB", "UK"], ["en-US", "US"]].map(([k, l]) => h("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1 text-[11px] font-bold ${accent === k ? "bg-white text-primary shadow-sm" : "text-slate-400"}` }, l))))),
-        showTitle && h("header", { className: `mx-auto max-w-3xl px-4 text-center ${present ? "pt-16" : "pt-10"}` },
-          h("p", { className: "text-xs font-semibold uppercase tracking-widest text-primary" }, "Night IELTS"),
-          h("p", { className: "mt-3 inline-flex flex-wrap justify-center gap-2 text-[11px] font-semibold" },
-            h("span", { className: "rounded-full bg-primary-light px-3 py-1 text-primary" }, lesson.course),
-            h("span", { className: "rounded-full bg-amber-100 px-3 py-1 text-amber-700" }, lesson.session, " · ", lesson.unit)),
-          h("h1", { className: "mt-3 text-3xl font-extrabold text-slate-900 sm:text-4xl" }, lesson.title),
-          h("p", { className: "mt-2 text-slate-500" }, lesson.subtitle)),
-        showTitle && lesson.goals && h("div", { className: "mx-auto mt-8 max-w-3xl px-4" },
-          h("div", { className: "rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-floating" },
-            h("p", { className: "mb-3 text-sm font-bold text-slate-700" }, "🎯 Sau buổi học, bạn sẽ:"),
-            h("ul", { className: "space-y-2" }, lesson.goals.map((g, i) => h("li", { key: i, className: "flex gap-2 text-sm text-slate-600" }, h("span", { className: "font-bold text-primary" }, i + 1, "."), h("span", null, rich(g))))),
-            !TTS_OK && h("p", { className: "mt-3 text-xs text-rose-500" }, "Trình duyệt này chưa hỗ trợ giọng đọc — các nút 🔊 sẽ không hoạt động."))),
-        h("main", { ref: readingRef, className: `mx-auto max-w-4xl space-y-16 px-4 ${present ? "mt-10" : "mt-12"}` },
-          present ? (slides[cur].k === "title" ? null : renderItem(slides[cur])) : items.map(renderItem)),
+      h("div", { className: `relative min-h-screen pb-24 ${present ? "" : "px-1.5 pt-1.5 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6"}` },
+        h("div", { className: present ? "" : "mx-auto max-w-6xl rounded-[28px] bg-ink p-1.5 shadow-2xl sm:rounded-[44px] sm:p-2.5" },
+          !present && h(NvTopBar, { lesson, sections, navClick, accent, changeAccent, active }),
+          h("div", { className: present ? "" : "mt-1.5 rounded-[22px] bg-white px-3 pb-10 pt-4 sm:mt-2.5 sm:rounded-[36px] sm:px-8 sm:pt-8" },
+            showTitle && h("div", { className: present ? "mx-auto max-w-5xl px-4 pt-12" : "" }, h(NvHero, { lesson, sections, b8count, firstId: firstSec && firstSec.s.id, present })),
+            h("main", { ref: readingRef, className: `mx-auto max-w-5xl space-y-12 ${present ? "mt-10 px-4" : "mt-10 sm:mt-14"}` },
+              present ? (slides[cur].k === "title" ? null : renderItem(slides[cur])) : items.map(renderItem)),
+            !present && h(NvFooter, { lesson }))),
         h(SelectionTranslateTooltip, { containerRef: readingRef }),
         h(NotesLayer, { lessonId: lesson.id }),
         h(LiveCaptions, null),
-        !present && h("footer", { className: "mx-auto mt-16 max-w-3xl px-4 text-center" },
-          h("div", { className: "mb-6 flex flex-wrap items-center justify-between gap-3" },
-            h(LessonLink, { link: lesson.prev, className: "bg-white text-slate-600 shadow-sm" }, "← ", lesson.prev && lesson.prev.label),
-            h("a", { href: lesson.roadmap || `../${courseKeyOf(lesson)}.html`, className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "☰ Lộ trình"),
-            h(LessonLink, { link: lesson.next, className: "bg-primary text-white shadow-premium" }, lesson.next && lesson.next.label, " →")),
-          h("p", { className: "text-[11px] text-slate-400" }, "Night IELTS · by Mr. Night")),
         present && h("div", { className: "fixed inset-x-0 z-[50] flex justify-center px-20", style: { bottom: "calc(16px + env(safe-area-inset-bottom, 0px))" } },
           h("div", { className: "flex max-w-full items-center gap-1 rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-floating backdrop-blur" },
             h("button", { onClick: () => go(-1), disabled: cur === 0, "aria-label": "Phần trước", className: "rounded-full px-4 py-2 text-lg font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-30" }, "←"),
@@ -2640,6 +2712,14 @@
   }
   const ENGINE_CSS = `
   body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  html:not(.night-present) body { background-color: #B9BCF4; background-image: repeating-linear-gradient(118deg, rgba(255,255,255,.16) 0 140px, rgba(255,255,255,0) 140px 320px), linear-gradient(160deg, #CDD0FA 0%, #A7AAF0 60%, #9599EA 100%); min-height: 100vh; }
+  html.night-present body { background: #fff; }
+  .nv-noscroll { scrollbar-width: none; } .nv-noscroll::-webkit-scrollbar { display: none; }
+  @keyframes nvFloat { 0%,100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-10px) rotate(3deg); } }
+  .nv-float { animation: nvFloat 5s ease-in-out infinite; }
+  .nv-go { box-shadow: 0 0 0 6px rgba(255,255,255,.18); }
+  .nv-go:after { content: ""; position: absolute; inset: -10px; border-radius: 999px; border: 3px solid transparent; border-top-color: #fff; border-left-color: rgba(255,255,255,.6); transform: rotate(-30deg); }
+  .nv-next:hover .nv-arrow { transform: translateX(4px); }
   .perspective-1000 { perspective: 1000px; }
   .transform-style-3d { transform-style: preserve-3d; }
   .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
@@ -2658,14 +2738,17 @@
         extend: {
           fontFamily: { sans: ["Plus Jakarta Sans", "ui-sans-serif", "system-ui", "sans-serif"] },
           colors: {
-            primary: { DEFAULT: "#4338CA", light: "#EEF2FF", dark: "#312E81" },
-            vocab: { bg: "#FDE68A", front: "#FBBF24", back: "#0EA5E9" }
+            primary: { DEFAULT: "#6C70DC", light: "#EDEEFD", dark: "#4A4EB8" },
+            ink: { DEFAULT: "#24242A", soft: "#34343C" },
+            peach: { DEFAULT: "#FF9E5E", light: "#FFF1E7", dark: "#E9782F" },
+            panel: "#F4F4F7",
+            vocab: { bg: "#FFE3A3", front: "#FBBF24", back: "#6C70DC" }
           },
           boxShadow: {
-            floating: "0 20px 45px -12px rgba(30, 41, 59, 0.25)",
-            premium: "0 10px 35px -8px rgba(67, 56, 202, 0.35)"
+            floating: "0 1px 2px rgba(36,36,42,.04), 0 14px 32px -16px rgba(36,36,42,.22)",
+            premium: "0 10px 28px -8px rgba(108, 112, 220, 0.45)"
           },
-          borderRadius: { "3xl": "1.5rem" }
+          borderRadius: { "3xl": "1.75rem" }
         }
       }
     };
@@ -2689,7 +2772,7 @@
         root.id = "root";
         document.body.appendChild(root);
       }
-      document.body.classList.add("bg-slate-50", "text-slate-800", "antialiased");
+      document.body.classList.add("text-slate-800", "antialiased");
       ReactDOM.createRoot(root).render(/* @__PURE__ */ React.createElement(LessonApp, { lesson }));
     }
   };
