@@ -2617,6 +2617,146 @@
   }
 
   // Thanh công cụ giảng dạy
+  /* ===================== 🦆 ĐUA VỊT — chọn ngẫu nhiên học sinh trả lời (phím R) =====================
+     Danh sách lớp lưu trên máy thầy (localStorage, dùng chung mọi bài). Có thể bỏ qua bạn đã được gọi. */
+  const RACE_KEY = "night-race-v1";
+  let raceUsedMem = [];
+  function raceLoad() { const d = lsGet(RACE_KEY, null); return d && d.lists ? d : { cur: "Lớp của tôi", lists: { "Lớp của tôi": "" }, skip: true }; }
+  function raceRand() { try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] / 4294967296; } catch (e) { return Math.random(); } }
+  let raceAudio = null;
+  function raceBeep(freq, dur, type = "square", vol = 0.06, at = 0) {
+    try {
+      raceAudio = raceAudio || new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = raceAudio.currentTime + at, o = raceAudio.createOscillator(), g = raceAudio.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(raceAudio.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+    } catch (e) {}
+  }
+  const raceFanfare = () => [523, 659, 784, 1047].forEach((f, i) => raceBeep(f, i === 3 ? 0.6 : 0.16, "triangle", 0.09, i * 0.14));
+  const RACE_COLORS = ["#FF9E5E", "#6C70DC", "#F59E0B", "#10B981", "#EC4899", "#06B6D4", "#8B5CF6", "#EF4444"];
+  let raceCssDone = false;
+  function raceCss() {
+    if (raceCssDone) return; raceCssDone = true;
+    const st = document.createElement("style");
+    st.textContent = "@keyframes nrBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-4px) rotate(4deg)}}" +
+      "@keyframes nrWave{from{background-position:0 0}to{background-position:-120px 0}}" +
+      "@keyframes nrPop{0%{transform:scale(.4);opacity:0}70%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}" +
+      "@keyframes nrFall{from{transform:translateY(-10vh) rotate(0)}to{transform:translateY(110vh) rotate(540deg)}}" +
+      "@keyframes nrCount{0%{transform:scale(2.2);opacity:0}30%{transform:scale(1);opacity:1}100%{transform:scale(.8);opacity:0}}" +
+      ".nr-duck{animation:nrBob .45s ease-in-out infinite}.nr-water{background-image:repeating-linear-gradient(90deg,rgba(255,255,255,.0) 0 40px,rgba(255,255,255,.22) 40px 60px,rgba(255,255,255,0) 60px 120px);animation:nrWave 1.2s linear infinite}" +
+      ".nr-pop{animation:nrPop .55s cubic-bezier(.2,1.4,.4,1) both}.nr-conf{position:fixed;top:0;animation:nrFall linear forwards;pointer-events:none;z-index:95}.nr-count{animation:nrCount .9s ease-out both}";
+    document.head.appendChild(st);
+  }
+  // Mỗi con vịt: 8 chặng, tốc độ mỗi chặng ngẫu nhiên → có vượt nhau; con thắng về đích sớm nhất
+  function raceProfile(T) {
+    const K = 8, w = Array.from({ length: K }, () => 0.35 + raceRand() * 1.3), sum = w.reduce((a, b) => a + b, 0);
+    let acc = 0; const cum = [0].concat(w.map((x) => (acc += x / sum)));
+    return (t) => { if (!(t > 0)) return 0; if (t >= T) return 1; const x = (t / T) * K, k = Math.floor(x); return cum[k] + (cum[k + 1] - cum[k]) * (x - k); };
+  }
+  function DuckRace({ onClose }) {
+    const [cfg, setCfg] = useState(raceLoad);
+    const [used, setUsedRaw] = useState(() => raceUsedMem);
+    const setUsed = (v) => setUsedRaw((u) => { const n = typeof v === "function" ? v(u) : v; raceUsedMem = n; return n; });
+    const [phase, setPhase] = useState("setup"); // setup | count | run | done
+    const [count, setCount] = useState(3);
+    const [pos, setPos] = useState([]);
+    const [winner, setWinner] = useState(null);
+    const [newName, setNewName] = useState("");
+    const raf = useRef(0);
+    raceCss();
+    const save = (c) => { setCfg(c); lsSet(RACE_KEY, c); };
+    const all = String(cfg.lists[cfg.cur] || "").split(/\n|,/).map((x) => x.trim()).filter(Boolean);
+    const pool = cfg.skip ? all.filter((n) => !used.includes(n)) : all;
+    const racers = useRef([]);
+    useEffect(() => () => cancelAnimationFrame(raf.current), []);
+    useEffect(() => { const k = (e) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, []);
+    const start = () => {
+      let list = pool.length ? pool : all;
+      if (cfg.skip && !pool.length) setUsed([]);
+      if (list.length < 2) return;
+      const wi = Math.floor(raceRand() * list.length);
+      const base = 4200 + raceRand() * 1200;
+      racers.current = list.map((n, i) => ({ name: n, win: i === wi, prog: raceProfile(i === wi ? base : base * (1.06 + raceRand() * 0.32)) }));
+      setPos(list.map(() => 0)); setWinner(null); setPhase("count"); setCount(3);
+      [3, 2, 1].forEach((c, i) => setTimeout(() => { setCount(c); raceBeep(c === 1 ? 660 : 440, 0.18); }, i * 800));
+      setTimeout(() => {
+        setPhase("run"); raceBeep(880, 0.35);
+        const t0 = performance.now(); let done = false;
+        const tick = (now) => {
+          const t = Math.max(0, now - t0);
+          const p = racers.current.map((r) => r.prog(t));
+          setPos(p);
+          const w = racers.current.findIndex((r) => r.win);
+          if (!done && p[w] >= 1) {
+            done = true; const name = racers.current[w].name;
+            setWinner(name); setUsed((u) => u.concat(name)); raceFanfare();
+            setTimeout(() => setPhase("done"), 700);
+          }
+          if (p.some((x) => x < 1) && t < 12000) raf.current = requestAnimationFrame(tick);
+        };
+        raf.current = requestAnimationFrame(tick);
+      }, 2400);
+    };
+    const n = phase === "setup" ? 0 : racers.current.length;
+    const startPct = window.innerWidth < 640 ? 44 : 24;
+    const laneH = Math.max(26, Math.min(64, Math.floor((window.innerHeight - 260) / Math.max(n, 1))));
+    const E = h;
+    const conf = phase === "done" ? Array.from({ length: 36 }, (_, i) => E("span", { key: i, className: "nr-conf text-2xl", style: { left: (i * 97) % 100 + "vw", animationDuration: 2.2 + (i % 7) * 0.35 + "s", animationDelay: (i % 9) * 0.08 + "s" } }, ["🎉", "⭐", "✨", "🦆", "💛", "🎊"][i % 6])) : null;
+    return E("div", { className: "fixed inset-0 z-[90] flex flex-col bg-ink/90 p-3 backdrop-blur sm:p-6", onMouseDown: (e) => { if (e.target === e.currentTarget && phase === "setup") onClose(); } },
+      conf,
+      E("div", { className: "mx-auto flex w-full max-w-5xl items-center gap-3 pb-3 text-white" },
+        E("span", { className: "text-3xl" }, "🦆"),
+        E("div", { className: "min-w-0 flex-1" }, E("p", { className: "text-xl font-extrabold sm:text-2xl" }, "Đua vịt — ai trả lời?"), E("p", { className: "text-xs text-white/50" }, cfg.cur, " · ", all.length, " bạn", cfg.skip && used.length ? ` · đã gọi ${used.length}` : "")),
+        E("button", { onClick: onClose, "aria-label": "Đóng", className: "flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl hover:bg-white/20" }, "×")),
+      phase === "setup"
+        ? E("div", { className: "mx-auto grid w-full max-w-5xl flex-1 gap-4 overflow-y-auto md:grid-cols-[1fr_1.2fr]" },
+            E("div", { className: "rounded-[28px] bg-white p-5" },
+              E("p", { className: "text-xs font-extrabold uppercase tracking-widest text-slate-400" }, "Lớp"),
+              E("div", { className: "mt-2 flex flex-wrap gap-1.5" }, Object.keys(cfg.lists).map((k) => E("button", { key: k, onClick: () => { save({ ...cfg, cur: k }); setUsed([]); }, className: `rounded-full px-3 py-1.5 text-sm font-bold ${k === cfg.cur ? "bg-ink text-white" : "bg-panel text-slate-600"}` }, k))),
+              E("div", { className: "mt-2 flex gap-1.5" },
+                E("input", { value: newName, onChange: (e) => setNewName(e.target.value), placeholder: "Tên lớp mới…", className: "min-w-0 flex-1 rounded-full bg-panel px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40",
+                  onKeyDown: (e) => { if (e.key === "Enter" && newName.trim()) { save({ ...cfg, cur: newName.trim(), lists: { ...cfg.lists, [newName.trim()]: cfg.lists[newName.trim()] || "" } }); setNewName(""); setUsed([]); } } }),
+                E("button", { onClick: () => { if (!newName.trim()) return; save({ ...cfg, cur: newName.trim(), lists: { ...cfg.lists, [newName.trim()]: cfg.lists[newName.trim()] || "" } }); setNewName(""); setUsed([]); }, className: "rounded-full bg-primary-light px-3 text-sm font-bold text-primary" }, "＋"),
+                Object.keys(cfg.lists).length > 1 && E("button", { title: "Xoá lớp này", onClick: () => { if (!confirm("Xoá lớp “" + cfg.cur + "”?")) return; const l = { ...cfg.lists }; delete l[cfg.cur]; save({ ...cfg, lists: l, cur: Object.keys(l)[0] }); setUsed([]); }, className: "rounded-full bg-rose-50 px-3 text-sm font-bold text-rose-600" }, "🗑")),
+              E("p", { className: "mt-4 text-xs font-extrabold uppercase tracking-widest text-slate-400" }, "Tên học sinh (mỗi dòng 1 tên)"),
+              E("textarea", { value: cfg.lists[cfg.cur] || "", onChange: (e) => save({ ...cfg, lists: { ...cfg.lists, [cfg.cur]: e.target.value } }), rows: 9, placeholder: "An\nBình\nChi\nDũng…",
+                className: "mt-2 w-full resize-y rounded-2xl bg-panel p-3 text-base font-semibold leading-relaxed text-ink outline-none focus:ring-2 focus:ring-primary/40" }),
+              E("label", { className: "mt-3 flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600" },
+                E("input", { type: "checkbox", checked: !!cfg.skip, onChange: () => save({ ...cfg, skip: !cfg.skip }), className: "h-4 w-4 accent-primary" }), "Không gọi lại bạn đã trả lời (trong buổi này)")),
+            E("div", { className: "flex flex-col gap-4" },
+              E("div", { className: "relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[28px] bg-primary p-6 text-center text-white" },
+                E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10" }),
+                E("span", { className: "inline-block", style: { transform: "scaleX(-1)" } }, E("span", { className: "nr-duck inline-block text-7xl" }, "🦆")),
+                E("p", { className: "mt-3 text-2xl font-extrabold" }, pool.length >= 2 || (cfg.skip && all.length >= 2) ? `${(pool.length || all.length)} chú vịt sẵn sàng!` : "Nhập ít nhất 2 tên nhé"),
+                E("p", { className: "mt-1 text-sm text-white/70" }, "Vịt nào về đích trước, bạn đó trả lời 🙋"),
+                E("button", { onClick: start, disabled: all.length < 2, className: "mt-5 rounded-full bg-ink px-8 py-3.5 text-lg font-extrabold text-white shadow-lg transition hover:scale-105 disabled:opacity-40" }, "🏁 Bắt đầu đua")),
+              used.length > 0 && E("div", { className: "rounded-[28px] bg-white p-4" },
+                E("div", { className: "flex items-center justify-between" }, E("p", { className: "text-xs font-extrabold uppercase tracking-widest text-slate-400" }, "Đã gọi"), E("button", { onClick: () => setUsed([]), className: "text-xs font-bold text-primary" }, "↺ Làm lại từ đầu")),
+                E("div", { className: "mt-2 flex flex-wrap gap-1.5" }, used.map((u, i) => E("span", { key: i, className: "rounded-full bg-peach-light px-3 py-1 text-sm font-bold text-peach-dark" }, i + 1, ". ", u))))))
+        : E("div", { className: "relative mx-auto w-full max-w-6xl flex-1 overflow-y-auto rounded-[28px] bg-sky-400 p-2 sm:p-3" },
+            E("div", { className: "absolute bottom-0 right-[7%] top-0 w-3 sm:w-4", style: { backgroundImage: "repeating-conic-gradient(#fff 0 25%, #24242A 0 50%)", backgroundSize: "12px 12px" } }),
+            racers.current.map((r, i) => {
+              const p = pos[i] || 0, col = RACE_COLORS[i % RACE_COLORS.length], won = winner === r.name;
+              return E("div", { key: i, className: "nr-water relative mb-1 overflow-hidden rounded-xl bg-sky-500/70", style: { height: laneH } },
+                E("div", { className: "absolute top-1/2 flex items-center gap-1", style: { left: `${(startPct + p * (93 - startPct)).toFixed(2)}%`, transform: "translate(-100%, -50%)" } },
+                  E("span", { className: `whitespace-nowrap rounded-full px-2.5 py-0.5 font-extrabold text-white shadow ${won ? "ring-4 ring-amber-300" : ""}`, style: { background: col, fontSize: Math.max(11, Math.min(16, laneH * 0.34)) } }, won ? "🏆 " : "", r.name),
+                  E("span", { className: "inline-block", style: { transform: "scaleX(-1)" } }, E("span", { className: "nr-duck inline-block leading-none", style: { fontSize: Math.min(laneH * 0.72, 40), animationDelay: i * 0.07 + "s" } }, "🦆"))));
+            }),
+            phase === "count" && E("div", { className: "absolute inset-0 flex items-center justify-center bg-ink/30" }, E("span", { key: count, className: "nr-count text-[9rem] font-black text-white drop-shadow-lg" }, count)),
+            phase === "done" && winner && E("div", { className: "fixed inset-0 z-[92] flex items-center justify-center bg-ink/60 p-4" },
+              E("div", { className: "nr-pop relative w-full max-w-md overflow-hidden rounded-[36px] bg-white p-8 text-center shadow-2xl" },
+                E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-peach/20" }),
+                E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -bottom-12 -right-10 h-44 w-44 rounded-full bg-primary/15" }),
+                E("p", { className: "relative text-6xl" }, "🏆"),
+                E("p", { className: "relative mt-2 text-xs font-extrabold uppercase tracking-[0.25em] text-peach-dark" }, "Người may mắn"),
+                E("p", { className: "relative mt-2 break-words text-5xl font-black tracking-tight text-ink" }, winner),
+                E("p", { className: "relative mt-2 text-sm text-slate-500" }, "Mời bạn trả lời câu hỏi nhé! 🙋"),
+                E("div", { className: "relative mt-6 flex justify-center gap-2" },
+                  E("button", { onClick: start, className: "rounded-full bg-ink px-6 py-3 text-sm font-extrabold text-white transition hover:scale-105" }, "🔁 Đua tiếp"),
+                  E("button", { onClick: () => setPhase("setup"), className: "rounded-full bg-panel px-5 py-3 text-sm font-bold text-slate-600" }, "Danh sách"),
+                  E("button", { onClick: onClose, className: "rounded-full bg-panel px-5 py-3 text-sm font-bold text-slate-600" }, "Đóng"))))));
+  }
   function TeachBar({ t, set, present, onPresent, onClearAll, hasMarks }) {
     const btn = (active, onClick, icon, label, key, extra = "") => h("button", { onClick, title: `${label} (phím ${key})`,
       className: `flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm font-semibold transition ${active ? "bg-primary text-white shadow-premium" : "bg-white text-slate-700 hover:bg-primary-light"} ${extra}` },
@@ -2639,6 +2779,7 @@
           h("button", { onClick: () => set({ all: true }), className: "flex-1 rounded-xl bg-white py-1.5 text-xs font-bold text-slate-600" }, "Mở hết"),
           h("button", { onClick: () => set({ gen: t.gen + 1, all: false }), className: "rounded-xl bg-white px-2 py-1.5 text-xs font-bold text-slate-600", title: "Che lại tất cả" }, "↺")),
         btn(t.timer, () => set({ timer: !t.timer }), "⏱", "Đồng hồ", "T"),
+        btn(t.race, () => set({ race: !t.race, open: false }), "🦆", "Đua vịt gọi tên", "R"),
         h("button", { onClick: onClearAll, className: "w-full rounded-2xl px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50" }, "🧹 Xoá hết đánh dấu & nét vẽ"),
         h("p", { className: "px-2 pb-1 text-[10px] leading-relaxed text-slate-400" }, HL_OK ? "Bôi đen chữ để in đậm, gạch chân, tô màu. " : "", "Không lưu gì: đóng trang là sạch.")),
       h("button", { onClick: () => set({ open: !t.open }), title: "Công cụ giảng dạy", "aria-label": "Công cụ giảng dạy",
@@ -2781,6 +2922,7 @@
       else if (k === "c" || k === "C") set(t.cover ? { cover: false } : { cover: true, gen: t.gen + 1, all: false });
       else if ((k === "n" || k === "N") && t.cover) revealNextCover();
       else if (k === "t" || k === "T") set({ timer: !t.timer });
+      else if (k === "r" || k === "R") set({ race: !t.race });
       else if ((k === "z" || k === "Z") && t.draw) set({ cmd: { t: "undo", n: Date.now() } });
       else if (k === "Escape") { if (t.draw) set({ draw: false }); else if (present) setPresent(false); }
       else if (present && (k === "ArrowRight" || k === "PageDown")) { e.preventDefault(); go(1); }
@@ -2823,6 +2965,7 @@
             h("button", { onClick: () => setPresent(false), title: "Thoát trình chiếu (Esc)", className: "rounded-full px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100" }, "✕"))),
         h(DrawLayer, { on: t.draw, tool: t.tool, color: t.color, pageKey: present ? "slide-" + cur : "page", cmd: t.cmd }),
         t.timer && h(TeachTimer, { onClose: () => set({ timer: false }) }),
+        t.race && h(DuckRace, { onClose: () => set({ race: false }) }),
         h(TeachBar, { t, set, present, onPresent: togglePresent, onClearAll: clearAll })));
   }
   const ENGINE_CSS = `
