@@ -1065,8 +1065,48 @@
     return render(root);
   }
 
-  function GrammarBlock({ index, name, forms = [], uses = [], examples = [], signals, note }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "mb-4 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white" }, index), /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-extrabold text-slate-900" }, name)), forms.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mb-4 grid gap-2 sm:grid-cols-3" }, forms.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-2xl bg-primary-light p-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-[11px] font-bold uppercase tracking-wide text-primary/70" }, f.label), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm font-semibold text-slate-800" }, rich(f.pattern))))), uses.length > 0 && /* @__PURE__ */ React.createElement("ul", { className: "mb-4 space-y-1.5" }, uses.map((u, i) => /* @__PURE__ */ React.createElement("li", { key: i, className: "flex gap-2 text-sm leading-relaxed text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "text-primary" }, "▸"), /* @__PURE__ */ React.createElement("span", null, rich(u))))), examples.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, examples.map((e, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-start justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, rich(e.en)), e.vi && React.createElement(Cover, null, React.createElement("p", { className: "mt-0.5 text-xs text-slate-500" }, e.vi))), /* @__PURE__ */ React.createElement(SpeakButton, { text: String(e.en).replace(/\*/g, ""), rate: 0.85 })))), signals && /* @__PURE__ */ React.createElement("p", { className: "mt-4 text-xs text-slate-500" }, /* @__PURE__ */ React.createElement("b", { className: "text-slate-700" }, "Dấu hiệu:"), " ", rich(signals)), note && /* @__PURE__ */ React.createElement("p", { className: "mt-3 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note)));
+  const NV_FORM = ["bg-emerald-50 text-emerald-700", "bg-pink-50 text-pink-700", "bg-primary-light text-primary"];
+  function GrammarBlock({ index, name, forms = [], uses = [], examples = [], signals, note, tone = 0 }) {
+    const c = NV_STEP[tone % NV_STEP.length];
+    const [vi, setVi] = useState(false);
+    const splitUse = (u) => { const t = String(u); const k = t.indexOf(":"); return k > 0 && k < 60 ? [t.slice(0, k), t.slice(k + 1).trim()] : [null, t]; };
+    const sig = signals ? String(signals).split(/\s*,\s*/).filter(Boolean) : [];
+    return h("div", { className: "overflow-hidden rounded-[28px] bg-white shadow-floating" },
+      h("div", { className: `flex items-center gap-3 px-5 py-3.5 ${c.solid}` },
+        h("span", { className: "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/30 text-sm font-extrabold" }, index),
+        h("h3", { className: "text-lg font-extrabold leading-tight" }, name)),
+      h("div", { className: "space-y-4 p-4 sm:p-5" },
+        forms.length > 0 && h("div", { className: `grid gap-2 ${forms.length >= 3 ? "sm:grid-cols-3" : forms.length === 2 ? "sm:grid-cols-2" : ""}` }, forms.map((f, i) => h("div", { key: i, className: `rounded-2xl p-3.5 ${NV_FORM[i % 3].split(" ")[0]}` },
+          h("p", { className: `text-[10px] font-extrabold uppercase tracking-widest ${NV_FORM[i % 3].split(" ")[1]}` }, f.label),
+          h("p", { className: "mt-1 text-[15px] font-bold leading-snug text-ink" }, rich(f.pattern))))),
+        uses.length > 0 && h("div", { className: `grid gap-2 ${uses.length >= 3 ? "sm:grid-cols-3" : uses.length === 2 ? "sm:grid-cols-2" : ""}` }, uses.map((u, i) => {
+          const [lab, rest] = splitUse(u);
+          return h("div", { key: i, className: "rounded-2xl bg-panel p-3" },
+            lab && h("p", { className: "flex items-center gap-1.5 text-xs font-extrabold text-ink" }, h("span", { className: `h-2 w-2 rounded-full ${c.bar}` }), rich(lab)),
+            h("p", { className: `${lab ? "mt-1 text-[13px]" : "text-sm"} leading-relaxed text-slate-600` }, rich(rest)));
+        })),
+        examples.length > 0 && h("div", null,
+          h("div", { className: "mb-2 flex items-center justify-between" },
+            h("p", { className: "text-[11px] font-extrabold uppercase tracking-widest text-slate-400" }, "Câu mẫu"),
+            examples.some((e) => e.vi) && h("button", { onClick: () => setVi(!vi), className: "rounded-full bg-panel px-3 py-1 text-[11px] font-bold text-slate-500 hover:text-ink" }, vi ? "Ẩn nghĩa" : "Hiện nghĩa")),
+          h("div", { className: "space-y-1.5" }, examples.map((e, i) => h("div", { key: i, className: "flex items-center justify-between gap-3 rounded-2xl border border-slate-100 px-3 py-2.5" },
+            h("div", { className: "min-w-0" }, h("p", { className: "font-semibold leading-snug text-slate-800" }, rich(e.en)), e.vi && vi && h("p", { className: "mt-0.5 text-xs text-slate-500" }, e.vi)),
+            h(SpeakButton, { text: String(e.en).replace(/\*/g, ""), rate: 0.85 }))))),
+        (sig.length > 0 || note) && h("div", { className: "flex flex-col gap-2 sm:flex-row sm:items-start" },
+          sig.length > 0 && h("div", { className: "flex flex-1 flex-wrap items-center gap-1.5" }, h("span", { className: "mr-1 text-[11px] font-extrabold uppercase tracking-widest text-slate-400" }, "Dấu hiệu"), sig.map((t, i) => h("span", { key: i, className: `rounded-full px-2.5 py-1 text-xs font-semibold ${c.tint} ${c.text}` }, rich(t)))),
+          note && h("p", { className: "rounded-2xl bg-amber-50 px-3 py-2 text-[13px] leading-relaxed text-amber-900 sm:max-w-[50%]" }, "💡 ", rich(note)))));
+  }
+  function GrammarTabs({ points = [] }) {
+    const [i, setI] = useState(0);
+    const [all, setAll] = useState(false);
+    if (points.length < 2) return h("div", null, points.map((g, k) => h(GrammarBlock, { key: k, index: k + 1, tone: k, ...g })));
+    return h("div", { className: "space-y-4" },
+      h("div", { className: "flex flex-wrap items-center gap-2" },
+        !all && points.map((g, k) => h("button", { key: k, onClick: () => setI(k), className: `flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-extrabold transition ${k === i ? NV_STEP[k % NV_STEP.length].solid + " shadow" : "bg-white text-slate-500 hover:text-ink"}` },
+          h("span", { className: `flex h-7 w-7 items-center justify-center rounded-full text-xs ${k === i ? "bg-white/30" : "bg-panel"}` }, k + 1), String(g.name || "").split(/\s+[—–-]\s+/)[0])),
+        h("button", { onClick: () => setAll(!all), className: "ml-auto rounded-full bg-white px-3 py-2 text-xs font-bold text-slate-500 hover:text-ink" }, all ? "Xem từng phần" : "Xem tất cả")),
+      all ? h("div", { className: "space-y-5" }, points.map((g, k) => h(GrammarBlock, { key: k, index: k + 1, tone: k, ...g })))
+        : h(GrammarBlock, { key: i, index: i + 1, tone: i, ...points[i] }));
   }
   function ChoiceQuiz({ items = [] }) {
     const [picked, setPicked] = useState({});
@@ -1156,21 +1196,28 @@
   const fmt = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.max(0, s) % 60).padStart(2, "0")}`;
 
   // Thẻ thông tin: type "cards" — cards:[{tag, title, sub, body, bullets:[], foot}], cols
+  function InfoCard({ c, i }) {
+    const [tip, setTip] = useState(false);
+    const t = NV_STEP[i % NV_STEP.length];
+    return h("div", { className: "flex flex-col overflow-hidden rounded-[26px] bg-white shadow-floating" },
+      h("div", { className: `h-1.5 ${t.bar}` }),
+      h("div", { className: "flex flex-1 flex-col p-5" },
+        (c.tag || c.sub) && h("div", { className: "flex items-center justify-between gap-2" },
+          c.tag ? h("span", { className: `rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide ${t.solid}` }, c.tag) : h("span"),
+          c.sub && h("span", { className: "rounded-full bg-panel px-2.5 py-1 text-[11px] font-bold text-slate-500" }, c.sub)),
+        c.title && h("h3", { className: "mt-3 text-lg font-extrabold leading-snug text-ink" }, rich(c.title)),
+        c.body && h("p", { className: "mt-2 text-sm leading-relaxed text-slate-600" }, rich(c.body)),
+        c.bullets && h("ul", { className: "mt-3 space-y-1.5" }, c.bullets.map((b, k) => h("li", { key: k, className: "flex gap-2.5 text-sm leading-relaxed text-slate-700" }, h("span", { className: `mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${t.bar}` }), h("span", null, rich(b))))),
+        c.foot && h("div", { className: "mt-auto pt-4" },
+          tip ? h("p", { className: "rounded-2xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900", onClick: () => setTip(false) }, "💡 ", rich(c.foot))
+            : h("button", { onClick: () => setTip(true), className: "rounded-full bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100" }, "💡 Mẹo"))));
+  }
   function InfoCards({ cards = [], cols = 3, intro, img }) {
     const grid = { 1: "", 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 lg:grid-cols-4" }[cols] || "sm:grid-cols-2 lg:grid-cols-3";
     return h("div", null,
-      intro && h("p", { className: "mb-4 rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
-      img && h("figure", { className: "mb-4 rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-3xl rounded-2xl" }))),
-      h("div", { className: `grid gap-4 ${grid}` }, cards.map((c, i) => h("div", { key: i, className: "flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
-        h("div", { className: "flex items-center justify-between gap-2" },
-          c.tag && h("span", { className: "rounded-full bg-primary px-3 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white" }, c.tag),
-          c.sub && h("span", { className: "text-xs font-semibold text-slate-400" }, c.sub)),
-        c.title && h("h3", { className: "mt-3 text-lg font-extrabold text-slate-900" }, rich(c.title)),
-        c.body && h("p", { className: "mt-2 text-sm leading-relaxed text-slate-600" }, rich(c.body)),
-        c.bullets && h("ul", { className: "mt-3 space-y-1.5" }, c.bullets.map((b, k) => h("li", { key: k, className: "flex gap-2 text-sm leading-relaxed text-slate-700" }, h("span", { className: "text-primary" }, "▸"), h("span", null, rich(b))))),
-        c.foot && h("p", { className: "mt-auto pt-3 text-xs leading-relaxed text-amber-700" }, "💡 ", rich(c.foot))
-      )))
-    );
+      intro && h("p", { className: "mb-4 rounded-3xl bg-white p-4 text-sm leading-relaxed text-slate-700 shadow-sm" }, rich(intro)),
+      img && h("figure", { className: "mb-4 rounded-3xl bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-3xl rounded-2xl" }))),
+      h("div", { className: `grid gap-4 ${grid}` }, cards.map((c, i) => h(InfoCard, { key: i, c, i }))));
   }
 
   // 4 tiêu chí: type "criteria" — items:[{name, en, short, check:[...], band5, band6}]
@@ -1507,18 +1554,24 @@
     good: ["border-emerald-200 bg-emerald-50/60", "bg-emerald-100 text-emerald-700"]
   };
   function Compare({ intro, items = [], takeaway }) {
+    const [sel, setSel] = useState(0);
+    const bp = items.length >= 3 ? "lg" : "md";
     const cols = items.length >= 3 ? "lg:grid-cols-3" : "md:grid-cols-2";
     return h("div", { className: "space-y-4" },
-      intro && h("p", { className: "rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
+      intro && h("p", { className: "rounded-3xl bg-white p-4 text-sm leading-relaxed text-slate-700 shadow-sm" }, rich(intro)),
+      items.length > 1 && h("div", { className: `flex flex-wrap gap-2 ${bp === "lg" ? "lg:hidden" : "md:hidden"}` }, items.map((v, i) => {
+        const t = TONES[v.tone] || TONES.ok;
+        return h("button", { key: i, onClick: () => setSel(i), className: `rounded-full px-3.5 py-2 text-xs font-extrabold transition ${i === sel ? t[1] + " ring-2 ring-current" : "bg-white text-slate-500"}` }, v.label);
+      })),
       h("div", { className: `grid gap-4 ${cols}` }, items.map((v, i) => {
         const t = TONES[v.tone] || TONES.ok;
-        return h("div", { key: i, className: `flex flex-col rounded-3xl border-2 p-5 ${t[0]}` },
-          h("span", { className: `self-start rounded-full px-3 py-0.5 text-[11px] font-extrabold uppercase tracking-wide ${t[1]}` }, v.label),
-          h("div", { className: "mt-3 flex flex-1 flex-col" }, h(Cover, null, h("div", null,
-            h("p", { className: "whitespace-pre-line text-sm leading-relaxed text-slate-800" }, rich(v.text)),
-            v.comment && h("p", { className: "mt-3 border-t border-slate-200/70 pt-3 text-xs leading-relaxed text-slate-600" }, "💬 ", rich(v.comment))))));
+        return h("div", { key: i, className: `flex-col rounded-[26px] border-2 bg-white p-5 ${t[0]} ${i === sel ? "flex" : bp === "lg" ? "hidden lg:flex" : "hidden md:flex"}` },
+          h("span", { className: `self-start rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide ${t[1]}` }, v.label),
+          h("div", { className: "mt-3 flex flex-1 flex-col" }, h(Cover, null, h("div", { className: "flex h-full flex-col" },
+            h("p", { className: "whitespace-pre-line text-[15px] leading-relaxed text-slate-800" }, rich(v.text)),
+            v.comment && h("p", { className: "mt-auto rounded-2xl bg-white/80 p-3 text-xs leading-relaxed text-slate-600 ring-1 ring-slate-200/70", style: { marginTop: "1rem" } }, "💬 ", rich(v.comment))))));
       })),
-      takeaway && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm leading-relaxed text-amber-900" }, "💡 ", rich(takeaway)));
+      takeaway && h("div", { className: "flex gap-3 rounded-3xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-900" }, h("span", { className: "text-lg" }, "💡"), h("div", null, rich(takeaway))));
   }
   function Checklist({ groups = [], note, storeKey }) {
     const [done, setDone] = useState(() => lsGet(storeKey, {}));
@@ -1623,7 +1676,7 @@
       case "pairs":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-xl" }, /* @__PURE__ */ React.createElement(MinimalPairQuiz, { pairs: s.pairs }));
       case "grammar":
-        return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, s.points.map((g, i) => /* @__PURE__ */ React.createElement(GrammarBlock, { key: i, index: i + 1, ...g })));
+        return h(GrammarTabs, { points: s.points || [] });
       case "quiz":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
       case "vocab":
