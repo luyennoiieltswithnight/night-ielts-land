@@ -174,8 +174,35 @@
         tooltip.text.split(/\s+/).length <= 6 && tooltip.text.length <= 60 && E("button", { type: "button", title: "Mở thẻ giảng từ này cho cả lớp", onPointerDown: act(() => { const w = tooltip.text.replace(/^[^\w]+|[^\w]+$/g, "") || tooltip.text; const rg = tooltip.range; done(); openVocabTeach(w, rg); }),
           className: "ml-0.5 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-3 py-1.5 text-xs font-extrabold text-white shadow" }, "🎀 Giảng vocab")));
   }
+  /* ===================== VIDEO NGẮN (YouTube Shorts) — section.video:"link", videoTitle, videoNote =====================
+     Không có video thì không hiện gì. Bấm vào mới tải khung YouTube (nhẹ cho điện thoại). Link .mp4 thì dùng <video>. */
+  function ytId(u) {
+    const m = String(u || "").match(/(?:youtu\.be\/|shorts\/|embed\/|[?&]v=)([\w-]{11})/);
+    return m ? m[1] : /^[\w-]{11}$/.test(String(u || "")) ? String(u) : null;
+  }
+  function VideoCard({ url, title, note }) {
+    const E = React.createElement;
+    const [on, setOn] = useState(false);
+    if (!url) return null;
+    const id = ytId(url);
+    const box = "relative mx-auto aspect-[9/16] w-[200px] shrink-0 overflow-hidden rounded-[22px] bg-ink shadow-floating sm:mx-0 sm:w-[220px]";
+    let player;
+    if (!id) player = E("video", { src: url, controls: true, playsInline: true, preload: "none", className: box + " object-cover" });
+    else if (on) player = E("div", { className: box }, E("iframe", { src: `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&rel=0&modestbranding=1`, title: title || "Video", allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowFullScreen: true, className: "absolute inset-0 h-full w-full border-0" }));
+    else player = E("button", { type: "button", onClick: () => setOn(true), "aria-label": "Phát video", className: box + " group block" },
+      E("img", { src: `https://i.ytimg.com/vi/${id}/hq720.jpg`, alt: "", loading: "lazy", onError: (e) => { if (!/hqdefault/.test(e.currentTarget.src)) e.currentTarget.src = `https://i.ytimg.com/vi/${id}/hqdefault.jpg`; }, className: "absolute inset-0 h-full w-full object-cover opacity-80 transition group-hover:opacity-100" }),
+      E("span", { className: "absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" }),
+      E("span", { className: "absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 pl-1 text-2xl text-peach shadow-lg transition group-hover:scale-110" }, "▶"),
+      E("span", { className: "absolute bottom-3 left-3 right-3 text-left text-xs font-extrabold leading-snug text-white" }, title || "Xem nhanh"));
+    return E("div", { className: "mb-5 flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-floating sm:flex-row sm:items-center sm:gap-6" },
+      player,
+      E("div", { className: "min-w-0 flex-1 text-center sm:text-left" },
+        E("span", { className: "inline-block rounded-full bg-peach/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-widest text-peach-dark" }, "🎬 Xem trước 1 phút"),
+        E("p", { className: "mt-2 text-base font-extrabold leading-snug text-ink" }, title || "Video bài này"),
+        E("p", { className: "mt-1 text-sm leading-relaxed text-slate-500" }, rich(note || "Xem video trước, rồi kéo xuống làm bài để áp dụng ngay."))));
+  }
   const NV_TONES = ["bg-peach text-white", "bg-primary text-white", "bg-ink text-white"];
-  function Section({ id, step, title, desc, children, sticker, band8 }) {
+  function Section({ id, step, title, desc, children, sticker, band8, video, videoTitle, videoNote }) {
     const E = React.createElement;
     const tone = band8 ? "bg-amber-400 text-ink" : NV_TONES[(parseInt(step, 10) - 1 + 3) % 3];
     return E("section", { id, className: "scroll-mt-24" }, E("div", { className: "mb-5 flex items-center gap-3 sm:gap-4" },
@@ -185,7 +212,7 @@
         E("h2", { className: "text-xl font-extrabold leading-tight tracking-tight text-ink sm:text-[1.7rem]" }, title),
         desc && E("p", { className: "mt-1 text-sm text-slate-500" }, rich(desc))),
       sticker && E("img", { src: IRA_BASE + sticker, alt: "", "aria-hidden": "true", loading: "lazy", className: "nv-float -mb-1 h-16 w-16 shrink-0 object-contain sm:h-20 sm:w-20", onError: (e) => { e.currentTarget.style.display = "none"; } })),
-      E("div", { className: "rounded-[26px] bg-panel p-3 sm:rounded-[32px] sm:p-5" }, children));
+      E("div", { className: "rounded-[26px] bg-panel p-3 sm:rounded-[32px] sm:p-5" }, video && E(VideoCard, { url: video, title: videoTitle, note: videoNote }), children));
   }
   const BADGES = {
     long: ["Dài", "bg-indigo-100 text-primary"],
@@ -1134,6 +1161,48 @@
       })), p !== void 0 && it.explain && /* @__PURE__ */ React.createElement("p", { className: `mt-3 text-xs leading-relaxed ${p === it.answer ? "text-emerald-700" : "text-rose-600"}` }, p === it.answer ? "✓ " : "✗ ", rich(it.explain)));
     }), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" }, /* @__PURE__ */ React.createElement("span", null, "Đã làm ", answered, "/", items.length, " · Đúng ", correct), answered > 0 && /* @__PURE__ */ React.createElement("button", { onClick: () => setPicked({}), className: "text-xs underline" }, "Làm lại")));
   }
+  /* ===================== CHỌN TỪ CÓ PHẦN GẠCH CHÂN PHÁT ÂM KHÁC (type:"odd") =====================
+     sets:[{label, items:[{w:["h[ea]d /hed/","pl[ea]se /pliːz/",…], a: 1, explain?}]}] — [..] là phần gạch chân, /../ là phiên âm (hiện sau khi chọn). */
+  function OddWord({ raw, state, showIpa, onPick, disabled }) {
+    const E = React.createElement;
+    const m = String(raw).match(/^(.*?)\s*(\/[^/]+\/)?\s*$/);
+    const word = m[1], ipa = m[2] || "";
+    const plain = word.replace(/[\[\]]/g, "");
+    const parts = word.split(/(\[[^\]]+\])/g).filter(Boolean);
+    const tone = state === "right" ? "border-emerald-300 bg-emerald-50" : state === "wrong" ? "border-rose-300 bg-rose-50" : state === "dim" ? "border-slate-200 bg-slate-50 opacity-70" : "border-slate-200 bg-slate-50 hover:border-primary/40";
+    return E("div", { className: `flex flex-col items-center rounded-2xl border-2 px-2 py-2 transition ${tone}` },
+      E("button", { type: "button", disabled, onClick: onPick, className: "w-full text-base font-semibold text-slate-800 sm:text-lg" },
+        parts.map((p, i) => p[0] === "[" ? E("span", { key: i, className: "font-extrabold text-primary underline decoration-2 underline-offset-4" }, p.slice(1, -1)) : E(React.Fragment, { key: i }, p))),
+      showIpa && E("span", { className: "mt-1 flex items-center gap-1 font-serif text-xs text-slate-500" }, ipa, E("button", { type: "button", onClick: () => speak(plain, 0.8), title: "Nghe", className: "rounded-full px-1 text-sm hover:bg-white" }, "🔊")));
+  }
+  function OddQuiz({ sets = [], items, intro }) {
+    const E = React.createElement;
+    const all = sets.length ? sets : [{ items: items || [] }];
+    const [tab, setTab] = useState(0);
+    const [picked, setPicked] = useState({});
+    const g = all[tab] || all[0];
+    const key = (i) => tab + ":" + i;
+    const done = g.items.filter((_, i) => picked[key(i)] !== undefined).length;
+    const right = g.items.filter((it, i) => picked[key(i)] === it.a).length;
+    const L = ["A", "B", "C", "D", "E"];
+    return E("div", { className: "space-y-4" },
+      intro && E("p", { className: "rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-slate-600 shadow-sm" }, rich(intro)),
+      all.length > 1 && E("div", { className: "flex flex-wrap gap-2" }, all.map((s, i) => E("button", { key: i, type: "button", onClick: () => setTab(i), className: `rounded-full px-4 py-1.5 text-sm font-bold transition ${i === tab ? "bg-primary text-white shadow" : "bg-white text-slate-600 hover:text-primary"}` }, s.label || "Bài " + (i + 1), E("span", { className: "ml-1 text-xs opacity-70" }, "(", s.items.length, ")")))),
+      g.items.map((it, i) => {
+        const p = picked[key(i)];
+        const has = p !== undefined;
+        return E("div", { key: tab + "-" + i, className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating" },
+          E("p", { className: "mb-2 text-sm font-bold text-primary" }, "Câu ", i + 1),
+          E("div", { className: "grid grid-cols-2 gap-2 sm:grid-cols-4" }, it.w.map((raw, k) => E("div", { key: k, className: "relative" },
+            E("span", { className: "absolute -left-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-ink text-[10px] font-extrabold text-white" }, L[k]),
+            E(OddWord, { raw, disabled: has, showIpa: has, onPick: () => setPicked({ ...picked, [key(i)]: k }),
+              state: !has ? "" : k === it.a ? "right" : k === p ? "wrong" : "dim" })))),
+          has && E("p", { className: `mt-3 text-xs leading-relaxed ${p === it.a ? "text-emerald-700" : "text-rose-600"}` }, p === it.a ? "✓ Đúng! " : "✗ Đáp án là " + L[it.a] + ". ", rich(it.explain || "Bấm 🔊 để nghe lại từng từ.")));
+      }),
+      E("div", { className: "flex items-center justify-between rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" },
+        E("span", null, "Đã làm ", done, "/", g.items.length, " · Đúng ", right),
+        done > 0 && E("button", { type: "button", onClick: () => { const n = { ...picked }; g.items.forEach((_, i) => delete n[key(i)]); setPicked(n); }, className: "text-xs underline" }, "Làm lại")));
+  }
   function PhraseBox({ title, groups = [], phrases = [] }) {
     const all = groups.length ? groups : [{ phrases }];
     return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-amber-200 bg-amber-50/70 p-5" }, title && /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-amber-800" }, "💬 ", title), /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, all.map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-2 text-xs font-bold uppercase tracking-wide text-amber-700" }, g.label), /* @__PURE__ */ React.createElement("div", { className: "grid gap-3 sm:grid-cols-2" }, g.phrases.map((k) => /* @__PURE__ */ React.createElement("div", { key: k.phrase, className: "rounded-2xl bg-white p-3 shadow-sm" }, /* @__PURE__ */ React.createElement("p", { className: "flex items-center justify-between gap-2 font-semibold text-slate-800" }, k.phrase, /* @__PURE__ */ React.createElement(SpeakButton, { text: k.phrase })), k.note && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-xs text-slate-500" }, rich(k.note)))))))));
@@ -1677,6 +1746,8 @@
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-xl" }, /* @__PURE__ */ React.createElement(MinimalPairQuiz, { pairs: s.pairs }));
       case "grammar":
         return h(GrammarTabs, { points: s.points || [] });
+      case "odd":
+        return h(OddQuiz, { sets: s.sets, items: s.items, intro: s.intro });
       case "quiz":
         return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
       case "vocab":
@@ -2818,7 +2889,7 @@
   }
   function NvHero({ lesson, sections, b8count, firstId, present }) {
     const nMain = sections.length - b8count;
-    const NV_DEFAULT_STICKER = { writing: "book_sakubun_kodomo_girl.webp", giaotiep: "kaisya_kaiwa_communication_6867.webp", speaking6: "speech_woman_1523.webp" };
+    const NV_DEFAULT_STICKER = { chuyende: "study_night_boy_0934.webp", writing: "book_sakubun_kodomo_girl.webp", giaotiep: "kaisya_kaiwa_communication_6867.webp", speaking6: "speech_woman_1523.webp" };
     const sticker = lesson.heroSticker || (lesson.band8 && lesson.band8.sticker) || (sections.find((x) => x.sticker && !x.band8) || {}).sticker || NV_DEFAULT_STICKER[courseKeyOf(lesson)] || "book_2458.webp";
     const goals = lesson.goals || [];
     const NUM = ["bg-peach text-white", "bg-primary text-white", "bg-ink text-white", "bg-amber-300 text-ink"];
@@ -2933,7 +3004,7 @@
 
     const renderItem = (it) => it.k === "gate"
       ? h(Band8Gate, { key: "band8-gate", open: b8open, onToggle: () => setB8(!b8open), info: lesson.band8, count: b8count })
-      : h(Section, { key: it.s.id, id: it.s.id, step: String(it.i + 1).padStart(2, "0"), title: it.s.title, desc: it.s.desc, sticker: it.s.sticker, band8: it.s.band8 }, h(SectionBody, { s: it.s, lesson }));
+      : h(Section, { key: it.s.id, id: it.s.id, step: String(it.i + 1).padStart(2, "0"), title: it.s.title, desc: it.s.desc, sticker: it.s.sticker, band8: it.s.band8, video: it.s.video, videoTitle: it.s.videoTitle, videoNote: it.s.videoNote }, h(SectionBody, { s: it.s, lesson }));
     const showTitle = !present || slides[cur].k === "title";
     const [active, setActive] = useState(null);
     useEffect(() => {
