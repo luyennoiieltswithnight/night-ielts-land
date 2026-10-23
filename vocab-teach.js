@@ -21,19 +21,60 @@
   function save(w, d) { try { localStorage.setItem(KEY + w.toLowerCase(), JSON.stringify(d)); } catch (e) { try { var c = Object.assign({}, d, { img: null }); localStorage.setItem(KEY + w.toLowerCase(), JSON.stringify(c)); } catch (e2) {} } }
   var isCJK = function (s) { return /[㐀-鿿]/.test(s); };
   function timeout(p, ms, v) { return Promise.race([p, new Promise(function (r) { setTimeout(function () { r(v); }, ms); })]); }
-  function speak(text, rate) {
-    try {
-      if (!window.speechSynthesis || !text) return;
-      speechSynthesis.cancel();
-      var u = new SpeechSynthesisUtterance(text);
-      var lang = isCJK(text) ? 'zh-CN' : 'en-GB';
-      u.lang = lang; u.rate = rate || 0.85;
-      var vs = speechSynthesis.getVoices().filter(function (v) { return v.lang && v.lang.replace('_', '-').indexOf(lang.slice(0, 2)) === 0; });
-      var best = vs.filter(function (v) { return v.lang.replace('_', '-') === lang; })[0] || vs[0];
-      if (best) u.voice = best;
-      speechSynthesis.speak(u);
-    } catch (e) {}
+  /* ---- Giọng đọc: (1) bản ghi âm người thật của từ điển (từ đơn, ưu tiên giọng Anh)
+     → (2) giọng Google Dịch → (3) giọng máy TỐT NHẤT có trên thiết bị (Natural/Online/Google/Siri…) ---- */
+  var curAudio = null, dictCache = {};
+  function stopAll() { try { speechSynthesis.cancel(); } catch (e) {} if (curAudio) { try { curAudio.pause(); } catch (e) {} curAudio = null; } }
+  function playUrl(u, rate) {
+    return new Promise(function (res, rej) {
+      var a = new Audio(); curAudio = a;
+      var t = setTimeout(function () { rej(new Error('timeout')); }, 4000);
+      a.onerror = function () { clearTimeout(t); rej(new Error('audio')); };
+      a.onplaying = function () { clearTimeout(t); res(); };
+      a.playbackRate = rate || 1; a.src = u;
+      var p = a.play(); if (p && p.catch) p.catch(function (e) { clearTimeout(t); rej(e); });
+    });
   }
+  var BAD_VOICE = /compact|espeak|fred|albert|zarvox|bad news|bells|bubbles|cellos|jester|organ|trinoids|whisper|wobble|boing|good news|superstar|junior|ralph|kathy|bahh|grandma|grandpa|rocko|shelley|sandy|eddy|flo|reed/i;
+  function bestVoice(lang) {
+    var vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+    var base = lang.slice(0, 2), best = null, top = -1e9;
+    vs.forEach(function (v) {
+      var l = (v.lang || '').replace('_', '-');
+      if (l.indexOf(base) !== 0) return;
+      var n = v.name || '', sc = 0;
+      if (l === lang) sc += 15;
+      if (/natural|neural/i.test(n)) sc += 120;
+      if (/online/i.test(n)) sc += 60;
+      if (/google/i.test(n)) sc += 80;
+      if (/premium|enhanced|siri/i.test(n)) sc += 70;
+      if (/libby|sonia|maisie|ryan|thomas|serena|kate|daniel|samantha|ava|allison|jenny|aria|guy|xiaoxiao|tingting|yunxi/i.test(n)) sc += 40;
+      if (BAD_VOICE.test(n)) sc -= 500;
+      if (v.localService === false) sc += 5;
+      if (sc > top) { top = sc; best = v; }
+    });
+    return best;
+  }
+  function synth(text, rate, lang) {
+    if (!window.speechSynthesis) return;
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = lang; u.rate = rate || 0.9; u.pitch = 1;
+    var v = bestVoice(lang); if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  }
+  function speak(text, rate) {
+    text = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    stopAll();
+    var cjk = isCJK(text), lang = cjk ? 'zh-CN' : 'en-GB';
+    var single = !cjk && !/\s/.test(text) && text.length < 40;
+    var human = single ? Promise.resolve(dictCache[text.toLowerCase()] || dict(text)).then(function (d) { if (d && d.audio) return playUrl(d.audio, 1); throw 0; }) : Promise.reject(0);
+    human.catch(function () {
+      if (text.length > 190) throw 0;
+      return playUrl('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=' + (cjk ? 'zh-CN' : 'en-GB') + '&q=' + encodeURIComponent(text), rate && rate < 0.9 ? 0.92 : 1);
+    }).catch(function () { synth(text, rate, lang); });
+  }
+  try { if (window.speechSynthesis) { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = function () {}; } } catch (e) {}
   function translate(text, sl, tl) {
     var g = fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=' + sl + '&tl=' + tl + '&dt=t&q=' + encodeURIComponent(text))
       .then(function (r) { if (!r.ok) throw 0; return r.json(); })
@@ -51,7 +92,11 @@
         if (!Array.isArray(j) || !j[0]) return null;
         var e = j[0], ph = (e.phonetics || []).filter(function (p) { return p.text; })[0];
         var m = (e.meanings || [])[0] || {};
-        return { ipa: e.phonetic || (ph && ph.text) || '', pos: POS[m.partOfSpeech] || m.partOfSpeech || '' };
+        var auds = []; j.forEach(function (en) { (en.phonetics || []).forEach(function (p) { if (p.audio) auds.push(p.audio); }); });
+        var audio = auds.filter(function (u) { return /-uk\.mp3/.test(u); })[0] || auds.filter(function (u) { return /-(us|au)\.mp3/.test(u); })[0] || auds[0] || '';
+        var out = { ipa: e.phonetic || (ph && ph.text) || '', pos: POS[m.partOfSpeech] || m.partOfSpeech || '', audio: audio };
+        dictCache[w.trim().toLowerCase()] = out;
+        return out;
       }).catch(function () { return null; }), 8000, null);
   }
   function irasutoya(q) {
