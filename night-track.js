@@ -15,6 +15,15 @@
   if (window.__nightTrackLoaded) return;
   window.__nightTrackLoaded = true;
 
+  // Giao diện bento dùng chung cho mọi đề (đề cũ / đề mới tạo từ Test Builder đều tự có)
+  try {
+    if (!window.__nightTestTheme && !document.querySelector('script[src*="test-theme.js"]')) {
+      var th = document.createElement('script');
+      th.src = 'https://luyennoiieltswithnight.github.io/night-ielts-land/test-theme.js';
+      document.head.appendChild(th);
+    }
+  } catch (e) {}
+
   var WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwsYqBxEnJsLOx4yQNyqWHqOiV3yfNSTOXav5JV15YN3grkXYeQxxyAsLiO-8l8lyJLAw/exec';
   var FB_CONFIG = {
     apiKey: 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8',
