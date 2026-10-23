@@ -77,7 +77,7 @@
     'html body .section-quick-jump button.current-playing{background:var(--nt-ink)!important;color:#fff!important}',
     'html body .wave-zoom button{border:0!important;background:var(--nt-panel)!important;border-radius:999px!important;padding:2px 9px!important}',
     'html body .section-block{border-radius:24px}',
-    'html body .content-wrapper>.panel,html body .main-container>.panel{overflow:hidden}',
+    'html body .global-audio-bar{top:calc(var(--nt-hh,52px) + 18px)!important;margin-top:0!important;box-shadow:0 16px 36px -14px rgba(36,36,42,.45)!important}',
     /* ---- Cửa sổ chọn chế độ / kết quả ---- */
     'html body .overlay{background:rgba(36,36,42,.55)!important;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}',
     'html body .modal-box{background:#fff!important;border:0!important;border-radius:36px!important;box-shadow:0 30px 80px -20px rgba(0,0,0,.5)!important;padding:36px 32px!important;position:relative;overflow:hidden}',
@@ -100,7 +100,7 @@
     /* ---- điện thoại ---- */
     'html body .part-indicator{white-space:nowrap;flex:none}',
     '@media (max-width:900px){html body .header{flex-wrap:wrap!important;row-gap:8px}html body .header-left,html body .header-right{width:100%;overflow-x:auto;scrollbar-width:none;flex-wrap:nowrap!important}html body .header-right{justify-content:flex-start}html body .header-right::-webkit-scrollbar{display:none}}',
-    '@media (max-width:760px){html body{height:auto!important;min-height:100vh;padding:10px!important}html body .main-container{flex-direction:column!important;gap:12px!important}html body .panel{min-width:0!important;height:78vh;flex:none!important}html body .panel-resizer{display:none!important}html body .panel-content{padding:18px!important}html body .passage-text{font-size:16px}html body .passage-text h2{font-size:22px}html body .mode-select{flex-direction:column;align-items:stretch}html body .mode-btn{min-width:0!important;width:auto!important;max-width:none!important}}',
+    '@media (max-width:760px){html body{height:auto!important;min-height:100vh;padding:10px!important}html body .main-container:has(.panel-resizer){flex-direction:column!important;gap:12px!important}html body .main-container:has(.panel-resizer)>.panel{min-width:0!important;height:78vh;flex:none!important}html body .panel{min-width:0!important}html body .panel-resizer{display:none!important}html body .panel-content{padding:18px!important}html body .passage-text{font-size:16px}html body .passage-text h2{font-size:22px}html body .mode-select{flex-direction:column;align-items:stretch}html body .mode-btn{min-width:0!important;width:auto!important;max-width:none!important}}',
     '@media (max-width:760px){html body .header{border-radius:22px!important;padding:8px!important}html body .panel{border-radius:22px!important}html body .modal-box{border-radius:28px!important;padding:26px 18px!important}html body .mode-btn{border-radius:20px!important}}'
   ].join('\n');
   var st = document.createElement('style');
@@ -108,6 +108,11 @@
   st.textContent = css;
   (document.head || document.documentElement).appendChild(st);
   // đặt khối CSS này SAU cùng để thắng CSS gốc của đề (kể cả <style> nằm sau thẻ script)
+  // chiều cao thật của thanh trên cùng (đổi theo màn hình) → thanh audio Listening bám ngay bên dưới khi cuộn
+  function syncHeader() { try { var hd = document.querySelector('.header'); if (hd) document.documentElement.style.setProperty('--nt-hh', hd.offsetHeight + 'px'); } catch (e) {} }
+  window.addEventListener('resize', syncHeader);
+  window.addEventListener('load', syncHeader);
+  setTimeout(syncHeader, 1500);
   function last() { try { if (st.parentNode && st !== st.parentNode.lastElementChild) st.parentNode.appendChild(st); } catch (e) {} }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', last); else last();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { last(); syncHeader(); }); else { last(); syncHeader(); }
 })();
