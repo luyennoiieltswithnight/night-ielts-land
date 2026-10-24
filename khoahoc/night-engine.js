@@ -141,8 +141,8 @@
       if (!containerRef.current.contains(range.commonAncestorContainer)) { setTooltip(null); return; }
       const rect = range.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) { setTooltip(null); return; }
-      const left = Math.min(Math.max(rect.left + rect.width / 2, 170), window.innerWidth - 170) + window.scrollX;
-      setTooltip({ top: rect.bottom + window.scrollY + 10, left, text, range: range.cloneRange() });
+      const anchor = rect.left + rect.width / 2;
+      setTooltip({ top: rect.bottom + window.scrollY + 10, left: anchor + window.scrollX, anchor, text, range: range.cloneRange() });
     }, [containerRef]);
     useEffect(() => {
       const onMouseUp = () => setTimeout(readSelection, 0);
@@ -157,14 +157,24 @@
         document.removeEventListener("selectionchange", onSelectionChange);
       };
     }, [readSelection]);
+    /* Đo bề rộng thật của thanh công cụ rồi kéo nó vào trong màn hình (kể cả khi phóng to trình duyệt); mũi tên vẫn chỉ vào chữ đã bôi. */
+    const tipRef = useRef(null), arrowRef = useRef(null);
+    React.useLayoutEffect(() => {
+      const el = tipRef.current; if (!el || !tooltip) return;
+      const vw = document.documentElement.clientWidth || window.innerWidth, pad = 8;
+      const w = Math.min(el.offsetWidth, vw - pad * 2);
+      const x = Math.min(Math.max(tooltip.anchor - w / 2, pad), vw - pad - w);
+      el.style.left = x + window.scrollX + "px";
+      if (arrowRef.current) arrowRef.current.style.left = Math.min(Math.max(tooltip.anchor - x, 16), w - 16) + "px";
+    }, [tooltip]);
     if (!tooltip) return null;
     const done = () => { try { window.getSelection().removeAllRanges(); } catch (e) {} setTooltip(null); };
     const act = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
     const openTranslate = () => window.open(`https://translate.google.com/?sl=auto&tl=vi&text=${encodeURIComponent(tooltip.text)}&op=translate`, "_blank", "noopener");
     const E = React.createElement;
-    return E("div", { style: { position: "absolute", top: tooltip.top, left: tooltip.left, transform: "translateX(-50%)" }, className: "z-[60] flex flex-col items-center", onMouseDown: (e) => e.preventDefault() },
-      E("span", { className: "-mb-1 text-sm leading-none text-slate-800" }, "▲"),
-      E("div", { className: "flex items-center gap-0.5 rounded-full bg-slate-800 p-1 shadow-premium" },
+    return E("div", { ref: tipRef, style: { position: "absolute", top: tooltip.top, left: tooltip.left, maxWidth: "calc(100vw - 16px)" }, className: "z-[60] pt-3", onMouseDown: (e) => e.preventDefault() },
+      E("span", { ref: arrowRef, className: "absolute top-0 -translate-x-1/2 text-sm leading-none text-slate-800", style: { left: "50%" } }, "▲"),
+      E("div", { className: "flex flex-wrap items-center justify-center gap-0.5 rounded-[22px] bg-slate-800 p-1 shadow-premium" },
         HL_OK && MARKS.map((m) => E("button", { key: m.k, type: "button", title: m.title, "aria-label": m.title, onPointerDown: act(() => { markRange(m.k, tooltip.range); done(); }),
           className: "flex h-8 w-8 items-center justify-center rounded-full text-sm text-white hover:bg-white/15" },
           m.dot ? E("span", { className: "h-4 w-4 rounded-full ring-2 ring-white/60", style: { background: m.dot } }) : E("span", { className: m.cls }, m.label))),
@@ -1671,7 +1681,7 @@
     const ok = gaps.map((g, k) => g.some((a) => normAns(a) === normAns(vals[k])));
     let gi = -1;
     return h("div", { className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" },
-      h("p", { className: "text-sm leading-loose text-slate-800" }, h("span", { className: "mr-2 font-bold text-primary" }, i + 1, "."), parts.map((p, k) => {
+      h("p", { className: "whitespace-pre-line text-sm leading-loose text-slate-800" }, h("span", { className: "mr-2 font-bold text-primary" }, i + 1, "."), parts.map((p, k) => {
         if (k % 2 === 0) return h(React.Fragment, { key: k }, rich(p));
         gi += 1; const g = gi;
         const st = !checked ? "border-slate-300 focus:border-primary" : ok[g] ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-rose-400 bg-rose-50 text-rose-700";
