@@ -6,6 +6,8 @@
    Speaking (cards, criteria, formula, models, speak + nút AI). Trước đây là giaotiep-engine.js + speaking-engine.js. */
 (function() {
   const { useState, useRef, useEffect, useCallback } = React;
+  /* Kho tiến độ (night-progress.js gắn vào khi đã đăng nhập). Mặc định: không lưu. */
+  let NVP = { get: (k, d) => d, set() {}, track: false };
   const TTS_OK = typeof window !== "undefined" && "speechSynthesis" in window;
   let ACCENT = "en-GB";
   function pickVoice(lang) {
@@ -385,12 +387,15 @@
   }
   function Homework({ tasks: HOMEWORK, storageKey: KEY }) {
     const [done, setDone] = useState(() => {
+      const sv = NVP.get("h:" + KEY, null);
+      if (sv) return sv;
       try {
         return JSON.parse(localStorage.getItem(KEY)) || [];
       } catch (e) {
         return [];
       }
     });
+    useEffect(() => { NVP.set("h:" + KEY, done.length ? done : null); }, [done]);
     const toggle = (i) => {
       const next = done.includes(i) ? done.filter((x) => x !== i) : [...done, i];
       setDone(next);
@@ -1163,8 +1168,9 @@
       all ? h("div", { className: "space-y-5" }, points.map((g, k) => h(GrammarBlock, { key: k, index: k + 1, tone: k, ...g })))
         : h(GrammarBlock, { key: i, index: i + 1, tone: i, ...points[i] }));
   }
-  function ChoiceQuiz({ items = [] }) {
-    const [picked, setPicked] = useState({});
+  function ChoiceQuiz({ items = [], pkey }) {
+    const [picked, setPicked0] = useState(() => (pkey ? NVP.get(pkey, {}) : {}));
+    const setPicked = (n) => { setPicked0(n); if (pkey) NVP.set(pkey, n); };
     const answered = Object.keys(picked).length;
     const correct = items.filter((it, i) => picked[i] === it.answer).length;
     return /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, items.map((it, i) => {
@@ -1203,11 +1209,12 @@
         parts.map((p, i) => p[0] === "[" ? E("span", { key: i, className: "font-extrabold text-primary underline decoration-2 underline-offset-4" }, p.slice(1, -1)) : E(React.Fragment, { key: i }, p))),
       showIpa && E("span", { className: "mt-1 flex items-center gap-1 font-serif text-xs text-slate-500" }, ipa, E("button", { type: "button", onClick: () => speak(plain, 0.8), title: "Nghe", className: "rounded-full px-1 text-sm hover:bg-white" }, "🔊")));
   }
-  function OddQuiz({ sets = [], items, intro }) {
+  function OddQuiz({ sets = [], items, intro, pkey }) {
     const E = React.createElement;
     const all = sets.length ? sets : [{ items: items || [] }];
     const [tab, setTab] = useState(0);
-    const [picked, setPicked] = useState({});
+    const [picked, setPicked0] = useState(() => (pkey ? NVP.get(pkey, {}) : {}));
+    const setPicked = (n) => { setPicked0(n); if (pkey) NVP.set(pkey, n); };
     const g = all[tab] || all[0];
     const key = (i) => tab + ":" + i;
     const done = g.items.filter((_, i) => picked[key(i)] !== undefined).length;
@@ -1232,13 +1239,13 @@
         done > 0 && E("button", { type: "button", onClick: () => { const n = { ...picked }; g.items.forEach((_, i) => delete n[key(i)]); setPicked(n); }, className: "text-xs underline" }, "Làm lại")));
   }
   /* quiz chia tab: sets:[{label, intro?, items:[…]}] */
-  function QuizSets({ sets = [] }) {
+  function QuizSets({ sets = [], pkey }) {
     const [tab, setTab] = useState(0);
     const g = sets[Math.min(tab, sets.length - 1)] || { items: [] };
     return React.createElement("div", { className: "mx-auto max-w-2xl space-y-4" },
       sets.length > 1 && React.createElement("div", { className: "flex flex-wrap gap-2" }, sets.map((x, i) => React.createElement("button", { key: i, type: "button", onClick: () => setTab(i), className: `rounded-full px-4 py-1.5 text-sm font-bold transition ${i === tab ? "bg-primary text-white shadow" : "bg-white text-slate-600 hover:text-primary"}` }, x.label || "Bài " + (i + 1), React.createElement("span", { className: "ml-1 text-xs opacity-70" }, "(", x.items.length, ")")))),
       g.intro && React.createElement("p", { className: "rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-slate-600 shadow-sm" }, rich(g.intro)),
-      React.createElement(ChoiceQuiz, { key: tab, items: g.items }));
+      React.createElement(ChoiceQuiz, { key: tab, items: g.items, pkey: pkey ? pkey + "#" + tab : null }));
   }
   function PhraseBox({ title, groups = [], phrases = [] }) {
     const all = groups.length ? groups : [{ phrases }];
@@ -1680,7 +1687,8 @@
       takeaway && h("div", { className: "flex gap-3 rounded-3xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-900" }, h("span", { className: "text-lg" }, "💡"), h("div", null, rich(takeaway))));
   }
   function Checklist({ groups = [], note, storeKey }) {
-    const [done, setDone] = useState(() => lsGet(storeKey, {}));
+    const [done, setDone] = useState(() => NVP.get("c:" + storeKey, lsGet(storeKey, {})));
+    useEffect(() => { NVP.set("c:" + storeKey, done); }, [done]);
     const total = groups.reduce((n, g) => n + g.items.length, 0);
     const count = Object.values(done).filter(Boolean).length;
     const toggle = (k) => { const n = { ...done, [k]: !done[k] }; setDone(n); lsSet(storeKey, n); };
@@ -1699,11 +1707,16 @@
       note && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note)));
   }
   const normAns = (s) => String(s || "").toLowerCase().replace(/[’']/g, "'").replace(/,/g, " ").replace(/[.;:!?]+$/g, "").replace(/\s+/g, " ").trim();
-  function FillItem({ it, i }) {
+  function FillItem({ it, i, pkey }) {
     const parts = String(it.text).split(/\[\[(.+?)\]\]/);
     const gaps = parts.filter((_, k) => k % 2 === 1).map((g) => g.split("|"));
-    const [vals, setVals] = useState(gaps.map(() => ""));
-    const [checked, setChecked] = useState(false);
+    const saved = pkey ? NVP.get(pkey, null) : null;
+    const [vals, setVals0] = useState(() => (saved && saved.v ? gaps.map((_, k) => saved.v[k] || "") : gaps.map(() => "")));
+    const [checked, setChecked0] = useState(() => !!(saved && saved.c));
+    const persist = (v, c) => { if (!pkey) return; const okk = gaps.map((g, k) => g.some((a) => normAns(a) === normAns(v[k]))); NVP.set(pkey, v.some((x) => x) || c ? { v, c, ok: c && okk.every(Boolean) } : null); };
+    const valsRef = useRef(vals);
+    const setVals = (v) => { valsRef.current = v; setVals0(v); persist(v, false); };
+    const setChecked = (c) => { setChecked0(c); persist(valsRef.current, c); };
     const [shown, setShown] = useState(false);
     const ok = gaps.map((g, k) => g.some((a) => normAns(a) === normAns(vals[k])));
     let gi = -1;
@@ -1725,7 +1738,7 @@
       (checked || shown) && it.explain && h("p", { className: "mt-3 text-xs leading-relaxed text-slate-600" }, "💡 ", rich(it.explain)));
   }
   /* fill: items:[…] hoặc sets:[{label, intro?, items:[…]}] (chia tab theo bài tập) */
-  function Fill({ items = [], intro, img, sets }) {
+  function Fill({ items = [], intro, img, sets, pkey }) {
     const [tab, setTab] = useState(0);
     const all = sets && sets.length ? sets : null;
     const g = all ? all[Math.min(tab, all.length - 1)] : null;
@@ -1736,11 +1749,12 @@
       img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full rounded-2xl" }))),
       all && all.length > 1 && h("div", { className: "flex flex-wrap gap-2" }, all.map((x, i) => h("button", { key: i, type: "button", onClick: () => setTab(i), className: `rounded-full px-4 py-1.5 text-sm font-bold transition ${i === tab ? "bg-primary text-white shadow" : "bg-white text-slate-600 hover:text-primary"}` }, x.label || "Bài " + (i + 1), h("span", { className: "ml-1 text-xs opacity-70" }, "(", x.items.length, ")")))),
       sub && h("p", { className: "rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-slate-600 shadow-sm" }, rich(sub)),
-      list.map((it, i) => h(FillItem, { key: tab + "-" + i, it, i })));
+      list.map((it, i) => h(FillItem, { key: tab + "-" + i, it, i, pkey: pkey ? pkey + "#" + tab + ":" + i : null })));
   }
   const wordCount = (s) => (String(s).trim().match(/[A-Za-zÀ-ỹ0-9]+(?:['’-][A-Za-zÀ-ỹ0-9]+)*/g) || []).length;
   function WriteTask({ t, i, storeKey }) {
-    const [txt, setTxt] = useState(() => lsGet(storeKey, ""));
+    const [txt, setTxt] = useState(() => NVP.get("w:" + storeKey, lsGet(storeKey, "")));
+    useEffect(() => { NVP.set("w:" + storeKey, txt || null); }, [txt]);
     const [show, setShow] = useState(false);
     const n = wordCount(txt);
     const min = t.min || 0;
@@ -1792,9 +1806,9 @@
       case "grammar":
         return h(GrammarTabs, { points: s.points || [] });
       case "odd":
-        return h(OddQuiz, { sets: s.sets, items: s.items, intro: s.intro });
+        return h(OddQuiz, { sets: s.sets, items: s.items, intro: s.intro, pkey: s.id });
       case "quiz":
-        return s.sets ? h(QuizSets, { sets: s.sets }) : /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
+        return s.sets ? h(QuizSets, { sets: s.sets, pkey: s.id }) : /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items, pkey: s.id }));
       case "vocab":
         return /* @__PURE__ */ React.createElement("div", null, (s.groups || [{ cards: s.cards }]).map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: gi ? "mt-8" : "" }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-3 flex items-center gap-2 text-sm font-bold text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "h-2 w-2 rounded-full bg-vocab-front" }), g.label, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "· ", g.cards.length, " từ")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 md:grid-cols-4" }, g.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v, visual: (s.groups || [{ cards: s.cards }]).some((gg) => (gg.cards || []).some((c) => c.ira || c.img || c.emoji)) }))))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
       case "dialogue":
@@ -1822,7 +1836,7 @@
       case "checklist":
         return h(Checklist, { groups: s.groups, note: s.note, storeKey: `night-${courseKeyOf(lesson)}-${lesson.id}-${s.id}-check` });
       case "fill":
-        return h(Fill, { items: s.items, intro: s.intro, img: s.img, sets: s.sets });
+        return h(Fill, { items: s.items, intro: s.intro, img: s.img, sets: s.sets, pkey: s.id });
       case "write":
         return h(WriteBox, { tasks: s.tasks, lessonId: lesson.id, sectionId: s.id, lesson });
       default:
@@ -3198,7 +3212,76 @@
         document.body.appendChild(root);
       }
       document.body.classList.add("text-slate-800", "antialiased");
-      ReactDOM.createRoot(root).render(/* @__PURE__ */ React.createElement(LessonApp, { lesson }));
+      const mount = () => ReactDOM.createRoot(root).render(/* @__PURE__ */ React.createElement(LessonApp, { lesson }));
+      nvLoadProgress().then((NP) => {
+        if (!NP) return mount();
+        return NP.gate().then((ctx) => {
+          if ((ctx.offline || !ctx.user) && !NP.LOCAL) return mount();
+          return NP.lessonStore(ctx, { courseKey: courseKeyOf(lesson), lessonId: lesson.id, n: parseInt(((location.pathname.match(/buoi-(\d+)/) || [])[1]) || "0", 10), session: lesson.session, title: lesson.title }).then((store) => {
+            NVP = store;
+            store.onStats((ans) => nvStats(lesson, ans));
+            mount();
+            nvProgressUI(lesson, store);
+          });
+        });
+      }).catch((e) => { console.warn(e); mount(); });
     }
   };
+  /* ---------- Tiến độ: nạp night-progress.js, tính điểm, thanh tiến độ & nút học tiếp ---------- */
+  function nvLoadProgress() {
+    if (window.NightProgress) return Promise.resolve(window.NightProgress);
+    return new Promise((res) => {
+      const sc = document.createElement("script");
+      sc.src = new URL("night-progress.js", NV_SCRIPT_SRC).href;
+      sc.onload = () => res(window.NightProgress || null);
+      sc.onerror = () => res(null);
+      document.head.appendChild(sc);
+    });
+  }
+  function nvStats(lesson, ans) {
+    let total = 0, done = 0, correct = 0;
+    const tabsOf = (s) => (s.sets && s.sets.length ? s.sets : [{ items: s.items || [] }]);
+    (lesson.sections || []).forEach((s) => {
+      if (s.type === "quiz") tabsOf(s).forEach((g, ti) => {
+        const p = ans[s.sets ? s.id + "#" + ti : s.id] || {};
+        (g.items || []).forEach((it, i) => { total++; if (p[i] !== undefined) { done++; if (p[i] === it.answer) correct++; } });
+      });
+      else if (s.type === "odd") { const p = ans[s.id] || {}; tabsOf(s).forEach((g, ti) => (g.items || []).forEach((it, i) => { total++; const v = p[ti + ":" + i]; if (v !== undefined) { done++; if (v === it.a) correct++; } })); }
+      else if (s.type === "fill") tabsOf(s).forEach((g, ti) => (g.items || []).forEach((it, i) => { total++; const v = ans[s.id + "#" + ti + ":" + i]; if (v && v.c) { done++; if (v.ok) correct++; } }));
+    });
+    return { total, done, correct, pct: total ? Math.round((done / total) * 100) : 0, score: done ? Math.round((correct / done) * 100) : 0 };
+  }
+  function nvProgressUI(lesson, store) {
+    if (!store.track) return;
+    const bar = document.createElement("div");
+    bar.className = "fixed";
+    bar.style.cssText = "left:max(12px,env(safe-area-inset-left,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:56;background:#24242A;color:#fff;border-radius:999px;padding:7px 12px 7px 10px;font:700 12px 'Plus Jakarta Sans',system-ui,sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 10px 24px -12px rgba(0,0,0,.5)";
+    const paint = () => {
+      const st = store.stats() || {};
+      if (!st.total) { bar.style.display = "none"; return; }
+      bar.style.display = "flex";
+      bar.innerHTML = `<span style="width:56px;height:6px;border-radius:9px;background:rgba(255,255,255,.2);overflow:hidden;display:inline-block"><span style="display:block;height:100%;width:${st.pct}%;background:#34D399"></span></span><span>${st.done}/${st.total} câu · đúng ${st.correct}</span>`;
+      bar.title = "Tiến độ được lưu tự động — học dở lần sau mở lại vẫn làm tiếp được";
+    };
+    document.body.appendChild(bar); paint(); store.subscribe(paint);
+    /* Ghi nhớ phần đang học */
+    let t = 0;
+    window.addEventListener("scroll", () => { clearTimeout(t); t = setTimeout(() => {
+      const secs = Array.from(document.querySelectorAll("section[id]")); let cur = "";
+      for (const el of secs) { if (el.getBoundingClientRect().top < window.innerHeight * 0.4) cur = el.id; }
+      if (cur) store.setSection(cur);
+    }, 600); }, { passive: true });
+    /* Nút học tiếp */
+    const last = store.lastSection();
+    if (last && !location.hash) setTimeout(() => {
+      const target = document.getElementById(last); if (!target) return;
+      const sec = (lesson.sections || []).find((x) => x.id === last);
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "fixed";
+      b.style.cssText = "left:50%;top:16px;transform:translateX(-50%);z-index:60;border:0;cursor:pointer;background:#24242A;color:#fff;border-radius:999px;padding:10px 16px;font:800 13px 'Plus Jakarta Sans',system-ui,sans-serif;box-shadow:0 14px 30px -12px rgba(0,0,0,.55);max-width:calc(100vw - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+      b.textContent = "↩ Học tiếp: " + ((sec && (sec.nav || sec.title)) || "phần đang học");
+      b.onclick = () => { target.scrollIntoView({ behavior: "smooth" }); b.remove(); };
+      document.body.appendChild(b); setTimeout(() => b.remove(), 12000);
+    }, 700);
+  }
 })();

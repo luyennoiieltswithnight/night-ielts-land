@@ -107,6 +107,26 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
 .rm-tbl th,.rm-tbl td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line)}
 .rm-tbl th{background:var(--panel);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .rm-foot{text-align:center;font-size:12px;color:rgba(255,255,255,.45);padding:14px 0 6px}
+.rm-pg{margin-top:10px}
+.rm-pgbar{height:7px;border-radius:9px;background:var(--panel);overflow:hidden}
+.rm-pgbar i{display:block;height:100%;background:var(--a);border-radius:9px}
+.rm-pgt{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:11.5px;font-weight:700;color:var(--muted)}
+.rm-pgt b{color:var(--ink)}
+.rm-done{color:#047857!important}
+.rm-tp{margin-top:22px;background:var(--panel);border-radius:24px;padding:16px}
+.rm-tp h2{margin:0 0 4px;font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px}
+.rm-tp>p{margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+.rm-tbl2{overflow-x:auto;background:#fff;border-radius:16px}
+.rm-tbl2 table{width:100%;border-collapse:collapse;font-size:13px}
+.rm-tbl2 th,.rm-tbl2 td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.rm-tbl2 th{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:#fff;position:sticky;top:0}
+.rm-tbl2 tr.st{cursor:pointer}.rm-tbl2 tr.st:hover td{background:var(--soft)}
+.rm-tbl2 tr.on td{background:var(--soft);font-weight:800}
+.rm-av{width:26px;height:26px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;background:var(--soft)}
+.rm-mini{display:inline-block;width:70px;height:6px;border-radius:9px;background:var(--panel);overflow:hidden;vertical-align:middle;margin-right:6px}.rm-mini i{display:block;height:100%;background:var(--a)}
+.rm-sel{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700}
+.rm-sel button{border:0;cursor:pointer;font:700 12px inherit;font-family:inherit;padding:7px 12px;border-radius:999px;background:#fff;color:var(--muted)}
+.rm-me{display:inline-flex;align-items:center;gap:8px;color:#fff;font-size:12px;font-weight:700}.rm-me img{width:28px;height:28px;border-radius:50%}
 @media (max-width:820px){.rm-hero{grid-template-columns:1fr}.rm-stk{width:110px;height:110px;opacity:.95}.rm-main{padding-bottom:110px}}
 @media (max-width:520px){.rm-frame{margin:0;border-radius:0;padding:6px}.rm-in{padding:12px;border-radius:22px}.rm-list{grid-template-columns:1fr}.rm-main{padding:20px 18px 112px}.rm-top{padding:6px 6px 10px}}
 `;
@@ -134,13 +154,14 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
         ${(s.points || []).length ? `<ul>${s.points.map((p) => `<li>${rich(p)}</li>`).join("")}</ul>` : ""}
         ${(s.lines || []).map(([k, v]) => `<p class="rm-ln"><b>${esc(k)}</b>${rich(v)}</p>`).join("")}
         ${s.note ? `<p class="rm-note">${rich(s.note)}</p>` : ""}
+        <div class="rm-pg" hidden></div>
         <div class="rm-act"><span class="rm-ls"><span class="rm-soon">Đang kiểm tra…</span></span>
           ${s.extra ? `<button class="rm-xb" aria-expanded="false">${esc(s.extra.label || "Nâng cao")} ▾</button>` : ""}</div>
         ${s.extra ? `<div class="rm-x" hidden>${s.extra.src ? `<small>${rich(s.extra.src)}</small>` : ""}<ul>${(s.extra.points || []).map((p) => `<li>${rich(p)}</li>`).join("")}</ul></div>` : ""}
       </div></article>`;
     const facts = cfg.facts || [];
     const html = `<div class="rm-frame">
-      <div class="rm-top"><a class="rm-logo" href="../index.html"><i></i><span><b>Night IELTS</b><small>CLASSROOM HUB</small></span></a><span class="rm-sp"></span><a class="rm-back" href="../index.html">← Trang chủ</a></div>
+      <div class="rm-top"><a class="rm-logo" href="../index.html"><i></i><span><b>Night IELTS</b><small>CLASSROOM HUB</small></span></a><span class="rm-sp"></span><span class="rm-me" id="rm-me"></span><a class="rm-back" href="../index.html">← Trang chủ</a></div>
       <div class="rm-in">
         <div class="rm-hero">
           <div class="rm-main">
@@ -159,6 +180,7 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
         </div>
         ${cfg.tools && cfg.tools.length ? `<h2 class="rm-h2">Công cụ đi kèm</h2><div class="rm-tools">${cfg.tools.map((x) => `<a class="rm-tool" href="${esc(x.href)}">${x.tag ? `<span class="tg">${esc(x.tag)}</span>` : ""}<span class="ic">${esc(x.icon || "★")}</span><b>${esc(x.name)}</b><p>${rich(x.desc)}</p></a>`).join("")}</div>` : ""}
         ${cfg.flow ? `<h2 class="rm-h2">${esc(cfg.flow.title || "Một buổi học")}</h2><div class="rm-flow">${cfg.flow.steps.map((x) => `<div class="rm-step"><em>${esc(x.t)}</em><b>${esc(x.name)}</b><span>${rich(x.d)}</span></div>`).join("")}</div>` : ""}
+        <div id="rm-teacher"></div>
         ${phases.length > 1 ? `<div class="rm-bar" role="toolbar"><button class="rm-f" data-f="all" aria-pressed="true">Tất cả</button>${phases.map((p, i) => `<button class="rm-f" data-f="${i}" aria-pressed="false">${esc(p.label)}</button>`).join("")}</div>` : ""}
         ${phases.map((p, i) => `<section class="rm-phase" data-p="${i}"><h2 class="rm-h2">${esc(p.label)}${p.sub ? ` <small>${esc(p.sub)}</small>` : ""}</h2>${p.desc ? `<p>${rich(p.desc)}</p>` : ""}<div class="rm-list">${p.sessions.map(card).join("")}</div></section>`).join("")}
         ${cfg.table ? `<h2 class="rm-h2">${esc(cfg.table.title)}</h2>${cfg.table.desc ? `<p class="rm-meta" style="margin:-4px 4px 12px">${rich(cfg.table.desc)}</p>` : ""}<div class="rm-tbl"><table><thead><tr>${cfg.table.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${cfg.table.rows.map((row) => `<tr>${row.map((c) => `<td>${rich(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : ""}
@@ -188,6 +210,66 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
       fetch(url, { method: "HEAD", cache: "no-store" }).then((r) => done(r.ok)).catch(() => done(false));
     });
     if (!all.length) document.getElementById("rm-ready").textContent = 0;
+    rmProgress(cfg, root);
+  }
+  /* ---------- Đăng nhập + tiến độ (night-progress.js) ---------- */
+  function rmLoadNP() {
+    if (window.NightProgress) return Promise.resolve(window.NightProgress);
+    return new Promise((res) => { const sc = document.createElement("script"); sc.src = new URL("night-progress.js", RM_SRC).href; sc.onload = () => res(window.NightProgress || null); sc.onerror = () => res(null); document.head.appendChild(sc); });
+  }
+  const when = (t) => { if (!t) return ""; const d = new Date(t), diff = Date.now() - t; if (diff < 36e5) return Math.max(1, Math.round(diff / 6e4)) + " phút trước"; if (diff < 864e5) return Math.round(diff / 36e5) + " giờ trước"; return d.toLocaleDateString("vi-VN"); };
+  function paintCards(root, byN, countMode) {
+    root.querySelectorAll(".rm-s").forEach((el) => {
+      const box = el.querySelector(".rm-pg"); const r = byN[el.dataset.n];
+      if (!r) { box.hidden = true; box.innerHTML = ""; return; }
+      box.hidden = false;
+      if (countMode) { box.innerHTML = `<div class="rm-pgt"><span>👥 <b>${r.count}</b> học sinh đã làm · <b>${r.complete}</b> xong</span><span>TB đúng <b>${r.score}%</b></span></div>`; return; }
+      const st = r.stats || {}; const doneAll = st.total && st.done >= st.total;
+      box.innerHTML = `<div class="rm-pgbar"><i style="width:${st.pct || 0}%"></i></div><div class="rm-pgt"><span class="${doneAll ? "rm-done" : ""}">${doneAll ? "✓ Đã hoàn thành" : "Đã làm"} <b>${st.done || 0}/${st.total || 0}</b> câu</span><span>Đúng <b>${st.correct || 0}</b>${st.done ? " (" + st.score + "%)" : ""} · ${when(r.updatedAt)}</span></div>`;
+    });
+  }
+  function rmProgress(cfg, root) {
+    rmLoadNP().then((NP) => {
+      if (!NP) return;
+      return NP.gate().then((ctx) => {
+        if (ctx.offline || !ctx.user) return;
+        const me = document.getElementById("rm-me");
+        if (me) me.innerHTML = `${ctx.user.photoURL ? `<img src="${esc(ctx.user.photoURL)}" alt="">` : ""}<span>${esc((ctx.user.displayName || "").split(" ").pop())}</span>`;
+        const key = cfg.theme;
+        if (ctx.role !== "admin") {
+          return NP.myCourse(ctx, key).then((docs) => { const byN = {}; docs.forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN); });
+        }
+        return NP.classCourse(ctx, key).then(({ docs, students }) => teacherPanel(cfg, root, docs, students));
+      });
+    });
+  }
+  function teacherPanel(cfg, root, docs, students) {
+    const slot = root.querySelector("#rm-teacher"); if (!slot) return;
+    const byStu = {};
+    docs.forEach((d) => { (byStu[d.studentId] = byStu[d.studentId] || { id: d.studentId, name: d.name, email: d.email, photo: d.photo, docs: [] }).docs.push(d); });
+    students.forEach((u) => { if (!byStu[u.uid]) byStu[u.uid] = { id: u.uid, name: u.name, email: u.email, photo: u.photo, docs: [] }; else { byStu[u.uid].name = byStu[u.uid].name || u.name; } });
+    const list = Object.values(byStu).map((x) => {
+      const done = x.docs.filter((d) => d.stats && d.stats.total && d.stats.done >= d.stats.total).length;
+      const ans = x.docs.reduce((a, d) => a + ((d.stats && d.stats.done) || 0), 0), cor = x.docs.reduce((a, d) => a + ((d.stats && d.stats.correct) || 0), 0);
+      const last = x.docs.reduce((a, d) => Math.max(a, d.updatedAt || 0), 0);
+      return Object.assign(x, { started: x.docs.length, done, ans, cor, score: ans ? Math.round((cor / ans) * 100) : 0, last });
+    }).sort((a, b) => (b.last - a.last) || String(a.name).localeCompare(String(b.name)));
+    const total = root.querySelectorAll(".rm-s").length;
+    // tổng hợp theo buổi (khi chưa chọn học sinh)
+    const agg = {};
+    docs.forEach((d) => { if (!d.n) return; const a = (agg[d.n] = agg[d.n] || { count: 0, complete: 0, ans: 0, cor: 0 }); a.count++; const st = d.stats || {}; if (st.total && st.done >= st.total) a.complete++; a.ans += st.done || 0; a.cor += st.correct || 0; });
+    Object.values(agg).forEach((a) => { a.score = a.ans ? Math.round((a.cor / a.ans) * 100) : 0; });
+    let sel = "";
+    const draw = () => {
+      slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>${sel ? "Đang xem kết quả của <b>" + esc((byStu[sel] || {}).name || "") + "</b> trên từng thẻ buổi bên dưới. Bấm lại tên để bỏ chọn." : "Bấm vào tên học sinh để xem kết quả từng buổi trên các thẻ bên dưới. Chỉ thầy (tài khoản admin) mới thấy bảng này."}</p>
+        <div class="rm-tbl2"><table><thead><tr><th>Học sinh</th><th>Đã mở</th><th>Hoàn thành</th><th>Câu đã làm</th><th>Đúng</th><th>Lần cuối</th></tr></thead><tbody>
+        ${list.length ? list.map((x) => `<tr class="st ${x.id === sel ? "on" : ""}" data-id="${esc(x.id)}"><td>${x.photo ? `<img class="rm-av" src="${esc(x.photo)}" alt="">` : `<span class="rm-av" style="display:inline-block"></span>`}${esc(x.name || x.email || "Học sinh")}</td><td>${x.started}/${total}</td><td><span class="rm-mini"><i style="width:${total ? Math.round((x.done / total) * 100) : 0}%"></i></span>${x.done}</td><td>${x.ans}</td><td>${x.ans ? x.score + "%" : "–"}</td><td>${x.last ? when(x.last) : "Chưa học"}</td></tr>`).join("") : `<tr><td colspan="6">Chưa có học sinh nào làm bài trong khoá này.</td></tr>`}
+        </tbody></table></div></div>`;
+      slot.querySelectorAll("tr.st").forEach((tr) => tr.onclick = () => { sel = sel === tr.dataset.id ? "" : tr.dataset.id; draw(); });
+      if (sel) { const byN = {}; (byStu[sel].docs || []).forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN); }
+      else paintCards(root, agg, true);
+    };
+    draw();
   }
   window.NightRoadmap = { render };
 })();
