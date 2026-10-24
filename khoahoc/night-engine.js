@@ -1687,11 +1687,19 @@
         checked && h("span", { className: `text-xs font-bold ${ok.every(Boolean) ? "text-emerald-600" : "text-rose-600"}` }, ok.every(Boolean) ? "✓ Chính xác!" : `Đúng ${ok.filter(Boolean).length}/${gaps.length}`)),
       (checked || shown) && it.explain && h("p", { className: "mt-3 text-xs leading-relaxed text-slate-600" }, "💡 ", rich(it.explain)));
   }
-  function Fill({ items = [], intro, img }) {
+  /* fill: items:[…] hoặc sets:[{label, intro?, items:[…]}] (chia tab theo bài tập) */
+  function Fill({ items = [], intro, img, sets }) {
+    const [tab, setTab] = useState(0);
+    const all = sets && sets.length ? sets : null;
+    const g = all ? all[Math.min(tab, all.length - 1)] : null;
+    const list = g ? g.items : items;
+    const sub = g && g.intro;
     return h("div", { className: "mx-auto max-w-3xl space-y-4" },
       intro && h("p", { className: "rounded-3xl bg-primary-light p-4 text-sm leading-relaxed text-slate-700" }, rich(intro)),
       img && h("figure", { className: "rounded-3xl border border-slate-200 bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full rounded-2xl" }))),
-      items.map((it, i) => h(FillItem, { key: i, it, i })));
+      all && all.length > 1 && h("div", { className: "flex flex-wrap gap-2" }, all.map((x, i) => h("button", { key: i, type: "button", onClick: () => setTab(i), className: `rounded-full px-4 py-1.5 text-sm font-bold transition ${i === tab ? "bg-primary text-white shadow" : "bg-white text-slate-600 hover:text-primary"}` }, x.label || "Bài " + (i + 1), h("span", { className: "ml-1 text-xs opacity-70" }, "(", x.items.length, ")")))),
+      sub && h("p", { className: "rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-slate-600 shadow-sm" }, rich(sub)),
+      list.map((it, i) => h(FillItem, { key: tab + "-" + i, it, i })));
   }
   const wordCount = (s) => (String(s).trim().match(/[A-Za-zÀ-ỹ0-9]+(?:['’-][A-Za-zÀ-ỹ0-9]+)*/g) || []).length;
   function WriteTask({ t, i, storeKey }) {
@@ -1777,7 +1785,7 @@
       case "checklist":
         return h(Checklist, { groups: s.groups, note: s.note, storeKey: `night-${courseKeyOf(lesson)}-${lesson.id}-${s.id}-check` });
       case "fill":
-        return h(Fill, { items: s.items, intro: s.intro, img: s.img });
+        return h(Fill, { items: s.items, intro: s.intro, img: s.img, sets: s.sets });
       case "write":
         return h(WriteBox, { tasks: s.tasks, lessonId: lesson.id, sectionId: s.id, lesson });
       default:
