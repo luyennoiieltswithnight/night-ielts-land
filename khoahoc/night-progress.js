@@ -56,7 +56,7 @@
   }
   function logoUrl() {
     var s = document.querySelector('script[src*="night-progress.js"]');
-    try { return new URL('../logo.png', s ? s.src : location.href).href; } catch (e) { return ''; }
+    try { return new URL('../icons/icon-192.png', s ? s.src : location.href).href; } catch (e) { return ''; }
   }
   function showLogin(o, resolve) {
     var el = gateEl();
