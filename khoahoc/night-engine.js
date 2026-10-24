@@ -161,18 +161,36 @@
     const tipRef = useRef(null), arrowRef = useRef(null);
     React.useLayoutEffect(() => {
       const el = tipRef.current; if (!el || !tooltip) return;
-      const vw = document.documentElement.clientWidth || window.innerWidth, pad = 8;
-      const w = Math.min(el.offsetWidth, vw - pad * 2);
-      const x = Math.min(Math.max(tooltip.anchor - w / 2, pad), vw - pad - w);
-      el.style.left = x + window.scrollX + "px";
-      if (arrowRef.current) arrowRef.current.style.left = Math.min(Math.max(tooltip.anchor - x, 16), w - 16) + "px";
+      const place = () => {
+        /* Zoom bằng touchpad/2 ngón chỉ phóng vùng nhìn (visualViewport) → tính theo vùng đang thấy và thu thanh về cỡ bình thường. */
+        const vv = window.visualViewport;
+        const scale = vv ? vv.scale || 1 : 1;
+        const vLeft = vv ? vv.offsetLeft : 0, vTop = vv ? vv.offsetTop : 0;
+        const vWidth = vv ? vv.width : (document.documentElement.clientWidth || window.innerWidth);
+        const vHeight = vv ? vv.height : window.innerHeight;
+        const pad = 8 / scale, k = 1 / scale;
+        el.style.transformOrigin = "0 0";
+        el.style.transform = k !== 1 ? `scale(${k})` : "";
+        el.style.maxWidth = Math.max(200, (vWidth - pad * 2) * scale) + "px";
+        const w = el.offsetWidth * k, hgt = el.offsetHeight * k;
+        const x = Math.min(Math.max(tooltip.anchor - w / 2, vLeft + pad), vLeft + vWidth - pad - w);
+        let y = tooltip.top - window.scrollY;
+        if (y + hgt > vTop + vHeight - pad) y = Math.max(vTop + pad, y - hgt - 40 / scale);
+        el.style.left = x + window.scrollX + "px";
+        el.style.top = y + window.scrollY + "px";
+        if (arrowRef.current) arrowRef.current.style.left = Math.min(Math.max((tooltip.anchor - x) / k, 16), el.offsetWidth - 16) + "px";
+      };
+      place();
+      const vv = window.visualViewport;
+      if (vv) { vv.addEventListener("resize", place); vv.addEventListener("scroll", place); }
+      return () => { if (vv) { vv.removeEventListener("resize", place); vv.removeEventListener("scroll", place); } };
     }, [tooltip]);
     if (!tooltip) return null;
     const done = () => { try { window.getSelection().removeAllRanges(); } catch (e) {} setTooltip(null); };
     const act = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(); };
     const openTranslate = () => window.open(`https://translate.google.com/?sl=auto&tl=vi&text=${encodeURIComponent(tooltip.text)}&op=translate`, "_blank", "noopener");
     const E = React.createElement;
-    return E("div", { ref: tipRef, style: { position: "absolute", top: tooltip.top, left: tooltip.left, maxWidth: "calc(100vw - 16px)" }, className: "z-[60] pt-3", onMouseDown: (e) => e.preventDefault() },
+    return E("div", { ref: tipRef, style: { position: "absolute", top: tooltip.top, left: tooltip.left, maxWidth: "calc(100vw - 16px)", width: "max-content" }, className: "z-[60] pt-3", onMouseDown: (e) => e.preventDefault() },
       E("span", { ref: arrowRef, className: "absolute top-0 -translate-x-1/2 text-sm leading-none text-slate-800", style: { left: "50%" } }, "▲"),
       E("div", { className: "flex flex-wrap items-center justify-center gap-0.5 rounded-[22px] bg-slate-800 p-1 shadow-premium" },
         HL_OK && MARKS.map((m) => E("button", { key: m.k, type: "button", title: m.title, "aria-label": m.title, onPointerDown: act(() => { markRange(m.k, tooltip.range); done(); }),
