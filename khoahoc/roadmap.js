@@ -198,7 +198,7 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
       const f = e.target.closest(".rm-f");
       if (f) { root.querySelectorAll(".rm-f").forEach((x) => x.setAttribute("aria-pressed", x === f)); root.querySelectorAll(".rm-phase").forEach((s) => (s.hidden = !(f.dataset.f === "all" || s.dataset.p === f.dataset.f))); }
     });
-    let ready = 0, checked = 0;
+    let ready = 0, checked = 0, readyRes; const readyP = new Promise((r) => (readyRes = r));
     const all = root.querySelectorAll(".rm-s");
     all.forEach((el) => {
       const url = (cfg.folder || "") + "buoi-" + pad(el.dataset.n) + ".html";
@@ -206,28 +206,30 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
       const done = (ok) => {
         ls.innerHTML = ok ? `<a class="rm-go" href="${url}">Vào học →</a>` : `<span class="rm-soon">Sắp ra mắt</span>`;
         if (ok) { el.classList.add("ok"); ready++; }
-        if (++checked === all.length) document.getElementById("rm-ready").textContent = ready;
+        if (++checked === all.length) { document.getElementById("rm-ready").textContent = ready; readyRes(); }
       };
       if (location.protocol === "file:") return done(true);
       fetch(url, { method: "HEAD", cache: "no-store" }).then((r) => done(r.ok)).catch(() => done(false));
     });
-    if (!all.length) document.getElementById("rm-ready").textContent = 0;
-    rmProgress(cfg, root);
+    if (!all.length) { document.getElementById("rm-ready").textContent = 0; readyRes(); }
+    setTimeout(readyRes, 6000);
+    readyP.then(() => rmProgress(cfg, root));
   }
   /* ---------- Đăng nhập + tiến độ (night-progress.js) ---------- */
   function rmLoadNP() {
     if (window.NightProgress) return Promise.resolve(window.NightProgress);
-    return new Promise((res) => { const sc = document.createElement("script"); sc.src = new URL("night-progress.js", RM_SRC).href; sc.onload = () => res(window.NightProgress || null); sc.onerror = () => res(null); document.head.appendChild(sc); });
+    return new Promise((res) => { const sc = document.createElement("script"); sc.src = new URL("night-progress.js?v=" + Date.now().toString(36).slice(0, -3), RM_SRC).href; sc.onload = () => res(window.NightProgress || null); sc.onerror = () => res(null); document.head.appendChild(sc); });
   }
   const when = (t) => { if (!t) return ""; const d = new Date(t), diff = Date.now() - t; if (diff < 36e5) return Math.max(1, Math.round(diff / 6e4)) + " phút trước"; if (diff < 864e5) return Math.round(diff / 36e5) + " giờ trước"; return d.toLocaleDateString("vi-VN"); };
   function paintCards(root, byN, countMode, watchUid, folder) {
     root.querySelectorAll(".rm-s").forEach((el) => {
       const box = el.querySelector(".rm-pg"); const r = byN[el.dataset.n];
-      if (!r) { box.hidden = true; box.innerHTML = ""; return; }
+      const watchLink = watchUid && el.classList.contains("ok") ? `<a class="rm-watch" href="${esc((folder || "") + "buoi-" + String(el.dataset.n).padStart(2, "0") + ".html?watch=" + encodeURIComponent(watchUid))}" target="_blank" rel="noopener">👁 Xem bài trực tiếp</a>` : "";
+      if (!r) { if (watchLink) { box.hidden = false; box.innerHTML = `<div class="rm-pgt"><span>Chưa mở buổi này</span></div>${watchLink}`; } else { box.hidden = true; box.innerHTML = ""; } return; }
       box.hidden = false;
       if (countMode) { box.innerHTML = `<div class="rm-pgt"><span>👥 <b>${r.count}</b> học sinh đã làm · <b>${r.complete}</b> xong</span><span>TB đúng <b>${r.score}%</b></span></div>`; return; }
       const st = r.stats || {}; const doneAll = st.total && st.done >= st.total;
-      box.innerHTML = `<div class="rm-pgbar"><i style="width:${st.pct || 0}%"></i></div><div class="rm-pgt"><span class="${doneAll ? "rm-done" : ""}">${doneAll ? "✓ Đã hoàn thành" : "Đã làm"} <b>${st.done || 0}/${st.total || 0}</b> câu</span><span>Đúng <b>${st.correct || 0}</b>${st.done ? " (" + st.score + "%)" : ""} · ${when(r.updatedAt)}</span></div>${watchUid ? `<a class="rm-watch" href="${esc((folder || "") + "buoi-" + String(el.dataset.n).padStart(2, "0") + ".html?watch=" + encodeURIComponent(watchUid))}" target="_blank" rel="noopener">👁 Xem bài trực tiếp</a>` : ""}`;
+      box.innerHTML = `<div class="rm-pgbar"><i style="width:${st.pct || 0}%"></i></div><div class="rm-pgt"><span class="${doneAll ? "rm-done" : ""}">${doneAll ? "✓ Đã hoàn thành" : "Đã làm"} <b>${st.done || 0}/${st.total || 0}</b> câu</span><span>Đúng <b>${st.correct || 0}</b>${st.done ? " (" + st.score + "%)" : ""} · ${when(r.updatedAt)}</span></div>${watchLink}`;
     });
   }
   function rmProgress(cfg, root) {
@@ -241,7 +243,10 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
         if (ctx.role !== "admin") {
           return NP.myCourse(ctx, key).then((docs) => { const byN = {}; docs.forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN); });
         }
-        return NP.classCourse(ctx, key).then(({ docs, students }) => teacherPanel(cfg, root, docs, students));
+        const slot = root.querySelector("#rm-teacher");
+        if (slot) slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>Đang tải tiến độ của cả lớp…</p></div>`;
+        return NP.classCourse(ctx, key).then(({ docs, students }) => teacherPanel(cfg, root, docs, students))
+          .catch((e) => { if (slot) slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>Không tải được tiến độ (${esc(e && (e.code || e.message) || "lỗi")}). Tải lại trang thử nhé.</p></div>`; });
       });
     });
   }

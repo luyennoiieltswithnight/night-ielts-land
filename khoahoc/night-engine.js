@@ -3264,7 +3264,7 @@
     if (window.NightProgress) return Promise.resolve(window.NightProgress);
     return new Promise((res) => {
       const sc = document.createElement("script");
-      sc.src = new URL("night-progress.js", NV_SCRIPT_SRC).href;
+      sc.src = new URL("night-progress.js?v=" + Date.now().toString(36).slice(0, -3), NV_SCRIPT_SRC).href;
       sc.onload = () => res(window.NightProgress || null);
       sc.onerror = () => res(null);
       document.head.appendChild(sc);
