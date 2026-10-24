@@ -109,8 +109,54 @@
   function docId(uid, courseKey, lessonId) { return uid + '__' + courseKey + '__' + lessonId; }
   function localKey(courseKey, lessonId, uid) { return 'night-prog-' + courseKey + '-' + lessonId + '-' + (uid || 'guest'); }
 
+  /* Ghi chú dùng chung thầy ↔ học sinh: lessonNotes/<uidHọcSinh>__<course>__<lesson> */
+  function notesChannel(ctx, studentUid, meta) {
+    if (!ctx.o || !studentUid) return null;
+    var fs = ctx.o.fs, ref = fs.doc(ctx.o.db, 'lessonNotes', docId(studentUid, meta.courseKey, meta.lessonId));
+    var t = null, pending = null;
+    return {
+      subscribe: function (fn) {
+        return fs.onSnapshot(ref, function (snap) { var r = snap.exists() ? snap.data() : null; fn(r ? (r.notes || []) : [], r || {}); }, function (e) { console.warn('[NightProgress] notes:', e); });
+      },
+      save: function (notes) {
+        pending = notes; if (t) clearTimeout(t);
+        t = setTimeout(function () {
+          t = null;
+          fs.setDoc(ref, { notes: pending, studentId: studentUid, courseKey: meta.courseKey, lessonId: meta.lessonId, updatedAt: Date.now(), by: ctx.user.uid, byName: ctx.user.displayName || '' })
+            .catch(function (e) { console.warn('[NightProgress] Lưu ghi chú lỗi:', e); });
+        }, 500);
+      },
+      me: ctx.user.uid
+    };
+  }
+
+  /* Thầy xem trực tiếp bài của 1 học sinh: chỉ đọc, cập nhật theo thời gian thực */
+  function watchStore(ctx, meta, studentUid) {
+    var fs = ctx.o.fs, data = { answers: {} }, remote = [], first = true;
+    var store = {
+      watch: true, track: false, role: ctx.role, user: ctx.user, info: {},
+      get: function (k, d) { return Object.prototype.hasOwnProperty.call(data.answers, k) ? data.answers[k] : d; },
+      set: function () {}, setSection: function () {}, lastSection: function () { return ''; },
+      onStats: function (fn) { store._stats = fn; }, stats: function () { return store._stats ? store._stats(data.answers) : null; },
+      subscribe: function (fn) { remote.push(fn); }, flush: function () {},
+      onRemote: function (fn) { remote.push(fn); return function () { remote = remote.filter(function (x) { return x !== fn; }); }; },
+      notes: notesChannel(ctx, studentUid, meta)
+    };
+    return new Promise(function (resolve) {
+      fs.onSnapshot(fs.doc(ctx.o.db, COL, docId(studentUid, meta.courseKey, meta.lessonId)), function (snap) {
+        var r = snap.exists() ? snap.data() : {};
+        data = { answers: r.answers || {} };
+        store.info = { name: r.name || '', photo: r.photo || '', lastSection: r.lastSection || '', updatedAt: r.updatedAt || 0, exists: snap.exists() };
+        if (first) { first = false; resolve(store); }
+        remote.slice().forEach(function (fn) { try { fn(); } catch (e) {} });
+      }, function (e) { console.warn('[NightProgress] watch:', e); if (first) { first = false; resolve(store); } });
+    });
+  }
+
   function lessonStore(ctx, meta) {
     var uid = ctx.user && ctx.user.uid;
+    var watchUid = new URLSearchParams(location.search).get('watch');
+    if (watchUid && ctx.role === 'admin' && ctx.o) return watchStore(ctx, meta, watchUid);
     var track = !!uid && ctx.role !== 'admin';
     var lk = localKey(meta.courseKey, meta.lessonId, uid);
     var data = { answers: {}, lastSection: '', updatedAt: 0 };
@@ -129,6 +175,8 @@
       onStats: function (fn) { statsFn = fn; },
       stats: function () { return statsFn ? statsFn(data.answers) : null; },
       subscribe: function (fn) { listeners.push(fn); },
+      onRemote: function () { return function () {}; },
+      notes: track ? notesChannel(ctx, uid, meta) : null,
       flush: function () { if (timer) { clearTimeout(timer); timer = null; push(); } }
     };
     function touch(quiet) {

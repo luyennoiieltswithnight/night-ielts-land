@@ -7,7 +7,9 @@
 (function() {
   const { useState, useRef, useEffect, useCallback } = React;
   /* Kho tiến độ (night-progress.js gắn vào khi đã đăng nhập). Mặc định: không lưu. */
-  let NVP = { get: (k, d) => d, set() {}, track: false };
+  let NVP = { get: (k, d) => d, set() {}, track: false, onRemote: () => () => {} };
+  /* Khi dữ liệu thay đổi từ xa (thầy đang xem trực tiếp bài học sinh) → nạp lại trạng thái */
+  function useNvpRemote(apply) { useEffect(() => (NVP.onRemote ? NVP.onRemote(apply) : undefined), []); }
   const TTS_OK = typeof window !== "undefined" && "speechSynthesis" in window;
   let ACCENT = "en-GB";
   function pickVoice(lang) {
@@ -396,6 +398,7 @@
       }
     });
     useEffect(() => { NVP.set("h:" + KEY, done.length ? done : null); }, [done]);
+    useNvpRemote(() => setDone(NVP.get("h:" + KEY, [])));
     const toggle = (i) => {
       const next = done.includes(i) ? done.filter((x) => x !== i) : [...done, i];
       setDone(next);
@@ -1015,6 +1018,7 @@
     // Ghi chú chỉ sống trong tab đang mở (sessionStorage): tải lại trang vẫn còn, đóng tab là mất.
     const [notes, setNotes] = useState(() => {
       try { localStorage.removeItem(KEY); } catch (e) {}
+      if (NVP.notes) return [];
       try {
         return JSON.parse(sessionStorage.getItem(KEY)) || [];
       } catch (e) {
@@ -1041,13 +1045,36 @@
         setStoreFull(true);
       }
     }, [notes]);
+    /* Ghi chú dùng chung thầy ↔ học sinh (lessonNotes trên Firebase), cập nhật theo thời gian thực */
+    const ch = NVP.notes || null;
+    const editingRef = useRef({}), fromRemote = useRef(false), ready = useRef(false);
+    useEffect(() => {
+      if (!ch) return;
+      return ch.subscribe((remote, meta) => {
+        const mine = meta && meta.by === ch.me;
+        setNotes((local) => {
+          ready.current = true;
+          if (mine && meta.updatedAt && Date.now() - meta.updatedAt < 3000) return local;
+          const now = Date.now(), keep = {};
+          local.forEach((n) => { if (editingRef.current[n.id] && now - editingRef.current[n.id] < 2500) keep[n.id] = n; });
+          fromRemote.current = true;
+          const ids = new Set(remote.map((n) => n.id));
+          return remote.map((n) => keep[n.id] || n).concat(Object.values(keep).filter((n) => !ids.has(n.id)));
+        });
+      });
+    }, []);
+    useEffect(() => {
+      if (!ch || !ready.current) return;
+      if (fromRemote.current) { fromRemote.current = false; return; }
+      ch.save(notes);
+    }, [notes]);
     useEffect(() => {
       try {
         localStorage.setItem("night-notes-ipa", ipaOn ? "on" : "off");
       } catch (e) {
       }
     }, [ipaOn]);
-    const update = (id, patch) => setNotes((ns) => ns.map((n) => n.id === id ? { ...n, ...patch } : n));
+    const update = (id, patch) => { editingRef.current[id] = Date.now(); setNotes((ns) => ns.map((n) => n.id === id ? { ...n, ...patch } : n)); };
     const remove = (id) => setNotes((ns) => ns.filter((n) => n.id !== id));
     const add = () => {
       const w = Math.min(380, window.innerWidth - 40);
@@ -1171,6 +1198,7 @@
   function ChoiceQuiz({ items = [], pkey }) {
     const [picked, setPicked0] = useState(() => (pkey ? NVP.get(pkey, {}) : {}));
     const setPicked = (n) => { setPicked0(n); if (pkey) NVP.set(pkey, n); };
+    useNvpRemote(() => { if (pkey) setPicked0(NVP.get(pkey, {})); });
     const answered = Object.keys(picked).length;
     const correct = items.filter((it, i) => picked[i] === it.answer).length;
     return /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, items.map((it, i) => {
@@ -1215,6 +1243,7 @@
     const [tab, setTab] = useState(0);
     const [picked, setPicked0] = useState(() => (pkey ? NVP.get(pkey, {}) : {}));
     const setPicked = (n) => { setPicked0(n); if (pkey) NVP.set(pkey, n); };
+    useNvpRemote(() => { if (pkey) setPicked0(NVP.get(pkey, {})); });
     const g = all[tab] || all[0];
     const key = (i) => tab + ":" + i;
     const done = g.items.filter((_, i) => picked[key(i)] !== undefined).length;
@@ -1689,6 +1718,7 @@
   function Checklist({ groups = [], note, storeKey }) {
     const [done, setDone] = useState(() => NVP.get("c:" + storeKey, lsGet(storeKey, {})));
     useEffect(() => { NVP.set("c:" + storeKey, done); }, [done]);
+    useNvpRemote(() => setDone(NVP.get("c:" + storeKey, {})));
     const total = groups.reduce((n, g) => n + g.items.length, 0);
     const count = Object.values(done).filter(Boolean).length;
     const toggle = (k) => { const n = { ...done, [k]: !done[k] }; setDone(n); lsSet(storeKey, n); };
@@ -1717,6 +1747,7 @@
     const valsRef = useRef(vals);
     const setVals = (v) => { valsRef.current = v; setVals0(v); persist(v, false); };
     const setChecked = (c) => { setChecked0(c); persist(valsRef.current, c); };
+    useNvpRemote(() => { if (!pkey) return; const sv = NVP.get(pkey, null); const v = sv && sv.v ? gaps.map((_, k) => sv.v[k] || "") : gaps.map(() => ""); valsRef.current = v; setVals0(v); setChecked0(!!(sv && sv.c)); });
     const [shown, setShown] = useState(false);
     const ok = gaps.map((g, k) => g.some((a) => normAns(a) === normAns(vals[k])));
     let gi = -1;
@@ -1755,6 +1786,7 @@
   function WriteTask({ t, i, storeKey }) {
     const [txt, setTxt] = useState(() => NVP.get("w:" + storeKey, lsGet(storeKey, "")));
     useEffect(() => { NVP.set("w:" + storeKey, txt || null); }, [txt]);
+    useNvpRemote(() => setTxt(NVP.get("w:" + storeKey, "")));
     const [show, setShow] = useState(false);
     const n = wordCount(txt);
     const min = t.min || 0;
@@ -3251,7 +3283,29 @@
     });
     return { total, done, correct, pct: total ? Math.round((done / total) * 100) : 0, score: done ? Math.round((correct / done) * 100) : 0 };
   }
+  function nvWatchUI(lesson, store) {
+    const bar = document.createElement("div");
+    bar.className = "fixed";
+    bar.style.cssText = "left:50%;top:12px;transform:translateX(-50%);z-index:60;background:#24242A;color:#fff;border-radius:999px;padding:8px 8px 8px 14px;font:700 13px 'Plus Jakarta Sans',system-ui,sans-serif;display:flex;align-items:center;gap:10px;box-shadow:0 14px 30px -12px rgba(0,0,0,.55);max-width:calc(100vw - 24px)";
+    document.body.appendChild(bar);
+    let prevSec = null;
+    const ago = (t) => { if (!t) return "chưa làm"; const d = Math.round((Date.now() - t) / 1000); return d < 60 ? d + " giây trước" : d < 3600 ? Math.round(d / 60) + " phút trước" : new Date(t).toLocaleString("vi-VN"); };
+    const paint = () => {
+      const i = store.info || {}, st = store.stats() || {};
+      const sec = (lesson.sections || []).find((x) => x.id === i.lastSection);
+      bar.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#34D399;box-shadow:0 0 0 4px rgba(52,211,153,.25)"></span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">👁 ${(i.name || "Học sinh").replace(/</g, "&lt;")} · ${sec ? "đang ở <b>" + String(sec.nav || sec.title).replace(/</g, "&lt;") + "</b> · " : ""}${st.total ? st.done + "/" + st.total + " câu, đúng " + st.correct + " · " : ""}<span style="opacity:.7">${ago(i.updatedAt)}</span></span>${sec ? '<button type="button" style="border:0;cursor:pointer;background:#34D399;color:#062;border-radius:999px;padding:6px 12px;font:800 12px inherit;font-family:inherit;white-space:nowrap">Đi tới</button>' : ""}`;
+      const btn = bar.querySelector("button"); if (btn) btn.onclick = () => { const el = document.getElementById(i.lastSection); if (el) el.scrollIntoView({ behavior: "smooth" }); };
+      if (prevSec !== i.lastSection) {
+        document.querySelectorAll("section[data-nv-watch]").forEach((el) => { el.removeAttribute("data-nv-watch"); el.style.outline = ""; el.style.outlineOffset = ""; el.style.borderRadius = ""; });
+        const el = i.lastSection && document.getElementById(i.lastSection);
+        if (el) { el.setAttribute("data-nv-watch", "1"); el.style.outline = "3px dashed #34D399"; el.style.outlineOffset = "10px"; el.style.borderRadius = "24px"; }
+        prevSec = i.lastSection;
+      }
+    };
+    paint(); store.onRemote(paint); setInterval(paint, 15000);
+  }
   function nvProgressUI(lesson, store) {
+    if (store.watch) return nvWatchUI(lesson, store);
     if (!store.track) return;
     const bar = document.createElement("div");
     bar.className = "fixed";

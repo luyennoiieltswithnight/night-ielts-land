@@ -113,6 +113,8 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
 .rm-pgt{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:11.5px;font-weight:700;color:var(--muted)}
 .rm-pgt b{color:var(--ink)}
 .rm-done{color:#047857!important}
+.rm-watch{display:inline-flex;margin-top:8px;font-size:12px;font-weight:800;text-decoration:none;color:#fff;background:var(--ink);padding:7px 12px;border-radius:999px}
+.rm-watch:hover{filter:brightness(1.2)}
 .rm-tp{margin-top:22px;background:var(--panel);border-radius:24px;padding:16px}
 .rm-tp h2{margin:0 0 4px;font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px}
 .rm-tp>p{margin:0 0 12px;font-size:12.5px;color:var(--muted)}
@@ -218,14 +220,14 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
     return new Promise((res) => { const sc = document.createElement("script"); sc.src = new URL("night-progress.js", RM_SRC).href; sc.onload = () => res(window.NightProgress || null); sc.onerror = () => res(null); document.head.appendChild(sc); });
   }
   const when = (t) => { if (!t) return ""; const d = new Date(t), diff = Date.now() - t; if (diff < 36e5) return Math.max(1, Math.round(diff / 6e4)) + " phút trước"; if (diff < 864e5) return Math.round(diff / 36e5) + " giờ trước"; return d.toLocaleDateString("vi-VN"); };
-  function paintCards(root, byN, countMode) {
+  function paintCards(root, byN, countMode, watchUid, folder) {
     root.querySelectorAll(".rm-s").forEach((el) => {
       const box = el.querySelector(".rm-pg"); const r = byN[el.dataset.n];
       if (!r) { box.hidden = true; box.innerHTML = ""; return; }
       box.hidden = false;
       if (countMode) { box.innerHTML = `<div class="rm-pgt"><span>👥 <b>${r.count}</b> học sinh đã làm · <b>${r.complete}</b> xong</span><span>TB đúng <b>${r.score}%</b></span></div>`; return; }
       const st = r.stats || {}; const doneAll = st.total && st.done >= st.total;
-      box.innerHTML = `<div class="rm-pgbar"><i style="width:${st.pct || 0}%"></i></div><div class="rm-pgt"><span class="${doneAll ? "rm-done" : ""}">${doneAll ? "✓ Đã hoàn thành" : "Đã làm"} <b>${st.done || 0}/${st.total || 0}</b> câu</span><span>Đúng <b>${st.correct || 0}</b>${st.done ? " (" + st.score + "%)" : ""} · ${when(r.updatedAt)}</span></div>`;
+      box.innerHTML = `<div class="rm-pgbar"><i style="width:${st.pct || 0}%"></i></div><div class="rm-pgt"><span class="${doneAll ? "rm-done" : ""}">${doneAll ? "✓ Đã hoàn thành" : "Đã làm"} <b>${st.done || 0}/${st.total || 0}</b> câu</span><span>Đúng <b>${st.correct || 0}</b>${st.done ? " (" + st.score + "%)" : ""} · ${when(r.updatedAt)}</span></div>${watchUid ? `<a class="rm-watch" href="${esc((folder || "") + "buoi-" + String(el.dataset.n).padStart(2, "0") + ".html?watch=" + encodeURIComponent(watchUid))}" target="_blank" rel="noopener">👁 Xem bài trực tiếp</a>` : ""}`;
     });
   }
   function rmProgress(cfg, root) {
@@ -261,12 +263,12 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
     Object.values(agg).forEach((a) => { a.score = a.ans ? Math.round((a.cor / a.ans) * 100) : 0; });
     let sel = "";
     const draw = () => {
-      slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>${sel ? "Đang xem kết quả của <b>" + esc((byStu[sel] || {}).name || "") + "</b> trên từng thẻ buổi bên dưới. Bấm lại tên để bỏ chọn." : "Bấm vào tên học sinh để xem kết quả từng buổi trên các thẻ bên dưới. Chỉ thầy (tài khoản admin) mới thấy bảng này."}</p>
+      slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>${sel ? "Đang xem kết quả của <b>" + esc((byStu[sel] || {}).name || "") + "</b> trên từng thẻ buổi bên dưới. Bấm lại tên để bỏ chọn." : "Bấm vào tên học sinh để xem kết quả từng buổi trên các thẻ bên dưới, rồi bấm “👁 Xem bài trực tiếp” để mở bài bạn ấy đang làm (cập nhật theo thời gian thực, ghi chú của thầy hiện luôn bên máy học sinh). Chỉ thầy (tài khoản admin) mới thấy bảng này."}</p>
         <div class="rm-tbl2"><table><thead><tr><th>Học sinh</th><th>Đã mở</th><th>Hoàn thành</th><th>Câu đã làm</th><th>Đúng</th><th>Lần cuối</th></tr></thead><tbody>
         ${list.length ? list.map((x) => `<tr class="st ${x.id === sel ? "on" : ""}" data-id="${esc(x.id)}"><td>${x.photo ? `<img class="rm-av" src="${esc(x.photo)}" alt="">` : `<span class="rm-av" style="display:inline-block"></span>`}${esc(x.name || x.email || "Học sinh")}</td><td>${x.started}/${total}</td><td><span class="rm-mini"><i style="width:${total ? Math.round((x.done / total) * 100) : 0}%"></i></span>${x.done}</td><td>${x.ans}</td><td>${x.ans ? x.score + "%" : "–"}</td><td>${x.last ? when(x.last) : "Chưa học"}</td></tr>`).join("") : `<tr><td colspan="6">Chưa có học sinh nào làm bài trong khoá này.</td></tr>`}
         </tbody></table></div></div>`;
       slot.querySelectorAll("tr.st").forEach((tr) => tr.onclick = () => { sel = sel === tr.dataset.id ? "" : tr.dataset.id; draw(); });
-      if (sel) { const byN = {}; (byStu[sel].docs || []).forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN); }
+      if (sel) { const byN = {}; (byStu[sel].docs || []).forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN, false, sel, cfg.folder); }
       else paintCards(root, agg, true);
     };
     draw();
