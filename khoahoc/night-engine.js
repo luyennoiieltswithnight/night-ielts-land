@@ -1231,6 +1231,15 @@
         E("span", null, "Đã làm ", done, "/", g.items.length, " · Đúng ", right),
         done > 0 && E("button", { type: "button", onClick: () => { const n = { ...picked }; g.items.forEach((_, i) => delete n[key(i)]); setPicked(n); }, className: "text-xs underline" }, "Làm lại")));
   }
+  /* quiz chia tab: sets:[{label, intro?, items:[…]}] */
+  function QuizSets({ sets = [] }) {
+    const [tab, setTab] = useState(0);
+    const g = sets[Math.min(tab, sets.length - 1)] || { items: [] };
+    return React.createElement("div", { className: "mx-auto max-w-2xl space-y-4" },
+      sets.length > 1 && React.createElement("div", { className: "flex flex-wrap gap-2" }, sets.map((x, i) => React.createElement("button", { key: i, type: "button", onClick: () => setTab(i), className: `rounded-full px-4 py-1.5 text-sm font-bold transition ${i === tab ? "bg-primary text-white shadow" : "bg-white text-slate-600 hover:text-primary"}` }, x.label || "Bài " + (i + 1), React.createElement("span", { className: "ml-1 text-xs opacity-70" }, "(", x.items.length, ")")))),
+      g.intro && React.createElement("p", { className: "rounded-2xl bg-white px-4 py-3 text-sm leading-relaxed text-slate-600 shadow-sm" }, rich(g.intro)),
+      React.createElement(ChoiceQuiz, { key: tab, items: g.items }));
+  }
   function PhraseBox({ title, groups = [], phrases = [] }) {
     const all = groups.length ? groups : [{ phrases }];
     return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-amber-200 bg-amber-50/70 p-5" }, title && /* @__PURE__ */ React.createElement("p", { className: "mb-3 text-sm font-bold text-amber-800" }, "💬 ", title), /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, all.map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-2 text-xs font-bold uppercase tracking-wide text-amber-700" }, g.label), /* @__PURE__ */ React.createElement("div", { className: "grid gap-3 sm:grid-cols-2" }, g.phrases.map((k) => /* @__PURE__ */ React.createElement("div", { key: k.phrase, className: "rounded-2xl bg-white p-3 shadow-sm" }, /* @__PURE__ */ React.createElement("p", { className: "flex items-center justify-between gap-2 font-semibold text-slate-800" }, k.phrase, /* @__PURE__ */ React.createElement(SpeakButton, { text: k.phrase })), k.note && /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-xs text-slate-500" }, rich(k.note)))))))));
@@ -1785,7 +1794,7 @@
       case "odd":
         return h(OddQuiz, { sets: s.sets, items: s.items, intro: s.intro });
       case "quiz":
-        return /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
+        return s.sets ? h(QuizSets, { sets: s.sets }) : /* @__PURE__ */ React.createElement("div", { className: "mx-auto max-w-2xl" }, /* @__PURE__ */ React.createElement(ChoiceQuiz, { items: s.items }));
       case "vocab":
         return /* @__PURE__ */ React.createElement("div", null, (s.groups || [{ cards: s.cards }]).map((g, gi) => /* @__PURE__ */ React.createElement("div", { key: gi, className: gi ? "mt-8" : "" }, g.label && /* @__PURE__ */ React.createElement("p", { className: "mb-3 flex items-center gap-2 text-sm font-bold text-slate-700" }, /* @__PURE__ */ React.createElement("span", { className: "h-2 w-2 rounded-full bg-vocab-front" }), g.label, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "· ", g.cards.length, " từ")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 justify-items-center gap-4 sm:grid-cols-3 md:grid-cols-4" }, g.cards.map((v) => /* @__PURE__ */ React.createElement(InteractiveVocab, { key: v.word, ...v, visual: (s.groups || [{ cards: s.cards }]).some((gg) => (gg.cards || []).some((c) => c.ira || c.img || c.emoji)) }))))), s.note && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-3xl border border-slate-200 bg-white p-5 text-sm shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "mb-2 font-bold text-slate-700" }, s.note.title), /* @__PURE__ */ React.createElement("div", { className: "grid gap-2 sm:grid-cols-2" }, s.note.rows.map((r, i) => /* @__PURE__ */ React.createElement("p", { key: i }, rich(r))))));
       case "dialogue":
