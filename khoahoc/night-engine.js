@@ -41,7 +41,7 @@
           speak(text, rate);
         },
         "aria-label": `Nghe: ${text}`,
-        className: `inline-flex items-center gap-1 rounded-full bg-primary-light px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-indigo-100 disabled:opacity-40 ${className}`
+        className: `inline-flex items-center gap-1 rounded-full bg-primary-light px-2.5 py-1 text-xs font-semibold text-primary transition hover:brightness-95 disabled:opacity-40 ${className}`
       },
       /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "🔊"),
       label && /* @__PURE__ */ React.createElement("span", null, label)
@@ -215,7 +215,7 @@
       E("div", { className: "rounded-[26px] bg-panel p-3 sm:rounded-[32px] sm:p-5" }, video && E(VideoCard, { url: video, title: videoTitle, note: videoNote }), children));
   }
   const BADGES = {
-    long: ["Dài", "bg-indigo-100 text-primary"],
+    long: ["Dài", "bg-primary-light text-primary"],
     short: ["Ngắn", "bg-amber-100 text-amber-700"],
     diph: ["Đôi", "bg-sky-100 text-sky-700"],
     voiceless: ["Vô thanh", "bg-rose-100 text-rose-600"],
@@ -353,7 +353,7 @@
       setPhase("ready");
     };
     const pct = left / THINK_SECONDS * 100;
-    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "Câu ", idx + 1, "/", order.length), /* @__PURE__ */ React.createElement("button", { onClick: toggleShuffle, className: `rounded-full px-3 py-1 text-xs font-semibold ${shuffle ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}` }, "🔀 Xáo trộn")), /* @__PURE__ */ React.createElement("div", { className: "mt-5 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-2xl font-extrabold text-slate-900 sm:text-3xl" }, item.q), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-400" }, item.vi), /* @__PURE__ */ React.createElement(SpeakButton, { text: item.q, label: "Nghe câu hỏi", className: "mt-3" })), phase === "ready" && /* @__PURE__ */ React.createElement("div", { className: "mt-6 text-center" }, /* @__PURE__ */ React.createElement("button", { onClick: start, className: "rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-premium hover:bg-primary-dark" }, "Bắt đầu trả lời (", THINK_SECONDS, "s)"), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs text-slate-400" }, "Nói to câu trả lời của bạn trước khi hết giờ.")), phase === "answering" && /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement("div", { className: "h-2 w-full rounded-full bg-slate-100" }, /* @__PURE__ */ React.createElement("div", { className: `h-2 rounded-full transition-all duration-1000 ${left <= 5 ? "bg-rose-400" : "bg-primary"}`, style: { width: `${pct}%` } })), /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-center text-4xl font-extrabold tabular-nums text-primary" }, left), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex flex-wrap justify-center gap-2" }, item.frames.map((f) => /* @__PURE__ */ React.createElement("span", { key: f, className: "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" }, f))), /* @__PURE__ */ React.createElement("div", { className: "mt-4 text-center" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setPhase("reveal"), className: "text-xs font-semibold text-slate-400 underline" }, "Xem câu mẫu luôn"))), phase === "reveal" && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-2xl bg-sky-50 p-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-[11px] font-bold uppercase tracking-wide text-sky-700" }, "Câu trả lời mẫu"), /* @__PURE__ */ React.createElement("p", { className: "mt-1 leading-relaxed text-slate-800" }, item.sample), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex flex-wrap items-center gap-2" }, /* @__PURE__ */ React.createElement(SpeakButton, { text: item.sample, label: "Nghe mẫu", rate: 0.85, className: "bg-white" }), /* @__PURE__ */ React.createElement("button", { onClick: start, className: "rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm" }, "↺ Thử lại"))), /* @__PURE__ */ React.createElement("div", { className: "mt-6 flex justify-between" }, /* @__PURE__ */ React.createElement("button", { onClick: () => go(-1), className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "← Trước"), /* @__PURE__ */ React.createElement("button", { onClick: () => go(1), className: "rounded-full bg-primary-light px-4 py-2 text-sm font-semibold text-primary hover:bg-indigo-100" }, "Câu tiếp →")));
+    return /* @__PURE__ */ React.createElement("div", { className: "rounded-3xl border border-slate-200 bg-white p-6 shadow-floating" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-xs font-semibold text-slate-400" }, "Câu ", idx + 1, "/", order.length), /* @__PURE__ */ React.createElement("button", { onClick: toggleShuffle, className: `rounded-full px-3 py-1 text-xs font-semibold ${shuffle ? "bg-primary text-white" : "bg-slate-100 text-slate-500"}` }, "🔀 Xáo trộn")), /* @__PURE__ */ React.createElement("div", { className: "mt-5 text-center" }, /* @__PURE__ */ React.createElement("p", { className: "text-2xl font-extrabold text-slate-900 sm:text-3xl" }, item.q), /* @__PURE__ */ React.createElement("p", { className: "mt-1 text-sm text-slate-400" }, item.vi), /* @__PURE__ */ React.createElement(SpeakButton, { text: item.q, label: "Nghe câu hỏi", className: "mt-3" })), phase === "ready" && /* @__PURE__ */ React.createElement("div", { className: "mt-6 text-center" }, /* @__PURE__ */ React.createElement("button", { onClick: start, className: "rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-white shadow-premium hover:bg-primary-dark" }, "Bắt đầu trả lời (", THINK_SECONDS, "s)"), /* @__PURE__ */ React.createElement("p", { className: "mt-2 text-xs text-slate-400" }, "Nói to câu trả lời của bạn trước khi hết giờ.")), phase === "answering" && /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement("div", { className: "h-2 w-full rounded-full bg-slate-100" }, /* @__PURE__ */ React.createElement("div", { className: `h-2 rounded-full transition-all duration-1000 ${left <= 5 ? "bg-rose-400" : "bg-primary"}`, style: { width: `${pct}%` } })), /* @__PURE__ */ React.createElement("p", { className: "mt-3 text-center text-4xl font-extrabold tabular-nums text-primary" }, left), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex flex-wrap justify-center gap-2" }, item.frames.map((f) => /* @__PURE__ */ React.createElement("span", { key: f, className: "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" }, f))), /* @__PURE__ */ React.createElement("div", { className: "mt-4 text-center" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setPhase("reveal"), className: "text-xs font-semibold text-slate-400 underline" }, "Xem câu mẫu luôn"))), phase === "reveal" && /* @__PURE__ */ React.createElement("div", { className: "mt-6 rounded-2xl bg-sky-50 p-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-[11px] font-bold uppercase tracking-wide text-sky-700" }, "Câu trả lời mẫu"), /* @__PURE__ */ React.createElement("p", { className: "mt-1 leading-relaxed text-slate-800" }, item.sample), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex flex-wrap items-center gap-2" }, /* @__PURE__ */ React.createElement(SpeakButton, { text: item.sample, label: "Nghe mẫu", rate: 0.85, className: "bg-white" }), /* @__PURE__ */ React.createElement("button", { onClick: start, className: "rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm" }, "↺ Thử lại"))), /* @__PURE__ */ React.createElement("div", { className: "mt-6 flex justify-between" }, /* @__PURE__ */ React.createElement("button", { onClick: () => go(-1), className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "← Trước"), /* @__PURE__ */ React.createElement("button", { onClick: () => go(1), className: "rounded-full bg-primary-light px-4 py-2 text-sm font-semibold text-primary hover:brightness-95" }, "Câu tiếp →")));
   }
   function Homework({ tasks: HOMEWORK, storageKey: KEY }) {
     const [done, setDone] = useState(() => {
@@ -1359,8 +1359,8 @@
         examples.length > 1 && examples.map((_, k) => h("button", { key: k, onClick: () => pick(k), className: `flex h-9 min-w-[2.25rem] items-center justify-center rounded-full px-3 text-sm font-extrabold transition ${k === i ? "bg-ink text-white" : "bg-panel text-slate-500 hover:text-ink"}` }, k + 1)),
         h("button", { onClick: () => { setStepMode(!stepMode); setShown(1); }, title: "Hiện từng bước cho học sinh đoán", className: `ml-auto rounded-full px-3 py-2 text-xs font-bold transition ${stepMode ? "bg-primary text-white" : "bg-primary-light text-primary"}` }, stepMode ? "✓ Từng bước" : "▶ Từng bước")),
       h("div", { className: "mt-4 flex items-start justify-between gap-3" },
-        h("p", { className: "text-lg font-extrabold leading-snug text-ink sm:text-xl" }, ex.q),
-        h(SpeakButton, { text: ex.q })),
+        h("p", { className: "text-lg font-extrabold leading-snug text-ink sm:text-xl" }, String(ex.q).split(/__(.+?)__/).map((t, k) => k % 2 ? h("span", { key: k, className: "text-primary underline decoration-2 underline-offset-4" }, t) : t)),
+        h(SpeakButton, { text: String(ex.q).replace(/__/g, "") })),
       h("div", { className: "mt-4 space-y-2.5" }, ex.parts.map((p, k) => {
         const c = colorOf(p.tag);
         if (k >= visible) return h("button", { key: k, onClick: () => setShown(k + 1), className: `flex w-full items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 p-3 text-left text-sm font-bold text-slate-400 hover:border-slate-300` },
@@ -1407,7 +1407,7 @@
           it.label && h("p", { className: "text-[11px] font-bold uppercase tracking-wide text-primary/70" }, it.label),
           h("p", { className: "text-sm font-bold text-slate-900 sm:text-base" }, i + 1, ". ", it.q)),
         h(SpeakButton, { text: it.q })),
-      !show ? h("button", { onClick: () => setShow(true), className: "mt-3 rounded-full bg-primary-light px-4 py-1.5 text-xs font-semibold text-primary hover:bg-indigo-100" }, "Tự nói trước → rồi bấm xem câu mẫu")
+      !show ? h("button", { onClick: () => setShow(true), className: "mt-3 rounded-full bg-primary-light px-4 py-1.5 text-xs font-semibold text-primary hover:brightness-95" }, "Tự nói trước → rồi bấm xem câu mẫu")
         : h("div", { className: "mt-3 rounded-2xl bg-sky-50 p-4" },
           h("p", { className: "leading-relaxed text-slate-800" }, rich(it.a)),
           it.notes && h("ul", { className: "mt-3 space-y-1" }, it.notes.map((n, k) => h("li", { key: k, className: "text-xs leading-relaxed text-slate-600" }, "▸ ", rich(n)))),
@@ -1523,7 +1523,7 @@
         checklist && checklist.length > 0 && h("div", { className: "rounded-2xl bg-primary-light p-4" },
           h("p", { className: "mb-2 text-xs font-bold uppercase tracking-wide text-primary" }, "Tự chấm khi nghe lại"),
           checklist.map((c, k) => h("label", { key: k, className: "flex cursor-pointer items-start gap-2 py-0.5 text-sm text-slate-700" },
-            h("input", { type: "checkbox", checked: !!ticks[k], onChange: () => setTicks({ ...ticks, [k]: !ticks[k] }), className: "mt-1 accent-indigo-600" }), h("span", null, rich(c)))),
+            h("input", { type: "checkbox", checked: !!ticks[k], onChange: () => setTicks({ ...ticks, [k]: !ticks[k] }), className: "mt-1 accent-primary" }), h("span", null, rich(c)))),
           h("p", { className: "mt-2 text-xs font-semibold text-primary" }, "Đạt ", Object.values(ticks).filter(Boolean).length, "/", checklist.length))),
       h("div", { className: "mt-4 flex flex-wrap justify-center gap-2 border-t border-slate-100 pt-4" },
         item.hints && h("button", { onClick: () => setShowHint(!showHint), className: "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" }, showHint ? "Ẩn gợi ý" : "💡 Gợi ý ý tưởng"),
@@ -1558,7 +1558,7 @@
       h(SpeakCard, { key: `${tab}-${idx}`, item: it, mode: t.mode, prep, talk, target: t.target, checklist: t.checklist, storeKey: `night-speaking6-${lessonId}-${sectionId}-${tab}-${idx}` }),
       items.length > 1 && h("div", { className: "mt-4 flex justify-between" },
         h("button", { onClick: () => setIdx((idx - 1 + items.length) % items.length), className: "rounded-full px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100" }, "← Trước"),
-        h("button", { onClick: () => setIdx((idx + 1) % items.length), className: "rounded-full bg-primary-light px-4 py-2 text-sm font-semibold text-primary hover:bg-indigo-100" }, "Câu tiếp →")));
+        h("button", { onClick: () => setIdx((idx + 1) % items.length), className: "rounded-full bg-primary-light px-4 py-2 text-sm font-semibold text-primary hover:brightness-95" }, "Câu tiếp →")));
   }
   /* =================== HẾT PHẦN SPEAKING 6.0 =================== */
 
@@ -1654,7 +1654,7 @@
         h("ul", { className: "space-y-2" }, g.items.map((it) => {
           num += 1; const k = `${gi}-${num}`; const n = num;
           return h("li", { key: k }, h("label", { className: "flex cursor-pointer items-start gap-2 text-sm leading-relaxed text-slate-700" },
-            h("input", { type: "checkbox", checked: !!done[k], onChange: () => toggle(k), className: "mt-1 h-4 w-4 shrink-0 accent-indigo-600" }),
+            h("input", { type: "checkbox", checked: !!done[k], onChange: () => toggle(k), className: "mt-1 h-4 w-4 shrink-0 accent-primary" }),
             h("span", { className: done[k] ? "text-slate-400 line-through" : "" }, h("b", { className: "text-primary" }, n, ") "), rich(it))));
         }))))),
       h("div", { className: "flex items-center justify-between rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" },
@@ -3061,21 +3061,32 @@
   body.night-cc-on { padding-bottom: var(--night-cc-h, 170px); }
   body.night-cc-on .night-fab { bottom: calc(var(--night-cc-h, 170px) + 12px); }
 `;
+  /* Màu chủ đạo theo khóa (thư mục của trang): Giao tiếp cam · Speaking tím · Writing vàng · Chuyên đề xanh lá */
+  const NV_COURSE_THEME = (() => {
+    const parts = (location.pathname || "").split("/").filter(Boolean);
+    const dir = parts.length >= 2 ? parts[parts.length - 2] : "";
+    const T = {
+      giaotiep: { p: ["#EA6A2A", "#FFF0E6", "#C2511A"], peach: ["#6C70DC", "#EDEEFD", "#4A4EB8"], rgb: "234, 106, 42" },
+      writing: { p: ["#C47A06", "#FEF4D6", "#92570A"], rgb: "196, 122, 6" },
+      chuyende: { p: ["#059669", "#DDF7EC", "#04704F"], rgb: "5, 150, 105" }
+    };
+    return T[dir] || { p: ["#6C70DC", "#EDEEFD", "#4A4EB8"], rgb: "108, 112, 220" };
+  })();
   if (window.tailwind) {
     window.tailwind.config = {
       theme: {
         extend: {
           fontFamily: { sans: ["Plus Jakarta Sans", "ui-sans-serif", "system-ui", "sans-serif"] },
           colors: {
-            primary: { DEFAULT: "#6C70DC", light: "#EDEEFD", dark: "#4A4EB8" },
+            primary: { DEFAULT: NV_COURSE_THEME.p[0], light: NV_COURSE_THEME.p[1], dark: NV_COURSE_THEME.p[2] },
             ink: { DEFAULT: "#24242A", soft: "#34343C" },
-            peach: { DEFAULT: "#FF9E5E", light: "#FFF1E7", dark: "#E9782F" },
+            peach: NV_COURSE_THEME.peach ? { DEFAULT: NV_COURSE_THEME.peach[0], light: NV_COURSE_THEME.peach[1], dark: NV_COURSE_THEME.peach[2] } : { DEFAULT: "#FF9E5E", light: "#FFF1E7", dark: "#E9782F" },
             panel: "#F4F4F7",
-            vocab: { bg: "#FFE3A3", front: "#FBBF24", back: "#6C70DC" }
+            vocab: { bg: "#FFE3A3", front: "#FBBF24", back: NV_COURSE_THEME.p[0] }
           },
           boxShadow: {
             floating: "0 1px 2px rgba(36,36,42,.04), 0 14px 32px -16px rgba(36,36,42,.22)",
-            premium: "0 10px 28px -8px rgba(108, 112, 220, 0.45)"
+            premium: `0 10px 28px -8px rgba(${NV_COURSE_THEME.rgb}, 0.45)`
           },
           borderRadius: { "3xl": "1.75rem" }
         }
