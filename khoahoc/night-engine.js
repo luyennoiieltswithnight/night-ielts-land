@@ -1698,7 +1698,7 @@
         h("span", null, "Đã kiểm ", count, "/", total), count > 0 && h("button", { onClick: () => { setDone({}); lsSet(storeKey, {}); }, className: "text-xs underline" }, "Bỏ tích hết")),
       note && h("p", { className: "rounded-2xl bg-amber-50 p-3 text-sm text-amber-800" }, "💡 ", rich(note)));
   }
-  const normAns = (s) => String(s || "").toLowerCase().replace(/[’']/g, "'").replace(/[.,;:!?]+$/g, "").replace(/\s+/g, " ").trim();
+  const normAns = (s) => String(s || "").toLowerCase().replace(/[’']/g, "'").replace(/,/g, " ").replace(/[.;:!?]+$/g, "").replace(/\s+/g, " ").trim();
   function FillItem({ it, i }) {
     const parts = String(it.text).split(/\[\[(.+?)\]\]/);
     const gaps = parts.filter((_, k) => k % 2 === 1).map((g) => g.split("|"));
@@ -1712,10 +1712,10 @@
         if (k % 2 === 0) return h(React.Fragment, { key: k }, rich(p));
         gi += 1; const g = gi;
         const st = !checked ? "border-slate-300 focus:border-primary" : ok[g] ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-rose-400 bg-rose-50 text-rose-700";
-        return h("span", { key: k, className: "inline-flex items-baseline gap-1" },
+        return h("span", { key: k, className: "inline-flex max-w-full items-baseline gap-1" },
           h("input", { value: shown ? gaps[g][0] : vals[g], readOnly: shown, onChange: (e) => { const n = vals.slice(); n[g] = e.target.value; setVals(n); setChecked(false); },
             "aria-label": `Chỗ trống ${g + 1}`, autoCapitalize: "off", autoComplete: "off", spellCheck: false,
-            style: { width: `${Math.max(5, gaps[g][0].length + 2)}ch` },
+            style: { width: `${Math.max(5, gaps[g][0].length + 2)}ch`, maxWidth: "calc(100vw - 7rem)" },
             className: `mx-1 rounded-lg border-b-2 border-t-0 border-x-0 bg-slate-50 px-1.5 py-0.5 text-center text-sm font-semibold outline-none ${st}` }));
       })),
       h("div", { className: "mt-3 flex flex-wrap items-center gap-2" },
