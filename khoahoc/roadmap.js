@@ -110,7 +110,9 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
 @media (max-width:820px){.rm-hero{grid-template-columns:1fr}.rm-stk{width:110px;height:110px;opacity:.95}.rm-main{padding-bottom:110px}}
 @media (max-width:520px){.rm-frame{margin:0;border-radius:0;padding:6px}.rm-in{padding:12px;border-radius:22px}.rm-list{grid-template-columns:1fr}.rm-main{padding:20px 18px 112px}.rm-top{padding:6px 6px 10px}}
 `;
+  const RM_SRC = (document.currentScript && document.currentScript.src) || location.href;
   function render(cfg) {
+    if (!document.querySelector('link[rel~="icon"]')) { try { const l = document.createElement("link"); l.rel = "icon"; l.type = "image/png"; l.href = new URL("../icons/favicon-32.png", RM_SRC).href; document.head.appendChild(l); } catch (e) {} }
     const t = THEMES[cfg.theme] || THEMES.speaking6;
     const r = document.documentElement.style;
     r.setProperty("--a", t.a); r.setProperty("--a-ink", t.ink); r.setProperty("--soft", t.soft); r.setProperty("--text", t.text);

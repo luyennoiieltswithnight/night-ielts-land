@@ -3129,8 +3129,47 @@
       }
     };
   }
+  /* ====== Favicon chung cho mọi trang + giữ các nút nổi (fixed) trong vùng nhìn thấy khi zoom bằng touchpad/2 ngón ====== */
+  const NV_SCRIPT_SRC = (document.currentScript && document.currentScript.src) || location.href;
+  function nvEnsureFavicon() {
+    if (document.querySelector('link[rel~="icon"]')) return;
+    try {
+      const l = document.createElement("link"); l.rel = "icon"; l.type = "image/png"; l.sizes = "32x32";
+      l.href = new URL("../icons/favicon-32.png", NV_SCRIPT_SRC).href; document.head.appendChild(l);
+      const a = document.createElement("link"); a.rel = "apple-touch-icon"; a.href = new URL("../icons/apple-touch-icon.png", NV_SCRIPT_SRC).href; document.head.appendChild(a);
+    } catch (e) {}
+  }
+  function nvInstallPinchFix() {
+    const vv = window.visualViewport;
+    if (!vv || window.__nvPinchFix) return;
+    window.__nvPinchFix = true;
+    let raf = 0, active = new Set();
+    const SEL = '.fixed, [style*="position: fixed"], [style*="position:fixed"]';
+    const clear = (el) => { el.style.translate = ""; el.style.scale = ""; el.style.transformOrigin = ""; };
+    const run = () => {
+      raf = 0;
+      const s = vv.scale || 1;
+      const els = Array.from(document.querySelectorAll(SEL)).filter((el) => getComputedStyle(el).position === "fixed");
+      active.forEach((el) => { if (!els.includes(el)) clear(el); });
+      active = new Set(els);
+      if (Math.abs(s - 1) < 0.01 && Math.abs(vv.offsetLeft) < 1 && Math.abs(vv.offsetTop) < 1) { els.forEach(clear); return; }
+      els.forEach((el) => {
+        clear(el);
+        const r = el.getBoundingClientRect();
+        const tx = vv.offsetLeft + r.left / s - r.left, ty = vv.offsetTop + r.top / s - r.top;
+        el.style.transformOrigin = "0 0";
+        el.style.translate = `${tx}px ${ty}px`;
+        el.style.scale = String(1 / s);
+      });
+    };
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(run); };
+    vv.addEventListener("resize", schedule);
+    vv.addEventListener("scroll", schedule);
+    window.addEventListener("scroll", schedule, { passive: true });
+  }
   window.NightLesson = {
     render(lesson) {
+      nvEnsureFavicon(); nvInstallPinchFix();
       const style = document.createElement("style");
       style.textContent = ENGINE_CSS + MARK_CSS;
       document.head.appendChild(style);
