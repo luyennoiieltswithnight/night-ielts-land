@@ -3152,29 +3152,30 @@
     const vv = window.visualViewport;
     if (!vv || window.__nvPinchFix) return;
     window.__nvPinchFix = true;
-    let raf = 0, active = new Set();
+    /* offsetLeft/offsetTop của phần tử fixed là vị trí GỐC (không bị translate/scale làm lệch) → không cần gỡ ra đo lại, đặt ngay trong sự kiện để không giật. */
     const SEL = '.fixed, [style*="position: fixed"], [style*="position:fixed"]';
-    const clear = (el) => { el.style.translate = ""; el.style.scale = ""; el.style.transformOrigin = ""; };
-    const run = () => {
-      raf = 0;
+    let els = [], lastScan = 0, zoomed = false;
+    const scan = () => { els = Array.from(document.querySelectorAll(SEL)).filter((el) => getComputedStyle(el).position === "fixed"); lastScan = Date.now(); };
+    const clear = (el) => { el.style.translate = ""; el.style.scale = ""; el.style.transformOrigin = ""; el.style.willChange = ""; };
+    const place = () => {
       const s = vv.scale || 1;
-      const els = Array.from(document.querySelectorAll(SEL)).filter((el) => getComputedStyle(el).position === "fixed");
-      active.forEach((el) => { if (!els.includes(el)) clear(el); });
-      active = new Set(els);
-      if (Math.abs(s - 1) < 0.01 && Math.abs(vv.offsetLeft) < 1 && Math.abs(vv.offsetTop) < 1) { els.forEach(clear); return; }
-      els.forEach((el) => {
-        clear(el);
-        const r = el.getBoundingClientRect();
-        const tx = vv.offsetLeft + r.left / s - r.left, ty = vv.offsetTop + r.top / s - r.top;
+      const isZoom = Math.abs(s - 1) > 0.01 || Math.abs(vv.offsetLeft) > 0.5 || Math.abs(vv.offsetTop) > 0.5;
+      if (!isZoom) { if (zoomed) { els.forEach(clear); zoomed = false; } return; }
+      if (!zoomed || Date.now() - lastScan > 1500) scan();
+      zoomed = true;
+      const k = 1 / s;
+      for (const el of els) {
+        const x = el.offsetLeft, y = el.offsetTop;
+        el.style.willChange = "translate, scale";
         el.style.transformOrigin = "0 0";
-        el.style.translate = `${tx}px ${ty}px`;
-        el.style.scale = String(1 / s);
-      });
+        el.style.translate = `${vv.offsetLeft + x * k - x}px ${vv.offsetTop + y * k - y}px`;
+        el.style.scale = String(k);
+      }
     };
-    const schedule = () => { if (!raf) raf = requestAnimationFrame(run); };
-    vv.addEventListener("resize", schedule);
-    vv.addEventListener("scroll", schedule);
-    window.addEventListener("scroll", schedule, { passive: true });
+    vv.addEventListener("resize", place);
+    vv.addEventListener("scroll", place);
+    window.addEventListener("scroll", place, { passive: true });
+    new MutationObserver(() => { if (zoomed) { scan(); place(); } }).observe(document.body, { childList: true, subtree: true });
   }
   window.NightLesson = {
     render(lesson) {
