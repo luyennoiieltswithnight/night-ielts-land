@@ -8,7 +8,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
-<script src="../night-engine.js?v=20261025zh"></script>
+<script src="../night-engine.js?v=20261025zh2"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -17,7 +17,57 @@
    Câu: { zh, py, vi } — bấm chữ Hán để nghe. */
 const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
 const X = (zh, py, vi) => ({ zh, py, vi });
-NightLesson.render({
+/* Lục thư 六书 cho từng từ: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "请": [["请", "thanh", "**讠** (bộ Ngôn – lời nói) chỉ **nghĩa** + **青** qīng chỉ **âm** → qǐng."]],
+  "问": [["问", "thanh", "**口** (miệng) chỉ **nghĩa** + **门** mén chỉ **âm** (mén → wèn)."]],
+  "什么": [["什", "hoi+gia", "**亻** (người) + **十** (mười) → gốc nghĩa “tổ mười người”. Trong 什么 là **mượn âm** shén."], ["么", "thanh", "Giản thể của **麼**: **幺** (nhỏ) chỉ nghĩa + **麻** má chỉ âm. Trong 什么 đọc nhẹ *me*."]],
+  "工作": [["工", "tuong", "Vẽ **cây thước thợ** (êke của thợ mộc)."], ["作", "thanh", "**亻** (người) chỉ nghĩa + **乍** zhà chỉ âm → zuò."]],
+  "累": [["累", "thanh", "**糸** (sợi tơ) chỉ nghĩa “buộc, chồng chất” + phần trên (gốc **畾** léi, giản lược thành **田**) chỉ âm → lèi."]],
+  "上班": [["上", "chi", "Một vạch ngắn đặt **trên** vạch ngang làm mốc → chỉ ý “phía trên”."], ["班", "hoi", "**刂** (con dao) đặt giữa hai miếng **ngọc** (王 王) → chia ngọc → chia thành ca, nhóm."]],
+  "进": [["进", "thanh", "Giản thể: **辶** (bước đi) chỉ nghĩa + **井** jǐng chỉ âm → jìn. (Phồn thể **進** = 辶 + 隹 chim — hội ý: chim chỉ bay tiến lên.)"]],
+  "坐": [["坐", "hoi", "Hai **人** (người) ngồi đối diện trên mặt **土** (đất)."]],
+  "喝": [["喝", "thanh", "**口** (miệng) chỉ nghĩa + **曷** hé chỉ âm."]],
+  "渴": [["渴", "thanh", "**氵** (nước) chỉ nghĩa + **曷** hé chỉ âm (hé → kě). Cùng phần âm với **喝**, chỉ khác bộ chỉ nghĩa."]],
+  "水": [["水", "tuong", "Vẽ **dòng nước chảy**: nét giữa là dòng chính, hai bên là gợn nước."]],
+  "茶": [["茶", "thanh", "**艹** (cỏ cây) chỉ nghĩa + phần dưới (gốc **余** yú — chữ cổ **荼** bớt một nét thành 茶) chỉ âm."]],
+  "好喝": [["好", "hoi", "**女** (người mẹ) + **子** (con) → mẹ bế con là điều **tốt đẹp**."], ["喝", "thanh", "**口** chỉ nghĩa + **曷** hé chỉ âm."]],
+  "奶茶": [["奶", "thanh", "**女** (phụ nữ) chỉ nghĩa + **乃** nǎi chỉ âm."], ["茶", "thanh", "**艹** chỉ nghĩa + phần dưới (gốc 余 yú) chỉ âm."]],
+  "吧": [["吧", "thanh", "**口** chỉ nghĩa (trợ từ nói ra bằng miệng) + **巴** bā chỉ âm."]],
+  "贵": [["贵", "thanh", "**贝** (vỏ sò – tiền thời cổ) chỉ nghĩa “có giá trị” + phần trên (gốc **臾** yú, giản lược thành 中 + 一) chỉ âm."]],
+  "姓": [["姓", "thanh", "**女** chỉ nghĩa + **生** shēng chỉ âm → xìng. 生 cũng gợi nghĩa: họ theo người mẹ sinh ra (hình thanh kiêm hội ý)."]],
+  "贵姓": [["贵", "thanh", "**贝** (tiền) chỉ nghĩa + phần trên (gốc 臾) chỉ âm."], ["姓", "thanh", "**女** chỉ nghĩa + **生** shēng chỉ âm."]],
+  "叫": [["叫", "thanh", "**口** chỉ nghĩa + **丩** jiū chỉ âm → jiào."]],
+  "名字": [["名", "hoi", "**夕** (buổi tối) + **口** (miệng): trời tối không thấy mặt, phải gọi **tên**."], ["字", "thanh", "**宀** (mái nhà) chỉ nghĩa + **子** zǐ chỉ âm (cũng gợi nghĩa: con sinh ra trong nhà → chữ sinh sôi)."]],
+  "个": [["个", "thanh", "Chữ giản thể. Phồn thể **個** = **亻** chỉ nghĩa + **固** gù chỉ âm."]],
+  "哪": [["哪", "thanh", "**口** chỉ nghĩa (dùng để hỏi) + **那** nà chỉ âm → nǎ."]],
+  "那": [["那", "thanh+gia", "Gốc là tên một nước cổ: **阝** (bộ Ấp – vùng đất) chỉ nghĩa + phần trái chỉ âm. Nghĩa “kia, đó” là **mượn âm**."]],
+  "哪儿": [["哪", "thanh", "**口** chỉ nghĩa + **那** nà chỉ âm."], ["儿", "tuong", "Phồn thể **兒**: vẽ **đứa trẻ** đầu thóp chưa liền. Đặt sau từ để cuốn lưỡi -r."]],
+  "了": [["了", "tuong+gia", "Vẽ đứa trẻ quấn tã, không thấy tay. Dùng làm trợ từ “rồi” là **mượn âm**."]],
+  "学生": [["学", "thanh", "Giản thể của **學**: **子** (trẻ con) dưới mái nhà chỉ nghĩa “học”, phần trên (gốc 臼 jiù) chỉ âm."], ["生", "tuong", "Vẽ **mầm cây** nhú lên khỏi mặt đất → sinh ra, sống."]],
+  "留学生": [["留", "thanh", "**田** (ruộng) chỉ nghĩa “giữ lại, ở lại” + phần trên (gốc **卯** mǎo) chỉ âm → liú."], ["学", "thanh", "**子** dưới mái nhà chỉ nghĩa + phần trên chỉ âm (phồn thể 學)."], ["生", "tuong", "Mầm cây nhú khỏi mặt đất."]],
+  "中国": [["中", "chi", "Một vạch **xuyên qua chính giữa** khung → chỉ ý “ở giữa”."], ["国", "hoi", "Giản thể: **囗** (biên giới) bao lấy **玉** (ngọc – báu vật) → đất nước. (Phồn thể **國** = 囗 + 或 là hình thanh.)"]],
+  "越南": [["越", "thanh", "**走** (chạy, đi) chỉ nghĩa + **戉** yuè chỉ âm → vượt qua."], ["南", "tuong+gia", "Gốc vẽ một loại **nhạc cụ** treo. Nghĩa “phương Nam” là **mượn âm**."]],
+  "德国": [["德", "thanh", "**彳** (bước đi) chỉ nghĩa + **悳** dé (十 + 罒 + 一 + 心, “lòng ngay thẳng”) chỉ âm. Thơ nhớ mặt chữ: *Chim chích (彳) mà đậu cành tre — Thập (十) trên tứ (罒) dưới, nhất (一) đè chữ tâm (心).*"], ["国", "hoi", "**囗** (biên giới) + **玉** (ngọc) → đất nước."]],
+  "法国": [["法", "hoi", "**氵** (nước) + **去** (đi): luật pháp phải **phẳng như mặt nước**, kẻ sai thì bị đuổi đi."], ["国", "hoi", "囗 + 玉 → đất nước."]],
+  "俄罗斯": [["俄", "thanh+gia", "**亻** chỉ nghĩa + **我** wǒ chỉ âm → é. Ghi tên nước Nga là **mượn âm** (phiên âm *Rossiya*)."], ["罗", "hoi+gia", "Giản thể của **羅**: **罒** (lưới) + **维** (dây) → lưới bắt chim. Trong tên nước là mượn âm."], ["斯", "thanh+gia", "**斤** (cái rìu) chỉ nghĩa + **其** qí chỉ âm. Trong 俄罗斯 chỉ dùng để phiên âm."]],
+  "日本": [["日", "tuong", "Vẽ **mặt trời** (vòng tròn có chấm giữa, về sau thành khung vuông)."], ["本", "chi", "Chữ **木** (cây) thêm một vạch ở **gốc** → chỉ ý “gốc rễ, căn bản”."]],
+  "美国": [["美", "hoi", "**羊** (con cừu) + **大** (to) → cừu to béo là **đẹp**."], ["国", "hoi", "囗 + 玉 → đất nước."]],
+  "英国": [["英", "thanh", "**艹** (cỏ hoa) chỉ nghĩa + **央** yāng chỉ âm → yīng (tinh hoa, anh tú)."], ["国", "hoi", "囗 + 玉 → đất nước."]],
+  "汉语": [["汉", "thanh", "**氵** chỉ nghĩa (gốc là tên **sông Hán**) + phần phải (phồn thể **漢**, giản thể thành 又) chỉ âm."], ["语", "thanh", "**讠** (lời nói) chỉ nghĩa + **吾** wú chỉ âm → yǔ."]],
+  "英语": [["英", "thanh", "**艹** chỉ nghĩa + **央** yāng chỉ âm."], ["语", "thanh", "**讠** chỉ nghĩa + **吾** wú chỉ âm."]],
+  "同学": [["同", "hoi", "**凡** (tất cả) + **口** (miệng) → mọi người cùng một tiếng nói → cùng, giống nhau."], ["学", "thanh", "**子** dưới mái nhà chỉ nghĩa + phần trên chỉ âm (phồn thể 學)."]],
+  "们": [["们", "thanh", "**亻** (người) chỉ nghĩa + **门** mén chỉ âm."]],
+  "介绍": [["介", "hoi", "**人** (người) đứng giữa hai nét **八** (tách ra) → ở giữa hai bên → làm trung gian."], ["绍", "thanh", "**纟** (sợi tơ) chỉ nghĩa “nối” + **召** zhào chỉ âm → shào."]],
+  "来": [["来", "tuong+gia", "Gốc vẽ **cây lúa mạch** (phồn thể 來). Nghĩa “đến” là **mượn âm**."]],
+  "一下儿": [["一", "chi", "Một vạch ngang → số **một**."], ["下", "chi", "Một vạch đặt **dưới** vạch ngang làm mốc → chỉ ý “phía dưới”."], ["儿", "tuong", "Vẽ đứa trẻ (兒) — ở đây là âm cuốn lưỡi -r."]],
+  "认识": [["认", "thanh", "Giản thể: **讠** chỉ nghĩa + **人** rén chỉ âm → rèn."], ["识", "thanh", "Giản thể của **識**: **讠** chỉ nghĩa + **只** zhǐ chỉ âm → shí."]],
+  "高兴": [["高", "tuong", "Vẽ **toà lầu cao** nhiều tầng có mái."], ["兴", "hoi", "Phồn thể **興**: bốn bàn tay cùng **nâng** một vật lên → hưng khởi, phấn chấn."]],
+  "也": [["也", "gia", "Chữ cổ (gốc vẽ một đồ vật), từ lâu được **mượn âm** làm hư từ “cũng”."]],
+  "呢": [["呢", "thanh", "**口** chỉ nghĩa (trợ từ cuối câu) + **尼** ní chỉ âm → ne."]],
+  "京剧": [["京", "tuong", "Vẽ **toà nhà trên gò đất cao** → kinh đô."], ["剧", "thanh", "**刂** (con dao) chỉ nghĩa “mạnh, gay gắt” + **居** jū chỉ âm → jù."]]
+};
+const L = {
   id: "zh-q1-05",
   courseKey: "tiengtrung",
   lang: "zh-CN",
@@ -43,7 +93,7 @@ NightLesson.render({
     {
       type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
       title: "Từ mới ① · Mời – hỏi – uống trà – họ tên",
-      desc: "Bấm từng thẻ: nghe đọc, xem **hoạt hình nét bút**, đọc **chiết tự**, rồi bấm **✍ Tự viết** để viết bằng ngón tay / chuột. Màu pinyin = thanh điệu (thanh 1 đỏ · 2 cam · 3 xanh lá · 4 xanh dương · thanh nhẹ xám).",
+      desc: "Bấm từng thẻ: nghe đọc, xem **hoạt hình nét bút**, đọc **Lục thư** (chữ thuộc loại nào rồi mới phân tích), rồi bấm **✍ Tự viết** để viết bằng ngón tay / chuột. Màu pinyin = thanh điệu (thanh 1 đỏ · 2 cam · 3 xanh lá · 4 xanh dương · thanh nhẹ xám).",
       sticker: "zh_gongshou.webp",
       groups: [
         { label: "Mời · hỏi · công việc", cards: [
@@ -429,7 +479,10 @@ NightLesson.render({
       ]
     }
   ]
-});
+};
+/* Gắn Lục thư vào thẻ (phần chiết tự cũ được thay bằng phân tích theo Lục thư) */
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) { c.lt = LT[c.zh]; delete c.parts; } })));
+NightLesson.render(L);
 </script>
 </body>
 </html>

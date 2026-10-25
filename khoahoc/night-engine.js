@@ -1968,6 +1968,31 @@
       c.pos && h("p", { className: "mt-1 text-[11px] font-semibold text-slate-400" }, c.pos),
       h("span", { className: "mt-2 inline-flex items-center gap-1 text-[11px] font-extrabold text-primary opacity-70 group-hover:opacity-100" }, "✍ Nét bút · ví dụ →"));
   }
+  /* Lục thư 六书: xác định cách cấu tạo chữ trước, rồi mới phân tích.
+     Thẻ: lt: [[chữ, "thanh" | "tuong" | "chi" | "hoi" | "chuyen" | "gia" (ghép bằng +, vd "thanh+gia"), "phân tích"]] */
+  const LUC_THU = {
+    tuong: ["象形", "Tượng hình", "vẽ lại hình dáng sự vật", "bg-sky-100 text-sky-800 border-sky-300"],
+    chi: ["指事", "Chỉ sự", "thêm ký hiệu để chỉ ý trừu tượng", "bg-violet-100 text-violet-800 border-violet-300"],
+    hoi: ["会意", "Hội ý", "ghép nghĩa của các bộ phận", "bg-emerald-100 text-emerald-800 border-emerald-300"],
+    thanh: ["形声", "Hình thanh", "một phần chỉ nghĩa (hình) + một phần chỉ âm (thanh)", "bg-rose-100 text-rose-800 border-rose-300"],
+    chuyen: ["转注", "Chuyển chú", "chữ cùng gốc, cùng nghĩa, giải nghĩa cho nhau", "bg-orange-100 text-orange-800 border-orange-300"],
+    gia: ["假借", "Giả tá", "mượn chữ có sẵn cùng âm để ghi từ khác", "bg-slate-200 text-slate-700 border-slate-300"]
+  };
+  function LucThu({ c }) {
+    const [help, setHelp] = useState(false);
+    const rows = c.lt || [];
+    return h("div", { className: "rounded-2xl border border-amber-200 bg-amber-50 p-3" },
+      h("div", { className: "flex items-center justify-between gap-2" },
+        h("p", { className: "text-[11px] font-extrabold uppercase tracking-widest text-amber-700" }, "Lục thư ", h("span", { className: "nv-hz normal-case tracking-normal" }, "六书"), " · cấu tạo chữ"),
+        h("button", { onClick: () => setHelp(!help), className: "rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-amber-700 shadow-sm" }, help ? "Ẩn" : "6 loại là gì?")),
+      help && h("div", { className: "mt-2 grid gap-1 sm:grid-cols-2" }, Object.keys(LUC_THU).map((k) => { const t = LUC_THU[k]; return h("p", { key: k, className: "text-[11px] leading-snug text-slate-600" }, h("span", { className: `mr-1 inline-block rounded-md border px-1.5 font-bold ${t[3]}` }, h("span", { className: "nv-hz" }, t[0]), " ", t[1]), t[2]); })),
+      rows.length ? h("div", { className: "mt-2 space-y-2" }, rows.map((r, k) => h("div", { key: k, className: "rounded-xl bg-white/80 p-2" },
+        h("div", { className: "flex flex-wrap items-center gap-1.5" },
+          h("button", { onClick: () => speakZh(r[0], 0.8), className: "nv-hz text-2xl leading-none text-primary" }, r[0]),
+          String(r[1] || "").split("+").map((x) => LUC_THU[x.trim()]).filter(Boolean).map((t, q) => h("span", { key: q, className: `rounded-lg border px-2 py-0.5 text-xs font-extrabold ${t[3]}` }, h("span", { className: "nv-hz" }, t[0]), " · ", t[1]))),
+        h("p", { className: "mt-1 text-sm leading-relaxed text-ink" }, rich(r[2]))))) :
+      h("p", { className: "mt-1 text-sm leading-relaxed text-ink" }, rich(c.parts)));
+  }
   function HanziModal({ c, onClose, onNav }) {
     const chars = [...zhStripHan(c.zh)];
     const [mode, setMode] = useState("anim");
@@ -1982,8 +2007,8 @@
     const size = Math.min(210, Math.floor(Math.min(window.innerWidth, 600) - 90));
     const bs = Math.max(72, Math.min(chars.length > 1 ? 150 : 210, Math.floor((Math.min(window.innerWidth, 600) - 60) / chars.length) - 8));
     const animNext = () => { if (mode === "anim" && ci < chars.length - 1) setTimeout(() => setCi((x) => x + 1), 350); };
-    return h("div", { className: "fixed inset-0 z-[80] flex items-end justify-center bg-ink/60 p-0 backdrop-blur-sm sm:items-center sm:p-4", onClick: onClose },
-      h("div", { onClick: (e) => e.stopPropagation(), className: "nv-zh-pop relative max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-[30px] bg-[#FFFBF3] p-4 shadow-2xl sm:rounded-[30px] sm:p-6" },
+    return h("div", { className: "nv-hzmodal fixed inset-0 z-[34] flex items-end justify-center bg-ink/60 px-0 pt-20 sm:items-center sm:px-4 sm:pb-4 sm:pt-24", onClick: onClose },
+      h("div", { onClick: (e) => e.stopPropagation(), className: "nv-zh-pop relative max-h-full w-full max-w-2xl overflow-y-auto rounded-t-[30px] bg-[#FFFBF3] p-4 shadow-2xl sm:rounded-[30px] sm:p-6" },
         h("div", { className: "nv-cloudband pointer-events-none absolute inset-x-0 top-0 h-3 rounded-t-[30px]" }),
         h("div", { className: "flex items-start justify-between gap-3" },
           h("div", null,
@@ -2005,9 +2030,7 @@
               h("button", { onClick: () => { setMode("anim"); setCi(0); setRun((r) => r + 1); }, className: `rounded-full px-4 py-2 text-xs font-extrabold ${mode === "anim" ? "bg-primary text-white" : "bg-white text-primary shadow-sm"}` }, "▶ Xem viết"),
               h("button", { onClick: () => { setMode("quiz"); setRun((r) => r + 1); }, className: `rounded-full px-4 py-2 text-xs font-extrabold ${mode === "quiz" ? "bg-amber-400 text-ink" : "bg-white text-amber-700 shadow-sm"}` }, "✍ Tự viết (chấm nét)"))),
           h("div", { className: "min-w-0 flex-1 space-y-3" },
-            c.parts && h("div", { className: "rounded-2xl border border-amber-200 bg-amber-50 p-3" },
-              h("p", { className: "text-[11px] font-extrabold uppercase tracking-widest text-amber-700" }, "Chiết tự"),
-              h("p", { className: "mt-1 text-sm leading-relaxed text-ink" }, rich(c.parts))),
+            (c.lt || c.parts) && h(LucThu, { c }),
             c.tip && h("div", { className: "rounded-2xl bg-primary-light p-3" },
               h("p", { className: "text-[11px] font-extrabold uppercase tracking-widest text-primary" }, "Mẹo nhớ"),
               h("p", { className: "mt-1 text-sm leading-relaxed text-ink" }, rich(c.tip))),
