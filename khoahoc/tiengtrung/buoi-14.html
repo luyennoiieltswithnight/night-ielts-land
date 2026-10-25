@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 14: 我喜欢浅颜色的</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "事情": [["事", "hoi", "Bàn tay (**彐**) cầm cán cờ / thẻ ghi chép → làm việc → **việc**."], ["情", "thanh", "**忄** (lòng) chỉ nghĩa + **青** qīng chỉ âm → tình; đọc nhẹ *qing*."]],
+  "礼物": [["礼", "thanh", "**礻** (bộ Thị – thần, lễ nghi) chỉ nghĩa + phần phải (phồn thể 禮: 豊 lǐ) chỉ âm → lễ."], ["物", "thanh", "**牛** chỉ nghĩa + **勿** wù chỉ âm → vật."]],
+  "送": [["送", "hoi", "**辶** (đi) + phần trên (gốc: hai tay nâng đồ) → mang đi trao → **tặng, tiễn**."]],
+  "生日": [["生", "tuong", "Mầm cây nhú khỏi đất → sinh."], ["日", "tuong", "Mặt trời → ngày."]],
+  "毛衣": [["毛", "tuong", "Vẽ sợi **lông** → len."], ["衣", "tuong", "Vẽ chiếc áo cổ chéo."]],
+  "钱包": [["钱", "thanh", "**钅** chỉ nghĩa + **戋** jiān chỉ âm."], ["包", "tuong", "Vẽ bào thai được bọc → bao, ví."]],
+  "新": [["新", "thanh", "**斤** (cái rìu) chỉ nghĩa — chặt củi + **亲** (gốc 辛 xīn) chỉ âm → củi mới chặt → **mới**."]],
+  "旧": [["旧", "thanh+gia", "Phồn thể **舊** = **萑** (chim cú) + **臼** jiù chỉ âm; gốc là tên chim, mượn nghĩa **cũ**."]],
+  "挺": [["挺", "thanh", "**扌** (tay) chỉ nghĩa + **廷** tíng chỉ âm → thẳng đứng → **khá, rất**."]],
+  "非常": [["非", "tuong", "Vẽ **hai cánh chim xoè ngược chiều** → trái ngược, không phải."], ["常", "thanh", "**巾** + **尚** shàng chỉ âm → thường. 非常 = **phi thường**."]],
+  "有点儿": [["有", "hoi", "Tay cầm thịt → có."], ["点", "thanh", "**灬** + **占** zhān chỉ âm → chấm, chút."], ["儿", "tuong", "Âm cuốn lưỡi -r."]],
+  "一点儿": [["一", "chi", "Một."], ["点", "thanh", "Chấm nhỏ → một chút."], ["儿", "tuong", "Âm cuốn lưỡi -r."]],
+  "容易": [["容", "hoi", "**宀** (mái nhà) + **谷** (thung lũng) → nhà rộng như hang chứa được nhiều → **dung chứa**."], ["易", "tuong+gia", "Vẽ **con thằn lằn** (dễ đổi màu) → biến đổi → **dễ**."]],
+  "胖": [["胖", "thanh", "**月** (肉 thịt) chỉ nghĩa + **半** bàn chỉ âm → béo."]],
+  "便宜": [["便", "hoi", "**亻** + **更** (sửa đổi) → người sửa cho tiện → thuận tiện; đọc **pián** = rẻ."], ["宜", "hoi", "**宀** (mái nhà) + **且** (thịt trên thớt) → có thịt ăn dưới mái nhà → **thích hợp**; đọc nhẹ *yi*."]],
+  "脏": [["脏", "thanh", "**月** (thịt) chỉ nghĩa + **庄** zhuāng chỉ âm → (nội tạng; giản thể thay 髒) **bẩn**."]],
+  "干净": [["干", "tuong", "Giản thể dùng thay **乾** (khô)."], ["净", "thanh", "**冫** (nước đá trong) chỉ nghĩa + **争** zhēng chỉ âm → **sạch**."]],
+  "深": [["深", "thanh", "**氵** (nước) chỉ nghĩa + **罙** shēn chỉ âm → **sâu**, đậm."]],
+  "浅": [["浅", "thanh", "**氵** (nước) chỉ nghĩa + **戋** jiān chỉ âm → **nông**, nhạt."]],
+  "颜色": [["颜", "thanh", "**页** (cái đầu, mặt) chỉ nghĩa + **彦** yàn chỉ âm → nét mặt, nhan."], ["色", "hoi", "Sắc mặt → màu sắc."]],
+  "蓝": [["蓝", "thanh", "**艹** (cây chàm nhuộm xanh) chỉ nghĩa + **监** jiān chỉ âm → **xanh lam**."]],
+  "绿": [["绿", "thanh", "**纟** (tơ nhuộm) chỉ nghĩa + **录** lù chỉ âm → **xanh lá**."]],
+  "黄": [["黄", "tuong+gia", "Gốc vẽ **người đeo ngọc bội** ở thắt lưng (ngọc màu vàng) → mượn chỉ **màu vàng**."]],
+  "棕色": [["棕", "thanh", "**木** (cây cọ) chỉ nghĩa + **宗** zōng chỉ âm → màu xơ cọ → **nâu**."], ["色", "hoi", "Màu sắc."]],
+  "粉色": [["粉", "thanh", "**米** (gạo – bột) chỉ nghĩa + **分** fēn chỉ âm → bột, phấn → **hồng phấn**."], ["色", "hoi", "Màu sắc."]],
+  "紫色": [["紫", "thanh", "**糸** (tơ nhuộm) chỉ nghĩa + **此** cǐ chỉ âm → **tím**."], ["色", "hoi", "Màu sắc."]],
+  "灰": [["灰", "hoi", "**又** (bàn tay) + **火** (lửa) → tay bốc thứ còn lại sau lửa → **tro** → màu xám."]],
+  "它": [["它", "tuong+gia", "Gốc vẽ **con rắn** (蛇); mượn làm đại từ **nó** (con vật, đồ vật)."]],
+  "洗": [["洗", "thanh", "**氵** (nước) chỉ nghĩa + **先** xiān chỉ âm → **rửa, giặt**."]],
+  "忘": [["忘", "thanh", "**心** (trái tim) chỉ nghĩa + **亡** wáng (mất) chỉ âm → **quên**. Người Trung tin ký ức nằm trong tim — tim “mất đi” thì quên (hình thanh kiêm hội ý)."]],
+  "丢": [["丢", "hoi", "**一** (một vật) + **去** (đi mất) → vật đi mất → **làm mất, vứt**."]],
+  "付钱": [["付", "hoi", "**亻** (người) + **寸** (bàn tay) → tay đưa cho người → **trả, giao**."], ["钱", "thanh", "**钅** + **戋** jiān chỉ âm."]],
+  "还是": [["还", "thanh+gia", "**辶** + phần âm; đọc **hái** là mượn."], ["是", "hoi", "**日** + **正** → là. 还是 = **hay là** (hỏi lựa chọn)."]],
+  "不用客气": [["客", "thanh", "**宀** (nhà) chỉ nghĩa + **各** gè chỉ âm → khách."], ["气", "tuong", "Làn hơi bốc lên → khí. 客气 = **khách khí**; 不用客气 = **đừng khách sáo**."]]
+};
+const L = {
+  id: "zh-q1-14", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 14",
+  unit: "Màu sắc · Mức độ 有点儿 / 挺 / 很 / 非常 · Mua quần áo · Quà tặng · Trả tiền",
+  titleZh: "我喜欢浅颜色的", titlePy: "Wǒ xǐhuan qiǎn yánsè de", title: "Tôi thích màu nhạt!",
+  subtitle: "Học xong bài này bạn gọi tên 10 màu, nói “hơi đắt / khá đẹp / cực kỳ đẹp” đúng sắc thái, hỏi “đen hay nâu?”, kể chuyện làm mất ví, mặc cả “rẻ chút đi” và tặng quà đúng phong tục Trung Quốc.",
+  heroSticker: "zh_yanse.webp",
+  prev: { href: "buoi-13.html", label: "Bài 13" }, next: { href: "buoi-15.html", label: "Bài 15" },
+  goals: [
+    "Nhận mặt, đọc, viết **34 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Thang mức độ: **有点儿 < 挺…的 < 很 < 非常**",
+    "Phân biệt **有点儿 + Adj** (phàn nàn) và **Adj + 一点儿** (so sánh, đề nghị)",
+    "Hỏi lựa chọn **A 还是 B？** · lược danh từ bằng **的**: 白的, 黑的, 浅一点儿的",
+    "**Nhập vai trọn bài khoá**: Vương Nhất gọi video nhờ Quốc An chọn áo len và ví"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Quà – áo – mức độ – tính chất",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**. Để ý **礻 (bộ Thị – lễ nghi)** ≠ **衤 (bộ Y – quần áo)**: chỉ khác **một nét chấm**!",
+      sticker: "zh_liwu.webp",
+      groups: [
+        { label: "Việc · quà · đồ dùng", cards: [
+          { zh: "事情", py: "shìqing", hv: "Sự tình", pos: "danh từ", vi: "việc, chuyện", ira: "zh_shiqing.webp",
+            tip: "Lượng từ: **一件事** (件 dùng cho quần áo **và** sự việc).", ex: [X("明天我有一件事要办。", "Míngtiān wǒ yǒu yí jiàn shì yào bàn.", "Mai tôi có một việc phải làm."), X("每一件事情都要用心去做。", "Měi yí jiàn shìqing dōu yào yòngxīn qù zuò.", "Việc gì cũng phải làm bằng cả tấm lòng.")] },
+          { zh: "礼物", py: "lǐwù", hv: "Lễ vật", pos: "danh từ", vi: "món quà", ira: "zh_liwu.webp",
+            ex: [X("今天是我的生日，我收到了很多礼物。", "Jīntiān shì wǒ de shēngrì, wǒ shōudào le hěn duō lǐwù.", "Hôm nay sinh nhật tôi, tôi nhận được rất nhiều quà."), X("这件礼物不贵，但很有心意！", "Zhè jiàn lǐwù bú guì, dàn hěn yǒu xīnyì!", "Món quà này không đắt nhưng rất có tấm lòng!")] },
+          { zh: "送", py: "sòng", hv: "Tống", pos: "động từ", vi: "tặng; tiễn", ira: "zh_song.webp", ex: [X("他送的礼物真好看，我很喜欢！", "Tā sòng de lǐwù zhēn hǎokàn, wǒ hěn xǐhuan!", "Món quà anh ấy tặng đẹp thật, tôi rất thích!")] },
+          { zh: "生日", py: "shēngrì", hv: "Sinh nhật", pos: "danh từ", vi: "sinh nhật", ira: "zh_shengri.webp", also: [["生日快乐", "shēngrì kuàilè", "chúc mừng sinh nhật"]], ex: [X("生日快乐！", "Shēngrì kuàilè!", "Chúc mừng sinh nhật!")] },
+          { zh: "毛衣", py: "máoyī", hv: "Mao y", pos: "danh từ", vi: "áo len", ira: "zh_maoyi.webp", ex: [X("这件木色的毛衣真好看！", "Zhè jiàn mùsè de máoyī zhēn hǎokàn!", "Chiếc áo len màu be này đẹp thật!"), X("奶奶正在织一件毛衣。", "Nǎinai zhèngzài zhī yí jiàn máoyī.", "Bà nội đang đan một chiếc áo len.")] },
+          { zh: "钱包", py: "qiánbāo", hv: "Tiền bao", pos: "danh từ", vi: "ví tiền", ira: "zh_qianbao.webp", ex: [X("我的旧钱包丢了。", "Wǒ de jiù qiánbāo diū le.", "Cái ví cũ của tôi mất rồi.")] },
+          { zh: "新", py: "xīn", hv: "Tân", pos: "tính từ", vi: "mới", ira: "zh_xin.webp", ex: [X("我还是买一个新的吧。", "Wǒ háishi mǎi yí ge xīn de ba.", "Tôi vẫn nên mua cái mới thôi.")] },
+          { zh: "旧", py: "jiù", hv: "Cựu", pos: "tính từ", vi: "cũ", ira: "zh_qianbao.webp", ex: [X("这件衣服很旧了。", "Zhè jiàn yīfu hěn jiù le.", "Bộ quần áo này cũ lắm rồi.")] }
+        ] },
+        { label: "Mức độ", cards: [
+          { zh: "有点儿", py: "yǒudiǎnr", hv: "Hữu điểm nhi", pos: "phó từ", vi: "hơi, có chút (thường là không hài lòng)", ira: "zh_lei.webp",
+            ex: [X("我有点儿累，而且有点儿饿！", "Wǒ yǒudiǎnr lèi, érqiě yǒudiǎnr è!", "Tôi hơi mệt, mà còn hơi đói nữa!"), X("这件衣服有点儿贵。", "Zhè jiàn yīfu yǒudiǎnr guì.", "Cái áo này hơi đắt.")] },
+          { zh: "挺", py: "tǐng", hv: "Đĩnh", pos: "phó từ", vi: "khá, rất (khẩu ngữ)", ira: "zh_piaoliang.webp",
+            tip: "Cấu trúc: **挺 + Adj + 的**.", ex: [X("那个女孩挺好看的！", "Nàge nǚhái tǐng hǎokàn de!", "Cô gái ấy khá xinh!"), X("这家店的衣服挺贵的。", "Zhè jiā diàn de yīfu tǐng guì de.", "Quần áo tiệm này khá là đắt.")] },
+          { zh: "非常", py: "fēicháng", hv: "Phi thường", pos: "phó từ", vi: "cực kỳ, vô cùng", ira: "zh_feichang.webp", ex: [X("这件衣服非常好看，穿上特别有气质！", "Zhè jiàn yīfu fēicháng hǎokàn, chuān shang tèbié yǒu qìzhì!", "Bộ này cực kỳ đẹp, mặc vào trông sang hẳn!")] },
+          { zh: "一点儿", py: "yìdiǎnr", hv: "Nhất điểm nhi", pos: "số lượng từ", vi: "một chút, một ít", ira: "zh_pianyi.webp",
+            tip: "**Adj + 一点儿** = …hơn một chút (so sánh, đề nghị) · **V + 一点儿 + N** = một ít.", ex: [X("便宜一点儿吧！", "Piányi yìdiǎnr ba!", "Rẻ chút đi!"), X("你可以说慢一点儿吗？", "Nǐ kěyǐ shuō màn yìdiǎnr ma?", "Bạn nói chậm một chút được không?"), X("给我一点儿水。", "Gěi wǒ yìdiǎnr shuǐ.", "Cho tôi chút nước.")] }
+        ] },
+        { label: "Tính chất", cards: [
+          { zh: "容易", py: "róngyì", hv: "Dung dị", pos: "tính từ", vi: "dễ; dễ (bị…)", ira: "zh_a.webp",
+            tip: "**容易 + V** = dễ bị…: 白的容易脏 (đồ trắng dễ bẩn).", ex: [X("这个题很容易，我可以自己做。", "Zhège tí hěn róngyì, wǒ kěyǐ zìjǐ zuò.", "Câu này rất dễ, tôi tự làm được."), X("生活不容易！", "Shēnghuó bù róngyì!", "Cuộc sống không dễ dàng!")] },
+          { zh: "胖", py: "pàng", hv: "Bạng", pos: "tính từ", vi: "béo, mập", ira: "zh_pang.webp", ex: [X("我最近吃多了，变胖了！", "Wǒ zuìjìn chī duō le, biàn pàng le!", "Gần đây tôi ăn nhiều quá, mập lên rồi!"), X("我怕胖，所以晚上不吃米饭。", "Wǒ pà pàng, suǒyǐ wǎnshang bù chī mǐfàn.", "Tôi sợ béo nên tối không ăn cơm.")] },
+          { zh: "便宜", py: "piányi", hv: "Tiện nghi", pos: "tính từ", vi: "rẻ", ira: "zh_pianyi.webp", tip: "**便** ở đây đọc **pián**, không phải biàn.", ex: [X("这个黑的也挺便宜的。", "Zhège hēi de yě tǐng piányi de.", "Cái màu đen này cũng khá rẻ.")] },
+          { zh: "脏", py: "zāng", hv: "Tạng", pos: "tính từ", vi: "bẩn", ira: "zh_zang.webp", ex: [X("地上太脏了，别坐。", "Dìshang tài zāng le, bié zuò.", "Dưới đất bẩn lắm, đừng ngồi."), X("你的手脏了，去洗一洗。", "Nǐ de shǒu zāng le, qù xǐ yi xǐ.", "Tay con bẩn rồi, đi rửa đi.")] },
+          { zh: "干净", py: "gānjìng", hv: "Can tịnh", pos: "tính từ", vi: "sạch sẽ", ira: "zh_xi.webp", ex: [X("他是个很爱干净的人。", "Tā shì ge hěn ài gānjìng de rén.", "Anh ấy là người rất sạch sẽ."), X("我房间很干净。", "Wǒ fángjiān hěn gānjìng.", "Phòng tôi rất sạch.")] },
+          { zh: "深", py: "shēn", hv: "Thâm", pos: "tính từ", vi: "đậm (màu); sâu", ira: "zh_shen.webp", ex: [X("这件衣服的颜色有点儿深。", "Zhè jiàn yīfu de yánsè yǒudiǎnr shēn.", "Màu bộ này hơi đậm."), X("这是深红色。", "Zhè shì shēn hóngsè.", "Đây là màu đỏ thẫm.")] },
+          { zh: "浅", py: "qiǎn", hv: "Thiển", pos: "tính từ", vi: "nhạt (màu); nông, cạn", ira: "zh_youyong.webp", ex: [X("我喜欢浅一点儿的。", "Wǒ xǐhuan qiǎn yìdiǎnr de.", "Tôi thích cái nhạt hơn một chút."), X("别去那边，水不浅。", "Bié qù nàbiān, shuǐ bù qiǎn.", "Đừng ra đó, nước không nông đâu.")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Màu sắc – hành động",
+      desc: "Màu = **tên màu + 色**: 红色 · 黑色 · 白色 (Bài 10) + 7 màu mới. Đứng trước danh từ thêm **的**: 蓝色的大海.",
+      sticker: "zh_yanse.webp",
+      groups: [
+        { label: "Màu sắc", cards: [
+          { zh: "颜色", py: "yánsè", hv: "Nhan sắc", pos: "danh từ", vi: "màu sắc", ira: "zh_yanse.webp", tip: "Tiếng Việt “nhan sắc” = vẻ đẹp, tiếng Trung **颜色** = **màu sắc**!", ex: [X("你最喜欢什么颜色？", "Nǐ zuì xǐhuan shénme yánsè?", "Bạn thích màu gì nhất?")] },
+          { zh: "蓝", py: "lán", hv: "Lam", pos: "tính từ", vi: "xanh lam, xanh dương", ira: "zh_lan.webp", ex: [X("天空是蓝色的。", "Tiānkōng shì lánsè de.", "Bầu trời màu xanh lam."), X("我喜欢看蓝色的大海！", "Wǒ xǐhuan kàn lánsè de dàhǎi!", "Mình thích ngắm biển xanh!")] },
+          { zh: "绿", py: "lǜ", hv: "Lục", pos: "tính từ", vi: "xanh lá", ira: "zh_chuntian.webp", ex: [X("树叶是绿色的。", "Shùyè shì lǜsè de.", "Lá cây màu xanh lá."), X("绿色让我觉得很舒服。", "Lǜsè ràng wǒ juéde hěn shūfu.", "Màu xanh lá khiến mình thấy dễ chịu.")] },
+          { zh: "黄", py: "huáng", hv: "Hoàng", pos: "tính từ", vi: "vàng", ira: "zh_huang.webp", ex: [X("这块黄色的芝士很香！", "Zhè kuài huángsè de zhīshì hěn xiāng!", "Miếng phô mai vàng này thơm quá!"), X("那只黄毛小狗很可爱。", "Nà zhī huáng máo xiǎogǒu hěn kě'ài.", "Con chó lông vàng kia rất dễ thương.")] },
+          { zh: "棕色", py: "zōngsè", hv: "Tông sắc", pos: "danh từ", vi: "màu nâu", ira: "zh_zong.webp", ex: [X("那杯咖啡是棕色的。", "Nà bēi kāfēi shì zōngsè de.", "Cốc cà phê đó màu nâu."), X("她的头发是棕色的。", "Tā de tóufa shì zōngsè de.", "Tóc cô ấy màu nâu.")] },
+          { zh: "粉色", py: "fěnsè", hv: "Phấn sắc", pos: "danh từ", vi: "màu hồng", ira: "zh_fen.webp", ex: [X("我今天买了一束粉色的花。", "Wǒ jīntiān mǎi le yí shù fěnsè de huā.", "Hôm nay tôi mua một bó hoa màu hồng.")] },
+          { zh: "紫色", py: "zǐsè", hv: "Tử sắc", pos: "danh từ", vi: "màu tím", ira: "zh_zi.webp", ex: [X("这些紫色的葡萄很好吃。", "Zhèxiē zǐsè de pútao hěn hǎochī.", "Những quả nho tím này rất ngon.")] },
+          { zh: "灰", py: "huī", hv: "Hôi", pos: "tính từ", vi: "xám; tro", ira: "zh_hui.webp", also: [["浅灰", "qiǎn huī", "xám nhạt"], ["灰色", "huīsè", "màu xám"]], ex: [X("那件浅灰的呢？", "Nà jiàn qiǎn huī de ne?", "Thế cái xám nhạt kia thì sao?")] }
+        ] },
+        { label: "Hành động", cards: [
+          { zh: "它", py: "tā", hv: "Tha", pos: "đại từ", vi: "nó (con vật, đồ vật)", ira: "zh_ta.webp", tip: "Ba chữ **tā**: **他** anh ấy · **她** cô ấy · **它** nó.", ex: [X("那是我的狗，它叫汪汪。", "Nà shì wǒ de gǒu, tā jiào Wāngwāng.", "Đó là chó của tôi, nó tên WangWang."), X("我喜欢这个杯子，它是黄色的。", "Wǒ xǐhuan zhège bēizi, tā shì huángsè de.", "Tôi thích cái cốc này, nó màu vàng.")] },
+          { zh: "洗", py: "xǐ", hv: "Tẩy", pos: "động từ", vi: "rửa, giặt", ira: "zh_xi.webp", ex: [X("这件衣服有点脏，我先洗一下。", "Zhè jiàn yīfu yǒudiǎn zāng, wǒ xiān xǐ yíxià.", "Bộ này hơi bẩn, tôi giặt qua đã.")] },
+          { zh: "忘", py: "wàng", hv: "Vong", pos: "động từ", vi: "quên", ira: "zh_wang.webp",
+            tip: "**亡 (mất) + 心 (tim)**: người Trung tin ký ức nằm trong tim — tim ngừng thì ký ức tan biến.", ex: [X("别忘写作业！", "Bié wàng xiě zuòyè!", "Đừng quên làm bài tập nhé!"), X("我把钱包忘在公园里了。", "Wǒ bǎ qiánbāo wàng zài gōngyuán li le.", "Tôi bỏ quên ví ở công viên.")] },
+          { zh: "丢", py: "diū", hv: "Đâu", pos: "động từ", vi: "mất, đánh rơi; vứt", ira: "zh_diu.webp", ex: [X("我丢了手机。", "Wǒ diū le shǒujī.", "Tôi làm mất điện thoại rồi."), X("别怕丢脸，你会好的！", "Bié pà diū liǎn, nǐ huì hǎo de!", "Đừng sợ mất mặt, bạn sẽ ổn thôi!")] },
+          { zh: "付钱", py: "fù qián", hv: "Phó tiền", pos: "động từ", vi: "trả tiền", ira: "zh_fuqian.webp",
+            ex: [X("服务员，我们可以付钱了吗？", "Fúwùyuán, wǒmen kěyǐ fù qián le ma?", "Nhân viên ơi, chúng tôi trả tiền được chưa?"), X("我付现金，你付卡。", "Wǒ fù xiànjīn, nǐ fù kǎ.", "Tôi trả tiền mặt, bạn trả thẻ.")] },
+          { zh: "还是", py: "háishi", hv: "Hoàn thị", pos: "liên từ / phó từ", vi: "hay là (hỏi lựa chọn); vẫn nên", ira: "zh_na_which.webp",
+            ex: [X("你想买黑的还是棕的？", "Nǐ xiǎng mǎi hēi de háishi zōng de?", "Cậu muốn mua cái đen hay cái nâu?"), X("我还是买一个新的吧。", "Wǒ háishi mǎi yí ge xīn de ba.", "Tôi vẫn nên mua cái mới thôi.")] },
+          { zh: "不用客气", py: "búyòng kèqi", hv: "Bất dụng khách khí", pos: "cụm từ", vi: "đừng khách sáo, không có gì", ira: "zh_zaijian.webp", ex: [X("谢谢你哦！——不用客气！", "Xièxie nǐ o! — Búyòng kèqi!", "Cảm ơn cậu nha! — Không có gì!")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 8 điểm",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "程度", name: "Thang mức độ", formula: ["有点儿 + Adj  (hơi — hơi chê)", "挺 + Adj + 的  (khá)", "很 + Adj  (rất)", "非常 + Adj  (cực kỳ)"],
+          uses: ["Ví dụ trong slide về cùng một bộ quần áo:", "**有点儿贵**, 可是也好看 — hơi đắt nhưng cũng đẹp", "**挺好看的** — khá đẹp", "**很好看**，我一定要买！— rất đẹp, nhất định phải mua", "**非常好看**，穿上特别有气质 — cực kỳ đẹp, mặc vào sang hẳn"],
+          examples: [X("这件衣服有点儿贵。", "Zhè jiàn yīfu yǒudiǎnr guì.", "Bộ này hơi đắt."), X("这件衣服挺好看的。", "Zhè jiàn yīfu tǐng hǎokàn de.", "Bộ này khá đẹp."), X("这件衣服很好看，我一定要买！", "Zhè jiàn yīfu hěn hǎokàn, wǒ yídìng yào mǎi!", "Bộ này rất đẹp, nhất định phải mua!"), X("这件衣服非常好看！", "Zhè jiàn yīfu fēicháng hǎokàn!", "Bộ này cực kỳ đẹp!")] },
+        { tag: "有点儿", name: "有点儿 + Adj ≠ Adj + 一点儿", formula: ["有点儿 + Adj: hơi… (không hài lòng, phàn nàn)", "Adj + 一点儿: …hơn một chút (so sánh, đề nghị)"],
+          uses: ["**有点儿** đứng **trước** tính từ, mang sắc thái **tiêu cực**", "**一点儿** đứng **sau** tính từ: muốn rẻ hơn, chậm hơn, nhạt hơn…"],
+          examples: [X("今天天气有点儿冷。", "Jīntiān tiānqì yǒudiǎnr lěng.", "Hôm nay trời hơi lạnh."), X("这件衣服的颜色有点儿深。", "Zhè jiàn yīfu de yánsè yǒudiǎnr shēn.", "Màu bộ này hơi đậm."), X("便宜一点儿吧！", "Piányi yìdiǎnr ba!", "Rẻ chút đi!"), X("你可以说慢一点儿吗？", "Nǐ kěyǐ shuō màn yìdiǎnr ma?", "Bạn nói chậm chút được không?")],
+          wrong: [{ bad: "这件衣服一点儿贵。", good: "这件衣服有点儿贵。", why: "Chê “hơi đắt” → **有点儿** trước tính từ." }, { bad: "有点儿便宜吧！", good: "便宜一点儿吧！", why: "Đề nghị “rẻ hơn” → **Adj + 一点儿**." }, { bad: "我有点儿高兴。", good: "我很高兴。", why: "有点儿 thường đi với ý **không vừa ý**, ít dùng cho điều tích cực." }] },
+        { tag: "的", name: "Lược danh từ bằng 的", formula: ["Màu / Tính từ + 的 (= cái màu…, cái…)", "Adj + 一点儿 + 的 (= cái … hơn một chút)"],
+          uses: ["Danh từ đã rõ thì **bỏ**, chỉ giữ **的**: 白的 = cái màu trắng"],
+          examples: [X("白的容易脏。", "Bái de róngyì zāng.", "Cái màu trắng dễ bẩn."), X("我喜欢浅一点儿的。", "Wǒ xǐhuan qiǎn yìdiǎnr de.", "Tôi thích cái nhạt hơn một chút."), X("黑的吧，不容易脏。", "Hēi de ba, bù róngyì zāng.", "Cái đen đi, không dễ bẩn.")] },
+        { tag: "还是", name: "A 还是 B？", formula: "Chủ ngữ + V + A + 还是 + B？",
+          uses: ["Hỏi **chọn một trong hai** — **không thêm 吗**", "Trả lời: chọn A hoặc B + 吧"],
+          examples: [X("你想买黑的还是棕的？", "Nǐ xiǎng mǎi hēi de háishi zōng de?", "Cậu muốn mua cái đen hay cái nâu?"), X("你喝茶还是喝咖啡？", "Nǐ hē chá háishi hē kāfēi?", "Bạn uống trà hay cà phê?"), X("你是中国人还是越南人？", "Nǐ shì Zhōngguórén háishi Yuènánrén?", "Bạn là người Trung hay người Việt?")],
+          wrong: [{ bad: "你喝茶还是咖啡吗？", good: "你喝茶还是咖啡？", why: "Câu hỏi lựa chọn **không dùng 吗**." }] },
+        { tag: "看看", name: "V V · V 一 V · V 一下", formula: ["Động từ lặp: 看看 · 洗洗", "V + 一 + V: 洗一洗 · 看一看", "V + 一下: 看一下"],
+          uses: ["Làm **thử, nhanh, nhẹ nhàng** — câu mềm hơn", "帮 + người + VV: **帮我看看**"],
+          examples: [X("你帮我看看这件白毛衣怎么样？", "Nǐ bāng wǒ kànkan zhè jiàn bái máoyī zěnmeyàng?", "Cậu xem giúp tớ cái áo len trắng này thế nào?"), X("你的手脏了，去洗一洗。", "Nǐ de shǒu zāng le, qù xǐ yi xǐ.", "Tay bẩn rồi, đi rửa đi."), X("我看看。", "Wǒ kànkan.", "Để tôi xem xem.")] },
+        { tag: "容易", name: "容易 + V · 很容易", formula: ["(Không) 容易 + Động từ: dễ bị…", "N + 很容易 / 不容易"],
+          uses: ["白的**容易脏** = đồ trắng dễ bẩn"],
+          examples: [X("白的容易脏。", "Bái de róngyì zāng.", "Đồ trắng dễ bẩn."), X("黑的不容易脏。", "Hēi de bù róngyì zāng.", "Đồ đen không dễ bẩn."), X("我觉得汉字很难，可是发音比较容易。", "Wǒ juéde Hànzì hěn nán, kěshì fāyīn bǐjiào róngyì.", "Tôi thấy chữ Hán khó nhưng phát âm khá dễ.")] },
+        { tag: "丢·忘", name: "丢 · 忘 + 了", formula: ["S + 丢了 + N (làm mất)", "S + 忘了 + V (quên làm gì)", "N + 忘在 + nơi chốn + 了 (bỏ quên ở…)"],
+          uses: ["Việc đã xảy ra → có **了**"],
+          examples: [X("我丢了手机。", "Wǒ diū le shǒujī.", "Tôi làm mất điện thoại."), X("别忘了写作业！", "Bié wàng le xiě zuòyè!", "Đừng quên làm bài tập!"), X("钱包忘在公园里了。", "Qiánbāo wàng zài gōngyuán li le.", "Ví bỏ quên ở công viên.")] },
+        { tag: "送·付", name: "送 + người + quà · 付钱", formula: ["送 + người + vật (tặng ai cái gì)", "付 + 现金 / 卡 / 钱 (trả bằng…)"],
+          uses: ["Ở Trung Quốc hay trả bằng **微信 / 支付宝** (quét mã)"],
+          examples: [X("我送你一个礼物。", "Wǒ sòng nǐ yí ge lǐwù.", "Tôi tặng bạn một món quà."), X("我付现金，你付卡。", "Wǒ fù xiànjīn, nǐ fù kǎ.", "Tôi trả tiền mặt, bạn trả thẻ."), X("我先去付钱啦。", "Wǒ xiān qù fù qián la.", "Tớ đi trả tiền trước nha.")] }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "bai-khoa", nav: "Bài khoá",
+      title: "Bài khoá · Gọi video chọn áo len",
+      desc: "Vương Nhất (王一) đang ở cửa hàng, muốn mua áo mới và ví mới nhưng chưa chọn được, nên gọi video WeChat hỏi Quốc An. **▶ Nghe cả đoạn** → **🎭 Mình vai…**",
+      sticker: "zh_maoyi.webp",
+      scenes: [
+        { title: "我喜欢浅一点儿的", lines: [
+          { who: "国安", ...X("喂，王一。", "Wéi, Wáng Yī.", "Alô, Vương Nhất.") },
+          { who: "王一", ...X("国安，你帮我看看这件白毛衣怎么样？", "Guó'ān, nǐ bāng wǒ kànkan zhè jiàn bái máoyī zěnmeyàng?", "Quốc An, cậu xem giúp tớ cái áo len trắng này thế nào?") },
+          { who: "国安", ...X("挺好看的，但是白的容易脏。那件蓝色的可以。", "Tǐng hǎokàn de, dànshì bái de róngyì zāng. Nà jiàn lánsè de kěyǐ.", "Khá đẹp, nhưng màu trắng dễ bẩn. Cái màu xanh kia được đấy.") },
+          { who: "王一", ...X("我觉得这个颜色有点儿深，我喜欢浅一点儿的。", "Wǒ juéde zhège yánsè yǒudiǎnr shēn, wǒ xǐhuan qiǎn yìdiǎnr de.", "Tớ thấy màu này hơi đậm, tớ thích màu nhạt hơn chút.") },
+          { who: "国安", ...X("那件浅灰的呢？", "Nà jiàn qiǎn huī de ne?", "Thế cái xám nhạt kia thì sao?") },
+          { who: "王一", ...X("挺不错的，那我就买那件吧。对了，我还想买钱包，我的旧钱包丢了。", "Tǐng búcuò de, nà wǒ jiù mǎi nà jiàn ba. Duì le, wǒ hái xiǎng mǎi qiánbāo, wǒ de jiù qiánbāo diū le.", "Khá ổn đấy, vậy tớ mua cái đó. À đúng rồi, tớ còn muốn mua ví, cái ví cũ của tớ mất rồi.") },
+          { who: "国安", ...X("怎么丢了呢？", "Zěnme diū le ne?", "Sao lại mất?") },
+          { who: "王一", ...X("我昨天去公园，忘在公园里了，所以还是买一个新的吧。", "Wǒ zuótiān qù gōngyuán, wàng zài gōngyuán li le, suǒyǐ háishi mǎi yí ge xīn de ba.", "Hôm qua tớ ra công viên, bỏ quên ở đó, nên thôi mua cái mới vậy.") },
+          { who: "国安", ...X("你想买黑的还是棕的？", "Nǐ xiǎng mǎi hēi de háishi zōng de?", "Cậu muốn mua cái đen hay cái nâu?") },
+          { who: "王一", ...X("黑的吧，不容易脏。我看看，这个黑的也挺便宜的。", "Hēi de ba, bù róngyì zāng. Wǒ kànkan, zhège hēi de yě tǐng piányi de.", "Đen đi, không dễ bẩn. Để tớ xem, cái đen này cũng khá rẻ.") },
+          { who: "国安", ...X("那太好了！", "Nà tài hǎo le!", "Vậy tốt quá!") },
+          { who: "王一", ...X("是啊，我就买这个吧。我先去付钱啦。谢谢你哦！", "Shì a, wǒ jiù mǎi zhège ba. Wǒ xiān qù fù qián la. Xièxie nǐ o!", "Ừ, tớ mua cái này. Tớ đi trả tiền trước nha. Cảm ơn cậu nhé!") },
+          { who: "国安", ...X("不用客气！再见！", "Búyòng kèqi! Zàijiàn!", "Không có gì! Tạm biệt!") },
+          { who: "王一", ...X("再见！", "Zàijiàn!", "Tạm biệt!") }
+        ], note: "**对了** = à đúng rồi (chuyển chủ đề) · **就** = vậy thì · **啦 / 哦** = trợ từ cuối câu cho thân mật." },
+        { title: "Mặc cả mua áo len", desc: "Quốc An đi mua quà sinh nhật cho mẹ.", lines: [
+          { who: "国安", ...X("你好，这件粉色的毛衣多少钱？", "Nǐ hǎo, zhè jiàn fěnsè de máoyī duōshao qián?", "Chào chị, cái áo len hồng này bao nhiêu tiền?") },
+          { who: "售货员", av: "卖", ...X("三百块。这是新的，质量非常好。", "Sānbǎi kuài. Zhè shì xīn de, zhìliàng fēicháng hǎo.", "300 tệ. Hàng mới về, chất lượng cực tốt.") },
+          { who: "国安", ...X("有点儿贵。便宜一点儿吧！", "Yǒudiǎnr guì. Piányi yìdiǎnr ba!", "Hơi đắt ạ. Rẻ chút đi chị!") },
+          { who: "售货员", av: "卖", ...X("两百五，可以吗？你送谁？", "Liǎngbǎi wǔ, kěyǐ ma? Nǐ sòng shéi?", "250 được không? Em tặng ai thế?") },
+          { who: "国安", ...X("送我妈妈，明天是她的生日。", "Sòng wǒ māma, míngtiān shì tā de shēngrì.", "Tặng mẹ em, mai là sinh nhật mẹ.") },
+          { who: "售货员", av: "卖", ...X("你妈妈一定很喜欢！你付现金还是微信？", "Nǐ māma yídìng hěn xǐhuan! Nǐ fù xiànjīn háishi Wēixìn?", "Mẹ em chắc chắn thích lắm! Em trả tiền mặt hay WeChat?") },
+          { who: "国安", ...X("微信。谢谢！", "Wēixìn. Xièxie!", "WeChat ạ. Cảm ơn chị!") }
+        ] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("Mạnh nhất trong các mức độ:", "有点儿|挺|很|非常", "D", "**非常** > 很 > 挺 > 有点儿."),
+        Q("Chê “Cái áo này hơi đắt.”", "这件衣服一点儿贵。|这件衣服有点儿贵。|这件衣服贵有点儿。|这件衣服贵一点。", "B", "Chê → **有点儿 + Adj**."),
+        Q("Mặc cả “Rẻ chút đi!”", "有点儿便宜吧！|便宜一点儿吧！|一点儿便宜吧！|便宜有点儿吧！", "B", "Đề nghị → **Adj + 一点儿**."),
+        Q("“Cô gái ấy khá xinh.”", "那个女孩挺好看。|那个女孩挺好看的。|那个女孩好看挺的。|那个女孩的挺好看。", "B", "**挺 + Adj + 的**."),
+        Q("“Cậu muốn mua cái đen hay cái nâu?”", "你想买黑的还是棕的？|你想买黑的还是棕的吗？|你想买黑的或者棕的吗？|你还是想买黑的棕的？", "A", "**还是** không đi với 吗."),
+        Q("“Cái màu trắng dễ bẩn.”", "白的容易脏。|白容易的脏。|容易白的脏。|白的脏容易。", "A", "**容易 + V/Adj**."),
+        Q("“Tôi thích cái nhạt hơn một chút.”", "我喜欢有点儿浅的。|我喜欢浅一点儿的。|我喜欢一点儿浅的。|我喜欢浅的一点儿。", "B", "**Adj + 一点儿 + 的**."),
+        Q("Chữ “nó” (con vật, đồ vật) là…", "他|她|它|地", "C", "**它**."),
+        Q("“Tôi làm mất điện thoại rồi.”", "我丢了手机。|我忘了手机丢。|手机我丢。|我丢手机吗。", "A", "**丢了 + N**."),
+        Q("Bộ thủ của 礼 (lễ) là…", "衤 (Y – quần áo)|礻 (Thị – lễ nghi)", "B", "**礻** bộ Thị. 衤 có thêm một nét chấm là bộ Y."),
+        Q("“Xanh lá” là…", "蓝色|绿色|紫色|灰色", "B", "**绿色** lǜsè."),
+        Q("便宜 đọc là…", "biànyí|piányi", "B", "**piányi** (rẻ)."),
+        Q("“Cảm ơn cậu!” — “Không có gì!”", "不用客气！|不客气吗？|没客气！|客气不用！", "A", "**不用客气**."),
+        Q("“Cậu xem giúp tớ cái áo này nhé.”", "你帮我看看这件衣服。|你看看帮我这件衣服。|你帮看看我这件衣服。|帮你我看看这件衣服。", "A", "**帮 + người + VV**.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Bạn thích màu gì nhất?", words: ["你", "最", "喜欢", "什么", "颜色"], py: "Nǐ zuì xǐhuan shénme yánsè?" },
+        { vi: "Tôi thấy màu này hơi đậm.", words: ["我", "觉得", "这个", "颜色", "有点儿", "深"], py: "Wǒ juéde zhège yánsè yǒudiǎnr shēn." },
+        { vi: "Tôi thích cái nhạt hơn một chút.", words: ["我", "喜欢", "浅", "一点儿", "的"], py: "Wǒ xǐhuan qiǎn yìdiǎnr de." },
+        { vi: "Khá đẹp, nhưng màu trắng dễ bẩn.", words: ["挺", "好看", "的", "但是", "白的", "容易", "脏"], py: "Tǐng hǎokàn de, dànshì bái de róngyì zāng." },
+        { vi: "Cậu muốn mua cái đen hay cái nâu?", words: ["你", "想", "买", "黑的", "还是", "棕的"], py: "Nǐ xiǎng mǎi hēi de háishi zōng de?" },
+        { vi: "Cái ví cũ của tôi mất rồi.", words: ["我的", "旧", "钱包", "丢", "了"], py: "Wǒ de jiù qiánbāo diū le." },
+        { vi: "Rẻ chút đi!", words: ["便宜", "一点儿", "吧"], py: "Piányi yìdiǎnr ba!" },
+        { vi: "Món quà anh ấy tặng đẹp thật.", words: ["他", "送", "的", "礼物", "真", "好看"], py: "Tā sòng de lǐwù zhēn hǎokàn." },
+        { vi: "Hôm nay sinh nhật tôi, tôi nhận được nhiều quà.", words: ["今天", "是", "我的", "生日", "我", "收到了", "很多", "礼物"], py: "Jīntiān shì wǒ de shēngrì, wǒ shōudào le hěn duō lǐwù." },
+        { vi: "Tôi trả tiền mặt, bạn trả thẻ.", words: ["我", "付", "现金", "你", "付", "卡"], py: "Wǒ fù xiànjīn, nǐ fù kǎ." }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("你最喜欢什么颜色？", "Nǐ zuì xǐhuan shénme yánsè?", "Bạn thích màu gì nhất?"),
+        X("这件衣服有点儿贵。", "Zhè jiàn yīfu yǒudiǎnr guì.", "Bộ này hơi đắt."),
+        X("挺好看的！", "Tǐng hǎokàn de!", "Khá đẹp!"),
+        X("便宜一点儿吧！", "Piányi yìdiǎnr ba!", "Rẻ chút đi!"),
+        X("白的容易脏。", "Bái de róngyì zāng.", "Đồ trắng dễ bẩn."),
+        X("我喜欢浅一点儿的。", "Wǒ xǐhuan qiǎn yìdiǎnr de.", "Tôi thích cái nhạt hơn chút."),
+        X("黑的还是棕的？", "Hēi de háishi zōng de?", "Cái đen hay cái nâu?"),
+        X("我丢了手机。", "Wǒ diū le shǒujī.", "Tôi làm mất điện thoại."),
+        X("别忘写作业！", "Bié wàng xiě zuòyè!", "Đừng quên làm bài tập!"),
+        X("不用客气！", "Búyòng kèqi!", "Không có gì!")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Bạn thích màu gì nhất?", zh: "你最喜欢什么颜色？", py: "Nǐ zuì xǐhuan shénme yánsè?" },
+        { vi: "Trả lời: Tôi thích màu xanh lam nhất.", zh: "我最喜欢蓝色。", py: "Wǒ zuì xǐhuan lánsè." },
+        { vi: "Nhờ: Cậu xem giúp tớ cái áo len này thế nào?", zh: "你帮我看看这件毛衣怎么样？", py: "Nǐ bāng wǒ kànkan zhè jiàn máoyī zěnmeyàng?" },
+        { vi: "Nhận xét: Khá đẹp, nhưng màu trắng dễ bẩn.", zh: "挺好看的，但是白的容易脏。", py: "Tǐng hǎokàn de, dànshì bái de róngyì zāng." },
+        { vi: "Chê: Màu này hơi đậm.", zh: "这个颜色有点儿深。", py: "Zhège yánsè yǒudiǎnr shēn." },
+        { vi: "Nói: Tôi thích cái nhạt hơn một chút.", zh: "我喜欢浅一点儿的。", py: "Wǒ xǐhuan qiǎn yìdiǎnr de." },
+        { vi: "Hỏi lựa chọn: Cậu muốn cái đen hay cái nâu?", zh: "你想要黑的还是棕的？", py: "Nǐ xiǎng yào hēi de háishi zōng de?" },
+        { vi: "Chê giá: Hơi đắt.", zh: "有点儿贵。", py: "Yǒudiǎnr guì." },
+        { vi: "Mặc cả: Rẻ chút đi!", zh: "便宜一点儿吧！", py: "Piányi yìdiǎnr ba!" },
+        { vi: "Khen: Bộ này cực kỳ đẹp!", zh: "这件衣服非常好看！", py: "Zhè jiàn yīfu fēicháng hǎokàn!" },
+        { vi: "Kể: Cái ví cũ của tôi mất rồi.", zh: "我的旧钱包丢了。", py: "Wǒ de jiù qiánbāo diū le." },
+        { vi: "Nhắc: Đừng quên làm bài tập!", zh: "别忘了写作业！", py: "Bié wàng le xiě zuòyè!" },
+        { vi: "Nói: Mai là sinh nhật mẹ, tôi muốn tặng mẹ một món quà.", zh: "明天是妈妈的生日，我想送她一个礼物。", py: "Míngtiān shì māma de shēngrì, wǒ xiǎng sòng tā yí ge lǐwù." },
+        { vi: "Hỏi: Tôi trả tiền được chưa?", zh: "我可以付钱了吗？", py: "Wǒ kěyǐ fù qián le ma?" },
+        { vi: "Đáp lời cảm ơn: Đừng khách sáo!", zh: "不用客气！", py: "Búyòng kèqi!" }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Đi mua quà sinh nhật (6 câu)",
+      desc: "Bạn vào cửa hàng mua quà cho người thân. Nói liền 6 câu, rồi **đổi món đồ, màu, người nhận**.",
+      sticker: "zh_shengri.webp",
+      items: [
+        { vi: "Chào chị, cái áo len hồng này bao nhiêu tiền?", zh: "你好，这件粉色的毛衣多少钱？", py: "Nǐ hǎo, zhè jiàn fěnsè de máoyī duōshao qián?" },
+        { vi: "Màu này hơi đậm, có cái nhạt hơn chút không?", zh: "这个颜色有点儿深，有浅一点儿的吗？", py: "Zhège yánsè yǒudiǎnr shēn, yǒu qiǎn yìdiǎnr de ma?" },
+        { vi: "Cái màu xám nhạt này khá đẹp.", zh: "这件浅灰的挺好看的。", py: "Zhè jiàn qiǎn huī de tǐng hǎokàn de." },
+        { vi: "Hơi đắt, rẻ chút đi!", zh: "有点儿贵，便宜一点儿吧！", py: "Yǒudiǎnr guì, piányi yìdiǎnr ba!" },
+        { vi: "Tôi tặng mẹ, mai là sinh nhật mẹ.", zh: "我送我妈妈，明天是她的生日。", py: "Wǒ sòng wǒ māma, míngtiān shì tā de shēngrì." },
+        { vi: "Tôi trả bằng WeChat. Cảm ơn!", zh: "我付微信。谢谢！", py: "Wǒ fù Wēixìn. Xièxie!" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · Tặng quà & trả tiền ở Trung Quốc",
+      sticker: "zh_lantern.webp",
+      cols: 3,
+      cards: [
+        { tag: "送礼", title: "Quà nên tránh", ira: "zh_liwu.webp", bullets: ["**钟** đồng hồ treo: **送钟** sòng zhōng đồng âm **送终** (tiễn người chết)", "**伞** ô: sǎn gần âm **散** (chia ly)", "**梨** quả lê: lí đồng âm **离** (rời xa)", "Tránh số **4** (四 sì gần 死 sǐ)"] },
+        { tag: "红色", title: "Màu may mắn", ira: "zh_hongse.webp", bullets: ["**红色** đỏ = may mắn, vui vẻ (Tết, cưới, lì xì 红包)", "**金 / 黄** vàng = phú quý", "Tránh gói quà **trắng / đen** (màu tang)"] },
+        { tag: "付钱", title: "Trả tiền kiểu Trung", ira: "zh_fuqian.webp", bullets: ["Hầu như mọi nơi quét mã: **微信支付** WeChat Pay, **支付宝** Alipay", "Câu cần: **我付现金 / 我扫码** (tôi quét mã)", "**可以付钱了吗？** = trả tiền được chưa?"] }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 14 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Màu", title: "10 màu", bullets: ["红 đỏ · 黑 đen · 白 trắng · 蓝 lam", "绿 xanh lá · 黄 vàng · 灰 xám", "棕色 nâu · 粉色 hồng · 紫色 tím", "深 đậm · 浅 nhạt"] },
+        { tag: "Mức độ", title: "Thang 4 bậc", bullets: ["有点儿 < 挺…的 < 很 < 非常"] },
+        { tag: "Một chút", title: "有点儿 ≠ 一点儿", bullets: ["有点儿 + Adj: hơi (chê)", "Adj + 一点儿: hơn chút (đề nghị)", "便宜一点儿吧！"] },
+        { tag: "Hỏi", title: "还是 · VV", bullets: ["A 还是 B？ (không 吗)", "帮我看看 · 洗一洗"] },
+        { tag: "Lược", title: "…的", bullets: ["白的 · 黑的 · 新的", "浅一点儿的", "白的容易脏"] },
+        { tag: "Từ hay", title: "丢 · 忘 · 送 · 付", bullets: ["丢了手机 · 忘在公园了", "送 + người + quà", "付现金 · 付卡 · 不用客气"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 34 từ.",
+        "**✍ Tự viết** 10 chữ: 礼 送 新 旧 挺 容 易 深 浅 忘 — mỗi chữ đúng 3 lần liền.",
+        "Mở tủ quần áo, nói màu từng món bằng tiếng Trung (这件毛衣是灰色的…).",
+        "Nhập vai **trọn bài khoá** 2 lần (vai Vương Nhất và vai Quốc An), tắt pinyin.",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "**Phản xạ nói** + **Thử thách mua quà**: mỗi câu ≥ 85%."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>

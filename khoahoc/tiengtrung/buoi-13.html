@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 13: 我去图书馆借书</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "借": [["借", "thanh", "**亻** (người) chỉ nghĩa + **昔** xī chỉ âm → mượn, vay (của người)."]],
+  "先": [["先", "hoi", "**止** (bàn chân) đặt trên **儿** (người) → chân bước lên trước → **trước**."]],
+  "然后": [["然", "thanh+gia", "**灬** (lửa) + **肰** (thịt) → nướng thịt; mượn làm hư từ “như thế”."], ["后", "hoi", "Giản thể dùng thay **後** = **彳** (đi) + **幺** (sợi dây) + **夂** (chân bước chậm) → đi chậm phía **sau**."]],
+  "银行": [["银", "thanh", "**钅** (kim loại) chỉ nghĩa + **艮** gèn chỉ âm → bạc."], ["行", "tuong", "Vẽ ngã tư đường → hàng, cửa hiệu (đọc **háng**)."]],
+  "取钱": [["取", "hoi", "**又** (bàn tay) + **耳** (tai) → thời cổ cắt tai địch để lấy công → **lấy**."], ["钱", "thanh", "**钅** chỉ nghĩa + **戋** jiān chỉ âm."]],
+  "回来": [["回", "tuong", "Vẽ **vòng xoáy nước** cuộn vào trong → quay về."], ["来", "tuong+gia", "Gốc vẽ cây lúa mạch; mượn nghĩa “đến”."]],
+  "让": [["让", "thanh", "**讠** (lời nói) chỉ nghĩa + **上** (giản thể của 襄 xiāng) chỉ âm → nhường; **bảo, để** (ai làm gì)."]],
+  "办公室": [["办", "hoi", "Phồn thể **辦**: **力** (sức) giữa hai **辛** (việc khó) → dùng sức xử lý việc → **làm, xử lý**."], ["公", "hoi", "**八** + **厶** → trái với riêng → công."], ["室", "thanh", "**宀** (mái nhà) chỉ nghĩa + **至** zhì chỉ âm → phòng."]],
+  "经理": [["经", "thanh", "**纟** (sợi tơ – sợi dọc khung cửi) chỉ nghĩa + **圣** (gốc 巠 jīng) chỉ âm → kinh, quản lý."], ["理", "thanh", "**王** (玉 ngọc) chỉ nghĩa + **里** lǐ chỉ âm → mài ngọc theo vân → **sắp xếp, lý**."]],
+  "商店": [["商", "thanh", "Gốc vẽ toà nhà cao + **章** (rút gọn) chỉ âm → thương, buôn bán."], ["店", "thanh", "**广** (mái nhà) chỉ nghĩa + **占** zhān chỉ âm → cửa hàng."]],
+  "东西": [["东", "hoi", "Phồn thể **東**: mặt trời (日) mọc sau hàng cây (木) → đông."], ["西", "tuong+gia", "Gốc vẽ tổ chim → mượn chỉ phía tây. 东西 = **đồ vật** (đọc nhẹ *xi*)."]],
+  "购物中心": [["购", "thanh", "**贝** (tiền) chỉ nghĩa + **勾** gōu chỉ âm → mua."], ["物", "thanh", "**牛** (con bò – vật quý) chỉ nghĩa + **勿** wù chỉ âm → vật."], ["中", "chi", "Vạch xuyên giữa → giữa."], ["心", "tuong", "Vẽ trái tim → trung tâm."]],
+  "超市": [["超", "thanh", "**走** (chạy) chỉ nghĩa + **召** zhào chỉ âm → vượt, siêu."], ["市", "hoi", "Nơi tụ họp mua bán → chợ, thành phố. 超市 = **siêu thị**."]],
+  "质量": [["质", "hoi", "Phồn thể **質**: hai **斤** (rìu) + **貝** (tiền) → đem rìu đổi lấy tiền → vật thế chấp → **chất**."], ["量", "hoi", "**日** + **重** (nặng, rút gọn) → cân đo nặng nhẹ → **lượng**."]],
+  "价格": [["价", "thanh", "**亻** chỉ nghĩa + **介** jiè chỉ âm (phồn thể 價) → giá."], ["格", "thanh", "**木** chỉ nghĩa + **各** gè chỉ âm → khung, quy cách."]],
+  "但是": [["但", "thanh", "**亻** chỉ nghĩa + **旦** dàn chỉ âm → nhưng."], ["是", "hoi", "**日** + **正** → ngay thẳng → là."]],
+  "还可以": [["还", "thanh+gia", "**辶** + phần âm huán; đọc **hái** = còn, vẫn là mượn."], ["可", "thanh", "**口** + **丂** kǎo chỉ âm."], ["以", "tuong+gia", "Gốc vẽ cái cày; mượn làm hư từ."]],
+  "不错": [["不", "tuong+gia", "Gốc vẽ đài hoa; mượn làm “không”."], ["错", "thanh", "**钅** chỉ nghĩa + **昔** xī chỉ âm → mạ vàng lẫn lộn → sai. 不错 = **không sai** → không tồi."]],
+  "正": [["正", "hoi", "**一** (đích) + **止** (bàn chân) → bước thẳng tới đích → **ngay, chính giữa**."]],
+  "咱们": [["咱", "thanh", "**口** chỉ nghĩa + **自** zì chỉ âm → chúng ta (gồm cả người nghe)."], ["们", "thanh", "**亻** + **门** mén chỉ âm."]],
+  "打算": [["打", "thanh", "**扌** + **丁** dīng chỉ âm."], ["算", "hoi", "**竹** (thẻ tre) + **具** (hai tay cầm) → hai tay xếp thẻ tre để **tính**."]],
+  "星期天": [["星", "thanh", "**日** (gốc 晶 – sao sáng) chỉ nghĩa + **生** shēng chỉ âm → ngôi sao."], ["期", "thanh", "**月** (trăng) chỉ nghĩa + **其** qí chỉ âm → kỳ hạn."], ["天", "chi", "Vạch trên đầu người → trời, ngày."]],
+  "公园": [["公", "hoi", "**八** + **厶** → công cộng."], ["园", "thanh", "**囗** (hàng rào) chỉ nghĩa + **元** yuán chỉ âm → vườn."]],
+  "小说": [["小", "tuong", "Ba hạt cát → nhỏ."], ["说", "thanh", "**讠** + **兑** duì chỉ âm. 小说 = chuyện kể vặt → **tiểu thuyết**."]],
+  "开": [["开", "hoi", "Phồn thể **開**: hai tay (**廾**) gỡ then cửa **門** → **mở**, bật."]],
+  "关": [["关", "hoi", "Phồn thể **關**: then cài ngang cửa **門** → **đóng**, tắt."]],
+  "门": [["门", "tuong", "Vẽ **hai cánh cửa** (bộ Môn)."]],
+  "灯": [["灯", "thanh", "**火** (lửa) chỉ nghĩa + **丁** dīng chỉ âm → đèn."]],
+  "电视": [["电", "thanh", "**雨** chỉ nghĩa + **申** (tia chớp) chỉ âm (phồn thể 電)."], ["视", "thanh", "**见** (nhìn) chỉ nghĩa + **礻** (示 shì) chỉ âm → xem. 电视 = **xem bằng điện** → tivi."]],
+  "空调": [["空", "thanh", "**穴** chỉ nghĩa + **工** gōng chỉ âm → không khí."], ["调", "thanh", "**讠** chỉ nghĩa + **周** zhōu chỉ âm → điều chỉnh. 空调 = **điều hoà không khí**."]],
+  "睡觉": [["睡", "hoi", "**目** (mắt) + **垂** (rủ xuống) → mắt sụp xuống → **ngủ**."], ["觉", "thanh", "**见** chỉ nghĩa + phần trên chỉ âm; ở đây đọc **jiào**."]],
+  "游戏": [["游", "thanh", "**氵** chỉ nghĩa + **斿** yóu chỉ âm → chơi."], ["戏", "thanh", "Phồn thể **戲** = **戈** (vũ khí – múa võ) chỉ nghĩa + **虘** chỉ âm → trò chơi, kịch."]]
+};
+const L = {
+  id: "zh-q1-13", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 13",
+  unit: "Mượn – vay · Làm gì trước, gì sau · Ngân hàng, cửa hàng, trung tâm thương mại · Bật – tắt",
+  titleZh: "我去图书馆借书", titlePy: "Wǒ qù túshūguǎn jiè shū", title: "Tôi đi thư viện mượn sách",
+  subtitle: "Học xong bài này bạn mượn – cho mượn đồ, sắp xếp việc “làm A trước rồi làm B”, nhận xét hàng hoá (chất lượng cũng được nhưng giá đắt), bật – tắt đèn, tivi, điều hoà, và gọi điện tìm người ở văn phòng.",
+  heroSticker: "zh_tushuguan.webp",
+  prev: { href: "buoi-12.html", label: "Bài 12" }, next: { href: "buoi-14.html", label: "Bài 14" },
+  goals: [
+    "Nhận mặt, đọc, viết **32 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Mượn – cho mượn: **A 跟 / 向 B 借 N** · **借给 + người + N**",
+    "Sắp xếp việc: **先 V1，然后 V2** · câu liên động **去书店买书**",
+    "Phân biệt **店 / 馆** · **咱们 / 我们** · bật tắt **开 / 关 + 门 · 灯 · 电视 · 空调**",
+    "Nhận xét hàng hoá: **质量 · 价格 · 还可以 · 不错 · 但是** · nhờ **让** ai làm gì"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Mượn – trước sau – văn phòng",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**.",
+      sticker: "zh_tushuguan.webp",
+      groups: [
+        { label: "Mượn · trước sau · ngân hàng", cards: [
+          { zh: "借", py: "jiè", hv: "Tá", pos: "động từ", vi: "mượn, vay; cho mượn", ira: "zh_tushuguan.webp",
+            tip: "**跟 / 向 + B + 借** = mượn của B · **借给 + B** = cho B mượn.", ex: [X("他向朋友借了一些钱。", "Tā xiàng péngyou jiè le yìxiē qián.", "Anh ấy vay bạn bè một ít tiền."), X("我可以跟你借五十块钱吗？", "Wǒ kěyǐ gēn nǐ jiè wǔshí kuài qián ma?", "Tớ mượn cậu 50 đồng được không?"), X("她借给了我一本杂志。", "Tā jiè gěi le wǒ yì běn zázhì.", "Cô ấy cho tôi mượn một quyển tạp chí.")] },
+          { zh: "先", py: "xiān", hv: "Tiên", pos: "phó từ", vi: "trước (làm gì trước)", ira: "zh_zui.webp",
+            ex: [X("我先问老师一下。", "Wǒ xiān wèn lǎoshī yíxià.", "Tôi hỏi thầy trước đã."), X("你先吃吧，我一会儿吃。", "Nǐ xiān chī ba, wǒ yíhuìr chī.", "Bạn ăn trước đi, lát tớ ăn.")] },
+          { zh: "然后", py: "ránhòu", hv: "Nhiên hậu", pos: "liên từ", vi: "sau đó, rồi", ira: "zh_ranhou.webp",
+            ex: [X("我先做作业，然后看电影。", "Wǒ xiān zuò zuòyè, ránhòu kàn diànyǐng.", "Tôi làm bài tập trước, sau đó xem phim.")] },
+          { zh: "银行", py: "yínháng", hv: "Ngân hàng", pos: "danh từ", vi: "ngân hàng", ira: "zh_yinhang.webp", tip: "**行** ở đây đọc **háng** (hàng, hãng), không phải xíng.", ex: [X("今天我去银行取钱。", "Jīntiān wǒ qù yínháng qǔ qián.", "Hôm nay tôi đi ngân hàng rút tiền.")] },
+          { zh: "取钱", py: "qǔ qián", hv: "Thủ tiền", pos: "cụm động từ", vi: "rút tiền", ira: "zh_quqian.webp", ex: [X("我们先买衣服，然后去银行取钱。", "Wǒmen xiān mǎi yīfu, ránhòu qù yínháng qǔ qián.", "Chúng ta mua quần áo trước, rồi đi ngân hàng rút tiền.")] },
+          { zh: "回来", py: "huílai", hv: "Hồi lai", pos: "động từ", vi: "về, quay về (phía người nói)", ira: "door_open_man_6606.webp", ex: [X("周经理什么时候回来？", "Zhōu jīnglǐ shénme shíhou huílai?", "Giám đốc Chu khi nào về ạ?")] }
+        ] },
+        { label: "Văn phòng · nhờ bảo", cards: [
+          { zh: "办公室", py: "bàngōngshì", hv: "Biện công thất", pos: "danh từ", vi: "phòng làm việc, văn phòng", ira: "zh_bangongshi.webp", ex: [X("他不在办公室。", "Tā bú zài bàngōngshì.", "Anh ấy không có ở văn phòng.")] },
+          { zh: "经理", py: "jīnglǐ", hv: "Kinh lý", pos: "danh từ", vi: "giám đốc, quản lý", ira: "zh_jingli.webp", ex: [X("请问，周经理在吗？", "Qǐngwèn, Zhōu jīnglǐ zài ma?", "Xin hỏi, giám đốc Chu có ở đây không?")] },
+          { zh: "让", py: "ràng", hv: "Nhượng", pos: "động từ", vi: "bảo, để (ai làm gì); nhường", ira: "zh_jingli.webp",
+            tip: "**让 + người + V** = bảo ai làm gì.", ex: [X("他回来以后，我让他给你打电话。", "Tā huílai yǐhòu, wǒ ràng tā gěi nǐ dǎ diànhuà.", "Anh ấy về, tôi sẽ bảo anh ấy gọi lại cho bạn."), X("妈妈让我早点睡觉。", "Māma ràng wǒ zǎodiǎn shuìjiào.", "Mẹ bảo tôi đi ngủ sớm.")] },
+          { zh: "打算", py: "dǎsuàn", hv: "Đả toán", pos: "động từ / danh từ", vi: "định, dự định; kế hoạch", ira: "zh_dasuan.webp",
+            ex: [X("这个周末你有什么打算？", "Zhège zhōumò nǐ yǒu shénme dǎsuàn?", "Cuối tuần này bạn có dự định gì?"), X("我们打算周末看电影。", "Wǒmen dǎsuàn zhōumò kàn diànyǐng.", "Chúng tôi định cuối tuần đi xem phim.")] },
+          { zh: "咱们", py: "zánmen", hv: "Gia môn", pos: "đại từ", vi: "chúng mình (gồm cả người nghe)", ira: "zh_men.webp",
+            ex: [X("咱们先去吃饭，然后再去图书馆吧。", "Zánmen xiān qù chī fàn, ránhòu zài qù túshūguǎn ba.", "Chúng mình đi ăn trước rồi hẵng đến thư viện nhé.")] },
+          { zh: "星期天", py: "xīngqītiān", hv: "Tinh kỳ thiên", pos: "danh từ", vi: "chủ nhật", ira: "zh_xingqi.webp",
+            also: [["星期一", "xīngqīyī", "thứ hai"], ["星期三", "xīngqīsān", "thứ tư"], ["星期六", "xīngqīliù", "thứ bảy"], ["星期日", "xīngqīrì", "chủ nhật"]],
+            ex: [X("星期天我跟朋友一起去购物中心。", "Xīngqītiān wǒ gēn péngyou yìqǐ qù gòuwù zhōngxīn.", "Chủ nhật tôi cùng bạn đi trung tâm thương mại.")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Mua sắm – nhận xét – bật tắt",
+      desc: "**店** nhấn buôn bán (书店, 饭店, 花店) · **馆** nhấn phục vụ, công cộng (图书馆, 博物馆, 茶馆).",
+      sticker: "zh_gouwu.webp",
+      groups: [
+        { label: "Mua sắm", cards: [
+          { zh: "商店", py: "shāngdiàn", hv: "Thương điếm", pos: "danh từ", vi: "cửa hàng", ira: "zh_shangdian.webp", tip: "Lượng từ: **一家商店**.", ex: [X("这家商店的衣服不太贵。", "Zhè jiā shāngdiàn de yīfu bú tài guì.", "Quần áo ở cửa hàng này không đắt lắm.")] },
+          { zh: "东西", py: "dōngxi", hv: "Đông tây", pos: "danh từ", vi: "đồ, đồ vật", ira: "zh_dongxi.webp",
+            tip: "Đọc **dōngxi** (xi nhẹ) = đồ vật · **dōngxī** = đông và tây. Vì sao lại là “đông tây”? Xem phần Văn hoá!", ex: [X("我去商店买点儿东西。", "Wǒ qù shāngdiàn mǎi diǎnr dōngxi.", "Tôi đi cửa hàng mua ít đồ.")] },
+          { zh: "购物中心", py: "gòuwù zhōngxīn", hv: "Cấu vật trung tâm", pos: "danh từ", vi: "trung tâm thương mại", ira: "zh_gouwu.webp",
+            also: [["购物", "gòuwù", "mua sắm"], ["中心", "zhōngxīn", "trung tâm"]], ex: [X("购物中心东西的质量还可以，但是价格很贵。", "Gòuwù zhōngxīn dōngxi de zhìliàng hái kěyǐ, dànshì jiàgé hěn guì.", "Đồ ở TTTM chất lượng cũng được, nhưng giá rất đắt.")] },
+          { zh: "超市", py: "chāoshì", hv: "Siêu thị", pos: "danh từ", vi: "siêu thị", ira: "zh_gouwu.webp", ex: [X("我们先去超市，然后去公园。", "Wǒmen xiān qù chāoshì, ránhòu qù gōngyuán.", "Chúng ta đi siêu thị trước rồi đi công viên.")] },
+          { zh: "公园", py: "gōngyuán", hv: "Công viên", pos: "danh từ", vi: "công viên", ira: "zh_zou.webp", ex: [X("周末我常去公园。", "Zhōumò wǒ cháng qù gōngyuán.", "Cuối tuần tôi hay ra công viên.")] },
+          { zh: "小说", py: "xiǎoshuō", hv: "Tiểu thuyết", pos: "danh từ", vi: "tiểu thuyết", ira: "zh_xiaoshuo.webp", ex: [X("我去书店买了一本小说。", "Wǒ qù shūdiàn mǎi le yì běn xiǎoshuō.", "Tôi đến hiệu sách mua một cuốn tiểu thuyết.")] }
+        ] },
+        { label: "Nhận xét hàng hoá", cards: [
+          { zh: "质量", py: "zhìliàng", hv: "Chất lượng", pos: "danh từ", vi: "chất lượng", ira: "zh_zhiliang.webp", ex: [X("这家商店的衣服质量很好。", "Zhè jiā shāngdiàn de yīfu zhìliàng hěn hǎo.", "Quần áo cửa hàng này chất lượng rất tốt.")] },
+          { zh: "价格", py: "jiàgé", hv: "Giá cách", pos: "danh từ", vi: "giá cả", ira: "zh_jiage.webp", ex: [X("价格很贵。", "Jiàgé hěn guì.", "Giá rất đắt.")] },
+          { zh: "但是", py: "dànshì", hv: "Đãn thị", pos: "liên từ", vi: "nhưng", ira: "zh_buguo.webp", tip: "Mức trang trọng: **但是** ≈ **可是** > **不过** (nhẹ nhất).", ex: [X("质量还可以，但是价格很贵。", "Zhìliàng hái kěyǐ, dànshì jiàgé hěn guì.", "Chất lượng cũng được nhưng giá đắt.")] },
+          { zh: "还可以", py: "hái kěyǐ", hv: "Hoàn khả dĩ", pos: "cụm từ", vi: "cũng được, tàm tạm", ira: "zh_a.webp", ex: [X("你觉得这件衣服怎么样？——还可以。", "Nǐ juéde zhè jiàn yīfu zěnmeyàng? — Hái kěyǐ.", "Bạn thấy bộ đồ này thế nào? — Cũng được.")] },
+          { zh: "不错", py: "búcuò", hv: "Bất thác", pos: "tính từ", vi: "không tồi, khá tốt", ira: "zh_keyi.webp", ex: [X("你觉得这里的奶茶好喝吗？——不错啊。", "Nǐ juéde zhèli de nǎichá hǎohē ma? — Búcuò a.", "Trà sữa ở đây ngon không? — Không tồi đâu.")] },
+          { zh: "正", py: "zhèng", hv: "Chính", pos: "tính từ / phó từ", vi: "chính giữa, ngay; đang", ira: "zh_fangwei.webp", ex: [X("他家在学校正对面。", "Tā jiā zài xuéxiào zhèng duìmiàn.", "Nhà anh ấy ở ngay chính đối diện trường."), X("我们坐在正中间。", "Wǒmen zuò zài zhèng zhōngjiān.", "Chúng tôi ngồi chính giữa.")] }
+        ] },
+        { label: "Bật · tắt · sinh hoạt", cards: [
+          { zh: "开", py: "kāi", hv: "Khai", pos: "động từ", vi: "mở, bật", ira: "zh_kaimen.webp",
+            also: [["开门", "kāi mén", "mở cửa"], ["开灯", "kāi dēng", "bật đèn"], ["开空调", "kāi kōngtiáo", "bật điều hoà"]], ex: [X("这家商店上午八点开门。", "Zhè jiā shāngdiàn shàngwǔ bā diǎn kāi mén.", "Cửa hàng này 8 giờ sáng mở cửa.")] },
+          { zh: "关", py: "guān", hv: "Quan", pos: "động từ", vi: "đóng, tắt", ira: "zh_deng.webp",
+            also: [["关门", "guān mén", "đóng cửa"], ["关灯", "guān dēng", "tắt đèn"], ["关机", "guān jī", "tắt máy"]], ex: [X("晚上九点关门。", "Wǎnshang jiǔ diǎn guān mén.", "9 giờ tối đóng cửa."), X("睡觉前别忘了关灯。", "Shuìjiào qián bié wàng le guān dēng.", "Trước khi ngủ đừng quên tắt đèn.")] },
+          { zh: "门", py: "mén", hv: "Môn", pos: "danh từ", vi: "cửa", ira: "door_3464.webp", ex: [X("请开门！", "Qǐng kāi mén!", "Làm ơn mở cửa!")] },
+          { zh: "灯", py: "dēng", hv: "Đăng", pos: "danh từ", vi: "đèn", ira: "zh_deng.webp", ex: [X("开灯", "kāi dēng", "bật đèn")] },
+          { zh: "电视", py: "diànshì", hv: "Điện thị", pos: "danh từ", vi: "tivi", ira: "zh_dianshi.webp", ex: [X("该睡觉了，快关电视吧。", "Gāi shuìjiào le, kuài guān diànshì ba.", "Đến giờ ngủ rồi, mau tắt tivi đi.")] },
+          { zh: "空调", py: "kōngtiáo", hv: "Không điều", pos: "danh từ", vi: "điều hoà", ira: "zh_kongtiao.webp", ex: [X("太热了，开空调吧！", "Tài rè le, kāi kōngtiáo ba!", "Nóng quá, bật điều hoà đi!")] },
+          { zh: "睡觉", py: "shuìjiào", hv: "Thuỵ giác", pos: "động từ li hợp", vi: "ngủ", ira: "zh_shuijiao.webp", ex: [X("他先关灯，然后上床睡觉。", "Tā xiān guān dēng, ránhòu shàng chuáng shuìjiào.", "Cậu ấy tắt đèn trước rồi lên giường ngủ.")] },
+          { zh: "游戏", py: "yóuxì", hv: "Du hí", pos: "danh từ", vi: "trò chơi, game", ira: "zh_youxi.webp", tip: "**打游戏** = chơi game.", ex: [X("爸爸喜欢打游戏。", "Bàba xǐhuan dǎ yóuxì.", "Bố thích chơi game.")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 9 điểm",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "借", name: "Mượn & cho mượn", formula: ["A + 跟 / 向 + B + 借 + N (A mượn của B)", "A + 借给 + B + N (A cho B mượn)"],
+          uses: ["Cùng một chữ 借, **hướng** do 跟/向 hay 给 quyết định", "Đã xong thì thêm **了**: 借了 · 借给了"],
+          examples: [X("他向朋友借了一些钱。", "Tā xiàng péngyou jiè le yìxiē qián.", "Anh ấy vay bạn bè ít tiền."), X("我跟老师借一本书。", "Wǒ gēn lǎoshī jiè yì běn shū.", "Tôi mượn thầy một quyển sách."), X("她借给了我一本杂志。", "Tā jiè gěi le wǒ yì běn zázhì.", "Cô ấy cho tôi mượn một quyển tạp chí.")],
+          wrong: [{ bad: "我借他一本书。(muốn nói: mượn của anh ấy)", good: "我跟他借一本书。", why: "Không có 跟/向 thì người nghe không biết ai mượn ai." }] },
+        { tag: "先然后", name: "先…，然后…", formula: "Chủ ngữ + 先 + V1，然后 + (再) + V2",
+          uses: ["Sắp xếp **thứ tự** hai việc", "Thêm **再** ở vế sau cho tự nhiên: 然后再去…"],
+          examples: [X("我们先买衣服，然后去银行。", "Wǒmen xiān mǎi yīfu, ránhòu qù yínháng.", "Chúng ta mua quần áo trước, rồi đi ngân hàng."), X("他先关灯，然后上床睡觉。", "Tā xiān guān dēng, ránhòu shàng chuáng shuìjiào.", "Cậu ấy tắt đèn rồi lên giường ngủ."), X("晚上我们先去吃饭，然后一起去看电影。", "Wǎnshang wǒmen xiān qù chī fàn, ránhòu yìqǐ qù kàn diànyǐng.", "Tối nay chúng mình đi ăn trước, rồi cùng đi xem phim.")] },
+        { tag: "连动", name: "Câu liên động", formula: ["S + 去 / 来 + Nơi + V (đi đâu để làm gì)", "S + 坐 / 骑 + Phương tiện + V (đi bằng gì)"],
+          uses: ["Hai động từ đứng liền, **theo đúng thứ tự xảy ra**", "Vế sau thường là **mục đích**"],
+          examples: [X("我去书店买了一本小说。", "Wǒ qù shūdiàn mǎi le yì běn xiǎoshuō.", "Tôi đến hiệu sách mua một cuốn tiểu thuyết."), X("小玲坐公共汽车回宿舍。", "Xiǎolíng zuò gōnggòng qìchē huí sùshè.", "Tiểu Linh đi xe buýt về KTX."), X("我们去图书馆借书。", "Wǒmen qù túshūguǎn jiè shū.", "Chúng tôi đến thư viện mượn sách.")],
+          wrong: [{ bad: "我借书去图书馆。", good: "我去图书馆借书。", why: "Đi trước → làm sau." }] },
+        { tag: "店·馆", name: "店 hay 馆?", formula: ["店: buôn bán, trao đổi tiền hàng", "馆: phục vụ, văn hoá, công cộng"],
+          uses: ["**店**: 书店 · 饭店 · 花店 · 理发店 (tiệm cắt tóc) · 商店", "**馆**: 图书馆 · 博物馆 (bảo tàng) · 宾馆 (khách sạn) · 茶馆 · 咖啡馆"],
+          examples: [X("这家书店有很多种书。", "Zhè jiā shūdiàn yǒu hěn duō zhǒng shū.", "Hiệu sách này có nhiều loại sách."), X("我们去图书馆借书。", "Wǒmen qù túshūguǎn jiè shū.", "Chúng tôi đến thư viện mượn sách.")] },
+        { tag: "咱们", name: "咱们 hay 我们?", formula: ["咱们 = chúng mình (**luôn** gồm người nghe)", "我们 = chúng tôi (có thể **không** gồm người nghe)"],
+          uses: ["Rủ người đối diện cùng làm → **咱们**", "Kể việc của nhóm mình với người ngoài → **我们**"],
+          examples: [X("咱们一起去吃饭吧。", "Zánmen yìqǐ qù chī fàn ba.", "Chúng mình cùng đi ăn nhé."), X("明天我们去银行取钱。", "Míngtiān wǒmen qù yínháng qǔ qián.", "Mai bọn tôi đi ngân hàng rút tiền.")] },
+        { tag: "开关", name: "开 / 关 + đồ vật", formula: ["开 + 门 / 灯 / 电视 / 空调 (mở, bật)", "关 + 门 / 灯 / 电视 / 空调 / 机 (đóng, tắt)"],
+          uses: ["**开门 / 关门** còn nghĩa là **mở cửa / đóng cửa** hàng (giờ hoạt động)"],
+          examples: [X("这家商店上午八点开门，晚上九点关门。", "Zhè jiā shāngdiàn shàngwǔ bā diǎn kāi mén, wǎnshang jiǔ diǎn guān mén.", "Cửa hàng này 8 giờ sáng mở, 9 giờ tối đóng."), X("睡觉前别忘了关灯。", "Shuìjiào qián bié wàng le guān dēng.", "Trước khi ngủ đừng quên tắt đèn."), X("开空调", "kāi kōngtiáo", "bật điều hoà")] },
+        { tag: "打算", name: "打算 (dự định)", formula: ["S + 打算 + V (định làm gì)", "有什么打算？ (có dự định gì?)"],
+          uses: ["打算 vừa là **động từ** vừa là **danh từ**"],
+          examples: [X("这个周末你有什么打算？", "Zhège zhōumò nǐ yǒu shénme dǎsuàn?", "Cuối tuần này bạn có dự định gì?"), X("我们打算周末看电影。", "Wǒmen dǎsuàn zhōumò kàn diànyǐng.", "Chúng tôi định cuối tuần xem phim.")] },
+        { tag: "评价", name: "Nhận xét: 不错 · 还可以 · 但是", formula: ["N 的质量 / 价格 + 很好 / 还可以 / 不错", "…，但是…"],
+          uses: ["Thang khen: 还可以 (tạm) < 不错 (khá) < 很好 (tốt) < 太好了!"],
+          examples: [X("你觉得这件衣服怎么样？——还可以。", "Nǐ juéde zhè jiàn yīfu zěnmeyàng? — Hái kěyǐ.", "Bộ này thế nào? — Cũng được."), X("这里的奶茶不错啊。", "Zhèli de nǎichá búcuò a.", "Trà sữa ở đây không tồi đâu."), X("购物中心东西的质量还可以，但是价格很贵。", "Gòuwù zhōngxīn dōngxi de zhìliàng hái kěyǐ, dànshì jiàgé hěn guì.", "Đồ ở TTTM chất lượng tạm được nhưng giá đắt.")] },
+        { tag: "让", name: "让 + người + V · A不A", formula: ["让 + người + Động từ (bảo / để ai làm gì)", "Ôn: A不A？ = A吗？"],
+          uses: ["Nhắn lại khi gọi điện: **我让他给你打电话**"],
+          examples: [X("妈妈让我早点睡觉。", "Māma ràng wǒ zǎodiǎn shuìjiào.", "Mẹ bảo tôi ngủ sớm."), X("他忙不忙？", "Tā máng bu máng?", "Anh ấy có bận không?"), X("他们来不来？", "Tāmen lái bu lái?", "Họ có đến không?")] }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · 3 tình huống",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_xiaoshuo.webp",
+      scenes: [
+        { title: "① Đi thư viện mượn sách", desc: "Buổi trưa, Quốc An gặp Anh Thư và bạn cùng lớp.", lines: [
+          { who: "国安", ...X("哈喽，你们正去哪儿呢？", "Hālóu, nǐmen zhèng qù nǎr ne?", "Hello, các cậu đang đi đâu đấy?") },
+          { who: "英书", ...X("我们去图书馆借书。", "Wǒmen qù túshūguǎn jiè shū.", "Bọn mình đi thư viện mượn sách.") },
+          { who: "国安", ...X("是吗？我也想去图书馆，可是现在是中午了，咱们先去吃饭，然后再去图书馆吧。", "Shì ma? Wǒ yě xiǎng qù túshūguǎn, kěshì xiànzài shì zhōngwǔ le, zánmen xiān qù chī fàn, ránhòu zài qù túshūguǎn ba.", "Thế à? Mình cũng muốn đi thư viện, nhưng giờ trưa rồi, chúng mình đi ăn trước rồi hẵng đến thư viện nhé.") },
+          { who: "英书", ...X("好啊！图书馆几点关门？", "Hǎo a! Túshūguǎn jǐ diǎn guān mén?", "Ok! Thư viện mấy giờ đóng cửa?") },
+          { who: "国安", ...X("晚上九点。我可以跟你借一本汉语书吗？", "Wǎnshang jiǔ diǎn. Wǒ kěyǐ gēn nǐ jiè yì běn Hànyǔ shū ma?", "9 giờ tối. Mình mượn cậu một quyển sách tiếng Trung được không?") },
+          { who: "英书", ...X("当然可以！我借给你。", "Dāngrán kěyǐ! Wǒ jiè gěi nǐ.", "Tất nhiên rồi! Mình cho cậu mượn.") }
+        ] },
+        { title: "② Gọi điện tìm giám đốc", desc: "Quốc An gọi điện đến văn phòng.", lines: [
+          { who: "国安", ...X("喂，你好！请问，周经理在吗？", "Wéi, nǐ hǎo! Qǐngwèn, Zhōu jīnglǐ zài ma?", "Alô, xin chào! Xin hỏi, giám đốc Chu có ở đó không ạ?") },
+          { who: "秘书", av: "秘", ...X("他不在办公室，他去银行了。", "Tā bú zài bàngōngshì, tā qù yínháng le.", "Anh ấy không ở văn phòng, anh ấy đi ngân hàng rồi.") },
+          { who: "国安", ...X("他什么时候回来？", "Tā shénme shíhou huílai?", "Khi nào anh ấy về ạ?") },
+          { who: "秘书", av: "秘", ...X("下午三点。他回来以后，我让他给你打电话，好吗？", "Xiàwǔ sān diǎn. Tā huílai yǐhòu, wǒ ràng tā gěi nǐ dǎ diànhuà, hǎo ma?", "3 giờ chiều. Anh ấy về tôi sẽ bảo anh ấy gọi lại cho anh, được không?") },
+          { who: "国安", ...X("好，谢谢！我叫阮国安，我的电话号码是零九一二三四五六七八。", "Hǎo, xièxie! Wǒ jiào Ruǎn Guó'ān, wǒ de diànhuà hàomǎ shì líng jiǔ yāo èr sān sì wǔ liù qī bā.", "Vâng, cảm ơn! Tôi là Nguyễn Quốc An, số tôi là 0912345678.") }
+        ], note: "**以后** yǐhòu = sau khi (V + 以后). Câu nhắn lại chuẩn: **我让他给你打电话**." },
+        { title: "③ Đi trung tâm thương mại", desc: "Chủ nhật, Anh Thư rủ Quốc An đi mua sắm.", lines: [
+          { who: "英书", ...X("这个星期天你有什么打算？", "Zhège xīngqītiān nǐ yǒu shénme dǎsuàn?", "Chủ nhật này cậu có dự định gì?") },
+          { who: "国安", ...X("我打算先去银行取钱，然后去购物中心买东西。", "Wǒ dǎsuàn xiān qù yínháng qǔ qián, ránhòu qù gòuwù zhōngxīn mǎi dōngxi.", "Mình định ra ngân hàng rút tiền trước, rồi đi TTTM mua đồ.") },
+          { who: "英书", ...X("购物中心的东西质量还可以，但是价格很贵。", "Gòuwù zhōngxīn de dōngxi zhìliàng hái kěyǐ, dànshì jiàgé hěn guì.", "Đồ ở TTTM chất lượng cũng được, nhưng giá đắt lắm.") },
+          { who: "国安", ...X("那咱们去哪儿？", "Nà zánmen qù nǎr?", "Vậy chúng mình đi đâu?") },
+          { who: "英书", ...X("学校正对面有一家商店，东西不错，也不太贵。", "Xuéxiào zhèng duìmiàn yǒu yì jiā shāngdiàn, dōngxi búcuò, yě bú tài guì.", "Ngay đối diện trường có một cửa hàng, đồ khá tốt mà cũng không đắt lắm.") },
+          { who: "国安", ...X("太好了！你等我换件衣服再去。", "Tài hǎo le! Nǐ děng wǒ huàn jiàn yīfu zài qù.", "Tuyệt! Cậu đợi mình thay bộ đồ rồi đi.") }
+        ] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("“Tôi mượn thầy một quyển sách.”", "我借老师一本书。|我跟老师借一本书。|我借给老师一本书。|老师跟我借一本书。", "B", "Mượn **của** ai → **跟 + người + 借**."),
+        Q("“Cô ấy cho tôi mượn một quyển tạp chí.”", "她跟我借了一本杂志。|她借给了我一本杂志。|我借给她一本杂志。|她借我了杂志一本。", "B", "Cho ai mượn → **借给 + người**."),
+        Q("“Làm bài tập trước, sau đó xem phim.”", "我然后做作业，先看电影。|我先做作业，然后看电影。|我做作业先，看电影然后。|先我做作业，看电影然后。", "B", "**先 V1，然后 V2**."),
+        Q("“Tôi đến hiệu sách mua sách.”", "我买书去书店。|我去书店买书。|我书店去买书。|买书我去书店。", "B", "Đi trước, làm sau."),
+        Q("Thư viện là…", "图书店|图书馆", "B", "Công cộng, phục vụ → **馆**."),
+        Q("Tiệm hoa là…", "花店|花馆", "A", "Buôn bán → **店**."),
+        Q("Rủ người nghe: “Chúng mình cùng đi ăn nhé!”", "咱们一起去吃饭吧！|他们一起去吃饭吧！|我一起去吃饭吧！|你们咱们去吃饭吧！", "A", "Gồm cả người nghe → **咱们**."),
+        Q("“Tắt đèn”", "开灯|关灯|关门灯|灯关", "B", "**关灯**."),
+        Q("“Cửa hàng 9 giờ tối đóng cửa.”", "商店晚上九点开门。|商店晚上九点关门。|商店关门晚上九点。|晚上商店九点门关。", "B", "**关门** = đóng cửa (ngừng hoạt động)."),
+        Q("“Cuối tuần này bạn có dự định gì?”", "这个周末你有什么打算？|这个周末你打算有什么？|你打算这个周末什么有？|这个周末打算什么你？", "A", "**有什么打算？**"),
+        Q("“Mẹ bảo tôi ngủ sớm.”", "妈妈让我早点睡觉。|妈妈我让早点睡觉。|我让妈妈早点睡觉。|妈妈早点让我睡觉了吗。", "A", "**让 + người + V**."),
+        Q("Bạn thấy bộ đồ này thế nào? — “Cũng được.”", "还可以。|还没有。|还是。|可以还。", "A", "**还可以**."),
+        Q("“Ngân hàng” đọc là…", "yínxíng|yínháng", "B", "行 đọc **háng**."),
+        Q("“东西” nghĩa “đồ vật” đọc là…", "dōngxī|dōngxi", "B", "Chữ sau đọc nhẹ **xi**.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu (gồm 3 câu luyện dịch trong slide)",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Hôm nay tôi cùng bạn cùng lớp đi thư viện học bài.", words: ["今天", "我", "跟", "同学", "一起", "去", "图书馆", "学习"], py: "Jīntiān wǒ gēn tóngxué yìqǐ qù túshūguǎn xuéxí." },
+        { vi: "Buổi tối chúng tôi đi ăn trước, sau đó cùng nhau xem phim.", words: ["晚上", "我们", "先", "去吃饭", "然后", "一起", "去看电影"], py: "Wǎnshang wǒmen xiān qù chī fàn, ránhòu yìqǐ qù kàn diànyǐng." },
+        { vi: "Cuối tuần chị tôi về nhà ăn cơm cùng bố mẹ.", words: ["周末", "我姐姐", "回家", "跟", "爸妈", "一起", "吃饭"], py: "Zhōumò wǒ jiějie huí jiā gēn bà mā yìqǐ chī fàn." },
+        { vi: "Tớ mượn cậu 50 đồng được không?", words: ["我", "可以", "跟你", "借", "五十块", "钱", "吗"], py: "Wǒ kěyǐ gēn nǐ jiè wǔshí kuài qián ma?" },
+        { vi: "Hôm nay tôi đi ngân hàng rút tiền.", words: ["今天", "我", "去", "银行", "取钱"], py: "Jīntiān wǒ qù yínháng qǔ qián." },
+        { vi: "Tôi đi cửa hàng mua ít đồ.", words: ["我", "去", "商店", "买", "点儿", "东西"], py: "Wǒ qù shāngdiàn mǎi diǎnr dōngxi." },
+        { vi: "Trước khi ngủ đừng quên tắt đèn.", words: ["睡觉", "前", "别", "忘了", "关灯"], py: "Shuìjiào qián bié wàng le guān dēng." },
+        { vi: "Chúng tôi định cuối tuần xem phim.", words: ["我们", "打算", "周末", "看", "电影"], py: "Wǒmen dǎsuàn zhōumò kàn diànyǐng." },
+        { vi: "Chất lượng cũng được nhưng giá rất đắt.", words: ["质量", "还可以", "但是", "价格", "很贵"], py: "Zhìliàng hái kěyǐ, dànshì jiàgé hěn guì." },
+        { vi: "Anh ấy về, tôi bảo anh ấy gọi lại cho bạn.", words: ["他", "回来", "以后", "我", "让", "他", "给你", "打电话"], py: "Tā huílai yǐhòu, wǒ ràng tā gěi nǐ dǎ diànhuà." }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("我去图书馆借书。", "Wǒ qù túshūguǎn jiè shū.", "Tôi đi thư viện mượn sách."),
+        X("我先问老师一下。", "Wǒ xiān wèn lǎoshī yíxià.", "Tôi hỏi thầy trước đã."),
+        X("然后去银行。", "Ránhòu qù yínháng.", "Sau đó đi ngân hàng."),
+        X("咱们一起去吃饭吧。", "Zánmen yìqǐ qù chī fàn ba.", "Chúng mình cùng đi ăn nhé."),
+        X("请关灯。", "Qǐng guān dēng.", "Làm ơn tắt đèn."),
+        X("开空调吧！", "Kāi kōngtiáo ba!", "Bật điều hoà đi!"),
+        X("你有什么打算？", "Nǐ yǒu shénme dǎsuàn?", "Bạn có dự định gì?"),
+        X("质量还可以。", "Zhìliàng hái kěyǐ.", "Chất lượng cũng được."),
+        X("周经理什么时候回来？", "Zhōu jīnglǐ shénme shíhou huílai?", "Giám đốc Chu khi nào về?"),
+        X("我让他给你打电话。", "Wǒ ràng tā gěi nǐ dǎ diànhuà.", "Tôi bảo anh ấy gọi cho bạn.")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Các cậu đang đi đâu đấy?", zh: "你们去哪儿呢？", py: "Nǐmen qù nǎr ne?" },
+        { vi: "Trả lời: Bọn mình đi thư viện mượn sách.", zh: "我们去图书馆借书。", py: "Wǒmen qù túshūguǎn jiè shū." },
+        { vi: "Nhờ: Tớ mượn cậu một quyển sách được không?", zh: "我可以跟你借一本书吗？", py: "Wǒ kěyǐ gēn nǐ jiè yì běn shū ma?" },
+        { vi: "Đáp: Tất nhiên! Mình cho cậu mượn.", zh: "当然！我借给你。", py: "Dāngrán! Wǒ jiè gěi nǐ." },
+        { vi: "Rủ: Chúng mình đi ăn trước, rồi đến thư viện nhé.", zh: "咱们先去吃饭，然后去图书馆吧。", py: "Zánmen xiān qù chī fàn, ránhòu qù túshūguǎn ba." },
+        { vi: "Nói: Hôm nay tôi đi ngân hàng rút tiền.", zh: "今天我去银行取钱。", py: "Jīntiān wǒ qù yínháng qǔ qián." },
+        { vi: "Hỏi: Cửa hàng mấy giờ đóng cửa?", zh: "商店几点关门？", py: "Shāngdiàn jǐ diǎn guān mén?" },
+        { vi: "Nhờ: Nóng quá, bật điều hoà đi!", zh: "太热了，开空调吧！", py: "Tài rè le, kāi kōngtiáo ba!" },
+        { vi: "Nhắc: Trước khi ngủ đừng quên tắt đèn.", zh: "睡觉前别忘了关灯。", py: "Shuìjiào qián bié wàng le guān dēng." },
+        { vi: "Hỏi: Cuối tuần này bạn có dự định gì?", zh: "这个周末你有什么打算？", py: "Zhège zhōumò nǐ yǒu shénme dǎsuàn?" },
+        { vi: "Nhận xét: Chất lượng cũng được nhưng giá đắt.", zh: "质量还可以，但是价格很贵。", py: "Zhìliàng hái kěyǐ, dànshì jiàgé hěn guì." },
+        { vi: "Khen: Trà sữa ở đây không tồi đâu.", zh: "这里的奶茶不错。", py: "Zhèli de nǎichá búcuò." },
+        { vi: "Gọi điện: Xin hỏi, giám đốc Chu có ở đó không?", zh: "请问，周经理在吗？", py: "Qǐngwèn, Zhōu jīnglǐ zài ma?" },
+        { vi: "Hỏi: Khi nào anh ấy về?", zh: "他什么时候回来？", py: "Tā shénme shíhou huílai?" },
+        { vi: "Nhắn lại: Tôi sẽ bảo anh ấy gọi lại cho bạn.", zh: "我让他给你打电话。", py: "Wǒ ràng tā gěi nǐ dǎ diànhuà." }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Kế hoạch chủ nhật của bạn (6 câu)",
+      desc: "Kể kế hoạch chủ nhật bằng **先…然后…**. Xong câu mẫu thì **đổi nơi chốn, việc làm** cho đúng với bạn.",
+      sticker: "zh_dasuan.webp",
+      items: [
+        { vi: "Chủ nhật này tôi định đi mua sắm.", zh: "这个星期天我打算去购物。", py: "Zhège xīngqītiān wǒ dǎsuàn qù gòuwù." },
+        { vi: "Buổi sáng tôi đi ngân hàng rút tiền trước.", zh: "上午我先去银行取钱。", py: "Shàngwǔ wǒ xiān qù yínháng qǔ qián." },
+        { vi: "Sau đó tôi cùng bạn đi trung tâm thương mại.", zh: "然后我跟朋友一起去购物中心。", py: "Ránhòu wǒ gēn péngyou yìqǐ qù gòuwù zhōngxīn." },
+        { vi: "Ở đó đồ khá tốt, nhưng giá hơi đắt.", zh: "那儿的东西不错，但是价格有点儿贵。", py: "Nàr de dōngxi búcuò, dànshì jiàgé yǒudiǎnr guì." },
+        { vi: "Buổi chiều tôi đến thư viện mượn sách.", zh: "下午我去图书馆借书。", py: "Xiàwǔ wǒ qù túshūguǎn jiè shū." },
+        { vi: "Buổi tối tôi tắt tivi, rồi đi ngủ sớm.", zh: "晚上我先关电视，然后早点睡觉。", py: "Wǎnshang wǒ xiān guān diànshì, ránhòu zǎodiǎn shuìjiào." }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · Vì sao “đồ vật” lại là 东西 (đông – tây)?",
+      intro: "Tại sao mua **đồ** lại nói là mua **“đông tây”** mà không phải **“nam bắc”**? Slide đưa ra 3 giả thuyết:",
+      sticker: "zh_lantern.webp",
+      cols: 3,
+      cards: [
+        { tag: "Ngũ hành", title: "Thuyết Ngũ hành", ira: "zh_dongxi.webp", body: "Phương **Đông** thuộc hành **Mộc**, phương **Tây** thuộc hành **Kim** — gỗ và kim loại là vật **hữu hình, mua bán được**. Còn phương Nam (**Hoả** – lửa) và phương Bắc (**Thuỷ** – nước) thì không." },
+        { tag: "Lịch sử", title: "Thuyết chợ Trường An", ira: "zh_shangdian.webp", body: "Kinh đô **Trường An** thời nhà Đường có hai chợ lớn: **Đông Thị** và **Tây Thị**. Đi chợ mua sắm dần được gọi gộp là **“mua Đông – Tây”** → 买东西." },
+        { tag: "Hình thanh", title: "Thuyết biến âm", ira: "zh_gouwu.webp", body: "东西 bắt nguồn từ từ cổ **橐系** (tuó xì) — đồ đựng trong túi. Qua thời gian, âm biến đổi dần thành **dōngxi**." }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 13 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Mượn", title: "借 hai chiều", bullets: ["A 跟 / 向 B 借 N: mượn của B", "A 借给 B N: cho B mượn"] },
+        { tag: "Thứ tự", title: "先…然后…", bullets: ["先 V1，然后 (再) V2", "Câu liên động: 去书店买书 · 坐车回宿舍"] },
+        { tag: "Phân biệt", title: "店 / 馆 · 咱们 / 我们", bullets: ["店: buôn bán · 馆: công cộng", "咱们 gồm người nghe · 我们 có thể không"] },
+        { tag: "Bật tắt", title: "开 / 关", bullets: ["开门 · 开灯 · 开空调 · 开电视", "关门 · 关灯 · 关机", "几点开门？几点关门？"] },
+        { tag: "Nhận xét", title: "质量 · 价格", bullets: ["还可以 < 不错 < 很好", "…，但是…", "有什么打算？"] },
+        { tag: "Điện thoại", title: "Nhắn lại", bullets: ["请问，…在吗？", "他什么时候回来？", "我让他给你打电话"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 32 từ.",
+        "**✍ Tự viết** 10 chữ: 借 先 然 后 银 店 东 开 关 灯 — mỗi chữ đúng 3 lần liền.",
+        "Viết thời gian biểu ngày mai bằng **先…然后…** (ít nhất 4 việc).",
+        "Đi quanh nhà: nói **开 / 关** với mọi thứ bạn bật tắt (门, 灯, 电视, 空调, 手机).",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "**Phản xạ nói** + **Thử thách**: mỗi câu ≥ 85%."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>

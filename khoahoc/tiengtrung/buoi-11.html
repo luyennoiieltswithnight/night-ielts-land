@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 11: 北京的冬天比较冷</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "北京": [["北", "hoi", "Hai người **quay lưng** vào nhau → lưng; phía sau lưng khi nhìn về hướng mặt trời → **phía bắc**."], ["京", "tuong", "Vẽ **toà nhà trên gò đất cao** → kinh đô."]],
+  "有名": [["有", "hoi", "Tay (𠂇) cầm miếng thịt (月) → có."], ["名", "hoi", "**夕** (tối) + **口** (miệng) → gọi tên."]],
+  "旅行": [["旅", "hoi", "Lá cờ (**方 + 𠂉**) dẫn đầu đoàn **người** đi → đoàn quân, đi xa → **lữ** khách."], ["行", "tuong", "Vẽ **ngã tư đường** → đi, hành."]],
+  "城市": [["城", "thanh", "**土** (đất – tường thành) chỉ nghĩa + **成** chéng chỉ âm."], ["市", "hoi", "Nơi người tụ lại mua bán dưới **mái che (亠) + 巾 (vải treo)** → chợ, thành phố."]],
+  "长城": [["长", "tuong", "Vẽ **người có mái tóc dài** chống gậy → dài."], ["城", "thanh", "**土** chỉ nghĩa + **成** chéng chỉ âm → tường thành."]],
+  "春天": [["春", "hoi+thanh", "Gốc: **艸** (cỏ) + **日** (mặt trời) + **屯** tún (mầm nhú, cũng chỉ âm) → cỏ cây đâm chồi dưới nắng → **mùa xuân**."], ["天", "chi", "**大** (người) thêm vạch trên đầu → bầu trời; ngày."]],
+  "夏天": [["夏", "tuong", "Gốc vẽ **người đàn ông to lớn** (đầu 頁, tay chân) → người Hoa Hạ; mượn chỉ **mùa hè**."], ["天", "chi", "Vạch trên đầu người → trời."]],
+  "秋天": [["秋", "hoi", "**禾** (lúa) + **火** (lửa) → lúa chín vàng như lửa / đốt rơm sau gặt → **mùa thu**."], ["天", "chi", "Vạch trên đầu người → trời."]],
+  "冬天": [["冬", "hoi", "**夂** (cuối sợi dây – kết thúc) + **冫** (băng) → cuối năm băng giá → **mùa đông**."], ["天", "chi", "Vạch trên đầu người → trời."]],
+  "季节": [["季", "hoi", "**禾** (lúa) + **子** (con) → lúa non nhỏ nhất → thứ tự, **mùa**."], ["节", "thanh", "**艹** (gốc 竹 tre) chỉ nghĩa + **卩** (gốc 即 jí) chỉ âm → đốt tre → tiết, ngày lễ."]],
+  "天气": [["天", "chi", "Vạch trên đầu người → trời."], ["气", "tuong", "Vẽ **làn hơi / mây bốc lên** → khí."]],
+  "晴天": [["晴", "thanh", "**日** chỉ nghĩa + **青** qīng chỉ âm → trời quang, nắng."], ["天", "chi", "Trời."]],
+  "度": [["度", "thanh", "**又** (bàn tay – đo bằng gang tay) chỉ nghĩa + **庶** (rút gọn) chỉ âm → đo, **độ**."]],
+  "零下": [["零", "thanh", "**雨** chỉ nghĩa + **令** lìng chỉ âm → số 0."], ["下", "chi", "Dưới. 零下 = **dưới 0** → âm độ."]],
+  "风": [["风", "thanh", "Phồn thể **風** = **虫** (sâu bọ – gió lên thì sâu sinh) chỉ nghĩa + **凡** fán chỉ âm → gió."]],
+  "雨": [["雨", "tuong", "Vẽ **những giọt mưa rơi** dưới bầu trời (bộ Vũ)."]],
+  "雪": [["雪", "thanh", "**雨** chỉ nghĩa + phần dưới (gốc **彗** huì – cái chổi) chỉ âm → tuyết (phải quét bằng chổi)."]],
+  "冷": [["冷", "thanh", "**冫** (bộ Băng) chỉ nghĩa + **令** lìng chỉ âm → lạnh."]],
+  "热": [["热", "thanh", "Phồn thể **熱** = **灬** (lửa) chỉ nghĩa + **埶** yì chỉ âm → nóng."]],
+  "暖和": [["暖", "thanh", "**日** (mặt trời) chỉ nghĩa + **爰** yuán chỉ âm → ấm."], ["和", "thanh", "**口** + **禾** hé chỉ âm → hoà; đọc nhẹ *huo*."]],
+  "凉快": [["凉", "thanh", "**冫** (băng) chỉ nghĩa + **京** jīng chỉ âm → mát."], ["快", "thanh", "**忄** chỉ nghĩa + **夬** chỉ âm → sảng khoái; đọc nhẹ *kuai*."]],
+  "怕": [["怕", "thanh", "**忄** (lòng) chỉ nghĩa + **白** bái chỉ âm → sợ."]],
+  "舒服": [["舒", "thanh", "**予** (trao) + **舍** shè chỉ âm → duỗi ra, thư thái."], ["服", "thanh", "**月** chỉ nghĩa + **𠬝** fú chỉ âm; đọc nhẹ *fu*."]],
+  "比较": [["比", "hoi", "Hai người (**匕 匕**) đứng **cạnh nhau** → so sánh."], ["较", "thanh", "**车** chỉ nghĩa + **交** jiāo chỉ âm → so đo. Cùng phần âm 交: 校 xiào · 饺 jiǎo · 效 xiào."]],
+  "游泳": [["游", "thanh", "**氵** (nước) chỉ nghĩa + **斿** yóu chỉ âm → bơi, đi chơi."], ["泳", "thanh", "**氵** chỉ nghĩa + **永** yǒng chỉ âm → lặn, bơi."]],
+  "可是": [["可", "thanh", "**口** + **丂** kǎo chỉ âm → có thể."], ["是", "hoi", "**日** (mặt trời) + **正** (ngay) → ngay thẳng như mặt trời → **đúng, là**."]],
+  "没问题": [["没", "hoi", "**氵** + chìm xuống → không có."], ["问", "thanh", "**口** chỉ nghĩa + **门** mén chỉ âm."], ["题", "thanh", "**页** (cái đầu) chỉ nghĩa + **是** shì chỉ âm → trán → đề, vấn đề."]],
+  "当然": [["当", "thanh", "Phồn thể **當** = **田** chỉ nghĩa + **尚** shàng chỉ âm → tương xứng, đương."], ["然", "thanh", "**灬** (lửa) + **肰** (thịt chó) → nướng thịt; mượn làm hư từ “như thế” → thanh+gia."]],
+  "时间": [["时", "thanh", "**日** chỉ nghĩa + **寸** (rút từ 寺 sì) chỉ âm."], ["间", "hoi", "**门** + **日** → nắng lọt qua khe cửa → khoảng giữa."]],
+  "听说": [["听", "thanh", "**口** chỉ nghĩa + **斤** jīn chỉ âm (giản thể) → nghe."], ["说", "thanh", "**讠** chỉ nghĩa + **兑** duì chỉ âm → nói."]],
+  "大部分": [["大", "tuong", "Người dang tay chân → to."], ["部", "thanh", "**阝** (ấp – vùng) chỉ nghĩa + **咅** pǒu chỉ âm → bộ phận."], ["分", "hoi", "**八** + **刀** → chia ra → phần."]],
+  "开始": [["开", "hoi", "Hai tay mở then cửa (phồn thể 開) → mở."], ["始", "thanh", "**女** chỉ nghĩa + **台** tái chỉ âm → người phụ nữ sinh ra con đầu → **bắt đầu**."]],
+  "分钟": [["分", "hoi", "**八** + **刀** → chia → phút."], ["钟", "thanh", "**钅** chỉ nghĩa + **中** zhōng chỉ âm."]],
+  "差不多": [["差", "thanh", "**工** chỉ nghĩa + phần trên (gốc **𠂹**) chỉ âm → sai lệch, kém."], ["不", "tuong+gia", "Gốc vẽ đài hoa; mượn làm “không”."], ["多", "hoi", "Hai miếng thịt chồng nhau → nhiều. 差不多 = **lệch không nhiều** → xấp xỉ."]]
+};
+const L = {
+  id: "zh-q1-11", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 11",
+  unit: "Chủ đề: 故宫 Cố cung · Bắc Kinh du hí · 4 mùa · Thời tiết · Đóng vai MC dự báo thời tiết",
+  titleZh: "北京的冬天比较冷", titlePy: "Běijīng de dōngtiān bǐjiào lěng", title: "Mùa đông ở Bắc Kinh khá lạnh",
+  subtitle: "Học xong bài này bạn nói được về bốn mùa và thời tiết (âm 5 độ, mưa, tuyết, gió), kể về các điểm du lịch Bắc Kinh, và tự đứng lên làm một bản tin dự báo thời tiết bằng tiếng Trung.",
+  heroSticker: "zh_dongtian.webp",
+  prev: { href: "buoi-10.html", label: "Bài 10" }, next: { href: "buoi-12.html", label: "Bài 12" },
+  goals: [
+    "Nhận mặt, đọc, viết **34 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Nói về **4 mùa và thời tiết**: 零下五度 · 下雨了 · 下雪了 · 很热 / 很冷 / 暖和 / 凉快",
+    "Dùng chắc **比较 · 可是 · 听说 · 当然 · 没问题 · 常 / 常常 / 不常**",
+    "Cấu trúc **从…开始** · phân biệt **分 / 分钟** · **一下 / 一会儿** · **是…的** · **差不多**",
+    "**Đóng vai MC dự báo thời tiết** và kể về Bắc Kinh du hí"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Bắc Kinh – bốn mùa – thời tiết",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**. Để ý bộ **雨 (Vũ)**: 雪 · 零 — và bộ **冫 (Băng)**: 冷 · 凉 · 冬.",
+      sticker: "zh_beijing.webp",
+      groups: [
+        { label: "Bắc Kinh · du lịch", cards: [
+          { zh: "北京", py: "Běijīng", hv: "Bắc Kinh", pos: "danh từ riêng", vi: "Bắc Kinh", ira: "zh_beijing.webp",
+            tip: "Món nổi tiếng: **北京烤鸭** Běijīng kǎoyā — vịt quay Bắc Kinh (ảnh).", ex: [X("我想去北京留学。", "Wǒ xiǎng qù Běijīng liúxué.", "Tôi muốn đi du học Bắc Kinh."), X("北京怎么走？", "Běijīng zěnme zǒu?", "Đi Bắc Kinh như thế nào?")] },
+          { zh: "有名", py: "yǒumíng", hv: "Hữu danh", pos: "tính từ", vi: "nổi tiếng", ira: "zh_zui.webp",
+            tip: "**很有名的 + N** = … nổi tiếng.", ex: [X("北京是很有名的城市。", "Běijīng shì hěn yǒumíng de chéngshì.", "Bắc Kinh là một thành phố rất nổi tiếng."), X("这首歌在中国很有名。", "Zhè shǒu gē zài Zhōngguó hěn yǒumíng.", "Bài hát này rất nổi tiếng ở Trung Quốc.")] },
+          { zh: "城市", py: "chéngshì", hv: "Thành thị", pos: "danh từ", vi: "thành phố", ira: "zh_chengshi.webp", ex: [X("河内是一个很大的城市。", "Hénèi shì yí ge hěn dà de chéngshì.", "Hà Nội là một thành phố rất lớn.")] },
+          { zh: "旅行", py: "lǚxíng", hv: "Lữ hành", pos: "động từ", vi: "du lịch", ira: "zh_lvxing.webp",
+            tip: "**去旅行** = đi du lịch.", ex: [X("我们去旅行吧！", "Wǒmen qù lǚxíng ba!", "Chúng ta đi du lịch đi!")] },
+          { zh: "长城", py: "Chángchéng", hv: "Trường Thành", pos: "danh từ riêng", vi: "Vạn Lý Trường Thành", ira: "zh_zhongguo.webp",
+            also: [["万里长城", "Wànlǐ Chángchéng", "Vạn Lý Trường Thành"], ["故宫", "Gùgōng", "Cố cung (Tử Cấm Thành)"], ["天坛", "Tiāntán", "Thiên Đàn"], ["颐和园", "Yíhéyuán", "Di Hoà Viên"]],
+            ex: [X("长城很有名。", "Chángchéng hěn yǒumíng.", "Trường Thành rất nổi tiếng.")] }
+        ] },
+        { label: "Bốn mùa", cards: [
+          { zh: "春天", py: "chūntiān", hv: "Xuân thiên", pos: "danh từ", vi: "mùa xuân", ira: "zh_chuntian.webp", ex: [X("春天的时候，天气很暖和。", "Chūntiān de shíhou, tiānqì hěn nuǎnhuo.", "Vào mùa xuân, thời tiết rất ấm áp."), X("春天来了！", "Chūntiān lái le!", "Mùa xuân đến rồi!")] },
+          { zh: "夏天", py: "xiàtiān", hv: "Hạ thiên", pos: "danh từ", vi: "mùa hè", ira: "zh_xiatian.webp", ex: [X("夏天很热。", "Xiàtiān hěn rè.", "Mùa hè rất nóng."), X("夏天，人们喜欢吃西瓜和冰淇淋。", "Xiàtiān, rénmen xǐhuan chī xīguā hé bīngqílín.", "Mùa hè mọi người thích ăn dưa hấu và kem.")] },
+          { zh: "秋天", py: "qiūtiān", hv: "Thu thiên", pos: "danh từ", vi: "mùa thu", ira: "zh_qiutian.webp", ex: [X("秋天到了，天气很凉快。", "Qiūtiān dào le, tiānqì hěn liángkuai.", "Mùa thu đến rồi, trời rất mát mẻ."), X("秋天，树叶都黄了。", "Qiūtiān, shùyè dōu huáng le.", "Mùa thu, lá cây đều vàng cả.")] },
+          { zh: "冬天", py: "dōngtiān", hv: "Đông thiên", pos: "danh từ", vi: "mùa đông", ira: "zh_dongtian.webp", ex: [X("北方的冬天会下雪。", "Běifāng de dōngtiān huì xià xuě.", "Mùa đông phương Bắc sẽ có tuyết.")] },
+          { zh: "季节", py: "jìjié", hv: "Quý tiết", pos: "danh từ", vi: "mùa", ira: "zh_chuntian.webp",
+            ex: [X("越南有四个季节：春、夏、秋、冬。", "Yuènán yǒu sì ge jìjié: chūn, xià, qiū, dōng.", "Việt Nam có 4 mùa: xuân, hạ, thu, đông."), X("你最喜欢哪个季节？", "Nǐ zuì xǐhuan nǎge jìjié?", "Bạn thích mùa nào nhất?")] }
+        ] },
+        { label: "Thời tiết", cards: [
+          { zh: "天气", py: "tiānqì", hv: "Thiên khí", pos: "danh từ", vi: "thời tiết", ira: "zh_qingtian.webp",
+            also: [["天气预报", "tiānqì yùbào", "dự báo thời tiết"]], ex: [X("今天天气很好。", "Jīntiān tiānqì hěn hǎo.", "Hôm nay thời tiết rất đẹp."), X("北京的冬天天气很冷。", "Běijīng de dōngtiān tiānqì hěn lěng.", "Mùa đông Bắc Kinh trời rất lạnh.")] },
+          { zh: "晴天", py: "qíngtiān", hv: "Tình thiên", pos: "danh từ", vi: "ngày nắng, trời quang", ira: "zh_qingtian.webp", ex: [X("今天是个大晴天。", "Jīntiān shì ge dà qíngtiān.", "Hôm nay là một ngày nắng đẹp.")] },
+          { zh: "度", py: "dù", hv: "Độ", pos: "lượng từ", vi: "độ (nhiệt độ)", ira: "zh_du.webp", ex: [X("今天三十五度。", "Jīntiān sānshíwǔ dù.", "Hôm nay 35 độ.")] },
+          { zh: "零下", py: "língxià", hv: "Linh hạ", pos: "danh từ", vi: "âm (dưới 0 độ)", ira: "zh_dongtian.webp",
+            tip: "**零下 + số + 度** = âm … độ.", ex: [X("今天很冷，零下五度。", "Jīntiān hěn lěng, língxià wǔ dù.", "Hôm nay rất lạnh, âm 5 độ."), X("北方的冬天会到零下二十度。", "Běifāng de dōngtiān huì dào língxià èrshí dù.", "Mùa đông phương Bắc có thể xuống tới âm 20 độ.")] },
+          { zh: "风", py: "fēng", hv: "Phong", pos: "danh từ", vi: "gió", ira: "zh_feng.webp",
+            also: [["一帆风顺", "yì fān fēng shùn", "thuận buồm xuôi gió"], ["刮风", "guā fēng", "nổi gió"]], ex: [X("今天风很大。", "Jīntiān fēng hěn dà.", "Hôm nay gió rất to.")] },
+          { zh: "雨", py: "yǔ", hv: "Vũ", pos: "danh từ", vi: "mưa", ira: "thumbnail_rain_kasa_6242.webp",
+            tip: "Mưa rơi là **下雨**. Thành ngữ: **风雨同舟** = đồng cam cộng khổ.", ex: [X("下雨了！", "Xià yǔ le!", "Mưa rồi!"), X("我不喜欢下雨天。", "Wǒ bù xǐhuan xià yǔ tiān.", "Tôi không thích ngày mưa.")] },
+          { zh: "雪", py: "xuě", hv: "Tuyết", pos: "danh từ", vi: "tuyết", ira: "zh_xue.webp", ex: [X("下雪了！", "Xià xuě le!", "Tuyết rơi rồi!"), X("这里冬天会下雪吗？", "Zhèli dōngtiān huì xià xuě ma?", "Ở đây mùa đông có tuyết không?")] },
+          { zh: "冷", py: "lěng", hv: "Lãnh", pos: "tính từ", vi: "lạnh", ira: "zh_dongtian.webp", ex: [X("我觉得有点儿冷。", "Wǒ juéde yǒudiǎnr lěng.", "Tôi thấy hơi lạnh.")] },
+          { zh: "热", py: "rè", hv: "Nhiệt", pos: "tính từ", vi: "nóng", ira: "zh_xiatian.webp", ex: [X("夏天天气很热。", "Xiàtiān tiānqì hěn rè.", "Mùa hè trời rất nóng.")] },
+          { zh: "暖和", py: "nuǎnhuo", hv: "Noãn hoà", pos: "tính từ", vi: "ấm áp", ira: "zh_nuanhuo.webp", ex: [X("越南的冬天比较暖和。", "Yuènán de dōngtiān bǐjiào nuǎnhuo.", "Mùa đông Việt Nam khá ấm.")] },
+          { zh: "凉快", py: "liángkuai", hv: "Lương khoái", pos: "tính từ", vi: "mát mẻ", ira: "zh_liangkuai.webp", ex: [X("秋天天气很凉快。", "Qiūtiān tiānqì hěn liángkuai.", "Mùa thu trời rất mát.")] },
+          { zh: "怕", py: "pà", hv: "Phạ", pos: "động từ", vi: "sợ", ira: "zh_pa.webp", ex: [X("我怕热，不怕冷。", "Wǒ pà rè, bú pà lěng.", "Tôi sợ nóng, không sợ lạnh."), X("我怕冷，所以不太喜欢冬天。", "Wǒ pà lěng, suǒyǐ bú tài xǐhuan dōngtiān.", "Tôi sợ lạnh nên không thích mùa đông lắm.")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Cảm nhận – liên từ – thời gian",
+      desc: "Mẹo âm: **较 jiào · 校 xiào · 饺 jiǎo · 效 xiào** cùng phần **交** → cùng vần *iao*.",
+      sticker: "zh_shufu.webp",
+      groups: [
+        { label: "Cảm nhận · hoạt động", cards: [
+          { zh: "舒服", py: "shūfu", hv: "Thư phục", pos: "tính từ", vi: "dễ chịu, thoải mái; khoẻ", ira: "zh_shufu.webp",
+            tip: "**不太舒服** = trong người không khoẻ lắm.", ex: [X("今天的天气很舒服。", "Jīntiān de tiānqì hěn shūfu.", "Thời tiết hôm nay rất dễ chịu."), X("妈妈，我不太舒服。", "Māma, wǒ bú tài shūfu.", "Mẹ ơi, con thấy không khoẻ lắm.")] },
+          { zh: "比较", py: "bǐjiào", hv: "Tỷ giảo", pos: "phó từ / động từ", vi: "khá, tương đối; so sánh", ira: "tenbin_6328.webp",
+            ex: [X("今天比较冷。", "Jīntiān bǐjiào lěng.", "Hôm nay khá lạnh."), X("北京的冬天比较冷，越南的冬天比较暖和。", "Běijīng de dōngtiān bǐjiào lěng, Yuènán de dōngtiān bǐjiào nuǎnhuo.", "Mùa đông Bắc Kinh khá lạnh, còn ở Việt Nam thì ấm hơn.")] },
+          { zh: "游泳", py: "yóuyǒng", hv: "Du vịnh", pos: "động từ", vi: "bơi", ira: "zh_youyong.webp",
+            also: [["游泳池", "yóuyǒngchí", "bể bơi"], ["泳衣", "yǒngyī", "đồ bơi"]], ex: [X("夏天的时候，我常去游泳池。", "Xiàtiān de shíhou, wǒ cháng qù yóuyǒngchí.", "Mùa hè mình thường đến hồ bơi.")] },
+          { zh: "差不多", py: "chàbuduō", hv: "Sai bất đa", pos: "tính từ / phó từ", vi: "xấp xỉ, gần như; gần xong", ira: "zh_chabuduo.webp",
+            ex: [X("我们俩差不多高。", "Wǒmen liǎ chàbuduō gāo.", "Hai chúng tôi cao gần bằng nhau."), X("我差不多吃完了。", "Wǒ chàbuduō chī wán le.", "Tôi ăn gần xong rồi.")] }
+        ] },
+        { label: "Liên từ · đáp lời", cards: [
+          { zh: "可是", py: "kěshì", hv: "Khả thị", pos: "liên từ", vi: "nhưng", ira: "zh_buguo.webp",
+            ex: [X("我想去旅行，可是没有时间。", "Wǒ xiǎng qù lǚxíng, kěshì méiyǒu shíjiān.", "Tôi muốn đi du lịch nhưng không có thời gian."), X("我喜欢北京，可是冬天太冷了！", "Wǒ xǐhuan Běijīng, kěshì dōngtiān tài lěng le!", "Tôi thích Bắc Kinh nhưng mùa đông lạnh quá!")] },
+          { zh: "没问题", py: "méi wèntí", hv: "Một vấn đề", pos: "cụm từ", vi: "không thành vấn đề", ira: "zh_keyi.webp",
+            ex: [X("你明天能来帮我吗？——没问题！", "Nǐ míngtiān néng lái bāng wǒ ma? — Méi wèntí!", "Mai cậu đến giúp tớ được không? — Không thành vấn đề!"), X("你放心，没问题的！", "Nǐ fàngxīn, méi wèntí de!", "Cậu yên tâm, không sao đâu!")] },
+          { zh: "当然", py: "dāngrán", hv: "Đương nhiên", pos: "phó từ", vi: "đương nhiên, tất nhiên", ira: "zh_dangran.webp",
+            ex: [X("你喜欢中国菜吗？——当然喜欢！", "Nǐ xǐhuan Zhōngguó cài ma? — Dāngrán xǐhuan!", "Cậu thích món Trung không? — Tất nhiên là thích!"), X("当然可以！", "Dāngrán kěyǐ!", "Tất nhiên là được!")] },
+          { zh: "听说", py: "tīngshuō", hv: "Thính thuyết", pos: "động từ", vi: "nghe nói", ira: "zh_tingshuo.webp",
+            ex: [X("听说你要去北京旅行？", "Tīngshuō nǐ yào qù Běijīng lǚxíng?", "Nghe nói cậu sắp đi du lịch Bắc Kinh à?"), X("听说你最近很忙？", "Tīngshuō nǐ zuìjìn hěn máng?", "Nghe nói dạo này cậu bận lắm à?")] },
+          { zh: "大部分", py: "dàbùfen", hv: "Đại bộ phận", pos: "danh từ", vi: "phần lớn", ira: "zh_dabufen.webp",
+            ex: [X("大部分人都喜欢看电影。", "Dàbùfen rén dōu xǐhuan kàn diànyǐng.", "Phần lớn mọi người đều thích xem phim."), X("听说大部分外国人都觉得汉字很难。", "Tīngshuō dàbùfen wàiguórén dōu juéde Hànzì hěn nán.", "Nghe nói phần lớn người nước ngoài thấy chữ Hán rất khó.")] }
+        ] },
+        { label: "Thời gian", cards: [
+          { zh: "时间", py: "shíjiān", hv: "Thời gian", pos: "danh từ", vi: "thời gian", ira: "zh_shijian.webp",
+            tip: "**没时间** không có thời gian · **花时间** dành thời gian. 一寸光阴一寸金 — tấc thời gian, tấc vàng.", ex: [X("我今天没有时间。", "Wǒ jīntiān méiyǒu shíjiān.", "Hôm nay tôi không có thời gian."), X("我每天都花很多时间学习。", "Wǒ měitiān dōu huā hěn duō shíjiān xuéxí.", "Mỗi ngày tôi đều dành nhiều thời gian học.")] },
+          { zh: "开始", py: "kāishǐ", hv: "Khai thuỷ", pos: "động từ", vi: "bắt đầu", ira: "zh_dian.webp",
+            ex: [X("我们九点开始上课。", "Wǒmen jiǔ diǎn kāishǐ shàngkè.", "Chúng tôi bắt đầu học lúc 9 giờ."), X("我从去年开始学汉语。", "Wǒ cóng qùnián kāishǐ xué Hànyǔ.", "Tôi bắt đầu học tiếng Trung từ năm ngoái.")] },
+          { zh: "分钟", py: "fēnzhōng", hv: "Phân chung", pos: "danh từ", vi: "phút (khoảng thời gian)", ira: "zh_fen.webp",
+            tip: "**分钟** = bao nhiêu phút (khoảng) · **分** = mốc giờ phút.", ex: [X("从我家到银行大概十五分钟。", "Cóng wǒ jiā dào yínháng dàgài shíwǔ fēnzhōng.", "Từ nhà tôi đến ngân hàng khoảng 15 phút.")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 11 điểm",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "天气", name: "Nói thời tiết", formula: ["(Nơi / mùa) + 天气 + 很 / 比较 / 有点儿 / 太…了 + Adj", "零下 + số + 度"],
+          uses: ["Thời tiết dùng **tính từ làm vị ngữ**, không cần 是", "Mức độ: 有点儿 (hơi) < 比较 (khá) < 很 (rất) < 太…了 (quá)"],
+          examples: [X("今天天气很好。", "Jīntiān tiānqì hěn hǎo.", "Hôm nay trời rất đẹp."), X("北京的冬天比较冷。", "Běijīng de dōngtiān bǐjiào lěng.", "Mùa đông Bắc Kinh khá lạnh."), X("今天很冷，零下五度。", "Jīntiān hěn lěng, língxià wǔ dù.", "Hôm nay rất lạnh, âm 5 độ.")],
+          wrong: [{ bad: "今天天气是冷。", good: "今天天气很冷。", why: "Tính từ làm vị ngữ, **không dùng 是**." }, { bad: "五度零下", good: "零下五度", why: "零下 đứng **trước** số." }] },
+        { tag: "下雨", name: "下雨 · 下雪 · 刮风", formula: ["下 + 雨 / 雪 (mưa / tuyết rơi)", "刮 + 风 (nổi gió)", "…了！ (bắt đầu mưa rồi)"],
+          uses: ["Mưa, tuyết “rơi xuống” → động từ **下**", "Thêm **了** = hiện tượng vừa xảy ra"],
+          examples: [X("下雨了！", "Xià yǔ le!", "Mưa rồi!"), X("下雪了！", "Xià xuě le!", "Tuyết rơi rồi!"), X("北方的冬天会下雪。", "Běifāng de dōngtiān huì xià xuě.", "Mùa đông phương Bắc sẽ có tuyết.")] },
+        { tag: "有名", name: "很有名的 + N", formula: ["很有名的 + Danh từ", "Danh từ + 在 + nơi + 很有名"],
+          uses: ["有名 = tính từ; đứng trước danh từ cần **的**", "Lượng từ cho người kính trọng: **一位** 老师"],
+          examples: [X("北京是很有名的城市。", "Běijīng shì hěn yǒumíng de chéngshì.", "Bắc Kinh là thành phố rất nổi tiếng."), X("他是一位有名的老师。", "Tā shì yí wèi yǒumíng de lǎoshī.", "Anh ấy là một giáo viên nổi tiếng."), X("这首歌在中国很有名。", "Zhè shǒu gē zài Zhōngguó hěn yǒumíng.", "Bài hát này rất nổi tiếng ở Trung Quốc.")] },
+        { tag: "季节", name: "Mùa + 的时候", formula: ["Mùa + 的时候，…", "…是我最喜欢的季节"],
+          uses: ["Mùa đứng **đầu câu** làm trạng ngữ thời gian"],
+          examples: [X("春天的时候，天气很暖和。", "Chūntiān de shíhou, tiānqì hěn nuǎnhuo.", "Vào mùa xuân, thời tiết rất ấm."), X("春天是我最喜欢的季节。", "Chūntiān shì wǒ zuì xǐhuan de jìjié.", "Mùa xuân là mùa tôi thích nhất."), X("你最喜欢哪个季节？", "Nǐ zuì xǐhuan nǎge jìjié?", "Bạn thích mùa nào nhất?")] },
+        { tag: "常", name: "常 · 常常 · 不常", formula: ["常 / 常常 + V (thường)", "不常 + V (không thường)"],
+          uses: ["Hành động **lặp lại thường xuyên** hoặc trạng thái kéo dài", "Khẩu ngữ hay nói lặp **常常**", "Cụm quen: **人们常说…** người ta thường nói…"],
+          examples: [X("我们同在一个办公楼，常见面的。", "Wǒmen tóng zài yí ge bàngōng lóu, cháng jiànmiàn de.", "Chúng tôi làm cùng toà nhà, thường gặp nhau."), X("你有空常来玩儿。", "Nǐ yǒu kòng cháng lái wánr.", "Rảnh thì thường đến chơi nha."), X("我不常看电影。", "Wǒ bù cháng kàn diànyǐng.", "Tôi không hay xem phim.")] },
+        { tag: "可是", name: "可是 · 没问题 · 当然", formula: ["Vế 1，可是 + Vế 2 (nhưng)", "Đáp nhờ vả: 没问题！ · 当然 + V / 可以！"],
+          uses: ["可是 ≈ 不过 ≈ 但是", "Hỏi “được không?” → đáp **当然可以！**"],
+          examples: [X("今天很冷，可是我还想去游泳。", "Jīntiān hěn lěng, kěshì wǒ hái xiǎng qù yóuyǒng.", "Hôm nay rất lạnh, nhưng tôi vẫn muốn đi bơi."), X("我可以跟你一起去吗？——当然可以！", "Wǒ kěyǐ gēn nǐ yìqǐ qù ma? — Dāngrán kěyǐ!", "Tớ đi cùng cậu được không? — Tất nhiên rồi!")] },
+        { tag: "听说", name: "听说 + câu", formula: "听说 + (chủ ngữ) + câu",
+          uses: ["Truyền đạt thông tin **nghe được** từ người khác"],
+          examples: [X("听说你要去北京旅行？", "Tīngshuō nǐ yào qù Běijīng lǚxíng?", "Nghe nói cậu sắp đi Bắc Kinh?"), X("我听说那家饭馆的菜很好吃。", "Wǒ tīngshuō nà jiā fànguǎn de cài hěn hǎochī.", "Tôi nghe nói đồ ăn quán đó rất ngon.")] },
+        { tag: "从…开始", name: "从…开始…", formula: "Chủ ngữ + 从 + thời điểm + 开始 + V",
+          uses: ["Diễn tả **mốc bắt đầu** của việc gì"],
+          examples: [X("我从去年开始学汉语。", "Wǒ cóng qùnián kāishǐ xué Hànyǔ.", "Tôi bắt đầu học tiếng Trung từ năm ngoái."), X("我从今天开始每天学三个小时汉语。", "Wǒ cóng jīntiān kāishǐ měitiān xué sān ge xiǎoshí Hànyǔ.", "Từ hôm nay tôi mỗi ngày học 3 tiếng tiếng Trung.")] },
+        { tag: "分钟", name: "分 hay 分钟?", formula: ["分 = mốc giờ: 九点三十分", "分钟 = khoảng thời gian: 十五分钟"],
+          uses: ["Hỏi **mấy giờ** → 分 · Hỏi **mất bao lâu** → 分钟"],
+          examples: [X("现在是九点三十分。", "Xiànzài shì jiǔ diǎn sānshí fēn.", "Bây giờ là 9 giờ 30."), X("从我家到银行大概十五分钟。", "Cóng wǒ jiā dào yínháng dàgài shíwǔ fēnzhōng.", "Nhà tôi đến ngân hàng khoảng 15 phút."), X("我写字用了三十分钟。", "Wǒ xiě zì yòng le sānshí fēnzhōng.", "Tôi mất 30 phút để viết chữ.")] },
+        { tag: "是…的", name: "是…的 (nhấn mạnh)", formula: "Chủ ngữ + 是 + (thời gian / nơi / cách / người) + V + 的",
+          uses: ["Nhấn mạnh **chi tiết** của việc **đã xảy ra**: khi nào, ở đâu, bằng gì, ai làm"],
+          examples: [X("她是坐地铁来的。", "Tā shì zuò dìtiě lái de.", "Cô ấy đi tàu điện đến (nhấn phương tiện)."), X("我是在北京学汉语的。", "Wǒ shì zài Běijīng xué Hànyǔ de.", "Tôi học tiếng Trung ở Bắc Kinh."), X("这本书是我买的。", "Zhè běn shū shì wǒ mǎi de.", "Quyển sách này là tôi mua.")] },
+        { tag: "一会儿", name: "一下 · 一会儿 (ôn + mở rộng)", formula: ["V + 一下: một chút, thử", "V + 一会儿: một lát (lâu hơn)", "一会儿…一会儿…: lúc thì… lúc thì…"],
+          uses: ["他一会儿就回来 = lát nữa anh ấy về ngay"],
+          examples: [X("我去一下卫生间。", "Wǒ qù yíxià wèishēngjiān.", "Tôi đi vệ sinh một chút."), X("我休息一会儿。", "Wǒ xiūxi yíhuìr.", "Tôi nghỉ một lát."), X("天气一会儿冷一会儿热。", "Tiānqì yíhuìr lěng yíhuìr rè.", "Thời tiết lúc lạnh lúc nóng.")] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("“Âm 5 độ”", "五度零下|零下五度|零五下度|下零五度", "B", "**零下 + số + 度**."),
+        Q("“Mưa rồi!”", "雨了！|下雨了！|雨下！|来雨了！", "B", "**下雨了**."),
+        Q("Câu nào đúng?", "今天天气是冷。|今天天气很冷。|今天是天气冷。|天气今天冷是。", "B", "Tính từ làm vị ngữ, bỏ 是."),
+        Q("“Mùa thu rất mát.”", "秋天很凉快。|秋天很暖和。|秋天很热。|秋天很舒服冷。", "A", "**凉快** = mát."),
+        Q("“Tôi sợ lạnh.”", "我怕冷。|我冷怕。|我怕热。|怕我冷。", "A", "**怕 + 冷**."),
+        Q("“Bắc Kinh là thành phố rất nổi tiếng.”", "北京是很有名城市。|北京是很有名的城市。|北京有名是城市。|北京是城市很有名的。", "B", "**很有名的 + N**."),
+        Q("“Tôi muốn đi du lịch nhưng không có thời gian.”", "我想去旅行，可是没有时间。|我想去旅行，所以没有时间。|我想去旅行，当然没有时间。|我想去旅行，听说没有时间。", "A", "Ý trái ngược → **可是**."),
+        Q("“Mai cậu giúp tớ được không?” — đáp “Không thành vấn đề!”", "没关系！|没问题！|不客气！|不用谢！", "B", "**没问题**."),
+        Q("“Từ nhà đến ngân hàng khoảng 15 ___.”", "分|分钟", "B", "Khoảng thời gian → **分钟**."),
+        Q("“Bây giờ là 9 giờ 30 ___.”", "分|分钟", "A", "Mốc giờ → **分**."),
+        Q("“Tôi bắt đầu học tiếng Trung từ năm ngoái.”", "我去年从开始学汉语。|我从去年开始学汉语。|我开始从去年学汉语。|从我去年学汉语开始。", "B", "**从 + thời điểm + 开始 + V**."),
+        Q("“Quyển sách này là tôi mua (nhấn người mua).”", "这本书是我买的。|这本书我是买。|这本书买的是我。|我是这本书买的。", "A", "**是…的**."),
+        Q("“Hai chúng tôi cao gần bằng nhau.”", "我们俩差不多高。|我们俩高差不多。|差不多我们俩高。|我们差不多俩高。", "A", "**差不多 + Adj**."),
+        Q("Chữ nào có bộ 冫 (Băng)?", "热|冷|雨|晴", "B", "**冷** lạnh — bộ Băng.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Mùa đông Bắc Kinh khá lạnh.", words: ["北京", "的", "冬天", "比较", "冷"], py: "Běijīng de dōngtiān bǐjiào lěng." },
+        { vi: "Hôm nay rất lạnh, âm 5 độ.", words: ["今天", "很冷", "零下", "五度"], py: "Jīntiān hěn lěng, língxià wǔ dù." },
+        { vi: "Bạn thích mùa nào nhất?", words: ["你", "最", "喜欢", "哪个", "季节"], py: "Nǐ zuì xǐhuan nǎge jìjié?" },
+        { vi: "Mùa xuân là mùa tôi thích nhất.", words: ["春天", "是", "我", "最", "喜欢", "的", "季节"], py: "Chūntiān shì wǒ zuì xǐhuan de jìjié." },
+        { vi: "Tôi sợ nóng, không sợ lạnh.", words: ["我", "怕热", "不", "怕冷"], py: "Wǒ pà rè, bú pà lěng." },
+        { vi: "Nghe nói cậu sắp đi Bắc Kinh du lịch?", words: ["听说", "你", "要", "去", "北京", "旅行"], py: "Tīngshuō nǐ yào qù Běijīng lǚxíng?" },
+        { vi: "Tôi muốn đi du lịch nhưng không có thời gian.", words: ["我", "想", "去旅行", "可是", "没有", "时间"], py: "Wǒ xiǎng qù lǚxíng, kěshì méiyǒu shíjiān." },
+        { vi: "Tôi bắt đầu học tiếng Trung từ năm ngoái.", words: ["我", "从", "去年", "开始", "学", "汉语"], py: "Wǒ cóng qùnián kāishǐ xué Hànyǔ." },
+        { vi: "Phần lớn mọi người đều thích xem phim.", words: ["大部分", "人", "都", "喜欢", "看", "电影"], py: "Dàbùfen rén dōu xǐhuan kàn diànyǐng." },
+        { vi: "Cô ấy đi tàu điện đến.", words: ["她", "是", "坐", "地铁", "来", "的"], py: "Tā shì zuò dìtiě lái de." }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · 3 tình huống",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_lvxing.webp",
+      scenes: [
+        { title: "① Đi Bắc Kinh mùa nào?", desc: "Quốc An định đi Bắc Kinh, hỏi Anh Thư.", lines: [
+          { who: "国安", ...X("英书，我想去北京旅行。你觉得什么季节去比较好？", "Yīngshū, wǒ xiǎng qù Běijīng lǚxíng. Nǐ juéde shénme jìjié qù bǐjiào hǎo?", "Anh Thư, mình muốn đi Bắc Kinh du lịch. Cậu thấy mùa nào đi thì tốt?") },
+          { who: "英书", ...X("秋天最好！秋天的北京不冷也不热，很凉快。", "Qiūtiān zuì hǎo! Qiūtiān de Běijīng bù lěng yě bú rè, hěn liángkuai.", "Mùa thu tốt nhất! Bắc Kinh mùa thu không lạnh cũng không nóng, rất mát.") },
+          { who: "国安", ...X("冬天呢？听说冬天会下雪。", "Dōngtiān ne? Tīngshuō dōngtiān huì xià xuě.", "Còn mùa đông? Nghe nói mùa đông có tuyết.") },
+          { who: "英书", ...X("对，可是冬天比较冷，常常零下十度。你怕冷吗？", "Duì, kěshì dōngtiān bǐjiào lěng, chángcháng língxià shí dù. Nǐ pà lěng ma?", "Đúng, nhưng mùa đông khá lạnh, thường âm 10 độ. Cậu sợ lạnh không?") },
+          { who: "国安", ...X("我很怕冷！那我秋天去吧。", "Wǒ hěn pà lěng! Nà wǒ qiūtiān qù ba.", "Mình rất sợ lạnh! Vậy mình đi mùa thu vậy.") },
+          { who: "英书", ...X("北京有很多有名的地方：长城、故宫、天坛……", "Běijīng yǒu hěn duō yǒumíng de dìfang: Chángchéng, Gùgōng, Tiāntán……", "Bắc Kinh có nhiều nơi nổi tiếng lắm: Trường Thành, Cố cung, Thiên Đàn…") },
+          { who: "国安", ...X("你可以跟我一起去吗？", "Nǐ kěyǐ gēn wǒ yìqǐ qù ma?", "Cậu đi cùng mình được không?") },
+          { who: "英书", ...X("当然可以！没问题！", "Dāngrán kěyǐ! Méi wèntí!", "Tất nhiên rồi! Không thành vấn đề!") }
+        ] },
+        { title: "② Không khoẻ", desc: "Con trai nói với mẹ.", lines: [
+          { who: "妈妈", av: "妈", ...X("儿子，你怎么了？", "Érzi, nǐ zěnme le?", "Con trai, con làm sao thế?") },
+          { who: "儿子", av: "儿", ...X("妈妈，我不太舒服。", "Māma, wǒ bú tài shūfu.", "Mẹ ơi, con thấy không khoẻ lắm.") },
+          { who: "妈妈", av: "妈", ...X("今天零下五度，你还去游泳了？", "Jīntiān língxià wǔ dù, nǐ hái qù yóuyǒng le?", "Hôm nay âm 5 độ mà con vẫn đi bơi à?") },
+          { who: "儿子", av: "儿", ...X("我是下午去的，游了三十分钟。", "Wǒ shì xiàwǔ qù de, yóu le sānshí fēnzhōng.", "Con đi buổi chiều, bơi 30 phút thôi.") },
+          { who: "妈妈", av: "妈", ...X("快去休息一会儿！", "Kuài qù xiūxi yíhuìr!", "Mau đi nghỉ một lát đi!") }
+        ], note: "**你怎么了？** = Bạn làm sao thế? — câu hỏi thăm khi thấy ai có vẻ không ổn." },
+        { title: "③ Bản tin thời tiết", desc: "MC đọc dự báo thời tiết (giống phần thử thách cuối bài).", lines: [
+          { who: "主持人", av: "MC", ...X("大家好！现在是天气预报。", "Dàjiā hǎo! Xiànzài shì tiānqì yùbào.", "Chào mọi người! Bây giờ là bản tin dự báo thời tiết.") },
+          { who: "主持人", av: "MC", ...X("今天北京是晴天，可是风比较大，零下三度。", "Jīntiān Běijīng shì qíngtiān, kěshì fēng bǐjiào dà, língxià sān dù.", "Hôm nay Bắc Kinh trời nắng, nhưng gió khá to, âm 3 độ.") },
+          { who: "主持人", av: "MC", ...X("河内有点儿冷，十二度，会下雨。", "Hénèi yǒudiǎnr lěng, shí'èr dù, huì xià yǔ.", "Hà Nội hơi lạnh, 12 độ, sẽ có mưa.") },
+          { who: "主持人", av: "MC", ...X("胡志明市很热，三十三度。谢谢大家！", "Húzhìmíng shì hěn rè, sānshísān dù. Xièxie dàjiā!", "TP Hồ Chí Minh rất nóng, 33 độ. Cảm ơn mọi người!") }
+        ] }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("今天天气很好。", "Jīntiān tiānqì hěn hǎo.", "Hôm nay trời đẹp."),
+        X("北京的冬天比较冷。", "Běijīng de dōngtiān bǐjiào lěng.", "Mùa đông Bắc Kinh khá lạnh."),
+        X("零下五度。", "Língxià wǔ dù.", "Âm 5 độ."),
+        X("下雪了！", "Xià xuě le!", "Tuyết rơi rồi!"),
+        X("我怕冷。", "Wǒ pà lěng.", "Tôi sợ lạnh."),
+        X("你最喜欢哪个季节？", "Nǐ zuì xǐhuan nǎge jìjié?", "Bạn thích mùa nào nhất?"),
+        X("当然可以！", "Dāngrán kěyǐ!", "Tất nhiên là được!"),
+        X("听说你要去北京旅行？", "Tīngshuō nǐ yào qù Běijīng lǚxíng?", "Nghe nói cậu sắp đi Bắc Kinh?"),
+        X("我不太舒服。", "Wǒ bú tài shūfu.", "Tôi không khoẻ lắm."),
+        X("我从去年开始学汉语。", "Wǒ cóng qùnián kāishǐ xué Hànyǔ.", "Tôi học tiếng Trung từ năm ngoái.")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Hôm nay thời tiết thế nào?", zh: "今天天气怎么样？", py: "Jīntiān tiānqì zěnmeyàng?" },
+        { vi: "Trả lời: Hôm nay trời rất đẹp.", zh: "今天天气很好。", py: "Jīntiān tiānqì hěn hǎo." },
+        { vi: "Nói: Hôm nay rất lạnh, âm 5 độ.", zh: "今天很冷，零下五度。", py: "Jīntiān hěn lěng, língxià wǔ dù." },
+        { vi: "Reo lên: Tuyết rơi rồi!", zh: "下雪了！", py: "Xià xuě le!" },
+        { vi: "Hỏi: Bạn thích mùa nào nhất?", zh: "你最喜欢哪个季节？", py: "Nǐ zuì xǐhuan nǎge jìjié?" },
+        { vi: "Trả lời: Mùa thu là mùa tôi thích nhất.", zh: "秋天是我最喜欢的季节。", py: "Qiūtiān shì wǒ zuì xǐhuan de jìjié." },
+        { vi: "Nói: Tôi sợ nóng, không sợ lạnh.", zh: "我怕热，不怕冷。", py: "Wǒ pà rè, bú pà lěng." },
+        { vi: "So sánh: Mùa đông Bắc Kinh khá lạnh, Việt Nam khá ấm.", zh: "北京的冬天比较冷，越南比较暖和。", py: "Běijīng de dōngtiān bǐjiào lěng, Yuènán bǐjiào nuǎnhuo." },
+        { vi: "Nói: Bắc Kinh là thành phố rất nổi tiếng.", zh: "北京是很有名的城市。", py: "Běijīng shì hěn yǒumíng de chéngshì." },
+        { vi: "Nói: Tôi muốn đi du lịch nhưng không có thời gian.", zh: "我想去旅行，可是没有时间。", py: "Wǒ xiǎng qù lǚxíng, kěshì méiyǒu shíjiān." },
+        { vi: "Hỏi: Nghe nói dạo này cậu bận lắm à?", zh: "听说你最近很忙？", py: "Tīngshuō nǐ zuìjìn hěn máng?" },
+        { vi: "Đáp nhờ vả: Không thành vấn đề!", zh: "没问题！", py: "Méi wèntí!" },
+        { vi: "Đáp: Tất nhiên là thích rồi!", zh: "当然喜欢！", py: "Dāngrán xǐhuan!" },
+        { vi: "Nói: Tôi bắt đầu học tiếng Trung từ năm ngoái.", zh: "我从去年开始学汉语。", py: "Wǒ cóng qùnián kāishǐ xué Hànyǔ." },
+        { vi: "Nói: Mẹ ơi, con thấy không khoẻ lắm.", zh: "妈妈，我不太舒服。", py: "Māma, wǒ bú tài shūfu." }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Làm MC dự báo thời tiết (6 câu)",
+      desc: "Hôm nay bạn đóng vai **MC thời tiết 天气预报**. Nói liền 6 câu, rồi **mở app thời tiết thật** và đổi số độ, thành phố cho đúng hôm nay.",
+      sticker: "zh_qingtian.webp",
+      items: [
+        { vi: "Chào mọi người! Bây giờ là bản tin dự báo thời tiết.", zh: "大家好！现在是天气预报。", py: "Dàjiā hǎo! Xiànzài shì tiānqì yùbào." },
+        { vi: "Hôm nay Hà Nội hơi lạnh, 15 độ.", zh: "今天河内有点儿冷，十五度。", py: "Jīntiān Hénèi yǒudiǎnr lěng, shíwǔ dù." },
+        { vi: "Buổi chiều sẽ có mưa, gió khá to.", zh: "下午会下雨，风比较大。", py: "Xiàwǔ huì xià yǔ, fēng bǐjiào dà." },
+        { vi: "Bắc Kinh âm 5 độ, có tuyết.", zh: "北京零下五度，会下雪。", py: "Běijīng língxià wǔ dù, huì xià xuě." },
+        { vi: "Thành phố Hồ Chí Minh trời nắng, rất nóng.", zh: "胡志明市是晴天，很热。", py: "Húzhìmíng shì shì qíngtiān, hěn rè." },
+        { vi: "Cảm ơn mọi người, hẹn gặp lại!", zh: "谢谢大家，再见！", py: "Xièxie dàjiā, zàijiàn!" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Bắc Kinh du hí",
+      title: "Văn hoá · Bắc Kinh du hí — 4 điểm phải đến",
+      sticker: "zh_lantern.webp",
+      cols: 2,
+      cards: [
+        { tag: "万里长城", title: "Vạn Lý Trường Thành", ira: "zh_zhongguo.webp", body: "Công trình phòng thủ quân sự cổ dài hàng ngàn cây số, một trong những kỳ quan vĩ đại nhất thế giới. Đến Bắc Kinh hay đi các đoạn **八达岭** Bát Đạt Lĩnh, **金山岭** Kim Sơn Lĩnh, **慕田峪** Mộ Điền Dụ." },
+        { tag: "故宫 · 紫禁城", title: "Cố cung – Tử Cấm Thành", ira: "zh_lantern.webp", body: "Nơi ở và trị vì của vua chúa nhà **Minh** và nhà **Thanh**. Là khu cung điện lớn nhất thế giới, rộng khoảng **720.000 m²**, nằm ở trung tâm Bắc Kinh." },
+        { tag: "天坛", title: "Thiên Đàn", ira: "zh_qingtian.webp", body: "Xây năm **1420**, hơn 600 năm tuổi — nơi vua nhà Minh, Thanh **tế trời, cầu mùa màng bội thu**. Lớn nhất trong 4 đàn của Bắc Kinh (Thiên – Địa – Nhật – Nguyệt)." },
+        { tag: "颐和园", title: "Di Hoà Viên", ira: "zh_qiutian.webp", body: "Cung điện Mùa hè thời nhà Thanh, cách trung tâm khoảng 15 km về phía tây bắc — nơi hoàng đế nghỉ ngơi. Tên có nghĩa là **khu vườn nuôi dưỡng sự an hoà**." }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 11 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Mùa", title: "4 mùa", bullets: ["春天 · 夏天 · 秋天 · 冬天", "…的时候，…", "你最喜欢哪个季节？"] },
+        { tag: "Thời tiết", title: "Tính từ làm vị ngữ", bullets: ["很冷 · 很热 · 暖和 · 凉快 · 舒服", "零下 + số + 度", "下雨了 · 下雪了 · 风很大"] },
+        { tag: "Mức độ", title: "Từ nhẹ đến mạnh", bullets: ["有点儿 < 比较 < 很 < 太…了", "比较 còn nghĩa là so sánh"] },
+        { tag: "Nối & đáp", title: "Câu dùng ngay", bullets: ["…，可是… = nhưng", "听说… = nghe nói", "没问题！· 当然可以！"] },
+        { tag: "Thời gian", title: "Mốc & khoảng", bullets: ["从…开始 + V", "分 (mốc) · 分钟 (khoảng)", "一下 · 一会儿 · 一会儿…一会儿…"] },
+        { tag: "Nhấn mạnh", title: "是…的 · 差不多", bullets: ["是 + chi tiết + V + 的", "我们俩差不多高", "差不多了！ = gần xong rồi"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 34 từ.",
+        "**✍ Tự viết** 10 chữ: 春 夏 秋 冬 雨 雪 冷 热 怕 始 — mỗi chữ đúng 3 lần liền.",
+        "Mỗi sáng mở app thời tiết, **nói 2 câu dự báo** bằng tiếng Trung (thành phố + độ + mưa/nắng).",
+        "Viết 3 câu bằng cấu trúc **我从____开始____。**",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "Ghi âm phần **MC dự báo thời tiết** của bạn (≤ 40 giây).",
+        "Nghe bài hát **北京欢迎你** (Bắc Kinh chào đón bạn) — slide gợi ý học tiếng Trung qua bài này."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>
