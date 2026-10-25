@@ -75,7 +75,7 @@
   function hideGate() { var el = document.getElementById('np-gate'); if (el) el.remove(); }
 
   /* ---------- Bắt đăng nhập + kiểm tra đã được thêm vào khoá ---------- */
-  var COURSE_NAMES = { giaotiep: 'Giao tiếp Thực chiến', speaking6: 'IELTS Speaking 6.0', writing: 'IELTS Writing 6.0 → 8.0', chuyende: '25 Chuyên đề Tiếng Anh THPT' };
+  var COURSE_NAMES = { giaotiep: 'Giao tiếp Thực chiến', speaking6: 'IELTS Speaking 6.0', writing: 'IELTS Writing 6.0 → 8.0', chuyende: '25 Chuyên đề Tiếng Anh THPT', tiengtrung: 'Tiếng Trung Quyển 1' };
   /* Khoá của trang hiện tại: khoahoc/<khoá>/buoi-XX.html hoặc khoahoc/<khoá>.html */
   function pageCourse() {
     var parts = (location.pathname || '').split('/').filter(Boolean);

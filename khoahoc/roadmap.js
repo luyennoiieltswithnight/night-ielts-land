@@ -1,7 +1,7 @@
 /* Night IELTS — khung LỘ TRÌNH dùng chung cho mọi khóa (cùng phong cách trang chủ, mỗi khóa 1 màu).
    Dùng: <script src="roadmap.js"></script> rồi NightRoadmap.render({...}).
    {
-     theme: "giaotiep" | "speaking6" | "writing" | "chuyende",
+     theme: "giaotiep" | "speaking6" | "writing" | "chuyende" | "tiengtrung",
      eyebrow, title, lead, sticker: "ten.webp" (Irasutoya trong img/ira/),
      facts: [[nhãn, giá trị], ...],                 // ô thông tin trong thẻ tối
      tools: [{href, icon, name, desc, tag}],        // lối tắt công cụ (tuỳ chọn)
@@ -19,7 +19,8 @@
     giaotiep: { a: "#FF8A3D", ink: "#fff", soft: "#FFF0E4", text: "#C2511A", name: "Giao tiếp" },
     speaking6: { a: "#6C70DC", ink: "#fff", soft: "#EDEEFD", text: "#4A4EB8", name: "Speaking" },
     writing: { a: "#FBBF24", ink: "#24242A", soft: "#FEF4D6", text: "#92570A", name: "Writing" },
-    chuyende: { a: "#10B981", ink: "#fff", soft: "#DDF7EC", text: "#04704F", name: "Chuyên đề" }
+    chuyende: { a: "#10B981", ink: "#fff", soft: "#DDF7EC", text: "#04704F", name: "Chuyên đề" },
+    tiengtrung: { a: "#C8102E", ink: "#fff", soft: "#FDECEC", text: "#9B0D23", name: "Tiếng Trung" }
   };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
