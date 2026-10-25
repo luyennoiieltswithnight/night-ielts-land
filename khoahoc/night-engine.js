@@ -2721,7 +2721,8 @@
         h("button", { onClick: () => { setRun(false); setLeft(total); }, title: "Đặt lại", className: "rounded-lg bg-slate-100 px-2 py-1.5 text-xs font-bold text-slate-600" }, "↺")));
   }
 
-  // Bút vẽ đè: nét lưu theo toạ độ trang nên cuộn trang thì nét đi theo nội dung
+  // Bút vẽ đè: nét lưu theo toạ độ trang nên cuộn trang thì nét đi theo nội dung.
+  // Lớp vẽ KHÔNG bị nvInstallPinchFix giữ cỡ màn hình (data-nv-nopin) → zoom bằng 2 ngón thì nét vẽ phóng to theo nội dung.
   const PEN = { red: "#e11d48", blue: "#2563eb", green: "#16a34a", black: "#0f172a" };
   function DrawLayer({ on, tool, color, pageKey, cmd }) {
     const cv = useRef(null), store = useRef({}), cur = useRef(null), raf = useRef(0);
@@ -2774,7 +2775,7 @@
       cur.current.pts.push(p); redraw();
     };
     const up = () => { if (cur.current && !cur.current.erasing && cur.current.pts) list().push(cur.current); cur.current = null; redraw(); };
-    return h("canvas", { ref: cv, onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up,
+    return h("canvas", { ref: cv, "data-nv-nopin": "1", onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up,
       style: { position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 45, pointerEvents: on ? "auto" : "none", touchAction: on ? "none" : "auto", cursor: on ? (tool === "erase" ? "cell" : "crosshair") : "default" } });
   }
 
@@ -3201,7 +3202,7 @@
     /* offsetLeft/offsetTop của phần tử fixed là vị trí GỐC (không bị translate/scale làm lệch) → không cần gỡ ra đo lại, đặt ngay trong sự kiện để không giật. */
     const SEL = '.fixed, [style*="position: fixed"], [style*="position:fixed"]';
     let els = [], lastScan = 0, zoomed = false;
-    const scan = () => { els = Array.from(document.querySelectorAll(SEL)).filter((el) => getComputedStyle(el).position === "fixed"); lastScan = Date.now(); };
+    const scan = () => { els = Array.from(document.querySelectorAll(SEL)).filter((el) => !el.hasAttribute("data-nv-nopin") && getComputedStyle(el).position === "fixed"); lastScan = Date.now(); };
     const clear = (el) => { el.style.translate = ""; el.style.scale = ""; el.style.transformOrigin = ""; el.style.willChange = ""; };
     const place = () => {
       const s = vv.scale || 1;
