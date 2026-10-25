@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 6: 你喜欢吃什么？</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* Thẻ chữ Hán: { zh, py, hv, pos, vi, ira, tip, ex: [{zh, py, vi}], also: [[chữ, pinyin, nghĩa]] } — Lục thư lấy từ bảng LT bên dưới. */
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "上午": [["上", "chi", "Một vạch ngắn **trên** vạch ngang mốc → phía trên, (buổi) trước."], ["午", "tuong+gia", "Gốc vẽ **cái chày giã gạo**; mượn âm chỉ **giờ Ngọ** (11h–13h) → buổi trưa."]],
+  "中午": [["中", "chi", "Vạch **xuyên chính giữa** khung → ở giữa."], ["午", "tuong+gia", "Gốc vẽ cái chày; mượn chỉ **giờ Ngọ** – giữa trưa."]],
+  "下午": [["下", "chi", "Một vạch **dưới** vạch ngang mốc → phía dưới, (buổi) sau."], ["午", "tuong+gia", "Giờ Ngọ – buổi trưa."]],
+  "晚上": [["晚", "thanh", "**日** (mặt trời) chỉ nghĩa + **免** miǎn chỉ âm → wǎn: mặt trời lặn → tối, muộn."], ["上", "chi", "Ở đây đọc nhẹ *shang*, chỉ khoảng thời gian."]],
+  "几": [["几", "tuong+gia", "Vẽ **cái bàn nhỏ** (bộ Kỷ). Nghĩa “mấy” vốn của chữ phồn thể **幾**, giản thể mượn 几 cùng âm."]],
+  "点": [["点", "thanh", "Phồn thể **點** = **黑** (đen) chỉ nghĩa “chấm mực” + **占** zhān chỉ âm. Giản thể giữ **占** + 4 chấm **灬**."]],
+  "分": [["分", "hoi", "**八** (tách ra hai bên) + **刀** (dao) → dùng dao **chia** ra → phần, phút."]],
+  "学习": [["学", "thanh", "Phồn thể **學**: **子** (trẻ) dưới mái nhà chỉ nghĩa, phần trên chỉ âm."], ["习", "hoi", "Phồn thể **習** = **羽** (đôi cánh) + **白**: chim non **vỗ cánh tập bay** nhiều lần → luyện tập."]],
+  "汉字": [["汉", "thanh", "**氵** chỉ nghĩa (gốc tên **sông Hán**) + phần phải (phồn thể 漢) chỉ âm."], ["字", "thanh", "**宀** (mái nhà) chỉ nghĩa + **子** zǐ chỉ âm."]],
+  "发音": [["发", "thanh", "Phồn thể **發** = **弓** (cây cung) chỉ nghĩa “bắn ra” + phần trên chỉ âm (bō) → phát ra."], ["音", "chi", "Chữ **言** (lời nói) thêm một nét **trong miệng** → âm thanh phát ra."]],
+  "书": [["书", "thanh", "Phồn thể **書** = **聿** (bàn tay cầm bút) chỉ nghĩa + **者** zhě chỉ âm → viết → sách."]],
+  "杂志": [["杂", "thanh", "Phồn thể **雜** = **衣** (áo) chỉ nghĩa “nhiều màu lẫn lộn” + **集** jí chỉ âm → tạp, lẫn lộn."], ["志", "thanh", "**心** (lòng) chỉ nghĩa + **士** (gốc là 之 zhī) chỉ âm → chí hướng; ghi chép."]],
+  "中文": [["中", "chi", "Vạch xuyên giữa khung → ở giữa (Trung Quốc)."], ["文", "tuong", "Vẽ **người có hình xăm** trên ngực → hoa văn → chữ viết, văn."]],
+  "难": [["难", "thanh+gia", "Phồn thể **難** = **隹** (chim) chỉ nghĩa + **堇** chỉ âm, gốc là tên một loài chim. Nghĩa “khó” là **mượn âm**. Giản thể thay phần âm bằng **又**."]],
+  "怎么样": [["怎", "thanh", "**心** chỉ nghĩa (suy nghĩ, thắc mắc) + **乍** zhà chỉ âm → zěn."], ["么", "thanh", "Giản thể của **麼**: **幺** chỉ nghĩa + **麻** chỉ âm."], ["样", "thanh", "**木** (gỗ – khuôn mẫu) chỉ nghĩa + **羊** yáng chỉ âm → kiểu, dạng."]],
+  "觉得": [["觉", "thanh", "Phồn thể **覺** = **見** (nhìn thấy) chỉ nghĩa + phần trên (rút từ 學) chỉ âm → cảm thấy, tỉnh ngộ."], ["得", "hoi", "**彳** (đi) + **旦/寸** (gốc: tay cầm **vỏ sò – tiền**) → ra đường nhặt được tiền → **được**."]],
+  "怎么": [["怎", "thanh", "**心** chỉ nghĩa + **乍** zhà chỉ âm."], ["么", "thanh", "Giản thể của 麼."]],
+  "喜欢": [["喜", "hoi", "**壴** (cái trống) + **口** (miệng) → đánh trống, ca hát → **vui mừng**. Chữ song hỷ 囍 = hai chữ 喜."], ["欢", "thanh", "Phồn thể **歡** = **欠** (người há miệng) chỉ nghĩa + **雚** guàn chỉ âm → hoan hỉ."]],
+  "真": [["真", "hoi", "Theo Thuyết văn: người tu tiên **biến hình bay lên trời** → chân thật, thật sự."]],
+  "吃": [["吃", "thanh", "**口** (miệng) chỉ nghĩa + **乞** qǐ chỉ âm → chī."]],
+  "饭": [["饭", "thanh", "**饣** (bộ Thực – ăn) chỉ nghĩa + **反** fǎn chỉ âm → fàn."]],
+  "饿": [["饿", "thanh", "**饣** (ăn) chỉ nghĩa + **我** wǒ chỉ âm → è. Cùng phần âm **我**: **俄** é (Nga, bộ người) · **娥** é (Hằng Nga, bộ nữ) · **饿** è (đói, bộ ăn)."]],
+  "食堂": [["食", "hoi", "**亼** (cái nắp / miệng) + **皀** (hạt thóc thơm trong bát) → đồ ăn, ăn."], ["堂", "thanh", "**土** (đất – nền nhà) chỉ nghĩa + **尚** shàng chỉ âm → gian nhà lớn."]],
+  "馒头": [["馒", "thanh", "**饣** chỉ nghĩa + **曼** màn chỉ âm."], ["头", "thanh", "Phồn thể **頭** = **頁** (cái đầu) chỉ nghĩa + **豆** dòu chỉ âm. Trong 馒头 đọc nhẹ *tou*."]],
+  "慢": [["慢", "thanh", "**忄** (tâm – lòng) chỉ nghĩa “lười, thong thả” + **曼** màn chỉ âm. So sánh **馒** (饣 – bánh) ↔ **慢** (忄 – chậm): cùng âm 曼."]],
+  "包子": [["包", "tuong", "Vẽ **bào thai được bọc trong bụng mẹ** (勹 bọc lấy 巳) → bao, gói."], ["子", "tuong", "Vẽ **em bé quấn tã** giơ hai tay. Làm hậu tố danh từ đọc nhẹ *zi*."]],
+  "本子": [["本", "chi", "**木** (cây) thêm vạch ở **gốc** → gốc; nghĩa mở rộng: cuốn, quyển."], ["子", "tuong", "Em bé quấn tã → hậu tố danh từ *zi*."]],
+  "饺子": [["饺", "thanh", "**饣** chỉ nghĩa + **交** jiāo chỉ âm → jiǎo. Mẹo: hai mép bánh **giao** (交) nhau."], ["子", "tuong", "Hậu tố danh từ *zi*."]],
+  "面条": [["面", "tuong", "Vẽ **khuôn mặt**. Nghĩa “mì” vốn của chữ phồn thể **麵** (麥 lúa mì + 面 âm), giản thể dùng chung 面."], ["条", "thanh", "Phồn thể **條** = **木** (cành cây) chỉ nghĩa + **攸** yōu chỉ âm → sợi dài."]],
+  "鸡蛋": [["鸡", "thanh", "Phồn thể **雞** = **隹** (chim) chỉ nghĩa + **奚** xī chỉ âm. Giản thể: **又** + **鸟** (bộ Điểu)."], ["蛋", "thanh", "**虫** (bộ Trùng – loài sinh trứng) chỉ nghĩa + phần trên (gốc 延 dàn) chỉ âm."]],
+  "汤": [["汤", "thanh", "**氵** (nước) chỉ nghĩa + phần phải (phồn thể **昜** yáng) chỉ âm → tāng."]],
+  "米饭": [["米", "tuong", "Vẽ **hạt gạo rơi quanh bông lúa** (bộ Mễ)."], ["饭", "thanh", "**饣** chỉ nghĩa + **反** fǎn chỉ âm."]],
+  "碗": [["碗", "thanh", "**石** (đá – đồ sứ) chỉ nghĩa + **宛** wǎn chỉ âm."]],
+  "杯": [["杯", "thanh", "**木** (gỗ – cốc gỗ thời xưa) chỉ nghĩa + **不** bù chỉ âm → bēi."]],
+  "瓶": [["瓶", "thanh", "**瓦** (đồ gốm) chỉ nghĩa + **并** bìng chỉ âm → píng."]],
+  "要": [["要", "tuong+gia", "Gốc vẽ **người chống hai tay vào eo** (eo về sau viết 腰). Nghĩa “muốn, cần” là **mượn âm**."]],
+  "酒": [["酒", "hoi", "**氵** (chất lỏng) + **酉** (cái vò rượu) → rượu."]],
+  "啤酒": [["啤", "thanh", "**口** chỉ nghĩa + **卑** bēi chỉ âm → pí, chữ đặt ra để **phiên âm “beer”**."], ["酒", "hoi", "氵 + 酉 (vò rượu) → rượu."]]
+};
+const L = {
+  id: "zh-q1-06",
+  courseKey: "tiengtrung",
+  lang: "zh-CN",
+  brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1",
+  session: "Bài 6",
+  unit: "Chủ đề văn hoá: 舞龙舞狮 múa rồng múa lân · Giờ giấc · Học tập · Ăn uống, gọi món",
+  titleZh: "你喜欢吃什么？",
+  titlePy: "Nǐ xǐhuan chī shénme?",
+  title: "Cậu thích ăn cái gì?",
+  subtitle: "Học xong bài này bạn nói được giờ giấc, hỏi “mấy”, kể chuyện học tiếng Trung khó – dễ thế nào, nói mình thích ăn gì, và tự gọi món ở nhà ăn: một bát cơm, hai cái bánh bao, một cốc trà sữa.",
+  heroSticker: "zh_dragon.webp",
+  prev: { href: "buoi-05.html", label: "Bài 5" },
+  next: { href: "buoi-07.html", label: "Bài 7" },
+  goals: [
+    "Nhận mặt, đọc đúng thanh, viết đúng nét **38 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Nói giờ và buổi: *下午一点二十五分* · hỏi **几**: 几点？几口人？星期几？",
+    "Hỏi cảm nhận và cách làm: **怎么样 · 觉得 · 怎么 + V**",
+    "Câu hỏi chính phản **吃不吃？** · khen **太…了 / 真…** · hỏi “chưa?” **…了吗？**",
+    "**Gọi món** đúng lượng từ: *我要一碗米饭、两个包子、一杯奶茶*"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Giờ giấc – học tập – cảm nhận",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư** (chữ thuộc loại nào rồi mới phân tích), bấm **✍ Tự viết** để luyện.",
+      sticker: "zh_dian.webp",
+      groups: [
+        { label: "Buổi trong ngày · giờ phút · 几", cards: [
+          { zh: "上午", py: "shàngwǔ", hv: "Thượng ngọ", pos: "danh từ", vi: "buổi sáng (8h–11h)", ira: "zh_shangban.webp",
+            tip: "上 *trên / trước* + 午 *trưa* → **trước buổi trưa**.", ex: [X("我上午学习汉语。", "Wǒ shàngwǔ xuéxí Hànyǔ.", "Buổi sáng tôi học tiếng Trung.")] },
+          { zh: "中午", py: "zhōngwǔ", hv: "Trung ngọ", pos: "danh từ", vi: "buổi trưa (11h–13h)", ira: "zh_zhongwu.webp",
+            ex: [X("中午我去食堂吃饭。", "Zhōngwǔ wǒ qù shítáng chī fàn.", "Buổi trưa tôi đến nhà ăn ăn cơm.")] },
+          { zh: "下午", py: "xiàwǔ", hv: "Hạ ngọ", pos: "danh từ", vi: "buổi chiều (13h–17h)", ira: "zh_xiawu.webp",
+            tip: "下 *dưới / sau* + 午 *trưa* → **sau buổi trưa**.", ex: [X("下午一点二十五分", "xiàwǔ yī diǎn èrshíwǔ fēn", "1 giờ 25 phút chiều")] },
+          { zh: "晚上", py: "wǎnshang", hv: "Vãn thượng", pos: "danh từ", vi: "buổi tối", ira: "study_night_boy_0934.webp",
+            ex: [X("晚上八点五十九分", "wǎnshang bā diǎn wǔshíjiǔ fēn", "8 giờ 59 phút tối"), X("今天晚上我想去食堂吃饺子。", "Jīntiān wǎnshang wǒ xiǎng qù shítáng chī jiǎozi.", "Tối nay tao muốn đi nhà ăn ăn sủi cảo.")] },
+          { zh: "几", py: "jǐ", hv: "Kỷ", pos: "đại từ nghi vấn", vi: "mấy (hỏi số lượng nhỏ, thường dưới 10)", ira: "zh_shenme.webp",
+            tip: "**几 + lượng từ + danh từ**. Bộ **Kỷ** 几 = cái bàn nhỏ.",
+            ex: [X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?"), X("今天几月几日？", "Jīntiān jǐ yuè jǐ rì?", "Hôm nay ngày mấy tháng mấy?"), X("今天星期几？", "Jīntiān xīngqī jǐ?", "Hôm nay thứ mấy?")] },
+          { zh: "点", py: "diǎn", hv: "Điểm", pos: "lượng từ / danh từ", vi: "giờ (khi nói giờ); chấm, điểm", ira: "zh_dian.webp",
+            tip: "Bốn chấm **灬** là bộ **Hoả** (chấm hoả). **几点？** = mấy giờ?", ex: [X("现在几点？", "Xiànzài jǐ diǎn?", "Bây giờ mấy giờ?"), X("八点三十分", "bā diǎn sānshí fēn", "8 giờ 30 phút")] },
+          { zh: "分", py: "fēn", hv: "Phân", pos: "lượng từ", vi: "phút; chia", ira: "zh_fen.webp",
+            tip: "Phút dưới 10 thêm **零** líng: 八点**零**五分 (8h05).", ex: [X("九点四十五分", "jiǔ diǎn sìshíwǔ fēn", "9 giờ 45 phút")] }
+        ] },
+        { label: "Học tập", cards: [
+          { zh: "学习", py: "xuéxí", hv: "Học tập", pos: "động từ / danh từ", vi: "học, học tập", ira: "zh_xuexi.webp",
+            tip: "Khẩu hiệu Lênin nổi tiếng: **学习！学习！再学习！** — Học, học nữa, học mãi.",
+            ex: [X("你学习什么？我学习英语。", "Nǐ xuéxí shénme? Wǒ xuéxí Yīngyǔ.", "Cậu học gì đó? Tớ học tiếng Anh."), X("你学习怎么样了？", "Nǐ xuéxí zěnmeyàng le?", "Cậu học hành sao rồi?")] },
+          { zh: "汉字", py: "Hànzì", hv: "Hán tự", pos: "danh từ", vi: "chữ Hán", ira: "zh_hanzi.webp",
+            ex: [X("你学汉字吗？", "Nǐ xué Hànzì ma?", "Cậu có học chữ Hán không?"), X("汉字太难了！", "Hànzì tài nán le!", "Chữ Hán siêu khó!")] },
+          { zh: "发音", py: "fāyīn", hv: "Phát âm", pos: "danh từ / động từ", vi: "phát âm", ira: "zh_fayin.webp",
+            ex: [X("你学发音吗？", "Nǐ xué fāyīn ma?", "Cậu có học phát âm không?"), X("发音不难。", "Fāyīn bù nán.", "Phát âm không khó.")] },
+          { zh: "书", py: "shū", hv: "Thư", pos: "danh từ", vi: "sách", ira: "zh_shu.webp",
+            ex: [X("这是我的书。", "Zhè shì wǒ de shū.", "Đây là sách của tớ."), X("这是什么书？这是汉语书。", "Zhè shì shénme shū? Zhè shì Hànyǔ shū.", "Đây là sách gì? Đây là sách tiếng Trung.")] },
+          { zh: "杂志", py: "zázhì", hv: "Tạp chí", pos: "danh từ", vi: "tạp chí", ira: "zh_zazhi.webp",
+            ex: [X("这是谁的杂志？", "Zhè shì shéi de zázhì?", "Đây là tạp chí của ai?"), X("这是英文杂志。", "Zhè shì Yīngwén zázhì.", "Đây là tạp chí tiếng Anh.")] },
+          { zh: "中文", py: "Zhōngwén", hv: "Trung văn", pos: "danh từ", vi: "tiếng Trung (thiên về chữ viết)", ira: "zh_hanyu.webp",
+            tip: "**汉语** = tiếng nói của người Hán · **中文** = tiếng/chữ Trung nói chung, hay đi với sách báo: 中文书, 中文杂志.",
+            ex: [X("你学中文？", "Nǐ xué Zhōngwén?", "Cậu học tiếng Trung à?")], also: [["英文", "Yīngwén", "tiếng Anh (văn)"]] },
+          { zh: "难", py: "nán", hv: "Nan", pos: "tính từ", vi: "khó", ira: "zh_nan.webp",
+            ex: [X("汉语不太难。", "Hànyǔ bú tài nán.", "Tiếng Trung không khó lắm."), X("汉字太难了！", "Hànzì tài nán le!", "Chữ Hán khó quá!")] }
+        ] },
+        { label: "Hỏi cảm nhận · sở thích", cards: [
+          { zh: "怎么样", py: "zěnmeyàng", hv: "Chẩm ma dạng", pos: "đại từ nghi vấn", vi: "thế nào, ra sao?", ira: "zh_zenmeyang.webp",
+            tip: "Hỏi **tình hình / cảm nhận**: N + 怎么样？", ex: [X("你学习怎么样了？", "Nǐ xuéxí zěnmeyàng le?", "Cậu học hành sao rồi?"), X("这个汤怎么样？", "Zhège tāng zěnmeyàng?", "Món canh này thế nào?")] },
+          { zh: "觉得", py: "juéde", hv: "Giác đắc", pos: "động từ", vi: "cảm thấy, thấy rằng", ira: "zh_juede.webp",
+            ex: [X("你觉得怎么样？", "Nǐ juéde zěnmeyàng?", "Cậu thấy thế nào?"), X("我觉得汉语不太难。", "Wǒ juéde Hànyǔ bú tài nán.", "Mình thấy tiếng Trung không khó lắm.")] },
+          { zh: "怎么", py: "zěnme", hv: "Chẩm ma", pos: "đại từ nghi vấn", vi: "thế nào, làm sao (+ động từ: hỏi cách làm)", ira: "zh_zenme.webp",
+            tip: "**怎么 + động từ** = hỏi **cách làm**. Khác 怎么样 (hỏi tình hình).",
+            ex: [X("水怎么喝？", "Shuǐ zěnme hē?", "Nước uống thế nào?"), X("怎么学好汉语？", "Zěnme xuéhǎo Hànyǔ?", "Làm sao để học giỏi tiếng Trung?")] },
+          { zh: "喜欢", py: "xǐhuan", hv: "Hỷ hoan", pos: "động từ", vi: "thích", ira: "zh_xihuan.webp",
+            tip: "Người Việt nào cũng biết chữ **喜** — chữ song hỷ **囍** dán trong đám cưới!",
+            ex: [X("你喜欢什么？", "Nǐ xǐhuan shénme?", "Cậu thích cái gì?"), X("我喜欢学汉语。", "Wǒ xǐhuan xué Hànyǔ.", "Tớ thích học tiếng Trung.")] },
+          { zh: "真", py: "zhēn", hv: "Chân", pos: "phó từ / tính từ", vi: "thật, thật là", ira: "zh_zhen.webp",
+            ex: [X("真好吃！", "Zhēn hǎochī!", "Ngon thật đấy!")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Ăn uống – gọi món",
+      desc: "Để ý bộ **饣 (bộ Thực – ăn uống)**: 饭 · 饿 · 馒 · 饺 — thấy bộ này là biết chữ liên quan đến **ăn**.",
+      sticker: "zh_jiaozi.webp",
+      groups: [
+        { label: "Ăn · đói · nhà ăn", cards: [
+          { zh: "吃", py: "chī", hv: "Ngật", pos: "động từ", vi: "ăn", ira: "zh_chi.webp",
+            ex: [X("你吃什么？", "Nǐ chī shénme?", "Bạn ăn gì?"), X("太好吃了！", "Tài hǎochī le!", "Ngon quá trời!")], also: [["好吃", "hǎochī", "ngon (đồ ăn)"]] },
+          { zh: "饭", py: "fàn", hv: "Phạn", pos: "danh từ", vi: "cơm; bữa ăn", ira: "zh_fan.webp",
+            ex: [X("我吃饭。", "Wǒ chī fàn.", "Mình ăn cơm."), X("去吃饭吧！", "Qù chī fàn ba!", "Đi ăn cơm đi!")] },
+          { zh: "饿", py: "è", hv: "Ngạ", pos: "tính từ", vi: "đói", ira: "zh_e.webp",
+            tip: "Bộ ba cùng âm **我**: **俄** é Nga · **娥** é Hằng Nga · **饿** è đói.", ex: [X("我很饿！", "Wǒ hěn è!", "Tôi rất đói!")] },
+          { zh: "食堂", py: "shítáng", hv: "Thực đường", pos: "danh từ", vi: "nhà ăn, căng tin", ira: "zh_shitang.webp",
+            ex: [X("你去哪儿吃饭？", "Nǐ qù nǎr chī fàn?", "Cậu đi đâu ăn cơm?"), X("我去学校的食堂吃饭。", "Wǒ qù xuéxiào de shítáng chī fàn.", "Tôi đến nhà ăn của trường ăn cơm.")] },
+          { zh: "慢", py: "màn", hv: "Mạn", pos: "tính từ", vi: "chậm", ira: "zh_man.webp",
+            tip: "**馒** (饣 – bánh) ↔ **慢** (忄 – chậm): cùng âm **曼** màn, khác bộ.", ex: [X("慢慢吃！", "Mànmàn chī!", "Ăn từ từ thôi!")] }
+        ] },
+        { label: "Món ăn Trung Hoa", cards: [
+          { zh: "馒头", py: "mántou", hv: "Màn đầu", pos: "danh từ", vi: "bánh màn thầu (không nhân)", ira: "zh_mantou.webp",
+            ex: [X("你饿吗？去食堂吃馒头吧！", "Nǐ è ma? Qù shítáng chī mántou ba!", "Cậu đói không? Đi nhà ăn ăn màn thầu đi.")] },
+          { zh: "包子", py: "bāozi", hv: "Bao tử", pos: "danh từ", vi: "bánh bao (có nhân)", ira: "zh_baozi.webp",
+            tip: "**包** = bọc, gói → bánh có **nhân bọc** bên trong. **子** = hậu tố danh từ.", ex: [X("我要两个包子。", "Wǒ yào liǎng ge bāozi.", "Tôi muốn hai cái bánh bao.")] },
+          { zh: "本子", py: "běnzi", hv: "Bản tử", pos: "danh từ", vi: "quyển vở", ira: "zh_benzi.webp",
+            tip: "Hậu tố **子** lại xuất hiện: 包子, 本子, 饺子.", ex: [X("一个本子", "yí ge běnzi", "một quyển vở")] },
+          { zh: "饺子", py: "jiǎozi", hv: "Giảo tử", pos: "danh từ", vi: "bánh sủi cảo", ira: "zh_jiaozi.webp",
+            ex: [X("饺子好吃吗？", "Jiǎozi hǎochī ma?", "Sủi cảo có ngon không?")] },
+          { zh: "面条", py: "miàntiáo", hv: "Diện điều", pos: "danh từ", vi: "mì sợi", ira: "zh_miantiao.webp",
+            ex: [X("我喜欢吃面条。", "Wǒ xǐhuan chī miàntiáo.", "Tôi thích ăn mì.")] },
+          { zh: "鸡蛋", py: "jīdàn", hv: "Kê đản", pos: "danh từ", vi: "trứng gà", ira: "zh_jidan.webp",
+            tip: "鸡 có bộ **鸟 (Điểu – chim)**, 蛋 có bộ **虫 (Trùng)**.", ex: [X("北京鸡蛋汤很好吃。", "Běijīng jīdàn tāng hěn hǎochī.", "Canh trứng Bắc Kinh ngon lắm.")] },
+          { zh: "汤", py: "tāng", hv: "Thang", pos: "danh từ", vi: "canh, súp", ira: "zh_tang.webp",
+            ex: [X("越南鸡汤也很好吃。", "Yuènán jī tāng yě hěn hǎochī.", "Canh gà Việt Nam cũng rất ngon.")], also: [["喝汤", "hē tāng", "ăn (húp) canh"]] },
+          { zh: "米饭", py: "mǐfàn", hv: "Mễ phạn", pos: "danh từ", vi: "cơm trắng", ira: "zh_mifan.webp",
+            tip: "**米** bộ Mễ – hạt gạo. Hãng **小米 Xiaomi** = “hạt kê”.", ex: [X("我要一碗米饭。", "Wǒ yào yì wǎn mǐfàn.", "Tôi muốn một bát cơm.")] }
+        ] },
+        { label: "Gọi món · lượng từ", cards: [
+          { zh: "碗", py: "wǎn", hv: "Oản", pos: "lượng từ / danh từ", vi: "bát, chén (ăn)", ira: "zh_wan.webp",
+            ex: [X("我吃一碗饭。", "Wǒ chī yì wǎn fàn.", "Tôi ăn một bát cơm.")] },
+          { zh: "杯", py: "bēi", hv: "Bôi", pos: "lượng từ / danh từ", vi: "cốc, ly, chén (uống)", ira: "zh_bei.webp",
+            ex: [X("我喝一杯水。", "Wǒ hē yì bēi shuǐ.", "Tôi uống một cốc nước."), X("干杯！", "Gānbēi!", "Cạn ly! (Dô!)")], also: [["一杯奶茶", "yì bēi nǎichá", "một cốc trà sữa"]] },
+          { zh: "瓶", py: "píng", hv: "Bình", pos: "lượng từ / danh từ", vi: "chai, lọ", ira: "zh_ping.webp",
+            ex: [X("一瓶啤酒", "yì píng píjiǔ", "một chai bia")] },
+          { zh: "要", py: "yào", hv: "Yếu", pos: "động từ năng nguyện", vi: "muốn, cần; phải", ira: "zh_yao.webp",
+            tip: "Gọi món dùng **要**: 我要… = Cho tôi… **明天我要去学校** = mai tôi **phải** đến trường.",
+            ex: [X("我要一碗鸡蛋汤、两个包子、三个饺子。", "Wǒ yào yì wǎn jīdàn tāng, liǎng ge bāozi, sān ge jiǎozi.", "Tôi muốn 1 bát canh trứng, 2 cái bánh bao, 3 cái sủi cảo."), X("明天我要去学校。", "Míngtiān wǒ yào qù xuéxiào.", "Ngày mai tôi phải đến trường.")] },
+          { zh: "酒", py: "jiǔ", hv: "Tửu", pos: "danh từ", vi: "rượu", ira: "zh_jiu.webp",
+            ex: [X("太渴了，我想喝酒。", "Tài kě le, wǒ xiǎng hē jiǔ.", "Khát quá, mình muốn uống rượu.")] },
+          { zh: "啤酒", py: "píjiǔ", hv: "Ty tửu", pos: "danh từ", vi: "bia", ira: "zh_pijiu.webp",
+            tip: "**啤** chỉ để phiên âm “beer” + **酒** rượu.", ex: [X("你喝不喝啤酒？", "Nǐ hē bu hē píjiǔ?", "Cậu có uống bia không?")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 12 điểm, mỗi điểm 1 công thức",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**. Bấm chữ Hán để nghe.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "几", name: "Hỏi “mấy”", formula: "几 + Lượng từ + Danh từ？",
+          uses: ["Hỏi số lượng **nhỏ** (thường dưới 10) hoặc số có giới hạn: ngày, tháng, thứ, giờ", "Trả lời: thay 几 bằng con số"],
+          examples: [X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?"), X("今天几月几日？", "Jīntiān jǐ yuè jǐ rì?", "Hôm nay ngày mấy tháng mấy?"), X("今天星期几？", "Jīntiān xīngqī jǐ?", "Hôm nay thứ mấy?"), X("你要几个包子？", "Nǐ yào jǐ ge bāozi?", "Bạn lấy mấy cái bánh bao?")],
+          wrong: [{ bad: "你家有几人？", good: "你家有几口人？", py: "Nǐ jiā yǒu jǐ kǒu rén?", why: "几 **phải có lượng từ** đi sau." }] },
+        { tag: "点", name: "Nói giờ", formula: ["(Buổi) + Số + 点 + Số + 分", "Phút < 10: 点 + 零 + Số + 分"],
+          uses: ["Thứ tự **lớn → nhỏ**: buổi → giờ → phút: **下午**一点二十五分", "8h05 = 八点**零**五分 · 8h30 = 八点三十分 (= 八点**半** bàn)", "Hỏi giờ: **现在几点？**"],
+          examples: [X("现在几点？", "Xiànzài jǐ diǎn?", "Bây giờ mấy giờ?"), X("八点零五分", "bā diǎn líng wǔ fēn", "8 giờ 05"), X("九点四十五分", "jiǔ diǎn sìshíwǔ fēn", "9 giờ 45"), X("下午一点二十五分", "xiàwǔ yī diǎn èrshíwǔ fēn", "1 giờ 25 chiều"), X("晚上八点五十九分", "wǎnshang bā diǎn wǔshíjiǔ fēn", "8 giờ 59 tối")],
+          note: "2 giờ nói **两点** liǎng diǎn, không nói 二点.",
+          wrong: [{ bad: "五分八点", good: "八点五分", py: "bā diǎn wǔ fēn", why: "Tiếng Trung đi từ **đơn vị lớn đến nhỏ** — giống ngày tháng: năm → tháng → ngày." }] },
+        { tag: "学", name: "学 hay 学习?", formula: ["学 + tân ngữ (1 hay 2 âm tiết đều được)", "学习 + tân ngữ 2 âm tiết · 学习 đứng một mình"],
+          uses: ["**学** gọn, dùng trong khẩu ngữ: 学汉字, 学字, 学发音", "**学习** trang trọng hơn, **không** đi với tân ngữ 1 âm tiết", "Đứng một mình chỉ việc học nói chung: 我在学习 / 学习怎么样？"],
+          examples: [X("你学汉字吗？", "Nǐ xué Hànzì ma?", "Cậu học chữ Hán không?"), X("我学习英语。", "Wǒ xuéxí Yīngyǔ.", "Tôi học tiếng Anh."), X("你学习怎么样了？", "Nǐ xuéxí zěnmeyàng le?", "Cậu học hành sao rồi?")],
+          wrong: [{ bad: "我学习字。", good: "我学字。", py: "Wǒ xué zì.", why: "学习 không đi với tân ngữ **một âm tiết**." }] },
+        { tag: "汉·中", name: "汉语 hay 中文?", formula: ["汉语 = tiếng nói (ngôn ngữ của người Hán)", "中文 = tiếng / chữ Trung nói chung, thiên về văn viết"],
+          uses: ["Học / nói tiếng: 学汉语, 学中文 đều được", "Sách báo, chữ viết: **中文书, 中文杂志** tự nhiên hơn", "Tương tự: 英语 (tiếng nói) · 英文 (chữ, văn bản)"],
+          examples: [X("汉语不太难。", "Hànyǔ bú tài nán.", "Tiếng Trung không khó lắm."), X("这是汉语书。", "Zhè shì Hànyǔ shū.", "Đây là sách tiếng Trung."), X("这是英文杂志。", "Zhè shì Yīngwén zázhì.", "Đây là tạp chí tiếng Anh.")] },
+        { tag: "怎么样", name: "…怎么样？", formula: ["Danh từ / Câu + 怎么样？", "你觉得 + … + 怎么样？"],
+          uses: ["Hỏi **tình hình, chất lượng, cảm nhận**", "Trả lời bằng tính từ: 很好 · 不错 · 不太好 · 太好吃了"],
+          examples: [X("你学习怎么样了？", "Nǐ xuéxí zěnmeyàng le?", "Cậu học hành sao rồi?"), X("你觉得怎么样？", "Nǐ juéde zěnmeyàng?", "Cậu thấy thế nào?"), X("这个汤怎么样？太好喝了！", "Zhège tāng zěnmeyàng? Tài hǎohē le!", "Canh này thế nào? Ngon quá!")] },
+        { tag: "怎么", name: "怎么 + V", formula: "怎么 + Động từ？",
+          uses: ["Hỏi **cách làm** (làm thế nào để…)", "**怎么样** hỏi tình hình ≠ **怎么 + V** hỏi cách làm"],
+          examples: [X("水怎么喝？", "Shuǐ zěnme hē?", "Nước uống thế nào?"), X("怎么学好汉语？", "Zěnme xuéhǎo Hànyǔ?", "Làm sao để học giỏi tiếng Trung?"), X("饺子怎么吃？", "Jiǎozi zěnme chī?", "Sủi cảo ăn thế nào?")] },
+        { tag: "V不V", name: "Câu hỏi chính phản", formula: ["V / Adj + 不 + V / Adj？", "= V / Adj + 吗？"],
+          uses: ["Ghép **khẳng định + phủ định** để hỏi, **không thêm 吗**", "不 ở giữa đọc nhẹ *bu*", "Từ 2 âm tiết có thể rút gọn: 喜(欢)不喜欢"],
+          examples: [X("你去不去？", "Nǐ qù bu qù?", "Cậu có đi không?"), X("你吃不吃？", "Nǐ chī bu chī?", "Cậu có ăn không?"), X("饺子好吃不好吃？", "Jiǎozi hǎochī bu hǎochī?", "Sủi cảo ngon không?"), X("你喜欢不喜欢汉字？", "Nǐ xǐhuan bu xǐhuan Hànzì?", "Cậu có thích chữ Hán không?")],
+          wrong: [{ bad: "你吃不吃吗？", good: "你吃不吃？", why: "Đã có V不V thì **bỏ 吗**." }, { bad: "你很累不累？", good: "你累不累？", why: "Câu chính phản **không dùng 很**." }] },
+        { tag: "太…了", name: "太…了 · 不太 · 真", formula: ["太 + Adj + 了！ (quá…, khen / than)", "不太 + Adj (không… lắm)", "真 + Adj！ (thật là…)"],
+          uses: ["Khen đồ ăn: **太好吃了！真好吃！**", "Nói giảm: **不太难** = không khó lắm"],
+          examples: [X("太好吃了！", "Tài hǎochī le!", "Ngon quá trời!"), X("汉字太难了！", "Hànzì tài nán le!", "Chữ Hán khó quá!"), X("汉语不太难。", "Hànyǔ bú tài nán.", "Tiếng Trung không khó lắm."), X("真好吃！", "Zhēn hǎochī!", "Ngon thật đấy!")],
+          note: "不 đứng trước 太 (thanh 4) đổi thành **bú**: 不太 = **bú tài**." },
+        { tag: "了吗", name: "…了吗？ (chưa?)", formula: ["Động từ + (tân ngữ) + 了吗？", "Trả lời: V + 了 · 还没 (V) hái méi"],
+          uses: ["Hỏi việc **đã làm chưa**", "Câu chào kiểu Trung: **你吃饭了吗？** = ăn cơm chưa?"],
+          examples: [X("你姐姐回国了吗？", "Nǐ jiějie huí guó le ma?", "Chị gái cậu về nước chưa?"), X("老师吃饭了吗？", "Lǎoshī chī fàn le ma?", "Thầy ăn cơm chưa ạ?"), X("爸爸见我的英语老师了吗？", "Bàba jiàn wǒ de Yīngyǔ lǎoshī le ma?", "Bố đã gặp cô giáo tiếng Anh của con chưa?"), X("吃了。/ 还没吃。", "Chī le. / Hái méi chī.", "Ăn rồi. / Chưa ăn.")],
+          note: "Phủ định của 了 dùng **没 (有)**, bỏ 了: *还没吃* (không nói 还没吃了)." },
+        { tag: "碗·杯", name: "Lượng từ đồ ăn uống", formula: "Số + 碗 / 杯 / 瓶 / 个 + Món",
+          uses: ["**碗** bát: 饭, 汤, 面条", "**杯** cốc: 水, 茶, 奶茶, 啤酒", "**瓶** chai: 水, 啤酒, 酒", "**个** cái: 包子, 馒头, 饺子, 鸡蛋", "Số 2 trước lượng từ dùng **两**: 两个包子"],
+          examples: [X("一碗米饭", "yì wǎn mǐfàn", "một bát cơm"), X("一杯奶茶", "yì bēi nǎichá", "một cốc trà sữa"), X("两瓶啤酒", "liǎng píng píjiǔ", "hai chai bia"), X("三个饺子", "sān ge jiǎozi", "ba cái sủi cảo")],
+          wrong: [{ bad: "二个包子", good: "两个包子", py: "liǎng ge bāozi", why: "Trước lượng từ, số 2 đọc là **两**." }] },
+        { tag: "要", name: "要 · muốn / phải", formula: ["我要 + (số + lượng từ) + Món (gọi món)", "要 + Động từ (phải / sắp làm)"],
+          uses: ["**要** quyết đoán hơn **想**: 想 = muốn, mong; 要 = muốn (lấy ngay), cần, phải", "Gọi món, mua hàng luôn dùng 要"],
+          examples: [X("我要一碗鸡蛋汤、两个包子、三个饺子。", "Wǒ yào yì wǎn jīdàn tāng, liǎng ge bāozi, sān ge jiǎozi.", "Cho tôi 1 bát canh trứng, 2 bánh bao, 3 sủi cảo."), X("明天我要去学校。", "Míngtiān wǒ yào qù xuéxiào.", "Ngày mai tôi phải đến trường."), X("太渴了，我想喝啤酒。", "Tài kě le, wǒ xiǎng hē píjiǔ.", "Khát quá, mình muốn uống bia.")] },
+        { tag: "觉得", name: "觉得 + nhận xét", formula: "Chủ ngữ + 觉得 + (Câu / Tính từ)",
+          uses: ["Nêu **cảm nhận, ý kiến** cá nhân", "Hỏi: 你觉得…怎么样？ / 你觉得…吗？"],
+          examples: [X("你觉得累吗？", "Nǐ juéde lèi ma?", "Cậu thấy mệt không?"), X("我觉得汉字很有意思。", "Wǒ juéde Hànzì hěn yǒu yìsi.", "Mình thấy chữ Hán rất thú vị."), X("我觉得发音不难。", "Wǒ juéde fāyīn bù nán.", "Mình thấy phát âm không khó.")] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm nhanh · 14 câu",
+      desc: "Sai câu nào bấm **↺ Làm lại câu này**, hoặc **Làm lại các câu sai / cả bài** ở cuối.",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("8h05 nói là…", "八点五分零|八点零五分|零五分八点|八零点五分", "B", "Phút dưới 10 thêm **零**: 八点零五分."),
+        Q("1h25 chiều:", "一点二十五分下午|下午二十五分一点|下午一点二十五分|一点下午二十五分", "C", "Lớn → nhỏ: **下午** → 一点 → 二十五分."),
+        Q("你家有 ___ 口人？", "什么|几|怎么|哪", "B", "Hỏi số lượng nhỏ → **几** + lượng từ."),
+        Q("Câu nào đúng?", "我学习字。|我学字。|我学习字了吗。|我字学习。", "B", "学习 không đi với tân ngữ một âm tiết."),
+        Q("Hỏi “Cậu thấy thế nào?”", "你觉得什么？|你觉得怎么？|你觉得怎么样？|你怎么觉得？", "C", "Hỏi cảm nhận → **怎么样**."),
+        Q("“Làm sao để học giỏi tiếng Trung?”", "怎么样学好汉语？|怎么学好汉语？|学好汉语怎么？|什么学好汉语？", "B", "Hỏi cách làm → **怎么 + V**."),
+        Q("Câu nào đúng?", "你吃不吃吗？|你很累不累？|你吃不吃？|你不吃吃？", "C", "V不V, không thêm 吗, không dùng 很."),
+        Q("“Ngon quá trời!”", "太好吃！|太好吃了！|好吃太了！|很好吃了太！", "B", "**太 + Adj + 了**."),
+        Q("“Tiếng Trung không khó lắm.”", "汉语太不难。|汉语不太难。|汉语不难太。|汉语太难不。", "B", "**不太 + Adj** = không … lắm."),
+        Q("“Thầy ăn cơm chưa ạ?”", "老师吃饭了吗？|老师吃饭吗了？|老师了吃饭吗？|老师吃了饭吧？", "A", "V + O + **了吗？**"),
+        Q("Một cốc trà sữa:", "一碗奶茶|一杯奶茶|一个奶茶杯|奶茶一杯个", "B", "Đồ uống trong cốc → **杯**."),
+        Q("Hai cái bánh bao:", "二个包子|两个包子|两包子|二包子个", "B", "Số 2 trước lượng từ → **两**."),
+        Q("Chữ nào nghĩa là “đói”?", "俄|娥|饿|我", "C", "Bộ **饣** (ăn) → 饿 è đói."),
+        Q("Chữ nào nghĩa là “chậm”?", "馒|慢|曼|漫", "B", "Bộ **忄** (lòng) → 慢 màn chậm. 馒 (饣) là bánh màn thầu.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 12 câu",
+      desc: "Đọc nghĩa → chạm ô chữ theo đúng thứ tự. Đúng thì máy đọc mẫu, bạn đọc to theo.",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Bạn thích ăn gì?", words: ["你", "喜欢", "吃", "什么"], py: "Nǐ xǐhuan chī shénme?" },
+        { vi: "Nhà bạn có mấy người?", words: ["你家", "有", "几", "口", "人"], py: "Nǐ jiā yǒu jǐ kǒu rén?" },
+        { vi: "Bây giờ là 1 giờ 25 chiều.", words: ["现在", "下午", "一点", "二十五分"], py: "Xiànzài xiàwǔ yī diǎn èrshíwǔ fēn." },
+        { vi: "Cậu học hành sao rồi?", words: ["你", "学习", "怎么样", "了"], py: "Nǐ xuéxí zěnmeyàng le?" },
+        { vi: "Tiếng Trung không khó lắm, chữ Hán khó quá!", words: ["汉语", "不太", "难", "汉字", "太", "难", "了"], py: "Hànyǔ bú tài nán, Hànzì tài nán le!" },
+        { vi: "Làm sao để học giỏi tiếng Trung?", words: ["怎么", "学", "好", "汉语"], py: "Zěnme xuéhǎo Hànyǔ?" },
+        { vi: "Cậu có ăn sủi cảo không?", words: ["你", "吃", "不", "吃", "饺子"], py: "Nǐ chī bu chī jiǎozi?" },
+        { vi: "Tôi đến nhà ăn của trường ăn cơm.", words: ["我", "去", "学校", "的", "食堂", "吃饭"], py: "Wǒ qù xuéxiào de shítáng chī fàn." },
+        { vi: "Thầy ăn cơm chưa ạ?", words: ["老师", "吃饭", "了", "吗"], py: "Lǎoshī chī fàn le ma?" },
+        { vi: "Cho tôi một bát cơm và hai cái bánh bao.", words: ["我", "要", "一碗", "米饭", "两个", "包子"], py: "Wǒ yào yì wǎn mǐfàn, liǎng ge bāozi." },
+        { vi: "Canh gà Việt Nam cũng rất ngon.", words: ["越南", "鸡汤", "也", "很", "好吃"], py: "Yuènán jī tāng yě hěn hǎochī." },
+        { vi: "Ngày mai tôi phải đến trường.", words: ["明天", "我", "要", "去", "学校"], py: "Míngtiān wǒ yào qù xuéxiào." }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · 3 tình huống thật",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…**: đến lượt bạn thì chữ mờ đi và có đồng hồ đếm — **nói to**.",
+      sticker: "zh_shitang.webp",
+      scenes: [
+        { title: "① Đói rồi!", desc: "Quốc An và Anh Thư sau giờ học buổi sáng.", lines: [
+          { who: "国安", ...X("英书，你饿吗？", "Yīngshū, nǐ è ma?", "Anh Thư, cậu đói không?") },
+          { who: "英书", ...X("我很饿！现在几点？", "Wǒ hěn è! Xiànzài jǐ diǎn?", "Mình đói lắm! Bây giờ mấy giờ rồi?") },
+          { who: "国安", ...X("十二点十分。", "Shí'èr diǎn shí fēn.", "Mười hai giờ mười.") },
+          { who: "英书", ...X("中午了！去食堂吃饭吧！", "Zhōngwǔ le! Qù shítáng chī fàn ba!", "Trưa rồi! Đi nhà ăn ăn cơm đi!") },
+          { who: "国安", ...X("好！你喜欢吃什么？", "Hǎo! Nǐ xǐhuan chī shénme?", "Ok! Cậu thích ăn gì?") },
+          { who: "英书", ...X("我喜欢吃饺子。你呢？", "Wǒ xǐhuan chī jiǎozi. Nǐ ne?", "Mình thích ăn sủi cảo. Còn cậu?") },
+          { who: "国安", ...X("我喜欢吃面条。食堂的饺子好吃不好吃？", "Wǒ xǐhuan chī miàntiáo. Shítáng de jiǎozi hǎochī bu hǎochī?", "Mình thích ăn mì. Sủi cảo ở nhà ăn có ngon không?") },
+          { who: "英书", ...X("真好吃！", "Zhēn hǎochī!", "Ngon thật đấy!") }
+        ], note: "**你饿吗？** và **你吃饭了吗？** là hai câu người Trung hỏi nhau hằng ngày, giống “ăn cơm chưa?” của người Việt." },
+        { title: "② Gọi món ở nhà ăn", desc: "Ở quầy nhà ăn của trường.", lines: [
+          { who: "阿姨", av: "阿姨", ...X("你们好！你们要什么？", "Nǐmen hǎo! Nǐmen yào shénme?", "Chào các cháu! Các cháu lấy gì?") },
+          { who: "国安", ...X("我要一碗米饭、一碗鸡蛋汤。", "Wǒ yào yì wǎn mǐfàn, yì wǎn jīdàn tāng.", "Cho cháu một bát cơm, một bát canh trứng.") },
+          { who: "英书", ...X("我要两个包子、三个饺子。", "Wǒ yào liǎng ge bāozi, sān ge jiǎozi.", "Cho cháu hai cái bánh bao, ba cái sủi cảo.") },
+          { who: "阿姨", av: "阿姨", ...X("你们喝不喝啤酒？", "Nǐmen hē bu hē píjiǔ?", "Các cháu có uống bia không?") },
+          { who: "国安", ...X("不喝，谢谢！我要一杯奶茶。", "Bù hē, xièxie! Wǒ yào yì bēi nǎichá.", "Không ạ, cảm ơn cô! Cháu lấy một cốc trà sữa.") },
+          { who: "英书", ...X("我也要一杯奶茶。", "Wǒ yě yào yì bēi nǎichá.", "Cháu cũng lấy một cốc trà sữa.") },
+          { who: "阿姨", av: "阿姨", ...X("好！慢慢吃！", "Hǎo! Mànmàn chī!", "Được! Ăn ngon nhé!") },
+          { who: "英书", ...X("国安，鸡蛋汤怎么样？", "Guó'ān, jīdàn tāng zěnmeyàng?", "Quốc An, canh trứng thế nào?") },
+          { who: "国安", ...X("太好喝了！", "Tài hǎohē le!", "Ngon quá!") }
+        ], note: "Gọi món chỉ cần một công thức: **我要 + số + lượng từ + món**, nối các món bằng dấu **、**. Người bán hay chúc **慢慢吃** = ăn từ từ / ăn ngon nhé." },
+        { title: "③ Học tiếng Trung thế nào?", desc: "Thầy Bạch hỏi Quốc An sau giờ học.", lines: [
+          { who: "白老师", av: "白", ...X("国安，你学习怎么样了？", "Guó'ān, nǐ xuéxí zěnmeyàng le?", "Quốc An, em học hành sao rồi?") },
+          { who: "国安", ...X("很好！我喜欢学汉语。", "Hěn hǎo! Wǒ xǐhuan xué Hànyǔ.", "Tốt ạ! Em thích học tiếng Trung.") },
+          { who: "白老师", av: "白", ...X("你觉得汉语难不难？", "Nǐ juéde Hànyǔ nán bu nán?", "Em thấy tiếng Trung khó không?") },
+          { who: "国安", ...X("汉语不太难，汉字太难了！", "Hànyǔ bú tài nán, Hànzì tài nán le!", "Tiếng Trung không khó lắm, chữ Hán khó quá ạ!") },
+          { who: "白老师", av: "白", ...X("发音呢？", "Fāyīn ne?", "Còn phát âm?") },
+          { who: "国安", ...X("发音不难。老师，怎么学好汉字？", "Fāyīn bù nán. Lǎoshī, zěnme xuéhǎo Hànzì?", "Phát âm không khó ạ. Thầy ơi, làm sao để học giỏi chữ Hán?") },
+          { who: "白老师", av: "白", ...X("慢慢学吧！学习！学习！再学习！", "Mànmàn xué ba! Xuéxí! Xuéxí! Zài xuéxí!", "Học từ từ thôi! Học, học nữa, học mãi!") },
+          { who: "国安", ...X("老师，您吃饭了吗？", "Lǎoshī, nín chī fàn le ma?", "Thầy ơi, thầy ăn cơm chưa ạ?") },
+          { who: "白老师", av: "白", ...X("还没吃。我们去食堂吧！", "Hái méi chī. Wǒmen qù shítáng ba!", "Chưa ăn. Chúng ta đi nhà ăn đi!") }
+        ] }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Bấm 🔊 hoặc 🐢, gõ lại bằng **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("现在几点？", "Xiànzài jǐ diǎn?", "Bây giờ mấy giờ?"),
+        X("八点零五分。", "Bā diǎn líng wǔ fēn.", "8 giờ 05."),
+        X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?"),
+        X("你喜欢吃什么？", "Nǐ xǐhuan chī shénme?", "Bạn thích ăn gì?"),
+        X("我很饿！", "Wǒ hěn è!", "Tôi rất đói!"),
+        X("去食堂吃饭吧！", "Qù shítáng chī fàn ba!", "Đi nhà ăn ăn cơm đi!"),
+        X("你觉得怎么样？", "Nǐ juéde zěnmeyàng?", "Bạn thấy thế nào?"),
+        X("汉字太难了！", "Hànzì tài nán le!", "Chữ Hán khó quá!"),
+        X("老师吃饭了吗？", "Lǎoshī chī fàn le ma?", "Thầy ăn cơm chưa ạ?"),
+        X("我要一杯奶茶。", "Wǒ yào yì bēi nǎichá.", "Cho tôi một cốc trà sữa.")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (16 câu)",
+      desc: "Đọc câu tiếng Việt → **bấm 🎙 và nói ngay**. Chữ **xanh** là đúng, **đỏ** là cần nói lại. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Bây giờ mấy giờ?", zh: "现在几点？", py: "Xiànzài jǐ diǎn?" },
+        { vi: "Trả lời: 9 giờ 45 phút.", zh: "九点四十五分。", py: "Jiǔ diǎn sìshíwǔ fēn." },
+        { vi: "Nói: 1 giờ 25 phút chiều.", zh: "下午一点二十五分。", py: "Xiàwǔ yī diǎn èrshíwǔ fēn." },
+        { vi: "Hỏi: Hôm nay thứ mấy?", zh: "今天星期几？", py: "Jīntiān xīngqī jǐ?" },
+        { vi: "Hỏi bạn: Cậu học hành sao rồi?", zh: "你学习怎么样了？", py: "Nǐ xuéxí zěnmeyàng le?" },
+        { vi: "Nói: Tiếng Trung không khó lắm.", zh: "汉语不太难。", py: "Hànyǔ bú tài nán." },
+        { vi: "Than: Chữ Hán khó quá!", zh: "汉字太难了！", py: "Hànzì tài nán le!" },
+        { vi: "Hỏi: Làm sao để học giỏi tiếng Trung?", zh: "怎么学好汉语？", py: "Zěnme xuéhǎo Hànyǔ?" },
+        { vi: "Hỏi: Cậu thích ăn gì?", zh: "你喜欢吃什么？", py: "Nǐ xǐhuan chī shénme?" },
+        { vi: "Trả lời: Tôi thích ăn sủi cảo.", zh: "我喜欢吃饺子。", py: "Wǒ xǐhuan chī jiǎozi." },
+        { vi: "Hỏi kiểu chính phản: Cậu có ăn không?", zh: "你吃不吃？", py: "Nǐ chī bu chī?" },
+        { vi: "Nói: Tôi đói lắm! Đi ăn cơm đi!", zh: "我很饿！去吃饭吧！", py: "Wǒ hěn è! Qù chī fàn ba!" },
+        { vi: "Khen: Ngon thật đấy!", zh: "真好吃！", py: "Zhēn hǎochī!" },
+        { vi: "Hỏi thầy: Thầy ăn cơm chưa ạ?", zh: "老师，您吃饭了吗？", py: "Lǎoshī, nín chī fàn le ma?" },
+        { vi: "Gọi món: Cho tôi một bát cơm, một bát canh trứng.", zh: "我要一碗米饭、一碗鸡蛋汤。", py: "Wǒ yào yì wǎn mǐfàn, yì wǎn jīdàn tāng." },
+        { vi: "Gọi món: Cho tôi hai cái bánh bao, một cốc trà sữa.", zh: "我要两个包子、一杯奶茶。", py: "Wǒ yào liǎng ge bāozi, yì bēi nǎichá." }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Kể một ngày ăn uống của bạn (6 câu)",
+      desc: "Nói liền 6 câu về **giờ giấc + món ăn + cảm nhận** của chính bạn. Gợi ý bên dưới là câu mẫu — nói xong mẫu rồi **đổi giờ, đổi món** cho đúng với bạn.",
+      sticker: "zh_dragon.webp",
+      items: [
+        { vi: "Buổi sáng 7 giờ, tôi ăn một cái bánh bao.", zh: "上午七点，我吃一个包子。", py: "Shàngwǔ qī diǎn, wǒ chī yí ge bāozi.", hint: "上午 · 点 · 一个" },
+        { vi: "Buổi trưa 12 giờ, tôi đến nhà ăn ăn cơm.", zh: "中午十二点，我去食堂吃饭。", py: "Zhōngwǔ shí'èr diǎn, wǒ qù shítáng chī fàn." },
+        { vi: "Tôi muốn một bát cơm và một bát canh gà.", zh: "我要一碗米饭、一碗鸡汤。", py: "Wǒ yào yì wǎn mǐfàn, yì wǎn jī tāng." },
+        { vi: "Canh gà ngon thật đấy!", zh: "鸡汤真好喝！", py: "Jī tāng zhēn hǎohē!" },
+        { vi: "Buổi tối tôi thích ăn mì, uống một cốc trà sữa.", zh: "晚上我喜欢吃面条，喝一杯奶茶。", py: "Wǎnshang wǒ xǐhuan chī miàntiáo, hē yì bēi nǎichá." },
+        { vi: "Bạn thích ăn gì?", zh: "你喜欢吃什么？", py: "Nǐ xǐhuan chī shénme?" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · Rồng, lân và bàn ăn Trung Hoa",
+      intro: "Bìa bài học là **rồng** và **lân** — hai con vật luôn xuất hiện ở lễ hội Trung Quốc. Thêm 3 điều về đồ ăn để lần sau đi ăn quán Trung bạn gọi món tự tin.",
+      sticker: "zh_lantern.webp",
+      cols: 3,
+      cards: [
+        { tag: "舞龙舞狮", title: "Múa rồng, múa lân", ira: "zh_dragon.webp", body: "**舞龙** wǔ lóng (múa rồng) và **舞狮** wǔ shī (múa lân/sư tử) xua điềm xấu, đón may mắn — dịp **春节** Tết, khai trương, lễ hội." },
+        { tag: "包子 · 馒头", title: "Có nhân hay không?", ira: "zh_baozi.webp", bullets: ["**包子** có nhân (thịt, rau)", "**馒头** không nhân, ăn thay cơm ở miền Bắc", "**饺子** ăn dịp Tết vì hình giống **nén bạc** thời xưa"] },
+        { tag: "南米北面", title: "Nam cơm, Bắc mì", ira: "zh_miantiao.webp", bullets: ["Miền **Nam** Trung Quốc ăn **米饭** là chính", "Miền **Bắc** ăn **面条, 馒头, 饺子**", "Chào hỏi kiểu Trung: **吃饭了吗？** — y như “ăn cơm chưa?”", "Nâng ly: **干杯！** = cạn ly"] }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 6 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Giờ giấc", title: "Lớn → nhỏ", bullets: ["上午 · 中午 · 下午 · 晚上", "X点 (零) Y分: 八点零五分", "2 giờ = 两点 · 30 phút = 三十分 / 半", "现在几点？"] },
+        { tag: "Hỏi", title: "几 · 怎么样 · 怎么", bullets: ["几 + lượng từ: 几口人, 几点, 星期几", "…怎么样？ hỏi tình hình, cảm nhận", "怎么 + V？ hỏi cách làm", "你觉得…怎么样？"] },
+        { tag: "Câu hỏi", title: "Chính phản · chưa?", bullets: ["V不V？ — bỏ 吗, bỏ 很", "V + 了吗？ → V了 / 还没V"] },
+        { tag: "Khen", title: "Mức độ", bullets: ["太 + Adj + 了！", "不太 + Adj (bú tài)", "真 + Adj！"] },
+        { tag: "Gọi món", title: "我要 + số + lượng + món", bullets: ["碗 bát · 杯 cốc · 瓶 chai · 个 cái", "两个包子 (không nói 二个)", "要 = muốn lấy / phải · 想 = muốn, mong"] },
+        { tag: "Chữ dễ nhầm", title: "Nhìn bộ là ra", bullets: ["俄 Nga (亻) · 娥 Hằng Nga (女) · 饿 đói (饣)", "馒 màn thầu (饣) · 慢 chậm (忄)", "学 + mọi tân ngữ · 学习 không + 1 âm tiết", "汉语 tiếng nói · 中文 chữ, sách báo"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi **Nhớ rồi** hết 38 từ.",
+        "**✍ Tự viết** 10 chữ: 点 学 习 难 喜 欢 吃 饭 饿 碗 — mỗi chữ đúng 3 lần liền.",
+        "Mỗi ngày nhìn đồng hồ 5 lần và **nói giờ bằng tiếng Trung** (có buổi: 上午/下午/晚上).",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "**Phản xạ nói** + **Thử thách**: mỗi câu ≥ 85%, rồi ghi âm 6 câu về ngày ăn uống của chính bạn.",
+        "Nhập vai cả 3 hội thoại, tắt pinyin, đóng **cả hai vai**."
+      ]
+    }
+  ]
+};
+/* Gắn Lục thư vào thẻ */
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>

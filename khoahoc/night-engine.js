@@ -1221,8 +1221,10 @@
           },
           o
         );
-      })), p !== void 0 && it.explain && /* @__PURE__ */ React.createElement("p", { className: `mt-3 text-xs leading-relaxed ${p === it.answer ? "text-emerald-700" : "text-rose-600"}` }, p === it.answer ? "✓ " : "✗ ", rich(it.explain)));
-    }), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" }, /* @__PURE__ */ React.createElement("span", null, "Đã làm ", answered, "/", items.length, " · Đúng ", correct), answered > 0 && /* @__PURE__ */ React.createElement("button", { onClick: () => setPicked({}), className: "text-xs underline" }, "Làm lại")));
+      })), p !== void 0 && it.explain && /* @__PURE__ */ React.createElement("p", { className: `mt-3 text-xs leading-relaxed ${p === it.answer ? "text-emerald-700" : "text-rose-600"}` }, p === it.answer ? "✓ " : "✗ ", rich(it.explain)), p !== void 0 && p !== it.answer && React.createElement("button", { onClick: () => { const n = { ...picked }; delete n[i]; setPicked(n); }, className: "mt-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600 hover:bg-rose-100" }, "↺ Làm lại câu này"));
+    }), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center justify-between gap-2 rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" }, /* @__PURE__ */ React.createElement("span", null, "Đã làm ", answered, "/", items.length, " · Đúng ", correct), answered > 0 && React.createElement("span", { className: "flex flex-wrap gap-2" },
+      answered > correct && React.createElement("button", { onClick: () => { const n = {}; Object.keys(picked).forEach((k) => { if (picked[k] === (items[k] || {}).answer) n[k] = picked[k]; }); setPicked(n); }, className: "rounded-full bg-white px-4 py-2 text-xs font-extrabold text-rose-600 shadow-sm" }, "↺ Làm lại các câu sai"),
+      React.createElement("button", { onClick: () => setPicked({}), className: "rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-white shadow-sm" }, "↺ Làm lại cả bài"))));
   }
   /* ===================== CHỌN TỪ CÓ PHẦN GẠCH CHÂN PHÁT ÂM KHÁC (type:"odd") =====================
      sets:[{label, items:[{w:["h[ea]d /hed/","pl[ea]se /pliːz/",…], a: 1, explain?}]}] — [..] là phần gạch chân, /../ là phiên âm (hiện sau khi chọn). */
