@@ -2937,6 +2937,10 @@
   .np-sheet.hide-mean .np-mean { display: none; }
   .np-sheet.hide-mean .np-blank { display: block; }
   .np-sheet.hide-img .np-v img { display: none; }
+  .np-sheet.hide-img .np-cimg { display: none; }
+  .np-sheet .np-cimg { float: right; width: 4.5em; height: 4.5em; object-fit: contain; margin: 0 0 .3em .5em; }
+  .np-sheet .np-hz { font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif; font-size: 1.15em; }
+  .np-sheet .np-line-ans { color: #94a3b8; }
   .np-sheet .np-ans { color: #047857; }
   .np-sheet .np-anskey { border-top: 1px dashed #94a3b8; margin-top: .5em; padding-top: .3em; font-size: .88em; }
   .np-sheet.hide-ans .np-ans, .np-sheet.hide-ans .np-anskey { display: none; }
@@ -3026,8 +3030,33 @@
     pairs(s) {
       return blk(`<table><tr><th>#</th><th>Từ A</th><th>Từ B</th></tr>${(s.pairs || []).map((p, i) => `<tr><td>${i + 1}</td><td><b>${esc(p.a)}</b> <span class="np-ipa">${esc(p.ai || "")}</span></td><td><b>${esc(p.b)}</b> <span class="np-ipa">${esc(p.bi || "")}</span></td></tr>`).join("")}</table>`);
     },
+    /* ---- Tiếng Trung ---- */
+    hanzi(s) {
+      const groups = s.groups || [{ cards: s.cards || [] }];
+      const LTN = { tuong: "Tượng hình", chi: "Chỉ sự", hoi: "Hội ý", thanh: "Hình thanh", chuyen: "Chuyển chú", gia: "Giả tá" };
+      return groups.map((g) => blk(`${g.label ? `<h3>${rh(g.label)} <span class="np-soft">· ${(g.cards || []).length} từ</span></h3>` : ""}<div class="np-vgrid">${(g.cards || []).map((c) => blk(`<div class="np-v">${c.ira || c.img ? `<img src="${esc(c.ira ? IRA_BASE + c.ira : c.img)}" alt="">` : ""}<div style="min-width:0;flex:1"><div class="np-w"><span class="np-hz">${esc(c.zh)}</span> <span class="np-ipa">${esc(c.py || "")}</span></div><div class="np-mean">${c.hv ? `<b>${esc(c.hv)}</b> · ` : ""}${rh(c.vi || "")}</div>${(c.lt || []).map((r) => `<div class="np-ex"><span class="np-hz">${esc(r[0])}</span> ${String(r[1] || "").split("+").map((k) => LTN[k.trim()] || "").filter(Boolean).join(" + ")}: ${rh(r[2] || "")}</div>`).join("")}${(c.ex || []).slice(0, 1).map((x) => `<div class="np-ex"><span class="np-hz">${esc(x.zh)}</span> — ${rh(x.vi || "")}</div>`).join("")}</div></div>`)).join("")}</div>`)).join("");
+    },
+    zhgrammar(s) {
+      return (s.points || []).map((p, i) => blk(`<div class="np-box np-avoid"><h3 style="margin-top:0">${i + 1}. <span class="np-hz">${esc(p.tag || "")}</span> ${rh(p.name || "")}</h3>${[].concat(p.formula || []).map((f) => `<p class="np-hz"><b>${rh(f)}</b></p>`).join("")}${li(p.uses)}${(p.examples || []).length ? `<ul>${p.examples.map((x) => `<li><span class="np-hz">${esc(x.zh)}</span> <span class="np-ipa">${esc(x.py || "")}</span> <span class="np-soft">— ${rh(x.vi || "")}</span></li>`).join("")}</ul>` : ""}${(p.wrong || []).map((w) => `<p>❌ <span class="np-hz">${esc(w.bad)}</span> → ✅ <span class="np-hz">${esc(w.good)}</span> <span class="np-soft">${rh(w.why || "")}</span></p>`).join("")}${p.note ? `<p class="np-soft">💡 ${rh(p.note)}</p>` : ""}</div>`)).join("");
+    },
+    zhdialogue(s) {
+      const scenes = s.scenes || [{ title: s.sceneTitle, lines: s.lines }];
+      return scenes.map((sc) => blk(`<div class="np-box">${sc.title ? `<h3 style="margin-top:0">${rh(sc.title)}</h3>` : ""}${sc.desc ? `<p class="np-soft">${rh(sc.desc)}</p>` : ""}${(sc.lines || []).map((l) => `<p class="np-line"><b class="np-sp">${esc(l.who)}:</b> <span class="np-hz">${esc(l.zh)}</span><br><span class="np-ipa">${esc(l.py || "")}</span> <span class="np-soft">— ${rh(l.vi || "")}</span></p>`).join("")}${sc.note ? `<p class="np-soft">💡 ${rh(sc.note)}</p>` : ""}</div>`)).join("");
+    },
+    zhbuild(s) {
+      return blk(`<ol>${(s.items || []).map((it) => `<li>${rh(it.vi)}<br><span class="np-hz">${it.words.slice().sort(() => Math.random() - 0.5).map(esc).join(" / ")}</span><br><span class="np-line-ans">………………………………………………</span></li>`).join("")}</ol>`) + blk(`<p class="np-soft"><b>Đáp án:</b> ${(s.items || []).map((it, i) => `${i + 1}. <span class="np-hz">${esc(it.words.join(""))}</span>`).join(" · ")}</p>`);
+    },
+    zhdict(s) {
+      return blk(`<ol>${(s.items || []).map(() => `<li>……………………………………………………………</li>`).join("")}</ol>`) + blk(`<p class="np-soft"><b>Đáp án:</b> ${(s.items || []).map((it, i) => `${i + 1}. <span class="np-hz">${esc(it.zh)}</span>`).join(" · ")}</p>`);
+    },
+    zhspeak(s) {
+      return blk(`<ol>${(s.items || []).map((it) => `<li>${rh(it.vi)}<br><span class="np-soft">→ <span class="np-hz">${esc(it.zh)}</span> <span class="np-ipa">${esc(it.py || "")}</span></span></li>`).join("")}</ol>`);
+    },
+    zhintro(s) {
+      return blk(`<div class="np-box"><p class="np-hz">大家好！我来介绍一下儿。我姓……，叫……。我是……人。我是……。我家有……口人。我学习……。认识大家，我很高兴！</p></div>`);
+    },
     cards(s) {
-      return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.cards || []).map((c) => blk(`<div class="np-box np-avoid">${c.tag ? `<span class="np-tag">${rh(c.tag)}</span>` : ""}${c.sub ? `<span class="np-soft">${rh(c.sub)}</span>` : ""}${c.title ? `<p><b>${rh(c.title)}</b></p>` : ""}${c.body ? `<p>${rh(c.body)}</p>` : ""}${li(c.bullets)}${c.foot ? `<p class="np-soft">💡 ${rh(c.foot)}</p>` : ""}</div>`)).join("");
+      return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.cards || []).map((c) => blk(`<div class="np-box np-avoid">${c.ira ? `<img class="np-cimg" src="${esc(IRA_BASE + c.ira)}" alt="">` : ""}${c.tag ? `<span class="np-tag">${rh(c.tag)}</span>` : ""}${c.sub ? `<span class="np-soft">${rh(c.sub)}</span>` : ""}${c.title ? `<p><b>${rh(c.title)}</b></p>` : ""}${c.body ? `<p>${rh(c.body)}</p>` : ""}${li(c.bullets)}${c.foot ? `<p class="np-soft">💡 ${rh(c.foot)}</p>` : ""}</div>`)).join("");
     },
     criteria(s) {
       return (s.items || []).map((c, i) => blk(`<div class="np-box np-avoid"><p><b>${i + 1}. ${rh(c.name)}</b> <span class="np-soft">${rh(c.en || "")}</span></p>${c.short ? `<p>${rh(c.short)}</p>` : ""}${li(c.check)}${c.band5 ? `<p><span class="np-tag">Band 5</span>${rh(c.band5)}</p>` : ""}${c.band6 ? `<p><span class="np-tag">Band 6</span>${rh(c.band6)}</p>` : ""}</div>`)).join("") + (s.note ? blk(`<p class="np-soft">💡 ${rh(s.note)}</p>`) : "");
@@ -3051,7 +3080,7 @@
   PRINTERS.write = (s) => (s.tasks || []).map((t, i) => blk(`<div class="np-box"><p><b>✍️ ${i + 1}.</b> ${rh(t.prompt)}</p>${t.img ? `<img src="${esc(t.img)}" alt="" style="max-width:100%;max-height:8cm">` : ""}${t.hint ? `<p class="np-soft">${rh(t.hint)}</p>` : ""}${lines(t.lines || Math.max(4, Math.round((t.min || 60) / 12)))}</div>`) + (t.model ? blk(`<div class="np-anskey"><b>Bài mẫu:</b><p>${rh(t.model).replace(/\n/g, "<br>")}</p></div>`, "np-ans") : "")).join("");
 
   function buildPrintHtml(lesson, sections) {
-    const head = `<div class="np-blk np-head"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button><div class="np-brand">Night IELTS · ${esc(lesson.course || "")}</div><h1>${esc(lesson.session ? lesson.session + ": " : "")}${rh(lesson.title || "")}</h1><div class="np-meta">${esc(lesson.unit || "")}${lesson.subtitle ? " — " + rh(lesson.subtitle) : ""}</div><div class="np-who"><span>Họ tên:</span><span>Lớp:</span><span>Ngày:</span></div></div>`;
+    const head = `<div class="np-blk np-head"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button><div class="np-brand">${esc(lesson.brand || "Night IELTS")} · ${esc(lesson.course || "")}</div><h1>${esc(lesson.session ? lesson.session + ": " : "")}${rh(lesson.title || "")}</h1><div class="np-meta">${esc(lesson.unit || "")}${lesson.subtitle ? " — " + rh(lesson.subtitle) : ""}</div><div class="np-who"><span>Họ tên:</span><span>Lớp:</span><span>Ngày:</span></div></div>`;
     const goals = (lesson.goals || []).length ? blk(`<div class="np-box"><b>🎯 Sau buổi học, bạn sẽ:</b><ol>${lesson.goals.map((g) => `<li>${rh(g)}</li>`).join("")}</ol></div>`) : "";
     const body = sections.map((s, i) => {
       let inner = "";
