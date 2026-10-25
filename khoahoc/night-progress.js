@@ -74,25 +74,56 @@
   }
   function hideGate() { var el = document.getElementById('np-gate'); if (el) el.remove(); }
 
-  /* ---------- Bắt đăng nhập ---------- */
+  /* ---------- Bắt đăng nhập + kiểm tra đã được thêm vào khoá ---------- */
+  var COURSE_NAMES = { giaotiep: 'Giao tiếp Thực chiến', speaking6: 'IELTS Speaking 6.0', writing: 'IELTS Writing 6.0 → 8.0', chuyende: '25 Chuyên đề Tiếng Anh THPT' };
+  /* Khoá của trang hiện tại: khoahoc/<khoá>/buoi-XX.html hoặc khoahoc/<khoá>.html */
+  function pageCourse() {
+    var parts = (location.pathname || '').split('/').filter(Boolean);
+    var last = parts[parts.length - 1] || '', dir = parts[parts.length - 2] || '';
+    if (/^buoi-/.test(last) && dir && dir !== 'khoahoc') return dir;
+    var m = last.match(/^([a-z0-9]+)\.html$/i);
+    return m && COURSE_NAMES[m[1]] ? m[1] : '';
+  }
+  function enrolledIn(u, key) { var c = (u && u.courses) || []; return Array.isArray(c) ? c.indexOf(key) >= 0 : !!c[key]; }
+  function showLocked(o, user, key) {
+    var el = gateEl();
+    el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
+      '<h1>Bạn chưa được thêm vào khoá này</h1><p>Khoá <b>' + (COURSE_NAMES[key] || key) + '</b> chỉ mở cho học viên đã được thầy thêm vào. Nhắn thầy Night kèm Gmail của bạn:<br><b style="color:#24242A">' + (user.email || '') + '</b><br>Khi thầy thêm xong, trang sẽ tự mở.</p>' +
+      '<a href="' + (function () { try { return new URL('../index.html', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { return '/'; } })() + '" style="display:inline-block;background:#24242A;color:#fff;font-weight:800;font-size:14px;padding:12px 20px;border-radius:999px;text-decoration:none">← Về trang chủ</a>' +
+      '<div style="margin-top:12px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập Gmail khác</button></div></div></div>';
+    document.getElementById('np-out').onclick = function () { o.authM.signOut(o.auth); };
+  }
   var gateP = null;
-  function gate() {
+  function gate(courseKey) {
     if (gateP) return gateP;
+    var key = courseKey || pageCourse();
     if (LOCAL) { gateP = Promise.resolve({ user: null, role: 'local', offline: true }); return gateP; }
     gateEl();
     gateP = fb().then(function (o) {
       return new Promise(function (resolve) {
+        var done = false, unsubUser = null;
         o.authM.onAuthStateChanged(o.auth, function (user) {
+          if (unsubUser) { unsubUser(); unsubUser = null; }
+          if (done) return;
           if (!user) { showLogin(o, resolve); return; }
-          var ref = o.fs.doc(o.db, 'users', user.uid);
-          o.fs.getDoc(ref).then(function (snap) {
-            var role = 'student';
-            if (snap.exists()) role = snap.data().role || 'student';
-            else o.fs.setDoc(ref, { email: user.email, name: user.displayName, role: 'student', createdAt: Date.now(), photo: user.photoURL || '' }).catch(function () {});
-            return role;
-          }).catch(function () { return 'student'; }).then(function (role) {
+          var ref = o.fs.doc(o.db, 'users', user.uid), created = false;
+          unsubUser = o.fs.onSnapshot(ref, function (snap) {
+            if (done) return;
+            if (!snap.exists() && !created) {
+              created = true;
+              o.fs.setDoc(ref, { email: user.email, name: user.displayName, role: 'student', createdAt: Date.now(), photo: user.photoURL || '', courses: [] }).catch(function () {});
+            }
+            var u = snap.exists() ? snap.data() : { role: 'student' };
+            var role = u.role || 'student';
+            if (role !== 'admin' && key && !enrolledIn(u, key)) { showLocked(o, user, key); return; }
+            done = true; if (unsubUser) { unsubUser(); unsubUser = null; }
             hideGate();
-            resolve({ user: user, role: role, o: o });
+            resolve({ user: user, role: role, o: o, courses: u.courses || [] });
+          }, function (e) {
+            /* Không đọc được hồ sơ → không chặn, coi như học sinh */
+            console.warn('[NightProgress] users:', e);
+            if (done) return; done = true; hideGate();
+            resolve({ user: user, role: 'student', o: o });
           });
         });
       });
@@ -240,5 +271,11 @@
     ]).then(function (r) { return { docs: r[0], students: r[1] }; });
   }
 
-  window.NightProgress = { gate: gate, lessonStore: lessonStore, myCourse: myCourse, classCourse: classCourse, LOCAL: LOCAL };
+  /* Thầy thêm / bỏ học sinh khỏi khoá: users/<uid>.courses (mảng mã khoá) */
+  function setEnroll(ctx, uid, courseKey, on) {
+    var fs = ctx.o.fs;
+    return fs.updateDoc(fs.doc(ctx.o.db, 'users', uid), { courses: on ? fs.arrayUnion(courseKey) : fs.arrayRemove(courseKey) });
+  }
+
+  window.NightProgress = { gate: gate, lessonStore: lessonStore, myCourse: myCourse, classCourse: classCourse, setEnroll: setEnroll, enrolledIn: enrolledIn, LOCAL: LOCAL };
 })();

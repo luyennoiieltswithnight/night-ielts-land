@@ -126,6 +126,15 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
 .rm-tbl2 tr.on td{background:var(--soft);font-weight:800}
 .rm-av{width:26px;height:26px;border-radius:50%;vertical-align:middle;margin-right:8px;object-fit:cover;background:var(--soft)}
 .rm-mini{display:inline-block;width:70px;height:6px;border-radius:9px;background:var(--panel);overflow:hidden;vertical-align:middle;margin-right:6px}.rm-mini i{display:block;height:100%;background:var(--a)}
+.rm-tpbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
+.rm-addb{border:0;cursor:pointer;font:800 13px inherit;font-family:inherit;padding:9px 16px;border-radius:999px;background:var(--ink);color:#fff}.rm-addb.sm{padding:7px 14px;font-size:12px;flex:none}.rm-addb:disabled{opacity:.5}
+.rm-err{font-size:12px;color:#E11D48;font-weight:700}
+.rm-pick{background:#fff;border-radius:16px;padding:10px;margin-bottom:12px}
+.rm-q{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:600 14px inherit;font-family:inherit;outline:none}.rm-q:focus{border-color:var(--ink)}
+.rm-pl{max-height:300px;overflow-y:auto;margin-top:8px}
+.rm-pr{display:flex;align-items:center;gap:6px;padding:8px 6px;border-bottom:1px solid var(--line)}.rm-pr:last-child{border-bottom:0}
+.rm-pr .nm{flex:1;min-width:0}.rm-pr .nm b{display:block;font-size:13.5px}.rm-pr .nm small{display:block;font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rm-rm{border:0;cursor:pointer;background:var(--soft);color:var(--muted);font:800 12px inherit;font-family:inherit;padding:5px 10px;border-radius:999px}.rm-rm:hover{color:#E11D48}.rm-rm.on{background:#FFE4E6;color:#E11D48}.rm-rm:disabled{opacity:.5}
 .rm-sel{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:700}
 .rm-sel button{border:0;cursor:pointer;font:700 12px inherit;font-family:inherit;padding:7px 12px;border-radius:999px;background:#fff;color:var(--muted)}
 .rm-me{display:inline-flex;align-items:center;gap:8px;color:#fff;font-size:12px;font-weight:700}.rm-me img{width:28px;height:28px;border-radius:50%}
@@ -235,7 +244,7 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
   function rmProgress(cfg, root) {
     rmLoadNP().then((NP) => {
       if (!NP) return;
-      return NP.gate().then((ctx) => {
+      return NP.gate(cfg.theme).then((ctx) => {
         if (ctx.offline || !ctx.user) return;
         const me = document.getElementById("rm-me");
         if (me) me.innerHTML = `${ctx.user.photoURL ? `<img src="${esc(ctx.user.photoURL)}" alt="">` : ""}<span>${esc((ctx.user.displayName || "").split(" ").pop())}</span>`;
@@ -245,35 +254,61 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
         }
         const slot = root.querySelector("#rm-teacher");
         if (slot) slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>Đang tải tiến độ của cả lớp…</p></div>`;
-        return NP.classCourse(ctx, key).then(({ docs, students }) => teacherPanel(cfg, root, docs, students))
+        return NP.classCourse(ctx, key).then(({ docs, students }) => teacherPanel(cfg, root, docs, students, ctx, NP))
           .catch((e) => { if (slot) slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>Không tải được tiến độ (${esc(e && (e.code || e.message) || "lỗi")}). Tải lại trang thử nhé.</p></div>`; });
       });
     });
   }
-  function teacherPanel(cfg, root, docs, students) {
+  function teacherPanel(cfg, root, docs, students, ctx, NP) {
     const slot = root.querySelector("#rm-teacher"); if (!slot) return;
-    const byStu = {};
-    docs.forEach((d) => { (byStu[d.studentId] = byStu[d.studentId] || { id: d.studentId, name: d.name, email: d.email, photo: d.photo, docs: [] }).docs.push(d); });
-    students.forEach((u) => { if (!byStu[u.uid]) byStu[u.uid] = { id: u.uid, name: u.name, email: u.email, photo: u.photo, docs: [] }; else { byStu[u.uid].name = byStu[u.uid].name || u.name; } });
-    const list = Object.values(byStu).map((x) => {
-      const done = x.docs.filter((d) => d.stats && d.stats.total && d.stats.done >= d.stats.total).length;
-      const ans = x.docs.reduce((a, d) => a + ((d.stats && d.stats.done) || 0), 0), cor = x.docs.reduce((a, d) => a + ((d.stats && d.stats.correct) || 0), 0);
-      const last = x.docs.reduce((a, d) => Math.max(a, d.updatedAt || 0), 0);
-      return Object.assign(x, { started: x.docs.length, done, ans, cor, score: ans ? Math.round((cor / ans) * 100) : 0, last });
-    }).sort((a, b) => (b.last - a.last) || String(a.name).localeCompare(String(b.name)));
-    const total = root.querySelectorAll(".rm-s").length;
-    // tổng hợp theo buổi (khi chưa chọn học sinh)
-    const agg = {};
-    docs.forEach((d) => { if (!d.n) return; const a = (agg[d.n] = agg[d.n] || { count: 0, complete: 0, ans: 0, cor: 0 }); a.count++; const st = d.stats || {}; if (st.total && st.done >= st.total) a.complete++; a.ans += st.done || 0; a.cor += st.correct || 0; });
-    Object.values(agg).forEach((a) => { a.score = a.ans ? Math.round((a.cor / a.ans) * 100) : 0; });
-    let sel = "";
+    const key = cfg.theme, total = root.querySelectorAll(".rm-s").length;
+    const isIn = (u) => NP.enrolledIn(u, key);
+    const docsOf = {}; docs.forEach((d) => { (docsOf[d.studentId] = docsOf[d.studentId] || []).push(d); });
+    let sel = "", picker = false, q = "", confirmId = "", busy = "", msg = "";
+    const build = () => students.filter(isIn).map((u) => {
+      const ds = docsOf[u.uid] || [];
+      const done = ds.filter((d) => d.stats && d.stats.total && d.stats.done >= d.stats.total).length;
+      const ans = ds.reduce((a, d) => a + ((d.stats && d.stats.done) || 0), 0), cor = ds.reduce((a, d) => a + ((d.stats && d.stats.correct) || 0), 0);
+      const last = ds.reduce((a, d) => Math.max(a, d.updatedAt || 0), 0);
+      return { id: u.uid, name: u.name, email: u.email, photo: u.photo, docs: ds, started: ds.length, done, ans, cor, score: ans ? Math.round((cor / ans) * 100) : 0, last };
+    }).sort((a, b) => (b.last - a.last) || String(a.name || a.email).localeCompare(String(b.name || b.email)));
+    const av = (x) => x.photo ? `<img class="rm-av" src="${esc(x.photo)}" alt="">` : `<span class="rm-av" style="display:inline-block"></span>`;
+    const setIn = (uid, on) => {
+      busy = uid; msg = ""; draw();
+      NP.setEnroll(ctx, uid, key, on).then(() => {
+        const u = students.find((x) => x.uid === uid);
+        if (u) { const c = Array.isArray(u.courses) ? u.courses.filter((k) => k !== key) : []; if (on) c.push(key); u.courses = c; }
+        if (!on && sel === uid) sel = "";
+      }).catch((e) => { msg = "Không lưu được (" + (e && (e.code || e.message) || "lỗi") + ")."; })
+        .then(() => { busy = ""; confirmId = ""; draw(); });
+    };
     const draw = () => {
-      slot.innerHTML = `<div class="rm-tp"><h2>📊 Tiến độ học sinh</h2><p>${sel ? "Đang xem kết quả của <b>" + esc((byStu[sel] || {}).name || "") + "</b> trên từng thẻ buổi bên dưới. Bấm lại tên để bỏ chọn." : "Bấm vào tên học sinh để xem kết quả từng buổi trên các thẻ bên dưới, rồi bấm “👁 Xem bài trực tiếp” để mở bài bạn ấy đang làm (cập nhật theo thời gian thực, ghi chú của thầy hiện luôn bên máy học sinh). Chỉ thầy (tài khoản admin) mới thấy bảng này."}</p>
-        <div class="rm-tbl2"><table><thead><tr><th>Học sinh</th><th>Đã mở</th><th>Hoàn thành</th><th>Câu đã làm</th><th>Đúng</th><th>Lần cuối</th></tr></thead><tbody>
-        ${list.length ? list.map((x) => `<tr class="st ${x.id === sel ? "on" : ""}" data-id="${esc(x.id)}"><td>${x.photo ? `<img class="rm-av" src="${esc(x.photo)}" alt="">` : `<span class="rm-av" style="display:inline-block"></span>`}${esc(x.name || x.email || "Học sinh")}</td><td>${x.started}/${total}</td><td><span class="rm-mini"><i style="width:${total ? Math.round((x.done / total) * 100) : 0}%"></i></span>${x.done}</td><td>${x.ans}</td><td>${x.ans ? x.score + "%" : "–"}</td><td>${x.last ? when(x.last) : "Chưa học"}</td></tr>`).join("") : `<tr><td colspan="6">Chưa có học sinh nào làm bài trong khoá này.</td></tr>`}
+      const list = build();
+      const ids = {}; list.forEach((x) => (ids[x.id] = 1));
+      const agg = {};
+      docs.forEach((d) => { if (!d.n || !ids[d.studentId]) return; const a = (agg[d.n] = agg[d.n] || { count: 0, complete: 0, ans: 0, cor: 0 }); a.count++; const st = d.stats || {}; if (st.total && st.done >= st.total) a.complete++; a.ans += st.done || 0; a.cor += st.correct || 0; });
+      Object.values(agg).forEach((a) => { a.score = a.ans ? Math.round((a.cor / a.ans) * 100) : 0; });
+      const qq = q.trim().toLowerCase();
+      const outs = students.filter((u) => !isIn(u)).filter((u) => !qq || String(u.name || "").toLowerCase().includes(qq) || String(u.email || "").toLowerCase().includes(qq))
+        .sort((a, b) => ((docsOf[b.uid] || []).length - (docsOf[a.uid] || []).length) || String(a.name || a.email).localeCompare(String(b.name || b.email)));
+      const selName = sel && (list.find((x) => x.id === sel) || {}).name;
+      slot.innerHTML = `<div class="rm-tp"><h2>📊 Học sinh của khoá (${list.length})</h2><p>${sel ? "Đang xem kết quả của <b>" + esc(selName || "") + "</b> trên từng thẻ buổi bên dưới. Bấm lại tên để bỏ chọn." : "Chỉ học sinh được thầy thêm vào mới vào học được khoá này. Bấm vào tên để xem kết quả từng buổi trên các thẻ bên dưới, rồi bấm “👁 Xem bài trực tiếp” để mở bài bạn ấy đang làm. Chỉ thầy (tài khoản admin) mới thấy bảng này."}</p>
+        <div class="rm-tpbar"><button type="button" class="rm-addb" data-act="pick">${picker ? "✕ Đóng" : "➕ Thêm học sinh vào khoá"}</button>${msg ? `<span class="rm-err">${esc(msg)}</span>` : ""}</div>
+        ${picker ? `<div class="rm-pick"><input type="search" class="rm-q" placeholder="Tìm theo tên hoặc Gmail…" value="${esc(q)}">
+          <div class="rm-pl">${outs.length ? outs.map((u) => { const n = (docsOf[u.uid] || []).length; return `<div class="rm-pr">${av(u)}<span class="nm"><b>${esc(u.name || "Học sinh")}</b><small>${esc(u.email || "")}${n ? " · đã học " + n + " buổi" : ""}</small></span><button type="button" class="rm-addb sm" data-act="add" data-id="${esc(u.uid)}" ${busy ? "disabled" : ""}>${busy === u.uid ? "…" : "Thêm"}</button></div>`; }).join("") : `<p class="rm-meta" style="margin:8px 4px">${students.length ? "Không còn học sinh nào khác" + (qq ? " khớp “" + esc(q) + "”" : "") + "." : "Chưa có tài khoản học sinh nào."} Học sinh cần đăng nhập Gmail ở trang web ít nhất 1 lần thì mới hiện trong danh sách này.</p>`}</div></div>` : ""}
+        <div class="rm-tbl2"><table><thead><tr><th>Học sinh</th><th>Đã mở</th><th>Hoàn thành</th><th>Câu đã làm</th><th>Đúng</th><th>Lần cuối</th><th></th></tr></thead><tbody>
+        ${list.length ? list.map((x) => `<tr class="st ${x.id === sel ? "on" : ""}" data-id="${esc(x.id)}"><td>${av(x)}${esc(x.name || x.email || "Học sinh")}</td><td>${x.started}/${total}</td><td><span class="rm-mini"><i style="width:${total ? Math.round((x.done / total) * 100) : 0}%"></i></span>${x.done}</td><td>${x.ans}</td><td>${x.ans ? x.score + "%" : "–"}</td><td>${x.last ? when(x.last) : "Chưa học"}</td><td><button type="button" class="rm-rm ${confirmId === x.id ? "on" : ""}" data-act="rm" data-id="${esc(x.id)}" ${busy ? "disabled" : ""}>${busy === x.id ? "…" : confirmId === x.id ? "Bỏ khỏi khoá?" : "✕"}</button></td></tr>`).join("") : `<tr><td colspan="7">Khoá này chưa có học sinh nào. Bấm “➕ Thêm học sinh vào khoá” để thêm.</td></tr>`}
         </tbody></table></div></div>`;
-      slot.querySelectorAll("tr.st").forEach((tr) => tr.onclick = () => { sel = sel === tr.dataset.id ? "" : tr.dataset.id; draw(); });
-      if (sel) { const byN = {}; (byStu[sel].docs || []).forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN, false, sel, cfg.folder); }
+      slot.querySelectorAll("tr.st").forEach((tr) => tr.onclick = (e) => { if (e.target.closest("button")) return; sel = sel === tr.dataset.id ? "" : tr.dataset.id; confirmId = ""; draw(); });
+      slot.querySelectorAll("button[data-act]").forEach((b) => b.onclick = () => {
+        const act = b.dataset.act, id = b.dataset.id;
+        if (act === "pick") { picker = !picker; draw(); if (picker) { const i = slot.querySelector(".rm-q"); i && i.focus(); } }
+        else if (act === "add") setIn(id, true);
+        else if (act === "rm") { if (confirmId === id) setIn(id, false); else { confirmId = id; draw(); } }
+      });
+      const qi = slot.querySelector(".rm-q");
+      if (qi) qi.oninput = () => { q = qi.value; const pos = qi.selectionStart; draw(); const n = slot.querySelector(".rm-q"); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } };
+      if (sel) { const st = list.find((x) => x.id === sel); const byN = {}; (st ? st.docs : []).forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN, false, sel, cfg.folder); }
       else paintCards(root, agg, true);
     };
     draw();
