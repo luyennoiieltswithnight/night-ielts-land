@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 9: 苹果怎么卖？</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "买": [["买", "hoi", "Phồn thể **買** = **网** (cái lưới) + **贝** (tiền) → dùng tiền “vét” hàng về → **mua**."]],
+  "卖": [["卖", "hoi", "Phồn thể **賣** = **出** (đưa ra) + **買** → đưa hàng ra → **bán**. Mẹo: 卖 = 买 thêm **十** trên đầu — bán thì phải có hàng **ra**."]],
+  "苹果": [["苹", "thanh", "**艹** (cỏ cây) chỉ nghĩa + **平** píng chỉ âm."], ["果", "tuong", "Vẽ **quả trên cây** (田 là quả, 木 là cây)."]],
+  "水果": [["水", "tuong", "Vẽ dòng nước chảy."], ["果", "tuong", "Vẽ quả trên cây."]],
+  "西瓜": [["西", "tuong+gia", "Gốc vẽ tổ chim, mượn chỉ **phía tây** (dưa du nhập từ phía tây)."], ["瓜", "tuong", "Vẽ **quả dưa treo trên dây leo** (bộ Qua)."]],
+  "面包": [["面", "tuong", "Vẽ khuôn mặt; giản thể dùng thay **麵** (bột mì)."], ["包", "tuong", "Vẽ bào thai được bọc trong bụng → bao, gói."]],
+  "对": [["对", "hoi", "Phồn thể **對**: tay (**寸**) cầm vật đối diện → **đối đáp, đúng**; làm giới từ: **đối với**."]],
+  "身体": [["身", "tuong", "Vẽ **người có cái bụng lớn** (mang thai) → thân mình."], ["体", "hoi", "Giản thể: **亻** (người) + **本** (gốc) → gốc rễ của con người là **thân thể**."]],
+  "售货员": [["售", "thanh", "**口** (miệng rao) chỉ nghĩa + **隹** chỉ âm → bán hàng."], ["货", "thanh", "**贝** (tiền, của cải) chỉ nghĩa + **化** huà chỉ âm → hàng hoá."], ["员", "hoi+gia", "**口** + **贝** (gốc là cái vạc tròn) → hình tròn; mượn chỉ **người, nhân viên**."]],
+  "小姐": [["小", "tuong", "Ba hạt cát nhỏ → nhỏ."], ["姐", "thanh", "**女** chỉ nghĩa + **且** qiě chỉ âm → chị."]],
+  "先生": [["先", "hoi", "**止** (bàn chân) đặt trên **儿** (người) → chân bước lên trước → **trước, tiên**."], ["生", "tuong", "Mầm cây nhú khỏi đất. 先生 = người sinh ra trước → **ông, ngài**."]],
+  "斤": [["斤", "tuong+gia", "Vẽ **cái rìu**; mượn làm đơn vị cân (1 斤 = 500 g)."]],
+  "公斤": [["公", "hoi", "**八** (ngược lại) + **厶** (riêng) → chung, công."], ["斤", "tuong+gia", "Vẽ cái rìu, mượn làm đơn vị cân."]],
+  "多": [["多", "hoi", "Hai **夕** (gốc là miếng thịt) chồng lên nhau → **nhiều**."]],
+  "少": [["少", "hoi", "**小** (nhỏ) + **丿** (nét phẩy cắt bớt) → bớt đi → **ít**."]],
+  "多少": [["多", "hoi", "Hai miếng thịt chồng nhau → nhiều."], ["少", "hoi", "小 bị cắt bớt → ít."]],
+  "钱": [["钱", "thanh", "**钅** (kim loại) chỉ nghĩa + **戋** jiān chỉ âm → tiền."]],
+  "一共": [["一", "chi", "Một vạch → một."], ["共", "hoi", "Hai tay cùng nâng một vật → chung, **tổng cộng**."]],
+  "块": [["块", "thanh+gia", "**土** (đất) chỉ nghĩa + **夬** guài chỉ âm → cục, miếng; mượn làm **đồng** (tiền, khẩu ngữ)."]],
+  "毛": [["毛", "tuong+gia", "Vẽ **sợi lông**; mượn làm **hào** (1/10 đồng, khẩu ngữ)."]],
+  "元": [["元", "tuong+gia", "Vẽ người (**儿**) nhấn vào **cái đầu** (二) → đầu, nguyên; mượn làm đơn vị tiền **đồng** (văn viết)."]],
+  "两": [["两", "tuong", "Phồn thể **兩**: vẽ **cái cân hai đĩa / ách đôi** → hai, cặp."]],
+  "零": [["零", "thanh", "**雨** (mưa) chỉ nghĩa — mưa lất phất, lẻ tẻ + **令** lìng chỉ âm → lẻ, **số 0**."]],
+  "零钱": [["零", "thanh", "**雨** chỉ nghĩa + **令** lìng chỉ âm → lẻ."], ["钱", "thanh", "**钅** chỉ nghĩa + **戋** jiān chỉ âm."]],
+  "数": [["数", "thanh", "**攵** (tay cầm gậy) chỉ nghĩa + **娄** lóu chỉ âm → **đếm** (shǔ), con số (shù)."]],
+  "还": [["还", "thanh+gia", "Phồn thể **還** = **辶** (đi) chỉ nghĩa + **睘** huán chỉ âm → quay về → **trả** (huán). Đọc **hái** = “còn, vẫn” là mượn."]],
+  "别": [["别", "hoi", "**另** (gốc vẽ xương) + **刂** (dao) → lóc xương tách ra → chia lìa, **khác**; đừng."]],
+  "别的": [["别", "hoi", "Xương + dao → tách ra → khác."], ["的", "thanh", "**白** chỉ nghĩa + **勺** sháo chỉ âm. Làm trợ từ đọc nhẹ *de*."]],
+  "给": [["给", "thanh", "**纟** (sợi tơ) chỉ nghĩa + **合** hé chỉ âm → nối thêm cho đủ → **cấp cho, đưa**."]],
+  "换": [["换", "thanh", "**扌** (tay) chỉ nghĩa + **奂** huàn chỉ âm → trao tay → **đổi**."]],
+  "找钱": [["找", "hoi", "**扌** (tay) + **戈** (ngọn giáo) → cầm giáo đi tìm → **tìm**; 找钱 = tìm tiền lẻ trả lại → **thối tiền**."], ["钱", "thanh", "**钅** chỉ nghĩa + **戋** chỉ âm."]],
+  "人民币": [["人", "tuong", "Vẽ **người** đứng nghiêng."], ["民", "tuong", "Gốc vẽ **con mắt bị đâm** (nô lệ thời cổ) → người dân."], ["币", "thanh", "Phồn thể **幣** = **巾** (tấm vải – tiền vải cổ) chỉ nghĩa + **敝** bì chỉ âm → tiền."]],
+  "美元": [["美", "hoi", "**羊** + **大** → cừu to → đẹp; ở đây là **nước Mỹ**."], ["元", "tuong+gia", "Đơn vị tiền **đồng**."]],
+  "一会儿": [["一", "chi", "Một."], ["会", "hoi", "Phồn thể **會**: nắp đậy lên nồi → hội lại; ở đây chỉ **khoảng thời gian**."], ["儿", "tuong", "Âm cuốn lưỡi -r."]],
+  "再见": [["再", "chi", "**一** (một) + **冓** (hai vật chồng) → thêm **một lần nữa** → lại."], ["见", "hoi", "Phồn thể **見** = **目** (mắt) trên **儿** (người) → người mở to mắt **nhìn thấy**."]],
+  "开心": [["开", "hoi", "Phồn thể **開**: hai tay (**廾**) mở then cửa **門** → mở."], ["心", "tuong", "Vẽ **trái tim**. 开心 = lòng mở ra → **vui**."]],
+  "难过": [["难", "thanh+gia", "**隹** chỉ nghĩa (gốc tên loài chim) + phần âm; nghĩa “khó” là mượn."], ["过", "thanh", "**辶** chỉ nghĩa + phần âm (phồn thể 過). 难过 = khó vượt qua → **buồn**."]]
+};
+const L = {
+  id: "zh-q1-09", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 9",
+  unit: "Mua bán hoa quả · Hỏi giá · Tiền tệ · Đổi tiền · Đọc số lớn · Ôn đại từ nghi vấn",
+  titleZh: "苹果怎么卖？", titlePy: "Píngguǒ zěnme mài?", title: "Táo bán thế nào?",
+  subtitle: "Học xong bài này bạn tự đi chợ được: hỏi giá theo cân, mặc cả, tính tổng tiền, nhận tiền thối, đổi tiền ngoại tệ — và đọc trôi mọi con số đến hàng tỷ.",
+  heroSticker: "zh_pingguo.webp",
+  prev: { href: "buoi-08.html", label: "Bài 8" }, next: { href: "buoi-10.html", label: "Bài 10" },
+  goals: [
+    "Nhận mặt, đọc, viết **37 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Hỏi giá: **怎么卖？ · 多少钱一斤？ · 一共多少钱？**",
+    "Đơn vị tiền: **块 · 毛 · 分** (nói) / **元 · 角 · 分** (viết) · 斤 và 公斤",
+    "Dùng chắc **还 · 别 / 别的 · 给 · 换 · 两 · 一会儿**",
+    "Đọc số lớn: **百 · 千 · 万 · 亿** và số **零** ở giữa"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Mua bán – hoa quả – cân đo",
+      desc: "**买 mǎi** (thanh 3, mua) ↔ **卖 mài** (thanh 4, bán): chỉ khác thanh và chữ **十** trên đầu.",
+      sticker: "zh_mai2.webp",
+      groups: [
+        { label: "Mua · bán · người bán", cards: [
+          { zh: "买", py: "mǎi", hv: "Mãi", pos: "động từ", vi: "mua", ira: "zh_mai.webp",
+            ex: [X("老师去买包子了。", "Lǎoshī qù mǎi bāozi le.", "Thầy đi mua bánh bao rồi."), X("我要买西瓜。", "Wǒ yào mǎi xīguā.", "Tôi muốn mua dưa hấu.")] },
+          { zh: "卖", py: "mài", hv: "Mại", pos: "động từ", vi: "bán", ira: "zh_mai2.webp",
+            ex: [X("你卖什么？", "Nǐ mài shénme?", "Bạn bán gì thế?"), X("苹果怎么卖？", "Píngguǒ zěnme mài?", "Táo bán thế nào?")] },
+          { zh: "售货员", py: "shòuhuòyuán", hv: "Thụ hoá viên", pos: "danh từ", vi: "nhân viên bán hàng", ira: "zh_xiaojie.webp",
+            ex: [X("那不是售货员。", "Nà bú shì shòuhuòyuán.", "Kia không phải người bán hàng."), X("售货员很忙。", "Shòuhuòyuán hěn máng.", "Nhân viên rất bận.")] },
+          { zh: "小姐", py: "xiǎojiě", hv: "Tiểu thư", pos: "danh từ", vi: "cô, chị (gọi phụ nữ trẻ)", ira: "zh_xiaojie.webp",
+            ex: [X("小姐，苹果多少钱一斤？", "Xiǎojiě, píngguǒ duōshao qián yì jīn?", "Chị ơi, táo bao nhiêu tiền một cân?")] },
+          { zh: "先生", py: "xiānsheng", hv: "Tiên sinh", pos: "danh từ", vi: "ông, ngài, anh (lịch sự)", ira: "zh_xiansheng.webp",
+            ex: [X("先生，您好！", "Xiānsheng, nín hǎo!", "Chào ông!")] }
+        ] },
+        { label: "Hoa quả · đồ ăn", cards: [
+          { zh: "苹果", py: "píngguǒ", hv: "Bình quả", pos: "danh từ", vi: "quả táo", ira: "zh_pingguo.webp",
+            tip: "**苹 píng** đồng âm **平 píng** (bình an) → đêm Giáng sinh người Trung tặng táo: **平安夜** = đêm bình an.", ex: [X("我想吃苹果。", "Wǒ xiǎng chī píngguǒ.", "Tôi muốn ăn táo.")] },
+          { zh: "水果", py: "shuǐguǒ", hv: "Thuỷ quả", pos: "danh từ", vi: "hoa quả, trái cây", ira: "zh_shuiguo.webp",
+            ex: [X("水果很好吃。", "Shuǐguǒ hěn hǎochī.", "Hoa quả rất ngon."), X("我妈妈不喜欢吃水果。", "Wǒ māma bù xǐhuan chī shuǐguǒ.", "Mẹ tôi không thích ăn hoa quả.")] },
+          { zh: "西瓜", py: "xīguā", hv: "Tây qua", pos: "danh từ", vi: "dưa hấu", ira: "zh_xigua.webp",
+            ex: [X("西瓜好吃吗？", "Xīguā hǎochī ma?", "Dưa hấu có ngon không?")] },
+          { zh: "面包", py: "miànbāo", hv: "Diện bao", pos: "danh từ", vi: "bánh mì", ira: "zh_mianbao.webp",
+            ex: [X("面包不贵。", "Miànbāo bú guì.", "Bánh mì không đắt.")] },
+          { zh: "对", py: "duì", hv: "Đối", pos: "giới từ / tính từ", vi: "đối với; đúng", ira: "zh_duishenti.webp",
+            ex: [X("吃水果对身体很好。", "Chī shuǐguǒ duì shēntǐ hěn hǎo.", "Ăn hoa quả rất tốt cho sức khoẻ."), X("你对我太好了！", "Nǐ duì wǒ tài hǎo le!", "Cậu tốt với tớ quá!")] },
+          { zh: "身体", py: "shēntǐ", hv: "Thân thể", pos: "danh từ", vi: "cơ thể, sức khoẻ", ira: "zh_shenti.webp",
+            ex: [X("你身体好吗？", "Nǐ shēntǐ hǎo ma?", "Bạn có khoẻ không?")] }
+        ] },
+        { label: "Cân đo · nhiều ít", cards: [
+          { zh: "斤", py: "jīn", hv: "Cân", pos: "lượng từ", vi: "cân (= 500 g)", ira: "zh_jin.webp",
+            tip: "Chợ Trung Quốc tính theo **斤** (nửa ký). **公斤** mới là ki-lô-gam.", ex: [X("五块一斤", "wǔ kuài yì jīn", "5 đồng một cân")] },
+          { zh: "公斤", py: "gōngjīn", hv: "Công cân", pos: "lượng từ", vi: "ki-lô-gam", ira: "zh_jin.webp",
+            ex: [X("苹果一公斤多少钱？", "Píngguǒ yì gōngjīn duōshao qián?", "Táo bao nhiêu tiền một ký?")] },
+          { zh: "多", py: "duō", hv: "Đa", pos: "tính từ", vi: "nhiều", ira: "zh_duo.webp",
+            ex: [X("这儿有很多西瓜。", "Zhèr yǒu hěn duō xīguā.", "Ở đây có rất nhiều dưa hấu."), X("我的学校有很多学生。", "Wǒ de xuéxiào yǒu hěn duō xuésheng.", "Trường tôi có rất nhiều học sinh.")] },
+          { zh: "少", py: "shǎo", hv: "Thiểu", pos: "tính từ", vi: "ít", ira: "zh_e.webp",
+            ex: [X("你吃太少了！", "Nǐ chī tài shǎo le!", "Cậu ăn ít quá!"), X("今天去学校的人很少。", "Jīntiān qù xuéxiào de rén hěn shǎo.", "Hôm nay rất ít người đến trường.")] },
+          { zh: "多少", py: "duōshao", hv: "Đa thiểu", pos: "đại từ nghi vấn", vi: "bao nhiêu", ira: "zh_qian.webp",
+            ex: [X("你吃多少？", "Nǐ chī duōshao?", "Cậu ăn bao nhiêu?"), X("这里有多少人？", "Zhèli yǒu duōshao rén?", "Ở đây có bao nhiêu người?")] },
+          { zh: "钱", py: "qián", hv: "Tiền", pos: "danh từ", vi: "tiền", ira: "zh_qian.webp",
+            ex: [X("多少钱？", "Duōshao qián?", "Bao nhiêu tiền?")] },
+          { zh: "一共", py: "yígòng", hv: "Nhất cộng", pos: "phó từ", vi: "tổng cộng", ira: "zh_yigong.webp",
+            ex: [X("一共多少钱？", "Yígòng duōshao qián?", "Tổng cộng bao nhiêu tiền?")] },
+          { zh: "两", py: "liǎng", hv: "Lưỡng", pos: "số từ", vi: "hai (trước lượng từ)", ira: "zh_liang.webp",
+            tip: "**两 + lượng từ + N**: 两个人 · 两碗饭 · 两本书 · 两天. Đếm số thì vẫn **二**.", ex: [X("他们两个人", "tāmen liǎng ge rén", "hai người bọn họ"), X("两个星期", "liǎng ge xīngqī", "hai tuần")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Tiền tệ – trả, đổi, thối – cảm xúc",
+      desc: "Ba chữ hay nhầm: **还钱** trả tiền · **换钱** đổi tiền · **找钱** thối tiền.",
+      sticker: "zh_huan.webp",
+      groups: [
+        { label: "Đơn vị tiền · tiền tệ", cards: [
+          { zh: "块", py: "kuài", hv: "Khối", pos: "lượng từ", vi: "đồng (tiền, khẩu ngữ); miếng, cục", ira: "zh_lingqian.webp",
+            tip: "Nói: **块 · 毛 · 分** — Viết: **元 · 角 · 分**. 1 块 = 10 毛 = 100 分.", ex: [X("一公斤西瓜几块钱？", "Yì gōngjīn xīguā jǐ kuài qián?", "Một ký dưa hấu mấy đồng?")] },
+          { zh: "毛", py: "máo", hv: "Mao", pos: "lượng từ", vi: "hào (1/10 đồng); lông", ira: "zh_lingqian.webp",
+            ex: [X("三块五毛", "sān kuài wǔ máo", "3 đồng 5 hào")] },
+          { zh: "元", py: "yuán", hv: "Nguyên", pos: "lượng từ", vi: "đồng (văn viết)", ira: "zh_qian.webp",
+            ex: [X("十元", "shí yuán", "10 đồng")] },
+          { zh: "人民币", py: "rénmínbì", hv: "Nhân dân tệ", pos: "danh từ", vi: "nhân dân tệ", ira: "zh_qian.webp",
+            also: [["港币", "gǎngbì", "đô la Hồng Kông"], ["日元", "rìyuán", "yên Nhật"], ["欧元", "ōuyuán", "Euro"], ["越南盾", "Yuènán dùn", "đồng Việt Nam"]],
+            ex: [X("我想换人民币。", "Wǒ xiǎng huàn rénmínbì.", "Tôi muốn đổi nhân dân tệ.")] },
+          { zh: "美元", py: "měiyuán", hv: "Mỹ nguyên", pos: "danh từ", vi: "đô la Mỹ", ira: "zh_meiyuan.webp",
+            ex: [X("一百美元", "yìbǎi měiyuán", "100 đô la Mỹ")] },
+          { zh: "零", py: "líng", hv: "Linh", pos: "số từ", vi: "số không; lẻ", ira: "zh_ling.webp",
+            tip: "**零** có bộ **雨 (Vũ – mưa)**. Thiên linh linh địa linh linh 🙂", ex: [X("一百零一", "yìbǎi líng yī", "101")] },
+          { zh: "零钱", py: "língqián", hv: "Linh tiền", pos: "danh từ", vi: "tiền lẻ", ira: "zh_lingqian.webp",
+            ex: [X("我有零钱。", "Wǒ yǒu língqián.", "Tôi có tiền lẻ.")] },
+          { zh: "数", py: "shǔ", hv: "Số", pos: "động từ", vi: "đếm", ira: "zh_shu.webp",
+            ex: [X("你数一下儿。", "Nǐ shǔ yíxiàr.", "Bạn đếm thử xem.")] }
+        ] },
+        { label: "Còn · khác · đưa · đổi", cards: [
+          { zh: "还", py: "hái", hv: "Hoàn", pos: "phó từ / động từ", vi: "còn, vẫn (hái) · trả lại (huán)", ira: "zh_huan.webp",
+            tip: "Một chữ hai âm: **hái** = còn · **huán** = trả (还钱 huán qián).", ex: [X("你还想买什么吗？", "Nǐ hái xiǎng mǎi shénme ma?", "Em còn muốn mua gì nữa không?"), X("还钱", "huán qián", "trả tiền")] },
+          { zh: "别", py: "bié", hv: "Biệt", pos: "phó từ / tính từ", vi: "đừng; khác", ira: "zh_bie.webp",
+            tip: "**别 + V** = đừng… · **别 (的) + N** = … khác. 别人 = người khác.", ex: [X("别难过！", "Bié nánguò!", "Đừng buồn!"), X("别人", "biérén", "người khác")] },
+          { zh: "别的", py: "biéde", hv: "Biệt đích", pos: "đại từ", vi: "cái khác", ira: "zh_biede.webp",
+            ex: [X("你还要买别的吗？", "Nǐ hái yào mǎi biéde ma?", "Cậu còn muốn mua cái khác không?"), X("我吃别的。", "Wǒ chī biéde.", "Tôi ăn cái khác.")] },
+          { zh: "给", py: "gěi", hv: "Cấp", pos: "động từ / giới từ", vi: "đưa, cho; cho (ai)", ira: "zh_gei.webp",
+            ex: [X("我给你钱吧。", "Wǒ gěi nǐ qián ba.", "Tôi đưa bạn tiền nhé."), X("给我那本书。", "Gěi wǒ nà běn shū.", "Đưa tôi quyển sách kia.")] },
+          { zh: "换", py: "huàn", hv: "Hoán", pos: "động từ", vi: "đổi, thay", ira: "zh_huan.webp",
+            ex: [X("我想换书。我不喜欢这本书了。", "Wǒ xiǎng huàn shū. Wǒ bù xǐhuan zhè běn shū le.", "Tôi muốn đổi sách. Tôi không thích cuốn này nữa."), X("换钱", "huàn qián", "đổi tiền")] },
+          { zh: "找钱", py: "zhǎo qián", hv: "Trảo tiền", pos: "cụm động từ", vi: "thối tiền (trả lại tiền thừa)", ira: "zh_zhaoqian.webp",
+            ex: [X("找您五块。", "Zhǎo nín wǔ kuài.", "Thối lại anh 5 đồng.")] },
+          { zh: "一会儿", py: "yíhuìr", hv: "Nhất hội nhi", pos: "số lượng từ", vi: "một lát, một chốc (lâu hơn 一下儿)", ira: "zh_deng.webp",
+            ex: [X("等我一会儿。", "Děng wǒ yíhuìr.", "Đợi tôi một lát (hơi lâu).")] },
+          { zh: "再见", py: "zàijiàn", hv: "Tái kiến", pos: "động từ", vi: "tạm biệt (hẹn gặp lại)", ira: "zh_zaijian.webp",
+            tip: "**再** = lại, nữa: 你再来啊！ = Lại đến nữa nhé!", ex: [X("你再来啊！再见！", "Nǐ zài lái a! Zàijiàn!", "Lại đến nữa nhé! Tạm biệt!")] },
+          { zh: "开心", py: "kāixīn", hv: "Khai tâm", pos: "tính từ", vi: "vui vẻ", ira: "zh_kaixin.webp",
+            ex: [X("别难过，要开心。", "Bié nánguò, yào kāixīn.", "Đừng buồn, hãy vui lên.")] },
+          { zh: "难过", py: "nánguò", hv: "Nan quá", pos: "tính từ", vi: "buồn", ira: "zh_lei.webp",
+            tip: "Vui: 高兴 = 开心 · Buồn: 难过 = 伤心 shāngxīn.", ex: [X("你别难过！", "Nǐ bié nánguò!", "Cậu đừng buồn!")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 11 điểm, mỗi điểm 1 công thức",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "多少钱", name: "Hỏi giá", formula: ["Món + 怎么卖？", "Món + 多少钱一斤？ = 一斤多少钱？", "一共多少钱？"],
+          uses: ["**怎么卖？** hỏi cách bán (theo cân, theo quả…)", "Trả lời: **số tiền + 一 + đơn vị**: 五块一斤"],
+          examples: [X("苹果怎么卖？", "Píngguǒ zěnme mài?", "Táo bán thế nào?"), X("五块一斤。", "Wǔ kuài yì jīn.", "5 đồng một cân."), X("苹果多少钱一公斤？", "Píngguǒ duōshao qián yì gōngjīn?", "Táo bao nhiêu tiền một ký?"), X("一共多少钱？", "Yígòng duōshao qián?", "Tổng cộng bao nhiêu?")] },
+        { tag: "块毛", name: "Đơn vị tiền", formula: ["Nói: 块 · 毛 · 分 — Viết: 元 · 角 · 分", "1 块 = 10 毛 = 100 分"],
+          uses: ["Đơn vị cuối thường **lược bỏ**: 三块五 = 3,5 đồng", "Số 2 trước đơn vị tiền dùng **两**: 两块"],
+          examples: [X("三块五（毛）", "sān kuài wǔ (máo)", "3 đồng 5 hào"), X("两块钱", "liǎng kuài qián", "2 đồng"), X("十元", "shí yuán", "10 đồng (viết)")] },
+        { tag: "斤", name: "斤 · 公斤", formula: ["1 斤 = 500 g · 1 公斤 = 1 kg = 2 斤"],
+          uses: ["Chợ Trung Quốc hay dùng **斤**", "Mua: **我要 + số + 斤 / 公斤 + món**"],
+          examples: [X("我要两斤苹果。", "Wǒ yào liǎng jīn píngguǒ.", "Tôi lấy 2 cân (1 ký) táo."), X("我买十公斤苹果。", "Wǒ mǎi shí gōngjīn píngguǒ.", "Tôi mua 10 ký táo.")] },
+        { tag: "多·少", name: "多 · 少", formula: ["很多 + Danh từ (không cần 的)", "Danh từ + 很多 / 很少"],
+          uses: ["**很多人** ✓ — 多 có 很 đi trước mới đứng trước danh từ", "**少** thường làm vị ngữ: 人很少 · 来的人很少", "Muốn nói “ít người làm gì”: **很少有人 + V**"],
+          examples: [X("这儿有很多西瓜。", "Zhèr yǒu hěn duō xīguā.", "Ở đây có rất nhiều dưa hấu."), X("你吃太少了！", "Nǐ chī tài shǎo le!", "Cậu ăn ít quá!"), X("今天去学校的人很少。", "Jīntiān qù xuéxiào de rén hěn shǎo.", "Hôm nay rất ít người đến trường.")],
+          wrong: [{ bad: "多人", good: "很多人", py: "hěn duō rén", why: "多 đứng trước danh từ phải có **很**." }, { bad: "今天很少人去学校。", good: "今天很少有人去学校。", py: "Jīntiān hěn shǎo yǒu rén qù xuéxiào.", why: "Ví dụ trong slide nói được trong khẩu ngữ, nhưng chuẩn hơn là thêm **有**." }] },
+        { tag: "还", name: "还 hái / huán", formula: ["还 hái + V / Adj = còn, vẫn", "还 huán + tiền / đồ = trả lại"],
+          uses: ["Hỏi “còn… nữa không?”: **还 + 要 / 想 + V + 吗？**"],
+          examples: [X("你还想买什么吗？", "Nǐ hái xiǎng mǎi shénme ma?", "Em còn muốn mua gì nữa không?"), X("你还要买别的吗？", "Nǐ hái yào mǎi biéde ma?", "Cậu còn muốn mua cái khác không?"), X("还钱", "huán qián", "trả tiền")] },
+        { tag: "别", name: "别 + V · 别的 + N", formula: ["别 + Động từ = đừng…", "别 (的) + Danh từ = … khác"],
+          uses: ["别人 = người khác · 别的书 = quyển sách khác", "别的 đứng một mình = cái khác"],
+          examples: [X("别难过！", "Bié nánguò!", "Đừng buồn!"), X("别的书", "biéde shū", "quyển sách khác"), X("我吃别的。", "Wǒ chī biéde.", "Tôi ăn cái khác.")] },
+        { tag: "给", name: "给 + người + vật", formula: ["给 + Người + Vật (đưa ai cái gì)", "给 + Người + Động từ (làm gì cho ai)"],
+          uses: ["Người nhận đứng **trước** vật"],
+          examples: [X("我给你钱吧。", "Wǒ gěi nǐ qián ba.", "Tôi đưa bạn tiền nhé."), X("给我那本书。", "Gěi wǒ nà běn shū.", "Đưa tôi quyển sách kia."), X("妈妈给我买手机。", "Māma gěi wǒ mǎi shǒujī.", "Mẹ mua điện thoại cho tôi.")],
+          wrong: [{ bad: "我给钱你。", good: "我给你钱。", why: "Người nhận trước, vật sau." }] },
+        { tag: "换·还·找", name: "换钱 · 还钱 · 找钱", formula: ["换钱 đổi tiền · 还钱 trả tiền · 找钱 thối tiền"],
+          uses: ["换 = đổi (换书, 换人, 换钱)", "还 huán = trả cái đã mượn", "找 = tìm → 找钱 = thối tiền thừa"],
+          examples: [X("我想换人民币。", "Wǒ xiǎng huàn rénmínbì.", "Tôi muốn đổi nhân dân tệ."), X("明天我还你钱。", "Míngtiān wǒ huán nǐ qián.", "Mai tôi trả tiền bạn."), X("找您五块。", "Zhǎo nín wǔ kuài.", "Thối lại anh 5 đồng.")] },
+        { tag: "一会儿", name: "一下儿 · 一会儿", formula: ["V + 一下儿: một chút (rất ngắn, nhẹ)", "V + 一会儿: một lát (lâu hơn)"],
+          uses: ["一 trong cả hai đều đọc **yí**"],
+          examples: [X("等我一下儿。", "Děng wǒ yíxiàr.", "Đợi tôi một chút."), X("等我一会儿。", "Děng wǒ yíhuìr.", "Đợi tôi một lát.")] },
+        { tag: "数字", name: "Đọc số lớn", formula: ["百 100 · 千 1.000 · 万 10.000 · 亿 100.000.000", "Thiếu hàng ở giữa → đọc 零 (một lần)"],
+          uses: ["101 = 一百零一 · 110 = 一百一十", "2025 = 两千零二十五 · 99019 = 九万九千零一十九", "Tiền Việt: 10 vạn = 100.000 = **十万** · 1 triệu = **一百万** · 1 tỷ = **十亿**"],
+          examples: [X("一百零一", "yìbǎi líng yī", "101"), X("三千四百五十六", "sānqiān sìbǎi wǔshíliù", "3.456"), X("一万三千四百五十六", "yíwàn sānqiān sìbǎi wǔshíliù", "13.456"), X("一百万越南盾", "yìbǎi wàn Yuènán dùn", "1 triệu đồng"), X("一个亿", "yí ge yì", "100 triệu")],
+          note: "Người Trung đếm theo **vạn (万)** chứ không theo nghìn: 100.000 = **十万** (mười vạn)." },
+        { tag: "疑问", name: "Ôn đại từ nghi vấn", formula: ["哪 · 哪儿 · 谁 · 什么 · 怎么 · 怎么样 · 多少 · 几", "V / Adj + 不 + V / Adj？"],
+          uses: ["**几** + lượng từ (số nhỏ) · **多少** (số bất kỳ, có thể bỏ lượng từ)", "**怎么样** hỏi cảm nhận · **怎么 + V** hỏi cách làm"],
+          examples: [X("你买哪本书？", "Nǐ mǎi nǎ běn shū?", "Bạn mua quyển nào?"), X("中国菜怎么样？", "Zhōngguó cài zěnmeyàng?", "Đồ ăn Trung Quốc thế nào?"), X("去越南怎么去？", "Qù Yuènán zěnme qù?", "Đi Việt Nam đi thế nào?"), X("你吃几碗饭？", "Nǐ chī jǐ wǎn fàn?", "Cậu ăn mấy bát cơm?"), X("忙不忙？", "Máng bu máng?", "Có bận không?")] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("“mua” là chữ nào?", "卖|买", "B", "**买 mǎi** = mua · 卖 mài = bán."),
+        Q("“Táo bao nhiêu tiền một cân?”", "苹果多少钱一斤？|苹果一斤钱多少？|多少苹果一斤钱？|苹果几钱一斤？", "A", "**多少钱一斤？**"),
+        Q("1 斤 bằng…", "1 kg|500 g|100 g|2 kg", "B", "1 斤 = 500 g."),
+        Q("3 đồng 5 hào nói là…", "三块五|三毛五块|五块三|三元五分", "A", "**三块五 (毛)**."),
+        Q("“Rất nhiều người”", "多人|很多人|很多的人们|多多人", "B", "多 trước danh từ cần **很**."),
+        Q("“Em còn muốn mua gì nữa không?”", "你还想买什么吗？|你想还买什么吗？|还你想买什么？|你想买还什么吗？", "A", "**还** đứng trước động từ năng nguyện."),
+        Q("“Tôi đưa bạn tiền.”", "我给钱你。|我给你钱。|我钱给你。|给我你钱。", "B", "给 + người + vật."),
+        Q("“Thối tiền” là…", "换钱|还钱|找钱|给钱", "C", "**找钱**."),
+        Q("“Đừng buồn!”", "别难过！|不难过吗！|别的难过！|没难过！", "A", "**别 + V/Adj** = đừng."),
+        Q("“Hai cái bánh bao”", "二个包子|两个包子|二包子|两包子个", "B", "**两 + lượng từ**."),
+        Q("101 đọc là…", "一百一|一百零一|一零一|一百十一", "B", "Thiếu hàng chục → **零**."),
+        Q("100.000 đọc là…", "一百千|十万|一十万千|百千", "B", "Mười **vạn** = 十万."),
+        Q("“Đợi tôi một lát (khá lâu)”", "等我一下儿|等我一会儿", "B", "Lâu hơn → **一会儿**."),
+        Q("“Ăn hoa quả rất tốt cho sức khoẻ.”", "吃水果对身体很好。|吃水果很好对身体。|对身体吃水果很好。|吃水果身体对很好。", "A", "**对 + đối tượng + 很好**.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Táo bán thế nào?", words: ["苹果", "怎么", "卖"], py: "Píngguǒ zěnme mài?" },
+        { vi: "5 đồng một cân.", words: ["五块", "一", "斤"], py: "Wǔ kuài yì jīn." },
+        { vi: "Tôi muốn mua dưa hấu.", words: ["我", "要", "买", "西瓜"], py: "Wǒ yào mǎi xīguā." },
+        { vi: "Tổng cộng bao nhiêu tiền?", words: ["一共", "多少", "钱"], py: "Yígòng duōshao qián?" },
+        { vi: "Cậu còn muốn mua cái khác không?", words: ["你", "还", "要", "买", "别的", "吗"], py: "Nǐ hái yào mǎi biéde ma?" },
+        { vi: "Tôi đưa bạn tiền nhé.", words: ["我", "给", "你", "钱", "吧"], py: "Wǒ gěi nǐ qián ba." },
+        { vi: "Tôi muốn đổi nhân dân tệ.", words: ["我", "想", "换", "人民币"], py: "Wǒ xiǎng huàn rénmínbì." },
+        { vi: "Ăn hoa quả rất tốt cho sức khoẻ.", words: ["吃", "水果", "对", "身体", "很", "好"], py: "Chī shuǐguǒ duì shēntǐ hěn hǎo." },
+        { vi: "Ở đây có rất nhiều dưa hấu.", words: ["这儿", "有", "很多", "西瓜"], py: "Zhèr yǒu hěn duō xīguā." },
+        { vi: "Đừng buồn, hãy vui lên.", words: ["别", "难过", "要", "开心"], py: "Bié nánguò, yào kāixīn." }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · 3 tình huống",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_xigua.webp",
+      scenes: [
+        { title: "① Mua hoa quả", desc: "Quốc An đi chợ hoa quả.", lines: [
+          { who: "售货员", av: "卖", ...X("你好！你要买什么？", "Nǐ hǎo! Nǐ yào mǎi shénme?", "Chào em! Em muốn mua gì?") },
+          { who: "国安", ...X("苹果怎么卖？", "Píngguǒ zěnme mài?", "Táo bán thế nào ạ?") },
+          { who: "售货员", av: "卖", ...X("五块一斤。", "Wǔ kuài yì jīn.", "5 đồng một cân.") },
+          { who: "国安", ...X("太贵了！四块，可以吗？", "Tài guì le! Sì kuài, kěyǐ ma?", "Đắt quá! 4 đồng được không ạ?") },
+          { who: "售货员", av: "卖", ...X("好吧，四块五。你要几斤？", "Hǎo ba, sì kuài wǔ. Nǐ yào jǐ jīn?", "Thôi được, 4 đồng rưỡi. Em lấy mấy cân?") },
+          { who: "国安", ...X("我要两斤。西瓜多少钱一斤？", "Wǒ yào liǎng jīn. Xīguā duōshao qián yì jīn?", "Cháu lấy 2 cân. Dưa hấu bao nhiêu một cân?") },
+          { who: "售货员", av: "卖", ...X("西瓜两块一斤。你还要别的吗？", "Xīguā liǎng kuài yì jīn. Nǐ hái yào biéde ma?", "Dưa hấu 2 đồng một cân. Em còn lấy gì nữa không?") },
+          { who: "国安", ...X("不要了。一共多少钱？", "Bú yào le. Yígòng duōshao qián?", "Thôi ạ. Tổng cộng bao nhiêu tiền?") },
+          { who: "售货员", av: "卖", ...X("一共九块。", "Yígòng jiǔ kuài.", "Tổng cộng 9 đồng.") },
+          { who: "国安", ...X("给你十块。", "Gěi nǐ shí kuài.", "Gửi chị 10 đồng.") },
+          { who: "售货员", av: "卖", ...X("找你一块。再见！", "Zhǎo nǐ yí kuài. Zàijiàn!", "Thối em 1 đồng. Tạm biệt!") }
+        ], note: "**不要了** = thôi, không lấy nữa (了 = thay đổi). Mặc cả lịch sự: **…，可以吗？**" },
+        { title: "② Đổi tiền ở ngân hàng", desc: "Anh Thư đổi đô la sang nhân dân tệ.", lines: [
+          { who: "英书", ...X("小姐，您好！我想换钱。", "Xiǎojiě, nín hǎo! Wǒ xiǎng huàn qián.", "Chào chị! Em muốn đổi tiền.") },
+          { who: "银行", av: "银", ...X("您换什么钱？", "Nín huàn shénme qián?", "Chị đổi tiền gì ạ?") },
+          { who: "英书", ...X("我想用美元换人民币。", "Wǒ xiǎng yòng měiyuán huàn rénmínbì.", "Em muốn đổi đô la Mỹ sang nhân dân tệ.") },
+          { who: "银行", av: "银", ...X("换多少？", "Huàn duōshao?", "Đổi bao nhiêu ạ?") },
+          { who: "英书", ...X("两百美元。", "Liǎngbǎi měiyuán.", "200 đô.") },
+          { who: "银行", av: "银", ...X("请等一会儿。……这是一千四百块人民币，请数一下儿。", "Qǐng děng yíhuìr. …… Zhè shì yìqiān sìbǎi kuài rénmínbì, qǐng shǔ yíxiàr.", "Xin đợi một lát. … Đây là 1.400 tệ, chị đếm lại giúp.") },
+          { who: "英书", ...X("对，谢谢！", "Duì, xièxie!", "Đúng rồi, cảm ơn chị!") }
+        ] },
+        { title: "③ Mượn tiền", desc: "Hai bạn ở căng tin.", lines: [
+          { who: "国安", ...X("英书，我没有零钱，你有吗？", "Yīngshū, wǒ méiyǒu língqián, nǐ yǒu ma?", "Anh Thư, mình không có tiền lẻ, cậu có không?") },
+          { who: "英书", ...X("有，给你二十块。", "Yǒu, gěi nǐ èrshí kuài.", "Có, đưa cậu 20 đồng.") },
+          { who: "国安", ...X("谢谢！明天我还你钱。", "Xièxie! Míngtiān wǒ huán nǐ qián.", "Cảm ơn! Mai mình trả cậu.") },
+          { who: "英书", ...X("不用还！你对我太好了，今天我请你。", "Búyòng huán! Nǐ duì wǒ tài hǎo le, jīntiān wǒ qǐng nǐ.", "Không cần trả đâu! Cậu tốt với mình quá, hôm nay mình mời.") },
+          { who: "国安", ...X("太开心了！", "Tài kāixīn le!", "Vui quá!") }
+        ] }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("苹果怎么卖？", "Píngguǒ zěnme mài?", "Táo bán thế nào?"),
+        X("多少钱一斤？", "Duōshao qián yì jīn?", "Bao nhiêu tiền một cân?"),
+        X("五块一斤。", "Wǔ kuài yì jīn.", "5 đồng một cân."),
+        X("我要两斤。", "Wǒ yào liǎng jīn.", "Tôi lấy 2 cân."),
+        X("一共多少钱？", "Yígòng duōshao qián?", "Tổng cộng bao nhiêu?"),
+        X("你还要别的吗？", "Nǐ hái yào biéde ma?", "Còn lấy gì khác không?"),
+        X("给你十块。", "Gěi nǐ shí kuài.", "Gửi bạn 10 đồng."),
+        X("我想换人民币。", "Wǒ xiǎng huàn rénmínbì.", "Tôi muốn đổi nhân dân tệ."),
+        X("水果太贵了。", "Shuǐguǒ tài guì le.", "Hoa quả đắt quá."),
+        X("别难过！", "Bié nánguò!", "Đừng buồn!")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Táo bán thế nào?", zh: "苹果怎么卖？", py: "Píngguǒ zěnme mài?" },
+        { vi: "Hỏi: Dưa hấu bao nhiêu tiền một cân?", zh: "西瓜多少钱一斤？", py: "Xīguā duōshao qián yì jīn?" },
+        { vi: "Than: Đắt quá!", zh: "太贵了！", py: "Tài guì le!" },
+        { vi: "Mặc cả: 4 đồng được không?", zh: "四块，可以吗？", py: "Sì kuài, kěyǐ ma?" },
+        { vi: "Nói: Tôi lấy 2 cân táo.", zh: "我要两斤苹果。", py: "Wǒ yào liǎng jīn píngguǒ." },
+        { vi: "Hỏi: Tổng cộng bao nhiêu tiền?", zh: "一共多少钱？", py: "Yígòng duōshao qián?" },
+        { vi: "Người bán hỏi: Còn lấy gì khác không?", zh: "你还要别的吗？", py: "Nǐ hái yào biéde ma?" },
+        { vi: "Trả lời: Thôi, không lấy nữa.", zh: "不要了。", py: "Bú yào le." },
+        { vi: "Đưa tiền: Gửi bạn 10 đồng.", zh: "给你十块。", py: "Gěi nǐ shí kuài." },
+        { vi: "Nói: Tôi muốn đổi nhân dân tệ.", zh: "我想换人民币。", py: "Wǒ xiǎng huàn rénmínbì." },
+        { vi: "Nói: Tôi không có tiền lẻ.", zh: "我没有零钱。", py: "Wǒ méiyǒu língqián." },
+        { vi: "Nói: Mai tôi trả tiền bạn.", zh: "明天我还你钱。", py: "Míngtiān wǒ huán nǐ qián." },
+        { vi: "Nói: Ăn hoa quả rất tốt cho sức khoẻ.", zh: "吃水果对身体很好。", py: "Chī shuǐguǒ duì shēntǐ hěn hǎo." },
+        { vi: "Đọc số: 2025.", zh: "两千零二十五", py: "liǎngqiān líng èrshíwǔ" },
+        { vi: "Đọc số: 1 triệu đồng Việt Nam.", zh: "一百万越南盾", py: "yìbǎi wàn Yuènán dùn" }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Tự đi chợ (6 câu, đóng vai người mua)",
+      desc: "Nói liền 6 câu như đang đứng ở sạp hoa quả. Xong câu mẫu thì **đổi món, đổi số cân, đổi giá**.",
+      sticker: "zh_mai2.webp",
+      items: [
+        { vi: "Chào chị! Táo bán thế nào ạ?", zh: "你好！苹果怎么卖？", py: "Nǐ hǎo! Píngguǒ zěnme mài?" },
+        { vi: "Đắt quá! 4 đồng một cân được không?", zh: "太贵了！四块一斤，可以吗？", py: "Tài guì le! Sì kuài yì jīn, kěyǐ ma?" },
+        { vi: "Tôi lấy 3 cân táo, một quả dưa hấu.", zh: "我要三斤苹果、一个西瓜。", py: "Wǒ yào sān jīn píngguǒ, yí ge xīguā." },
+        { vi: "Tổng cộng bao nhiêu tiền?", zh: "一共多少钱？", py: "Yígòng duōshao qián?" },
+        { vi: "Gửi chị 50 đồng.", zh: "给你五十块。", py: "Gěi nǐ wǔshí kuài." },
+        { vi: "Cảm ơn chị, tạm biệt!", zh: "谢谢，再见！", py: "Xièxie, zàijiàn!" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · Táo đêm Bình an & tiền Trung Quốc",
+      sticker: "zh_lantern.webp",
+      cols: 3,
+      cards: [
+        { tag: "平安夜", title: "Tặng táo đêm Giáng sinh", ira: "zh_pingguo.webp", body: "**苹果 píngguǒ** có âm **píng** giống **平安 píng'ān** (bình an). Đêm 24/12 gọi là **平安夜** (đêm bình an) — người Trung tặng nhau táo gói giấy đẹp để chúc bình an." },
+        { tag: "人民币", title: "Tiền Trung Quốc", ira: "zh_qian.webp", bullets: ["Đơn vị: **元 / 块** — **角 / 毛** — **分**", "Tờ to nhất: **一百元** (100 tệ, màu đỏ)", "Ngày nay trả bằng **微信 WeChat Pay** và **支付宝 Alipay** gần như mọi nơi"] },
+        { tag: "砍价", title: "Mặc cả ở chợ", ira: "zh_mai2.webp", bullets: ["**太贵了！便宜一点儿吧！** = Đắt quá! Rẻ chút đi!", "**…可以吗？** = … được không?", "Siêu thị giá cố định, chợ thì mặc cả được"] }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 9 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Hỏi giá", title: "3 câu phải thuộc", bullets: ["…怎么卖？", "多少钱一斤？", "一共多少钱？"] },
+        { tag: "Tiền", title: "块 · 毛 · 分", bullets: ["Nói 块毛分 · viết 元角分", "三块五 = 3,5 đồng", "1 斤 = 500 g · 1 公斤 = 2 斤"] },
+        { tag: "Mua bán", title: "买 ≠ 卖", bullets: ["买 mǎi mua · 卖 mài bán", "给 + người + vật", "换钱 · 还钱 · 找钱"] },
+        { tag: "Từ nhỏ", title: "还 · 别 · 两", bullets: ["还 hái còn / huán trả", "别 + V đừng · 别的 cái khác", "两 + lượng từ (không 二个)"] },
+        { tag: "Thời gian", title: "一下儿 · 一会儿", bullets: ["一下儿: một chút", "一会儿: một lát (lâu hơn)"] },
+        { tag: "Số lớn", title: "Đếm theo vạn", bullets: ["百 · 千 · 万 · 亿", "Thiếu hàng giữa → 零", "100.000 = 十万 · 1 triệu = 一百万 · 1 tỷ = 十亿"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 37 từ.",
+        "**✍ Tự viết** 10 chữ: 买 卖 果 瓜 斤 多 少 钱 还 换 — mỗi chữ đúng 3 lần liền.",
+        "Đọc to giá 10 món đồ trong nhà bạn bằng tiếng Trung (đổi sang vạn: 150.000đ = 十五万).",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "**Phản xạ nói** + **Thử thách đi chợ**: mỗi câu ≥ 85%.",
+        "Nhập vai cả 3 hội thoại, tắt pinyin, đóng cả hai vai."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>

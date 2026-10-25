@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 10: 你家有几口人？</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "口": [["口", "tuong", "Vẽ **cái miệng** há ra. Đếm người trong nhà bằng 口 = đếm số **miệng ăn**."]],
+  "爷爷": [["爷", "thanh", "**父** (cha) chỉ nghĩa + phần dưới (phồn thể 爺: 耶 yé) chỉ âm → ông."]],
+  "奶奶": [["奶", "thanh", "**女** (phụ nữ) chỉ nghĩa + **乃** nǎi chỉ âm → sữa; 奶奶 = bà nội."]],
+  "哥哥": [["哥", "hoi+gia", "Hai chữ **可** chồng lên nhau, gốc là “ca hát” (歌); mượn chỉ **anh trai**."]],
+  "姐姐": [["姐", "thanh", "**女** chỉ nghĩa + **且** qiě chỉ âm → chị."]],
+  "弟弟": [["弟", "tuong", "Vẽ **sợi dây quấn quanh cọc** theo thứ tự từng vòng → thứ bậc → **em trai** (đứng sau)."]],
+  "妹妹": [["妹", "thanh", "**女** chỉ nghĩa + **未** wèi chỉ âm → em gái."]],
+  "爱": [["爱", "hoi", "Phồn thể **愛** có chữ **心** (trái tim) ở giữa. Giản thể thay bằng **友** (bạn) → “yêu mà không có trái tim?!”"]],
+  "医生": [["医", "hoi", "Giản thể: **匚** (cái hộp) đựng **矢** (mũi tên) → dụng cụ chữa vết thương → y, chữa bệnh."], ["生", "tuong", "Mầm cây nhú khỏi đất → người, sinh."]],
+  "听话": [["听", "thanh", "Giản thể: **口** chỉ nghĩa + **斤** jīn chỉ âm → nghe."], ["话", "thanh", "**讠** chỉ nghĩa + phần phải chỉ âm → lời nói. 听话 = nghe lời → **ngoan**."]],
+  "房间": [["房", "thanh", "**户** (bộ Hộ – cánh cửa) chỉ nghĩa + **方** fāng chỉ âm → phòng."], ["间", "hoi", "**门** (cửa) + **日** (mặt trời) → nắng lọt qua khe cửa → **khoảng giữa**, gian phòng."]],
+  "拍照": [["拍", "thanh", "**扌** (bộ Tài gảy – tay) chỉ nghĩa + **白** bái chỉ âm → vỗ, đập; bấm (máy ảnh)."], ["照", "thanh", "**灬** (lửa – ánh sáng) chỉ nghĩa + **昭** zhāo chỉ âm → chiếu, soi, chụp."]],
+  "照片": [["照", "thanh", "**灬** (lửa) chỉ nghĩa + **昭** zhāo chỉ âm."], ["片", "tuong", "Vẽ **nửa khúc gỗ bổ đôi** → tấm mỏng → tấm ảnh."]],
+  "张": [["张", "thanh+gia", "**弓** (cây cung) chỉ nghĩa + **长** cháng chỉ âm → giương cung; mượn làm lượng từ cho vật **mỏng, phẳng**."]],
+  "纸": [["纸", "thanh", "**纟** (sợi tơ – giấy xưa làm từ sợi) chỉ nghĩa + **氏** shì chỉ âm."]],
+  "床": [["床", "hoi", "Giản thể: **广** (mái nhà) + **木** (gỗ) → tấm gỗ kê dưới mái để nằm → **giường**."]],
+  "时候": [["时", "thanh", "**日** (mặt trời) chỉ nghĩa + **寸** (giản lược từ 寺 sì) chỉ âm → thời gian."], ["候", "thanh", "**亻** chỉ nghĩa + **侯** hóu chỉ âm → chờ, lúc."]],
+  "衣服": [["衣", "tuong", "Vẽ **chiếc áo có cổ chéo** (bộ Y)."], ["服", "thanh", "**月** (gốc là 舟 thuyền) chỉ nghĩa + **𠬝** fú chỉ âm → phục, quần áo."]],
+  "件": [["件", "hoi", "**亻** (người) + **牛** (con bò) → vật lớn tách riêng từng con → cái, chiếc (quần áo, việc)."]],
+  "穿": [["穿", "hoi", "**穴** (hang) + **牙** (răng) → chuột dùng răng đục **xuyên** hang → xuyên qua → **mặc** (xỏ tay chân qua)."]],
+  "红色": [["红", "thanh", "**纟** (tơ – vải nhuộm) chỉ nghĩa + **工** gōng chỉ âm → đỏ."], ["色", "hoi", "Một người đè lên người khác → sắc mặt → **màu sắc**."]],
+  "黑色": [["黑", "hoi", "**Ống khói** + **灬** (lửa) bên dưới → muội khói → **đen**."], ["色", "hoi", "Sắc mặt → màu sắc."]],
+  "白色": [["白", "tuong", "Vẽ **hạt gạo / ánh mặt trời** trắng sáng."], ["色", "hoi", "Sắc mặt → màu sắc."]],
+  "高": [["高", "tuong", "Vẽ **toà lầu cao** nhiều tầng có mái nhọn → cao."]],
+  "可爱": [["可", "thanh", "**口** chỉ nghĩa + **丂** kǎo chỉ âm → có thể, đáng."], ["爱", "hoi", "Phồn thể 愛 có 心 (tim) → yêu. 可爱 = **đáng yêu**."]],
+  "帅": [["帅", "hoi", "Phồn thể **帥**: **巾** (lá cờ) + đám quân → người cầm cờ chỉ huy → **soái** → nay nghĩa là đẹp trai, ngầu."]],
+  "漂亮": [["漂", "thanh", "**氵** chỉ nghĩa + **票** piào chỉ âm → trôi nổi, (giặt) sạch đẹp."], ["亮", "hoi", "**高** (giản lược) + **儿** (người) → người đứng trên cao chỗ sáng → **sáng**."]],
+  "好看": [["好", "hoi", "**女** + **子** → tốt đẹp."], ["看", "hoi", "**手** trên **目** → nhìn. 好看 = nhìn đẹp."]],
+  "最": [["最", "hoi", "**冃** (cái mũ) + **取** (lấy) → liều chết lấy mũ tướng địch → công **lớn nhất** → nhất."]],
+  "骑": [["骑", "thanh", "**马** (ngựa) chỉ nghĩa + **奇** qí chỉ âm → cưỡi. Mẹo: chữ **奇** trong 奇怪 qíguài (kỳ quặc)."]],
+  "自行车": [["自", "tuong", "Vẽ **cái mũi** — người Trung chỉ vào mũi khi nói “tôi” → tự, bản thân."], ["行", "tuong", "Vẽ **ngã tư đường** → đi, hành."], ["车", "tuong", "Vẽ cỗ xe nhìn từ trên."]],
+  "只": [["只", "hoi", "Phồn thể **隻**: **又** (bàn tay) cầm **隹** (một con chim) → **một con** → lượng từ cho con vật nhỏ."]],
+  "狗": [["狗", "thanh", "**犭** (bộ Khuyển – chó) chỉ nghĩa + **句** gōu chỉ âm."]],
+  "猫": [["猫", "thanh", "**犭** (bộ Khuyển) chỉ nghĩa + **苗** miáo chỉ âm (giống tiếng mèo kêu “meo”)."]],
+  "条": [["条", "thanh", "Phồn thể **條** = **木** (cành cây) chỉ nghĩa + **攸** yōu chỉ âm → cành dài → lượng từ cho vật **dài, hẹp**."]]
+};
+const L = {
+  id: "zh-q1-10", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 10",
+  unit: "Gia đình · Phòng của tôi · Chụp ảnh · Quần áo, màu sắc · Ngoại hình · Thú cưng",
+  titleZh: "你家有几口人？", titlePy: "Nǐ jiā yǒu jǐ kǒu rén?", title: "Nhà bạn có mấy người?",
+  subtitle: "Học xong bài này bạn giới thiệu được cả nhà qua một tấm ảnh: ai cao nhất, ai đáng yêu nhất, ai mặc áo đỏ, nhà nuôi mấy con chó mèo — và viết được một đoạn văn về gia đình mình.",
+  heroSticker: "zh_jiejie.webp",
+  prev: { href: "buoi-09.html", label: "Bài 9" }, next: { href: "buoi-11.html", label: "Bài 11" },
+  goals: [
+    "Nhận mặt, đọc, viết **35 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Đếm người trong nhà bằng **口** · gọi đúng ông bà, anh chị em",
+    "Lượng từ: **张** (vật mỏng phẳng) · **件** (quần áo) · **只 / 条** (con vật)",
+    "Câu **…的时候** (khi…) · **最 + Adj** · **长得 + Adj** · chữ **的** đứng cuối (这本书是我的)",
+    "**Viết một đoạn văn** về gia đình bạn và nói to trơn tru"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Gia đình – căn phòng – ảnh – quần áo",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**. Gọi người thân thì **lặp chữ** và chữ sau đọc nhẹ: 哥哥 gēge.",
+      sticker: "zh_meimei.webp",
+      groups: [
+        { label: "Người trong nhà", cards: [
+          { zh: "口", py: "kǒu", hv: "Khẩu", pos: "lượng từ", vi: "người (thành viên gia đình); miệng", ira: "family_3_kyoudai_6958.webp",
+            tip: "**几口人？** chỉ dùng hỏi **người trong nhà**. Người nói chung: 几**个**人.", ex: [X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?"), X("我家有五口人。", "Wǒ jiā yǒu wǔ kǒu rén.", "Nhà tôi có 5 người.")] },
+          { zh: "爷爷", py: "yéye", hv: "Gia gia", pos: "danh từ", vi: "ông nội", ira: "zh_yeye.webp", ex: [X("我爷爷爱喝茶。", "Wǒ yéye ài hē chá.", "Ông tôi thích uống trà.")] },
+          { zh: "奶奶", py: "nǎinai", hv: "Nãi nãi", pos: "danh từ", vi: "bà nội", ira: "zh_nainai.webp", ex: [X("奶奶做饭很好吃。", "Nǎinai zuò fàn hěn hǎochī.", "Bà nấu ăn rất ngon.")] },
+          { zh: "哥哥", py: "gēge", hv: "Ca ca", pos: "danh từ", vi: "anh trai", ira: "zh_gege.webp", ex: [X("哥哥喜欢画画儿。", "Gēge xǐhuan huà huàr.", "Anh trai thích vẽ tranh.")] },
+          { zh: "姐姐", py: "jiějie", hv: "Tỷ tỷ", pos: "danh từ", vi: "chị gái", ira: "zh_jiejie.webp", ex: [X("我姐姐很喜欢看中国电影。", "Wǒ jiějie hěn xǐhuan kàn Zhōngguó diànyǐng.", "Chị tôi rất thích xem phim Trung Quốc.")] },
+          { zh: "弟弟", py: "dìdi", hv: "Đệ đệ", pos: "danh từ", vi: "em trai", ira: "zh_didi.webp", ex: [X("弟弟很调皮。", "Dìdi hěn tiáopí.", "Em trai rất nghịch.")] },
+          { zh: "妹妹", py: "mèimei", hv: "Muội muội", pos: "danh từ", vi: "em gái", ira: "zh_meimei.webp", ex: [X("妹妹很听话。", "Mèimei hěn tīnghuà.", "Em gái rất ngoan.")] },
+          { zh: "爱", py: "ài", hv: "Ái", pos: "động từ", vi: "yêu; thích (làm gì)", ira: "zh_xihuan.webp",
+            tip: "**爱 + V** = rất thích làm gì: 爸爸爱喝茶.", ex: [X("我很爱我的家。", "Wǒ hěn ài wǒ de jiā.", "Tôi rất yêu gia đình mình."), X("我最爱吃苹果。", "Wǒ zuì ài chī píngguǒ.", "Tớ thích ăn táo nhất.")] },
+          { zh: "医生", py: "yīshēng", hv: "Y sinh", pos: "danh từ", vi: "bác sĩ", ira: "zh_yisheng.webp", ex: [X("我妈妈是医生。", "Wǒ māma shì yīshēng.", "Mẹ tôi là bác sĩ.")] },
+          { zh: "听话", py: "tīnghuà", hv: "Thính thoại", pos: "tính từ", vi: "ngoan, nghe lời", ira: "zh_zuo.webp", ex: [X("小的时候，我很听话。", "Xiǎo de shíhou, wǒ hěn tīnghuà.", "Lúc nhỏ tôi rất ngoan.")] },
+          { zh: "房间", py: "fángjiān", hv: "Phòng gian", pos: "danh từ", vi: "căn phòng", ira: "zh_chuang.webp",
+            tip: "**房** có bộ **户** (Hộ – cánh cửa). Lượng từ: 一个房间.", ex: [X("这是我的房间。", "Zhè shì wǒ de fángjiān.", "Đây là phòng của tôi."), X("这个房间很大。", "Zhège fángjiān hěn dà.", "Căn phòng này rất rộng.")] }
+        ] },
+        { label: "Chụp ảnh · đồ vật mỏng · khi nào", cards: [
+          { zh: "拍照", py: "pāizhào", hv: "Phách chiếu", pos: "động từ", vi: "chụp ảnh", ira: "zh_paizhao.webp",
+            tip: "**拍** có bộ **扌 (tài gảy – tay)** → động từ dùng tay.", ex: [X("你可以帮我拍一下儿吗？", "Nǐ kěyǐ bāng wǒ pāi yíxiàr ma?", "Bạn chụp giúp tôi một tấm được không?"), X("我很喜欢拍照。你呢？", "Wǒ hěn xǐhuan pāizhào. Nǐ ne?", "Tôi rất thích chụp ảnh. Còn bạn?")] },
+          { zh: "照片", py: "zhàopiàn", hv: "Chiếu phiến", pos: "danh từ", vi: "bức ảnh", ira: "zh_zhaopian.webp",
+            ex: [X("这是我家的照片。", "Zhè shì wǒ jiā de zhàopiàn.", "Đây là ảnh gia đình tôi."), X("很多张照片", "hěn duō zhāng zhàopiàn", "rất nhiều tấm ảnh")] },
+          { zh: "张", py: "zhāng", hv: "Trương", pos: "lượng từ", vi: "tờ, tấm, cái (vật mỏng, phẳng)", ira: "zh_zhang.webp",
+            tip: "Người Trung nhìn đồ vật theo **mặt phẳng**: giấy, ảnh, thẻ, danh thiếp, báo, **cả cái giường và cái bàn** đều dùng 张!",
+            also: [["一张纸", "yì zhāng zhǐ", "một tờ giấy"], ["一张银行卡", "yì zhāng yínháng kǎ", "một thẻ ngân hàng"], ["一张名片", "yì zhāng míngpiàn", "một tấm danh thiếp"], ["一张报纸", "yì zhāng bàozhǐ", "một tờ báo"]],
+            ex: [X("一张床", "yì zhāng chuáng", "một cái giường")] },
+          { zh: "纸", py: "zhǐ", hv: "Chỉ", pos: "danh từ", vi: "giấy", ira: "zh_zhang.webp", ex: [X("一张纸", "yì zhāng zhǐ", "một tờ giấy")] },
+          { zh: "床", py: "chuáng", hv: "Sàng", pos: "danh từ", vi: "giường", ira: "zh_chuang.webp", ex: [X("我的房间有一张床。", "Wǒ de fángjiān yǒu yì zhāng chuáng.", "Phòng tôi có một cái giường.")] },
+          { zh: "时候", py: "shíhou", hv: "Thời hậu", pos: "danh từ", vi: "lúc, khi", ira: "zh_shihou.webp",
+            tip: "**…的时候** = khi… · **什么时候？** = khi nào? · **小时候** = hồi nhỏ.", ex: [X("吃饭的时候，我喜欢看手机。", "Chī fàn de shíhou, wǒ xǐhuan kàn shǒujī.", "Lúc ăn cơm tôi thích xem điện thoại."), X("你什么时候去中国？", "Nǐ shénme shíhou qù Zhōngguó?", "Khi nào cậu đi Trung Quốc?")] }
+        ] },
+        { label: "Quần áo · màu sắc", cards: [
+          { zh: "衣服", py: "yīfu", hv: "Y phục", pos: "danh từ", vi: "quần áo", ira: "zh_yifu.webp",
+            ex: [X("我妈妈很喜欢买衣服。", "Wǒ māma hěn xǐhuan mǎi yīfu.", "Mẹ tớ rất thích mua quần áo."), X("他买的衣服都很贵！", "Tā mǎi de yīfu dōu hěn guì!", "Quần áo anh ấy mua đều rất đắt!")] },
+          { zh: "件", py: "jiàn", hv: "Kiện", pos: "lượng từ", vi: "chiếc, cái (áo); việc", ira: "zh_yifu.webp", ex: [X("一件衣服", "yí jiàn yīfu", "một bộ quần áo")] },
+          { zh: "穿", py: "chuān", hv: "Xuyên", pos: "động từ", vi: "mặc, đi (giày)", ira: "zh_chuan.webp", ex: [X("我喜欢穿白色的衣服。", "Wǒ xǐhuan chuān báisè de yīfu.", "Tớ thích mặc quần áo màu trắng."), X("谁穿红色衣服？", "Shéi chuān hóngsè yīfu?", "Ai mặc áo đỏ?")] },
+          { zh: "红色", py: "hóngsè", hv: "Hồng sắc", pos: "danh từ", vi: "màu đỏ", ira: "zh_hongse.webp", tip: "**红** có chữ **工** gōng chỉ âm.", ex: [X("红色的衣服", "hóngsè de yīfu", "quần áo màu đỏ")] },
+          { zh: "黑色", py: "hēisè", hv: "Hắc sắc", pos: "danh từ", vi: "màu đen", ira: "zh_heise.webp", ex: [X("我的手机是黑色的。", "Wǒ de shǒujī shì hēisè de.", "Điện thoại của tôi màu đen.")] },
+          { zh: "白色", py: "báisè", hv: "Bạch sắc", pos: "danh từ", vi: "màu trắng", ira: "zh_baise.webp", ex: [X("白色的猫", "báisè de māo", "con mèo trắng")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Ngoại hình – nhất – xe đạp – thú cưng",
+      desc: "**好看** dùng cho mọi thứ · **漂亮** cho nữ, cảnh, quần áo · **帅** cho nam.",
+      sticker: "zh_gou.webp",
+      groups: [
+        { label: "Ngoại hình · so sánh nhất", cards: [
+          { zh: "高", py: "gāo", hv: "Cao", pos: "tính từ", vi: "cao", ira: "zh_lou.webp",
+            also: [["高兴", "gāoxìng", "vui"], ["高考", "gāokǎo", "thi đại học"], ["高铁", "gāotiě", "tàu cao tốc"]], ex: [X("爸爸是最高的。", "Bàba shì zuì gāo de.", "Bố là người cao nhất.")] },
+          { zh: "可爱", py: "kě'ài", hv: "Khả ái", pos: "tính từ", vi: "đáng yêu", ira: "zh_keai.webp",
+            ex: [X("你们觉得老师可爱吗？", "Nǐmen juéde lǎoshī kě'ài ma?", "Các em thấy thầy đáng yêu không?"), X("老师最可爱！", "Lǎoshī zuì kě'ài!", "Thầy đáng yêu nhất!")] },
+          { zh: "帅", py: "shuài", hv: "Soái", pos: "tính từ", vi: "đẹp trai, ngầu", ira: "zh_shuai.webp",
+            also: [["帅哥", "shuàigē", "trai đẹp"]], ex: [X("他很帅！", "Tā hěn shuài!", "Anh ấy rất đẹp trai!")] },
+          { zh: "漂亮", py: "piàoliang", hv: "Phiêu lượng", pos: "tính từ", vi: "xinh, đẹp (nữ, cảnh, quần áo)", ira: "zh_piaoliang.webp",
+            ex: [X("你觉得她漂亮吗？", "Nǐ juéde tā piàoliang ma?", "Cậu thấy cô ấy xinh không?"), X("这个房间太漂亮了。", "Zhège fángjiān tài piàoliang le.", "Căn phòng này đẹp quá trời.")] },
+          { zh: "好看", py: "hǎokàn", hv: "Hảo khán", pos: "tính từ", vi: "đẹp, ưa nhìn; hay (phim)", ira: "zh_piaoliang.webp",
+            ex: [X("这个电影很好看。", "Zhège diànyǐng hěn hǎokàn.", "Bộ phim này rất hay.")] },
+          { zh: "最", py: "zuì", hv: "Tối", pos: "phó từ", vi: "nhất", ira: "zh_zui.webp",
+            ex: [X("妈妈是最好的。", "Māma shì zuì hǎo de.", "Mẹ là tuyệt nhất."), X("在我家里，我是最可爱的。", "Zài wǒ jiā li, wǒ shì zuì kě'ài de.", "Trong nhà, tôi là đáng yêu nhất.")] }
+        ] },
+        { label: "Xe đạp · thú cưng", cards: [
+          { zh: "骑", py: "qí", hv: "Kỵ", pos: "động từ", vi: "cưỡi, đi (xe đạp, xe máy, ngựa)", ira: "zh_qi.webp",
+            tip: "**骑** = ngồi **giạng chân** (xe đạp, xe máy, ngựa). Ngồi trong xe (buýt, ô tô) dùng **坐**.", also: [["骑马", "qí mǎ", "cưỡi ngựa"], ["骑车", "qí chē", "đi xe đạp"]],
+            ex: [X("你会骑自行车吗？", "Nǐ huì qí zìxíngchē ma?", "Cậu biết đi xe đạp không?")] },
+          { zh: "自行车", py: "zìxíngchē", hv: "Tự hành xa", pos: "danh từ", vi: "xe đạp", ira: "zh_zixingche.webp",
+            tip: "自 tự + 行 đi + 车 xe → **xe tự đi** (bằng sức mình).", ex: [X("我骑自行车去学校。", "Wǒ qí zìxíngchē qù xuéxiào.", "Tôi đạp xe đến trường.")] },
+          { zh: "只", py: "zhī", hv: "Chích", pos: "lượng từ", vi: "con (động vật nhỏ, chim)", ira: "zh_zhi.webp",
+            ex: [X("我家有一只狗。", "Wǒ jiā yǒu yì zhī gǒu.", "Nhà tôi có một con chó."), X("他养了一只猫。", "Tā yǎng le yì zhī māo.", "Anh ấy nuôi một con mèo.")] },
+          { zh: "狗", py: "gǒu", hv: "Cẩu", pos: "danh từ", vi: "con chó", ira: "zh_gou.webp", tip: "Bộ **犭 (Khuyển – chó)**. 小狗 = chó con.", ex: [X("这只狗很可爱。", "Zhè zhī gǒu hěn kě'ài.", "Chú chó này rất dễ thương.")] },
+          { zh: "猫", py: "māo", hv: "Miêu", pos: "danh từ", vi: "con mèo", ira: "zh_mao.webp", tip: "小猫咪 xiǎomāomī = mèo con (đáng yêu).", ex: [X("我喜欢猫。", "Wǒ xǐhuan māo.", "Tôi thích mèo.")] },
+          { zh: "条", py: "tiáo", hv: "Điều", pos: "lượng từ", vi: "con, cái (vật dài, hẹp: cá, rắn, đường, váy)", ira: "zh_tiao.webp",
+            tip: "Chó dùng được cả **只** và **条** (chó to, dài). Cá luôn là **一条鱼**.", ex: [X("这条狗很可爱。", "Zhè tiáo gǒu hěn kě'ài.", "Con chó này rất đáng yêu."), X("一条鱼", "yì tiáo yú", "một con cá")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 9 điểm, mỗi điểm 1 công thức",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "口", name: "几口人 · 几个人", formula: ["Số / 几 + 口 + 人 (người trong nhà)", "Số / 几 + 个 + 人 (người nói chung)"],
+          uses: ["Liệt kê: 爸爸、妈妈、姐姐**和**我 — dấu **、** giữa các mục, **和** trước mục cuối"],
+          examples: [X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?"), X("我家有四口人：爸爸、妈妈、姐姐和我。", "Wǒ jiā yǒu sì kǒu rén: bàba, māma, jiějie hé wǒ.", "Nhà tôi có 4 người: bố, mẹ, chị gái và tôi."), X("教室里有几个人？", "Jiàoshì li yǒu jǐ ge rén?", "Trong lớp có mấy người?")],
+          wrong: [{ bad: "我班有三十口人。", good: "我班有三十个人。", why: "口 chỉ dùng cho **người trong nhà**." }] },
+        { tag: "的", name: "Chữ 的 đứng cuối", formula: ["Danh từ / Đại từ / Tính từ / Động từ + 的 (= cái của…, người…)"],
+          uses: ["Lược danh từ đã rõ: 这本书是**我的**（书）", "**是…的** chỉ người làm nghề: 老师是**教汉语的**", "Màu sắc: 我的手机是**黑色的**"],
+          examples: [X("这本书是我的。", "Zhè běn shū shì wǒ de.", "Quyển sách này là của tôi."), X("这个房间是我的。", "Zhège fángjiān shì wǒ de.", "Căn phòng này là của tôi."), X("北京是中国的！", "Běijīng shì Zhōngguó de!", "Bắc Kinh là của Trung Quốc!"), X("黄沙和长沙群岛是越南的。", "Huángshā hé Chángshā qúndǎo shì Yuènán de.", "Quần đảo Hoàng Sa và Trường Sa là của Việt Nam."), X("老师是教汉语的。", "Lǎoshī shì jiāo Hànyǔ de.", "Thầy là người dạy tiếng Trung.")] },
+        { tag: "张", name: "Lượng từ 张", formula: "Số + 张 + vật mỏng, có mặt phẳng",
+          uses: ["纸 giấy · 照片 ảnh · 银行卡 thẻ · 名片 danh thiếp · 报纸 báo", "Cả **床** giường và **桌子** bàn: mặt phẳng là chính!"],
+          examples: [X("一张纸", "yì zhāng zhǐ", "một tờ giấy"), X("很多张照片", "hěn duō zhāng zhàopiàn", "rất nhiều tấm ảnh"), X("一张床", "yì zhāng chuáng", "một cái giường"), X("一张桌子", "yì zhāng zhuōzi", "một cái bàn")] },
+        { tag: "件·只·条", name: "件 · 只 · 条", formula: ["件 + quần áo (áo, váy) · việc", "只 + con vật nhỏ, chim", "条 + vật dài: cá, rắn, đường, quần, váy"],
+          uses: ["Chó: **只** hay **条** đều được"],
+          examples: [X("一件衣服", "yí jiàn yīfu", "một bộ quần áo"), X("我家有一只狗。", "Wǒ jiā yǒu yì zhī gǒu.", "Nhà tôi có một con chó."), X("一只猫", "yì zhī māo", "một con mèo"), X("一条鱼", "yì tiáo yú", "một con cá")] },
+        { tag: "时候", name: "…的时候 · 什么时候", formula: ["Động từ / Cụm ĐT / Tính từ + 的时候，…", "什么时候 + V？ (khi nào?)"],
+          uses: ["Mệnh đề **的时候** đứng **đầu câu** (ngược tiếng Việt *tôi thích… khi…*)", "小的时候 = 小时候 = hồi nhỏ"],
+          examples: [X("吃饭的时候，我喜欢看手机。", "Chī fàn de shíhou, wǒ xǐhuan kàn shǒujī.", "Lúc ăn cơm, tôi thích xem điện thoại."), X("小时候，我喜欢去玩儿。", "Xiǎoshíhou, wǒ xǐhuan qù wánr.", "Hồi nhỏ tôi thích đi chơi."), X("回家的时候，妈妈常买水果。", "Huí jiā de shíhou, māma cháng mǎi shuǐguǒ.", "Lúc về nhà, mẹ thường mua hoa quả."), X("下课的时候，我们跟老师去食堂吃饭。", "Xiàkè de shíhou, wǒmen gēn lǎoshī qù shítáng chī fàn.", "Lúc tan học, chúng tôi cùng thầy đến nhà ăn."), X("难过的时候，我喜欢看电影。", "Nánguò de shíhou, wǒ xǐhuan kàn diànyǐng.", "Lúc buồn, tôi thích xem phim.")],
+          wrong: [{ bad: "我喜欢看手机吃饭的时候。", good: "吃饭的时候，我喜欢看手机。", why: "…的时候 đứng **đầu câu** (hoặc sau chủ ngữ)." }] },
+        { tag: "最", name: "最 + Adj (nhất)", formula: ["最 + Tính từ / 最 + 喜欢 / 爱 + V", "…是最 + Adj + 的"],
+          uses: ["最 là phó từ, đứng **trước** tính từ / động từ tâm lý"],
+          examples: [X("妈妈是最好的。", "Māma shì zuì hǎo de.", "Mẹ là tuyệt nhất."), X("爸爸是最高的。", "Bàba shì zuì gāo de.", "Bố cao nhất."), X("我最爱吃苹果。= 我最喜欢吃苹果。", "Wǒ zuì ài chī píngguǒ. = Wǒ zuì xǐhuan chī píngguǒ.", "Tớ thích ăn táo nhất.")],
+          wrong: [{ bad: "我喜欢最苹果。", good: "我最喜欢苹果。", why: "最 đứng **trước** 喜欢." }] },
+        { tag: "长得", name: "长得 + Adj (ngoại hình)", formula: "Ai + 长得 + (最 / 很) + Tính từ",
+          uses: ["Nói về **vẻ ngoài**: 长得帅 · 长得漂亮 · 长得高", "长 đọc **zhǎng** (lớn lên), không phải cháng"],
+          examples: [X("谁长得最可爱？", "Shéi zhǎng de zuì kě'ài?", "Ai trông đáng yêu nhất?"), X("他长得很帅。", "Tā zhǎng de hěn shuài.", "Anh ấy trông rất đẹp trai."), X("长得帅也不行。", "Zhǎng de shuài yě bù xíng.", "Đẹp trai cũng không được (vẫn cấm).")] },
+        { tag: "帮", name: "帮 + người + V", formula: "(你可以) 帮 + Người + Động từ (+ 一下儿) + 吗？",
+          uses: ["Nhờ ai làm giúp — lịch sự với **可以…吗？**"],
+          examples: [X("你可以帮我拍一下儿吗？", "Nǐ kěyǐ bāng wǒ pāi yíxiàr ma?", "Bạn chụp giúp tôi một tấm được không?"), X("我帮你拍照吧！", "Wǒ bāng nǐ pāizhào ba!", "Để mình chụp cho cậu nhé!")] },
+        { tag: "骑·穿", name: "骑 / 坐 · 穿 + màu", formula: ["骑 + xe đạp / xe máy / ngựa (giạng chân)", "坐 + xe buýt / ô tô / máy bay (ngồi trong)", "穿 + màu色 + 的 + quần áo"],
+          uses: ["Màu đứng trước danh từ có **的**: 白色的衣服"],
+          examples: [X("你会骑自行车吗？", "Nǐ huì qí zìxíngchē ma?", "Cậu biết đi xe đạp không?"), X("我坐公共汽车去学校。", "Wǒ zuò gōnggòng qìchē qù xuéxiào.", "Tôi đi xe buýt đến trường."), X("我喜欢穿白色的衣服。", "Wǒ xǐhuan chuān báisè de yīfu.", "Tớ thích mặc đồ màu trắng.")],
+          wrong: [{ bad: "我坐自行车。", good: "我骑自行车。", why: "Xe đạp phải **giạng chân** → 骑." }] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("你家有几 ___ 人？", "个|口|只|张", "B", "Người trong nhà → **口**."),
+        Q("一 ___ 照片", "件|张|只|条", "B", "Ảnh mỏng phẳng → **张**."),
+        Q("一 ___ 衣服", "张|条|件|口", "C", "Quần áo → **件**."),
+        Q("一 ___ 猫", "只|张|件|口", "A", "Con vật nhỏ → **只**."),
+        Q("一 ___ 鱼", "只|张|条|件", "C", "Cá dài → **条**."),
+        Q("一 ___ 床", "个|张|件|条", "B", "Giường có mặt phẳng → **张**."),
+        Q("“Quyển sách này là của tôi.”", "这本书是我。|这本书是我的。|这本我的书是。|我的是这本书。", "B", "Chữ **的** đứng cuối thay danh từ."),
+        Q("“Lúc ăn cơm, tôi thích xem điện thoại.”", "我喜欢看手机吃饭的时候。|吃饭的时候，我喜欢看手机。|的时候吃饭我喜欢看手机。|吃饭时候的我喜欢看手机。", "B", "…的时候 đứng đầu câu."),
+        Q("“Tớ thích ăn táo nhất.”", "我喜欢最吃苹果。|我最喜欢吃苹果。|最我喜欢吃苹果。|我喜欢吃苹果最。", "B", "最 trước 喜欢."),
+        Q("“Ai trông đáng yêu nhất?”", "谁长得最可爱？|谁最长得可爱？|谁可爱长得最？|长得谁最可爱？", "A", "**长得 + 最 + Adj**."),
+        Q("“Đi xe đạp”", "坐自行车|骑自行车|开自行车|走自行车", "B", "Giạng chân → **骑**."),
+        Q("Dùng cho cô gái xinh:", "帅|漂亮|高|听话", "B", "Nữ → **漂亮**; nam → 帅."),
+        Q("“Khi nào cậu đi Trung Quốc?”", "你什么时候去中国？|你去中国什么时候吗？|什么你时候去中国？|你时候什么去中国？", "A", "**什么时候 + V**."),
+        Q("“Bạn chụp giúp tôi một tấm được không?”", "你可以拍我帮一下儿吗？|你可以帮我拍一下儿吗？|你帮可以我拍吗？|帮你可以我拍一下儿吗？", "B", "**帮 + người + V**.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Nhà tôi có 5 người.", words: ["我家", "有", "五", "口", "人"], py: "Wǒ jiā yǒu wǔ kǒu rén." },
+        { vi: "Đây là phòng của tôi.", words: ["这", "是", "我的", "房间"], py: "Zhè shì wǒ de fángjiān." },
+        { vi: "Chị tôi rất thích xem phim Trung Quốc.", words: ["我", "姐姐", "很", "喜欢", "看", "中国", "电影"], py: "Wǒ jiějie hěn xǐhuan kàn Zhōngguó diànyǐng." },
+        { vi: "Lúc buồn, tôi thích xem phim.", words: ["难过", "的", "时候", "我", "喜欢", "看", "电影"], py: "Nánguò de shíhou, wǒ xǐhuan kàn diànyǐng." },
+        { vi: "Tớ thích mặc quần áo màu trắng.", words: ["我", "喜欢", "穿", "白色", "的", "衣服"], py: "Wǒ xǐhuan chuān báisè de yīfu." },
+        { vi: "Ai trông đáng yêu nhất?", words: ["谁", "长得", "最", "可爱"], py: "Shéi zhǎng de zuì kě'ài?" },
+        { vi: "Cậu biết đi xe đạp không?", words: ["你", "会", "骑", "自行车", "吗"], py: "Nǐ huì qí zìxíngchē ma?" },
+        { vi: "Nhà tôi có một con chó.", words: ["我家", "有", "一", "只", "狗"], py: "Wǒ jiā yǒu yì zhī gǒu." },
+        { vi: "Bạn chụp giúp tôi một tấm được không?", words: ["你", "可以", "帮", "我", "拍", "一下儿", "吗"], py: "Nǐ kěyǐ bāng wǒ pāi yíxiàr ma?" },
+        { vi: "Căn phòng này đẹp quá trời.", words: ["这个", "房间", "太", "漂亮", "了"], py: "Zhège fángjiān tài piàoliang le." }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · 3 tình huống",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_zhaopian.webp",
+      scenes: [
+        { title: "① Xem ảnh gia đình", desc: "Anh Thư cho Quốc An xem ảnh gia đình.", lines: [
+          { who: "国安", ...X("英书，你家有几口人？", "Yīngshū, nǐ jiā yǒu jǐ kǒu rén?", "Anh Thư, nhà cậu có mấy người?") },
+          { who: "英书", ...X("我家有六口人。你看，这是我家的照片。", "Wǒ jiā yǒu liù kǒu rén. Nǐ kàn, zhè shì wǒ jiā de zhàopiàn.", "Nhà mình có 6 người. Cậu xem, đây là ảnh gia đình mình.") },
+          { who: "国安", ...X("穿红色衣服的是谁？", "Chuān hóngsè yīfu de shì shéi?", "Người mặc áo đỏ là ai?") },
+          { who: "英书", ...X("是我奶奶。她做饭很好吃。", "Shì wǒ nǎinai. Tā zuò fàn hěn hǎochī.", "Là bà mình. Bà nấu ăn rất ngon.") },
+          { who: "国安", ...X("谁最高？", "Shéi zuì gāo?", "Ai cao nhất?") },
+          { who: "英书", ...X("我哥哥最高，他长得也很帅！", "Wǒ gēge zuì gāo, tā zhǎng de yě hěn shuài!", "Anh trai mình cao nhất, anh ấy cũng rất đẹp trai!") },
+          { who: "国安", ...X("这个小女孩儿是你妹妹吗？她真可爱！", "Zhège xiǎo nǚháir shì nǐ mèimei ma? Tā zhēn kě'ài!", "Cô bé này là em gái cậu à? Đáng yêu thật!") },
+          { who: "英书", ...X("对，她最可爱，也很听话。", "Duì, tā zuì kě'ài, yě hěn tīnghuà.", "Đúng, em ấy đáng yêu nhất, lại rất ngoan.") }
+        ] },
+        { title: "② Đến phòng của tôi", desc: "Quốc An đến nhà Anh Thư chơi.", lines: [
+          { who: "英书", ...X("欢迎来到我家！请进！这是我的房间。", "Huānyíng lái dào wǒ jiā! Qǐng jìn! Zhè shì wǒ de fángjiān.", "Chào mừng đến nhà mình! Mời vào! Đây là phòng của mình.") },
+          { who: "国安", ...X("你的房间太漂亮了！这张床是新的吗？", "Nǐ de fángjiān tài piàoliang le! Zhè zhāng chuáng shì xīn de ma?", "Phòng cậu đẹp quá! Cái giường này mới à?") },
+          { who: "英书", ...X("对。那些照片都是我拍的。", "Duì. Nàxiē zhàopiàn dōu shì wǒ pāi de.", "Ừ. Mấy tấm ảnh kia đều do mình chụp.") },
+          { who: "国安", ...X("你很会拍照啊！你家有狗吗？", "Nǐ hěn huì pāizhào a! Nǐ jiā yǒu gǒu ma?", "Cậu chụp ảnh giỏi ghê! Nhà cậu có nuôi chó không?") },
+          { who: "英书", ...X("没有狗，我家有两只猫，一只白色的，一只黑色的。", "Méiyǒu gǒu, wǒ jiā yǒu liǎng zhī māo, yì zhī báisè de, yì zhī hēisè de.", "Không có chó, nhà mình có hai con mèo, một con trắng, một con đen.") },
+          { who: "国安", ...X("你可以帮我拍一下儿吗？我想跟猫一起拍照！", "Nǐ kěyǐ bāng wǒ pāi yíxiàr ma? Wǒ xiǎng gēn māo yìqǐ pāizhào!", "Cậu chụp giúp mình một tấm được không? Mình muốn chụp cùng mèo!") }
+        ], note: "**很会 + V** = rất giỏi làm gì: 你很会拍照！" },
+        { title: "③ Hồi nhỏ", desc: "Hai bạn kể chuyện hồi nhỏ.", lines: [
+          { who: "国安", ...X("小时候，你听话吗？", "Xiǎoshíhou, nǐ tīnghuà ma?", "Hồi nhỏ cậu có ngoan không?") },
+          { who: "英书", ...X("很听话！我最喜欢骑自行车。你呢？", "Hěn tīnghuà! Wǒ zuì xǐhuan qí zìxíngchē. Nǐ ne?", "Ngoan lắm! Mình thích đạp xe nhất. Còn cậu?") },
+          { who: "国安", ...X("我不听话。吃饭的时候，我常看电视。", "Wǒ bù tīnghuà. Chī fàn de shíhou, wǒ cháng kàn diànshì.", "Mình không ngoan. Lúc ăn cơm mình hay xem tivi.") },
+          { who: "英书", ...X("哈哈，现在呢？", "Hāhā, xiànzài ne?", "Haha, còn bây giờ?") },
+          { who: "国安", ...X("现在吃饭的时候，我看手机！", "Xiànzài chī fàn de shíhou, wǒ kàn shǒujī!", "Bây giờ lúc ăn cơm thì mình xem điện thoại!") }
+        ] }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?"),
+        X("我家有五口人。", "Wǒ jiā yǒu wǔ kǒu rén.", "Nhà tôi có 5 người."),
+        X("这是我的房间。", "Zhè shì wǒ de fángjiān.", "Đây là phòng của tôi."),
+        X("这本书是我的。", "Zhè běn shū shì wǒ de.", "Quyển sách này là của tôi."),
+        X("谁最高？", "Shéi zuì gāo?", "Ai cao nhất?"),
+        X("她真漂亮！", "Tā zhēn piàoliang!", "Cô ấy xinh thật!"),
+        X("我喜欢穿白色的衣服。", "Wǒ xǐhuan chuān báisè de yīfu.", "Tôi thích mặc đồ trắng."),
+        X("我家有一只狗。", "Wǒ jiā yǒu yì zhī gǒu.", "Nhà tôi có một con chó."),
+        X("你会骑自行车吗？", "Nǐ huì qí zìxíngchē ma?", "Bạn biết đi xe đạp không?"),
+        X("小时候，我很听话。", "Xiǎoshíhou, wǒ hěn tīnghuà.", "Hồi nhỏ tôi rất ngoan.")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Nhà bạn có mấy người?", zh: "你家有几口人？", py: "Nǐ jiā yǒu jǐ kǒu rén?" },
+        { vi: "Trả lời: Nhà tôi có 4 người: bố, mẹ, chị gái và tôi.", zh: "我家有四口人：爸爸、妈妈、姐姐和我。", py: "Wǒ jiā yǒu sì kǒu rén: bàba, māma, jiějie hé wǒ." },
+        { vi: "Nói: Đây là ảnh gia đình tôi.", zh: "这是我家的照片。", py: "Zhè shì wǒ jiā de zhàopiàn." },
+        { vi: "Hỏi: Ai mặc áo đỏ?", zh: "谁穿红色衣服？", py: "Shéi chuān hóngsè yīfu?" },
+        { vi: "Hỏi: Ai cao nhất?", zh: "谁最高？", py: "Shéi zuì gāo?" },
+        { vi: "Nói: Anh trai tôi trông rất đẹp trai.", zh: "我哥哥长得很帅。", py: "Wǒ gēge zhǎng de hěn shuài." },
+        { vi: "Khen: Em gái cậu đáng yêu thật!", zh: "你妹妹真可爱！", py: "Nǐ mèimei zhēn kě'ài!" },
+        { vi: "Nói: Mẹ tôi là bác sĩ.", zh: "我妈妈是医生。", py: "Wǒ māma shì yīshēng." },
+        { vi: "Nói: Quyển sách này là của tôi.", zh: "这本书是我的。", py: "Zhè běn shū shì wǒ de." },
+        { vi: "Khen: Căn phòng này đẹp quá trời!", zh: "这个房间太漂亮了！", py: "Zhège fángjiān tài piàoliang le!" },
+        { vi: "Nhờ: Bạn chụp giúp tôi một tấm được không?", zh: "你可以帮我拍一下儿吗？", py: "Nǐ kěyǐ bāng wǒ pāi yíxiàr ma?" },
+        { vi: "Nói: Nhà tôi có hai con mèo.", zh: "我家有两只猫。", py: "Wǒ jiā yǒu liǎng zhī māo." },
+        { vi: "Nói: Lúc buồn, tôi thích xem phim.", zh: "难过的时候，我喜欢看电影。", py: "Nánguò de shíhou, wǒ xǐhuan kàn diànyǐng." },
+        { vi: "Nói: Tớ thích ăn táo nhất.", zh: "我最喜欢吃苹果。", py: "Wǒ zuì xǐhuan chī píngguǒ." },
+        { vi: "Hỏi: Cậu biết đi xe đạp không?", zh: "你会骑自行车吗？", py: "Nǐ huì qí zìxíngchē ma?" }
+      ]
+    },
+    {
+      type: "write", id: "viet-doan", nav: "Viết đoạn văn",
+      title: "Sản phẩm cuối bài · Viết đoạn văn “我的家”",
+      desc: "Dùng từ của Bài 5–10 viết **6–8 câu** về gia đình bạn. Viết xong bấm xem bài mẫu, rồi dán bài vào **ChatGPT / DeepSeek** nhờ sửa lỗi như slide gợi ý. Cuối cùng **đọc to** ở phần “Nói đoạn văn mẫu” bên dưới.",
+      sticker: "book_sakubun_kodomo_girl.webp",
+      tasks: [
+        { prompt: "Viết đoạn văn **我的家** (gia đình tôi): có mấy người, mỗi người làm gì, thích gì, ai cao nhất / đáng yêu nhất, nhà có nuôi con gì không.",
+          hint: "Khung: 我家有…口人：… · 我爸爸是… · 我妈妈…很好吃 · 我…喜欢… · 在我家里，…最… · 我家有一只… · 我很爱我的家。",
+          frame: "我家有……口人：……",
+          model: "我家有四口人：爸爸、妈妈、姐姐和我。\nWǒ jiā yǒu sì kǒu rén: bàba, māma, jiějie hé wǒ.\n我爸爸是老师，我妈妈是医生。\nWǒ bàba shì lǎoshī, wǒ māma shì yīshēng.\n我姐姐很喜欢看中国电影。\nWǒ jiějie hěn xǐhuan kàn Zhōngguó diànyǐng.\n我很喜欢学习汉语。我觉得汉语不太难，汉字很难但发音不难。\nWǒ hěn xǐhuan xuéxí Hànyǔ. Wǒ juéde Hànyǔ bú tài nán, Hànzì hěn nán dàn fāyīn bù nán.\n我很爱我的家。\nWǒ hěn ài wǒ de jiā.",
+          notes: ["Liệt kê người: dùng **、** và **和** trước người cuối", "**但** dàn = nhưng (giống 不过)", "Câu kết: **我很爱我的家**"] }
+      ]
+    },
+    {
+      type: "zhspeak", id: "noi-doan", nav: "Nói đoạn văn",
+      title: "Nói đoạn văn mẫu · 6 câu",
+      desc: "Đọc to từng câu cho micro chấm. Sau đó thay bằng câu của chính bạn.",
+      sticker: "zh_jiejie.webp",
+      items: [
+        { vi: "Nhà tôi có 4 người: bố, mẹ, chị gái và tôi.", zh: "我家有四口人：爸爸、妈妈、姐姐和我。", py: "Wǒ jiā yǒu sì kǒu rén: bàba, māma, jiějie hé wǒ." },
+        { vi: "Bố tôi là giáo viên, mẹ tôi là bác sĩ.", zh: "我爸爸是老师，我妈妈是医生。", py: "Wǒ bàba shì lǎoshī, wǒ māma shì yīshēng." },
+        { vi: "Chị tôi rất thích xem phim Trung Quốc.", zh: "我姐姐很喜欢看中国电影。", py: "Wǒ jiějie hěn xǐhuan kàn Zhōngguó diànyǐng." },
+        { vi: "Tôi rất thích học tiếng Trung.", zh: "我很喜欢学习汉语。", py: "Wǒ hěn xǐhuan xuéxí Hànyǔ." },
+        { vi: "Tôi thấy tiếng Trung không khó lắm, chữ Hán khó nhưng phát âm không khó.", zh: "我觉得汉语不太难，汉字很难但发音不难。", py: "Wǒ juéde Hànyǔ bú tài nán, Hànzì hěn nán dàn fāyīn bù nán." },
+        { vi: "Tôi rất yêu gia đình tôi.", zh: "我很爱我的家。", py: "Wǒ hěn ài wǒ de jiā." }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 10 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Gia đình", title: "口 · người thân", bullets: ["几口人？ (chỉ người trong nhà)", "爷爷 奶奶 · 哥哥 姐姐 · 弟弟 妹妹", "爸爸、妈妈、姐姐和我"] },
+        { tag: "的", title: "的 đứng cuối", bullets: ["这本书是我的", "老师是教汉语的", "黄沙和长沙群岛是越南的"] },
+        { tag: "Lượng từ", title: "张 · 件 · 只 · 条", bullets: ["张: giấy, ảnh, thẻ, giường, bàn", "件: quần áo", "只: con vật nhỏ · 条: vật dài, cá"] },
+        { tag: "Thời gian", title: "…的时候", bullets: ["V + 的时候，… (đầu câu)", "小时候 = hồi nhỏ", "什么时候？ = khi nào?"] },
+        { tag: "Ngoại hình", title: "最 · 长得", bullets: ["最 + Adj: 最高, 最可爱", "长得 + Adj: 长得很帅", "帅 (nam) · 漂亮 (nữ) · 好看 (mọi thứ)"] },
+        { tag: "Khác", title: "骑 · 穿 · 帮", bullets: ["骑自行车 / 坐公共汽车", "穿白色的衣服", "帮 + người + V: 帮我拍一下儿"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 35 từ.",
+        "**✍ Tự viết** 10 chữ: 口 哥 姐 弟 妹 爱 房 张 穿 最 — mỗi chữ đúng 3 lần liền.",
+        "Hoàn thiện đoạn văn **我的家**, nhờ ChatGPT / DeepSeek sửa, chép lại bản đúng.",
+        "Lấy một tấm ảnh gia đình thật, nói 5 câu: ai, mặc màu gì, ai cao nhất, ai đáng yêu nhất.",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "Nhập vai cả 3 hội thoại, tắt pinyin, đóng cả hai vai."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>

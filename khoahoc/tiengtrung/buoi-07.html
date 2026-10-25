@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 7: 图书馆在哪儿？</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "早": [["早", "hoi", "**日** (mặt trời) ở trên **十** (gốc vẽ cái mũ giáp / mặt đất) → mặt trời vừa lên → **sớm**."]],
+  "早上": [["早", "hoi", "**日** mặt trời vừa nhô lên → sớm."], ["上", "chi", "Vạch ngắn trên vạch mốc → phía trên; ở đây chỉ khoảng thời gian."]],
+  "晚": [["晚", "thanh", "**日** (mặt trời) chỉ nghĩa + **免** miǎn chỉ âm → wǎn: mặt trời lặn → tối, muộn."]],
+  "凌晨": [["凌", "thanh", "**冫** (băng) chỉ nghĩa + **夌** líng chỉ âm → lạnh buốt, vượt lên."], ["晨", "thanh", "**日** chỉ nghĩa + **辰** chén chỉ âm → buổi sớm tinh mơ."]],
+  "图书馆": [["图", "hoi", "Phồn thể **圖**: **囗** (khung) bao quanh **啚** (bản đồ vùng đất) → vẽ, bản đồ, tranh."], ["书", "thanh", "Phồn thể **書** = **聿** (tay cầm bút) chỉ nghĩa + **者** zhě chỉ âm."], ["馆", "thanh", "**饣** (ăn) chỉ nghĩa — gốc là nhà trọ có cơm cho khách + **官** guān chỉ âm → quán, toà nhà."]],
+  "饭馆": [["饭", "thanh", "**饣** chỉ nghĩa + **反** fǎn chỉ âm."], ["馆", "thanh", "**饣** chỉ nghĩa + **官** guān chỉ âm."]],
+  "在": [["在", "thanh", "**土** (đất) chỉ nghĩa “có mặt, tồn tại” + **才** cái chỉ âm → zài."]],
+  "河内": [["河", "thanh", "**氵** (nước) chỉ nghĩa + **可** kě chỉ âm → hé: sông."], ["内", "hoi", "**冂** (khung nhà) + **入** (đi vào) → **bên trong**. Hà Nội = phía trong sông."]],
+  "知道": [["知", "hoi", "**矢** (mũi tên) + **口** (miệng): nói nhanh và trúng như tên bắn → **biết**."], ["道", "hoi", "**辶** (bước đi) + **首** (cái đầu) → con đường; đạo lý. Trong 知道 đọc nhẹ *dao*."]],
+  "会": [["会", "hoi", "Phồn thể **會**: cái nắp **亼** đậy lên nồi → **gộp lại, hội họp**; nghĩa mở rộng: thông thạo, biết làm."]],
+  "些": [["些", "thanh", "**二** chỉ nghĩa “ít, nhỏ” + **此** cǐ chỉ âm → xiē: một vài."]],
+  "教": [["教", "hoi", "**孝** (con cái) + **攵** (tay cầm roi) → người lớn cầm roi **dạy** trẻ. Trong slide: chữ **孝** hiếu."]],
+  "楼": [["楼", "thanh", "**木** (gỗ) chỉ nghĩa + **娄** lóu chỉ âm → nhà nhiều tầng."]],
+  "宿舍": [["宿", "hoi", "**宀** (mái nhà) + **亻** (người) + **百** (gốc vẽ chiếu nằm) → người nằm nghỉ dưới mái nhà → **ngủ trọ**."], ["舍", "tuong", "Vẽ **căn nhà nhỏ** có mái và nền → nhà ở. Trong 宿舍 đọc *shè*."]],
+  "住": [["住", "thanh", "**亻** (người) chỉ nghĩa + **主** zhǔ chỉ âm → người dừng lại → **ở, sống**."]],
+  "上边": [["上", "chi", "Vạch ngắn **trên** vạch mốc."], ["边", "thanh", "**辶** (đi) chỉ nghĩa + **力** (giản thể của phần âm 臱) → biên, cạnh. Đọc nhẹ *bian*."]],
+  "下边": [["下", "chi", "Vạch ngắn **dưới** vạch mốc."], ["边", "thanh", "**辶** chỉ nghĩa + phần âm (biān)."]],
+  "左边": [["左", "hoi", "**𠂇** (bàn tay trái) + **工** (dụng cụ) → tay trái cầm thước giúp việc → **bên trái**."], ["边", "thanh", "**辶** + phần âm biān."]],
+  "右边": [["右", "hoi", "**𠂇** (bàn tay phải) + **口** (miệng) → tay giúp miệng ăn → **bên phải**."], ["边", "thanh", "**辶** + phần âm biān."]],
+  "东边": [["东", "hoi", "Phồn thể **東**: mặt trời **日** mọc sau hàng cây **木** → **phía đông**."], ["边", "thanh", "**辶** + phần âm biān."]],
+  "西边": [["西", "tuong+gia", "Gốc vẽ **tổ chim** — chiều tối chim về tổ, mặt trời lặn → mượn chỉ **phía tây**."], ["边", "thanh", "**辶** + phần âm biān."]],
+  "桌子": [["桌", "thanh", "**木** (gỗ) chỉ nghĩa + phần trên (卓 zhuó, giản lược) chỉ âm → cái bàn."], ["子", "tuong", "Em bé quấn tã → hậu tố danh từ *zi*."]],
+  "手机": [["手", "tuong", "Vẽ **bàn tay** năm ngón."], ["机", "thanh", "**木** (gỗ) chỉ nghĩa + **几** jǐ chỉ âm → máy móc."]],
+  "不用": [["不", "tuong+gia", "Gốc vẽ **đài hoa / rễ cây**; mượn âm làm từ phủ định “không”."], ["用", "tuong", "Vẽ **cái thùng gỗ** có đai → dùng."]],
+  "专业": [["专", "thanh", "Phồn thể **專** = **寸** (bàn tay) chỉ nghĩa + **叀** zhuān chỉ âm → chuyên."], ["业", "tuong", "Phồn thể **業**: vẽ **giá treo chuông** có răng cưa → sự nghiệp, nghề."]],
+  "系": [["系", "hoi", "**丿** + **糸** (sợi tơ) → nối các sợi lại → **hệ, khoa**."]],
+  "空儿": [["空", "thanh", "**穴** (hang) chỉ nghĩa + **工** gōng chỉ âm → trống rỗng; đọc **kòng** = rảnh."], ["儿", "tuong", "Vẽ đứa trẻ (兒) → âm cuốn lưỡi -r."]],
+  "没有": [["没", "hoi", "**氵** (nước) + **殳** (tay cầm gậy, gốc là 𠬛 lặn xuống) → chìm mất → **không có**."], ["有", "hoi", "**𠂇** (bàn tay) + **月** (gốc là 肉 thịt) → tay cầm miếng thịt → **có**."]],
+  "欢迎": [["欢", "thanh", "Phồn thể **歡** = **欠** (há miệng) chỉ nghĩa + **雚** guàn chỉ âm."], ["迎", "thanh", "**辶** (bước đi) chỉ nghĩa + **卬** áng chỉ âm → ra **đón**."]],
+  "玩儿": [["玩", "thanh", "**王** (玉 ngọc) chỉ nghĩa — mân mê ngọc + **元** yuán chỉ âm → chơi."], ["儿", "tuong", "Âm cuốn lưỡi -r."]],
+  "说": [["说", "thanh", "**讠** (lời nói) chỉ nghĩa + **兑** duì chỉ âm → shuō: nói."]],
+  "写": [["写", "thanh", "Phồn thể **寫** = **宀** chỉ nghĩa + **舄** xì chỉ âm → đặt để, chép → **viết**."]],
+  "做饭": [["做", "hoi", "**亻** (người) + **故** (việc) → người làm việc → **làm**."], ["饭", "thanh", "**饣** chỉ nghĩa + **反** fǎn chỉ âm."]]
+};
+const L = {
+  id: "zh-q1-07", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 7",
+  unit: "Buổi trong ngày · Ở đâu làm gì · 知道 / 会 · Phương vị từ · Ký túc xá, thư viện",
+  titleZh: "图书馆在哪儿？", titlePy: "Túshūguǎn zài nǎr?", title: "Thư viện ở đâu?",
+  subtitle: "Học xong bài này bạn hỏi – chỉ đường trong trường (thư viện ở phía đông nhà ăn), nói mình sống ở đâu, học chuyên ngành gì, biết làm gì, và mời bạn bè đến chơi.",
+  heroSticker: "zh_tushuguan.webp",
+  prev: { href: "buoi-06.html", label: "Bài 6" }, next: { href: "buoi-08.html", label: "Bài 8" },
+  goals: [
+    "Nhận mặt, đọc, viết **33 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Đủ 6 buổi trong ngày: **凌晨 · 早上 · 上午 · 中午 · 下午 · 晚上** · 早 / 晚",
+    "Câu **在 + nơi chốn + động từ** (ở đâu làm gì) và **住在…**",
+    "Phân biệt chắc **知道** (biết thông tin) và **会** (biết làm nhờ luyện tập)",
+    "Chỉ vị trí bằng **上边 · 下边 · 左边 · 右边 · 东边 · 西边**"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Thời gian – nơi chốn – biết",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**.",
+      sticker: "zh_tushuguan.webp",
+      groups: [
+        { label: "Sớm · muộn · các buổi", cards: [
+          { zh: "早", py: "zǎo", hv: "Tảo", pos: "tính từ", vi: "sớm", ira: "zh_dian.webp",
+            tip: "Chào buổi sáng: **早！ / 早上好！**", ex: [X("今天你回来太早了！", "Jīntiān nǐ huílai tài zǎo le!", "Hôm nay con về sớm quá!")] },
+          { zh: "早上", py: "zǎoshang", hv: "Tảo thượng", pos: "danh từ", vi: "sáng sớm (5h–8h)", ira: "zh_shangban.webp",
+            ex: [X("明天早上你想去哪儿？", "Míngtiān zǎoshang nǐ xiǎng qù nǎr?", "Sáng sớm mai anh muốn đi đâu?")] },
+          { zh: "晚", py: "wǎn", hv: "Vãn", pos: "tính từ", vi: "muộn, tối", ira: "zh_xiawu.webp",
+            tip: "Chúc ngủ ngon: **晚安** wǎn'ān.", ex: [X("昨天我回家很晚。", "Zuótiān wǒ huí jiā hěn wǎn.", "Hôm qua tôi về nhà rất muộn.")], also: [["晚上", "wǎnshang", "buổi tối"], ["晚安", "wǎn'ān", "chúc ngủ ngon"]] },
+          { zh: "凌晨", py: "língchén", hv: "Lăng thần", pos: "danh từ", vi: "rạng sáng (0h–5h)", ira: "zh_lingchen.webp",
+            ex: [X("凌晨一点", "língchén yī diǎn", "1 giờ sáng")] }
+        ] },
+        { label: "Nơi chốn · ở đâu", cards: [
+          { zh: "图书馆", py: "túshūguǎn", hv: "Đồ thư quán", pos: "danh từ", vi: "thư viện", ira: "zh_tushuguan.webp",
+            ex: [X("图书馆在哪儿？", "Túshūguǎn zài nǎr?", "Thư viện ở đâu?"), X("我在图书馆学习汉语。", "Wǒ zài túshūguǎn xuéxí Hànyǔ.", "Tôi học tiếng Trung ở thư viện.")] },
+          { zh: "饭馆", py: "fànguǎn", hv: "Phạn quán", pos: "danh từ", vi: "quán cơm, nhà hàng", ira: "zh_fanguan.webp",
+            tip: "**馆** = quán, toà nhà: 茶馆 quán trà · 酒馆 quán rượu · 饭馆 quán cơm · 图书馆 thư viện.", also: [["茶馆", "cháguǎn", "quán trà"], ["酒馆", "jiǔguǎn", "quán rượu"]],
+            ex: [X("我们去饭馆吃饭吧！", "Wǒmen qù fànguǎn chī fàn ba!", "Chúng mình đi quán ăn cơm đi!")] },
+          { zh: "在", py: "zài", hv: "Tại", pos: "động từ / giới từ", vi: "ở; ở (đâu đó làm gì)", ira: "zh_zai.webp",
+            tip: "**在 + nơi chốn** = ở đâu · **在 + nơi chốn + V** = ở đâu làm gì.",
+            ex: [X("你在哪儿？", "Nǐ zài nǎr?", "Cậu đang ở đâu?"), X("我在家学汉语。", "Wǒ zài jiā xué Hànyǔ.", "Tôi học tiếng Trung ở nhà.")] },
+          { zh: "河内", py: "Hénèi", hv: "Hà Nội", pos: "danh từ", vi: "Hà Nội", ira: "zh_yuenan.webp",
+            ex: [X("我家在河内。", "Wǒ jiā zài Hénèi.", "Nhà tôi ở Hà Nội.")] },
+          { zh: "楼", py: "lóu", hv: "Lâu", pos: "danh từ", vi: "toà nhà; tầng", ira: "zh_lou.webp",
+            ex: [X("这是教学楼。", "Zhè shì jiàoxué lóu.", "Đây là toà nhà giảng đường."), X("我住三楼。", "Wǒ zhù sān lóu.", "Tôi ở tầng 3.")] },
+          { zh: "宿舍", py: "sùshè", hv: "Túc xá", pos: "danh từ", vi: "ký túc xá", ira: "zh_sushe.webp",
+            ex: [X("我的宿舍很大。", "Wǒ de sùshè hěn dà.", "Ký túc xá của tôi rất to.")] },
+          { zh: "住", py: "zhù", hv: "Trú", pos: "động từ", vi: "ở, sống", ira: "zh_zhu.webp",
+            tip: "**住在 + nơi chốn**: 我住在宿舍。", ex: [X("你住在哪儿？", "Nǐ zhù zài nǎr?", "Cậu sống ở đâu?"), X("我不住在宿舍，我住在家里。", "Wǒ bú zhù zài sùshè, wǒ zhù zài jiā li.", "Tớ không ở ký túc xá, tớ ở nhà.")] }
+        ] },
+        { label: "Biết · dạy · nói · viết", cards: [
+          { zh: "知道", py: "zhīdao", hv: "Tri đạo", pos: "động từ", vi: "biết (một thông tin)", ira: "zh_juede.webp",
+            ex: [X("你知道他是谁吗？", "Nǐ zhīdao tā shì shéi ma?", "Cậu biết anh ấy là ai không?"), X("我不知道。", "Wǒ bù zhīdao.", "Tôi không biết.")] },
+          { zh: "会", py: "huì", hv: "Hội", pos: "động từ năng nguyện", vi: "biết (làm, nhờ học / luyện tập)", ira: "zh_zuofan.webp",
+            ex: [X("你会中文吗？", "Nǐ huì Zhōngwén ma?", "Cậu biết tiếng Trung không?"), X("我会说汉语。", "Wǒ huì shuō Hànyǔ.", "Tôi biết nói tiếng Trung.")] },
+          { zh: "说", py: "shuō", hv: "Thuyết", pos: "động từ", vi: "nói", ira: "zh_shuo.webp",
+            ex: [X("我不知道他说什么。", "Wǒ bù zhīdao tā shuō shénme.", "Tôi không biết anh ấy nói gì.")] },
+          { zh: "写", py: "xiě", hv: "Tả", pos: "động từ", vi: "viết", ira: "zh_hanzi.webp",
+            ex: [X("他会写汉字。", "Tā huì xiě Hànzì.", "Anh ấy biết viết chữ Hán.")] },
+          { zh: "做饭", py: "zuò fàn", hv: "Tố phạn", pos: "cụm động từ", vi: "nấu cơm, nấu ăn", ira: "zh_zuofan.webp",
+            ex: [X("妈妈会做饭。", "Māma huì zuò fàn.", "Mẹ tôi biết nấu ăn.")] },
+          { zh: "些", py: "xiē", hv: "Ta", pos: "lượng từ", vi: "một vài, những", ira: "zh_shu.webp",
+            tip: "**一些** một vài · **这些** những cái này · **那些** những cái kia · **哪些** những cái nào.",
+            ex: [X("这些是什么？", "Zhèxiē shì shénme?", "Những cái này là gì?"), X("这些汉字我都不会。", "Zhèxiē Hànzì wǒ dōu bú huì.", "Mấy chữ Hán này tôi đều không biết.")] },
+          { zh: "教", py: "jiāo", hv: "Giáo", pos: "động từ", vi: "dạy", ira: "zh_jiaoxue.webp",
+            tip: "**教 jiāo** (động từ: dạy ai cái gì) · **教学 jiàoxué** (việc dạy học, danh từ).", also: [["教学", "jiàoxué", "việc dạy học"], ["教学楼", "jiàoxué lóu", "giảng đường"]],
+            ex: [X("老师教什么？", "Lǎoshī jiāo shénme?", "Thầy dạy môn gì ạ?"), X("老师教汉语。", "Lǎoshī jiāo Hànyǔ.", "Thầy dạy tiếng Trung.")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Phương hướng – trường học – mời chơi",
+      desc: "**边** biān đọc nhẹ *bian* khi đứng sau: 上边 · 左边 · 东边…",
+      sticker: "zh_dongxi.webp",
+      groups: [
+        { label: "Phương vị từ", cards: [
+          { zh: "上边", py: "shàngbian", hv: "Thượng biên", pos: "phương vị từ", vi: "phía trên", ira: "zh_fangwei.webp", ex: [X("手机在桌子上边。", "Shǒujī zài zhuōzi shàngbian.", "Điện thoại ở trên bàn.")] },
+          { zh: "下边", py: "xiàbian", hv: "Hạ biên", pos: "phương vị từ", vi: "phía dưới", ira: "zh_fangwei.webp", ex: [X("小狗在桌子下边。", "Xiǎogǒu zài zhuōzi xiàbian.", "Chó con ở dưới gầm bàn.")] },
+          { zh: "左边", py: "zuǒbian", hv: "Tả biên", pos: "phương vị từ", vi: "bên trái", ira: "zh_fangwei.webp", ex: [X("图书馆在食堂左边。", "Túshūguǎn zài shítáng zuǒbian.", "Thư viện ở bên trái nhà ăn.")] },
+          { zh: "右边", py: "yòubian", hv: "Hữu biên", pos: "phương vị từ", vi: "bên phải", ira: "zh_fangwei.webp", ex: [X("宿舍在教学楼右边。", "Sùshè zài jiàoxué lóu yòubian.", "Ký túc xá ở bên phải giảng đường.")] },
+          { zh: "东边", py: "dōngbian", hv: "Đông biên", pos: "phương vị từ", vi: "phía đông", ira: "zh_dongxi.webp", ex: [X("图书馆在宿舍东边。", "Túshūguǎn zài sùshè dōngbian.", "Thư viện ở phía đông ký túc xá.")] },
+          { zh: "西边", py: "xībian", hv: "Tây biên", pos: "phương vị từ", vi: "phía tây", ira: "zh_dongxi.webp", ex: [X("食堂在图书馆西边。", "Shítáng zài túshūguǎn xībian.", "Nhà ăn ở phía tây thư viện.")] },
+          { zh: "桌子", py: "zhuōzi", hv: "Trác tử", pos: "danh từ", vi: "cái bàn", ira: "zh_zhuozi.webp", ex: [X("一张桌子", "yì zhāng zhuōzi", "một cái bàn")] },
+          { zh: "手机", py: "shǒujī", hv: "Thủ cơ", pos: "danh từ", vi: "điện thoại di động", ira: "zh_shouji.webp", ex: [X("我的手机在哪儿？", "Wǒ de shǒujī zài nǎr?", "Điện thoại của tôi đâu rồi?")] }
+        ] },
+        { label: "Trường lớp · rảnh rỗi · mời chơi", cards: [
+          { zh: "专业", py: "zhuānyè", hv: "Chuyên nghiệp", pos: "danh từ", vi: "chuyên ngành", ira: "daigakusei_man_3843.webp",
+            tip: "Ngành hay gặp: 汉语言 ngôn ngữ Trung · 英语 · 越南学 Việt Nam học · 国际关系 quan hệ quốc tế · 经济 kinh tế · 医学 y · 文学 văn học.",
+            ex: [X("你学什么专业？", "Nǐ xué shénme zhuānyè?", "Cậu học chuyên ngành gì?"), X("我学英语专业。", "Wǒ xué Yīngyǔ zhuānyè.", "Tớ học chuyên ngành tiếng Anh.")] },
+          { zh: "系", py: "xì", hv: "Hệ", pos: "danh từ", vi: "khoa (trong trường đại học)", ira: "zh_xuexi.webp",
+            ex: [X("中文系", "Zhōngwén xì", "khoa tiếng Trung"), X("北大中文系", "Běi Dà Zhōngwén xì", "khoa Trung văn Đại học Bắc Kinh")] },
+          { zh: "空儿", py: "kòngr", hv: "Không nhi", pos: "danh từ", vi: "lúc rảnh, thời gian trống", ira: "zh_kong.webp",
+            tip: "**有空儿** = rảnh · **没有空儿** = không rảnh.", ex: [X("今天你有空儿吗？", "Jīntiān nǐ yǒu kòngr ma?", "Hôm nay cậu rảnh không?"), X("今天我没有空儿，明天我有空儿。", "Jīntiān wǒ méiyǒu kòngr, míngtiān wǒ yǒu kòngr.", "Hôm nay tớ không rảnh, mai tớ rảnh.")] },
+          { zh: "没有", py: "méiyǒu", hv: "Một hữu", pos: "động từ", vi: "không có", ira: "zh_shenme.webp",
+            tip: "Phủ định của **有** luôn là **没有**, không bao giờ *不有*.", ex: [X("我没有手机。", "Wǒ méiyǒu shǒujī.", "Tôi không có điện thoại.")] },
+          { zh: "不用", py: "búyòng", hv: "Bất dụng", pos: "phó từ", vi: "không cần", ira: "zh_zaijian.webp",
+            tip: "**不用谢！** = Không có gì đâu! (không cần cảm ơn) · 不 trước 用 (thanh 4) → **bú**.", ex: [X("谢谢你！——不用谢！", "Xièxie nǐ! — Búyòng xiè!", "Cảm ơn cậu! — Không có gì!")] },
+          { zh: "欢迎", py: "huānyíng", hv: "Hoan nghênh", pos: "động từ", vi: "hoan nghênh, chào đón", ira: "zh_huanying.webp",
+            ex: [X("欢迎你来越南！", "Huānyíng nǐ lái Yuènán!", "Chào mừng bạn đến Việt Nam!")] },
+          { zh: "玩儿", py: "wánr", hv: "Ngoạn nhi", pos: "động từ", vi: "chơi", ira: "zh_wan2.webp",
+            ex: [X("欢迎你们来越南玩儿！", "Huānyíng nǐmen lái Yuènán wánr!", "Hoan nghênh các bạn đến Việt Nam chơi!"), X("明天来我家玩儿吧！", "Míngtiān lái wǒ jiā wánr ba!", "Mai đến nhà tớ chơi nhé!")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 9 điểm, mỗi điểm 1 công thức",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "早晚", name: "6 buổi trong ngày", formula: ["凌晨 0–5h · 早上 5–8h · 上午 8–11h", "中午 11–13h · 下午 13–18h · 晚上 18–24h"],
+          uses: ["Buổi đứng **trước** giờ: 早上七点 · 晚上十点", "**早 / 晚** còn là tính từ: sớm / muộn"],
+          examples: [X("早上好！", "Zǎoshang hǎo!", "Chào buổi sáng!"), X("今天你回来太早了！", "Jīntiān nǐ huílai tài zǎo le!", "Hôm nay con về sớm quá!"), X("昨天晚上我去王老师的家喝茶。", "Zuótiān wǎnshang wǒ qù Wáng lǎoshī de jiā hē chá.", "Tối qua em qua nhà thầy Vương uống trà.")] },
+        { tag: "在", name: "Ở đâu · ở đâu làm gì", formula: ["Chủ ngữ + 在 + Nơi chốn", "Chủ ngữ + 在 + Nơi chốn + Động từ (+ Tân ngữ)"],
+          uses: ["Nơi chốn đứng **trước** động từ (ngược tiếng Việt: *học ở nhà* → **在家学**)", "Hỏi: 在哪儿 + V？"],
+          examples: [X("你家在哪儿？我家在河内。", "Nǐ jiā zài nǎr? Wǒ jiā zài Hénèi.", "Nhà bạn ở đâu? Nhà tôi ở Hà Nội."), X("在银行取钱", "zài yínháng qǔ qián", "rút tiền ở ngân hàng"), X("在学校见老师", "zài xuéxiào jiàn lǎoshī", "gặp thầy ở trường"), X("今天下午你在哪儿学习汉语？", "Jīntiān xiàwǔ nǐ zài nǎr xuéxí Hànyǔ?", "Chiều nay cậu học tiếng Trung ở đâu?")],
+          wrong: [{ bad: "我学汉语在家。", good: "我在家学汉语。", py: "Wǒ zài jiā xué Hànyǔ.", why: "**在 + nơi chốn** phải đứng **trước** động từ." }] },
+        { tag: "知·会", name: "知道 hay 会?", formula: ["知道 + thông tin / câu hỏi", "会 + Động từ (kỹ năng phải học, luyện)"],
+          uses: ["**知道**: biết một sự thật, tên, địa chỉ, ai là ai", "**会**: biết **làm** gì đó nhờ học – luyện: nói, viết, nấu ăn, bơi…", "Phủ định: 不知道 · 不会"],
+          examples: [X("我知道他在哪儿！", "Wǒ zhīdao tā zài nǎr!", "Tôi biết anh ấy ở đâu!"), X("我知道这是什么！", "Wǒ zhīdao zhè shì shénme!", "Tôi biết đây là cái gì!"), X("我会说汉语。", "Wǒ huì shuō Hànyǔ.", "Tôi biết nói tiếng Trung."), X("你的儿子会吃饭了吗？", "Nǐ de érzi huì chī fàn le ma?", "Con bạn biết tự ăn cơm chưa?")],
+          wrong: [{ bad: "我会他叫王明。", good: "我知道他叫王明。", py: "Wǒ zhīdao tā jiào Wáng Míng.", why: "Tên người là **thông tin** → 知道." }, { bad: "我知道做中国菜。", good: "我会做中国菜。", py: "Wǒ huì zuò Zhōngguó cài.", why: "Nấu ăn là **kỹ năng** → 会." }] },
+        { tag: "些", name: "一些 · 这些 · 那些", formula: ["一些 / 这些 / 那些 / 哪些 + Danh từ", "这些 + N + 我都…"],
+          uses: ["些 = lượng từ cho **số nhiều không xác định** (một vài, những)", "Không đi với số đếm: *三些* ✗"],
+          examples: [X("这些是什么？", "Zhèxiē shì shénme?", "Những cái này là gì?"), X("那些书是谁的？", "Nàxiē shū shì shéi de?", "Mấy quyển sách kia của ai?"), X("这些汉字我都不会。", "Zhèxiē Hànzì wǒ dōu bú huì.", "Mấy chữ Hán này tôi đều không biết.")] },
+        { tag: "教", name: "教 jiāo · 教学 jiàoxué", formula: ["教 + (người) + môn học", "教学 = việc dạy học (danh từ)"],
+          uses: ["**教** đọc thanh 1 khi là động từ “dạy”", "**教** đọc thanh 4 trong từ ghép: 教学 · 教学楼 · 教室"],
+          examples: [X("老师教我们汉语。", "Lǎoshī jiāo wǒmen Hànyǔ.", "Thầy dạy chúng tôi tiếng Trung."), X("我觉得教学很难。", "Wǒ juéde jiàoxué hěn nán.", "Tôi thấy việc dạy học rất khó."), X("教学方法", "jiàoxué fāngfǎ", "phương pháp giảng dạy")] },
+        { tag: "住在", name: "住 + 在 + nơi chốn", formula: ["住在 + nơi chốn (= 在 + nơi chốn + 住)", "Hỏi: 你住（在）哪儿？"],
+          uses: ["**住在宿舍** và **在宿舍住** đều đúng", "Thêm **里** sau danh từ chung để chỉ “bên trong”: 家里, 宿舍里"],
+          examples: [X("你住在哪儿？", "Nǐ zhù zài nǎr?", "Cậu sống ở đâu?"), X("我住在宿舍。", "Wǒ zhù zài sùshè.", "Tớ sống ở ký túc xá."), X("我不住在宿舍，我住在家里。", "Wǒ bú zhù zài sùshè, wǒ zhù zài jiā li.", "Tớ không ở KTX, tớ ở nhà.")] },
+        { tag: "边", name: "Phương vị từ", formula: ["A + 在 + B + (的) + 上边 / 下边 / 左边 / 右边 / 东边 / 西边", "B + 的 + 方位 + 是 + A"],
+          uses: ["Mốc **B** đứng trước, hướng đứng sau (ngược tiếng Việt: *bên trái nhà ăn* → **食堂左边**)", "Hỏi: A 在哪儿？"],
+          examples: [X("手机在桌子上边。", "Shǒujī zài zhuōzi shàngbian.", "Điện thoại ở trên bàn."), X("图书馆在食堂的东边。", "Túshūguǎn zài shítáng de dōngbian.", "Thư viện ở phía đông nhà ăn."), X("宿舍的右边是教学楼。", "Sùshè de yòubian shì jiàoxué lóu.", "Bên phải KTX là giảng đường.")],
+          wrong: [{ bad: "图书馆在东边食堂。", good: "图书馆在食堂东边。", py: "Túshūguǎn zài shítáng dōngbian.", why: "Mốc trước, hướng sau." }] },
+        { tag: "有空儿", name: "Rảnh không? · Mời chơi", formula: ["有空儿 / 没有空儿", "欢迎 + (người) + 来 + nơi chốn + 玩儿"],
+          uses: ["Phủ định **有** → **没有** (không phải 不有)", "Mời thân mật: **…来我家玩儿吧！**"],
+          examples: [X("今天你有空儿吗？", "Jīntiān nǐ yǒu kòngr ma?", "Hôm nay cậu rảnh không?"), X("我没有空儿。", "Wǒ méiyǒu kòngr.", "Tớ không rảnh."), X("欢迎你们来越南玩儿！", "Huānyíng nǐmen lái Yuènán wánr!", "Chào mừng các bạn đến Việt Nam chơi!")],
+          wrong: [{ bad: "我不有空儿。", good: "我没有空儿。", why: "有 chỉ phủ định bằng **没**." }] },
+        { tag: "1–99", name: "Đọc số 1–99", formula: ["十 + số = 11–19: 十一", "số + 十 + số = 21–99: 五十六"],
+          uses: ["Đọc như tiếng Việt: năm mươi sáu → **五十六**", "Số tròn chục: 二十 · 三十 · 九十"],
+          examples: [X("十一", "shíyī", "11"), X("五十六", "wǔshíliù", "56"), X("七十八", "qīshíbā", "78"), X("九十九", "jiǔshíjiǔ", "99")] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu (có 5 câu 知道 / 会 trong slide)",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("我不 ___ 他说什么。", "会|知道", "B", "Biết nội dung (thông tin) → **知道**."),
+        Q("你 ___ 做中国菜吗？", "会|知道", "A", "Nấu ăn là kỹ năng → **会**."),
+        Q("她很聪明，什么都 ___。", "会 (biết làm)|知道 (biết thông tin)", "A", "Cả hai đều đúng tuỳ ý: *cái gì cũng biết làm* (会) hay *cái gì cũng biết* (知道). Theo slide: 知道/会 đều được."),
+        Q("我 ___ 他叫王明。", "会|知道", "B", "Tên là thông tin → **知道**."),
+        Q("我们 ___ 说一点儿中文。", "会|知道", "A", "Nói tiếng là kỹ năng → **会**."),
+        Q("Câu nào đúng?", "我学汉语在家。|我在家学汉语。|在家我汉语学。|我学在家汉语。", "B", "在 + nơi chốn đứng **trước** động từ."),
+        Q("“Thư viện ở phía đông nhà ăn.”", "图书馆在东边食堂。|图书馆在食堂东边。|食堂在图书馆东边。|东边图书馆在食堂。", "B", "Mốc (食堂) trước, hướng (东边) sau."),
+        Q("“Tớ không rảnh.”", "我不有空儿。|我没有空儿。|我有不空儿。|我空儿没。", "B", "Phủ định 有 → **没有**."),
+        Q("6 giờ sáng sớm nói là…", "晚上六点|早上六点|下午六点|中午六点", "B", "5–8h → **早上**."),
+        Q("“Những chữ Hán này”", "这个汉字|这些汉字|那些个汉字|一些这汉字", "B", "Số nhiều không xác định → **这些**."),
+        Q("“Thầy dạy chúng tôi tiếng Trung.” 教 đọc là…", "jiào|jiāo", "B", "Động từ “dạy” → **jiāo** (thanh 1)."),
+        Q("“Cảm ơn!” — “Không có gì!”", "不用谢！|不谢谢！|没有谢！|不会谢！", "A", "**不用谢** = không cần cảm ơn."),
+        Q("56 đọc là…", "五六十|五十六|六十五|五十和六", "B", "Năm mươi sáu → **五十六**."),
+        Q("“Cậu sống ở đâu?”", "你在住哪儿？|你住在哪儿？|你哪儿住在？|在哪儿你住？", "B", "**住在 + nơi chốn**.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Thư viện ở đâu?", words: ["图书馆", "在", "哪儿"], py: "Túshūguǎn zài nǎr?" },
+        { vi: "Tôi học tiếng Trung ở thư viện.", words: ["我", "在", "图书馆", "学习", "汉语"], py: "Wǒ zài túshūguǎn xuéxí Hànyǔ." },
+        { vi: "Cậu biết nhà anh ấy ở đâu không?", words: ["你", "知道", "他家", "在", "哪儿", "吗"], py: "Nǐ zhīdao tā jiā zài nǎr ma?" },
+        { vi: "Mẹ tôi biết nấu ăn.", words: ["妈妈", "会", "做饭"], py: "Māma huì zuò fàn." },
+        { vi: "Tớ sống ở ký túc xá.", words: ["我", "住", "在", "宿舍"], py: "Wǒ zhù zài sùshè." },
+        { vi: "Điện thoại ở trên bàn.", words: ["手机", "在", "桌子", "上边"], py: "Shǒujī zài zhuōzi shàngbian." },
+        { vi: "Thư viện ở phía đông nhà ăn.", words: ["图书馆", "在", "食堂", "的", "东边"], py: "Túshūguǎn zài shítáng de dōngbian." },
+        { vi: "Hôm nay cậu rảnh không?", words: ["今天", "你", "有", "空儿", "吗"], py: "Jīntiān nǐ yǒu kòngr ma?" },
+        { vi: "Mai đến nhà tớ chơi nhé!", words: ["明天", "来", "我家", "玩儿", "吧"], py: "Míngtiān lái wǒ jiā wánr ba!" },
+        { vi: "Mấy chữ Hán này tôi đều không biết.", words: ["这些", "汉字", "我", "都", "不会"], py: "Zhèxiē Hànzì wǒ dōu bú huì." }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · 3 tình huống",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_sushe.webp",
+      scenes: [
+        { title: "① Hỏi đường trong trường", desc: "Anh Thư mới đến trường, hỏi đường Quốc An.", lines: [
+          { who: "英书", ...X("你好！请问，图书馆在哪儿？", "Nǐ hǎo! Qǐngwèn, túshūguǎn zài nǎr?", "Chào cậu! Cho mình hỏi, thư viện ở đâu?") },
+          { who: "国安", ...X("图书馆在食堂的东边。", "Túshūguǎn zài shítáng de dōngbian.", "Thư viện ở phía đông nhà ăn.") },
+          { who: "英书", ...X("食堂在哪儿？", "Shítáng zài nǎr?", "Nhà ăn ở đâu?") },
+          { who: "国安", ...X("食堂在宿舍的左边。你住在宿舍吗？", "Shítáng zài sùshè de zuǒbian. Nǐ zhù zài sùshè ma?", "Nhà ăn ở bên trái ký túc xá. Cậu ở ký túc xá à?") },
+          { who: "英书", ...X("对，我住在三楼。你呢？", "Duì, wǒ zhù zài sān lóu. Nǐ ne?", "Ừ, mình ở tầng 3. Còn cậu?") },
+          { who: "国安", ...X("我不住在宿舍，我家在河内。", "Wǒ bú zhù zài sùshè, wǒ jiā zài Hénèi.", "Mình không ở KTX, nhà mình ở Hà Nội.") },
+          { who: "英书", ...X("谢谢你！", "Xièxie nǐ!", "Cảm ơn cậu!") },
+          { who: "国安", ...X("不用谢！", "Búyòng xiè!", "Không có gì!") }
+        ] },
+        { title: "② Biết hay không biết?", desc: "Ở thư viện, hai bạn nói về thầy giáo mới.", lines: [
+          { who: "英书", ...X("你知道那个人是谁吗？", "Nǐ zhīdao nàge rén shì shéi ma?", "Cậu biết người kia là ai không?") },
+          { who: "国安", ...X("我知道，他是王老师。他教汉语。", "Wǒ zhīdao, tā shì Wáng lǎoshī. Tā jiāo Hànyǔ.", "Mình biết, đó là thầy Vương. Thầy dạy tiếng Trung.") },
+          { who: "英书", ...X("王老师会说越南语吗？", "Wáng lǎoshī huì shuō Yuènányǔ ma?", "Thầy Vương biết nói tiếng Việt không?") },
+          { who: "国安", ...X("会！他也会写汉字和越南字。", "Huì! Tā yě huì xiě Hànzì hé Yuènán zì.", "Biết chứ! Thầy còn biết viết cả chữ Hán và chữ Việt.") },
+          { who: "英书", ...X("你学什么专业？", "Nǐ xué shénme zhuānyè?", "Cậu học chuyên ngành gì?") },
+          { who: "国安", ...X("我学汉语言专业，我是中文系的学生。", "Wǒ xué Hànyǔyán zhuānyè, wǒ shì Zhōngwén xì de xuésheng.", "Mình học ngôn ngữ Trung, mình là sinh viên khoa tiếng Trung.") },
+          { who: "英书", ...X("这些汉字我都不会，你教我吧！", "Zhèxiē Hànzì wǒ dōu bú huì, nǐ jiāo wǒ ba!", "Mấy chữ Hán này mình đều không biết, cậu dạy mình nhé!") }
+        ] },
+        { title: "③ Mời đến chơi", desc: "Cuối buổi học.", lines: [
+          { who: "国安", ...X("英书，明天你有空儿吗？", "Yīngshū, míngtiān nǐ yǒu kòngr ma?", "Anh Thư, mai cậu rảnh không?") },
+          { who: "英书", ...X("明天上午我没有空儿，下午有空儿。", "Míngtiān shàngwǔ wǒ méiyǒu kòngr, xiàwǔ yǒu kòngr.", "Sáng mai mình không rảnh, chiều thì rảnh.") },
+          { who: "国安", ...X("明天下午来我家玩儿吧！我妈妈会做越南菜。", "Míngtiān xiàwǔ lái wǒ jiā wánr ba! Wǒ māma huì zuò Yuènán cài.", "Chiều mai đến nhà mình chơi nhé! Mẹ mình biết nấu món Việt.") },
+          { who: "英书", ...X("太好了！你家在哪儿？", "Tài hǎo le! Nǐ jiā zài nǎr?", "Tuyệt quá! Nhà cậu ở đâu?") },
+          { who: "国安", ...X("在学校西边。欢迎你来！", "Zài xuéxiào xībian. Huānyíng nǐ lái!", "Ở phía tây trường. Hoan nghênh cậu đến!") }
+        ] }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("图书馆在哪儿？", "Túshūguǎn zài nǎr?", "Thư viện ở đâu?"),
+        X("我家在河内。", "Wǒ jiā zài Hénèi.", "Nhà tôi ở Hà Nội."),
+        X("你住在哪儿？", "Nǐ zhù zài nǎr?", "Cậu sống ở đâu?"),
+        X("我住在宿舍。", "Wǒ zhù zài sùshè.", "Tôi sống ở ký túc xá."),
+        X("你知道他是谁吗？", "Nǐ zhīdao tā shì shéi ma?", "Cậu biết anh ấy là ai không?"),
+        X("我会说汉语。", "Wǒ huì shuō Hànyǔ.", "Tôi biết nói tiếng Trung."),
+        X("手机在桌子上边。", "Shǒujī zài zhuōzi shàngbian.", "Điện thoại ở trên bàn."),
+        X("今天你有空儿吗？", "Jīntiān nǐ yǒu kòngr ma?", "Hôm nay cậu rảnh không?"),
+        X("不用谢！", "Búyòng xiè!", "Không có gì!"),
+        X("欢迎你来越南！", "Huānyíng nǐ lái Yuènán!", "Chào mừng bạn đến Việt Nam!")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Thư viện ở đâu?", zh: "图书馆在哪儿？", py: "Túshūguǎn zài nǎr?" },
+        { vi: "Chỉ đường: Thư viện ở phía đông nhà ăn.", zh: "图书馆在食堂的东边。", py: "Túshūguǎn zài shítáng de dōngbian." },
+        { vi: "Hỏi: Nhà bạn ở đâu?", zh: "你家在哪儿？", py: "Nǐ jiā zài nǎr?" },
+        { vi: "Trả lời: Nhà tôi ở Hà Nội.", zh: "我家在河内。", py: "Wǒ jiā zài Hénèi." },
+        { vi: "Nói: Tôi học tiếng Trung ở nhà.", zh: "我在家学汉语。", py: "Wǒ zài jiā xué Hànyǔ." },
+        { vi: "Hỏi: Cậu sống ở đâu?", zh: "你住在哪儿？", py: "Nǐ zhù zài nǎr?" },
+        { vi: "Trả lời: Tôi sống ở ký túc xá.", zh: "我住在宿舍。", py: "Wǒ zhù zài sùshè." },
+        { vi: "Hỏi: Cậu biết anh ấy là ai không?", zh: "你知道他是谁吗？", py: "Nǐ zhīdao tā shì shéi ma?" },
+        { vi: "Trả lời: Tôi không biết.", zh: "我不知道。", py: "Wǒ bù zhīdao." },
+        { vi: "Nói: Tôi biết nói tiếng Trung.", zh: "我会说汉语。", py: "Wǒ huì shuō Hànyǔ." },
+        { vi: "Hỏi: Cậu học chuyên ngành gì?", zh: "你学什么专业？", py: "Nǐ xué shénme zhuānyè?" },
+        { vi: "Hỏi: Hôm nay cậu rảnh không?", zh: "今天你有空儿吗？", py: "Jīntiān nǐ yǒu kòngr ma?" },
+        { vi: "Trả lời: Hôm nay tớ không rảnh, mai tớ rảnh.", zh: "今天我没有空儿，明天我有空儿。", py: "Jīntiān wǒ méiyǒu kòngr, míngtiān wǒ yǒu kòngr." },
+        { vi: "Mời: Mai đến nhà tớ chơi nhé!", zh: "明天来我家玩儿吧！", py: "Míngtiān lái wǒ jiā wánr ba!" },
+        { vi: "Đáp lời cảm ơn: Không có gì đâu!", zh: "不用谢！", py: "Búyòng xiè!" }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Giới thiệu trường và chỗ ở của bạn (6 câu)",
+      desc: "Nói liền 6 câu. Nói xong câu mẫu thì **đổi tên nơi chốn, chuyên ngành** cho đúng với bạn.",
+      sticker: "zh_lou.webp",
+      items: [
+        { vi: "Tôi là sinh viên khoa tiếng Trung.", zh: "我是中文系的学生。", py: "Wǒ shì Zhōngwén xì de xuésheng." },
+        { vi: "Tôi sống ở ký túc xá, tầng 3.", zh: "我住在宿舍三楼。", py: "Wǒ zhù zài sùshè sān lóu." },
+        { vi: "Ký túc xá ở bên phải giảng đường.", zh: "宿舍在教学楼的右边。", py: "Sùshè zài jiàoxué lóu de yòubian." },
+        { vi: "Thư viện ở phía đông nhà ăn.", zh: "图书馆在食堂的东边。", py: "Túshūguǎn zài shítáng de dōngbian." },
+        { vi: "Buổi chiều tôi thường học tiếng Trung ở thư viện.", zh: "下午我在图书馆学习汉语。", py: "Xiàwǔ wǒ zài túshūguǎn xuéxí Hànyǔ." },
+        { vi: "Chào mừng các bạn đến trường tôi chơi!", zh: "欢迎你们来我们学校玩儿！", py: "Huānyíng nǐmen lái wǒmen xuéxiào wánr!" }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 7 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Thời gian", title: "6 buổi", bullets: ["凌晨 · 早上 · 上午", "中午 · 下午 · 晚上", "早 sớm · 晚 muộn · 晚安"] },
+        { tag: "Nơi chốn", title: "在 · 住在", bullets: ["A 在 + nơi chốn: 我家在河内", "在 + nơi chốn + V: 在家学汉语", "住在 + nơi chốn: 住在宿舍"] },
+        { tag: "Biết", title: "知道 ≠ 会", bullets: ["知道 + thông tin: 知道他是谁", "会 + kỹ năng: 会说汉语, 会做饭", "Phủ định: 不知道 · 不会"] },
+        { tag: "Phương vị", title: "Mốc trước, hướng sau", bullets: ["上边 · 下边 · 左边 · 右边", "东边 · 西边", "图书馆在食堂（的）东边"] },
+        { tag: "Lượng từ", title: "些", bullets: ["一些 · 这些 · 那些 · 哪些", "这些汉字我都不会"] },
+        { tag: "Giao tiếp", title: "Câu dùng ngay", bullets: ["有空儿吗？ · 没有空儿 (không 不有)", "不用谢！", "欢迎你来越南玩儿！", "馆: 饭馆 · 茶馆 · 图书馆"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 33 từ.",
+        "**✍ Tự viết** 10 chữ: 早 晚 馆 在 知 道 会 住 边 欢 — mỗi chữ đúng 3 lần liền.",
+        "Vẽ sơ đồ trường / khu nhà bạn, ghi 5 câu vị trí bằng 上边 / 左边 / 东边…",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "**Phản xạ nói** + **Thử thách**: mỗi câu ≥ 85%, ghi âm phần giới thiệu trường của bạn.",
+        "Nhập vai cả 3 hội thoại, tắt pinyin, đóng cả hai vai."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>

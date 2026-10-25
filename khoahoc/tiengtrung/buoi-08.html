@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 8: 周末你喜欢做什么？</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261025zh4"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "上课": [["上", "chi", "Vạch ngắn **trên** vạch mốc → lên."], ["课", "thanh", "**讠** (lời nói) chỉ nghĩa + **果** guǒ chỉ âm → bài học, tiết học."]],
+  "下课": [["下", "chi", "Vạch ngắn **dưới** vạch mốc → xuống, kết thúc."], ["课", "thanh", "**讠** chỉ nghĩa + **果** guǒ chỉ âm."]],
+  "大学": [["大", "tuong", "Vẽ **người dang rộng tay chân** → to, lớn."], ["学", "thanh", "Phồn thể **學**: **子** dưới mái nhà chỉ nghĩa, phần trên chỉ âm."]],
+  "小学": [["小", "tuong", "Vẽ **ba hạt cát nhỏ** → nhỏ."], ["学", "thanh", "**子** dưới mái nhà chỉ nghĩa + phần trên chỉ âm."]],
+  "现在": [["现", "thanh", "Phồn thể **現** = **王** (玉 ngọc) chỉ nghĩa + **见** jiàn chỉ âm → ngọc hiện ánh sáng → hiện ra, bây giờ."], ["在", "thanh", "**土** chỉ nghĩa + **才** cái chỉ âm."]],
+  "半": [["半", "hoi", "**八** (chia ra) + **牛** (con bò) → xẻ đôi con bò → **một nửa**."]],
+  "钟": [["钟", "thanh", "**钅** (kim loại) chỉ nghĩa + **中** zhōng chỉ âm → chuông, đồng hồ. 点钟 = giờ đúng (theo tiếng chuông)."]],
+  "等": [["等", "thanh+gia", "**竹** (thẻ tre) chỉ nghĩa + **寺** sì chỉ âm → xếp thẻ tre cho bằng nhau → **bằng, đẳng**. Nghĩa “đợi” là mượn."]],
+  "周末": [["周", "hoi", "**用** + **口** → nói năng chu toàn → vòng khắp, chu kỳ → **tuần**."], ["末", "chi", "Chữ **木** (cây) thêm vạch ở **ngọn** → ngọn, cuối."]],
+  "跟": [["跟", "thanh", "**足** (bàn chân) chỉ nghĩa + **艮** gèn chỉ âm → gót chân → đi theo, **với, cùng**."]],
+  "一起": [["一", "chi", "Một vạch → một."], ["起", "thanh", "**走** (đi) chỉ nghĩa + **己** jǐ chỉ âm → đứng dậy. 一起 = cùng đứng lên → **cùng nhau**."]],
+  "常": [["常", "thanh", "**巾** (tấm vải) chỉ nghĩa + **尚** shàng chỉ âm → cháng: lá cờ dài → lâu dài → **thường**."]],
+  "啊": [["啊", "thanh", "**口** chỉ nghĩa (tiếng cảm thán) + **阿** ā chỉ âm."]],
+  "不过": [["不", "tuong+gia", "Gốc vẽ đài hoa; mượn làm từ phủ định."], ["过", "thanh", "Phồn thể **過** = **辶** (đi) chỉ nghĩa + **咼** guō chỉ âm → đi qua."]],
+  "看": [["看", "hoi", "**手** (bàn tay) đặt trên **目** (mắt) → che tay lên mắt nhìn xa → **nhìn, xem**."]],
+  "电影": [["电", "thanh", "Phồn thể **電** = **雨** (mưa) chỉ nghĩa + **申** shēn (vẽ tia chớp) chỉ âm → điện, chớp."], ["影", "thanh", "**彡** (tia sáng) chỉ nghĩa + **景** jǐng chỉ âm → bóng, hình."]],
+  "电影院": [["电", "thanh", "**雨** chỉ nghĩa + **申** (tia chớp) chỉ âm."], ["影", "thanh", "**彡** chỉ nghĩa + **景** jǐng chỉ âm."], ["院", "thanh", "**阝** (bộ Phụ – gò đất, tường) chỉ nghĩa + **完** wán chỉ âm → sân, viện."]],
+  "快": [["快", "thanh", "**忄** (lòng) chỉ nghĩa + **夬** guài chỉ âm → vui sướng (lòng thông suốt) → nhanh."]],
+  "走": [["走", "hoi", "**夭** (người vung tay chạy) + **止** (bàn chân) → chạy; nay nghĩa là **đi**."]],
+  "路": [["路", "thanh", "**足** (bàn chân) chỉ nghĩa + **各** gè chỉ âm → lù: đường đi; tuyến xe."]],
+  "公共汽车": [["公", "hoi", "**八** (trái ngược) + **厶** (riêng tư) → trái với riêng → **công**."], ["共", "hoi", "Hai tay cùng nâng một vật → **chung**."], ["汽", "thanh", "**氵** chỉ nghĩa + **气** qì chỉ âm → hơi nước."], ["车", "tuong", "Vẽ **cỗ xe** nhìn từ trên xuống (hai bánh, trục)."]],
+  "和": [["和", "thanh", "**口** chỉ nghĩa + **禾** hé chỉ âm → hoà theo nhau → **và**."]],
+  "可以": [["可", "thanh", "**口** chỉ nghĩa + **丂** kǎo chỉ âm → đồng ý → **có thể**."], ["以", "tuong+gia", "Gốc vẽ **cái cày / dụng cụ**; mượn làm hư từ."]],
+  "都": [["都", "thanh+gia", "**阝** (bộ Ấp – thành ấp) chỉ nghĩa + **者** zhě chỉ âm → dū: kinh đô. Đọc **dōu** = “đều” là mượn âm."]],
+  "到": [["到", "thanh", "**至** (mũi tên cắm xuống đất – tới nơi) chỉ nghĩa + **刂** (刀 dāo) chỉ âm → **đến**."]],
+  "电话": [["电", "thanh", "**雨** chỉ nghĩa + **申** (tia chớp) chỉ âm."], ["话", "thanh", "Phồn thể **話** = **言** (lời nói) chỉ nghĩa + phần phải chỉ âm → lời nói, câu chuyện."]],
+  "打": [["打", "thanh", "**扌** (tay) chỉ nghĩa + **丁** dīng chỉ âm → đánh; 打电话 gọi điện."]],
+  "号": [["号", "hoi", "**口** (miệng) + **丂** (hơi bật ra) → kêu to, hiệu lệnh → **số, hiệu**."]],
+  "号码": [["号", "hoi", "**口** + **丂** → hiệu, số."], ["码", "thanh", "**石** (đá – quả cân) chỉ nghĩa + **马** mǎ chỉ âm → con số."]],
+  "香港": [["香", "hoi", "**禾** (lúa) + **日** (gốc là 甘 ngọt) → lúa chín ngọt **thơm**."], ["港", "thanh", "**氵** (nước) chỉ nghĩa + **巷** xiàng chỉ âm → cảng. 香港 = **Cảng Thơm**."]]
+};
+const L = {
+  id: "zh-q1-08", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 8",
+  unit: "Chủ đề: 香港 Hồng Kông · Giờ học · Cuối tuần · Cùng ai làm gì · Đi lại, gọi điện",
+  titleZh: "周末你喜欢做什么？", titlePy: "Zhōumò nǐ xǐhuan zuò shénme?", title: "Cuối tuần cậu thích làm gì?",
+  subtitle: "Học xong bài này bạn nói được mấy giờ vào lớp – tan lớp, rủ bạn cuối tuần đi xem phim cùng nhau, hỏi đường đi bằng xe buýt số mấy, xin và đọc số điện thoại.",
+  heroSticker: "zh_xianggang.webp",
+  prev: { href: "buoi-07.html", label: "Bài 7" }, next: { href: "buoi-09.html", label: "Bài 9" },
+  goals: [
+    "Nhận mặt, đọc, viết **30 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Nói giờ học: **上课 / 下课**, **点钟**, **半** (3点半 ✓ · 3点钟半 ✗)",
+    "Rủ rê: **A 跟 B 一起 + V** · **常** · **好啊！** · **不过**",
+    "Hỏi cách đi: **怎么走？** · **几路公共汽车到…？** · **快点儿 + V**",
+    "Đọc số điện thoại (1 = **yāo**) · **给 + người + 打电话**"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Giờ học – cuối tuần – cùng nhau",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**.",
+      sticker: "zh_xianggang.webp",
+      groups: [
+        { label: "Lên lớp · giờ giấc", cards: [
+          { zh: "上课", py: "shàngkè", hv: "Thượng khoá", pos: "động từ li hợp", vi: "vào lớp, lên lớp", ira: "zh_shangke.webp",
+            tip: "Động từ **li hợp**: chen môn học vào giữa: **上汉语课** · 上英语课 · 上网课.", ex: [X("你们学校几点上课？", "Nǐmen xuéxiào jǐ diǎn shàngkè?", "Trường các cậu mấy giờ vào học?"), X("我上汉语课。", "Wǒ shàng Hànyǔ kè.", "Tôi học tiết tiếng Trung.")] },
+          { zh: "下课", py: "xiàkè", hv: "Hạ khoá", pos: "động từ li hợp", vi: "tan lớp, tan học", ira: "zh_xiaoxue.webp",
+            ex: [X("我们十一点半下课。", "Wǒmen shíyī diǎn bàn xiàkè.", "Chúng tôi tan học lúc 11 rưỡi.")] },
+          { zh: "大学", py: "dàxué", hv: "Đại học", pos: "danh từ", vi: "đại học", ira: "daigakusei_woman_3256.webp",
+            ex: [X("北京大学", "Běijīng Dàxué", "Đại học Bắc Kinh"), X("中国人民大学", "Zhōngguó Rénmín Dàxué", "Đại học Nhân dân Trung Quốc")] },
+          { zh: "小学", py: "xiǎoxué", hv: "Tiểu học", pos: "danh từ", vi: "tiểu học", ira: "zh_xiaoxue.webp",
+            ex: [X("我弟弟上小学。", "Wǒ dìdi shàng xiǎoxué.", "Em trai tôi học tiểu học.")] },
+          { zh: "现在", py: "xiànzài", hv: "Hiện tại", pos: "danh từ", vi: "bây giờ, hiện nay", ira: "zh_xianzai.webp",
+            ex: [X("现在你做什么工作？", "Xiànzài nǐ zuò shénme gōngzuò?", "Bây giờ cậu làm công việc gì?"), X("现在有很多越南人都想学汉语。", "Xiànzài yǒu hěn duō Yuènánrén dōu xiǎng xué Hànyǔ.", "Hiện nay rất nhiều người Việt đều muốn học tiếng Trung.")] },
+          { zh: "半", py: "bàn", hv: "Bán", pos: "số từ", vi: "một nửa; rưỡi", ira: "zh_ban.webp",
+            tip: "**8点30分 = 8点半**. Vui: 你是我的一半！ = Cậu là một nửa của tớ!", ex: [X("八点半", "bā diǎn bàn", "8 giờ rưỡi")] },
+          { zh: "钟", py: "zhōng", hv: "Chung", pos: "danh từ", vi: "chuông; đồng hồ · 点钟 = giờ đúng", ira: "zh_zhong.webp",
+            tip: "**三点钟** = 3 giờ đúng. Có 半 thì **bỏ 钟**: 三点半 ✓ · 三点钟半 ✗.", ex: [X("现在三点钟。", "Xiànzài sān diǎn zhōng.", "Bây giờ là 3 giờ đúng.")] },
+          { zh: "等", py: "děng", hv: "Đẳng", pos: "động từ", vi: "đợi, chờ", ira: "zh_deng.webp",
+            ex: [X("等我一下儿！", "Děng wǒ yíxiàr!", "Đợi tôi một lát!"), X("请等一下儿！", "Qǐng děng yíxiàr!", "Xin đợi một chút!")] }
+        ] },
+        { label: "Cuối tuần · cùng nhau", cards: [
+          { zh: "周末", py: "zhōumò", hv: "Chu mạt", pos: "danh từ", vi: "cuối tuần", ira: "zh_zhoumo.webp",
+            tip: "**周 = 星期**: 周一 thứ hai · 周二 thứ ba · 周日 chủ nhật.", also: [["周一", "zhōuyī", "thứ hai"], ["周日", "zhōurì", "chủ nhật"]],
+            ex: [X("周末你喜欢做什么？", "Zhōumò nǐ xǐhuan zuò shénme?", "Cuối tuần cậu thích làm gì?"), X("周末我在家学汉语。", "Zhōumò wǒ zài jiā xué Hànyǔ.", "Cuối tuần tớ ở nhà học tiếng Trung.")] },
+          { zh: "跟", py: "gēn", hv: "Căn", pos: "giới từ", vi: "với, cùng", ira: "zh_gen.webp",
+            ex: [X("我跟你吃。", "Wǒ gēn nǐ chī.", "Tớ ăn cùng cậu."), X("我跟姐姐去吧！", "Wǒ gēn jiějie qù ba!", "Con đi với chị nhé!")] },
+          { zh: "一起", py: "yìqǐ", hv: "Nhất khởi", pos: "phó từ", vi: "cùng nhau", ira: "zh_men.webp",
+            ex: [X("我想跟你一起去中国留学。", "Wǒ xiǎng gēn nǐ yìqǐ qù Zhōngguó liúxué.", "Tớ muốn cùng cậu đi Trung Quốc du học!")] },
+          { zh: "常", py: "cháng", hv: "Thường", pos: "phó từ", vi: "thường, hay", ira: "zh_shouji.webp",
+            tip: "**常** cháng (thường) ≠ **尝** cháng (nếm) ≠ **堂** táng (nhà, 食堂).",
+            ex: [X("晚上我常在家学中文。", "Wǎnshang wǒ cháng zài jiā xué Zhōngwén.", "Buổi tối tôi thường học tiếng Trung ở nhà."), X("越南人常跟全家一起吃饭。", "Yuènánrén cháng gēn quánjiā yìqǐ chī fàn.", "Người Việt thường ăn cơm cùng cả nhà.")] },
+          { zh: "啊", py: "a", hv: "A", pos: "trợ từ ngữ khí", vi: "…nha, …à (làm câu mềm, vui vẻ)", ira: "zh_a.webp",
+            ex: [X("周末你来我家玩儿吧！——好啊！", "Zhōumò nǐ lái wǒ jiā wánr ba! — Hǎo a!", "Cuối tuần đến nhà tớ chơi nhé! — Oki nha!")] },
+          { zh: "不过", py: "búguò", hv: "Bất quá", pos: "liên từ", vi: "nhưng, nhưng mà", ira: "zh_buguo.webp",
+            ex: [X("我很喜欢她，不过她不喜欢我。", "Wǒ hěn xǐhuan tā, búguò tā bù xǐhuan wǒ.", "Tôi rất thích cô ấy, nhưng cô ấy không thích tôi.")] },
+          { zh: "看", py: "kàn", hv: "Khán", pos: "động từ", vi: "nhìn, xem, đọc", ira: "zh_kan.webp",
+            ex: [X("上午我常看手机。", "Shàngwǔ wǒ cháng kàn shǒujī.", "Buổi sáng tôi hay xem điện thoại."), X("你看什么看？", "Nǐ kàn shénme kàn?", "Nhìn cái gì mà nhìn?")] },
+          { zh: "电影", py: "diànyǐng", hv: "Điện ảnh", pos: "danh từ", vi: "phim (điện ảnh)", ira: "zh_dianying.webp",
+            ex: [X("看电影", "kàn diànyǐng", "xem phim")] },
+          { zh: "电影院", py: "diànyǐngyuàn", hv: "Điện ảnh viện", pos: "danh từ", vi: "rạp chiếu phim", ira: "zh_dianying.webp",
+            ex: [X("周末我们一起去电影院看电影吧！", "Zhōumò wǒmen yìqǐ qù diànyǐngyuàn kàn diànyǐng ba!", "Cuối tuần chúng mình cùng ra rạp xem phim nhé!")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Đi lại – liên lạc – Hồng Kông",
+      desc: "Bộ **足 / 𧾷 (Túc – bàn chân)**: 跟 · 路 — chữ liên quan đến **đi lại**.",
+      sticker: "zh_gongjiao.webp",
+      groups: [
+        { label: "Đi lại", cards: [
+          { zh: "快", py: "kuài", hv: "Khoái", pos: "tính từ / phó từ", vi: "nhanh, mau", ira: "zh_kuai.webp",
+            tip: "**快 + (点儿) + V** = làm nhanh lên!", ex: [X("快点走！", "Kuài diǎn zǒu!", "Đi nhanh lên!"), X("快点吃！", "Kuài diǎn chī!", "Ăn nhanh lên!")] },
+          { zh: "走", py: "zǒu", hv: "Tẩu", pos: "động từ", vi: "đi (bộ); rời đi", ira: "zh_zou.webp",
+            ex: [X("去你家怎么走？", "Qù nǐ jiā zěnme zǒu?", "Đến nhà cậu đi thế nào?")] },
+          { zh: "路", py: "lù", hv: "Lộ", pos: "danh từ / lượng từ", vi: "đường; tuyến xe số…", ira: "zh_lu.webp",
+            ex: [X("二十一路公共汽车", "èrshíyī lù gōnggòng qìchē", "xe buýt tuyến 21")] },
+          { zh: "公共汽车", py: "gōnggòng qìchē", hv: "Công cộng khí xa", pos: "danh từ", vi: "xe buýt", ira: "zh_gongjiao.webp",
+            tip: "公共 *công cộng* + 汽车 *xe ô tô*.", also: [["公共", "gōnggòng", "công cộng"], ["汽车", "qìchē", "ô tô"]],
+            ex: [X("我坐公共汽车去学校。", "Wǒ zuò gōnggòng qìchē qù xuéxiào.", "Tôi đi xe buýt đến trường.")] },
+          { zh: "到", py: "dào", hv: "Đáo", pos: "động từ", vi: "đến, tới", ira: "zh_dao.webp",
+            ex: [X("二十一路和二百三十一路公共汽车都到。", "Èrshíyī lù hé èrbǎi sānshíyī lù gōnggòng qìchē dōu dào.", "Tuyến 21 và 231 đều đến."), X("到你了！", "Dào nǐ le!", "Đến lượt cậu rồi!")] },
+          { zh: "和", py: "hé", hv: "Hoà", pos: "liên từ", vi: "và (nối danh từ)", ira: "zh_he2.webp",
+            ex: [X("我和爸爸去河内。", "Wǒ hé bàba qù Hénèi.", "Tôi và bố đi Hà Nội."), X("中国和越南", "Zhōngguó hé Yuènán", "Trung Quốc và Việt Nam")] },
+          { zh: "都", py: "dōu", hv: "Đô", pos: "phó từ", vi: "đều", ira: "zh_men.webp",
+            ex: [X("他是谁？我们都知道。", "Tā shì shéi? Wǒmen dōu zhīdao.", "Anh ấy là ai, chúng tôi đều biết."), X("什么都好。", "Shénme dōu hǎo.", "Cái gì cũng được.")] },
+          { zh: "可以", py: "kěyǐ", hv: "Khả dĩ", pos: "động từ năng nguyện", vi: "có thể, được", ira: "zh_keyi.webp",
+            ex: [X("什么也可以。", "Shénme yě kěyǐ.", "Cái gì cũng được."), X("你可以跟我一起去吗？", "Nǐ kěyǐ gēn wǒ yìqǐ qù ma?", "Cậu có thể đi cùng tớ không?")] }
+        ] },
+        { label: "Gọi điện · số · Hồng Kông", cards: [
+          { zh: "电话", py: "diànhuà", hv: "Điện thoại", pos: "danh từ", vi: "điện thoại (cuộc gọi, máy bàn)", ira: "zh_dianhua.webp",
+            tip: "**打电话** = gọi điện · **给 + người + 打电话** = gọi cho ai.", ex: [X("给妈妈打个电话。", "Gěi māma dǎ ge diànhuà.", "Gọi điện cho mẹ đi.")] },
+          { zh: "打", py: "dǎ", hv: "Đả", pos: "động từ", vi: "đánh; gọi (điện)", ira: "zh_da.webp",
+            ex: [X("我给你打电话。", "Wǒ gěi nǐ dǎ diànhuà.", "Tớ gọi điện cho cậu."), X("给我打！", "Gěi wǒ dǎ!", "Đánh cho taoooo!")] },
+          { zh: "号", py: "hào", hv: "Hiệu", pos: "danh từ", vi: "số (nhà, phòng); ngày (trong tháng)", ira: "zh_sushe.webp",
+            ex: [X("我住在四十五号。", "Wǒ zhù zài sìshíwǔ hào.", "Tôi ở số nhà 45."), X("你的房间号是多少？", "Nǐ de fángjiān hào shì duōshao?", "Số phòng của cậu là bao nhiêu?")] },
+          { zh: "号码", py: "hàomǎ", hv: "Hiệu mã", pos: "danh từ", vi: "dãy số, số (điện thoại)", ira: "zh_dianhua.webp",
+            also: [["电话号码", "diànhuà hàomǎ", "số điện thoại"], ["手机号码", "shǒujī hàomǎ", "số di động"]],
+            ex: [X("你的电话号码是多少？", "Nǐ de diànhuà hàomǎ shì duōshao?", "Số điện thoại của cậu là bao nhiêu?")] },
+          { zh: "香港", py: "Xiānggǎng", hv: "Hương Cảng", pos: "danh từ", vi: "Hồng Kông", ira: "zh_xianggang.webp",
+            tip: "Nghĩa đen: **Cảng Thơm** — xưa là nơi buôn bán hương trầm.", ex: [X("周末我想去香港玩儿。", "Zhōumò wǒ xiǎng qù Xiānggǎng wánr.", "Cuối tuần tôi muốn đi Hồng Kông chơi.")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 11 điểm, mỗi điểm 1 công thức",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "上课", name: "上课 / 下课 (li hợp)", formula: ["上 + (môn) + 课 · 下课", "几点上课？几点下课？"],
+          uses: ["Động từ li hợp: có thể **chen** môn học vào giữa", "上汉语课 · 上英语课 · 上网课 (học online)"],
+          examples: [X("你们学校几点上课？", "Nǐmen xuéxiào jǐ diǎn shàngkè?", "Trường các cậu mấy giờ vào học?"), X("我们八点上课，十一点半下课。", "Wǒmen bā diǎn shàngkè, shíyī diǎn bàn xiàkè.", "Chúng tôi vào học lúc 8 giờ, tan lúc 11 rưỡi."), X("今天上汉语课。", "Jīntiān shàng Hànyǔ kè.", "Hôm nay học tiết tiếng Trung.")] },
+        { tag: "点钟", name: "点钟 · 半", formula: ["Giờ đúng: … + 点 / 点钟", "Rưỡi: … + 点半 (= 点三十分)"],
+          uses: ["**钟** chỉ dùng với giờ **đúng**: 三点钟", "Có **半** hoặc **phút** thì **bỏ 钟**"],
+          examples: [X("三点钟", "sān diǎn zhōng", "3 giờ đúng"), X("三点半", "sān diǎn bàn", "3 giờ rưỡi"), X("八点三十分 = 八点半", "bā diǎn sānshí fēn = bā diǎn bàn", "8 giờ 30 = 8 rưỡi")],
+          wrong: [{ bad: "三点钟半", good: "三点半", py: "sān diǎn bàn", why: "Có 半 thì **bỏ 钟**." }] },
+        { tag: "一下儿", name: "V + 一下儿", formula: "Động từ + 一下儿",
+          uses: ["Làm **thử / một chút** — câu nhẹ nhàng, lịch sự hơn", "等一下儿 · 看一下儿 · 吃一下儿 · 介绍一下儿"],
+          examples: [X("等我一下儿！", "Děng wǒ yíxiàr!", "Đợi tôi một lát!"), X("我看一下儿！", "Wǒ kàn yíxiàr!", "Để tôi xem chút!"), X("请等一下儿！", "Qǐng děng yíxiàr!", "Xin đợi một chút!")] },
+        { tag: "跟", name: "A 跟 B 一起 + V", formula: ["A + 跟 + B + Động từ", "A + 跟 + B + 一起 + Động từ"],
+          uses: ["**跟 B** đứng **trước** động từ (ngược tiếng Việt *ăn với cậu* → **跟你吃**)", "Thêm **一起** để nhấn “cùng nhau”", "Phủ định đặt **trước 跟**: 我不想跟他玩"],
+          examples: [X("我跟你吃。", "Wǒ gēn nǐ chī.", "Tớ ăn cùng cậu."), X("我想跟你一起去中国留学。", "Wǒ xiǎng gēn nǐ yìqǐ qù Zhōngguó liúxué.", "Tớ muốn cùng cậu đi TQ du học."), X("我不想跟他玩。", "Wǒ bù xiǎng gēn tā wán.", "Con không muốn chơi với nó!"), X("我们一起去学校食堂吃饭吧。", "Wǒmen yìqǐ qù xuéxiào shítáng chī fàn ba.", "Chúng mình cùng đi căng tin trường ăn nhé.")],
+          wrong: [{ bad: "我吃跟你。", good: "我跟你吃。", why: "跟 + người phải đứng **trước** động từ." }] },
+        { tag: "也·都", name: "也 · 都 · 常", formula: ["S + 也 / 都 / 常 + V", "Cùng xuất hiện: 也都 (cũng đều)"],
+          uses: ["Phó từ đứng **sau chủ ngữ, trước động từ**", "也 trước 都: **我们也都是学生**", "常 + 在 + nơi chốn + V: 晚上我常在家学中文"],
+          examples: [X("我也去！", "Wǒ yě qù!", "Tôi cũng đi!"), X("西瓜也好吃！", "Xīguā yě hǎochī!", "Dưa hấu cũng ngon!"), X("周末我也喜欢在家学汉语。", "Zhōumò wǒ yě xǐhuan zài jiā xué Hànyǔ.", "Cuối tuần tớ cũng thích ở nhà học tiếng Trung."), X("他们都知道。", "Tāmen dōu zhīdao.", "Họ đều biết.")],
+          wrong: [{ bad: "都我们知道。", good: "我们都知道。", why: "都 đứng **sau chủ ngữ**." }] },
+        { tag: "不过", name: "…，不过…", formula: "Vế 1，不过 + Vế 2 (nhưng mà)",
+          uses: ["Nhẹ hơn **但是**, hay dùng trong khẩu ngữ"],
+          examples: [X("我很喜欢她，不过她不喜欢我。", "Wǒ hěn xǐhuan tā, búguò tā bù xǐhuan wǒ.", "Tôi rất thích cô ấy, nhưng cô ấy không thích tôi."), X("汉语很难，不过很有意思。", "Hànyǔ hěn nán, búguò hěn yǒu yìsi.", "Tiếng Trung khó, nhưng rất thú vị.")] },
+        { tag: "怎么走", name: "怎么 + V (hỏi cách)", formula: ["去 + nơi chốn + 怎么走？", "这个怎么 + V？"],
+          uses: ["Hỏi đường: **去…怎么走？**", "Thêm **呢** cuối câu cho mềm: 怎么学呢？"],
+          examples: [X("去你的家怎么走呢？", "Qù nǐ de jiā zěnme zǒu ne?", "Đến nhà cậu đi thế nào?"), X("这个怎么吃呢？", "Zhège zěnme chī ne?", "Cái này ăn thế nào nhỉ?"), X("汉语怎么学呢？", "Hànyǔ zěnme xué ne?", "Tiếng Trung học thế nào?")] },
+        { tag: "快", name: "快 + (点儿) + V", formula: "快 + (点儿) + Động từ！",
+          uses: ["Giục ai **làm nhanh lên**"],
+          examples: [X("快点走！", "Kuài diǎn zǒu!", "Đi nhanh lên!"), X("快点吃！", "Kuài diǎn chī!", "Ăn nhanh lên!"), X("快点说！", "Kuài diǎn shuō!", "Nói mau lên!")] },
+        { tag: "和", name: "和 = và (chỉ nối danh từ)", formula: "Danh từ + 和 + Danh từ",
+          uses: ["和 chỉ nối **danh từ / đại từ**, không nối hai câu hay hai động từ", "Nối nhiều thứ: A、B 和 C"],
+          examples: [X("我和爸爸去河内。", "Wǒ hé bàba qù Hénèi.", "Tôi và bố đi Hà Nội."), X("中国和越南很大。", "Zhōngguó hé Yuènán hěn dà.", "Trung Quốc và Việt Nam rất lớn."), X("二十一路和二百三十一路都到。", "Èrshíyī lù hé èrbǎi sānshíyī lù dōu dào.", "Tuyến 21 và 231 đều đến.")],
+          wrong: [{ bad: "我吃饭和喝茶。", good: "我吃饭，也喝茶。", why: "和 không nối hai cụm động từ." }] },
+        { tag: "那…呢", name: "那…呢？ · …呢！", formula: ["那 + N + 呢？ (Vậy còn… thì sao?)", "Câu kể + 呢！ (…cơ!)"],
+          uses: ["**那** đầu câu = “vậy thì”", "**呢** cuối câu kể: nhấn mạnh, “…cơ đấy!”"],
+          examples: [X("那你呢？", "Nà nǐ ne?", "Vậy còn bạn thì sao?"), X("那老师呢？", "Nà lǎoshī ne?", "Vậy còn thầy giáo thì sao?"), X("我是越南人呢！", "Wǒ shì Yuènánrén ne!", "Tôi là người Việt Nam cơ!")] },
+        { tag: "给·号码", name: "给 + người + V · đọc số điện thoại", formula: ["给 + người + 打电话 / 买…", "Số điện thoại: đọc **từng chữ số**, 1 đọc **yāo**"],
+          uses: ["**给** = cho, đến (đối tượng nhận)", "Dãy số (điện thoại, số phòng): 1 → **yāo**, 2 vẫn là **èr**", "Năm thì vẫn đọc 1 là **yī**: 2014 = èr líng yī sì", "Hỏi số: **…号码是多少？**"],
+          examples: [X("给妈妈打个电话。", "Gěi māma dǎ ge diànhuà.", "Gọi điện cho mẹ đi."), X("妈妈给我买手机吧！", "Māma gěi wǒ mǎi shǒujī ba!", "Mẹ mua điện thoại cho con đi mà!"), X("我的房间号是一六二零。", "Wǒ de fángjiān hào shì yāo liù èr líng.", "Số phòng tôi là 1620."), X("你的电话号码是多少？", "Nǐ de diànhuà hàomǎ shì duōshao?", "Số điện thoại của cậu là bao nhiêu?")] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("3 giờ rưỡi:", "三点钟半|三点半|半三点|三半点", "B", "Có 半 thì bỏ 钟."),
+        Q("3 giờ đúng:", "三点钟|三钟点|点三钟|三钟", "A", "**三点钟**."),
+        Q("“Tớ ăn cùng cậu.”", "我吃跟你。|我跟你吃。|跟你我吃。|我吃你跟。", "B", "跟 + người đứng **trước** động từ."),
+        Q("“Chúng tôi cũng đều là học sinh.”", "我们都也是学生。|我们也都是学生。|也我们都是学生。|我们是也都学生。", "B", "**也** trước **都**."),
+        Q("“Học tiết tiếng Trung”", "上课汉语|上汉语课|汉语上课|课上汉语", "B", "Li hợp: **上 + 汉语 + 课**."),
+        Q("“Đến nhà cậu đi thế nào?”", "去你家怎么样走？|去你家怎么走？|怎么去走你家？|你家怎么去走？", "B", "怎么 + V (hỏi cách)."),
+        Q("“Đi nhanh lên!”", "走快点！|快点走！|点快走！|快走点！", "B", "**快点 + V**."),
+        Q("Câu nào đúng?", "我吃饭和喝茶。|我和爸爸去河内。|我和去河内。|和我去河内爸爸。", "B", "和 chỉ nối **danh từ**."),
+        Q("“Vậy còn thầy giáo thì sao?”", "那老师吗？|那老师呢？|老师那呢？|呢老师那？", "B", "**那 + N + 呢？**"),
+        Q("Số điện thoại 0912 đọc số 1 là…", "yī|yāo", "B", "Trong dãy số, 1 đọc **yāo**."),
+        Q("“Gọi điện cho mẹ.”", "打电话给妈妈个。|给妈妈打电话。|妈妈给打电话。|电话给妈妈打。", "B", "**给 + người + 打电话**."),
+        Q("“Đợi tôi một lát!”", "等一下儿我！|等我一下儿！|一下儿等我！|我等一下儿！", "B", "**V + 宾语 + 一下儿**."),
+        Q("“Cuối tuần tớ ở nhà học tiếng Trung.”", "周末我学汉语在家。|周末我在家学汉语。|我学汉语周末在家。|在家周末我学汉语。", "B", "Thời gian → 在 + nơi chốn → V."),
+        Q("“Oki nha!” (đồng ý vui vẻ)", "好吗！|好啊！|好呢？|好吧吗！", "B", "**好啊！**")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Cuối tuần cậu thích làm gì?", words: ["周末", "你", "喜欢", "做", "什么"], py: "Zhōumò nǐ xǐhuan zuò shénme?" },
+        { vi: "Trường các cậu mấy giờ vào học?", words: ["你们", "学校", "几点", "上课"], py: "Nǐmen xuéxiào jǐ diǎn shàngkè?" },
+        { vi: "Tớ muốn cùng cậu đi Trung Quốc du học.", words: ["我", "想", "跟", "你", "一起", "去", "中国", "留学"], py: "Wǒ xiǎng gēn nǐ yìqǐ qù Zhōngguó liúxué." },
+        { vi: "Buổi tối tôi thường học tiếng Trung ở nhà.", words: ["晚上", "我", "常", "在家", "学", "中文"], py: "Wǎnshang wǒ cháng zài jiā xué Zhōngwén." },
+        { vi: "Đến nhà cậu đi thế nào?", words: ["去", "你家", "怎么", "走"], py: "Qù nǐ jiā zěnme zǒu?" },
+        { vi: "Tuyến 21 và 231 đều đến.", words: ["21路", "和", "231路", "都", "到"], py: "Èrshíyī lù hé èrbǎi sānshíyī lù dōu dào." },
+        { vi: "Gọi điện cho mẹ đi.", words: ["给", "妈妈", "打", "个", "电话"], py: "Gěi māma dǎ ge diànhuà." },
+        { vi: "Số điện thoại của cậu là bao nhiêu?", words: ["你的", "电话", "号码", "是", "多少"], py: "Nǐ de diànhuà hàomǎ shì duōshao?" },
+        { vi: "Tôi rất thích cô ấy, nhưng cô ấy không thích tôi.", words: ["我", "很", "喜欢", "她", "不过", "她", "不喜欢", "我"], py: "Wǒ hěn xǐhuan tā, búguò tā bù xǐhuan wǒ." },
+        { vi: "Cuối tuần chúng mình cùng đi xem phim nhé!", words: ["周末", "我们", "一起", "去", "看", "电影", "吧"], py: "Zhōumò wǒmen yìqǐ qù kàn diànyǐng ba!" }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · 3 tình huống",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_dianying.webp",
+      scenes: [
+        { title: "① Rủ đi xem phim", desc: "Thứ sáu, sau giờ học.", lines: [
+          { who: "国安", ...X("英书，你们几点下课？", "Yīngshū, nǐmen jǐ diǎn xiàkè?", "Anh Thư, lớp cậu mấy giờ tan?") },
+          { who: "英书", ...X("十一点半下课。周末你喜欢做什么？", "Shíyī diǎn bàn xiàkè. Zhōumò nǐ xǐhuan zuò shénme?", "11 rưỡi tan. Cuối tuần cậu thích làm gì?") },
+          { who: "国安", ...X("我常在家学汉语，不过这个周末我想看电影。", "Wǒ cháng zài jiā xué Hànyǔ, búguò zhège zhōumò wǒ xiǎng kàn diànyǐng.", "Mình hay ở nhà học tiếng Trung, nhưng cuối tuần này mình muốn xem phim.") },
+          { who: "英书", ...X("我也喜欢看电影！", "Wǒ yě xǐhuan kàn diànyǐng!", "Mình cũng thích xem phim!") },
+          { who: "国安", ...X("那你跟我一起去吧！", "Nà nǐ gēn wǒ yìqǐ qù ba!", "Vậy cậu đi cùng mình nhé!") },
+          { who: "英书", ...X("好啊！几点？", "Hǎo a! Jǐ diǎn?", "Oki nha! Mấy giờ?") },
+          { who: "国安", ...X("星期六下午三点半。", "Xīngqīliù xiàwǔ sān diǎn bàn.", "Thứ bảy, 3 rưỡi chiều.") }
+        ] },
+        { title: "② Đi thế nào?", desc: "Anh Thư hỏi đường đến rạp phim.", lines: [
+          { who: "英书", ...X("去电影院怎么走？", "Qù diànyǐngyuàn zěnme zǒu?", "Đến rạp phim đi thế nào?") },
+          { who: "国安", ...X("你可以坐公共汽车。", "Nǐ kěyǐ zuò gōnggòng qìchē.", "Cậu có thể đi xe buýt.") },
+          { who: "英书", ...X("几路公共汽车到？", "Jǐ lù gōnggòng qìchē dào?", "Xe buýt tuyến mấy đến?") },
+          { who: "国安", ...X("二十一路和二百三十一路都到。", "Èrshíyī lù hé èrbǎi sānshíyī lù dōu dào.", "Tuyến 21 và 231 đều đến.") },
+          { who: "英书", ...X("好，谢谢！你的电话号码是多少？", "Hǎo, xièxie! Nǐ de diànhuà hàomǎ shì duōshao?", "Ok, cảm ơn! Số điện thoại cậu là bao nhiêu?") },
+          { who: "国安", ...X("零九一二，三四五，六七八。", "Líng jiǔ yāo èr, sān sì wǔ, liù qī bā.", "0912 345 678.") },
+          { who: "英书", ...X("到电影院的时候，我给你打电话。", "Dào diànyǐngyuàn de shíhou, wǒ gěi nǐ dǎ diànhuà.", "Đến rạp mình gọi cho cậu.") }
+        ], note: "Đọc số điện thoại: tách từng cụm, số **1 đọc yāo** để khỏi nhầm với 7 (qī)." },
+        { title: "③ Ở rạp phim", desc: "Thứ bảy, 3 giờ 25.", lines: [
+          { who: "国安", ...X("喂，英书，你在哪儿？", "Wéi, Yīngshū, nǐ zài nǎr?", "Alô, Anh Thư, cậu đang ở đâu?") },
+          { who: "英书", ...X("我在公共汽车上。等我一下儿！", "Wǒ zài gōnggòng qìchē shang. Děng wǒ yíxiàr!", "Mình đang trên xe buýt. Đợi mình chút!") },
+          { who: "国安", ...X("现在三点二十五分了，快点儿！", "Xiànzài sān diǎn èrshíwǔ fēn le, kuài diǎnr!", "Bây giờ 3 giờ 25 rồi, nhanh lên!") },
+          { who: "英书", ...X("到了，到了！我们走吧！", "Dào le, dào le! Wǒmen zǒu ba!", "Tới rồi, tới rồi! Mình đi thôi!") }
+        ], note: "**喂** wéi = alô (nghe điện thoại)." }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("周末你喜欢做什么？", "Zhōumò nǐ xǐhuan zuò shénme?", "Cuối tuần cậu thích làm gì?"),
+        X("你们几点上课？", "Nǐmen jǐ diǎn shàngkè?", "Các cậu mấy giờ vào học?"),
+        X("八点半下课。", "Bā diǎn bàn xiàkè.", "8 rưỡi tan học."),
+        X("等我一下儿！", "Děng wǒ yíxiàr!", "Đợi tôi một lát!"),
+        X("我跟你一起去。", "Wǒ gēn nǐ yìqǐ qù.", "Tôi đi cùng cậu."),
+        X("好啊！", "Hǎo a!", "Oki nha!"),
+        X("去你家怎么走？", "Qù nǐ jiā zěnme zǒu?", "Đến nhà cậu đi thế nào?"),
+        X("快点吃！", "Kuài diǎn chī!", "Ăn nhanh lên!"),
+        X("你的电话号码是多少？", "Nǐ de diànhuà hàomǎ shì duōshao?", "Số điện thoại cậu là bao nhiêu?"),
+        X("我们一起去看电影吧！", "Wǒmen yìqǐ qù kàn diànyǐng ba!", "Chúng mình cùng đi xem phim nhé!")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Cuối tuần cậu thích làm gì?", zh: "周末你喜欢做什么？", py: "Zhōumò nǐ xǐhuan zuò shénme?" },
+        { vi: "Trả lời: Cuối tuần tớ ở nhà học tiếng Trung.", zh: "周末我在家学汉语。", py: "Zhōumò wǒ zài jiā xué Hànyǔ." },
+        { vi: "Hỏi: Các cậu mấy giờ vào học?", zh: "你们几点上课？", py: "Nǐmen jǐ diǎn shàngkè?" },
+        { vi: "Trả lời: 8 rưỡi vào học, 11 giờ tan.", zh: "八点半上课，十一点下课。", py: "Bā diǎn bàn shàngkè, shíyī diǎn xiàkè." },
+        { vi: "Nhờ: Đợi tôi một lát!", zh: "等我一下儿！", py: "Děng wǒ yíxiàr!" },
+        { vi: "Rủ: Cuối tuần chúng mình cùng đi xem phim nhé!", zh: "周末我们一起去看电影吧！", py: "Zhōumò wǒmen yìqǐ qù kàn diànyǐng ba!" },
+        { vi: "Đồng ý: Oki nha!", zh: "好啊！", py: "Hǎo a!" },
+        { vi: "Nói: Buổi tối tôi thường ở nhà xem phim.", zh: "晚上我常在家看电影。", py: "Wǎnshang wǒ cháng zài jiā kàn diànyǐng." },
+        { vi: "Nói: Tôi thích anh ấy, nhưng anh ấy không thích tôi.", zh: "我喜欢他，不过他不喜欢我。", py: "Wǒ xǐhuan tā, búguò tā bù xǐhuan wǒ." },
+        { vi: "Hỏi: Đến rạp chiếu phim đi thế nào?", zh: "去电影院怎么走？", py: "Qù diànyǐngyuàn zěnme zǒu?" },
+        { vi: "Hỏi: Xe buýt tuyến mấy đến?", zh: "几路公共汽车到？", py: "Jǐ lù gōnggòng qìchē dào?" },
+        { vi: "Giục: Nhanh lên!", zh: "快点儿！", py: "Kuài diǎnr!" },
+        { vi: "Hỏi: Số điện thoại của cậu là bao nhiêu?", zh: "你的电话号码是多少？", py: "Nǐ de diànhuà hàomǎ shì duōshao?" },
+        { vi: "Nói: Tôi gọi điện cho cậu.", zh: "我给你打电话。", py: "Wǒ gěi nǐ dǎ diànhuà." },
+        { vi: "Hỏi lại: Vậy còn bạn thì sao?", zh: "那你呢？", py: "Nà nǐ ne?" }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Kể cuối tuần của bạn (6 câu)",
+      desc: "Nói liền 6 câu. Xong câu mẫu thì **đổi giờ, đổi hoạt động, đổi người đi cùng** cho đúng với bạn.",
+      sticker: "zh_zhoumo.webp",
+      items: [
+        { vi: "Thứ hai đến thứ sáu, tôi 8 giờ vào học, 11 rưỡi tan học.", zh: "周一到周五，我八点上课，十一点半下课。", py: "Zhōuyī dào zhōuwǔ, wǒ bā diǎn shàngkè, shíyī diǎn bàn xiàkè." },
+        { vi: "Cuối tuần tôi thường ở nhà học tiếng Trung.", zh: "周末我常在家学汉语。", py: "Zhōumò wǒ cháng zài jiā xué Hànyǔ." },
+        { vi: "Nhưng tôi cũng thích xem phim.", zh: "不过我也喜欢看电影。", py: "Búguò wǒ yě xǐhuan kàn diànyǐng." },
+        { vi: "Thứ bảy tôi cùng bạn đi rạp xem phim.", zh: "星期六我跟朋友一起去电影院看电影。", py: "Xīngqīliù wǒ gēn péngyou yìqǐ qù diànyǐngyuàn kàn diànyǐng." },
+        { vi: "Chúng tôi đi xe buýt tuyến 21.", zh: "我们坐二十一路公共汽车。", py: "Wǒmen zuò èrshíyī lù gōnggòng qìchē." },
+        { vi: "Cuối tuần bạn thích làm gì?", zh: "周末你喜欢做什么？", py: "Zhōumò nǐ xǐhuan zuò shénme?" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · 香港 Hồng Kông",
+      sticker: "zh_lantern.webp",
+      cols: 3,
+      cards: [
+        { tag: "香港", title: "Cảng Thơm", ira: "zh_xianggang.webp", body: "**香港** Xiānggǎng nghĩa đen là **“cảng thơm”** — xưa là nơi tập kết hương trầm. Nổi tiếng với cảnh đêm bên **维多利亚港** (cảng Victoria)." },
+        { tag: "粤语", title: "Nói tiếng Quảng", ira: "zh_shuo.webp", bullets: ["Người Hồng Kông chủ yếu nói **粤语** (tiếng Quảng Đông)", "Dùng **chữ phồn thể**: 香港 vẫn viết 學, 電, 車…", "Tiền: **港币** (đô la Hồng Kông)"] },
+        { tag: "交通", title: "Xe buýt hai tầng", ira: "zh_gongjiao.webp", bullets: ["Hồng Kông nổi tiếng **xe buýt hai tầng** và tàu điện “ding ding”", "Hỏi đường: **去…怎么走？几路车到？**"] }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 8 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Giờ học", title: "上课 · 下课", bullets: ["几点上课？几点下课？", "上汉语课 (li hợp)", "三点钟 · 三点半 (không 三点钟半)"] },
+        { tag: "Cùng nhau", title: "跟 … 一起", bullets: ["A 跟 B (一起) + V", "我不想跟他玩", "也 / 都 / 常 + V · 也都"] },
+        { tag: "Nối câu", title: "和 · 不过 · 那", bullets: ["和 chỉ nối danh từ", "…，不过… = nhưng mà", "那你呢？ = vậy còn bạn?"] },
+        { tag: "Đi lại", title: "怎么走", bullets: ["去…怎么走？", "几路公共汽车到？", "快点儿 + V！"] },
+        { tag: "Liên lạc", title: "电话", bullets: ["给 + người + 打电话", "号码是多少？", "Dãy số: 1 đọc yāo"] },
+        { tag: "Mẹo nói", title: "Câu mềm", bullets: ["等我一下儿 · 看一下儿", "好啊！ (đồng ý vui vẻ)", "…呢！ = …cơ!"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 30 từ.",
+        "**✍ Tự viết** 10 chữ: 课 半 钟 等 周 跟 常 看 路 到 — mỗi chữ đúng 3 lần liền.",
+        "Đọc to số điện thoại của 3 người thân bằng tiếng Trung (1 = yāo).",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "**Phản xạ nói** + **Thử thách**: mỗi câu ≥ 85%, ghi âm phần kể cuối tuần của bạn.",
+        "Nhập vai cả 3 hội thoại, tắt pinyin, đóng cả hai vai."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>
