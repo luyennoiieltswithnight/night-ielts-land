@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 16: 周末你干什么？</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261026zh5"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+const LT = {
+  "哭": [["哭", "hoi", "Hai **口** (hai mắt / miệng mếu) + **犬** (chó tru) → tiếng gào như chó tru → **khóc**."]],
+  "笑": [["笑", "hoi", "**⺮** (trúc) + **夭** (người nghiêng đầu) → cây trúc nghiêng trong gió như người cười ngả nghiêng → **cười**."]],
+  "又": [["又", "tuong", "Vẽ **bàn tay phải** — tay làm đi làm lại → **lại, lại nữa**."]],
+  "啦": [["啦", "thanh", "**口** (trợ từ ngữ khí) + **拉** lā chỉ âm → 了 + 啊 gộp lại."]],
+  "看起来": [["看", "hoi", "**手** đặt trên **目** → che mắt nhìn xa."], ["起", "thanh", "**走** + **己** jǐ chỉ âm → đứng dậy."], ["来", "tuong+gia", "Vẽ cây lúa mạch; mượn nghĩa “đến”. 看起来 = **trông có vẻ**."]],
+  "困": [["困", "hoi", "**木** (cây) bị nhốt trong **囗** (khung vây) → cây không lớn được → khốn, mắc kẹt → **buồn ngủ, mệt rũ**."]],
+  "好好儿": [["好", "hoi", "**女** + **子** → tốt."], ["儿", "tuong", "Vẽ đứa trẻ; ở đây là **âm cuốn lưỡi** -r. 好好儿 = **đàng hoàng, thoả thích**."]],
+  "感觉": [["感", "thanh", "**心** chỉ nghĩa + **咸** xián chỉ âm → cảm."], ["觉", "thanh", "**见** (thấy) chỉ nghĩa + phần trên chỉ âm → giác."]],
+  "没意思": [["没", "hoi", "**氵** + tay chìm xuống → mất, không có."], ["意", "hoi", "**音** + **心** → ý."], ["思", "hoi", "**田** (gốc 囟 – thóp đầu) + **心** → đầu và tim cùng nghĩ → **tư**. 没意思 = **chán**."]],
+  "有意思": [["有", "hoi", "Tay cầm **月** (肉 – thịt) → có."], ["意", "hoi", "**音** + **心** → ý."], ["思", "hoi", "Đầu + tim → nghĩ. 有意思 = **thú vị**."]],
+  "死了": [["死", "hoi", "**歹** (xương tàn) + **匕** (người cúi xuống) → người quỳ bên bộ xương → **chết**."], ["了", "tuong", "Đứa trẻ bọc tay → xong. Adj + 死了 = **…chết đi được**."]],
+  "洗澡": [["洗", "thanh", "**氵** + **先** xiān chỉ âm → rửa."], ["澡", "thanh", "**氵** + **喿** zào chỉ âm → tắm."]],
+  "睡懒觉": [["睡", "hoi", "**目** + **垂** (rủ xuống) → mắt sụp xuống → **ngủ**."], ["懒", "thanh", "**忄** + **赖** lài chỉ âm → lười."], ["觉", "thanh", "**见** + phần âm → giấc (jiào). 睡懒觉 = **ngủ nướng**."]],
+  "出去": [["出", "tuong", "Bàn chân bước ra khỏi cửa hang → **ra**."], ["去", "hoi", "Người rời khỏi cửa → đi."]],
+  "逛": [["逛", "thanh", "**辶** (đi) chỉ nghĩa + **狂** kuáng chỉ âm → đi lang thang → **dạo**."]],
+  "不同": [["不", "tuong+gia", "Vẽ đài hoa; mượn nghĩa phủ định."], ["同", "hoi", "**凡** (tất cả) + **口** → mọi miệng cùng nói → **đồng, giống**. 不同 = **khác nhau**."]],
+  "安排": [["安", "hoi", "**宀** + **女** → yên."], ["排", "thanh", "**扌** + **非** fēi chỉ âm → xếp hàng. 安排 = **sắp xếp**."]],
+  "刷": [["刷", "thanh", "**刂** (dao – cạo) chỉ nghĩa + phần âm → chải, quẹt; nay: **lướt** (刷手机)."]],
+  "包": [["包", "tuong", "Vẽ **bào thai cuộn trong bụng mẹ** → bọc → **gói** (包饺子)."]],
+  "迪厅": [["迪", "thanh+gia", "**辶** + **由** yóu chỉ âm; ở đây **phiên âm** *di(sco)*."], ["厅", "thanh", "**厂** (mái nhà) + **丁** dīng chỉ âm → sảnh. 迪厅 = **sàn nhảy disco**."]],
+  "听": [["听", "thanh", "**口** chỉ nghĩa + **斤** jīn chỉ âm → nghe."]],
+  "音乐": [["音", "chi", "**言** (lời) thêm một nét trong miệng → âm thanh phát ra → **âm**."], ["乐", "tuong", "Đàn dây trên giá gỗ → **nhạc** (yuè)."]],
+  "音乐会": [["音", "chi", "Lời + nét chỉ âm phát ra → âm."], ["乐", "tuong", "Đàn trên giá gỗ → nhạc."], ["会", "hoi", "Nắp + nồi hợp lại → hội. 音乐会 = **buổi hoà nhạc**."]],
+  "一边": [["一", "chi", "Một vạch."], ["边", "thanh", "**辶** + phần âm biān → bên. 一边…一边… = **vừa… vừa…**."]]
+};
+const L = {
+  id: "zh-q1-16", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 16",
+  unit: "Cuối tuần · Cảm xúc · 又 / 一边…一边… · Adj + 死了 · VV · Văn hoá 饺子",
+  titleZh: "周末你干什么？", titlePy: "Zhōumò nǐ gàn shénme?", title: "Cuối tuần bạn làm gì?",
+  subtitle: "Kể về cuối tuần “chill” hay “chán”: ngủ nướng, lướt TikTok, đi dạo phố, gói sủi cảo, nghe hoà nhạc — và diễn đạt cảm xúc mạnh kiểu người Trung: 高兴死了！",
+  heroSticker: "zh_xiao.webp",
+  prev: { href: "buoi-15.html", label: "Bài 15" }, next: { href: "buoi-17.html", label: "Bài 17" },
+  goals: [
+    "Nhận mặt, đọc, viết **24 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Cảm xúc: **哭 · 笑 · 困 · 有意思 / 没意思** · nhấn mạnh **Adj + 死了**",
+    "**又** (lại) · **一边…一边…** (vừa… vừa…) · **看起来** (trông có vẻ) · **好好儿 + V**",
+    "Lặp động từ **VV · V一V · V了V** cho “làm nhẹ nhàng, thư thả” · **跟…不同**",
+    "**Kể trọn một cuối tuần** của bạn và rủ bạn bè đi chơi"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Cảm xúc – trạng thái",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**.",
+      sticker: "zh_xiao.webp",
+      groups: [
+        { label: "Khóc · cười · buồn ngủ", cards: [
+          { zh: "哭", py: "kū", hv: "Khốc", pos: "động từ", vi: "khóc", ira: "zh_lei.webp", ex: [X("宝宝饿了，一直在哭。", "Bǎobao è le, yìzhí zài kū.", "Em bé đói, khóc mãi.")] },
+          { zh: "笑", py: "xiào", hv: "Tiếu", pos: "động từ", vi: "cười", ira: "zh_xiao.webp", also: [["笑话", "xiàohua", "truyện cười; chê cười"]], ex: [X("她笑起来很好看。", "Tā xiào qǐlái hěn hǎokàn.", "Cô ấy cười lên rất đẹp.")] },
+          { zh: "困", py: "kùn", hv: "Khốn", pos: "tính từ", vi: "buồn ngủ", ira: "zh_shuijiao.webp",
+            tip: "**困 kùn** = buồn ngủ · **累 lèi** = mệt (do làm nhiều).", ex: [X("我困死了，想睡觉。", "Wǒ kùn sǐ le, xiǎng shuìjiào.", "Tôi buồn ngủ chết đi được, muốn ngủ.")] },
+          { zh: "感觉", py: "gǎnjué", hv: "Cảm giác", pos: "động từ / danh từ", vi: "cảm thấy; cảm giác", ira: "zh_juede.webp", ex: [X("我感觉有点儿冷。", "Wǒ gǎnjué yǒudiǎnr lěng.", "Tôi thấy hơi lạnh.")] },
+          { zh: "有意思", py: "yǒu yìsi", hv: "Hữu ý tư", pos: "tính từ", vi: "thú vị, hay", ira: "zh_kaixin.webp", ex: [X("这本书很有意思。", "Zhè běn shū hěn yǒu yìsi.", "Cuốn sách này rất hay.")] },
+          { zh: "没意思", py: "méi yìsi", hv: "Một ý tư", pos: "tính từ", vi: "chán, vô vị", ira: "zh_meiyisi.webp", ex: [X("每个周末都感觉没意思。", "Měi ge zhōumò dōu gǎnjué méi yìsi.", "Cuối tuần nào cũng thấy chán.")] },
+          { zh: "死了", py: "sǐ le", hv: "Tử liễu", pos: "bổ ngữ", vi: "…chết đi được (mức độ cực cao)", ira: "zh_lei.webp",
+            tip: "**Adj + 死了**: 高兴死了 · 累死了 · 饿死了 · 热死了. Khẩu ngữ, thân mật.", ex: [X("周六又到啦！高兴死啦！", "Zhōuliù yòu dào la! Gāoxìng sǐ la!", "Thứ bảy lại đến rồi! Vui chết đi được!")] },
+          { zh: "看起来", py: "kàn qǐlái", hv: "Khán khởi lai", pos: "động từ", vi: "trông có vẻ", ira: "zh_kan.webp",
+            tip: "**看起来 ≈ 看上去**. 看起来 dùng được cả cho phỏng đoán (看起来要下雨); 看上去 thiên về vẻ bề ngoài.", ex: [X("你看起来很喜欢周末。", "Nǐ kàn qǐlái hěn xǐhuan zhōumò.", "Trông bạn có vẻ rất thích cuối tuần.")] }
+        ] },
+        { label: "Trợ từ · phó từ", cards: [
+          { zh: "又", py: "yòu", hv: "Hựu", pos: "phó từ", vi: "lại (đã xảy ra rồi)", ira: "zh_meitian.webp",
+            tip: "**又**: lặp lại **đã** xảy ra · **再**: lặp lại **chưa** xảy ra. 又…又… = vừa… vừa…", ex: [X("你又迟到了！", "Nǐ yòu chídào le!", "Bạn lại đến muộn!"), X("这个苹果又大又甜。", "Zhège píngguǒ yòu dà yòu tián.", "Quả táo này vừa to vừa ngọt.")] },
+          { zh: "啦", py: "la", hv: "Lạp", pos: "trợ từ", vi: "rồi! (= 了 + 啊, vui vẻ)", ira: "zh_gaoxing.webp", ex: [X("周末到啦！", "Zhōumò dào la!", "Cuối tuần đến rồi!")] },
+          { zh: "好好儿", py: "hǎohāor", hv: "Hảo hảo nhi", pos: "phó từ", vi: "cho đàng hoàng, thoả thích", ira: "zh_haohao.webp", ex: [X("周末可以好好儿玩儿。", "Zhōumò kěyǐ hǎohāor wánr.", "Cuối tuần được chơi thoả thích."), X("你要好好儿学习。", "Nǐ yào hǎohāor xuéxí.", "Con phải học hành đàng hoàng.")] },
+          { zh: "一边", py: "yìbiān", hv: "Nhất biên", pos: "phó từ", vi: "vừa… (vừa…)", ira: "zh_yibian.webp", ex: [X("我喜欢一边听音乐，一边做作业。", "Wǒ xǐhuan yìbiān tīng yīnyuè, yìbiān zuò zuòyè.", "Tôi thích vừa nghe nhạc vừa làm bài.")] },
+          { zh: "不同", py: "bùtóng", hv: "Bất đồng", pos: "tính từ", vi: "khác nhau", ira: "zh_chabuduo.webp", ex: [X("我每个周末都有不同的安排。", "Wǒ měi ge zhōumò dōu yǒu bùtóng de ānpái.", "Cuối tuần nào tôi cũng có kế hoạch khác nhau."), X("我的爱好跟你不同。", "Wǒ de àihào gēn nǐ bùtóng.", "Sở thích của tôi khác bạn.")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Hoạt động cuối tuần",
+      desc: "Ghép động từ + tân ngữ: **刷**手机 · **包**饺子 · **逛**街 · **听**音乐.",
+      sticker: "zh_xizao.webp",
+      groups: [
+        { label: "Ở nhà", cards: [
+          { zh: "睡懒觉", py: "shuì lǎnjiào", hv: "Thuỵ lãn giác", pos: "cụm động từ", vi: "ngủ nướng", ira: "zh_shuijiao.webp", tip: "**懒 lǎn** = lười · 懒人 = người lười.", ex: [X("周末我喜欢睡懒觉。", "Zhōumò wǒ xǐhuan shuì lǎnjiào.", "Cuối tuần tôi thích ngủ nướng.")] },
+          { zh: "洗澡", py: "xǐzǎo", hv: "Tẩy táo", pos: "động từ (li hợp)", vi: "tắm", ira: "zh_xizao.webp", tip: "Từ li hợp: **洗个澡** · 洗了澡.", ex: [X("我每天晚上洗澡。", "Wǒ měitiān wǎnshang xǐzǎo.", "Tối nào tôi cũng tắm.")] },
+          { zh: "刷", py: "shuā", hv: "Loát", pos: "động từ", vi: "chải; lướt (điện thoại)", ira: "zh_shouji.webp", also: [["刷牙", "shuā yá", "đánh răng"], ["刷手机", "shuā shǒujī", "lướt điện thoại"]], ex: [X("他在房间刷刷TikTok。", "Tā zài fángjiān shuāshua TikTok.", "Anh ấy ở trong phòng lướt TikTok.")] },
+          { zh: "包", py: "bāo", hv: "Bao", pos: "động từ / danh từ", vi: "gói; cái túi", ira: "zh_bao.webp", also: [["包饺子", "bāo jiǎozi", "gói sủi cảo"], ["书包", "shūbāo", "cặp sách"]], ex: [X("上个周末我去王一家包饺子。", "Shàng ge zhōumò wǒ qù Wáng Yī jiā bāo jiǎozi.", "Cuối tuần trước tôi đến nhà Vương Nhất gói sủi cảo.")] },
+          { zh: "听", py: "tīng", hv: "Thính", pos: "động từ", vi: "nghe", ira: "zh_ting.webp", ex: [X("你喜欢听什么音乐？", "Nǐ xǐhuan tīng shénme yīnyuè?", "Bạn thích nghe nhạc gì?")] },
+          { zh: "音乐", py: "yīnyuè", hv: "Âm nhạc", pos: "danh từ", vi: "âm nhạc", ira: "zh_ting.webp", ex: [X("我一边听音乐一边洗澡。", "Wǒ yìbiān tīng yīnyuè yìbiān xǐzǎo.", "Tôi vừa nghe nhạc vừa tắm.")] }
+        ] },
+        { label: "Ra ngoài", cards: [
+          { zh: "出去", py: "chūqù", hv: "Xuất khứ", pos: "động từ", vi: "ra ngoài", ira: "zh_chuqu.webp", ex: [X("周末你想出去玩儿吗？", "Zhōumò nǐ xiǎng chūqù wánr ma?", "Cuối tuần bạn muốn ra ngoài chơi không?")] },
+          { zh: "逛", py: "guàng", hv: "Cuống", pos: "động từ", vi: "đi dạo", ira: "zh_guang.webp", also: [["逛街", "guàng jiē", "dạo phố"], ["逛商店", "guàng shāngdiàn", "đi dạo cửa hàng"]], ex: [X("我们去逛逛街吧！", "Wǒmen qù guàngguang jiē ba!", "Mình đi dạo phố chút đi!")] },
+          { zh: "迪厅", py: "dítīng", hv: "Địch sảnh", pos: "danh từ", vi: "sàn nhảy disco", ira: "zh_diting.webp", ex: [X("上上个周末我跟阿科去迪厅跳舞了。", "Shàng shàng ge zhōumò wǒ gēn Ākē qù dítīng tiàowǔ le.", "Cuối tuần trước nữa tôi cùng A Khoa đi sàn nhảy.")] },
+          { zh: "音乐会", py: "yīnyuèhuì", hv: "Âm nhạc hội", pos: "danh từ", vi: "buổi hoà nhạc", ira: "zh_changge.webp", ex: [X("英书叫我跟她去听音乐会。", "Yīngshū jiào wǒ gēn tā qù tīng yīnyuèhuì.", "Anh Thư rủ tôi đi nghe hoà nhạc với cô ấy.")] },
+          { zh: "安排", py: "ānpái", hv: "An bài", pos: "động từ / danh từ", vi: "sắp xếp; kế hoạch", ira: "zh_dasuan.webp", tip: "**A 给 B 安排 …**: 公司给我安排了工作.", ex: [X("这个周末你有什么安排？", "Zhège zhōumò nǐ yǒu shénme ānpái?", "Cuối tuần này bạn có kế hoạch gì?")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 8 điểm",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "又", name: "又 · 又…又…", formula: ["又 + V + 了: lại (đã xảy ra)", "又 + Adj1 + 又 + Adj2: vừa… vừa…"],
+          uses: ["**又** cho việc đã lặp lại · **再** cho việc sẽ lặp lại"],
+          examples: [X("周六又到啦！", "Zhōuliù yòu dào la!", "Thứ bảy lại đến rồi!"), X("他昨天又迟到了。", "Tā zuótiān yòu chídào le.", "Hôm qua anh ấy lại đến muộn."), X("这家店的菜又便宜又好吃。", "Zhè jiā diàn de cài yòu piányi yòu hǎochī.", "Món quán này vừa rẻ vừa ngon.")],
+          wrong: [{ bad: "明天又来吧。", good: "明天再来吧。", why: "Việc **chưa** xảy ra → **再**." }] },
+        { tag: "一边", name: "一边 V1，一边 V2", formula: "Chủ ngữ + 一边 + V1，一边 + V2",
+          uses: ["Hai hành động **cùng lúc**, cùng một người", "Khẩu ngữ có thể rút gọn **边…边…**"],
+          examples: [X("我一边听音乐，一边做作业。", "Wǒ yìbiān tīng yīnyuè, yìbiān zuò zuòyè.", "Tôi vừa nghe nhạc vừa làm bài."), X("他边吃饭边看手机。", "Tā biān chī fàn biān kàn shǒujī.", "Anh ấy vừa ăn vừa xem điện thoại.")] },
+        { tag: "死了", name: "Adj + 死了", formula: "Tính từ / động từ tâm lý + 死了",
+          uses: ["Mức độ cực cao, khẩu ngữ: **…chết đi được**", "Thân mật, không dùng văn viết trang trọng"],
+          examples: [X("高兴死了！", "Gāoxìng sǐ le!", "Vui chết đi được!"), X("今天热死了。", "Jīntiān rè sǐ le.", "Hôm nay nóng chết mất."), X("我饿死了，快吃饭吧！", "Wǒ è sǐ le, kuài chī fàn ba!", "Đói chết mất, mau ăn thôi!")] },
+        { tag: "看起来", name: "看起来 · 看上去", formula: "(Chủ ngữ) + 看起来 + Adj / mệnh đề",
+          uses: ["Đánh giá qua vẻ bề ngoài", "**看起来** còn dùng để phỏng đoán: 看起来要下雨了"],
+          examples: [X("你看起来很累。", "Nǐ kàn qǐlái hěn lèi.", "Trông bạn rất mệt."), X("他看上去二十岁左右。", "Tā kàn shàngqù èrshí suì zuǒyòu.", "Anh ấy trông khoảng 20 tuổi."), X("看起来要下雨了。", "Kàn qǐlái yào xià yǔ le.", "Có vẻ sắp mưa rồi.")] },
+        { tag: "VV", name: "Lặp động từ: VV · V一V · V了V", formula: ["Đơn âm: 看看 · 看一看 · 看了看", "Song âm: ABAB → 休息休息 · 学习学习"],
+          uses: ["Làm **nhẹ nhàng, thư thả, thử một chút**", "**V了V** cho việc đã xảy ra", "Li hợp từ: 洗洗澡 · 跳跳舞 · 睡睡觉"],
+          examples: [X("在房间刷刷TikTok、看看电视、洗洗衣服。", "Zài fángjiān shuāshua TikTok, kànkan diànshì, xǐxi yīfu.", "Ở phòng lướt TikTok, xem TV, giặt quần áo."), X("你尝一尝。", "Nǐ cháng yi cháng.", "Bạn nếm thử xem."), X("他看了看我，笑了。", "Tā kàn le kàn wǒ, xiào le.", "Anh ấy nhìn tôi một cái rồi cười.")],
+          wrong: [{ bad: "我们休休息息吧。", good: "我们休息休息吧。", why: "Song âm lặp **ABAB**, không phải AABB." }] },
+        { tag: "好好儿", name: "好好儿 + V", formula: "好好儿 + Động từ",
+          uses: ["Làm **cho đàng hoàng, hết mình, thoả thích**", "Hay dùng khi dặn dò, khuyên nhủ"],
+          examples: [X("周末可以好好儿玩儿。", "Zhōumò kěyǐ hǎohāor wánr.", "Cuối tuần được chơi thoả thích."), X("你好好儿休息吧。", "Nǐ hǎohāor xiūxi ba.", "Bạn nghỉ ngơi cho khoẻ nhé.")] },
+        { tag: "在+nơi", name: "在 + nơi chốn + V", formula: "Chủ ngữ + 在 + nơi chốn + V + (O)",
+          uses: ["Nơi chốn **đứng trước** động từ (khác tiếng Việt)"],
+          examples: [X("我在房间看电视。", "Wǒ zài fángjiān kàn diànshì.", "Tôi xem TV trong phòng."), X("他在图书馆看书。", "Tā zài túshūguǎn kàn shū.", "Anh ấy đọc sách ở thư viện.")],
+          wrong: [{ bad: "我看电视在房间。", good: "我在房间看电视。", why: "**在 + nơi** đặt trước động từ." }] },
+        { tag: "不同", name: "A 跟 B (不)一样 · 不同", formula: ["A 跟 B 不同 / 不一样", "不同的 + N"],
+          uses: ["So sánh giống – khác"],
+          examples: [X("我的爱好跟你不同。", "Wǒ de àihào gēn nǐ bùtóng.", "Sở thích tôi khác bạn."), X("我每个周末都有不同的安排。", "Wǒ měi ge zhōumò dōu yǒu bùtóng de ānpái.", "Cuối tuần nào tôi cũng có kế hoạch khác nhau.")] }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "bai-khoa", nav: "Bài khoá",
+      title: "Bài khoá · 周末到啦！",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_chuqu.webp",
+      scenes: [
+        { title: "① Cuối tuần có chán không?", desc: "Quốc An và bạn cùng lớp nói chuyện ở ký túc xá chiều thứ sáu.", lines: [
+          { who: "国安", ...X("哇！周六又到啦！高兴死啦！", "Wa! Zhōuliù yòu dào la! Gāoxìng sǐ la!", "Oa! Thứ bảy lại đến rồi! Vui chết đi được!") },
+          { who: "同学", ...X("你看起来很喜欢周末？", "Nǐ kàn qǐlái hěn xǐhuan zhōumò?", "Trông cậu có vẻ rất thích cuối tuần?") },
+          { who: "国安", ...X("当然喜欢啦！周末可以好好儿玩儿，谁不喜欢呢？", "Dāngrán xǐhuan la! Zhōumò kěyǐ hǎohāor wánr, shéi bù xǐhuan ne?", "Tất nhiên rồi! Cuối tuần được chơi thoả thích, ai mà không thích chứ?") },
+          { who: "同学", ...X("我不太喜欢，每个周末都感觉没意思。", "Wǒ bú tài xǐhuan, měi ge zhōumò dōu gǎnjué méi yìsi.", "Mình không thích lắm, cuối tuần nào cũng thấy chán.") },
+          { who: "国安", ...X("你周末都干什么呢？", "Nǐ zhōumò dōu gàn shénme ne?", "Cuối tuần cậu thường làm gì?") },
+          { who: "同学", ...X("在房间刷刷TikTok、看看电视、洗洗衣服、做做作业、睡睡懒觉。", "Zài fángjiān shuāshua TikTok, kànkan diànshì, xǐxi yīfu, zuòzuo zuòyè, shuìshui lǎnjiào.", "Ở trong phòng lướt TikTok, xem TV, giặt đồ, làm bài, ngủ nướng.") },
+          { who: "国安", ...X("我每个周末都有不同的安排。上个周末去王一家包饺子，上上个周末跟阿科去迪厅跳舞了。", "Wǒ měi ge zhōumò dōu yǒu bùtóng de ānpái. Shàng ge zhōumò qù Wáng Yī jiā bāo jiǎozi, shàng shàng ge zhōumò gēn Ākē qù dítīng tiàowǔ le.", "Cuối tuần nào mình cũng có kế hoạch khác. Tuần trước đến nhà Vương Nhất gói sủi cảo, tuần trước nữa cùng A Khoa đi sàn nhảy.") },
+          { who: "同学", ...X("这个周末你打算干什么？", "Zhège zhōumò nǐ dǎsuàn gàn shénme?", "Cuối tuần này cậu định làm gì?") },
+          { who: "国安", ...X("英书叫我跟她去听音乐会，一起去怎么样？", "Yīngshū jiào wǒ gēn tā qù tīng yīnyuèhuì, yìqǐ qù zěnmeyàng?", "Anh Thư rủ mình đi nghe hoà nhạc, đi cùng nhé?") },
+          { who: "同学", ...X("好啊，太好了！", "Hǎo a, tài hǎo le!", "Được đó, tuyệt quá!") }
+        ], note: "**上个周末** cuối tuần trước · **上上个周末** cuối tuần trước nữa · **叫 + người + V** = rủ / bảo ai làm gì." },
+        { title: "② Sau buổi hoà nhạc", desc: "Tối chủ nhật, trên đường về.", lines: [
+          { who: "英书", ...X("今天的音乐会怎么样？", "Jīntiān de yīnyuèhuì zěnmeyàng?", "Buổi hoà nhạc hôm nay thế nào?") },
+          { who: "同学", ...X("太有意思了！我一边听一边笑，有的歌听得我想哭。", "Tài yǒu yìsi le! Wǒ yìbiān tīng yìbiān xiào, yǒu de gē tīng de wǒ xiǎng kū.", "Hay lắm! Mình vừa nghe vừa cười, có bài nghe mà muốn khóc.") },
+          { who: "国安", ...X("你看，周末出去玩儿是不是跟在房间不同？", "Nǐ kàn, zhōumò chūqù wánr shì bu shì gēn zài fángjiān bùtóng?", "Thấy chưa, cuối tuần ra ngoài chơi có khác ở trong phòng không?") },
+          { who: "同学", ...X("是啊！不过我现在困死了，回去要好好儿睡一觉。", "Shì a! Búguò wǒ xiànzài kùn sǐ le, huíqù yào hǎohāor shuì yí jiào.", "Đúng thế! Nhưng giờ mình buồn ngủ chết mất, về phải ngủ một giấc thật đã.") }
+        ] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("“Bạn LẠI đến muộn!” (đã xảy ra)", "你又迟到了！|你再迟到了！", "A", "Đã xảy ra → **又**."),
+        Q("“Mai lại đến nhé.” (chưa xảy ra)", "明天又来吧。|明天再来吧。", "B", "Chưa xảy ra → **再**."),
+        Q("“Táo vừa to vừa ngọt.”", "苹果又大又甜。|苹果一边大一边甜。|苹果大又甜又。|苹果又大再甜。", "A", "Tính chất → **又…又…**; 一边 cho hành động."),
+        Q("“Tôi vừa nghe nhạc vừa làm bài.”", "我又听音乐又做作业。|我一边听音乐，一边做作业。", "B", "Hai hành động cùng lúc → **一边…一边…**."),
+        Q("“Vui chết đi được!”", "死了高兴！|高兴死了！|高死兴了！|很高兴死！", "B", "**Adj + 死了**."),
+        Q("“Trông bạn rất mệt.”", "你看起来很累。|你起来看很累。|你很累看起来了。|看你起来很累。", "A", "**看起来 + Adj**."),
+        Q("Dạng lặp đúng của 休息", "休休息息|休息休息|休息息|休一休息", "B", "Song âm → **ABAB**."),
+        Q("“Anh ấy nhìn tôi một cái (đã xảy ra)”", "他看看我。|他看了看我。|他看一了看我。|他看看了我。", "B", "Đã xảy ra → **V了V**."),
+        Q("“Tôi xem TV trong phòng.”", "我看电视在房间。|我在房间看电视。|在房间我电视看。|我房间在看电视。", "B", "**在 + nơi + V**."),
+        Q("“Ngủ nướng”", "睡懒觉|睡觉懒|懒睡觉|睡困觉", "A", "**睡懒觉**."),
+        Q("“Buồn ngủ”", "累|困|哭|忙", "B", "**困 kùn**."),
+        Q("“Cuối tuần nào cũng thấy chán.”", "每个周末都感觉有意思。|每个周末都感觉没意思。", "B", "**没意思** = chán."),
+        Q("“Đi dạo phố”", "逛街|刷街|包街|听街", "A", "**逛街**."),
+        Q("“Cuối tuần trước nữa”", "下下个周末|上上个周末|上个周末|这个周末", "B", "**上上个** = trước nữa.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Thứ bảy lại đến rồi!", words: ["周六", "又", "到", "啦"], py: "Zhōuliù yòu dào la!" },
+        { vi: "Trông bạn có vẻ rất thích cuối tuần.", words: ["你", "看起来", "很", "喜欢", "周末"], py: "Nǐ kàn qǐlái hěn xǐhuan zhōumò." },
+        { vi: "Cuối tuần được chơi thoả thích.", words: ["周末", "可以", "好好儿", "玩儿"], py: "Zhōumò kěyǐ hǎohāor wánr." },
+        { vi: "Tôi vừa nghe nhạc vừa làm bài.", words: ["我", "一边", "听音乐", "一边", "做作业"], py: "Wǒ yìbiān tīng yīnyuè yìbiān zuò zuòyè." },
+        { vi: "Cuối tuần nào tôi cũng có kế hoạch khác nhau.", words: ["我", "每个", "周末", "都", "有", "不同的", "安排"], py: "Wǒ měi ge zhōumò dōu yǒu bùtóng de ānpái." },
+        { vi: "Cuối tuần tôi thích ngủ nướng.", words: ["周末", "我", "喜欢", "睡", "懒觉"], py: "Zhōumò wǒ xǐhuan shuì lǎnjiào." },
+        { vi: "Mình đi dạo phố chút đi!", words: ["我们", "去", "逛逛", "街", "吧"], py: "Wǒmen qù guàngguang jiē ba!" },
+        { vi: "Anh Thư rủ tôi đi nghe hoà nhạc.", words: ["英书", "叫", "我", "去", "听", "音乐会"], py: "Yīngshū jiào wǒ qù tīng yīnyuèhuì." },
+        { vi: "Món quán này vừa rẻ vừa ngon.", words: ["这家店的菜", "又", "便宜", "又", "好吃"], py: "Zhè jiā diàn de cài yòu piányi yòu hǎochī." },
+        { vi: "Tôi buồn ngủ chết đi được.", words: ["我", "困", "死", "了"], py: "Wǒ kùn sǐ le." }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("周末你干什么？", "Zhōumò nǐ gàn shénme?", "Cuối tuần bạn làm gì?"),
+        X("高兴死了！", "Gāoxìng sǐ le!", "Vui chết đi được!"),
+        X("你看起来很累。", "Nǐ kàn qǐlái hěn lèi.", "Trông bạn rất mệt."),
+        X("我喜欢睡懒觉。", "Wǒ xǐhuan shuì lǎnjiào.", "Tôi thích ngủ nướng."),
+        X("这本书很有意思。", "Zhè běn shū hěn yǒu yìsi.", "Cuốn sách này rất hay."),
+        X("我们去逛街吧。", "Wǒmen qù guàng jiē ba.", "Mình đi dạo phố đi."),
+        X("你又迟到了。", "Nǐ yòu chídào le.", "Bạn lại đến muộn."),
+        X("我一边听音乐一边洗澡。", "Wǒ yìbiān tīng yīnyuè yìbiān xǐzǎo.", "Tôi vừa nghe nhạc vừa tắm."),
+        X("这个周末你有什么安排？", "Zhège zhōumò nǐ yǒu shénme ānpái?", "Cuối tuần này bạn có kế hoạch gì?"),
+        X("我困死了。", "Wǒ kùn sǐ le.", "Tôi buồn ngủ chết mất.")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Cuối tuần bạn làm gì?", zh: "周末你干什么？", py: "Zhōumò nǐ gàn shénme?" },
+        { vi: "Reo: Thứ bảy lại đến rồi!", zh: "周六又到啦！", py: "Zhōuliù yòu dào la!" },
+        { vi: "Nói: Vui chết đi được!", zh: "高兴死了！", py: "Gāoxìng sǐ le!" },
+        { vi: "Nhận xét: Trông bạn rất mệt.", zh: "你看起来很累。", py: "Nǐ kàn qǐlái hěn lèi." },
+        { vi: "Kể: Cuối tuần tôi thích ngủ nướng.", zh: "周末我喜欢睡懒觉。", py: "Zhōumò wǒ xǐhuan shuì lǎnjiào." },
+        { vi: "Kể: Tôi ở phòng lướt TikTok, xem TV.", zh: "我在房间刷刷TikTok、看看电视。", py: "Wǒ zài fángjiān shuāshua TikTok, kànkan diànshì." },
+        { vi: "Than: Cuối tuần nào cũng thấy chán.", zh: "每个周末都感觉没意思。", py: "Měi ge zhōumò dōu gǎnjué méi yìsi." },
+        { vi: "Rủ: Mình đi dạo phố chút đi!", zh: "我们去逛逛街吧！", py: "Wǒmen qù guàngguang jiē ba!" },
+        { vi: "Kể: Cuối tuần trước tôi đi gói sủi cảo.", zh: "上个周末我去包饺子了。", py: "Shàng ge zhōumò wǒ qù bāo jiǎozi le." },
+        { vi: "Kể: Tôi vừa nghe nhạc vừa làm bài.", zh: "我一边听音乐，一边做作业。", py: "Wǒ yìbiān tīng yīnyuè, yìbiān zuò zuòyè." },
+        { vi: "Hỏi: Cuối tuần này bạn có kế hoạch gì?", zh: "这个周末你有什么安排？", py: "Zhège zhōumò nǐ yǒu shénme ānpái?" },
+        { vi: "Rủ: Đi nghe hoà nhạc cùng nhé?", zh: "一起去听音乐会怎么样？", py: "Yìqǐ qù tīng yīnyuèhuì zěnmeyàng?" },
+        { vi: "Phàn nàn: Bạn lại đến muộn!", zh: "你又迟到了！", py: "Nǐ yòu chídào le!" },
+        { vi: "Khen: Món này vừa rẻ vừa ngon.", zh: "这个菜又便宜又好吃。", py: "Zhège cài yòu piányi yòu hǎochī." },
+        { vi: "Nói: Tôi buồn ngủ chết mất, về ngủ đây.", zh: "我困死了，回去睡觉了。", py: "Wǒ kùn sǐ le, huíqù shuìjiào le." }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Cuối tuần của tôi (6 câu)",
+      desc: "Kể trọn **một cuối tuần** của bạn. Xong câu mẫu thì **thay bằng hoạt động thật** của mình.",
+      sticker: "zh_guang.webp",
+      items: [
+        { vi: "Thứ bảy lại đến rồi, tôi vui chết đi được!", zh: "周六又到了，我高兴死了！", py: "Zhōuliù yòu dào le, wǒ gāoxìng sǐ le!" },
+        { vi: "Sáng thứ bảy tôi thích ngủ nướng.", zh: "周六上午我喜欢睡懒觉。", py: "Zhōuliù shàngwǔ wǒ xǐhuan shuì lǎnjiào." },
+        { vi: "Buổi chiều tôi vừa nghe nhạc vừa giặt quần áo.", zh: "下午我一边听音乐，一边洗衣服。", py: "Xiàwǔ wǒ yìbiān tīng yīnyuè, yìbiān xǐ yīfu." },
+        { vi: "Buổi tối tôi cùng bạn đi dạo phố.", zh: "晚上我跟朋友去逛街。", py: "Wǎnshang wǒ gēn péngyou qù guàng jiē." },
+        { vi: "Cuối tuần nào tôi cũng có kế hoạch khác nhau.", zh: "我每个周末都有不同的安排。", py: "Wǒ měi ge zhōumò dōu yǒu bùtóng de ānpái." },
+        { vi: "Cuối tuần này bạn muốn đi chơi cùng tôi không?", zh: "这个周末你想跟我一起出去玩儿吗？", py: "Zhège zhōumò nǐ xiǎng gēn wǒ yìqǐ chūqù wánr ma?" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · 饺子 — sủi cảo",
+      sticker: "zh_lantern.webp",
+      cols: 2,
+      cards: [
+        { tag: "饺子", title: "Món ăn của mùa đông", ira: "zh_jiaozi.webp", body: "Người miền Bắc Trung Quốc ăn **饺子** vào ngày **立冬** (Lập Đông) và đêm **除夕** (Giao thừa). Hình sủi cảo giống **nén bạc cổ (元宝)** → ăn vào mong **phát tài**." },
+        { tag: "南北", title: "Bắc ăn sủi cảo, Nam ăn gì?", ira: "zh_baozi.webp", bullets: ["Bắc: **饺子** (bột mì, nhân thịt rau)", "Nam: **汤圆** (bánh trôi) hoặc **年糕** (bánh tổ)", "Câu nói vui: 冬至不端饺子碗，冻掉耳朵没人管 — Đông chí không ăn sủi cảo, rụng tai không ai lo!"] },
+        { tag: "包", title: "Cả nhà cùng 包饺子", ira: "zh_bao.webp", body: "Gói sủi cảo là **hoạt động gia đình**: người cán vỏ, người làm nhân, người gói. Mời bạn đến **包饺子** là cách người Trung thể hiện thân thiết." },
+        { tag: "周末", title: "Giới trẻ Trung Quốc cuối tuần làm gì?", ira: "zh_shouji.webp", bullets: ["**刷抖音** (lướt Douyin – TikTok TQ)", "**逛街 · 看电影 · 剧本杀** (trò nhập vai trinh thám)", "**宅** zhái = ở lì trong nhà · 宅男 / 宅女"] }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 16 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Cảm xúc", title: "哭 · 笑 · 困", bullets: ["有意思 ≠ 没意思", "Adj + 死了: 高兴死了", "看起来 + Adj"] },
+        { tag: "Lặp lại", title: "又 ≠ 再", bullets: ["又: đã xảy ra", "再: chưa xảy ra", "又 A 又 B: vừa… vừa…"] },
+        { tag: "Đồng thời", title: "一边…一边…", bullets: ["Hai hành động cùng lúc", "边吃边看 (khẩu ngữ)"] },
+        { tag: "Lặp V", title: "VV · V一V · V了V", bullets: ["看看 · 看一看 · 看了看", "休息休息 (ABAB)", "洗洗澡 · 睡睡懒觉"] },
+        { tag: "Hoạt động", title: "Cuối tuần", bullets: ["睡懒觉 · 洗澡 · 刷手机", "逛街 · 包饺子 · 迪厅", "听音乐会"] },
+        { tag: "Câu", title: "Mẫu câu", bullets: ["好好儿 + V", "在 + nơi + V", "A 跟 B 不同"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 24 từ.",
+        "**✍ Tự viết** 10 chữ: 哭 笑 又 困 洗 睡 逛 包 听 音 — mỗi chữ đúng 3 lần liền.",
+        "Viết 5 câu **Adj + 死了** về một ngày của bạn.",
+        "Viết 3 câu **一边…一边…** và 3 câu **又…又…**.",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "Ghi âm phần **Cuối tuần của tôi** (≤ 40 giây)."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 15: 明天是我朋友的生日</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261026zh5"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+/* Lục thư 六书: [chữ, loại (tuong · chi · hoi · thanh · chuyen · gia, ghép bằng +), phân tích] */
+const LT = {
+  "晚饭": [["晚", "thanh", "**日** chỉ nghĩa + **免** miǎn chỉ âm → tối."], ["饭", "thanh", "**饣** chỉ nghĩa + **反** fǎn chỉ âm → bữa cơm."]],
+  "早饭": [["早", "hoi", "**日** mặt trời vừa nhô lên → sớm."], ["饭", "thanh", "**饣** + **反** fǎn → bữa cơm."]],
+  "午饭": [["午", "tuong+gia", "Gốc vẽ cái chày; mượn chỉ giờ Ngọ → trưa."], ["饭", "thanh", "**饣** + **反** fǎn → bữa cơm."]],
+  "前边": [["前", "hoi", "Gốc **歬**: **止** (bàn chân) đứng trên **舟** (thuyền) → thuyền tiến lên → **phía trước**."], ["边", "thanh", "**辶** + phần âm biān → bên."]],
+  "以前": [["以", "tuong+gia", "Gốc vẽ cái cày; mượn làm hư từ."], ["前", "hoi", "Chân trên thuyền tiến lên → trước. 以前 = **trước đây, trước khi**."]],
+  "以后": [["以", "tuong+gia", "Mượn làm hư từ."], ["后", "hoi", "Giản thể thay **後**: đi chậm phía sau → sau. 以后 = **sau này, sau khi**."]],
+  "一直": [["一", "chi", "Một vạch."], ["直", "hoi", "**十** (mười) + **目** (mắt) + nét thẳng → mười con mắt cùng nhìn → **thẳng**. 一直 = thẳng một mạch → **suốt, luôn luôn**."]],
+  "忙": [["忙", "thanh", "**忄** (tâm – lòng) chỉ nghĩa + **亡** wáng (mất) chỉ âm → bận đến **mất cả tâm trí**: tâm + vong = bận rộn."]],
+  "总是": [["总", "thanh", "Phồn thể **總** = **糸** (sợi tơ – buộc lại) chỉ nghĩa + **悤** cōng chỉ âm → gom lại, tổng."], ["是", "hoi", "**日** + **正** → là. 总是 = **lúc nào cũng**."]],
+  "准备": [["准", "thanh", "**冫** chỉ nghĩa + **隹** zhuī chỉ âm → chuẩn, đúng."], ["备", "hoi", "Phồn thể **備**: **亻** (người) + ống đựng tên → người đeo sẵn ống tên → **chuẩn bị**."]],
+  "派对": [["派", "hoi+gia", "**氵** + dòng nước chia nhánh → phái, nhánh; ở đây **phiên âm** *par-*."], ["对", "hoi+gia", "Tay cầm vật đối diện → đối; ở đây **phiên âm** *-ty*. 派对 = **party**."]],
+  "巧克力": [["巧", "thanh", "**工** chỉ nghĩa + **丂** kǎo chỉ âm → khéo; phiên âm *cho-*."], ["克", "tuong+gia", "Vẽ người đội vật nặng trên đầu → gánh được; phiên âm *-co-*."], ["力", "tuong", "Vẽ **cánh tay gồng / cái cày** → sức; phiên âm *-late*. 巧克力 = **chocolate**."]],
+  "蛋糕": [["蛋", "thanh", "**虫** chỉ nghĩa + phần trên chỉ âm → trứng."], ["糕", "thanh", "**米** (gạo, bột) chỉ nghĩa + **羔** gāo chỉ âm → bánh."]],
+  "贺卡": [["贺", "thanh", "**贝** (của cải – quà) chỉ nghĩa + **加** jiā chỉ âm → chúc mừng."], ["卡", "hoi+gia", "**上** + **下** → kẹt ở giữa (chốt chặn); mượn phiên âm *card* → **thiệp, thẻ**."]],
+  "花": [["花", "thanh", "**艹** (cỏ cây) chỉ nghĩa + **化** huà chỉ âm → hoa."]],
+  "束": [["束", "hoi", "**木** (củi) + **口** (sợi dây vòng quanh) → buộc củi thành bó → **bó**."]],
+  "气球": [["气", "tuong", "Làn hơi bốc lên → khí."], ["球", "thanh", "**王** (玉 ngọc) chỉ nghĩa + **求** qiú chỉ âm → quả cầu. 气球 = **quả cầu khí** → bóng bay."]],
+  "快乐": [["快", "thanh", "**忄** + **夬** guài chỉ âm → sảng khoái."], ["乐", "tuong", "Phồn thể **樂**: vẽ **đàn có dây trên giá gỗ** → âm nhạc → **vui** (lè)."]],
+  "祝": [["祝", "hoi", "**礻** (thần, lễ) + **兄** (người quỳ há miệng) → người quỳ trước bàn thờ khấn → **chúc**."]],
+  "特别": [["特", "thanh", "**牛** (con bò đực) chỉ nghĩa + **寺** sì chỉ âm → con đực nổi bật → **đặc biệt**."], ["别", "hoi", "Lóc xương bằng dao → tách ra, khác."]],
+  "比如": [["比", "hoi", "Hai người đứng cạnh nhau → so sánh."], ["如", "hoi", "**女** + **口** → con gái nghe theo lời → **như, theo**. 比如 = **ví như**."]],
+  "男": [["男", "hoi", "**田** (ruộng) + **力** (sức, cái cày) → người dùng sức cày ruộng → **nam**."]],
+  "女": [["女", "tuong", "Vẽ **người phụ nữ quỳ khoanh tay** → nữ."]],
+  "主意": [["主", "tuong", "Vẽ **ngọn lửa trên cây đèn** — người giữ lửa → chủ."], ["意", "hoi", "**音** (âm thanh) + **心** (tim) → tiếng nói trong lòng → **ý**. 主意 đọc nhẹ *zhǔyi*."]],
+  "那么": [["那", "thanh+gia", "Gốc tên nước cổ; mượn nghĩa “kia, đó”."], ["么", "thanh", "Giản thể của 麼. 那么 = **như thế (đằng kia)**."]],
+  "这么": [["这", "hoi", "Phồn thể **這** = **辶** (đi) + **言** (lời) → đón chào bằng lời → nay chỉ “này”."], ["么", "thanh", "Giản thể của 麼. 这么 = **như thế này**."]]
+};
+const L = {
+  id: "zh-q1-15", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 15",
+  unit: "Mỗi tuần một nghề: Event planner · Bữa ăn · Trước – sau · Tiệc sinh nhật · Văn hoá chữ 礼",
+  titleZh: "明天是我朋友的生日", titlePy: "Míngtiān shì wǒ péngyou de shēngrì", title: "Ngày mai là sinh nhật bạn tôi",
+  subtitle: "Hôm nay bạn làm Event planner: lên kế hoạch tiệc sinh nhật cho bạn thân — bánh kem, bóng bay, hoa, thiệp — hỏi ngày sinh, chúc mừng sinh nhật, và kể “trước đây… sau này…” bằng tiếng Trung.",
+  heroSticker: "zh_paidui.webp",
+  prev: { href: "buoi-14.html", label: "Bài 14" }, next: { href: "buoi-16.html", label: "Bài 16" },
+  goals: [
+    "Nhận mặt, đọc, viết **26 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "Ba bữa ăn **早饭 · 午饭 · 晚饭** · hỏi ngày **几月几号** · chúc **祝你生日快乐！**",
+    "Mốc thời gian: **V + 以前 / 以后** · **一直** khác **总是**",
+    "Hỏi lựa chọn **是 A 还是 B** · **可 + V** (可口, 可靠) · **比如** · **那么 / 这么**",
+    "**Lên kế hoạch một bữa tiệc sinh nhật** và nói lời chúc"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Bữa ăn – trước sau – bận rộn",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**.",
+      sticker: "zh_zaofan.webp",
+      groups: [
+        { label: "Ba bữa ăn", cards: [
+          { zh: "早饭", py: "zǎofàn", hv: "Tảo phạn", pos: "danh từ", vi: "bữa sáng", ira: "zh_zaofan.webp", ex: [X("你吃早饭了吗？", "Nǐ chī zǎofàn le ma?", "Bạn ăn sáng chưa?")] },
+          { zh: "午饭", py: "wǔfàn", hv: "Ngọ phạn", pos: "danh từ", vi: "bữa trưa", ira: "zh_wufan.webp", ex: [X("我们一起吃午饭吧。", "Wǒmen yìqǐ chī wǔfàn ba.", "Chúng mình cùng ăn trưa nhé.")] },
+          { zh: "晚饭", py: "wǎnfàn", hv: "Vãn phạn", pos: "danh từ", vi: "bữa tối", ira: "zh_fan.webp",
+            tip: "Thành ngữ: **家常便饭** = chuyện như cơm bữa: 这里，下雨是家常便饭。", ex: [X("我和家人一起吃晚饭。", "Wǒ hé jiārén yìqǐ chī wǎnfàn.", "Tôi ăn tối cùng gia đình."), X("来来来，吃晚饭吧！", "Lái lái lái, chī wǎnfàn ba!", "Nào nào, ăn tối thôi!")] }
+        ] },
+        { label: "Trước · sau · suốt", cards: [
+          { zh: "前边", py: "qiánbian", hv: "Tiền biên", pos: "phương vị từ", vi: "phía trước", ira: "zh_fangwei.webp",
+            tip: "**前边 = 前面**. 前边 thiên khẩu ngữ, chỉ vị trí; 前面 dùng cả nói lẫn viết, còn chỉ thứ tự, thời gian. Đối lập: **后边 / 后面** phía sau.", ex: [X("我家前边有一个商店。", "Wǒ jiā qiánbian yǒu yí ge shāngdiàn.", "Trước nhà tôi có một cửa hàng."), X("前面那个就是我朋友。", "Qiánmiàn nàge jiù shì wǒ péngyou.", "Người phía trước kia chính là bạn tôi.")] },
+          { zh: "以前", py: "yǐqián", hv: "Dĩ tiền", pos: "danh từ", vi: "trước đây; trước khi", ira: "zh_shihou.webp",
+            ex: [X("以前我住在北京。", "Yǐqián wǒ zhù zài Běijīng.", "Trước đây tôi sống ở Bắc Kinh."), X("以前我不喜欢喝茶，现在每天都喝。", "Yǐqián wǒ bù xǐhuan hē chá, xiànzài měitiān dōu hē.", "Trước đây tôi không thích trà, giờ ngày nào cũng uống.")] },
+          { zh: "以后", py: "yǐhòu", hv: "Dĩ hậu", pos: "danh từ", vi: "sau này; sau khi", ira: "zh_juede.webp",
+            ex: [X("以后我想去北京工作。", "Yǐhòu wǒ xiǎng qù Běijīng gōngzuò.", "Sau này tôi muốn đi Bắc Kinh làm việc."), X("以后你有什么打算呢？", "Yǐhòu nǐ yǒu shénme dǎsuàn ne?", "Sau này bạn có dự định gì?")] },
+          { zh: "一直", py: "yìzhí", hv: "Nhất trực", pos: "phó từ", vi: "luôn luôn, suốt (liên tục)", ira: "zh_deng.webp",
+            ex: [X("我一直在等你。", "Wǒ yìzhí zài děng nǐ.", "Tôi vẫn luôn đợi bạn."), X("这两天一直下雨。", "Zhè liǎng tiān yìzhí xià yǔ.", "Hai hôm nay mưa suốt.")] },
+          { zh: "总是", py: "zǒngshì", hv: "Tổng thị", pos: "phó từ", vi: "lúc nào cũng (lặp đi lặp lại)", ira: "zh_meitian.webp",
+            ex: [X("你为什么总是那么忙？", "Nǐ wèishénme zǒngshì nàme máng?", "Sao lúc nào anh cũng bận thế?")] },
+          { zh: "忙", py: "máng", hv: "Mang", pos: "tính từ", vi: "bận", ira: "zh_mang.webp",
+            tip: "**忄 (tâm) + 亡 (vong – mất)**: bận đến mức “mất cả tâm trí”.", ex: [X("我今天很忙。", "Wǒ jīntiān hěn máng.", "Hôm nay tôi rất bận.")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Tiệc sinh nhật – ý tưởng",
+      desc: "**派对 · 巧克力** là từ **phiên âm** (party, chocolate): chữ chỉ để mượn âm.",
+      sticker: "zh_dangao.webp",
+      groups: [
+        { label: "Chuẩn bị tiệc", cards: [
+          { zh: "准备", py: "zhǔnbèi", hv: "Chuẩn bị", pos: "động từ", vi: "chuẩn bị; định", ira: "zh_zhunbei.webp",
+            ex: [X("你准备好礼物了吗？", "Nǐ zhǔnbèi hǎo lǐwù le ma?", "Bạn chuẩn bị quà xong chưa?"), X("我给你准备了一份礼物。", "Wǒ gěi nǐ zhǔnbèi le yí fèn lǐwù.", "Tôi đã chuẩn bị cho bạn một món quà.")] },
+          { zh: "派对", py: "pàiduì", hv: "Phái đối", pos: "danh từ", vi: "bữa tiệc, party", ira: "zh_paidui.webp",
+            ex: [X("我们准备星期日开一个派对，你要来吗？", "Wǒmen zhǔnbèi xīngqīrì kāi yí ge pàiduì, nǐ yào lái ma?", "Chúng tôi định chủ nhật tổ chức một bữa tiệc, bạn có đến không?")] },
+          { zh: "蛋糕", py: "dàngāo", hv: "Đản cao", pos: "danh từ", vi: "bánh kem, bánh ngọt", ira: "zh_dangao.webp",
+            ex: [X("这家店的蛋糕特别好吃。", "Zhè jiā diàn de dàngāo tèbié hǎochī.", "Bánh kem tiệm này cực ngon.")] },
+          { zh: "巧克力", py: "qiǎokèlì", hv: "Xảo khắc lực", pos: "danh từ", vi: "sô-cô-la", ira: "zh_qiaokeli.webp",
+            ex: [X("这是巧克力蛋糕。", "Zhè shì qiǎokèlì dàngāo.", "Đây là bánh kem sô-cô-la.")] },
+          { zh: "气球", py: "qìqiú", hv: "Khí cầu", pos: "danh từ", vi: "bóng bay", ira: "zh_qiqiu.webp", ex: [X("孩子们喜欢玩气球。", "Háizimen xǐhuan wán qìqiú.", "Bọn trẻ thích chơi bóng bay.")] },
+          { zh: "贺卡", py: "hèkǎ", hv: "Hạ thiếp", pos: "danh từ", vi: "thiệp chúc mừng", ira: "zh_liwu.webp",
+            tip: "Lượng từ: **一张贺卡**.", ex: [X("送礼物的时候，也别忘了送一张贺卡。", "Sòng lǐwù de shíhou, yě bié wàng le sòng yì zhāng hèkǎ.", "Khi tặng quà, cũng đừng quên tặng một tấm thiệp nhé.")] },
+          { zh: "花", py: "huā", hv: "Hoa", pos: "danh từ", vi: "hoa", ira: "zh_fen.webp",
+            also: [["牡丹", "mǔdān", "hoa mẫu đơn"], ["樱花", "yīnghuā", "hoa anh đào"], ["玫瑰", "méigui", "hoa hồng"], ["莲花", "liánhuā", "hoa sen"]], ex: [X("他送给女朋友一束花。", "Tā sòng gěi nǚpéngyou yí shù huā.", "Anh ấy tặng bạn gái một bó hoa.")] },
+          { zh: "束", py: "shù", hv: "Thúc", pos: "lượng từ", vi: "bó", ira: "zh_fen.webp", ex: [X("一束花", "yí shù huā", "một bó hoa")] },
+          { zh: "祝", py: "zhù", hv: "Chúc", pos: "động từ", vi: "chúc", ira: "zh_zhu.webp", ex: [X("祝你生日快乐！", "Zhù nǐ shēngrì kuàilè!", "Chúc bạn sinh nhật vui vẻ!")] },
+          { zh: "快乐", py: "kuàilè", hv: "Khoái lạc", pos: "tính từ", vi: "vui vẻ, hạnh phúc", ira: "zh_gaoxing.webp", also: [["新年快乐", "xīnnián kuàilè", "chúc mừng năm mới"]], ex: [X("生日快乐！", "Shēngrì kuàilè!", "Sinh nhật vui vẻ!")] }
+        ] },
+        { label: "Ý tưởng · ví dụ · nam nữ", cards: [
+          { zh: "主意", py: "zhǔyi", hv: "Chủ ý", pos: "danh từ", vi: "ý kiến, ý tưởng", ira: "zh_juede.webp",
+            tip: "**拿主意** = quyết định. Đừng nhầm **主意 zhǔyi** (ý tưởng) với **注意 zhùyì** (chú ý).", ex: [X("这真的是一个好主意。", "Zhè zhēn de shì yí ge hǎo zhǔyi.", "Đây thực sự là một ý tưởng hay."), X("我们晚饭吃什么？你快拿个主意吧。", "Wǒmen wǎnfàn chī shénme? Nǐ kuài ná ge zhǔyi ba.", "Tối nay ăn gì? Cậu mau quyết đi.")] },
+          { zh: "特别", py: "tèbié", hv: "Đặc biệt", pos: "tính từ / phó từ", vi: "đặc biệt; cực kỳ", ira: "zh_zui.webp",
+            ex: [X("我喜欢吃苹果，特别是甜的。", "Wǒ xǐhuan chī píngguǒ, tèbié shì tián de.", "Tôi thích ăn táo, đặc biệt là quả ngọt."), X("这是一个特别的日子。", "Zhè shì yí ge tèbié de rìzi.", "Đây là một ngày đặc biệt.")] },
+          { zh: "比如", py: "bǐrú", hv: "Tỷ như", pos: "động từ", vi: "ví dụ như, chẳng hạn", ira: "zh_juede.webp",
+            ex: [X("我有很多爱好，比如唱歌、跳舞。", "Wǒ yǒu hěn duō àihào, bǐrú chànggē, tiàowǔ.", "Tôi có nhiều sở thích, chẳng hạn hát, nhảy.")] },
+          { zh: "男", py: "nán", hv: "Nam", pos: "tính từ / danh từ", vi: "nam, con trai", ira: "daigakusei_man_3843.webp", also: [["男朋友", "nánpéngyou", "bạn trai"]], ex: [X("我是男的。", "Wǒ shì nán de.", "Tôi là nam.")] },
+          { zh: "女", py: "nǚ", hv: "Nữ", pos: "tính từ / danh từ", vi: "nữ, con gái", ira: "daigakusei_woman_3256.webp", also: [["女朋友", "nǚpéngyou", "bạn gái"]], ex: [X("我是女的。", "Wǒ shì nǚ de.", "Tôi là nữ.")] },
+          { zh: "那么", py: "nàme", hv: "Na ma", pos: "đại từ / phó từ", vi: "như thế (ở xa, đã qua); vậy thì", ira: "zh_na_that.webp",
+            ex: [X("他的声音那么好听。", "Tā de shēngyīn nàme hǎotīng.", "Giọng anh ấy hay như thế.")] },
+          { zh: "这么", py: "zhème", hv: "Giá ma", pos: "đại từ / phó từ", vi: "như thế này (ở gần, ngay đây)", ira: "zh_fangwei.webp",
+            ex: [X("今天这么热，我们开空调吧。", "Jīntiān zhème rè, wǒmen kāi kōngtiáo ba.", "Hôm nay nóng thế này, bật điều hoà đi.")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 9 điểm",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "以前后", name: "以前 · 以后", formula: ["V / Sự kiện + 以前，… (trước khi…)", "V / Sự kiện + 以后，… (sau khi…)", "以前 / 以后 đứng một mình = trước đây / sau này"],
+          uses: ["Mệnh đề thời gian đứng **đầu câu**", "Hỏi kế hoạch: **下课以后，你有什么打算？**"],
+          examples: [X("来中国以前，他学习了三年汉语。", "Lái Zhōngguó yǐqián, tā xuéxí le sān nián Hànyǔ.", "Trước khi đến Trung Quốc, anh ấy đã học 3 năm tiếng Trung."), X("以前，我不吃辣。", "Yǐqián, wǒ bù chī là.", "Trước đây tôi không ăn cay."), X("下班以后，你有什么打算？", "Xiàbān yǐhòu, nǐ yǒu shénme dǎsuàn?", "Sau khi tan làm, bạn định làm gì?"), X("我们吃饭以后再去看电影吧。", "Wǒmen chī fàn yǐhòu zài qù kàn diànyǐng ba.", "Ăn xong rồi hẵng đi xem phim nhé.")],
+          wrong: [{ bad: "以后吃饭，我喝茶。(muốn nói: ăn xong tôi uống trà)", good: "吃饭以后，我喝茶。", why: "“Sau khi V” → **V + 以后** (động từ đứng trước)." }] },
+        { tag: "一直·总是", name: "一直 hay 总是?", formula: ["一直 + V: liên tục, không gián đoạn (một đường thẳng ───)", "总是 + V: lặp đi lặp lại theo thói quen (●─●─●)"],
+          uses: ["**一直**: trạng thái kéo dài từ trước đến nay", "**总是**: lần nào cũng vậy, thường kèm ý than phiền"],
+          examples: [X("从早上到现在，他一直在看书。", "Cóng zǎoshang dào xiànzài, tā yìzhí zài kàn shū.", "Từ sáng đến giờ anh ấy đọc sách suốt."), X("我一直很喜欢你。", "Wǒ yìzhí hěn xǐhuan nǐ.", "Em vẫn luôn thích anh."), X("你为什么总是那么忙？", "Nǐ wèishénme zǒngshì nàme máng?", "Sao lúc nào anh cũng bận thế?")] },
+        { tag: "是还是", name: "是 A 还是 B？", formula: "Chủ ngữ + (是) + A + 还是 + B？",
+          uses: ["Hỏi lựa chọn; thêm **是** ở đầu cho rõ", "Không thêm **吗**"],
+          examples: [X("你是喝咖啡还是喝茶？", "Nǐ shì hē kāfēi háishi hē chá?", "Bạn uống cà phê hay trà?"), X("我们是今天出发还是明天出发？", "Wǒmen shì jīntiān chūfā háishi míngtiān chūfā?", "Chúng ta đi hôm nay hay ngày mai?"), X("你选许光汉还是李子威呢？——还是许光汉吧。", "Nǐ xuǎn Xǔ Guānghàn háishi Lǐ Zǐwēi ne? — Háishi Xǔ Guānghàn ba.", "Bạn chọn Hứa Quang Hán hay Lý Tử Duy? — Vẫn là Hứa Quang Hán đi.")] },
+        { tag: "可", name: "可 + V = đáng…", formula: ["可 + Động từ → tính từ: đáng để…", "可 = nhưng (khẩu ngữ)"],
+          uses: ["**可爱** đáng yêu · **可口** ngon miệng · **可靠** đáng tin · **可怕** đáng sợ"],
+          examples: [X("他是一个很可靠的朋友。", "Tā shì yí ge hěn kěkào de péngyou.", "Anh ấy là người bạn rất đáng tin cậy."), X("妈妈做的菜非常可口。", "Māma zuò de cài fēicháng kěkǒu.", "Món mẹ nấu vô cùng ngon miệng."), X("这么好吃，可你不试试？", "Zhème hǎochī, kě nǐ bú shìshi?", "Ngon thế này mà bạn không thử à?")] },
+        { tag: "几号", name: "Ngày tháng · lời chúc", formula: ["Năm + 月 + 号 (日): 十月二十六号", "你的生日是几月几号？", "祝你 + … + 快乐！"],
+          uses: ["Khẩu ngữ dùng **号**, văn viết dùng **日**", "Thứ tự **lớn → nhỏ**: năm → tháng → ngày → thứ"],
+          examples: [X("你的生日是几月几号？", "Nǐ de shēngrì shì jǐ yuè jǐ hào?", "Sinh nhật bạn là ngày mấy tháng mấy?"), X("下个星期三是几号？", "Xià ge xīngqīsān shì jǐ hào?", "Thứ tư tuần sau là ngày mấy?"), X("祝你生日快乐！", "Zhù nǐ shēngrì kuàilè!", "Chúc bạn sinh nhật vui vẻ!")] },
+        { tag: "那么这么", name: "那么 · 这么", formula: ["这么 + Adj: …thế này (gần, ngay trước mắt)", "那么 + Adj: …thế kia (xa, đã qua, người khác nói)"],
+          uses: ["Giống 这 / 那: gần dùng 这, xa dùng 那"],
+          examples: [X("今天这么热，我们开空调吧。", "Jīntiān zhème rè, wǒmen kāi kōngtiáo ba.", "Hôm nay nóng thế này, bật điều hoà đi."), X("昨天那么热，他都没开空调。", "Zuótiān nàme rè, tā dōu méi kāi kōngtiáo.", "Hôm qua nóng thế mà anh ấy cũng không bật điều hoà.")] },
+        { tag: "前边", name: "前边 · 前面 · 后边", formula: ["N + 前边 / 前面 / 后边 / 后面", "Thời gian + 前: 十点前 (trước 10 giờ)"],
+          uses: ["前边 khẩu ngữ, chỉ vị trí · 前面 cả nói lẫn viết, còn chỉ thứ tự, thời gian"],
+          examples: [X("我家前边有一个商店。", "Wǒ jiā qiánbian yǒu yí ge shāngdiàn.", "Trước nhà tôi có một cửa hàng."), X("你要早点来，十点前到。", "Nǐ yào zǎodiǎn lái, shí diǎn qián dào.", "Bạn phải đến sớm, trước 10 giờ nhé.")] },
+        { tag: "主意", name: "主意 · 比如 · 特别", formula: ["拿主意 = quyết định · 好主意 = ý hay", "…，比如 A、B (chẳng hạn)", "特别 + Adj (phó từ) · 很特别 (tính từ)"],
+          uses: ["**主意 zhǔyi** ≠ **注意 zhùyì** (chú ý)"],
+          examples: [X("这真的是一个好主意。", "Zhè zhēn de shì yí ge hǎo zhǔyi.", "Đây đúng là ý hay."), X("越南有很多美丽的城市，比如河内、岘港。", "Yuènán yǒu hěn duō měilì de chéngshì, bǐrú Hénèi, Xiàngǎng.", "Việt Nam có nhiều thành phố đẹp, chẳng hạn Hà Nội, Đà Nẵng."), X("这个菜的做法很特别。", "Zhège cài de zuòfǎ hěn tèbié.", "Cách làm món này rất đặc biệt.")] },
+        { tag: "成语", name: "Thành ngữ trong bài", formula: ["家常便饭 = chuyện như cơm bữa", "酸甜苦辣 = đắng cay ngọt bùi"],
+          uses: ["Mỗi ngày học một thành ngữ — dùng đúng chỗ sẽ rất “Tây” (rất Trung!)"],
+          examples: [X("这里，下雨是家常便饭。", "Zhèli, xià yǔ shì jiācháng biànfàn.", "Ở đây trời mưa là chuyện như cơm bữa."), X("工作中也有酸甜苦辣。", "Gōngzuò zhōng yě yǒu suān tián kǔ là.", "Trong công việc cũng đủ đắng cay ngọt bùi.")] }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · Event planner lên kế hoạch sinh nhật",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_zhunbei.webp",
+      scenes: [
+        { title: "① Lên ý tưởng", desc: "Quốc An và Vương Nhất bàn tiệc sinh nhật bất ngờ cho Anh Thư.", lines: [
+          { who: "国安", ...X("王一，明天是英书的生日，我们给她准备一个派对吧！", "Wáng Yī, míngtiān shì Yīngshū de shēngrì, wǒmen gěi tā zhǔnbèi yí ge pàiduì ba!", "Vương Nhất, mai là sinh nhật Anh Thư, mình chuẩn bị cho cậu ấy một bữa tiệc đi!") },
+          { who: "王一", ...X("好主意！她最近一直很忙，应该很高兴。", "Hǎo zhǔyi! Tā zuìjìn yìzhí hěn máng, yīnggāi hěn gāoxìng.", "Ý hay! Dạo này cậu ấy bận suốt, chắc sẽ vui lắm.") },
+          { who: "国安", ...X("我们买什么蛋糕？巧克力的还是水果的？", "Wǒmen mǎi shénme dàngāo? Qiǎokèlì de háishi shuǐguǒ de?", "Mình mua bánh gì? Sô-cô-la hay hoa quả?") },
+          { who: "王一", ...X("巧克力的吧，她特别喜欢巧克力。", "Qiǎokèlì de ba, tā tèbié xǐhuan qiǎokèlì.", "Sô-cô-la đi, cậu ấy đặc biệt thích sô-cô-la.") },
+          { who: "国安", ...X("还要准备什么？", "Hái yào zhǔnbèi shénme?", "Còn phải chuẩn bị gì nữa?") },
+          { who: "王一", ...X("很多东西，比如气球、一束花和一张贺卡。", "Hěn duō dōngxi, bǐrú qìqiú, yí shù huā hé yì zhāng hèkǎ.", "Nhiều thứ lắm, chẳng hạn bóng bay, một bó hoa và một tấm thiệp.") },
+          { who: "国安", ...X("好！晚饭以后，我们去买吧。", "Hǎo! Wǎnfàn yǐhòu, wǒmen qù mǎi ba.", "Ok! Ăn tối xong mình đi mua nhé.") }
+        ] },
+        { title: "② Bữa tiệc", desc: "Tối hôm sau, ở phòng của Vương Nhất.", lines: [
+          { who: "国安、王一", av: "🎉", ...X("祝你生日快乐！", "Zhù nǐ shēngrì kuàilè!", "Chúc mừng sinh nhật!") },
+          { who: "英书", ...X("哇！这么多气球！你们怎么知道今天是我的生日？", "Wa! Zhème duō qìqiú! Nǐmen zěnme zhīdao jīntiān shì wǒ de shēngrì?", "Oa! Nhiều bóng bay thế này! Sao các cậu biết hôm nay sinh nhật mình?") },
+          { who: "国安", ...X("这是秘密！这是我们送给你的礼物。", "Zhè shì mìmì! Zhè shì wǒmen sòng gěi nǐ de lǐwù.", "Bí mật! Đây là quà bọn mình tặng cậu.") },
+          { who: "英书", ...X("谢谢你们！这是我最特别的生日！", "Xièxie nǐmen! Zhè shì wǒ zuì tèbié de shēngrì!", "Cảm ơn các cậu! Đây là sinh nhật đặc biệt nhất của mình!") },
+          { who: "王一", ...X("快吃蛋糕吧！还有长寿面呢。", "Kuài chī dàngāo ba! Hái yǒu chángshòu miàn ne.", "Mau ăn bánh đi! Còn có mì trường thọ nữa.") }
+        ], note: "**秘密** mìmì = bí mật · **长寿面** = mì trường thọ (xem phần Văn hoá)." },
+        { title: "③ Hỏi ngày sinh", desc: "Hai bạn mới quen nói chuyện.", lines: [
+          { who: "国安", ...X("你的生日是几月几号？", "Nǐ de shēngrì shì jǐ yuè jǐ hào?", "Sinh nhật cậu ngày mấy tháng mấy?") },
+          { who: "王一", ...X("十二月二十五号，跟圣诞节一样！你呢？", "Shí'èr yuè èrshíwǔ hào, gēn Shèngdàn jié yíyàng! Nǐ ne?", "25 tháng 12, trùng Giáng sinh luôn! Còn cậu?") },
+          { who: "国安", ...X("我是五月一号。以前我总是不过生日，以后我想好好儿过。", "Wǒ shì wǔ yuè yī hào. Yǐqián wǒ zǒngshì bú guò shēngrì, yǐhòu wǒ xiǎng hǎohāor guò.", "Mình ngày 1 tháng 5. Trước đây mình chẳng bao giờ tổ chức sinh nhật, sau này mình muốn tổ chức đàng hoàng.") }
+        ] }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("“Bữa tối”", "早饭|午饭|晚饭|米饭", "C", "**晚饭** wǎnfàn."),
+        Q("“Sau khi tan học, bạn định làm gì?”", "以后下课，你有什么打算？|下课以后，你有什么打算？|下课后以，你有什么打算？|你以后下课有什么打算？", "B", "**V + 以后**."),
+        Q("“Trước khi đến TQ, anh ấy học 3 năm tiếng Trung.”", "以前来中国，他学了三年汉语。|来中国以前，他学了三年汉语。|来以前中国，他学了三年汉语。|他学了三年汉语以前来中国。", "B", "**V + 以前**."),
+        Q("“Hai hôm nay mưa suốt.”", "这两天总是下雨。|这两天一直下雨。", "B", "Liên tục không ngừng → **一直**."),
+        Q("“Sao lúc nào anh cũng bận thế?” (than phiền)", "你为什么一直那么忙？|你为什么总是那么忙？", "B", "Lặp lại, than phiền → **总是**."),
+        Q("“Bạn uống cà phê hay trà?”", "你是喝咖啡还是喝茶？|你是喝咖啡还是喝茶吗？|你喝咖啡或者喝茶吗？|你还是喝咖啡喝茶？", "A", "**是A还是B**, không 吗."),
+        Q("“Món mẹ nấu rất ngon miệng.”", "妈妈做的菜很可口。|妈妈做的菜很可靠。|妈妈做的菜很可爱。|妈妈做的菜很口可。", "A", "**可口** = ngon miệng."),
+        Q("“Sinh nhật bạn là ngày mấy tháng mấy?”", "你的生日是几号几月？|你的生日是几月几号？|你的生日几月是几号？|几月几号你的生日吗？", "B", "Tháng trước, ngày sau."),
+        Q("“Chúc bạn sinh nhật vui vẻ!”", "祝你生日快乐！|快乐你生日祝！|你祝生日快乐！|生日快乐祝你吗！", "A", "**祝你 + … + 快乐**."),
+        Q("“Hôm nay nóng THẾ NÀY, bật điều hoà đi.”", "今天那么热，我们开空调吧。|今天这么热，我们开空调吧。", "B", "Ngay trước mắt → **这么**."),
+        Q("“Một bó hoa”", "一张花|一束花|一件花|一条花", "B", "**束** = bó."),
+        Q("“Ý hay!”", "好注意！|好主意！", "B", "**主意 zhǔyi** = ý tưởng."),
+        Q("“Trước nhà tôi có một cửa hàng.”", "我家前边有一个商店。|前边我家有一个商店。|我家有前边一个商店。|商店我家前边有一个。", "A", "**N + 前边 + 有…**."),
+        Q("“Ở đây trời mưa là chuyện như cơm bữa.”", "这里，下雨是酸甜苦辣。|这里，下雨是家常便饭。", "B", "**家常便饭** = chuyện thường ngày.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Ngày mai là sinh nhật bạn tôi.", words: ["明天", "是", "我", "朋友", "的", "生日"], py: "Míngtiān shì wǒ péngyou de shēngrì." },
+        { vi: "Bạn chuẩn bị quà xong chưa?", words: ["你", "准备", "好", "礼物", "了", "吗"], py: "Nǐ zhǔnbèi hǎo lǐwù le ma?" },
+        { vi: "Chúc bạn sinh nhật vui vẻ!", words: ["祝", "你", "生日", "快乐"], py: "Zhù nǐ shēngrì kuàilè!" },
+        { vi: "Đây là món quà tôi tặng bạn.", words: ["这", "是", "我", "送给你", "的", "礼物"], py: "Zhè shì wǒ sòng gěi nǐ de lǐwù." },
+        { vi: "Anh ấy tặng bạn gái một bó hoa.", words: ["他", "送给", "女朋友", "一束", "花"], py: "Tā sòng gěi nǚpéngyou yí shù huā." },
+        { vi: "Sau khi ăn cơm, tôi uống trà.", words: ["吃饭", "以后", "我", "喝茶"], py: "Chī fàn yǐhòu, wǒ hē chá." },
+        { vi: "Tôi vẫn luôn đợi bạn.", words: ["我", "一直", "在", "等", "你"], py: "Wǒ yìzhí zài děng nǐ." },
+        { vi: "Sinh nhật bạn là ngày mấy tháng mấy?", words: ["你的", "生日", "是", "几月", "几号"], py: "Nǐ de shēngrì shì jǐ yuè jǐ hào?" },
+        { vi: "Tôi có nhiều sở thích, chẳng hạn hát và nhảy.", words: ["我", "有", "很多", "爱好", "比如", "唱歌", "和", "跳舞"], py: "Wǒ yǒu hěn duō àihào, bǐrú chànggē hé tiàowǔ." },
+        { vi: "Đây thực sự là một ý tưởng hay.", words: ["这", "真的", "是", "一个", "好", "主意"], py: "Zhè zhēn de shì yí ge hǎo zhǔyi." }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("祝你生日快乐！", "Zhù nǐ shēngrì kuàilè!", "Chúc bạn sinh nhật vui vẻ!"),
+        X("你的生日是几月几号？", "Nǐ de shēngrì shì jǐ yuè jǐ hào?", "Sinh nhật bạn ngày mấy tháng mấy?"),
+        X("我们一起吃晚饭吧。", "Wǒmen yìqǐ chī wǎnfàn ba.", "Mình cùng ăn tối nhé."),
+        X("好主意！", "Hǎo zhǔyi!", "Ý hay!"),
+        X("我一直在等你。", "Wǒ yìzhí zài děng nǐ.", "Tôi vẫn luôn đợi bạn."),
+        X("以后我想去北京工作。", "Yǐhòu wǒ xiǎng qù Běijīng gōngzuò.", "Sau này tôi muốn đi Bắc Kinh làm việc."),
+        X("这是巧克力蛋糕。", "Zhè shì qiǎokèlì dàngāo.", "Đây là bánh kem sô-cô-la."),
+        X("你今天很忙吗？", "Nǐ jīntiān hěn máng ma?", "Hôm nay bạn bận lắm à?"),
+        X("你是喝咖啡还是喝茶？", "Nǐ shì hē kāfēi háishi hē chá?", "Bạn uống cà phê hay trà?"),
+        X("这是我送给你的礼物。", "Zhè shì wǒ sòng gěi nǐ de lǐwù.", "Đây là quà tôi tặng bạn.")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Bạn ăn sáng chưa?", zh: "你吃早饭了吗？", py: "Nǐ chī zǎofàn le ma?" },
+        { vi: "Nói: Ngày mai là sinh nhật bạn tôi.", zh: "明天是我朋友的生日。", py: "Míngtiān shì wǒ péngyou de shēngrì." },
+        { vi: "Rủ: Chúng mình chuẩn bị cho cậu ấy một bữa tiệc đi!", zh: "我们给他准备一个派对吧！", py: "Wǒmen gěi tā zhǔnbèi yí ge pàiduì ba!" },
+        { vi: "Khen: Ý hay!", zh: "好主意！", py: "Hǎo zhǔyi!" },
+        { vi: "Hỏi: Mua bánh sô-cô-la hay bánh hoa quả?", zh: "买巧克力蛋糕还是水果蛋糕？", py: "Mǎi qiǎokèlì dàngāo háishi shuǐguǒ dàngāo?" },
+        { vi: "Nói: Còn phải mua bóng bay và một bó hoa.", zh: "还要买气球和一束花。", py: "Hái yào mǎi qìqiú hé yí shù huā." },
+        { vi: "Chúc: Chúc bạn sinh nhật vui vẻ!", zh: "祝你生日快乐！", py: "Zhù nǐ shēngrì kuàilè!" },
+        { vi: "Tặng: Đây là quà tôi tặng bạn.", zh: "这是我送给你的礼物。", py: "Zhè shì wǒ sòng gěi nǐ de lǐwù." },
+        { vi: "Hỏi: Sinh nhật bạn là ngày mấy tháng mấy?", zh: "你的生日是几月几号？", py: "Nǐ de shēngrì shì jǐ yuè jǐ hào?" },
+        { vi: "Kể: Trước đây tôi sống ở Bắc Kinh.", zh: "以前我住在北京。", py: "Yǐqián wǒ zhù zài Běijīng." },
+        { vi: "Kể: Sau này tôi muốn làm giáo viên.", zh: "以后我想当老师。", py: "Yǐhòu wǒ xiǎng dāng lǎoshī." },
+        { vi: "Hỏi: Sau khi tan học bạn định làm gì?", zh: "下课以后，你有什么打算？", py: "Xiàkè yǐhòu, nǐ yǒu shénme dǎsuàn?" },
+        { vi: "Nói: Hai hôm nay mưa suốt.", zh: "这两天一直下雨。", py: "Zhè liǎng tiān yìzhí xià yǔ." },
+        { vi: "Than: Sao lúc nào anh cũng bận thế?", zh: "你为什么总是那么忙？", py: "Nǐ wèishénme zǒngshì nàme máng?" },
+        { vi: "Nói: Hôm nay nóng thế này, bật điều hoà đi.", zh: "今天这么热，开空调吧。", py: "Jīntiān zhème rè, kāi kōngtiáo ba." }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Event planner trình bày kế hoạch tiệc (6 câu)",
+      desc: "Bạn là **Event planner**. Trình bày kế hoạch tiệc sinh nhật cho bạn thân của bạn. Xong câu mẫu thì **đổi tên, ngày, món bánh, quà**.",
+      sticker: "zh_paidui.webp",
+      items: [
+        { vi: "Ngày mai là sinh nhật bạn thân tôi.", zh: "明天是我好朋友的生日。", py: "Míngtiān shì wǒ hǎo péngyou de shēngrì." },
+        { vi: "Chúng tôi định tối mai tổ chức một bữa tiệc.", zh: "我们准备明天晚上开一个派对。", py: "Wǒmen zhǔnbèi míngtiān wǎnshang kāi yí ge pàiduì." },
+        { vi: "Tôi mua bánh kem sô-cô-la, vì cậu ấy đặc biệt thích sô-cô-la.", zh: "我买巧克力蛋糕，因为她特别喜欢巧克力。", py: "Wǒ mǎi qiǎokèlì dàngāo, yīnwèi tā tèbié xǐhuan qiǎokèlì." },
+        { vi: "Còn phải chuẩn bị nhiều thứ, chẳng hạn bóng bay, hoa và thiệp.", zh: "还要准备很多东西，比如气球、花和贺卡。", py: "Hái yào zhǔnbèi hěn duō dōngxi, bǐrú qìqiú, huā hé hèkǎ." },
+        { vi: "Sau khi ăn bánh, chúng tôi cùng ăn mì trường thọ.", zh: "吃蛋糕以后，我们一起吃长寿面。", py: "Chī dàngāo yǐhòu, wǒmen yìqǐ chī chángshòu miàn." },
+        { vi: "Chúc bạn sinh nhật vui vẻ!", zh: "祝你生日快乐！", py: "Zhù nǐ shēngrì kuàilè!" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · Chữ 礼, quà tặng, mì trường thọ, quốc hoa",
+      sticker: "zh_lantern.webp",
+      cols: 2,
+      cards: [
+        { tag: "礼", title: "Chữ Lễ trong văn hoá Trung Hoa", ira: "zh_liwu.webp", body: "Bộ **礻 (Thị)** chỉ việc thờ cúng, lễ bái. “Lễ” là gốc rễ của xã hội: **tôn trọng bậc trên, hiếu kính cha mẹ, khiêm nhường với mọi người** — một trong năm đức của người quân tử: **Nhân, Lễ, Nghĩa, Trí, Tín**." },
+        { tag: "送礼", title: "Nên tặng gì?", ira: "zh_pingguo.webp", bullets: ["**Không nên**: đồng hồ, quả lê, mũ xanh, vật sắc nhọn, thứ liên quan số 4", "**Nên**: quả **đào** (chúc thọ), quả **táo** (苹 = 平 bình an), chiếc **cốc** (杯 bēi gần âm 辈 bèi = cả đời)"] },
+        { tag: "长寿面", title: "Vì sao sinh nhật ăn mì?", ira: "zh_miantiao.webp", body: "Sợi mì **dài** tượng trưng cho **tuổi thọ dài** — sinh nhật người Trung ăn **长寿面** (mì trường thọ). Khi ăn cố gắng **không cắn đứt** sợi mì!" },
+        { tag: "国花", title: "Mini game quốc hoa", ira: "zh_fen.webp", bullets: ["Trung Quốc: **牡丹** mǔdān (mẫu đơn)", "Nhật Bản: **樱花** yīnghuā (anh đào)", "Hà Lan: **郁金香** yùjīnxiāng (tulip)", "Việt Nam: **莲花** liánhuā (hoa sen)"] }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 15 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Bữa ăn", title: "早 · 午 · 晚饭", bullets: ["早饭 · 午饭 · 晚饭", "家常便饭 = chuyện cơm bữa"] },
+        { tag: "Thời gian", title: "以前 · 以后", bullets: ["V + 以前 / 以后，…", "以前我… · 以后我想…", "几月几号？"] },
+        { tag: "Phó từ", title: "一直 ≠ 总是", bullets: ["一直: liên tục ───", "总是: lặp lại ●─●─●"] },
+        { tag: "Tiệc", title: "Event planner", bullets: ["准备 · 派对 · 蛋糕 · 巧克力", "气球 · 一束花 · 一张贺卡", "祝你生日快乐！"] },
+        { tag: "Hỏi", title: "是 A 还是 B", bullets: ["你是喝咖啡还是喝茶？", "比如 A、B…", "可口 · 可靠 · 可爱"] },
+        { tag: "Phân biệt", title: "Dễ nhầm", bullets: ["这么 (gần) · 那么 (xa)", "主意 zhǔyi ≠ 注意 zhùyì", "前边 (khẩu ngữ) · 前面"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 26 từ.",
+        "**✍ Tự viết** 10 chữ: 饭 前 后 直 忙 准 备 花 祝 男 — mỗi chữ đúng 3 lần liền.",
+        "Viết ngày sinh của 5 người thân bằng tiếng Trung (…月…号).",
+        "Viết 3 câu **以前…，现在…** về chính bạn.",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "Ghi âm phần **Event planner** của bạn (≤ 40 giây)."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>
