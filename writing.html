@@ -481,6 +481,49 @@ details > summary::-webkit-details-marker{display:none;}
 details > summary:before{content:'▸ ';color:var(--ink-3);}
 details[open] > summary:before{content:'▾ ';}
 </style>
+<style id="nv-theme">
+/* ===== Giao diện bento đồng bộ trang chủ: khung tối, thanh trên tối, vùng nội dung trắng bo tròn, nhấn tím ===== */
+:root{--page:#B9BCF4;--accent:#6C70DC;--accent-ink:#4A4EB8;--accent-wash:#EDEEFD;--accent-soft:#D5D7F5;--rule:#ECEDF3;--ink:#24242A;--nv-peach:#FF9E5E;--nv-panel:#F4F4F7}
+html,body{background-color:#B9BCF4!important;background-image:repeating-linear-gradient(118deg,rgba(255,255,255,.16) 0 140px,rgba(255,255,255,0) 140px 320px),linear-gradient(160deg,#CDD0FA 0%,#A7AAF0 60%,#9599EA 100%)!important;background-attachment:fixed}
+.shell{max-width:1240px!important;background:#24242A;border-radius:28px;padding:6px!important;margin:6px auto!important;min-height:calc(100vh - 12px);box-shadow:0 30px 70px -20px rgba(36,36,42,.55)}
+@media(min-width:768px){.shell{border-radius:44px;padding:10px!important;margin:16px auto!important;min-height:calc(100vh - 32px)}}
+.hdr{padding:6px 8px 10px!important}
+.hdr h1{color:#fff!important;font-weight:800!important;letter-spacing:-.01em}
+.hdr:before{content:"🌙";flex:none;width:44px;height:44px;border-radius:999px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 0 0 4px rgba(255,255,255,.1)}
+.hdr .btn{background:rgba(255,255,255,.1)!important;border:0!important;color:#fff!important;border-radius:999px!important;padding:10px 15px!important}
+.hdr .btn:hover{background:rgba(255,255,255,.2)!important}
+.gear-dot{border-color:#24242A!important}
+body.full-work .shell{max-width:none!important}
+.shell>main{flex:1;background:#fff;border-radius:22px;padding:14px;min-height:60vh}
+@media(min-width:768px){.shell>main{border-radius:36px;padding:26px 28px}}
+body.full-work .shell>main{padding:10px}
+@media(min-width:1024px){.work{height:calc(100vh - 150px)!important}}
+.sheet{border:0!important;border-radius:28px!important;background:var(--nv-panel)!important}
+.work>.sheet,.shell>main .sheet .sheet{background:#fff!important;box-shadow:0 14px 34px -20px rgba(36,36,42,.4)}
+.work>.sheet{background:#fff!important;border:1.5px solid #ECEDF3!important}
+.sec{border-top-color:#E6E7EF!important}
+.btn{border-radius:999px!important}
+.btn-primary{background:var(--ink)!important;border-radius:999px!important;padding:12px 22px!important;font-weight:800!important}
+.btn-primary:hover{background:var(--accent)!important}
+.input,select.input,textarea.input{border-radius:14px!important;border:1.5px solid #E2E4EE!important}
+.input:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(108,112,220,.15)}
+.seg{background:#ECEDF3!important;border-radius:999px!important;padding:4px!important}
+.seg button{border-radius:999px!important}
+.seg button.active{background:var(--ink)!important;color:#fff!important}
+.chip{border-radius:999px!important}
+.chip.active{background:var(--ink)!important;color:#fff!important;border-color:var(--ink)!important}
+.tabs{border-bottom:0!important;background:var(--ink);border-radius:999px;padding:5px;gap:4px!important}
+.tabs button{border:0!important;margin:0!important;border-radius:999px;color:rgba(255,255,255,.6)!important;padding:9px 16px!important}
+.tabs button.active{background:#fff!important;color:var(--ink)!important}
+.count{background:var(--nv-peach)!important}
+.list-row{border-top:0!important;background:#fff;border-radius:20px;padding:14px 16px!important;margin-top:8px;box-shadow:0 1px 2px rgba(36,36,42,.05);transition:box-shadow .2s,transform .2s}
+.list-row:hover{box-shadow:0 14px 28px -16px rgba(36,36,42,.35);transform:translateY(-1px)}
+.list-title{font-weight:800!important}
+.tag{border-radius:999px!important;font-weight:700!important}
+.modal{border-radius:30px!important;border:0!important}
+.modal-bg{background:rgba(36,36,42,.55)!important;backdrop-filter:blur(6px)}
+.view-center .sheet{background:#fff!important;box-shadow:0 20px 50px -24px rgba(36,36,42,.45)}
+</style>
 </head>
 <body>
 <div class="shell">
@@ -1542,6 +1585,21 @@ details[open] > summary:before{content:'▾ ';}
   }
   window.openPracticeItem = function (id) { navigate('writing.html?practice=' + id); };
   function bankItemById(id) { for (const k in __bankCache) { const f = __bankCache[k].find(x => x.id === id); if (f) return f; } return __pbItems.find(x => x.id === id) || null; }
+  // Đề gửi từ bài học của khoá Writing (night-engine, phần "aiwrite"): ?pkg=<base64url JSON {id,title,task,type,prompt,img}>
+  // Chỉ dựng đề từ chữ thường (đã escape) + ảnh cùng tên miền, không chèn HTML lạ từ đường dẫn.
+  function openLessonPkg(raw) {
+    let o;
+    try { o = JSON.parse(decodeURIComponent(escape(atob(String(raw).replace(/-/g, '+').replace(/_/g, '/'))))); } catch (e) { return false; }
+    if (!o || !o.prompt) return false;
+    let img = '';
+    try { if (o.img) { const u = new URL(o.img, location.href); if (u.origin === location.origin) img = u.href; } } catch (e) {}
+    const paras = String(o.prompt).split(/\n{2,}|\n/).map(x => x.trim()).filter(Boolean)
+      .map(x => '<p>' + escapeHtml(x).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>') + '</p>').join('');
+    const promptHtml = paras + (img ? '<p><img src="' + escapeHtml(img) + '" alt="" style="max-width:100%;border-radius:12px"></p>' : '');
+    const task = o.task === 'task1' || o.task === 'task2' ? o.task : undefined;
+    openWork({ mode: 'practice', item: { title: String(o.title || 'Bài tập từ khoá Writing').slice(0, 140), promptHtml, task, type: o.type ? String(o.type).slice(0, 40) : undefined, sourceBankId: 'lesson_' + String(o.id || hashStr(promptHtml)).replace(/[^\w-]/g, '').slice(0, 60) } });
+    return true;
+  }
   async function openPracticeById(id, seq) {
     let it = bankItemById(id);
     if (!it) {
@@ -3290,6 +3348,7 @@ details[open] > summary:before{content:'▾ ';}
     hidePop();
     const p = new URLSearchParams(location.search), id = p.get('id');
     if (p.get('practice')) { await openPracticeById(p.get('practice'), seq); return; }
+    if (p.get('pkg')) { if (openLessonPkg(p.get('pkg'))) return; }
     if (!id) {
       if (__role === 'admin') await enterTeacherHub(p.get('view')); else await renderStudentHome(__uid);
       return;

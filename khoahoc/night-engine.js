@@ -1662,6 +1662,33 @@
     const base = lesson.aiTool || "../../speaking.html";
     return `${base}?packageId=${encodeURIComponent(id)}&pkg=${b64url(JSON.stringify({ title, part, questions }))}`;
   }
+  /* ---------- aiwrite: đề luyện viết gửi sang writing.html (AI chấm & sửa) ----------
+     items:[{ title, task:"task1"|"task2", type:"line_graph"|"bar_chart"|"pie_chart"|"table"|"process"|"map"|"mixed"|"opinion"|"discussion"|"adv_dis"|"problem_solution"|"two_part", prompt, img }] */
+  const WR_TYPE = { line_graph: "Line graph", bar_chart: "Bar chart", pie_chart: "Pie chart", table: "Table", process: "Process", map: "Map", mixed: "Mixed", opinion: "Opinion", discussion: "Discussion", adv_dis: "Adv & Disadv", problem_solution: "Problem & Solution", two_part: "Two-part" };
+  function aiWriteLink(it, i, lesson) {
+    const abs = (u) => { try { return u ? new URL(u, location.href).href : ""; } catch (e) { return ""; } };
+    const pkg = { id: `${lesson.id}-w${i + 1}`, title: `${lesson.session || ""} · ${it.title || (it.task === "task1" ? "Task 1" : "Task 2")}`, task: it.task, type: it.type, prompt: String(it.prompt || "").replace(/\*\*/g, ""), img: abs(it.img) };
+    return `${lesson.writingTool || "../../writing.html"}?pkg=${b64url(JSON.stringify(pkg))}`;
+  }
+  function AiWrite({ items = [], intro, lesson }) {
+    return h("div", { className: "space-y-4" },
+      h("div", { className: "relative overflow-hidden rounded-[26px] bg-ink p-5 text-white" },
+        h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full border-[18px] border-white/5" }),
+        h("p", { className: "relative text-[11px] font-extrabold uppercase tracking-[0.2em] text-peach" }, "Viết thật · AI chấm"),
+        h("p", { className: "relative mt-1 text-lg font-extrabold leading-snug" }, "Viết bài hoàn chỉnh rồi để AI chấm theo 4 tiêu chí IELTS"),
+        h("p", { className: "relative mt-1 text-sm text-white/70" }, intro ? rich(intro) : "Bấm một đề → mở trang Writing: viết, nộp, AI sửa từng câu, cho band và gợi ý nâng band. Thầy xem lại được bài của em.")),
+      h("div", { className: `grid gap-4 ${items.length > 1 ? "md:grid-cols-2" : ""}` }, items.map((it, i) => h("div", { key: i, className: "flex flex-col overflow-hidden rounded-[26px] bg-white shadow-floating" },
+        it.img && h("div", { className: "flex items-center justify-center bg-panel p-3" }, h("img", { src: it.img, alt: "", loading: "lazy", className: "max-h-56 w-auto max-w-full rounded-2xl" })),
+        h("div", { className: "flex flex-1 flex-col p-5" },
+          h("div", { className: "flex flex-wrap items-center gap-1.5" },
+            h("span", { className: `rounded-full px-3 py-1 text-[11px] font-extrabold ${it.task === "task1" ? "bg-peach text-white" : "bg-primary text-white"}` }, it.task === "task1" ? "Task 1" : "Task 2"),
+            it.type && h("span", { className: "rounded-full bg-panel px-3 py-1 text-[11px] font-bold text-slate-600" }, WR_TYPE[it.type] || it.type),
+            h("span", { className: "rounded-full bg-panel px-3 py-1 text-[11px] font-bold text-slate-500" }, it.task === "task1" ? "≥150 từ · 20'" : "≥250 từ · 40'")),
+          it.title && h("p", { className: "mt-3 font-extrabold leading-snug text-ink" }, rich(it.title)),
+          h("p", { className: "mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600" }, rich(it.prompt)),
+          h("a", { href: aiWriteLink(it, i, lesson), target: "_blank", rel: "noopener", className: "nv-next mt-auto flex items-center justify-between gap-3 rounded-full bg-ink py-2 pl-5 pr-2 text-sm font-extrabold text-white transition hover:bg-primary", style: { marginTop: "1.1rem" } },
+            "✍️ Viết & chấm bằng AI", h("span", { className: "nv-arrow flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink transition" }, "→")))))));
+  }
   function AiButton({ href }) {
     if (!href) return null;
     return h("a", { href, target: "_blank", rel: "noopener", className: "mb-4 flex items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-fuchsia-500 to-indigo-600 p-4 text-white shadow-premium transition hover:brightness-110" },
@@ -2467,6 +2494,8 @@
         return h(Checklist, { groups: s.groups, note: s.note, storeKey: `night-${courseKeyOf(lesson)}-${lesson.id}-${s.id}-check` });
       case "fill":
         return h(Fill, { items: s.items, intro: s.intro, img: s.img, sets: s.sets, pkey: s.id });
+      case "aiwrite":
+        return h(AiWrite, { items: s.items, intro: s.intro, lesson });
       case "write":
         return h(WriteBox, { tasks: s.tasks, lessonId: lesson.id, sectionId: s.id, lesson });
       case "hanzi":
@@ -3126,6 +3155,7 @@
   PRINTERS.compare = (s) => (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.items || []).map((v) => blk(`<div class="np-box np-avoid"><b>${rh(v.label)}</b><p>${rh(v.text)}</p>${v.comment ? `<p class="np-soft">💬 ${rh(v.comment)}</p>` : ""}</div>`)).join("") + (s.takeaway ? blk(`<p>💡 ${rh(s.takeaway)}</p>`) : "");
   PRINTERS.checklist = (s) => { let n = 0; return (s.groups || []).map((g) => blk(`<div class="np-box np-avoid"><b>${rh(g.label)}</b>${g.items.map((x) => `<p class="np-check">${++n}) ${rh(x)}</p>`).join("")}</div>`)).join(""); };
   PRINTERS.fill = (s) => { const items = s.items || []; return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.img ? blk(`<img src="${esc(s.img)}" alt="" style="max-width:100%;max-height:8cm">`) : "") + items.map((it, i) => blk(`<p class="np-avoid"><b>${i + 1}.</b> ${rh(String(it.text).replace(/\[\[(.+?)\]\]/g, "________"))}</p>`)).join("") + blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((it, i) => `${i + 1}. ${(String(it.text).match(/\[\[(.+?)\]\]/g) || []).map((g) => esc(g.slice(2, -2).split("|")[0])).join(" / ")}`).join(" · ")}</div>`, "np-ans"); };
+  PRINTERS.aiwrite = (s) => PRINTERS.write({ tasks: (s.items || []).map((t) => ({ prompt: (t.title ? `**${t.title}** — ` : "") + t.prompt, img: t.img, min: t.task === "task1" ? 150 : 250, lines: t.task === "task1" ? 14 : 22 })) });
   PRINTERS.write = (s) => (s.tasks || []).map((t, i) => blk(`<div class="np-box"><p><b>✍️ ${i + 1}.</b> ${rh(t.prompt)}</p>${t.img ? `<img src="${esc(t.img)}" alt="" style="max-width:100%;max-height:8cm">` : ""}${t.hint ? `<p class="np-soft">${rh(t.hint)}</p>` : ""}${lines(t.lines || Math.max(4, Math.round((t.min || 60) / 12)))}</div>`) + (t.model ? blk(`<div class="np-anskey"><b>Bài mẫu:</b><p>${rh(t.model).replace(/\n/g, "<br>")}</p></div>`, "np-ans") : "")).join("");
 
   function buildPrintHtml(lesson, sections) {
@@ -3140,10 +3170,22 @@
   }
 
   const PRINT_PREF = "night-print-prefs-v1";
-  function openPrintStudio(lesson) {
+  // Ảnh trong bài dùng đường dẫn tương đối (img/b16/…) → khi in cả khoá từ trang khác phải đổi sang đường dẫn đầy đủ
+  function fixPrintImgs(html, base) {
+    if (!base) return html;
+    const t = document.createElement("template"); t.innerHTML = html;
+    t.content.querySelectorAll("img[src]").forEach((im) => { const s = im.getAttribute("src"); if (s && !/^(https?:|data:|blob:|\/)/.test(s)) { try { im.setAttribute("src", new URL(s, base).href); } catch (e) {} } });
+    return t.innerHTML;
+  }
+  // input = 1 bài (nút In trong bài) hoặc mảng nhiều bài (in cả khoá — trang khoahoc/in.html)
+  function openPrintStudio(input, meta = {}) {
     if (document.getElementById("np-root")) return;
     if (!document.getElementById("np-style")) { const st = document.createElement("style"); st.id = "np-style"; st.textContent = PRINT_CSS; document.head.appendChild(st); }
-    const sections = (lesson.sections || []).filter((s) => s && s.type);
+    const multi = Array.isArray(input);
+    const lessons = multi ? input : [input];
+    const lesson = lessons[0] || {};
+    const sections = multi ? [] : (lesson.sections || []).filter((s) => s && s.type);
+    const lesOn = lessons.map(() => true);
     let pref = {};
     try { pref = JSON.parse(localStorage.getItem(PRINT_PREF) || "{}"); } catch (e) {}
     const opt = Object.assign({ two: false, fs: 11, mean: true, img: true, ans: false, lines: true }, pref.opt || {});
@@ -3170,7 +3212,8 @@
           <button class="np-btn main" data-act="print">🖨 In / Lưu PDF</button>
         </div>
       </div>
-      <div class="np-secs"><span class="np-lbl" style="font-weight:800;color:#64748b">PHẦN CẦN IN:</span>${sections.map((s) => `<label class="np-chk"><input type="checkbox" data-s="${esc(s.id)}"> ${esc(s.nav || s.title)}</label>`).join("")}</div>
+      ${multi ? `<div class="np-secs"><span class="np-lbl" style="font-weight:800;color:#64748b">BUỔI CẦN IN (${lessons.length}):</span><button class="np-btn ghost" data-act="all" style="padding:3px 10px">Chọn hết</button><button class="np-btn ghost" data-act="none" style="padding:3px 10px">Bỏ hết</button>${lessons.map((L, i) => `<label class="np-chk"><input type="checkbox" data-l="${i}"> ${esc(L.session || "Buổi " + (i + 1))}</label>`).join("")}</div>` : ""}
+      <div class="np-secs"${multi ? ' style="display:none"' : ""}><span class="np-lbl" style="font-weight:800;color:#64748b">PHẦN CẦN IN:</span>${sections.map((s) => `<label class="np-chk"><input type="checkbox" data-s="${esc(s.id)}"> ${esc(s.nav || s.title)}</label>`).join("")}</div>
       <div class="np-tip">✏️ Bấm vào chữ trên trang để sửa trực tiếp · rê chuột vào một khối rồi bấm <b style="color:#e11d48">✕</b> để bỏ khối đó · Muốn có file PDF: bấm "In / Lưu PDF" rồi ở mục <b>Máy in</b> chọn <b>Lưu dưới dạng PDF</b>.</div>
       <div class="np-scroll"><div class="np-sheet editing" contenteditable="true" spellcheck="false"></div><style class="np-page"></style><style class="np-hide"></style></div>`;
     document.body.appendChild(root);
@@ -3180,7 +3223,12 @@
     const sheet = root.querySelector(".np-sheet");
     const pageStyle = root.querySelector(".np-page");
     const hideStyle = root.querySelector(".np-hide");
-    const fill = () => { sheet.innerHTML = buildPrintHtml(lesson, sections); };
+    const fill = () => {
+      if (!multi) { sheet.innerHTML = buildPrintHtml(lesson, sections); return; }
+      const skip = new Set(["pairs", "homework"]);
+      sheet.innerHTML = (meta.title ? `<div class="np-blk np-head"><div class="np-brand">Night IELTS · Tài liệu cả khoá</div><h1>${esc(meta.title)}</h1><div class="np-meta">${lessons.length} buổi</div></div>` : "") +
+        lessons.map((L, i) => `<div class="np-lesson" data-les="${i}" style="${i || meta.title ? "break-before:page;page-break-before:always;" : ""}">${fixPrintImgs(buildPrintHtml(L, (L.sections || []).filter((x) => x && x.type && !skip.has(x.type))), L.__base)}</div>`).join("");
+    };
     const apply = () => {
       sheet.classList.toggle("two", !!opt.two);
       sheet.style.setProperty("--np-fs", opt.fs + "pt");
@@ -3189,12 +3237,14 @@
       sheet.classList.toggle("hide-ans", !opt.ans);
       sheet.classList.toggle("show-lines", !!opt.lines);
       pageStyle.textContent = `@page { size: A4 ${opt.two ? "landscape" : "portrait"}; margin: ${opt.two ? "9mm" : "12mm"}; }`;
-      hideStyle.textContent = sections.filter((s) => !on[s.id]).map((s) => `.np-sheet [data-sec="${CSS.escape(s.id)}"]{display:none!important}`).join("\n");
+      hideStyle.textContent = sections.filter((s) => !on[s.id]).map((s) => `.np-sheet [data-sec="${CSS.escape(s.id)}"]{display:none!important}`).concat(lessons.map((L, i) => lesOn[i] ? "" : `.np-sheet [data-les="${i}"]{display:none!important}`)).join("\n");
       root.querySelectorAll(".np-seg").forEach((seg) => seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", String(seg.dataset.k === "two" ? (opt.two ? 1 : 0) : opt[seg.dataset.k]) === b.dataset.v)));
       root.querySelectorAll("[data-o]").forEach((c) => { c.checked = !!opt[c.dataset.o]; });
       root.querySelectorAll("[data-s]").forEach((c) => { c.checked = !!on[c.dataset.s]; });
+      root.querySelectorAll("[data-l]").forEach((c) => { c.checked = !!lesOn[+c.dataset.l]; });
     };
     const close = () => {
+      if (meta.back) { location.href = meta.back; return; }
       root.remove();
       document.body.classList.remove("np-open");
       document.body.style.overflow = prevOverflow;
@@ -3210,6 +3260,7 @@
       const act = e.target.closest("[data-act]");
       if (!act) return;
       if (act.dataset.act === "close") close();
+      else if (act.dataset.act === "all" || act.dataset.act === "none") { lesOn.fill(act.dataset.act === "all"); apply(); }
       else if (act.dataset.act === "reset") { if (confirm("Bỏ mọi chỉnh sửa tay và tạo lại bản in từ bài học?")) { fill(); apply(); } }
       else if (act.dataset.act === "print") {
         sheet.classList.remove("editing");
@@ -3222,6 +3273,7 @@
       const t = e.target;
       if (t.dataset.o) { opt[t.dataset.o] = t.checked; apply(); savePref(); }
       else if (t.dataset.s) { on[t.dataset.s] = t.checked; apply(); }
+      else if (t.dataset.l) { lesOn[+t.dataset.l] = t.checked; apply(); }
     });
     fill();
     apply();
@@ -3885,6 +3937,7 @@
     new MutationObserver(() => { if (zoomed) { scan(); place(); } }).observe(document.body, { childList: true, subtree: true });
   }
   window.NightLesson = {
+    printCourse(lessons, meta) { openPrintStudio(lessons, meta || {}); },
     render(lesson) {
       nvEnsureFavicon(); nvInstallPinchFix();
       const style = document.createElement("style");

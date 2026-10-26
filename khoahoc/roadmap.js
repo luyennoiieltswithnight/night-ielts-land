@@ -173,7 +173,7 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
       </div></article>`;
     const facts = cfg.facts || [];
     const html = `<div class="rm-frame">
-      <div class="rm-top"><a class="rm-logo" href="../index.html"><i></i><span><b>Night IELTS</b><small>CLASSROOM HUB</small></span></a><span class="rm-sp"></span><span class="rm-me" id="rm-me"></span><a class="rm-back" href="../index.html">← Trang chủ</a></div>
+      <div class="rm-top"><a class="rm-logo" href="../index.html"><i></i><span><b>Night IELTS</b><small>CLASSROOM HUB</small></span></a><span class="rm-sp"></span><span class="rm-me" id="rm-me"></span>${cfg.folder ? `<a class="rm-back rm-pdf" href="in.html?course=${encodeURIComponent(String(cfg.folder).replace(/\/$/, ""))}&title=${encodeURIComponent(String(cfg.title || "").replace(/\*/g, ""))}" title="In / lưu PDF toàn bộ tài liệu các buổi của khoá">🖨 PDF cả khoá</a>` : ""}<a class="rm-back" href="../index.html">← Trang chủ</a></div>
       <div class="rm-in">
         <div class="rm-hero">
           <div class="rm-main">
