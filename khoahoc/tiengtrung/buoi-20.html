@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 20: 看病人</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261026zh5"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+const LT = {
+  "看": [["看", "hoi", "**手** đặt trên **目** → che mắt nhìn xa → xem; **thăm**."]],
+  "别": [["别", "hoi", "**另** (xương) + **刂** (dao) → lóc xương → tách ra; mượn nghĩa **đừng**."]],
+  "累": [["累", "hoi", "**田** + **糸** (tơ) → sợi tơ chất chồng trên ruộng → nặng nhọc → **mệt**."]],
+  "无聊": [["无", "tuong+gia", "Gốc vẽ người múa (舞); mượn nghĩa **không**."], ["聊", "thanh", "**耳** (tai) + **卯** mǎo chỉ âm → tán gẫu. 无聊 = **không có gì để nói → chán**."]],
+  "医生": [["医", "hoi", "**匚** (hộp) đựng **矢** (mũi tên) → hộp dụng cụ chữa vết thương → **y**."], ["生", "tuong", "Mầm cây → sinh; người. 医生 = **bác sĩ**."]],
+  "大夫": [["大", "tuong", "Người dang tay → to."], ["夫", "tuong", "Người lớn cài trâm trên đầu → đàn ông. 大夫 đọc **dàifu** = bác sĩ (khẩu ngữ)."]],
+  "身体": [["身", "tuong", "Vẽ **người có bụng to** (mang thai) → thân."], ["体", "hoi", "**亻** + **本** (gốc) → gốc của con người → **thể**. 身体 = **cơ thể, sức khoẻ**."]],
+  "药": [["药", "thanh", "**艹** (cây cỏ – thảo dược) chỉ nghĩa + **约** yuē chỉ âm → **thuốc**."]],
+  "医院": [["医", "hoi", "Hộp đựng mũi tên → y."], ["院", "thanh", "**阝** (gò đất, tường bao) + **完** wán chỉ âm → sân viện. 医院 = **bệnh viện**."]],
+  "病人": [["病", "thanh", "**疒** (người nằm giường) + **丙** bǐng chỉ âm → bệnh."], ["人", "tuong", "Người. 病人 = **bệnh nhân**."]],
+  "做梦": [["做", "hoi", "**亻** + **故** → làm."], ["梦", "hoi", "**林** + **夕** (đêm) → đêm tối mịt mù như rừng → **mộng, giấc mơ**."]],
+  "幸福": [["幸", "hoi+gia", "Gốc vẽ cái cùm tay → thoát khỏi cùm là may → **hạnh**."], ["福", "thanh", "**礻** (thần) + **畐** fú chỉ âm (vò rượu đầy) → **phúc**."]],
+  "背": [["背", "thanh", "**月** (肉 – cơ thể) + **北** běi chỉ âm (hai người quay lưng) → lưng; **đọc thuộc lòng** (bèi)."]],
+  "生词": [["生", "tuong", "Mầm cây → mới, sống."], ["词", "thanh", "**讠** + **司** sī chỉ âm → từ. 生词 = **từ mới**."]],
+  "考试": [["考", "thanh", "Gốc vẽ người già chống gậy → khảo xét."], ["试", "thanh", "**讠** + **式** shì → thử. 考试 = **thi**."]],
+  "住": [["住", "thanh", "**亻** + **主** zhǔ chỉ âm → người dừng lại một chỗ → **ở**."]],
+  "问": [["问", "thanh", "**门** mén chỉ âm + **口** chỉ nghĩa → đứng ở cửa mà hỏi → **hỏi**."]],
+  "同意": [["同", "hoi", "Mọi miệng cùng nói → đồng."], ["意", "hoi", "Tiếng trong lòng → ý. 同意 = **đồng ý**."]],
+  "对了": [["对", "hoi", "Tay cầm vật đối diện → đúng."], ["了", "tuong", "Xong. 对了 = **à đúng rồi (nhắc lại)**."]],
+  "炒": [["炒", "thanh", "**火** chỉ nghĩa + **少** shǎo chỉ âm → **xào**."]],
+  "面条儿": [["面", "tuong", "Mặt; bột mì (麵)."], ["条", "hoi", "**夂** + **木** → cành dài → sợi."], ["儿", "tuong", "Âm cuốn lưỡi. 面条儿 = **sợi mì**."]],
+  "麦当劳": [["麦", "tuong", "Vẽ **cây lúa mạch**; phiên âm *Mc-*."], ["当", "thanh+gia", "Phiên âm *-Do-*."], ["劳", "hoi+gia", "Lửa + mái + sức → lao động; phiên âm *-nald's*. 麦当劳 = **McDonald's**."]]
+};
+const L = {
+  id: "zh-q1-20", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 20",
+  unit: "Thăm người ốm · Bệnh viện – bác sĩ – thuốc · 别 + V · A啦、B啦 · 就 / 才",
+  titleZh: "看病人", titlePy: "Kàn bìngrén", title: "Thăm người ốm",
+  subtitle: "Bạn thân nằm viện: đến thăm, hỏi han, dặn “đừng lo, nghỉ ngơi cho khoẻ”, kể chuyện lớp học, và… mang McDonald's lén vào cho bạn. Học cách an ủi và khuyên nhủ bằng tiếng Trung.",
+  heroSticker: "zh_ruyuan.webp",
+  prev: { href: "buoi-19.html", label: "Bài 19" }, next: { href: "buoi-21.html", label: "Bài 21" },
+  goals: [
+    "Nhận mặt, đọc, viết **22 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "**看 + người** = đi thăm · **看医生 / 看病** · **吃药** (không phải 喝药)",
+    "Khuyên nhủ: **别 + V (了)** · an ủi **别担心 · 好好儿休息** · **祝你身体健康**",
+    "Liệt kê **A啦、B啦、C啦** · **A 还是 B 都…** · **就是** · ôn **就 / 才**",
+    "**Đóng vai đi thăm bạn nằm viện** từ lúc vào đến lúc chào ra về"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Bệnh viện – sức khoẻ",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**.",
+      sticker: "zh_yiyuan.webp",
+      groups: [
+        { label: "Bệnh viện", cards: [
+          { zh: "看", py: "kàn", hv: "Khán", pos: "động từ", vi: "xem, nhìn; thăm (+ người)", ira: "zh_ruyuan.webp",
+            tip: "**看 + người** = đi thăm: 看朋友, 看病人. **看医生** = đi khám bệnh.", ex: [X("我明天要去看朋友。", "Wǒ míngtiān yào qù kàn péngyou.", "Mai tôi đi thăm bạn."), X("她去看医生。", "Tā qù kàn yīshēng.", "Cô ấy đi khám bác sĩ.")] },
+          { zh: "医院", py: "yīyuàn", hv: "Y viện", pos: "danh từ", vi: "bệnh viện", ira: "zh_yiyuan.webp",
+            also: [["住院", "zhùyuàn", "nằm viện"], ["出院", "chūyuàn", "ra viện"]], ex: [X("他在医院工作。", "Tā zài yīyuàn gōngzuò.", "Anh ấy làm việc ở bệnh viện.")] },
+          { zh: "医生", py: "yīshēng", hv: "Y sinh", pos: "danh từ", vi: "bác sĩ", ira: "zh_yisheng.webp", ex: [X("他想当医生。", "Tā xiǎng dāng yīshēng.", "Anh ấy muốn làm bác sĩ.")] },
+          { zh: "大夫", py: "dàifu", hv: "Đại phu", pos: "danh từ", vi: "bác sĩ (khẩu ngữ)", ira: "zh_yisheng.webp", tip: "Đọc **dàifu**, không phải dàfū.", ex: [X("大夫，我头疼。", "Dàifu, wǒ tóu téng.", "Bác sĩ ơi, tôi đau đầu.")] },
+          { zh: "病人", py: "bìngrén", hv: "Bệnh nhân", pos: "danh từ", vi: "bệnh nhân", ira: "zh_ruyuan.webp", ex: [X("他不是医生，他是病人。", "Tā bú shì yīshēng, tā shì bìngrén.", "Anh ấy không phải bác sĩ, anh ấy là bệnh nhân.")] },
+          { zh: "药", py: "yào", hv: "Dược", pos: "danh từ", vi: "thuốc", ira: "zh_chiyao.webp",
+            tip: "Nói **吃药** (ăn thuốc), không nói 喝药 — viên thuốc là vật rắn. Thuốc nước Đông y vẫn có thể nói 喝中药.", also: [["药店", "yàodiàn", "hiệu thuốc"], ["中药", "zhōngyào", "thuốc Bắc"]], ex: [X("我生病了，要吃药。", "Wǒ shēngbìng le, yào chī yào.", "Tôi ốm rồi, phải uống thuốc.")] },
+          { zh: "身体", py: "shēntǐ", hv: "Thân thể", pos: "danh từ", vi: "cơ thể, sức khoẻ", ira: "zh_duanlian.webp",
+            also: [["锻炼身体", "duànliàn shēntǐ", "rèn luyện thân thể"]], ex: [X("你身体好吗？", "Nǐ shēntǐ hǎo ma?", "Bạn có khoẻ không?"), X("祝你身体健康！", "Zhù nǐ shēntǐ jiànkāng!", "Chúc bạn mạnh khoẻ!")] },
+          { zh: "累", py: "lèi", hv: "Luỵ", pos: "tính từ", vi: "mệt", ira: "zh_lei.webp", also: [["累死了", "lèi sǐ le", "mệt chết đi được"]], ex: [X("学习一天，累死我了。", "Xuéxí yì tiān, lèi sǐ wǒ le.", "Học cả ngày, mệt chết mất.")] },
+          { zh: "无聊", py: "wúliáo", hv: "Vô liêu", pos: "tính từ", vi: "buồn chán, nhàm", ira: "zh_wuliao.webp", ex: [X("在医院里太无聊了！", "Zài yīyuàn lǐ tài wúliáo le!", "Ở trong viện chán quá!"), X("这是一个无聊的电影。", "Zhè shì yí ge wúliáo de diànyǐng.", "Đây là một bộ phim nhạt nhẽo.")] }
+        ] },
+        { label: "Khuyên nhủ", cards: [
+          { zh: "别", py: "bié", hv: "Biệt", pos: "phó từ", vi: "đừng", ira: "zh_bie.webp",
+            also: [["别客气", "bié kèqi", "đừng khách sáo"], ["别担心", "bié dānxīn", "đừng lo"]], ex: [X("太晚了，你别出门了。", "Tài wǎn le, nǐ bié chūmén le.", "Muộn rồi, bạn đừng ra ngoài nữa."), X("别看手机了，早点儿睡吧。", "Bié kàn shǒujī le, zǎodiǎnr shuì ba.", "Đừng xem điện thoại nữa, ngủ sớm đi.")] },
+          { zh: "同意", py: "tóngyì", hv: "Đồng ý", pos: "động từ", vi: "đồng ý", ira: "zh_keyi.webp", ex: [X("他生病了，可是他不同意去医院。", "Tā shēngbìng le, kěshì tā bù tóngyì qù yīyuàn.", "Anh ấy ốm nhưng không chịu đi viện.")] },
+          { zh: "问", py: "wèn", hv: "Vấn", pos: "động từ", vi: "hỏi", ira: "zh_wen.webp", also: [["请问", "qǐngwèn", "xin hỏi"]], ex: [X("我去问问医生。", "Wǒ qù wènwen yīshēng.", "Tôi đi hỏi bác sĩ xem.")] },
+          { zh: "对了", py: "duì le", hv: "Đối liễu", pos: "thán từ", vi: "à đúng rồi (nhắc chuyện khác)", ira: "zh_juede.webp", ex: [X("对了，你知道明天要考试吗？", "Duì le, nǐ zhīdào míngtiān yào kǎoshì ma?", "À này, bạn biết mai thi không?")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Chuyện học – chuyện ăn – giấc mơ",
+      desc: "Mấy chủ đề để **nói chuyện với người ốm** cho đỡ chán.",
+      sticker: "zh_zuomeng.webp",
+      groups: [
+        { label: "Chuyện học", cards: [
+          { zh: "考试", py: "kǎoshì", hv: "Khảo thí", pos: "danh từ / động từ", vi: "kỳ thi; thi", ira: "zh_kaoshi.webp", ex: [X("这次考试很重要。", "Zhè cì kǎoshì hěn zhòngyào.", "Kỳ thi này rất quan trọng.")] },
+          { zh: "背", py: "bèi", hv: "Bối", pos: "động từ", vi: "học thuộc lòng", ira: "zh_anji.webp", ex: [X("我昨天背了十个汉字。", "Wǒ zuótiān bèi le shí ge Hànzì.", "Hôm qua tôi học thuộc 10 chữ Hán.")] },
+          { zh: "生词", py: "shēngcí", hv: "Sinh từ", pos: "danh từ", vi: "từ mới", ira: "zh_hanzi.webp", ex: [X("你今天背了多少个生词？", "Nǐ jīntiān bèi le duōshao ge shēngcí?", "Hôm nay bạn thuộc bao nhiêu từ mới?")] },
+          { zh: "住", py: "zhù", hv: "Trú", pos: "động từ", vi: "ở, sống", ira: "zh_sushe.webp", also: [["住院", "zhùyuàn", "nằm viện"]], ex: [X("我住在三楼301室。", "Wǒ zhù zài sān lóu sān líng yī shì.", "Tôi ở phòng 301 tầng 3.")] }
+        ] },
+        { label: "Chuyện ăn · giấc mơ", cards: [
+          { zh: "炒", py: "chǎo", hv: "Sao", pos: "động từ", vi: "xào", ira: "zh_chaofan.webp",
+            also: [["炒饭", "chǎofàn", "cơm rang"], ["蒸", "zhēng", "hấp"], ["煮", "zhǔ", "luộc, nấu"], ["烤", "kǎo", "nướng"]], ex: [X("妈妈在炒鸡蛋。", "Māma zài chǎo jīdàn.", "Mẹ đang xào trứng.")] },
+          { zh: "面条儿", py: "miàntiáor", hv: "Miến điều", pos: "danh từ", vi: "mì sợi", ira: "zh_miantiao.webp", also: [["方便面", "fāngbiànmiàn", "mì ăn liền"]], ex: [X("他喜欢吃炒面条。", "Tā xǐhuan chī chǎo miàntiáo.", "Anh ấy thích ăn mì xào.")] },
+          { zh: "麦当劳", py: "Màidāngláo", hv: "Mạch Đương Lao", pos: "danh từ riêng", vi: "McDonald's", ira: "zh_hanbao.webp", ex: [X("我们去麦当劳吃炸鸡吧。", "Wǒmen qù Màidāngláo chī zhájī ba.", "Mình đi McDonald's ăn gà rán đi.")] },
+          { zh: "做梦", py: "zuòmèng", hv: "Tố mộng", pos: "động từ (li hợp)", vi: "nằm mơ", ira: "zh_zuomeng.webp",
+            also: [["做美梦", "zuò měimèng", "mơ đẹp"], ["做噩梦", "zuò èmèng", "gặp ác mộng"]], ex: [X("昨天晚上我做梦了，梦见我去北京旅游。", "Zuótiān wǎnshang wǒ zuòmèng le, mèngjiàn wǒ qù Běijīng lǚyóu.", "Tối qua tôi nằm mơ thấy đi Bắc Kinh du lịch."), X("别白天做梦了！", "Bié báitiān zuòmèng le!", "Đừng mơ giữa ban ngày nữa!")] },
+          { zh: "幸福", py: "xìngfú", hv: "Hạnh phúc", pos: "tính từ / danh từ", vi: "hạnh phúc", ira: "zh_xingfu.webp", ex: [X("看到你，我很幸福。", "Kàndào nǐ, wǒ hěn xìngfú.", "Nhìn thấy bạn, tôi rất hạnh phúc.")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 8 điểm",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "看", name: "看 nhiều nghĩa", formula: ["看 + vật: xem, đọc (看电视, 看书)", "看 + người: thăm (看朋友, 看病人)", "看医生 / 看病: đi khám bệnh", "我看…: theo tôi thấy"],
+          uses: ["Ngữ cảnh quyết định nghĩa"],
+          examples: [X("我明天要去医院看病人。", "Wǒ míngtiān yào qù yīyuàn kàn bìngrén.", "Mai tôi đi viện thăm người ốm."), X("你不舒服，快去看医生吧。", "Nǐ bù shūfu, kuài qù kàn yīshēng ba.", "Bạn không khoẻ thì mau đi khám đi."), X("我看他好多了。", "Wǒ kàn tā hǎo duō le.", "Tôi thấy cậu ấy đỡ nhiều rồi.")] },
+        { tag: "别", name: "别 + V (了)", formula: ["别 + V: đừng làm (khuyên, cấm)", "别 + V + 了: đừng làm… nữa (đang làm thì dừng)", "≈ 不要 (trang trọng hơn một chút)"],
+          uses: ["Câu khuyên quen: **别担心 · 别怕 · 别客气 · 别生气**"],
+          examples: [X("别担心，没什么大问题。", "Bié dānxīn, méi shénme dà wèntí.", "Đừng lo, không có vấn đề gì lớn."), X("别看手机了，早点儿睡吧。", "Bié kàn shǒujī le, zǎodiǎnr shuì ba.", "Đừng xem điện thoại nữa, ngủ sớm đi."), X("晚上不要吃太多。", "Wǎnshang bú yào chī tài duō.", "Buổi tối đừng ăn nhiều quá.")] },
+        { tag: "死了", name: "Adj + 死了 (ôn)", formula: "Adj + 死了 · Adj + 死 + người + 了",
+          uses: ["Mức độ cực cao, khẩu ngữ", "Phân biệt: 小猫死了 = con mèo chết (nghĩa đen)"],
+          examples: [X("无聊死了！", "Wúliáo sǐ le!", "Chán chết đi được!"), X("学习一天，累死我了。", "Xuéxí yì tiān, lèi sǐ wǒ le.", "Học cả ngày, mệt chết tôi rồi."), X("花都死了。", "Huā dōu sǐ le.", "Hoa chết hết rồi.")] },
+        { tag: "啦", name: "A 啦、B 啦、C 啦…", formula: "…：A 啦，B 啦，C 啦…（都…）",
+          uses: ["Liệt kê nhiều thứ một cách sinh động, khẩu ngữ"],
+          examples: [X("今天妈妈做了鱼啦，鸡啦，青菜啦，都特别好吃。", "Jīntiān māma zuò le yú la, jī la, qīngcài la, dōu tèbié hǎochī.", "Hôm nay mẹ nấu cá này, gà này, rau xanh này, món nào cũng ngon."), X("我给你买了很多东西：苹果啦，面包啦，牛奶啦……", "Wǒ gěi nǐ mǎi le hěn duō dōngxi: píngguǒ la, miànbāo la, niúnǎi la……", "Mình mua cho cậu nhiều thứ lắm: táo này, bánh mì này, sữa này…")] },
+        { tag: "还是…都", name: "A 还是 B，都…", formula: ["V + A 还是 B？(hỏi lựa chọn)", "A 还是 B，(主语) 都 + (不/没) + V: cả hai đều…"],
+          uses: ["Gộp cả hai lựa chọn"],
+          examples: [X("咖啡还是茶，我都不喝。", "Kāfēi háishi chá, wǒ dōu bù hē.", "Cà phê hay trà tôi đều không uống."), X("今天你去还是我去，都行。", "Jīntiān nǐ qù háishi wǒ qù, dōu xíng.", "Hôm nay bạn đi hay tôi đi đều được.")] },
+        { tag: "就是", name: "就是 = chính là", formula: ["A + 就是 + B", "就是说 = tức là"],
+          uses: ["Nhấn mạnh, xác định"],
+          examples: [X("他就是我的医生。", "Tā jiù shì wǒ de yīshēng.", "Anh ấy chính là bác sĩ của tôi."), X("“HSK”就是汉语水平考试。", "“HSK” jiù shì Hànyǔ Shuǐpíng Kǎoshì.", "HSK chính là kỳ thi năng lực Hán ngữ.")] },
+        { tag: "VV", name: "Lặp động từ (ôn)", formula: ["想想 · 问问 · 看看 (đơn âm)", "休息休息 · 准备准备 (ABAB)"],
+          uses: ["Nhẹ nhàng, thử một chút"],
+          examples: [X("让我想想。", "Ràng wǒ xiǎngxiang.", "Để tôi nghĩ xem."), X("你累了吗？休息休息吧。", "Nǐ lèi le ma? Xiūxi xiūxi ba.", "Bạn mệt à? Nghỉ một chút đi.")] },
+        { tag: "就·才", name: "就 / 才 (ôn) + 如果…就…", formula: ["Thời gian + 就 + V + 了 (sớm)", "Thời gian + 才 + V (muộn)", "如果…，就…"],
+          uses: ["Kết hợp vào chuyện ốm đau"],
+          examples: [X("医生说我后天就能出院了。", "Yīshēng shuō wǒ hòutiān jiù néng chūyuàn le.", "Bác sĩ nói ngày kia tôi đã ra viện được rồi."), X("他昨天夜里才去医院。", "Tā zuótiān yèlǐ cái qù yīyuàn.", "Đêm qua anh ấy mới đi viện."), X("如果你生病了，就去看医生。", "Rúguǒ nǐ shēngbìng le, jiù qù kàn yīshēng.", "Nếu bạn ốm thì đi khám.")] }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · Đi thăm Anh Thư nằm viện",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_ruyuan.webp",
+      scenes: [
+        { title: "① Biết tin", desc: "Quốc An và Vương Nhất ở ký túc xá.", lines: [
+          { who: "王一", ...X("英书今天没来上课，她怎么了？", "Yīngshū jīntiān méi lái shàngkè, tā zěnme le?", "Hôm nay Anh Thư không đi học, cậu ấy sao thế?") },
+          { who: "国安", ...X("她生病了，昨天夜里才去医院，现在住院了。", "Tā shēngbìng le, zuótiān yèlǐ cái qù yīyuàn, xiànzài zhùyuàn le.", "Cậu ấy ốm, đêm qua mới đi viện, giờ đang nằm viện.") },
+          { who: "王一", ...X("我们下课以后去看看她吧！", "Wǒmen xiàkè yǐhòu qù kànkan tā ba!", "Tan học bọn mình đi thăm cậu ấy đi!") },
+          { who: "国安", ...X("好，给她买点儿什么？水果还是花？", "Hǎo, gěi tā mǎi diǎnr shénme? Shuǐguǒ háishi huā?", "Ừ, mua gì cho cậu ấy? Hoa quả hay hoa?") },
+          { who: "王一", ...X("水果还是花，她都喜欢。不过我知道她最想吃什么——麦当劳！", "Shuǐguǒ háishi huā, tā dōu xǐhuan. Búguò wǒ zhīdào tā zuì xiǎng chī shénme — Màidāngláo!", "Hoa quả hay hoa cậu ấy đều thích. Nhưng mình biết cậu ấy thèm gì nhất — McDonald's!") }
+        ] },
+        { title: "② Trong phòng bệnh", desc: "Phòng bệnh của Anh Thư.", lines: [
+          { who: "国安", ...X("英书，你身体好点儿了吗？", "Yīngshū, nǐ shēntǐ hǎo diǎnr le ma?", "Anh Thư, cậu đỡ chút nào chưa?") },
+          { who: "英书", ...X("好多了，就是有点儿累。在医院里无聊死了！", "Hǎo duō le, jiù shì yǒudiǎnr lèi. Zài yīyuàn lǐ wúliáo sǐ le!", "Đỡ nhiều rồi, chỉ hơi mệt thôi. Ở viện chán chết đi được!") },
+          { who: "王一", ...X("别担心，好好儿休息。你看，我们给你带了什么？", "Bié dānxīn, hǎohāor xiūxi. Nǐ kàn, wǒmen gěi nǐ dài le shénme?", "Đừng lo, nghỉ ngơi cho tốt. Nhìn xem, bọn mình mang gì cho cậu này?") },
+          { who: "英书", ...X("麦当劳！太幸福了！昨天晚上我还做梦吃汉堡呢。", "Màidāngláo! Tài xìngfú le! Zuótiān wǎnshang wǒ hái zuòmèng chī hànbǎo ne.", "McDonald's! Hạnh phúc quá! Tối qua mình còn mơ ăn hamburger.") },
+          { who: "国安", ...X("不过你得先问问医生，他同意了你才能吃。", "Búguò nǐ děi xiān wènwen yīshēng, tā tóngyì le nǐ cái néng chī.", "Nhưng cậu phải hỏi bác sĩ trước, bác sĩ đồng ý thì mới được ăn.") },
+          { who: "英书", ...X("对了，下个星期是不是有考试？我还没背生词呢！", "Duì le, xià ge xīngqī shì bu shì yǒu kǎoshì? Wǒ hái méi bèi shēngcí ne!", "À này, tuần sau có thi phải không? Mình còn chưa học thuộc từ mới!") },
+          { who: "王一", ...X("别想考试了！先吃药，多睡觉。", "Bié xiǎng kǎoshì le! Xiān chī yào, duō shuìjiào.", "Đừng nghĩ chuyện thi nữa! Uống thuốc trước, ngủ nhiều vào.") },
+          { who: "国安", ...X("我们走了，祝你身体健康，早点儿出院！", "Wǒmen zǒu le, zhù nǐ shēntǐ jiànkāng, zǎodiǎnr chūyuàn!", "Bọn mình về đây, chúc cậu mau khoẻ, sớm ra viện!") }
+        ], note: "**就是…** = chỉ là… · **担心** dānxīn = lo lắng · **出院** = ra viện." }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("“Mai tôi đi THĂM bạn.”", "我明天要去看朋友。|我明天要去看见朋友。|我明天要去问朋友。|我明天要去住朋友。", "A", "**看 + người** = thăm."),
+        Q("“Uống thuốc”", "喝药|吃药|做药|看药", "B", "**吃药**."),
+        Q("“Đừng xem điện thoại NỮA.”", "别看手机。|别看手机了。|看别手机了。|不看手机别。", "B", "**别 + V + 了**."),
+        Q("“Bác sĩ” (khẩu ngữ) đọc là", "dàfū|dàifu|dàfu|dāifu", "B", "**大夫 dàifu**."),
+        Q("“Ở trong viện chán chết đi được!”", "在医院里无聊死了！|在医院里死无聊了！|在医院里很死无聊！|无聊在医院里死了！", "A", "**Adj + 死了**."),
+        Q("“Cà phê hay trà tôi ĐỀU không uống.”", "咖啡还是茶，我都不喝。|咖啡或者茶，我不都喝。|咖啡还是茶，我不喝都。|我都咖啡还是茶不喝。", "A", "**A还是B，都不…**."),
+        Q("Liệt kê sinh động: “cá này, gà này, rau này”", "鱼啦，鸡啦，青菜啦|鱼吧，鸡吧，青菜吧|鱼呢，鸡呢，青菜呢|鱼吗，鸡吗，青菜吗", "A", "**A啦，B啦**."),
+        Q("“HSK chính là kỳ thi năng lực Hán ngữ.”", "HSK就是汉语水平考试。|HSK才是汉语水平考试。", "A", "**就是** = chính là."),
+        Q("“Hôm qua tôi học thuộc 10 chữ Hán.”", "我昨天背了十个汉字。|我昨天背十个了汉字。|我昨天了背十个汉字。|我背昨天十个汉字了。", "A", "**V + 了 + số lượng + O**."),
+        Q("“Tối qua tôi nằm mơ.”", "昨天晚上我做梦了。|昨天晚上我梦做了。|昨天晚上我做了梦了梦。|昨天晚上我看梦了。", "A", "**做梦**."),
+        Q("“Chúc bạn mạnh khoẻ!”", "祝你身体健康！|祝你身体快乐！|祝你健康身体！|你祝身体健康！", "A", "**祝你身体健康**."),
+        Q("“Anh ấy ốm nhưng không ĐỒNG Ý đi viện.”", "他不同意去医院。|他不意同去医院。|他没同意去医院了。|他不对了去医院。", "A", "**同意**."),
+        Q("“À này, bạn biết mai thi không?” — từ mở đầu", "对了|对不起|不对|对吗", "A", "**对了** nhắc chuyện khác."),
+        Q("Mì xào là", "炒面条|烤面条|面条炒|蒸面条", "A", "**炒** = xào.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Tan học bọn mình đi thăm cậu ấy đi.", words: ["我们", "下课", "以后", "去", "看看", "她", "吧"], py: "Wǒmen xiàkè yǐhòu qù kànkan tā ba." },
+        { vi: "Bạn đỡ chút nào chưa?", words: ["你", "身体", "好", "点儿", "了", "吗"], py: "Nǐ shēntǐ hǎo diǎnr le ma?" },
+        { vi: "Đừng lo, nghỉ ngơi cho tốt.", words: ["别", "担心", "好好儿", "休息"], py: "Bié dānxīn, hǎohāor xiūxi." },
+        { vi: "Tôi ốm rồi, phải uống thuốc.", words: ["我", "生病", "了", "要", "吃", "药"], py: "Wǒ shēngbìng le, yào chī yào." },
+        { vi: "Đừng xem điện thoại nữa, ngủ sớm đi.", words: ["别", "看", "手机", "了", "早点儿", "睡吧"], py: "Bié kàn shǒujī le, zǎodiǎnr shuì ba." },
+        { vi: "Hoa quả hay hoa cậu ấy đều thích.", words: ["水果", "还是", "花", "她", "都", "喜欢"], py: "Shuǐguǒ háishi huā, tā dōu xǐhuan." },
+        { vi: "Bạn phải hỏi bác sĩ trước.", words: ["你", "得", "先", "问问", "医生"], py: "Nǐ děi xiān wènwen yīshēng." },
+        { vi: "Tôi còn chưa học thuộc từ mới!", words: ["我", "还", "没", "背", "生词", "呢"], py: "Wǒ hái méi bèi shēngcí ne!" },
+        { vi: "Chúc bạn mạnh khoẻ, sớm ra viện!", words: ["祝你", "身体", "健康", "早点儿", "出院"], py: "Zhù nǐ shēntǐ jiànkāng, zǎodiǎnr chūyuàn!" },
+        { vi: "Anh ấy chính là bác sĩ của tôi.", words: ["他", "就是", "我的", "医生"], py: "Tā jiù shì wǒ de yīshēng." }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("你怎么了？", "Nǐ zěnme le?", "Bạn sao thế?"),
+        X("别担心。", "Bié dānxīn.", "Đừng lo."),
+        X("快去看医生吧。", "Kuài qù kàn yīshēng ba.", "Mau đi khám bác sĩ đi."),
+        X("我生病了，要吃药。", "Wǒ shēngbìng le, yào chī yào.", "Tôi ốm rồi, phải uống thuốc."),
+        X("无聊死了！", "Wúliáo sǐ le!", "Chán chết đi được!"),
+        X("祝你身体健康！", "Zhù nǐ shēntǐ jiànkāng!", "Chúc bạn mạnh khoẻ!"),
+        X("他在医院工作。", "Tā zài yīyuàn gōngzuò.", "Anh ấy làm ở bệnh viện."),
+        X("对了，明天要考试。", "Duì le, míngtiān yào kǎoshì.", "À này, mai thi đấy."),
+        X("我住在学校附近。", "Wǒ zhù zài xuéxiào fùjìn.", "Tôi ở gần trường."),
+        X("让我想想。", "Ràng wǒ xiǎngxiang.", "Để tôi nghĩ xem.")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Bạn sao thế?", zh: "你怎么了？", py: "Nǐ zěnme le?" },
+        { vi: "Khuyên: Bạn không khoẻ thì mau đi khám đi.", zh: "你不舒服，快去看医生吧。", py: "Nǐ bù shūfu, kuài qù kàn yīshēng ba." },
+        { vi: "Rủ: Tan học mình đi thăm cậu ấy đi!", zh: "下课以后我们去看看她吧！", py: "Xiàkè yǐhòu wǒmen qù kànkan tā ba!" },
+        { vi: "Hỏi: Bạn đỡ chút nào chưa?", zh: "你身体好点儿了吗？", py: "Nǐ shēntǐ hǎo diǎnr le ma?" },
+        { vi: "Đáp: Đỡ nhiều rồi, chỉ hơi mệt thôi.", zh: "好多了，就是有点儿累。", py: "Hǎo duō le, jiù shì yǒudiǎnr lèi." },
+        { vi: "Than: Ở viện chán chết đi được!", zh: "在医院里无聊死了！", py: "Zài yīyuàn lǐ wúliáo sǐ le!" },
+        { vi: "An ủi: Đừng lo, nghỉ ngơi cho tốt.", zh: "别担心，好好儿休息。", py: "Bié dānxīn, hǎohāor xiūxi." },
+        { vi: "Dặn: Uống thuốc trước, ngủ nhiều vào.", zh: "先吃药，多睡觉。", py: "Xiān chī yào, duō shuìjiào." },
+        { vi: "Dặn: Đừng xem điện thoại nữa.", zh: "别看手机了。", py: "Bié kàn shǒujī le." },
+        { vi: "Kể: Tối qua tôi mơ thấy đi Bắc Kinh.", zh: "昨天晚上我梦见去北京了。", py: "Zuótiān wǎnshang wǒ mèngjiàn qù Běijīng le." },
+        { vi: "Nói: Gặp bạn, tôi rất hạnh phúc.", zh: "看到你，我很幸福。", py: "Kàndào nǐ, wǒ hěn xìngfú." },
+        { vi: "Nhắc: À này, tuần sau có thi đấy.", zh: "对了，下个星期有考试。", py: "Duì le, xià ge xīngqī yǒu kǎoshì." },
+        { vi: "Nói: Tôi còn chưa học thuộc từ mới!", zh: "我还没背生词呢！", py: "Wǒ hái méi bèi shēngcí ne!" },
+        { vi: "Nói: Hoa quả hay hoa cô ấy đều thích.", zh: "水果还是花，她都喜欢。", py: "Shuǐguǒ háishi huā, tā dōu xǐhuan." },
+        { vi: "Chào: Chúc bạn mạnh khoẻ, sớm ra viện!", zh: "祝你身体健康，早点儿出院！", py: "Zhù nǐ shēntǐ jiànkāng, zǎodiǎnr chūyuàn!" }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Đi thăm bạn ốm (6 câu)",
+      desc: "Bạn vào phòng bệnh thăm một người bạn. Nói trọn 6 câu. Xong câu mẫu thì **đổi quà mang theo và lời dặn**.",
+      sticker: "zh_ruyuan.webp",
+      items: [
+        { vi: "Chào cậu! Cậu đỡ chút nào chưa?", zh: "你好！你身体好点儿了吗？", py: "Nǐ hǎo! Nǐ shēntǐ hǎo diǎnr le ma?" },
+        { vi: "Mình mua cho cậu nhiều thứ: táo này, sữa này, bánh mì này.", zh: "我给你买了很多东西：苹果啦，牛奶啦，面包啦。", py: "Wǒ gěi nǐ mǎi le hěn duō dōngxi: píngguǒ la, niúnǎi la, miànbāo la." },
+        { vi: "Đừng lo chuyện thi cử, nghỉ ngơi cho tốt.", zh: "别担心考试，好好儿休息。", py: "Bié dānxīn kǎoshì, hǎohāor xiūxi." },
+        { vi: "Phải uống thuốc đúng giờ, đừng xem điện thoại nhiều.", zh: "要按时吃药，别看太多手机。", py: "Yào ànshí chī yào, bié kàn tài duō shǒujī." },
+        { vi: "Nếu ở viện chán thì gọi điện cho mình.", zh: "如果在医院无聊，就给我打电话。", py: "Rúguǒ zài yīyuàn wúliáo, jiù gěi wǒ dǎ diànhuà." },
+        { vi: "Mình về đây, chúc cậu mau khoẻ!", zh: "我走了，祝你身体健康！", py: "Wǒ zǒu le, zhù nǐ shēntǐ jiànkāng!" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · Đi thăm người ốm ở Trung Quốc",
+      sticker: "zh_lantern.webp",
+      cols: 2,
+      cards: [
+        { tag: "探病", title: "Mang gì khi đi thăm?", ira: "zh_shuiguo.webp", bullets: ["Nên: **hoa quả, sữa, hoa tươi** (không mùi quá nồng)", "Tránh: **hoa cúc trắng** (dùng cho tang lễ), **lê** (梨 lí ≈ 离 chia ly)", "Không nên ở quá lâu — **15–30 phút** là vừa"] },
+        { tag: "中医", title: "Tây y & Đông y", ira: "zh_chiyao.webp", body: "Bệnh viện TQ thường có cả **西医** (Tây y) và **中医** (Đông y: châm cứu, thuốc bắc). Nhiều người ốm nhẹ thích **喝中药** hoặc uống **热水** (nước nóng) — “chân lý” của người Trung!" },
+        { tag: "热水", title: "Câu thần chú: 多喝热水", ira: "zh_kouke.webp", body: "Ốm gì người Trung cũng khuyên **多喝热水** (uống nhiều nước nóng). Trên mạng còn thành meme: bạn trai chỉ biết nhắn “多喝热水” khi bạn gái ốm 😅" },
+        { tag: "祝福", title: "Lời chúc người ốm", ira: "zh_xingfu.webp", bullets: ["**祝你早日康复** — chúc sớm bình phục", "**祝你身体健康** — chúc mạnh khoẻ", "**好好儿休息** — nghỉ ngơi cho tốt"] }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 20 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "看", title: "Nhiều nghĩa", bullets: ["看 + người = thăm", "看医生 / 看病 = đi khám", "我看… = theo tôi"] },
+        { tag: "Khuyên", title: "别 + V (了)", bullets: ["别担心 · 别怕", "别看手机了", "≈ 不要"] },
+        { tag: "Bệnh viện", title: "Từ vựng", bullets: ["医院 · 医生 · 大夫 dàifu", "病人 · 住院 · 出院", "吃药 (không 喝药)"] },
+        { tag: "Liệt kê", title: "A啦、B啦", bullets: ["苹果啦，牛奶啦…", "A还是B，都…", "就是 = chính là"] },
+        { tag: "Cảm xúc", title: "Chán – vui", bullets: ["无聊死了！· 累死了", "幸福 · 做梦", "对了 = à này"] },
+        { tag: "Chúc", title: "Lời chúc", bullets: ["祝你身体健康", "祝你早日康复", "多喝热水 😄"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 22 từ.",
+        "**✍ Tự viết** 10 chữ: 看 别 累 医 院 药 病 梦 住 问 — mỗi chữ đúng 3 lần liền.",
+        "Viết 5 câu khuyên bằng **别 + V (了)** cho một người bạn hay thức khuya.",
+        "Viết 2 câu liệt kê **A啦、B啦、C啦** về đồ bạn mua tuần này.",
+        "Làm lại **Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "Ghi âm phần **Đi thăm bạn ốm** (≤ 40 giây)."
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>
