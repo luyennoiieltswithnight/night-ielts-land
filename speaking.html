@@ -586,6 +586,14 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 .q-nav-btn:hover{transform:translateY(-2px)}
 .ni-header::before{transition:transform .5s}
 .ni-header:hover::before{transform:rotate(-20deg) scale(1.08)}
+.rec-btn.reading{background:var(--accent)!important;animation:none!important;box-shadow:0 0 0 0 rgba(108,112,220,.5)!important;animation:spRead 1.2s ease-out infinite!important}
+.rec-btn.reading span{font-size:0}.rec-btn.reading span:after{content:"Đang đọc câu hỏi...";font-size:16px}
+.rec-btn.reading i:before{content:"\f028"}
+@keyframes spRead{0%{box-shadow:0 0 0 0 rgba(108,112,220,.5)}100%{box-shadow:0 0 0 18px rgba(108,112,220,0)}}
+.rec-zone:has(.rec-btn.reading) .rec-ira{animation:spFloat 1.4s ease-in-out infinite}
+.readq-toggle{display:inline-flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;font-weight:700;color:var(--ink-2);cursor:pointer;background:#fff;border-radius:999px;padding:6px 12px;box-shadow:inset 0 0 0 1.5px var(--rule)}
+.readq-toggle input{accent-color:var(--accent);width:16px;height:16px}
+.rec-zone:has(.rec-btn.recording) .readq-toggle,.rec-zone:has(.rec-btn.reading) .readq-toggle{visibility:hidden}
 #studentHomeView .ni-panel-label{display:flex;align-items:center;gap:10px;margin:26px 0 14px!important;font-size:1.25rem;font-weight:900;letter-spacing:-.02em;color:var(--ink)}
 #studentHomeView .ni-panel-label:before{content:"";width:12px;height:12px;border-radius:999px;background:var(--peach);flex:none}
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
@@ -836,6 +844,7 @@ Is it better to read a physical book or an e-book?"></textarea>
               <button type="button" id="recBtn" onclick="toggleRecording()" class="rec-btn" aria-label="Ghi âm"><i class="fa-solid fa-microphone"></i><span>Ghi âm ngay</span></button>
               <p id="recStatus" class="mt-3 text-sm text-center" style="color:var(--ink-2);font-weight:500;">Bấm để bắt đầu ghi âm câu trả lời</p>
               <p id="recTimer" class="rec-timer hidden">00:00</p>
+              <label class="readq-toggle"><input type="checkbox" id="readQToggle" onchange="setReadQ(this.checked)"> <span>🔊 Đọc câu hỏi trước khi ghi âm</span></label>
             </div>
             <div id="recPreviewBox" class="hidden mt-2">
               <audio id="recAudioPlayer" controls class="mb-3"></audio>
@@ -3479,6 +3488,51 @@ Is it better to read a physical book or an e-book?"></textarea>
     });
   }
 
+  // ---- Đọc câu hỏi trước khi ghi âm (giọng máy, như giám khảo hỏi) ----
+  let __qReading = false;
+  const READQ_KEY = 'spReadQuestion';
+  function readQEnabled() { try { return localStorage.getItem(READQ_KEY) !== '0'; } catch (e) { return true; } }
+  window.setReadQ = function (on) { try { localStorage.setItem(READQ_KEY, on ? '1' : '0'); } catch (e) {} };
+  function pickEnVoice() {
+    try {
+      const vs = window.speechSynthesis.getVoices().filter(v => /^en[-_]/i.test(v.lang));
+      return vs.find(v => /google us english|samantha|natural|aria|jenny/i.test(v.name)) ||
+             vs.find(v => /en[-_]us/i.test(v.lang)) || vs[0] || null;
+    } catch (e) { return null; }
+  }
+  try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch (e) {}
+  function readQuestionAloud() {
+    return new Promise(resolve => {
+      const q = __pkg && __pkg.questions ? __pkg.questions[__qIdx] : null;
+      const text = q ? String(q.text || '').replace(/\s+/g, ' ').trim() : '';
+      if (!text || !('speechSynthesis' in window)) return resolve();
+      let done = false;
+      const finish = () => {
+        if (done) return; done = true; __qReading = false;
+        document.getElementById('recBtn').classList.remove('reading');
+        resolve();
+      };
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        const v = pickEnVoice(); if (v) u.voice = v;
+        u.lang = (v && v.lang) || 'en-US';
+        u.rate = 0.92;
+        u.onend = finish; u.onerror = finish;
+        __qReading = true;
+        document.getElementById('recBtn').classList.add('reading');
+        document.getElementById('recStatus').textContent = '🔊 Nghe câu hỏi nè... (bấm nút để bỏ qua)';
+        window.speechSynthesis.speak(u);
+        // phòng khi trình duyệt không báo "đọc xong"
+        const words = text.split(' ').length;
+        setTimeout(finish, Math.max(5000, words * 520 + 2500));
+      } catch (e) { finish(); }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => { const c = document.getElementById('readQToggle'); if (c) c.checked = readQEnabled(); });
+  (function () { const c = document.getElementById('readQToggle'); if (c) c.checked = readQEnabled(); })();
+
   // ---- Ghi âm ----
   let __recStarting = false;
   window.toggleRecording = async function () {
@@ -3486,13 +3540,15 @@ Is it better to read a physical book or an e-book?"></textarea>
       __mediaRecorder.stop();
       return;
     }
-    if (__recStarting) return;
+    if (__recStarting) { if (__qReading) { try { window.speechSynthesis.cancel(); } catch (e) {} } return; }
     __recStarting = true;
     try { await __startRecording(); } finally { __recStarting = false; }
   };
   async function __startRecording() {
     // tạo bộ phát âm ngay lúc bấm (iPhone chỉ cho phát âm thanh trong lúc người dùng bấm)
     try { const Ctx = window.AudioContext || window.webkitAudioContext; if (Ctx && !__cueCtx) __cueCtx = new Ctx(); if (__cueCtx && __cueCtx.state === 'suspended') __cueCtx.resume(); } catch (e) {}
+    // đọc to câu hỏi như giám khảo (gọi ngay trong lúc bấm để iPhone cho phát), đọc xong mới mở micro + "ting"
+    if (readQEnabled()) await readQuestionAloud();
     try {
       __mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
