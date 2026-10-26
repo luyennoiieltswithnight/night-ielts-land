@@ -13,7 +13,7 @@ import { getFirestore, doc, setDoc, arrayUnion } from "https://www.gstatic.com/f
 import { getMessaging, getToken, onMessage, isSupported } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-messaging.js";
 
 // Firebase Console → Project settings → Cloud Messaging → Web Push certificates → "Key pair"
-const VAPID_KEY = '';
+const VAPID_KEY = 'BJtjvYGEX9OsSIbLMcCFz5YNeXZQ07kAG98WTpMATAuTHrEs2zo5wqtFJRdAl_Wgz2BURyUn_098EkIAG6cOqUk';
 
 const DISMISS_KEY = 'nightPushDismissedAt';
 const TOKEN_KEY = 'nightPushToken';
