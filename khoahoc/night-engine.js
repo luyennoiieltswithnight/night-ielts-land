@@ -1832,7 +1832,7 @@
      Bật khi lesson.lang = "zh-CN" (hoặc thư mục tiengtrung). Giọng đọc zh-CN (máy không có giọng Trung → phát bằng Google TTS),
      pinyin tô màu theo thanh, thẻ chữ Hán có hoạt hình nét bút + tập viết (Hanzi Writer), hội thoại nhập vai,
      xếp câu, nghe – gõ, phản xạ nói có chấm bằng micro, tự giới thiệu bằng tên Hán Việt.
-     Các loại phần mới: hanzi · zhgrammar · zhdialogue · zhbuild · zhdict · zhspeak · zhintro */
+     Các loại phần mới: hanzi · zhgrammar · zhdialogue · zhbuild · zhdict · zhspeak · zhintro · zhsound · zhtone */
   const ZH_LANG = () => (/^zh/.test(ACCENT) ? ACCENT : "zh-CN");
   const zhHasVoice = (lang) => { if (!TTS_OK) return false; const vs = window.speechSynthesis.getVoices() || []; return vs.some((v) => v.lang && v.lang.replace("_", "-").toLowerCase().startsWith(lang.slice(0, 2).toLowerCase() === "zh" ? lang.toLowerCase().slice(0, 5) : lang.toLowerCase())) || vs.some((v) => /^zh|^cmn/i.test(v.lang || "")); };
   let zhAudio = null;
@@ -2215,6 +2215,45 @@
           a.c && h("div", { className: "mt-2 flex items-start gap-2 pl-10" }, h("span", { className: "text-lg" }, ok ? "✅" : "❌"), h(ZhLine, { zh: it.zh, py: it.py, vi: it.vi, size: "sm" })));
       })));
   }
+  /* ---------- Bảng âm (pinyin): bấm ô để nghe ---------- */
+  function ZhSound({ groups }) {
+    const [on, setOn] = useState(null);
+    const play = async (key, zh, rate) => { setOn(key); await speakZh(zh, rate || 0.7); setOn(null); };
+    return h("div", { className: "mx-auto max-w-4xl space-y-5" }, groups.map((g, gi) =>
+      h("div", { key: gi, className: "rounded-[26px] bg-white p-4 shadow-sm" },
+        g.label && h("div", { className: "mb-1 text-sm font-extrabold text-ink" }, g.label),
+        g.note && h("p", { className: "mb-3 text-xs leading-relaxed text-slate-500" }, rich(g.note)),
+        h("div", { className: `grid gap-2 ${g.cols === 2 ? "grid-cols-2" : g.cols === 3 ? "grid-cols-3" : g.cols === 6 ? "grid-cols-3 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-4"}` }, (g.items || []).map((it, k) => {
+          const key = gi + "-" + k;
+          return h("button", { key, onClick: () => play(key, it.zh, g.rate), className: `group rounded-2xl border px-2 py-2.5 text-center transition hover:-translate-y-0.5 hover:shadow ${on === key ? "border-primary bg-primary-light" : "border-slate-200 bg-[#FFFBF3]"}` },
+            h("div", { className: "text-xl font-extrabold leading-tight" }, h(Py, { text: it.py })),
+            it.zh && h("div", { className: "nv-hz mt-0.5 text-sm text-slate-600" }, it.zh),
+            it.vi && h("div", { className: "mt-0.5 text-[11px] leading-snug text-slate-400" }, it.vi));
+        })))));
+  }
+  /* ---------- Nghe đoán thanh điệu / âm ---------- */
+  function ZhTone({ items, pkey }) {
+    const [ans, setAns] = useState(() => NVP.get(`zhtone-${pkey}`, {}));
+    const save = (a) => { setAns(a); NVP.set(`zhtone-${pkey}`, a); };
+    const nDone = Object.keys(ans).length;
+    const nOk = items.filter((it, k) => ans[k] !== undefined && it.opts[ans[k]] === it.py).length;
+    return h("div", { className: "mx-auto max-w-3xl" },
+      h("div", { className: "mb-3 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500" }, "Bấm 🔊 nghe rồi chọn pinyin đúng. Đúng ", h("b", { className: "text-primary" }, nOk), "/", items.length,
+        nDone > 0 && h("button", { onClick: () => save({}), className: "ml-auto rounded-full bg-ink px-3 py-1.5 text-[11px] font-extrabold text-white" }, "↺ Làm lại")),
+      h("div", { className: "grid gap-2.5 sm:grid-cols-2" }, items.map((it, k) => {
+        const a = ans[k];
+        return h("div", { key: k, className: `rounded-[22px] bg-white p-3 shadow-sm ring-2 ${a === undefined ? "ring-transparent" : it.opts[a] === it.py ? "ring-emerald-300" : "ring-rose-200"}` },
+          h("div", { className: "flex items-center gap-2" },
+            h("span", { className: "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-light text-xs font-extrabold text-primary" }, k + 1),
+            h(ZhSpeak, { text: it.zh }), h(ZhSpeak, { text: it.zh, rate: 0.55 }),
+            a !== undefined && h("span", { className: "nv-hz text-lg" }, it.zh),
+            a !== undefined && it.vi && h("span", { className: "text-xs text-slate-500" }, it.vi)),
+          h("div", { className: "mt-2 grid grid-cols-4 gap-1.5" }, it.opts.map((o, j) => {
+            const picked = a === j, right = o === it.py;
+            return h("button", { key: j, disabled: a !== undefined, onClick: () => save({ ...ans, [k]: j }), className: `rounded-xl border px-1 py-2 text-base font-extrabold ${a === undefined ? "border-slate-200 bg-[#FFFBF3] hover:border-primary" : right ? "border-emerald-400 bg-emerald-50" : picked ? "border-rose-300 bg-rose-50" : "border-slate-100 bg-white opacity-60"}` }, a === undefined ? h("span", { className: "text-ink" }, o) : h(Py, { text: o }));
+          })));
+      })));
+  }
   /* ---------- Phản xạ nói: đọc tiếng Việt → nói tiếng Trung → micro chấm ---------- */
   const ZH_SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
   function ZhSpeakDrill({ items, pkey, secs = 6 }) {
@@ -2444,6 +2483,10 @@
         return h(ZhSpeakDrill, { items: s.items || [], pkey: s.id, secs: s.secs });
       case "zhintro":
         return h(ZhIntro, { s });
+      case "zhsound":
+        return h(ZhSound, { groups: s.groups || [] });
+      case "zhtone":
+        return h(ZhTone, { items: s.items || [], pkey: s.id });
       default:
         return null;
     }
@@ -3045,6 +3088,12 @@
     },
     zhbuild(s) {
       return blk(`<ol>${(s.items || []).map((it) => `<li>${rh(it.vi)}<br><span class="np-hz">${it.words.slice().sort(() => Math.random() - 0.5).map(esc).join(" / ")}</span><br><span class="np-line-ans">………………………………………………</span></li>`).join("")}</ol>`) + blk(`<p class="np-soft"><b>Đáp án:</b> ${(s.items || []).map((it, i) => `${i + 1}. <span class="np-hz">${esc(it.words.join(""))}</span>`).join(" · ")}</p>`);
+    },
+    zhsound(s) {
+      return (s.groups || []).map((g) => blk(`${g.label ? `<p><b>${esc(g.label)}</b></p>` : ""}<p>${(g.items || []).map((it) => `<b>${esc(it.py)}</b> <span class="np-hz">${esc(it.zh || "")}</span>${it.vi ? ` (${esc(it.vi)})` : ""}`).join(" · ")}</p>`)).join("");
+    },
+    zhtone(s) {
+      return blk(`<ol>${(s.items || []).map((it) => `<li>□ ${it.opts.map(esc).join(" &nbsp; □ ")}</li>`).join("")}</ol>`) + blk(`<p class="np-soft"><b>Đáp án:</b> ${(s.items || []).map((it, i) => `${i + 1}. ${esc(it.py)} <span class="np-hz">${esc(it.zh)}</span>`).join(" · ")}</p>`);
     },
     zhdict(s) {
       return blk(`<ol>${(s.items || []).map(() => `<li>……………………………………………………………</li>`).join("")}</ol>`) + blk(`<p class="np-soft"><b>Đáp án:</b> ${(s.items || []).map((it, i) => `${i + 1}. <span class="np-hz">${esc(it.zh)}</span>`).join(" · ")}</p>`);

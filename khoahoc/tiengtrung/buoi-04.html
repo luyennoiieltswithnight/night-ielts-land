@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Night 中文 — Bài 4: 我是越南人</title>
+<link rel="icon" href="../../icons/favicon-32.png" type="image/png" sizes="32x32">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="../night-engine.js?v=20261026zh6"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const Q = (q, o, a, e) => ({ q, options: o.split("|"), answer: "ABCD".indexOf(a), explain: e });
+const X = (zh, py, vi) => ({ zh, py, vi });
+const T = (zh, py, opts, vi) => ({ zh, py, opts: opts.split("|"), vi });
+const LT = {
+  "这": [["这", "hoi", "Phồn thể **這**: **辶** (đi) + **言** (lời) → đón khách bằng lời → nay mượn nghĩa **này, đây**."]],
+  "那": [["那", "thanh+gia", "Gốc là tên một nước cổ; mượn nghĩa **kia, đó**."]],
+  "谁": [["谁", "thanh", "**讠** (lời – hỏi) chỉ nghĩa + **隹** zhuī chỉ âm → hỏi **ai?**"]],
+  "来": [["来", "tuong+gia", "Gốc vẽ **cây lúa mạch** có bông rủ; mượn nghĩa **đến**."]],
+  "介绍": [["介", "hoi", "**人** đứng giữa hai mảnh giáp → người đứng giữa → môi giới."], ["绍", "thanh", "**纟** (sợi tơ nối) + **召** zhào chỉ âm → nối tiếp. 介绍 = **người đứng giữa nối hai bên → giới thiệu**."]],
+  "一下儿": [["一", "chi", "Một."], ["下", "chi", "Nét chấm dưới vạch ngang → dưới; lượng từ “một lần”."], ["儿", "tuong", "Âm cuốn lưỡi. 一下儿 = **một chút, một lát**."]],
+  "同学": [["同", "hoi", "**凡** (tất cả) + **口** → mọi miệng nói như nhau → **cùng**."], ["学", "hoi", "Học. 同学 = **cùng học → bạn học**."]],
+  "同屋": [["同", "hoi", "Cùng."], ["屋", "hoi", "**尸** (mái che) + **至** (đến) → nơi đến nghỉ → phòng. 同屋 = **bạn cùng phòng**."]],
+  "中国": [["中", "chi", "Một nét **xuyên qua giữa** khung → **giữa, trung**."], ["国", "hoi", "**囗** (biên giới) bao quanh **玉** (ngọc – báu vật) → **đất nước**. 中国 = **nước ở giữa**."]],
+  "越南": [["越", "thanh", "**走** (đi) chỉ nghĩa + **戉** yuè chỉ âm → vượt qua → Việt."], ["南", "tuong+gia", "Vẽ nhạc cụ cổ; mượn chỉ **phương Nam**. 越南 = **Việt Nam**."]],
+  "人": [["人", "tuong", "Vẽ **người đứng nghiêng** nhìn từ bên cạnh → người."]],
+  "个": [["个", "tuong", "Vẽ **một cành trúc có lá** → một cái → lượng từ chung **cái, con, người**."]],
+  "哪": [["哪", "thanh", "**口** (hỏi) + **那** nà chỉ âm → **nào?**"]],
+  "今天": [["今", "hoi", "Mái che **亼** + nét chỉ thời điểm → **bây giờ, nay**."], ["天", "chi", "Người + nét trên đầu → trời, ngày. 今天 = **hôm nay**."]],
+  "昨天": [["昨", "thanh", "**日** (ngày) chỉ nghĩa + **乍** zhà chỉ âm → ngày trước → **hôm qua**."], ["天", "chi", "Ngày."]],
+  "星期": [["星", "thanh", "**日** (sáng) + **生** shēng chỉ âm → ngôi sao."], ["期", "thanh", "**月** + **其** qí chỉ âm → kỳ hạn. 星期 = **chu kỳ các vì sao → tuần, thứ**."]],
+  "几": [["几", "tuong", "Vẽ **cái bàn nhỏ / ghế dựa** (bộ Kỷ); mượn nghĩa **mấy?**"]],
+  "有": [["有", "hoi", "**又** (bàn tay) cầm **月** (肉 – miếng thịt) → **có**."]],
+  "朋友": [["朋", "hoi", "Hai **月** đứng cạnh nhau (gốc: hai chuỗi vỏ sò) → ngang hàng → bạn."], ["友", "hoi", "Hai bàn tay **𠂇 + 又** nắm lấy nhau → **hữu, bạn**. 朋友 = **bạn bè**."]],
+  "在": [["在", "thanh", "**土** (đất) chỉ nghĩa + **才** cái chỉ âm → có mặt ở đâu đó → **ở; đang**."]],
+  "再见": [["再", "chi", "Hai nét ngang chồng (二) trên cái khung → **lặp lại, lần nữa**."], ["见", "hoi", "Mắt trên người → gặp. 再见 = **gặp lại → tạm biệt**."]],
+  "对": [["对", "hoi", "**又** (tay) + **寸** (thước đo) → đo cho khớp → **đúng, đối diện**."]],
+  "对不起": [["对", "hoi", "Đúng, đối mặt."], ["不", "tuong+gia", "Không."], ["起", "thanh", "**走** + **己** → đứng dậy. 对不起 = **không dám đối mặt → xin lỗi**."]],
+  "没关系": [["没", "hoi", "**氵** + tay chìm xuống nước → mất, **không có**."], ["关", "hoi", "Then cài cửa → đóng; liên quan."], ["系", "tuong", "Vẽ **sợi tơ nối buộc** → hệ. 没关系 = **không có liên quan → không sao**."]]
+};
+const L = {
+  id: "zh-q1-04", courseKey: "tiengtrung", lang: "zh-CN", brand: "Night 中文",
+  course: "Tiếng Trung · Quyển 1", session: "Bài 4",
+  unit: "Giới thiệu – quốc tịch – bạn bè · 这 / 那 / 谁 · 哪国人 · 个 · 几 · 有 / 没有 · 在 + nơi + V · Thứ trong tuần",
+  titleZh: "我是越南人", titlePy: "Wǒ shì Yuènán rén", title: "Tôi là người Việt Nam",
+  subtitle: "Lần đầu gặp bạn học người Trung Quốc: giới thiệu bản thân, giới thiệu bạn cùng phòng, hỏi “đây là ai?”, “bạn là người nước nào?”, “hôm nay thứ mấy?” và xin lỗi – đáp lại cho lịch sự.",
+  heroSticker: "zh_jikoshoukai.webp",
+  prev: { href: "buoi-03.html", label: "Bài 3" }, next: { href: "buoi-05.html", label: "Bài 5" },
+  goals: [
+    "Nhận mặt, đọc, viết **24 từ mới**, mỗi chữ có phân tích **Lục thư**",
+    "**这 / 那 + 是 + …** · hỏi người **谁？** · quốc tịch **你是哪国人？**",
+    "Lượng từ **个** · hỏi số lượng **几 + lượng từ** · **有 / 没有**",
+    "**在 + nơi + V** · thời gian **今天 / 昨天 / 明天 · 星期一 → 星期天** · **我来介绍一下儿**",
+    "**Tự giới thiệu 6–8 câu** và giới thiệu một người bạn"
+  ],
+  sections: [
+    {
+      type: "hanzi", id: "tu-moi-1", nav: "Từ mới ①",
+      title: "Từ mới ① · Giới thiệu – quốc tịch",
+      desc: "Bấm từng thẻ: nghe, xem **nét bút**, đọc **Lục thư**, bấm **✍ Tự viết**.",
+      sticker: "zh_jikoshoukai.webp",
+      groups: [
+        { label: "Đây – kia – ai", cards: [
+          { zh: "这", py: "zhè", hv: "Giá", pos: "đại từ", vi: "này, đây", ira: "zh_pointing.webp", also: [["这儿", "zhèr", "chỗ này"]], ex: [X("这是越南。", "Zhè shì Yuènán.", "Đây là Việt Nam."), X("这是我的爸爸。", "Zhè shì wǒ de bàba.", "Đây là bố tôi.")] },
+          { zh: "那", py: "nà", hv: "Na", pos: "đại từ", vi: "kia, đó", ira: "zh_pointing.webp", ex: [X("那是我的学校。", "Nà shì wǒ de xuéxiào.", "Kia là trường của tôi.")] },
+          { zh: "谁", py: "shéi", hv: "Thuỳ", pos: "đại từ nghi vấn", vi: "ai?", ira: "zh_hatena.webp", tip: "Đọc **shéi** (khẩu ngữ) hoặc **shuí** (văn viết).", ex: [X("这是谁？", "Zhè shì shéi?", "Đây là ai?"), X("你姐姐是谁？", "Nǐ jiějie shì shéi?", "Chị gái cậu là ai?")] },
+          { zh: "来", py: "lái", hv: "Lai", pos: "động từ", vi: "đến; (xung phong) để tôi…", ira: "zh_chufa.webp", ex: [X("我来介绍一下儿！", "Wǒ lái jièshào yíxiàr!", "Để tôi giới thiệu một chút!")] },
+          { zh: "介绍", py: "jièshào", hv: "Giới thiệu", pos: "động từ", vi: "giới thiệu", ira: "zh_jikoshoukai.webp", ex: [X("我来介绍！", "Wǒ lái jièshào!", "Để tôi giới thiệu!")] },
+          { zh: "一下儿", py: "yíxiàr", hv: "Nhất hạ nhi", pos: "lượng từ", vi: "một chút, một lát", ira: "zh_shijian.webp", tip: "**V + 一下儿** làm câu nhẹ nhàng, lịch sự. **一** đứng trước **下** (thanh 4) → đọc **yí**.", ex: [X("我来介绍一下儿。", "Wǒ lái jièshào yíxiàr.", "Để tôi giới thiệu một chút.")] }
+        ] },
+        { label: "Người – nước", cards: [
+          { zh: "人", py: "rén", hv: "Nhân", pos: "danh từ", vi: "người", ira: "zh_minna.webp", ex: [X("中国人", "Zhōngguó rén", "người Trung Quốc"), X("越南人", "Yuènán rén", "người Việt Nam")] },
+          { zh: "中国", py: "Zhōngguó", hv: "Trung Quốc", pos: "danh từ riêng", vi: "Trung Quốc", ira: "zh_zhongguo.webp", ex: [X("我的同学是中国人。", "Wǒ de tóngxué shì Zhōngguó rén.", "Bạn cùng lớp tôi là người Trung Quốc.")] },
+          { zh: "越南", py: "Yuènán", hv: "Việt Nam", pos: "danh từ riêng", vi: "Việt Nam", ira: "zh_yuenan.webp", ex: [X("我是越南人。", "Wǒ shì Yuènán rén.", "Tôi là người Việt Nam.")] },
+          { zh: "哪", py: "nǎ", hv: "Na", pos: "đại từ nghi vấn", vi: "nào?", ira: "zh_hatena.webp", ex: [X("你是哪国人？", "Nǐ shì nǎ guó rén?", "Bạn là người nước nào?"), X("你喝哪个？", "Nǐ hē nǎ ge?", "Bạn uống cái nào?")] },
+          { zh: "个", py: "gè", hv: "Cá", pos: "lượng từ", vi: "cái, con, người (chung)", ira: "zh_minna.webp", tip: "Thường đọc **thanh nhẹ ge**. 一个 đọc **yí ge**.", ex: [X("一个人", "yí ge rén", "một người"), X("一个老师", "yí ge lǎoshī", "một giáo viên")] },
+          { zh: "同学", py: "tóngxué", hv: "Đồng học", pos: "danh từ", vi: "bạn cùng lớp", ira: "zh_tongxue.webp", ex: [X("这是我的同学。", "Zhè shì wǒ de tóngxué.", "Đây là bạn cùng lớp của tôi.")] },
+          { zh: "同屋", py: "tóngwū", hv: "Đồng ốc", pos: "danh từ", vi: "bạn cùng phòng", ira: "zh_sushe.webp", ex: [X("那是我的同屋。", "Nà shì wǒ de tóngwū.", "Kia là bạn cùng phòng của tôi.")] },
+          { zh: "朋友", py: "péngyou", hv: "Bằng hữu", pos: "danh từ", vi: "bạn bè", ira: "zh_friends.webp", also: [["好朋友", "hǎo péngyou", "bạn thân"], ["男朋友", "nánpéngyou", "bạn trai"], ["女朋友", "nǚpéngyou", "bạn gái"]], ex: [X("你有中国朋友吗？", "Nǐ yǒu Zhōngguó péngyou ma?", "Bạn có bạn người Trung Quốc không?")] },
+          { zh: "有", py: "yǒu", hv: "Hữu", pos: "động từ", vi: "có", ira: "zh_liwu.webp", also: [["没有", "méiyǒu", "không có"]], ex: [X("我有一个中国朋友。", "Wǒ yǒu yí ge Zhōngguó péngyou.", "Tôi có một người bạn Trung Quốc."), X("我没有中国朋友。", "Wǒ méiyǒu Zhōngguó péngyou.", "Tôi không có bạn Trung Quốc.")] }
+        ] }
+      ]
+    },
+    {
+      type: "hanzi", id: "tu-moi-2", nav: "Từ mới ②",
+      title: "Từ mới ② · Ngày – thứ – ở đâu – lịch sự",
+      desc: "**在** vừa là động từ “ở” vừa là giới từ: **在 + nơi + V**.",
+      sticker: "zh_calendar.webp",
+      groups: [
+        { label: "Thời gian", cards: [
+          { zh: "今天", py: "jīntiān", hv: "Kim thiên", pos: "danh từ", vi: "hôm nay", ira: "zh_sky.webp", ex: [X("今天我回家见弟弟。", "Jīntiān wǒ huí jiā jiàn dìdi.", "Hôm nay tôi về nhà gặp em trai.")] },
+          { zh: "昨天", py: "zuótiān", hv: "Tạc thiên", pos: "danh từ", vi: "hôm qua", ira: "zh_calendar.webp", ex: [X("昨天我去银行取钱。", "Zuótiān wǒ qù yínháng qǔ qián.", "Hôm qua tôi ra ngân hàng rút tiền.")] },
+          { zh: "星期", py: "xīngqī", hv: "Tinh kỳ", pos: "danh từ", vi: "tuần; thứ", ira: "zh_xingqi.webp", also: [["星期一", "xīngqīyī", "thứ hai"], ["星期六", "xīngqīliù", "thứ bảy"], ["星期天 / 星期日", "xīngqītiān / rì", "chủ nhật"]], ex: [X("今天星期几？", "Jīntiān xīngqī jǐ?", "Hôm nay thứ mấy?")] },
+          { zh: "几", py: "jǐ", hv: "Kỷ", pos: "đại từ nghi vấn", vi: "mấy? (số nhỏ, dưới 10)", ira: "zh_hatena.webp", ex: [X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?"), X("今天几月几日？", "Jīntiān jǐ yuè jǐ rì?", "Hôm nay ngày mấy tháng mấy?")] },
+          { zh: "在", py: "zài", hv: "Tại", pos: "động từ / giới từ", vi: "ở; đang", ira: "zh_kitaku.webp", ex: [X("我在家学汉语。", "Wǒ zài jiā xué Hànyǔ.", "Tôi học tiếng Trung ở nhà."), X("你在哪儿？", "Nǐ zài nǎr?", "Bạn ở đâu?")] }
+        ] },
+        { label: "Lịch sự", cards: [
+          { zh: "再见", py: "zàijiàn", hv: "Tái kiến", pos: "động từ", vi: "tạm biệt", ira: "zh_zaijian.webp", also: [["明天见", "míngtiān jiàn", "mai gặp"]], ex: [X("老师，再见！", "Lǎoshī, zàijiàn!", "Em chào thầy ạ!")] },
+          { zh: "对", py: "duì", hv: "Đối", pos: "tính từ", vi: "đúng", ira: "zh_keyi.webp", also: [["不对", "bú duì", "sai, không đúng"]], ex: [X("对吗？——对！", "Duì ma? — Duì!", "Đúng không? — Đúng!")] },
+          { zh: "对不起", py: "duìbuqǐ", hv: "Đối bất khởi", pos: "cụm từ", vi: "xin lỗi", ira: "zh_apologize.webp", ex: [X("对不起，我来晚了。", "Duìbuqǐ, wǒ lái wǎn le.", "Xin lỗi, tôi đến muộn.")] },
+          { zh: "没关系", py: "méi guānxi", hv: "Một quan hệ", pos: "cụm từ", vi: "không sao", ira: "zh_xinyi.webp", also: [["没事", "méishì", "không sao (khẩu ngữ)"]], ex: [X("对不起！——没关系！", "Duìbuqǐ! — Méi guānxi!", "Xin lỗi! — Không sao!")] }
+        ] }
+      ]
+    },
+    {
+      type: "zhtone", id: "nghe-thanh", nav: "Nghe thanh",
+      title: "Nghe đoán · 12 câu",
+      desc: "Bấm 🔊 rồi chọn pinyin đúng. Chú ý **zh / z**, **sh / s**, **r**.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        T("这", "zhè", "zhè|zè|jè|zhě", "này"), T("谁", "shéi", "shéi|séi|xéi|shèi", "ai"), T("人", "rén", "rén|lén|yén|rèn", "người"), T("中国", "Zhōngguó", "Zhōngguó|Zōngguó|Jōngguó|Zhòngguó", "Trung Quốc"),
+        T("越南", "Yuènán", "Yuènán|Yuènàn|Yuěnán|Yuénán", "Việt Nam"), T("星期", "xīngqī", "xīngqī|xīnqī|shīngqī|xíngqī", "tuần"), T("几", "jǐ", "jǐ|jī|jí|jì", "mấy"), T("在", "zài", "zài|zhài|cài|zǎi", "ở"),
+        T("昨天", "zuótiān", "zuótiān|zhuótiān|zuǒtiān|zuòtiān", "hôm qua"), T("朋友", "péngyou", "péngyou|pèngyou|bēngyou|pěngyou", "bạn bè"), T("介绍", "jièshào", "jièshào|jièsào|jiěshào|jièshǎo", "giới thiệu"), T("对不起", "duìbuqǐ", "duìbuqǐ|duìbuqí|duībuqǐ|duìbùqǐ", "xin lỗi")
+      ]
+    },
+    {
+      type: "zhgrammar", id: "ngu-phap", nav: "Ngữ pháp",
+      title: "Ngữ pháp · 7 điểm",
+      desc: "Bấm từng tab: **công thức → ví dụ có tiếng → lỗi hay mắc**.",
+      sticker: "shodou_mizufude_3174.webp",
+      points: [
+        { tag: "这/那是", name: "这 / 那 + 是 + N", formula: ["这是 + N: Đây là…", "那是 + N: Kia là…", "Phủ định: 这不是 + N (bú shì)"],
+          uses: ["**是** đọc chuẩn **thanh 4**", "Chỉ chỗ: **这儿** (chỗ này) · **那儿** (chỗ kia)"],
+          examples: [X("这是我的爸爸。", "Zhè shì wǒ de bàba.", "Đây là bố của tôi."), X("那是我的学校。", "Nà shì wǒ de xuéxiào.", "Kia là trường của tôi."), X("这是我爸爸的银行。", "Zhè shì wǒ bàba de yínháng.", "Đây là ngân hàng của bố tôi.")] },
+        { tag: "谁", name: "Hỏi người: 谁", formula: "… 是 + 谁？ → … 是 + người",
+          uses: ["Thay vào đúng vị trí cần hỏi, **không thêm 吗**"],
+          examples: [X("这是谁？——这是我的同学。", "Zhè shì shéi? — Zhè shì wǒ de tóngxué.", "Đây là ai? — Đây là bạn cùng lớp tôi."), X("你姐姐是谁？", "Nǐ jiějie shì shéi?", "Chị gái cậu là ai?"), X("你到底是谁？", "Nǐ dàodǐ shì shéi?", "Rốt cuộc ngươi là ai?")] },
+        { tag: "哪国人", name: "Quốc tịch: 哪 + 国 + 人", formula: ["你是哪国人？", "我是 + tên nước + 人"],
+          uses: ["**哪 + lượng từ (+ N)**: 哪个 · 哪国"],
+          examples: [X("你是哪国人？——我是越南人。", "Nǐ shì nǎ guó rén? — Wǒ shì Yuènán rén.", "Bạn là người nước nào? — Tôi là người Việt Nam."), X("我的同学是中国人。", "Wǒ de tóngxué shì Zhōngguó rén.", "Bạn cùng lớp tôi là người Trung Quốc."), X("你喝哪个？——我喝这个。", "Nǐ hē nǎ ge? — Wǒ hē zhège.", "Bạn uống cái nào? — Tôi uống cái này.")] },
+        { tag: "个·几", name: "Số + lượng từ + danh từ · 几", formula: ["Số + 个 + N: 一个人 · 两个老师", "几 + lượng từ + N？ (dự đoán số < 10)"],
+          uses: ["Tiếng Trung **bắt buộc có lượng từ** giữa số và danh từ", "Số 2 đi với lượng từ dùng **两 liǎng**, không dùng 二"],
+          examples: [X("一个学生", "yí ge xuésheng", "một học sinh"), X("你有几个中国朋友？", "Nǐ yǒu jǐ ge Zhōngguó péngyou?", "Bạn có mấy người bạn TQ?"), X("你家有几口人？", "Nǐ jiā yǒu jǐ kǒu rén?", "Nhà bạn có mấy người?")],
+          wrong: [{ bad: "一老师", good: "一个老师", why: "Thiếu lượng từ." }] },
+        { tag: "有", name: "有 / 没有", formula: ["S + 有 + O: có…", "S + 没有 + O: không có… (**không dùng 不有**)", "S + 有 + O + 吗？"],
+          uses: ["Phủ định của 有 **luôn là 没**"],
+          examples: [X("我有一个中国朋友。", "Wǒ yǒu yí ge Zhōngguó péngyou.", "Tôi có một bạn người TQ."), X("我没有中国朋友。", "Wǒ méiyǒu Zhōngguó péngyou.", "Tôi không có bạn TQ."), X("你有男朋友吗？", "Nǐ yǒu nánpéngyou ma?", "Bạn có bạn trai chưa?")],
+          wrong: [{ bad: "我不有朋友。", good: "我没有朋友。", why: "Phủ định 有 → **没有**." }] },
+        { tag: "在+nơi+V", name: "在 + nơi + V (Ở đâu làm gì)", formula: ["S + 在 + nơi: ở đâu", "S + 在 + nơi + V + O: làm gì ở đâu"],
+          uses: ["Nơi chốn đứng **trước** động từ — ngược tiếng Việt!"],
+          examples: [X("我在家学汉语。", "Wǒ zài jiā xué Hànyǔ.", "Tôi học tiếng Trung ở nhà."), X("在银行取钱", "zài yínháng qǔ qián", "rút tiền ở ngân hàng"), X("你在哪个学校学习汉语呢？", "Nǐ zài nǎ ge xuéxiào xuéxí Hànyǔ ne?", "Bạn học tiếng Trung ở trường nào?")],
+          wrong: [{ bad: "我学汉语在家。", good: "我在家学汉语。", why: "**在 + nơi** đứng trước động từ." }] },
+        { tag: "星期", name: "Ngày & thứ", formula: ["今天 / 昨天 / 明天 + 星期几？", "星期 + 一 → 六: thứ hai → thứ bảy", "星期天 / 星期日: chủ nhật (khẩu ngữ: 周日 · 礼拜天)"],
+          uses: ["Thứ hai = **星期一** (ngày 1 của tuần), lệch 1 so với tiếng Việt!", "Thời gian đứng **đầu câu hoặc sau chủ ngữ**"],
+          examples: [X("今天星期几？——今天星期三。", "Jīntiān xīngqī jǐ? — Jīntiān xīngqīsān.", "Hôm nay thứ mấy? — Thứ tư."), X("明天你去哪儿？", "Míngtiān nǐ qù nǎr?", "Mai bạn đi đâu?"), X("昨天我去北京。", "Zuótiān wǒ qù Běijīng.", "Hôm qua tôi đi Bắc Kinh.")] }
+      ]
+    },
+    {
+      type: "zhdialogue", id: "hoi-thoai", nav: "Hội thoại",
+      title: "Hội thoại · Làm quen",
+      desc: "**▶ Nghe cả đoạn** → tắt **Pinyin** → **🎭 Mình vai…** và nói to.",
+      sticker: "zh_friends.webp",
+      scenes: [
+        { title: "① Giới thiệu bạn cùng phòng", desc: "Quốc An giới thiệu bạn cùng phòng người Trung Quốc với Anh Thư.", lines: [
+          { who: "英书", ...X("国安，这是谁？", "Guó'ān, zhè shì shéi?", "Quốc An, đây là ai?") },
+          { who: "国安", ...X("我来介绍一下儿！这是我的同屋，王一。", "Wǒ lái jièshào yíxiàr! Zhè shì wǒ de tóngwū, Wáng Yī.", "Để mình giới thiệu! Đây là bạn cùng phòng mình, Vương Nhất.") },
+          { who: "王一", ...X("你好！我是中国人。你是哪国人？", "Nǐ hǎo! Wǒ shì Zhōngguó rén. Nǐ shì nǎ guó rén?", "Chào bạn! Mình là người Trung Quốc. Bạn là người nước nào?") },
+          { who: "英书", ...X("你好！我是越南人，我是国安的同学。", "Nǐ hǎo! Wǒ shì Yuènán rén, wǒ shì Guó'ān de tóngxué.", "Chào bạn! Mình là người Việt Nam, mình là bạn cùng lớp của Quốc An.") },
+          { who: "王一", ...X("你在哪儿学习汉语？", "Nǐ zài nǎr xuéxí Hànyǔ?", "Bạn học tiếng Trung ở đâu?") },
+          { who: "英书", ...X("我在越南国家大学学习汉语。", "Wǒ zài Yuènán Guójiā Dàxué xuéxí Hànyǔ.", "Mình học tiếng Trung ở Đại học Quốc gia Việt Nam.") }
+        ] },
+        { title: "② Hẹn gặp & xin lỗi", desc: "Cuối buổi.", lines: [
+          { who: "王一", ...X("今天星期几？", "Jīntiān xīngqī jǐ?", "Hôm nay thứ mấy?") },
+          { who: "国安", ...X("今天星期五。明天星期六，我们去玩儿吧！", "Jīntiān xīngqīwǔ. Míngtiān xīngqīliù, wǒmen qù wánr ba!", "Hôm nay thứ sáu. Mai thứ bảy, mình đi chơi đi!") },
+          { who: "英书", ...X("对不起，明天我在家，我有一个中国朋友来。", "Duìbuqǐ, míngtiān wǒ zài jiā, wǒ yǒu yí ge Zhōngguó péngyou lái.", "Xin lỗi, mai mình ở nhà, mình có một người bạn Trung Quốc đến chơi.") },
+          { who: "王一", ...X("没关系！那星期天见？", "Méi guānxi! Nà xīngqītiān jiàn?", "Không sao! Vậy chủ nhật gặp nhé?") },
+          { who: "英书", ...X("对！星期天见，再见！", "Duì! Xīngqītiān jiàn, zàijiàn!", "Đúng rồi! Chủ nhật gặp, tạm biệt!") }
+        ], note: "**我们** = chúng ta · **吧** = nhé · **学习** = học tập." }
+      ]
+    },
+    {
+      type: "quiz", id: "trac-nghiem", nav: "Trắc nghiệm",
+      title: "Trắc nghiệm · 14 câu",
+      sticker: "teacher_saiten_man.webp",
+      items: [
+        Q("“Đây là ai?”", "这是谁？|这是谁吗？|谁是这吗？|这谁是？", "A", "Có 谁 → không 吗."),
+        Q("“Bạn là người nước nào?”", "你是哪国人？|你是哪人国？|你哪国是人？|你是国哪人？", "A", "哪 + 国 + 人."),
+        Q("“Tôi là người Việt Nam.”", "我是越南人。|我是人越南。|我越南是人。|我是越南的。", "A", "Tên nước + 人."),
+        Q("“Một giáo viên”", "一老师|一个老师|个一老师|一老师个", "B", "Số + 个 + N."),
+        Q("“Tôi không có bạn TQ.”", "我不有中国朋友。|我没有中国朋友。", "B", "没有."),
+        Q("“Tôi học tiếng Trung ở nhà.”", "我学汉语在家。|我在家学汉语。|在家我学汉语在。|我家在学汉语。", "B", "在 + nơi + V."),
+        Q("“Hôm nay thứ mấy?”", "今天星期几？|今天几星期？|今天是几星期吗？|星期几今天？", "A", "星期 + 几."),
+        Q("“Thứ hai” là", "星期二|星期一|星期天|星期日", "B", "星期一."),
+        Q("“Chủ nhật” là", "星期七|星期天|星期八|星期零", "B", "星期天 / 星期日."),
+        Q("“Để tôi giới thiệu một chút.”", "我来介绍一下儿。|我介绍来一下儿。|一下儿我来介绍。|我来一下儿介绍。", "A", "我来 + V + 一下儿."),
+        Q("“Xin lỗi!” — đáp lại", "没关系！|不客气！|谢谢！|对！", "A", "没关系."),
+        Q("“Nhà bạn có MẤY người?”", "你家有几口人？|你家有哪口人？|你家几有口人？|你家有谁口人？", "A", "几 + lượng từ."),
+        Q("一个 đọc là", "yī gè|yí ge|yì ge|yǐ ge", "B", "一 + thanh 4 (个 gốc thanh 4) → yí."),
+        Q("“Bạn cùng phòng”", "同学|同屋|朋友|老师", "B", "同屋 tóngwū.")
+      ]
+    },
+    {
+      type: "zhbuild", id: "xep-cau", nav: "Xếp câu",
+      title: "Xếp chữ thành câu · 10 câu",
+      sticker: "kanji_woman_8688.webp",
+      items: [
+        { vi: "Đây là ai?", words: ["这", "是", "谁"], py: "Zhè shì shéi?" },
+        { vi: "Đây là bố của tôi.", words: ["这", "是", "我的", "爸爸"], py: "Zhè shì wǒ de bàba." },
+        { vi: "Bạn là người nước nào?", words: ["你", "是", "哪", "国", "人"], py: "Nǐ shì nǎ guó rén?" },
+        { vi: "Để tôi giới thiệu một chút!", words: ["我", "来", "介绍", "一下儿"], py: "Wǒ lái jièshào yíxiàr!" },
+        { vi: "Kia là bạn cùng phòng của tôi.", words: ["那", "是", "我的", "同屋"], py: "Nà shì wǒ de tóngwū." },
+        { vi: "Tôi có một người bạn Trung Quốc.", words: ["我", "有", "一个", "中国", "朋友"], py: "Wǒ yǒu yí ge Zhōngguó péngyou." },
+        { vi: "Tôi học tiếng Trung ở nhà.", words: ["我", "在", "家", "学", "汉语"], py: "Wǒ zài jiā xué Hànyǔ." },
+        { vi: "Hôm nay thứ mấy?", words: ["今天", "星期", "几"], py: "Jīntiān xīngqī jǐ?" },
+        { vi: "Hôm qua tôi ra ngân hàng rút tiền.", words: ["昨天", "我", "去", "银行", "取钱"], py: "Zuótiān wǒ qù yínháng qǔ qián." },
+        { vi: "Bạn cùng lớp tôi là người Trung Quốc.", words: ["我的", "同学", "是", "中国人"], py: "Wǒ de tóngxué shì Zhōngguó rén." }
+      ]
+    },
+    {
+      type: "zhdict", id: "nghe-go", nav: "Nghe – gõ",
+      title: "Nghe – gõ lại · 10 câu",
+      desc: "Gõ **chữ Hán** hoặc **pinyin không dấu**, Enter để chấm.",
+      sticker: "study_night_boy_0934.webp",
+      items: [
+        X("我是越南人。", "Wǒ shì Yuènán rén.", "Tôi là người Việt Nam."), X("这是谁？", "Zhè shì shéi?", "Đây là ai?"), X("你是哪国人？", "Nǐ shì nǎ guó rén?", "Bạn là người nước nào?"),
+        X("我来介绍一下儿。", "Wǒ lái jièshào yíxiàr.", "Để tôi giới thiệu một chút."), X("今天星期几？", "Jīntiān xīngqī jǐ?", "Hôm nay thứ mấy?"), X("我有一个中国朋友。", "Wǒ yǒu yí ge Zhōngguó péngyou.", "Tôi có một bạn Trung Quốc."),
+        X("我在家学汉语。", "Wǒ zài jiā xué Hànyǔ.", "Tôi học tiếng Trung ở nhà."), X("对不起！", "Duìbuqǐ!", "Xin lỗi!"), X("没关系！", "Méi guānxi!", "Không sao!"), X("再见！", "Zàijiàn!", "Tạm biệt!")
+      ]
+    },
+    {
+      type: "zhspeak", id: "phan-xa", nav: "Phản xạ nói",
+      title: "Phản xạ nói · Việt → Trung (15 câu)",
+      desc: "Đọc câu tiếng Việt → **🎙 nói ngay**. Mục tiêu **≥ 85%** mỗi câu.",
+      sticker: "speech_woman_1523.webp",
+      items: [
+        { vi: "Hỏi: Đây là ai?", zh: "这是谁？", py: "Zhè shì shéi?" },
+        { vi: "Đáp: Đây là bạn cùng lớp của tôi.", zh: "这是我的同学。", py: "Zhè shì wǒ de tóngxué." },
+        { vi: "Mở lời: Để tôi giới thiệu một chút!", zh: "我来介绍一下儿！", py: "Wǒ lái jièshào yíxiàr!" },
+        { vi: "Hỏi: Bạn là người nước nào?", zh: "你是哪国人？", py: "Nǐ shì nǎ guó rén?" },
+        { vi: "Đáp: Tôi là người Việt Nam.", zh: "我是越南人。", py: "Wǒ shì Yuènán rén." },
+        { vi: "Nói: Anh ấy là người Trung Quốc.", zh: "他是中国人。", py: "Tā shì Zhōngguó rén." },
+        { vi: "Hỏi: Bạn có bạn Trung Quốc không?", zh: "你有中国朋友吗？", py: "Nǐ yǒu Zhōngguó péngyou ma?" },
+        { vi: "Đáp: Tôi có một người bạn Trung Quốc.", zh: "我有一个中国朋友。", py: "Wǒ yǒu yí ge Zhōngguó péngyou." },
+        { vi: "Hỏi: Bạn học tiếng Trung ở đâu?", zh: "你在哪儿学汉语？", py: "Nǐ zài nǎr xué Hànyǔ?" },
+        { vi: "Đáp: Tôi học tiếng Trung ở nhà.", zh: "我在家学汉语。", py: "Wǒ zài jiā xué Hànyǔ." },
+        { vi: "Hỏi: Hôm nay thứ mấy?", zh: "今天星期几？", py: "Jīntiān xīngqī jǐ?" },
+        { vi: "Đáp: Hôm nay thứ sáu.", zh: "今天星期五。", py: "Jīntiān xīngqīwǔ." },
+        { vi: "Hỏi: Nhà bạn có mấy người?", zh: "你家有几口人？", py: "Nǐ jiā yǒu jǐ kǒu rén?" },
+        { vi: "Xin lỗi – đáp: Xin lỗi! — Không sao!", zh: "对不起！——没关系！", py: "Duìbuqǐ! — Méi guānxi!" },
+        { vi: "Chào: Mai gặp nhé, tạm biệt!", zh: "明天见，再见！", py: "Míngtiān jiàn, zàijiàn!" }
+      ]
+    },
+    {
+      type: "zhspeak", id: "thu-thach", nav: "Thử thách",
+      title: "Sản phẩm cuối bài · Tự giới thiệu (8 câu)",
+      desc: "Bài giới thiệu mẫu từ slide. Nói trọn 8 câu, rồi **thay tên, trường, người thân** của bạn — và tự tin nói trước gương!",
+      sticker: "zh_jikoshoukai.webp",
+      items: [
+        { vi: "Chào mọi người! Để tôi giới thiệu một chút.", zh: "大家好！我来介绍一下儿。", py: "Dàjiā hǎo! Wǒ lái jièshào yíxiàr." },
+        { vi: "Tôi là Quốc An.", zh: "我是国安。", py: "Wǒ shì Guó'ān." },
+        { vi: "Tôi là người Việt Nam.", zh: "我是越南人。", py: "Wǒ shì Yuènán rén." },
+        { vi: "Tôi học tiếng Trung.", zh: "我学习汉语。", py: "Wǒ xuéxí Hànyǔ." },
+        { vi: "Tôi học tiếng Trung ở Đại học Quốc gia Việt Nam.", zh: "我在越南国家大学学习汉语。", py: "Wǒ zài Yuènán Guójiā Dàxué xuéxí Hànyǔ." },
+        { vi: "Thầy giáo của tôi là người Trung Quốc.", zh: "我的老师是中国人。", py: "Wǒ de lǎoshī shì Zhōngguó rén." },
+        { vi: "Tôi có một người bạn Trung Quốc.", zh: "我有一个中国朋友。", py: "Wǒ yǒu yí ge Zhōngguó péngyou." },
+        { vi: "Tôi có một em gái. Cảm ơn mọi người!", zh: "我有一个妹妹。谢谢大家！", py: "Wǒ yǒu yí ge mèimei. Xièxie dàjiā!" }
+      ]
+    },
+    {
+      type: "cards", id: "van-hoa", nav: "Văn hoá",
+      title: "Văn hoá · Trùng Khánh, thứ trong tuần & lời xin lỗi",
+      sticker: "zh_lantern.webp",
+      cols: 2,
+      cards: [
+        { tag: "重庆", title: "Trùng Khánh — thành phố 8D", ira: "zh_chengshi.webp", body: "**重庆 Chóngqìng** nằm trên núi, đường nhiều tầng chồng nhau nên được gọi là **thành phố 8D**; tàu điện chạy xuyên qua toà nhà ở **李子坝**. Nổi tiếng với **lẩu cay Trùng Khánh** (重庆火锅)." },
+        { tag: "星期", title: "Ba cách nói “thứ”", ira: "zh_xingqi.webp", bullets: ["**星期一** — phổ biến nhất", "**周一** zhōuyī — ngắn, hay dùng trên lịch, văn bản", "**礼拜一** lǐbàiyī — khẩu ngữ miền Nam (gốc từ lễ nhà thờ)", "Chủ nhật: **星期天 / 星期日 / 周日 / 礼拜天**"] },
+        { tag: "对不起", title: "Xin lỗi kiểu Trung", ira: "zh_apologize.webp", bullets: ["**对不起** — xin lỗi thật lòng", "**不好意思** — ngại quá (nhẹ hơn, rất hay dùng)", "**抱歉** bàoqiàn — xin lỗi trang trọng", "Đáp: **没关系 · 没事 · 没问题**"] },
+        { tag: "名片", title: "Tự giới thiệu khi gặp lần đầu", ira: "zh_jikoshoukai.webp", body: "Người Trung thường nói **họ tên đầy đủ**, quê quán, nơi học / làm việc. Câu kết lịch sự: **请多关照！** (qǐng duō guānzhào — mong được giúp đỡ nhiều). Sang Bài 5 bạn sẽ tra **tên Hán Việt** của chính mình!" }
+      ]
+    },
+    {
+      type: "cards", id: "tong-ket", nav: "Tổng kết",
+      title: "Tổng kết Bài 4 (chụp màn hình để ôn)",
+      sticker: "study_night_boy_0934.webp",
+      cols: 3,
+      cards: [
+        { tag: "Chỉ", title: "这 / 那 + 是", bullets: ["这是… · 那是…", "这儿 · 那儿 · 哪儿", "谁？(không 吗)"] },
+        { tag: "Nước", title: "哪国人", bullets: ["你是哪国人？", "我是越南人", "他是中国人"] },
+        { tag: "Số lượng", title: "个 · 几", bullets: ["一个人 (yí ge)", "几个 · 几口人", "Bắt buộc có lượng từ"] },
+        { tag: "Có", title: "有 / 没有", bullets: ["我有一个朋友", "我没有… (không 不有)", "你有…吗？"] },
+        { tag: "Ở đâu", title: "在 + nơi + V", bullets: ["我在家学汉语", "你在哪儿？", "Nơi trước động từ"] },
+        { tag: "Ngày", title: "Thời gian", bullets: ["昨天 · 今天 · 明天", "星期一 → 星期六 · 星期天", "对不起 → 没关系 · 再见"] }
+      ]
+    },
+    {
+      type: "homework", id: "bai-ve-nha", nav: "Bài về nhà",
+      title: "Bài về nhà",
+      tasks: [
+        "Lật thẻ **Từ mới ① ②** chế độ *Nghe → chữ* đến khi nhớ hết 24 từ.",
+        "**✍ Tự viết** 10 chữ: 这 谁 人 国 个 有 朋 友 在 星 — mỗi chữ 1 dòng vở ô ly.",
+        "Viết lịch 7 ngày trong tuần bằng chữ Hán (星期一 … 星期天), mỗi ngày 1 việc: **星期一我在…**",
+        "Viết bài **tự giới thiệu 8 câu** của chính bạn (dựa theo phần Thử thách).",
+        "Làm lại **Nghe đoán, Trắc nghiệm, Xếp câu, Nghe – gõ** đến khi đúng 100%.",
+        "Ghi âm bài **tự giới thiệu** (≤ 45 giây) — sang Bài 5 bạn sẽ nâng cấp bài này với tên Hán Việt!"
+      ]
+    }
+  ]
+};
+L.sections.forEach((s) => (s.groups || []).forEach((g) => (g.cards || []).forEach((c) => { if (LT[c.zh]) c.lt = LT[c.zh]; })));
+NightLesson.render(L);
+</script>
+</body>
+</html>
