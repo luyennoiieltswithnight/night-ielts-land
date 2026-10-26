@@ -1,7 +1,7 @@
 /*
  * NIGHT IELTS — night-track.js (dùng chung cho mọi đề Reading / Listening)
  * Nạp ở cuối mỗi file đề:
- *   <script src="https://luyennoiieltswithnight.github.io/night-ielts-land/night-track.js" defer></script>
+ *   <script src="https://nightielts.id.vn/night-track.js" defer></script>
  *
  * Khi học sinh (đã đăng nhập ở trang chủ) nộp cả đề hoặc chấm riêng 1 Passage / 1 Section:
  *  1. Tự đánh dấu HOÀN THÀNH các bài Thầy đã giao trùng đề này (kể cả khi học sinh mở đề từ
@@ -19,7 +19,7 @@
   try {
     if (!window.__nightTestTheme && !document.querySelector('script[src*="test-theme.js"]')) {
       var th = document.createElement('script');
-      th.src = 'https://luyennoiieltswithnight.github.io/night-ielts-land/test-theme.js';
+      th.src = 'https://nightielts.id.vn/test-theme.js';
       document.head.appendChild(th);
     }
   } catch (e) {}

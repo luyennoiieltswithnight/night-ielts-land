@@ -7,7 +7,7 @@
  *     · dán ảnh Ctrl+V / kéo thả / dán link · nút 🔎 Google mở Google Ảnh
  *   - Nghĩa + ảnh lưu theo từ trên máy (localStorage), lần sau mở lại có sẵn
  * Nạp ở cuối trang:
- *   <script src="https://luyennoiieltswithnight.github.io/night-ielts-land/vocab-teach.js" defer></script>
+ *   <script src="https://nightielts.id.vn/vocab-teach.js" defer></script>
  * Trang dùng night-engine.js: nút nằm sẵn trong thanh bôi đen của engine (engine gọi NightVocabTeach.open).
  */
 (function () {
