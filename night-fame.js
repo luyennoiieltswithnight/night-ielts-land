@@ -220,7 +220,7 @@
     '.nf-lk-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 8px;flex:none}' +
     '.nf-lk-ic{width:46px;height:46px;border-radius:50%;border:0;background:#262626;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}.nf-lk-ic.big{width:56px;height:56px;background:transparent}' +
     '.nf-lk-pill{display:inline-flex;align-items:center;gap:8px;background:#262626;color:#fff;border:0;border-radius:999px;padding:10px 16px;font:700 14px inherit;font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.nf-lk-pill img{width:22px;height:22px;object-fit:contain}.nf-lk-pill.red{background:#B91C1C;padding:8px 14px;font-size:13px;cursor:pointer}' +
-    '.nf-lk-me{width:46px;height:46px;border-radius:50%;border:2.5px solid #F5B301;padding:0;background:#fff;overflow:hidden;cursor:pointer;flex:none}.nf-lk-me img{width:100%;height:100%;object-fit:cover}' +
+    '.nf-lk-me{width:46px;height:46px;border-radius:50%;border:2.5px solid #F5B301;padding:0;background:#FFF7ED;overflow:hidden;cursor:pointer;flex:none}.nf-lk-me img{width:100%;height:100%;object-fit:cover}' +
     '.nf-lk-feed{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none}.nf-lk-feed::-webkit-scrollbar{display:none}' +
     '.nf-lk-s{height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 10px;box-sizing:border-box}' +
     '.nf-lk-ph{position:relative;width:min(100%,calc(100% - 0px),56vh);aspect-ratio:1;border-radius:46px;overflow:hidden;background:#1F1F1F}.nf-lk-ph>img{width:100%;height:100%;object-fit:cover;display:block}' +
@@ -241,9 +241,9 @@
     '.nf-avp{position:fixed;inset:0;z-index:100070;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;font-family:"Plus Jakarta Sans",system-ui,sans-serif}@media(min-width:700px){.nf-avp{align-items:center}}' +
     '.nf-avbox{width:100%;max-width:520px;max-height:88vh;overflow:auto;background:#1B1B1B;color:#fff;border-radius:28px 28px 0 0;padding:18px 16px 24px}@media(min-width:700px){.nf-avbox{border-radius:28px}}' +
     '.nf-avhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.nf-avhd b{font-size:20px}.nf-avnote{color:#aaa;font-size:14px;line-height:1.5;margin:0 0 14px}.nf-avnote b{color:#F5B301}' +
-    '.nf-avgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.nf-avi{position:relative;aspect-ratio:1;border-radius:50%;border:3px solid transparent;background:#fff;padding:6px;cursor:pointer}.nf-avi img{width:100%;height:100%;object-fit:contain}.nf-avi.on{border-color:#F5B301}' +
-    '.nf-avi.lock img{filter:grayscale(1);opacity:.35}.nf-avi.lock span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#121212}.nf-avi.shake{animation:nfShake .4s}@keyframes nfShake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}' +
-    '.nf-tile img.ic{width:46px;height:46px;object-fit:contain;flex:none}.nf-hello{flex-basis:100%;display:flex;align-items:center;gap:12px;background:#fff;border-radius:22px;padding:10px 14px;box-shadow:0 10px 30px -22px rgba(36,36,42,.45)}.nf-hello button.av{width:52px;height:52px;border-radius:50%;border:3px solid #F5B301;background:#FFF7ED;padding:3px;cursor:pointer;flex:none}.nf-hello button.av img{width:100%;height:100%;object-fit:contain;border-radius:50%}.nf-hello b{font-size:16px}.nf-hello small{display:block;color:#6B6B78;font-size:12px}';
+    '.nf-avgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.nf-avcat{font-weight:800;font-size:13px;color:#F5B301;margin:16px 2px 10px;letter-spacing:.04em;text-transform:uppercase}.nf-avi{position:relative;aspect-ratio:1;border-radius:50%;border:3px solid transparent;background:transparent;padding:0;cursor:pointer}.nf-avi img{width:100%;height:100%;object-fit:contain}.nf-avi.on{border-color:#F5B301}' +
+    '.nf-avi.lock img{filter:saturate(.75);opacity:.6}.nf-avi.lock span{position:absolute;right:-2px;bottom:-2px;width:24px;height:24px;border-radius:50%;background:#121212;border:2px solid #1B1B1B;display:flex;align-items:center;justify-content:center;color:#F5B301}.nf-avi.lock span svg{width:13px;height:13px}.nf-avi.shake{animation:nfShake .4s}@keyframes nfShake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}' +
+    '.nf-tile img.ic{width:46px;height:46px;object-fit:contain;flex:none}.nf-hello{flex-basis:100%;display:flex;align-items:center;gap:12px;background:#fff;border-radius:22px;padding:10px 14px;box-shadow:0 10px 30px -22px rgba(36,36,42,.45)}.nf-hello button.av{width:54px;height:54px;border-radius:50%;border:3px solid #F5B301;background:#FFF7ED;padding:0;cursor:pointer;flex:none}.nf-hello button.av img{width:100%;height:100%;object-fit:contain;border-radius:50%}.nf-hello b{font-size:16px}.nf-hello small{display:block;color:#6B6B78;font-size:12px}';
   function css() { if (document.getElementById('nf-css')) return; var s = document.createElement('style'); s.id = 'nf-css'; s.textContent = CSS; document.head.appendChild(s); }
 
   function confetti() {
@@ -356,12 +356,11 @@
   }
 
   /* ---------- Avatar biểu cảm (Irasutoya): 5 ảnh miễn phí, cứ mỗi 5 ngày chuỗi (kỷ lục) mở thêm 1 ảnh ---------- */
-  var AV_FREE = ['boy03_smile', 'girl03_smile', 'boy01_laugh', 'girl01_laugh', 'girl_tehe'];
-  var AV_ALL = AV_FREE.concat(['boy_tehe', 'boy_heart', 'girl_heart', 'boy_idea', 'girl_idea', 'boy_think', 'girl_think', 'boy_surprise', 'girl_surprise', 'boy_shock', 'girl_shock', 'boy_question', 'girl_question', 'boy_sleep', 'girl_sleep', 'boy02_angry', 'girl02_angry', 'boy04_cry', 'girl04_cry',
-    'whiteboy1_1smile', 'whitegirl1_1smile', 'whiteboy1_laugh', 'whitegirl1_2laugh', 'whiteboy3_4tehe', 'whitegirl3_4tehe', 'whiteboy3_2heart', 'whitegirl3_2heart', 'whiteboy2_1idea', 'whitegirl2_1idea', 'whiteboy2_3think', 'whitegirl2_3think',
-    'whiteboy2_2surprise', 'whitegirl2_2surprise', 'whiteboy2_4shock', 'whitegirl2_4shock', 'whiteboy3_1question', 'whitegirl3_1question', 'whiteboy3_3sleep', 'whitegirl3_3sleep', 'whiteboy1_4angry', 'whitegirl1_4angry', 'whiteboy1_3cry', 'whitegirl1_3cry']);
+  var AV_FREE = ["av_animal_smile_neko_0554", "av_dog_shibainu_white", "av_flower_cosmos", "av_eto_remake_usagi", "av_boy03_smile"];
+  var AV_GROUPS = [["Động vật", ["av_animal_smile_neko_0554", "av_dog_shibainu_white", "av_dog_golden_retriever", "av_animal_bear_panda", "av_animal_penguin_baby", "av_animal_penguin_kid", "av_animal_lesser_panda_stand", "av_animal_kawauso_juggling", "av_rakko", "av_onsen_capybara", "av_animal_namakemono", "av_animal_quokka", "av_animal_ezorisu_9709", "av_animal_character_kitsune_mahotsukai", "av_animal_smile_kuma_9544", "av_nuigurumi_bear", "av_study_animal_koala", "av_musician_recorder", "av_animal_chameleon_3499", "av_animal_dolphin", "av_animal_umigame_8616", "av_bird_shimaenaga", "av_bird_crested_duck_ahiru", "av_tsuyu_kaeru_umbrella", "av_animal_alpaca_kegari", "av_character_manekineko"]], ["12 con giáp", ["av_eto_remake_nezumi", "av_eto_remake_ushi", "av_eto_remake_tora", "av_eto_remake_usagi", "av_eto_tatsu_kakizome", "av_eto_hebi_kakizome", "av_eto_uma_2014", "av_eto_remake_hitsuji", "av_eto_remake_saru", "av_eto_tori_kakizome", "av_eto_remake_inu", "av_eto_remake_inoshishi"]], ["Cây cỏ hoa lá", ["av_flower_cosmos", "av_flower_tulip", "av_flower_pansy", "av_flower_asagao", "av_flower_hanataba_bara_red", "av_flower_hachiue_8681", "av_flower_momo_5191", "av_sakura_hanabira", "av_tree1_haru_5402", "av_plant_cactus_8462", "av_plant_monstera", "av_plant_taniku_otomegokoro", "av_ajisai_niji"]], ["Đồ ăn vui", ["av_character_donut", "av_character_sweets_tapioca_drink", "av_onigiri_character_yaki", "av_fruit_avocado_3541", "av_fruit_momo_5053"]], ["Biểu cảm", ["av_boy03_smile", "av_girl03_smile", "av_boy_tehe", "av_girl_heart", "av_boy_idea", "av_girl_think", "av_boy04_cry", "av_girl_surprise"]]];
+  var AV_ALL = []; AV_GROUPS.forEach(function (g) { AV_ALL = AV_ALL.concat(g[1]); });
   function avUrl(id) { return IRA + 'av/' + id + '.webp'; }
-  function avOf(x) { return x && x.av ? avUrl(x.av) : (x && x.photo) || avUrl('boy03_smile'); }
+  function avOf(x) { return x && x.av ? avUrl(x.av) : (x && x.photo) || avUrl('av_animal_smile_neko_0554'); }
   function avOwned(f) { return AV_FREE.concat(f.avatars || []); }
   function avTokens(f) { return Math.max(0, Math.floor((f.best || 0) / 5) - (f.avatars || []).length); }
   function openAvatar(done) {
@@ -376,10 +375,12 @@
           var own = avOwned(f), tk = avTokens(f), next = ((Math.floor((f.best || 0) / 5) + 1) * 5);
           ov.innerHTML = '<div class="nf-avbox"><div class="nf-avhd"><b>Ảnh đại diện</b><button class="nf-lk-ic" data-a="x" aria-label="Đóng">' + SVG.x + '</button></div>' +
             '<p class="nf-avnote">' + (tk ? 'Bạn có <b>' + tk + ' lượt mở khoá</b>. Chạm vào ảnh đang khoá để mở.' : 'Cứ mỗi <b>5 ngày chuỗi</b> mở được 1 ảnh mới. Kỷ lục của bạn: <b>' + (f.best || 0) + ' ngày</b>, lượt tiếp theo ở mốc <b>' + next + ' ngày</b>.') + '</p>' +
-            '<div class="nf-avgrid">' + AV_ALL.map(function (id) {
-              var has = own.indexOf(id) >= 0;
-              return '<button class="nf-avi' + (f.av === id ? ' on' : '') + (has ? '' : ' lock') + '" data-av="' + id + '"><img src="' + avUrl(id) + '" alt="" loading="lazy">' + (has ? '' : '<span>' + SVG.lock + '</span>') + '</button>';
-            }).join('') + '</div></div>';
+            AV_GROUPS.map(function (g) {
+              return '<div class="nf-avcat">' + g[0] + '</div><div class="nf-avgrid">' + g[1].map(function (id) {
+                var has = own.indexOf(id) >= 0;
+                return '<button class="nf-avi' + (f.av === id ? ' on' : '') + (has ? '' : ' lock') + '" data-av="' + id + '"><img src="' + avUrl(id) + '" alt="" loading="lazy">' + (has ? '' : '<span>' + SVG.lock + '</span>') + '</button>';
+              }).join('') + '</div>';
+            }).join('') + '</div>';
         }
         ov.addEventListener('click', function (e) {
           if (e.target === ov || e.target.closest('[data-a="x"]')) return ov.remove();
@@ -463,7 +464,7 @@
           return '<section class="nf-lk-s" data-i="' + i + '"><div class="nf-lk-ph"><img src="' + esc(x.img) + '" alt="" loading="lazy">' +
             (x.caption ? '<span class="nf-lk-capv">' + esc(x.caption) + '</span>' : '') +
             (x.stamp ? '<span class="nf-lk-stamp">' + esc(x.stamp.text) + '</span>' : '') + '</div>' +
-            '<div class="nf-lk-who"><img src="' + esc(avOf(x)) + '" alt="" onerror="this.src=\'' + avUrl('boy03_smile') + '\'"><b>' + esc(x.uid === u.uid ? 'Bạn' : x.name || '') + '</b><span>' + ago(x.ts) + (x.ontime ? ' · đúng giờ' : x.late ? ' · trễ' : '') + (x.streak ? ' · chuỗi ' + x.streak : '') + '</span></div>' + rxRow(x) + '</section>';
+            '<div class="nf-lk-who"><img src="' + esc(avOf(x)) + '" alt="" onerror="this.src=\'' + avUrl('av_animal_smile_neko_0554') + '\'"><b>' + esc(x.uid === u.uid ? 'Bạn' : x.name || '') + '</b><span>' + ago(x.ts) + (x.ontime ? ' · đúng giờ' : x.late ? ' · trễ' : '') + (x.streak ? ' · chuỗi ' + x.streak : '') + '</span></div>' + rxRow(x) + '</section>';
         }
         function barHtml() {
           var x = slides[idx] || {};

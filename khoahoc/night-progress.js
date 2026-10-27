@@ -176,7 +176,7 @@
     var go = function () { if (window.NightFame) window.NightFame.event(ev); };
     if (window.NightFame) return go();
     var sc = document.createElement('script');
-    try { sc.src = new URL('../night-fame.js?v=20261028c', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-fame.js'; }
+    try { sc.src = new URL('../night-fame.js?v=20261028d', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-fame.js'; }
     sc.onload = go; document.head.appendChild(sc);
   }
   /* ---------- Tiến độ 1 bài ---------- */
