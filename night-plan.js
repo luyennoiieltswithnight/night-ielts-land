@@ -47,9 +47,20 @@
       import('https://www.gstatic.com/firebasejs/' + V + '/firebase-auth.js'),
       import('https://www.gstatic.com/firebasejs/' + V + '/firebase-firestore.js')
     ]).then(function (m) {
-      var app;
-      try { app = m[0].getApp(); } catch (e) { app = m[0].initializeApp(FB_CONFIG); }
-      return { authM: m[1], fs: m[2], auth: m[1].getAuth(app), db: m[2].getFirestore(app) };
+      /* Chờ trang tự khởi động Firebase trước (index/speaking/writing dùng initializeFirestore riêng),
+         chỉ tự khởi động khi sau 6 giây trang vẫn chưa làm. */
+      return new Promise(function (res) {
+        var t0 = Date.now();
+        (function wait() {
+          if (m[0].getApps().length) return res(m[0].getApp());
+          if (Date.now() - t0 > 6000) return res(m[0].initializeApp(FB_CONFIG));
+          setTimeout(wait, 150);
+        })();
+      }).then(function (app) {
+        return new Promise(function (r) { setTimeout(r, 50); }).then(function () {
+          return { authM: m[1], fs: m[2], auth: m[1].getAuth(app), db: m[2].getFirestore(app) };
+        });
+      });
     });
     return fbP;
   }
