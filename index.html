@@ -484,6 +484,7 @@
     #test-list-container a.nv-open:hover{background:var(--nv-lilac)!important;border-color:var(--nv-lilac)!important}
     #test-list-container h4{letter-spacing:-.02em}
     </style>
+<script src="night-plan.js?v=20261027b"></script>
 </head>
 <body class="text-gray-700 antialiased font-sans pb-12">
 
@@ -1070,6 +1071,17 @@
                     <!-- Nút Học Phí & Lịch Dạy (Chỉ admin mới thấy) -->
                     <button id="admin-tuition-btn" class="hidden px-5 py-2.5 bg-amber-500 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2">
                         <i class="fa-solid fa-coins mr-1"></i> Học Phí
+                    </button>
+
+                    <!-- Nút Tài khoản & gói Pro (Chỉ admin mới thấy) -->
+                    <button id="admin-plan-btn" class="hidden relative px-5 py-2.5 bg-gray-800 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2" onclick="window.NightPlan && NightPlan.openAdmin(window.refreshPlanBadge)">
+                        👑 Tài khoản
+                        <span id="admin-plan-badge" class="hidden absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black items-center justify-center">0</span>
+                    </button>
+
+                    <!-- Nút Nâng cấp Pro (tài khoản User / Pro) -->
+                    <button id="user-pro-btn" class="hidden px-5 py-2.5 text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow text-sm mr-2 items-center" style="background:linear-gradient(135deg,#F59E0B,#EA580C)" onclick="window.NightPlan && NightPlan.openUpgrade()">
+                        ⭐ <span id="user-pro-label">Nâng cấp Pro</span>
                     </button>
 
                     <!-- Nút cấu hình GitHub, dùng để đăng/xoá bài trong Kho Lưu Trữ (Chỉ admin mới thấy) -->
@@ -3160,6 +3172,23 @@
         // ---- Đăng nhập: có phiên lần trước thì hiện giao diện + dữ liệu đã lưu NGAY, không chờ Google ----
         const SESS_KEY = 'nightIdxSess';
         let __uiUid = null;
+        // Gói tài khoản (night-plan.js): nút 👑 cho thầy, nút ⭐ Pro cho tài khoản User / Pro
+        window.refreshPlanBadge = function () {
+            if (!window.NightPlan) return;
+            NightPlan.pendingCount().then(n => { const b = document.getElementById('admin-plan-badge'); if (!b) return; b.textContent = n; b.classList.toggle('hidden', !n); b.classList.toggle('flex', !!n); });
+        };
+        function setupPlanButtons(role) {
+            const ab = document.getElementById('admin-plan-btn'), pb = document.getElementById('user-pro-btn');
+            ab.classList.toggle('hidden', role !== 'admin');
+            const showPro = role === 'user' || role === 'pro';
+            pb.classList.toggle('hidden', !showPro); pb.classList.toggle('flex', showPro);
+            if (role === 'admin') setTimeout(window.refreshPlanBadge, 1500);
+            if (showPro && window.NightPlan) NightPlan.init().then(me => {
+                const r = NightPlan.role();
+                document.getElementById('user-pro-label').textContent = r === 'pro' && me ? 'Pro đến ' + new Date(me.proUntil).toLocaleDateString('vi-VN') : 'Nâng cấp Pro';
+                document.getElementById('user-role').textContent = r === 'pro' ? 'Pro ⭐' : 'Thành viên';
+            });
+        }
         function showStudentButtons(uid, docUrl, hwDocUrl) {
             ['student-progress-btn', 'student-mywords-btn'].forEach(id => { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); });
             const dl = document.getElementById('student-doc-link');
@@ -3178,7 +3207,8 @@
             document.getElementById('user-name').textContent = u.name || '';
             if (u.photo) document.getElementById('user-avatar').src = u.photo;
             window.__currentUid = u.uid;
-            document.getElementById('user-role').textContent = u.role === 'admin' ? 'Teacher' : 'Student';
+            document.getElementById('user-role').textContent = ({ admin: 'Teacher', student: 'Học sinh', pro: 'Pro ⭐', user: 'Thành viên' })[u.role] || 'Học sinh';
+            setupPlanButtons(u.role);
             if (u.role === 'admin') {
                 adminBtn.classList.remove('hidden');
                 progressBtn.classList.remove('hidden');
@@ -3198,6 +3228,7 @@
         function applySignedOut() {
             __uiUid = null;
             window.__chatPending = null; if (window.__chatStop) window.__chatStop();
+            ['admin-plan-btn', 'user-pro-btn'].forEach(id => { const el = document.getElementById(id); if (el) { el.classList.add('hidden'); el.classList.remove('flex'); } });
             loginBtn.classList.remove('hidden');
             userProfile.classList.add('hidden');
             userProfile.classList.remove('flex');
@@ -3246,7 +3277,8 @@
                 if (user.photoURL && snap.data().photo !== user.photoURL) updateDoc(userRef, { photo: user.photoURL }).catch(() => {});
             }
             else {
-                await setDoc(userRef, { email: user.email, name: user.displayName, role: "student", createdAt: Date.now(), photo: user.photoURL || '' });
+                await setDoc(userRef, { email: user.email, name: user.displayName, role: "user", createdAt: Date.now(), photo: user.photoURL || '' });
+                role = 'user';
             }
             const sess = { uid: user.uid, role: role, name: user.displayName, photo: user.photoURL, docUrl: docUrl, hwDocUrl: hwDocUrl };
             try { localStorage.setItem(SESS_KEY, JSON.stringify(sess)); } catch (e) {}

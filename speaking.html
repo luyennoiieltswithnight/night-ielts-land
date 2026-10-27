@@ -598,6 +598,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 #studentHomeView .ni-panel-label:before{content:"";width:12px;height:12px;border-radius:999px;background:var(--peach);flex:none}
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
+<script src="night-plan.js?v=20261027b"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
 
@@ -2213,6 +2214,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   function groqMissingHint() {
     const cfg = getGroqConfig();
     if (cfg.apiKey) return '';
+    if (window.NightPlan && NightPlan.freeOK()) return NightPlan.freeHint();
     return '<div class="groq-missing"><i class="fa-solid fa-circle-exclamation"></i> Chưa cấu hình Groq API Key.' +
       '<button type="button" class="ni-nav-btn" style="padding:4px 10px;font-size:11px;" onclick="openGroqSettingsModal()">⚙️ Cấu hình ngay</button></div>';
   }
@@ -2256,7 +2258,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   try { document.getElementById('appVersionLabel').textContent = APP_VERSION; } catch (e) {}
   async function callGroqChat(messages, opts) {
     const cfg = getGroqConfig();
-    if (!cfg.apiKey) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
+    if (!cfg.apiKey && !(window.NightPlan && NightPlan.freeOK())) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     let res;
     const model = (opts && opts.model) || cfg.model || 'openai/gpt-oss-120b';
     let useJson = !!(opts && opts.json);
@@ -2275,11 +2277,11 @@ Is it better to read a physical book or an e-book?"></textarea>
       // Model "suy nghĩ" (gpt-oss) tốn token cho phần nghĩ trước khi viết: nghĩ ít lại để còn chỗ cho câu trả lời
       if (opts && opts.reasoning && /gpt-oss/i.test(model)) payload.reasoning_effort = opts.reasoning;
       if (useJson) payload.response_format = { type: 'json_object' };
-      res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      res = await (window.NightPlan ? NightPlan.groqFetch : fetch)('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
         body: JSON.stringify(payload)
-      });
+      }, 'speaking');
       // Model không hỗ trợ chế độ JSON / reasoning_effort -> gửi lại kiểu thường
       if (res.status === 400 && (useJson || payload.reasoning_effort)) { useJson = false; opts = Object.assign({}, opts, { reasoning: null }); continue; }
       // 413 = 1 lần gọi lớn hơn hạn mức/phút. Groq báo "Limit X, Requested Y": thu nhỏ phần xin viết ra rồi gửi lại.
@@ -2314,7 +2316,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   // karaoke, đo ngập ngừng và nhận ra đoạn ASR nghe không chắc. Trả {text, words:[{w,s,e}], segments}.
   async function callGroqTranscribe(blob, model, prompt) {
     const cfg = getGroqConfig();
-    if (!cfg.apiKey) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
+    if (!cfg.apiKey && !(window.NightPlan && NightPlan.freeOK())) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     const type = (blob.type || '').toLowerCase();
     const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : /wav/.test(type) ? 'wav' : /mpeg|mp3/.test(type) ? 'mp3' : 'webm';
     const send = async (verbose) => {
@@ -2325,7 +2327,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       fd.append('temperature', '0');
       if (prompt) fd.append('prompt', prompt);
       if (verbose) { fd.append('response_format', 'verbose_json'); fd.append('timestamp_granularities[]', 'word'); fd.append('timestamp_granularities[]', 'segment'); }
-      return fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + cfg.apiKey }, body: fd });
+      return (window.NightPlan ? NightPlan.groqFetch : fetch)('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + cfg.apiKey }, body: fd }, 'speaking');
     };
     let res = await send(true);
     if (res.status === 400) res = await send(false);   // API không nhận verbose_json -> vẫn lấy chữ

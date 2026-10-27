@@ -524,6 +524,7 @@ body.full-work .shell>main{padding:10px}
 .modal-bg{background:rgba(36,36,42,.55)!important;backdrop-filter:blur(6px)}
 .view-center .sheet{background:#fff!important;box-shadow:0 20px 50px -24px rgba(36,36,42,.45)}
 </style>
+<script src="night-plan.js?v=20261027b"></script>
 </head>
 <body>
 <div class="shell">
@@ -1224,6 +1225,7 @@ body.full-work .shell>main{padding:10px}
   function updateGear() { document.getElementById('groqGearDot').classList.toggle('hidden', !!getGroqConfig().apiKey); }
   function groqMissingHint() {
     if (getGroqConfig().apiKey) return '';
+    if (window.NightPlan && NightPlan.freeOK()) return '<div class="warn-box mb12" style="background:#FFF7ED;border-color:#FED7AA;color:#9A3412">🎁 Bạn đang dùng <b>AI miễn phí</b>: 5 phút mỗi 5 tiếng. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="NightPlan.openUpgrade()">⭐ Nâng cấp Pro</button></div>';
     return '<div class="warn-box mb12"><i class="fa-solid fa-circle-exclamation"></i> Chưa cấu hình Groq API Key trên máy này. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="openGroqSettingsModal()">Cấu hình</button></div>';
   }
   window.openGroqSettingsModal = function () {
@@ -1249,11 +1251,11 @@ body.full-work .shell>main{padding:10px}
   async function callGroq(messages, opts) {
     opts = opts || {};
     const cfg = getGroqConfig();
-    if (!cfg.apiKey) { const e = new Error('Chưa cấu hình Groq API Key (bấm bánh răng góc trên bên phải).'); e.code = 'NO_KEY'; throw e; }
+    if (!cfg.apiKey && !(window.NightPlan && NightPlan.freeOK())) { const e = new Error('Chưa cấu hình Groq API Key (bấm bánh răng góc trên bên phải).'); e.code = 'NO_KEY'; throw e; }
     let res;
     // Groq bản miễn phí giới hạn số token/phút: gặp lỗi 429 thì chờ đúng số giây Groq báo rồi thử lại (tối đa 2 lần)
     for (let attempt = 0; attempt < 3; attempt++) {
-      res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      res = await (window.NightPlan ? NightPlan.groqFetch : fetch)('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
         body: JSON.stringify({
@@ -1262,7 +1264,7 @@ body.full-work .shell>main{padding:10px}
           temperature: opts.temperature != null ? opts.temperature : 0.3,
           max_completion_tokens: opts.maxTokens || 2000
         })
-      });
+      }, 'writing');
       if (res.status !== 429 || attempt === 2) break;
       const t = await res.text().catch(() => '');
       const m = t.match(/try again in ([\d.]+)(ms|s|m)/i);

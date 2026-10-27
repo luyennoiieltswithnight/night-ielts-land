@@ -85,6 +85,40 @@
     return m && COURSE_NAMES[m[1]] ? m[1] : '';
   }
   function enrolledIn(u, key) { var c = (u && u.courses) || []; return Array.isArray(c) ? c.indexOf(key) >= 0 : !!c[key]; }
+  /* Gói tài khoản (xem ../night-plan.js): admin / pro còn hạn → mọi khoá; học sinh → khoá thầy thêm;
+     còn lại (user, pro hết hạn, học sinh chưa được thêm) → học thử FREE_N buổi đầu. */
+  var FREE_N = 3;
+  function effRole(u) { var r = (u && u.role) || 'student'; return r === 'pro' && !(Number(u.proUntil) > Date.now()) ? 'user' : r; }
+  function accessOf(u, key) {
+    var r = effRole(u);
+    if (r === 'admin' || r === 'pro' || !key) return 'full';
+    if (r === 'student' && enrolledIn(u, key)) return 'full';
+    return 'free';
+  }
+  function pageLessonN() { var m = (location.pathname || '').match(/buoi-(\d+)\.html$/i); return m ? parseInt(m[1], 10) : 0; }
+  function loadPlan() {
+    if (window.NightPlan) return Promise.resolve(window.NightPlan);
+    return new Promise(function (res) {
+      var sc = document.createElement('script');
+      try { sc.src = new URL('../night-plan.js', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-plan.js'; }
+      sc.onload = function () { res(window.NightPlan || null); }; sc.onerror = function () { res(null); };
+      document.head.appendChild(sc);
+    });
+  }
+  function showPaywall(o, user, key, u) {
+    var el = gateEl(), r = effRole(u), stu = r === 'student';
+    var back; try { back = new URL('../' + key + '.html', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { back = '../index.html'; }
+    el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
+      '<h1>' + (stu ? 'Bạn chưa được thêm vào khoá này' : 'Buổi này dành cho tài khoản Pro ⭐') + '</h1>' +
+      '<p>' + (stu ? 'Khoá <b>' + (COURSE_NAMES[key] || key) + '</b>: bạn được học thử ' + FREE_N + ' buổi đầu. Muốn học tiếp, nhắn thầy Night kèm Gmail <b style="color:#24242A">' + (user.email || '') + '</b> để được thêm vào khoá, hoặc nâng cấp Pro.'
+        : 'Tài khoản thường được học thử <b>' + FREE_N + ' buổi đầu</b> của mỗi khoá. Nâng cấp <b>Pro 99k/tháng</b> để mở toàn bộ buổi học của mọi khoá' + (r === 'user' && u && u.role === 'pro' ? ' (gói Pro của bạn đã hết hạn)' : '') + '.') +
+      '<br><small>Thầy duyệt xong, trang này tự mở.</small></p>' +
+      '<button type="button" id="np-pro" style="background:linear-gradient(135deg,#F59E0B,#EA580C)">⭐ Nâng cấp Pro</button>' +
+      '<div style="margin-top:12px"><a href="' + back + '" style="display:inline-block;background:#F1F1F6;color:#24242A;font-weight:800;font-size:14px;padding:11px 18px;border-radius:999px;text-decoration:none">← Về lộ trình khoá</a></div>' +
+      '<div style="margin-top:8px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập Gmail khác</button></div></div></div>';
+    document.getElementById('np-pro').onclick = function () { loadPlan().then(function (P) { if (P) P.openUpgrade(); else alert('Không tải được trang nâng cấp, thử lại nhé.'); }); };
+    document.getElementById('np-out').onclick = function () { o.authM.signOut(o.auth); };
+  }
   function showLocked(o, user, key) {
     var el = gateEl();
     el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
@@ -111,14 +145,15 @@
             if (done) return;
             if (!snap.exists() && !created) {
               created = true;
-              o.fs.setDoc(ref, { email: user.email, name: user.displayName, role: 'student', createdAt: Date.now(), photo: user.photoURL || '', courses: [] }).catch(function () {});
+              o.fs.setDoc(ref, { email: user.email, name: user.displayName, role: 'user', createdAt: Date.now(), photo: user.photoURL || '', courses: [] }).catch(function () {});
             }
-            var u = snap.exists() ? snap.data() : { role: 'student' };
+            var u = snap.exists() ? snap.data() : { role: 'user' };
             var role = u.role || 'student';
-            if (role !== 'admin' && key && !enrolledIn(u, key)) { showLocked(o, user, key); return; }
+            var access = accessOf(u, key), n = pageLessonN();
+            if (access === 'free' && n > FREE_N) { showPaywall(o, user, key, u); return; }
             done = true; if (unsubUser) { unsubUser(); unsubUser = null; }
             hideGate();
-            resolve({ user: user, role: role, o: o, courses: u.courses || [] });
+            resolve({ user: user, role: role, plan: effRole(u), access: access, freeN: FREE_N, o: o, courses: u.courses || [] });
           }, function (e) {
             /* Không đọc được hồ sơ → không chặn, coi như học sinh */
             console.warn('[NightProgress] users:', e);
@@ -277,5 +312,5 @@
     return fs.updateDoc(fs.doc(ctx.o.db, 'users', uid), { courses: on ? fs.arrayUnion(courseKey) : fs.arrayRemove(courseKey) });
   }
 
-  window.NightProgress = { gate: gate, lessonStore: lessonStore, myCourse: myCourse, classCourse: classCourse, setEnroll: setEnroll, enrolledIn: enrolledIn, LOCAL: LOCAL };
+  window.NightProgress = { gate: gate, loadPlan: loadPlan, FREE_N: FREE_N, lessonStore: lessonStore, myCourse: myCourse, classCourse: classCourse, setEnroll: setEnroll, enrolledIn: enrolledIn, LOCAL: LOCAL };
 })();
