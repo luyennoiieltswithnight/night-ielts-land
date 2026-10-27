@@ -116,3 +116,25 @@
   function last() { try { if (st.parentNode && st !== st.parentNode.lastElementChild) st.parentNode.appendChild(st); } catch (e) {} }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { last(); syncHeader(); }); else { last(); syncHeader(); }
 })();
+
+/* Nộp đề Reading / Listening → màn hình ăn mừng + chuỗi học + huy hiệu (night-fame.js) */
+(function () {
+  if (window.__nightFameHook) return; window.__nightFameHook = true;
+  var src; try { src = new URL('../../night-fame.js?v=20261028a', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/night-fame.js'; }
+  function wrapSave() {
+    var orig = window.saveProgressRecord;
+    if (typeof orig !== 'function' || orig.__fame) return;
+    var w = function (score, total, band) {
+      var r = orig.apply(this, arguments);
+      try {
+        var kind = /\/listening\//.test(location.pathname) ? 'listening' : 'reading';
+        var title = (document.title || '').replace(/\s*[-|·].*Night.*$/i, '') || kind;
+        var fire = function () { window.NightFame && window.NightFame.event({ kind: kind, id: 'ts_' + location.pathname + '_' + score + '_' + Math.floor(Date.now() / 60000), title: title, score: Number(score), total: Number(total), band: parseFloat(band) || 0 }); };
+        if (window.NightFame) fire(); else { var sc = document.createElement('script'); sc.src = src; sc.onload = fire; document.head.appendChild(sc); }
+      } catch (e) {}
+      return r;
+    };
+    w.__fame = true; window.saveProgressRecord = w;
+  }
+  window.addEventListener('load', function () { wrapSave(); setTimeout(wrapSave, 2500); });
+})();

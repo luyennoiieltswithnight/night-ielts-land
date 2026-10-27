@@ -171,6 +171,14 @@
     return gateP;
   }
 
+  /* Học xong 1 buổi → màn hình ăn mừng (../night-fame.js) */
+  function fameEvent(ev) {
+    var go = function () { if (window.NightFame) window.NightFame.event(ev); };
+    if (window.NightFame) return go();
+    var sc = document.createElement('script');
+    try { sc.src = new URL('../night-fame.js?v=20261028a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-fame.js'; }
+    sc.onload = go; document.head.appendChild(sc);
+  }
   /* ---------- Tiến độ 1 bài ---------- */
   function docId(uid, courseKey, lessonId) { return uid + '__' + courseKey + '__' + lessonId; }
   function localKey(courseKey, lessonId, uid) { return 'night-prog-' + courseKey + '-' + lessonId + '-' + (uid || 'guest'); }
@@ -263,7 +271,10 @@
       };
       if (!data.startedAt) data.startedAt = data.updatedAt;
       rec.startedAt = data.startedAt;
-      if (st.total && st.done >= st.total) { data.completedAt = data.completedAt || Date.now(); }
+      if (st.total && st.done >= st.total && !data.completedAt) {
+        data.completedAt = Date.now();
+        fameEvent({ kind: 'lesson', id: 'ls_' + meta.courseKey + '_' + meta.lessonId, title: (meta.session ? meta.session + ': ' : '') + (meta.title || ''), score: st.correct, total: st.total });
+      }
       if (data.completedAt) rec.completedAt = data.completedAt;
       o.fs.setDoc(o.fs.doc(o.db, COL, docId(uid, meta.courseKey, meta.lessonId)), rec).catch(function (e) { console.warn('[NightProgress] Lưu lỗi:', e); });
     }

@@ -14,6 +14,14 @@ const SITE = 'https://nightielts.id.vn/';
 const ICON = SITE + 'icons/icon-192.png';
 const DAILY_HOUR = 19;      // giờ nhắc mỗi tối (giờ Việt Nam)
 const DAILY_MINUTE = 30;
+// Night Check-in: mỗi ngày chuông reo 1 lần vào giờ NGẪU NHIÊN trong khoảng này (giờ Việt Nam)
+const CHECKIN_PLAN_HOUR = 13;            // lúc 13h script chọn giờ reo của hôm nay
+const CHECKIN_FROM = [15, 0], CHECKIN_TO = [21, 15];
+const MSG_CHECKIN = [
+  ['⏰ NIGHT CHECK-IN!', '15 phút để chụp góc học tập nè. Đúng giờ là có huy hiệu ⚡'],
+  ['📸 Chuông check-in reo rồi!', 'Chụp bàn học liền đi, cả lớp đang chờ giữ lửa 🔥'],
+  ['🔔 Check-in time con vợ ơi', 'Đang học gì thì chụp cái đó. Trễ là bị gắn nhãn "trễ 😴" đó nha'],
+];
 
 // ===================== LỜI NHẮN (sửa thoải mái) =====================
 const MSG_NEW = [
@@ -46,6 +54,7 @@ function setup() {
   ScriptApp.newTrigger('checkNewAssignments').timeBased().everyMinutes(5).create();
   ScriptApp.newTrigger('dailyNudge').timeBased().atHour(DAILY_HOUR).nearMinute(DAILY_MINUTE).everyDays(1)
     .inTimezone('Asia/Ho_Chi_Minh').create();
+  ScriptApp.newTrigger('planCheckin').timeBased().atHour(CHECKIN_PLAN_HOUR).everyDays(1).inTimezone('Asia/Ho_Chi_Minh').create();
   PropertiesService.getScriptProperties().setProperty('LAST_CHECK', String(Date.now()));
   Logger.log('Xong! Đã cài lịch: kiểm tra bài mới mỗi 5 phút + nhắc học lúc %s:%s mỗi tối.', DAILY_HOUR, DAILY_MINUTE);
 }
@@ -222,3 +231,26 @@ function fromValue(v) {
 function groupBy(arr, fn) { return arr.reduce((m, x) => { const k = fn(x); (m[k] = m[k] || []).push(x); return m; }, {}); }
 function indexBy(arr, fn) { return arr.reduce((m, x) => { m[fn(x)] = x; return m; }, {}); }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+
+// ===================== NIGHT CHECK-IN (chuông ngẫu nhiên mỗi ngày) =====================
+function planCheckin() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'checkinNow').forEach(t => ScriptApp.deleteTrigger(t));
+  const from = CHECKIN_FROM[0] * 60 + CHECKIN_FROM[1], to = CHECKIN_TO[0] * 60 + CHECKIN_TO[1];
+  const mins = from + Math.floor(Math.random() * (to - from));
+  const ymd = Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyy-MM-dd');
+  const at = new Date(ymd + 'T' + ('0' + Math.floor(mins / 60)).slice(-2) + ':' + ('0' + (mins % 60)).slice(-2) + ':00+07:00');
+  if (at.getTime() <= Date.now()) return;
+  ScriptApp.newTrigger('checkinNow').timeBased().at(at).create();
+  Logger.log('Chuông check-in hôm nay: %s', at);
+}
+function checkinNow() {
+  const now = Date.now();
+  const day = Utilities.formatDate(new Date(now), 'Asia/Ho_Chi_Minh', 'yyyyMMdd');
+  UrlFetchApp.fetch(FS + '/publicSettings/checkin?updateMask.fieldPaths=day&updateMask.fieldPaths=at', {
+    method: 'patch', contentType: 'application/json', headers: authHeaders(), muteHttpExceptions: true,
+    payload: JSON.stringify({ fields: { day: { stringValue: day }, at: { integerValue: String(now) } } }),
+  });
+  const msg = pick(MSG_CHECKIN);
+  listUsers().filter(u => u.role !== 'admin' && u.tokens.length).forEach(u => pushToUser(u, msg[0], msg[1], SITE + '?checkin=1'));
+}
