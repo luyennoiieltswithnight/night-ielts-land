@@ -1222,7 +1222,8 @@ body.full-work .shell>main{padding:10px}
   // ==========================================
   function getGroqConfig() { try { return JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || '{}'); } catch (e) { return {}; } }
   function saveGroqConfig(cfg) { try { localStorage.setItem('nightIeltsGroqCfg', JSON.stringify(cfg)); } catch (e) {} }
-  function updateGear() { document.getElementById('groqGearDot').classList.toggle('hidden', !!getGroqConfig().apiKey); }
+  function hasGroqAI() { return !!(getGroqConfig().apiKey || (window.NightPlan && NightPlan.freeOK())); }
+  function updateGear() { document.getElementById('groqGearDot').classList.toggle('hidden', hasGroqAI()); }
   function groqMissingHint() {
     if (getGroqConfig().apiKey) return '';
     if (window.NightPlan && NightPlan.freeOK()) return '<div class="warn-box mb12" style="background:#FFF7ED;border-color:#FED7AA;color:#9A3412">🎁 Bạn đang dùng <b>AI miễn phí</b>: 5 phút mỗi 5 tiếng. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="NightPlan.openUpgrade()">⭐ Nâng cấp Pro</button></div>';
@@ -1244,6 +1245,7 @@ body.full-work .shell>main{padding:10px}
     setTimeout(closeGroqSettingsModal, 600);
   };
 
+  if (window.NightPlan) NightPlan.init().then(() => { try { updateGear(); const h = document.getElementById('wkGroqHint'); if (h) h.innerHTML = groqMissingHint(); } catch (e) {} });
   const TEXT_MODEL_DEFAULT = 'openai/gpt-oss-120b';
   // Model đọc ảnh của Groq (thử lần lượt — Groq hay đổi tên model, cái nào chạy được thì dùng)
   const VISION_MODELS = ['qwen/qwen3.8-27b', 'meta-llama/llama-4-scout-17b-16e-instruct', 'meta-llama/llama-4-maverick-17b-128e-instruct'];
@@ -1789,7 +1791,7 @@ body.full-work .shell>main{padding:10px}
 
   window.generateGuide = async function () {
     if (!__work) return;
-    if (!getGroqConfig().apiKey) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
     const box = document.getElementById('wkGuide');
     const btn = document.getElementById('wkGuideBtn');
     btn.disabled = true;
@@ -2191,7 +2193,7 @@ body.full-work .shell>main{padding:10px}
     'Respond with STRICT JSON only, no markdown: {"score": integer, "verdict": string (VN, 3-6 words), "feedback": string, "errors": [], "betterAnswer": string, "rule": string, "nextGuide": string, "frames": [string], "vocabulary": [{"phrase": string, "meaning_vi": string}]}';
 
   window.coachCheck = async function (i) {
-    if (!getGroqConfig().apiKey) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
     const steps = coachSteps(), st = steps[i], s = __coach.steps[i];
     const ta = document.getElementById('csIn' + i);
     if (ta) s.answer = ta.value;
@@ -2728,8 +2730,8 @@ body.full-work .shell>main{padding:10px}
     if (!__rs) return;
     const data = __rs.data, ai = data.ai, isOwn = data.studentId === __uid;
     if (__gradingIds.has(__rs.ref.id)) return;
-    if (!ai && data.aiStatus !== 'error' && getGroqConfig().apiKey && isOwn) regradeCurrent();
-    else if (ai && !ai.upgrade && ai.moderated && isOwn && getGroqConfig().apiKey) startUpgrade();
+    if (!ai && data.aiStatus !== 'error' && hasGroqAI() && isOwn) regradeCurrent();
+    else if (ai && !ai.upgrade && ai.moderated && isOwn && hasGroqAI()) startUpgrade();
   }
   function showGradingMsg(s) {
     document.getElementById('rsNoAi').classList.remove('hidden');
@@ -2871,7 +2873,7 @@ body.full-work .shell>main{padding:10px}
     });
     box.innerHTML = '<div class="cmp-head"><span>Bài của bạn · band ' + fmtBand(ai.overall) + '</span><span>Bản nâng cấp · band ' + Number(up.targetBand).toFixed(1) + '</span></div>' + rows.join('') +
       '<div class="row mt16"><span class="grow"></span><button type="button" class="btn" onclick="copyUpgrade(this)"><i class="fa-regular fa-copy"></i> Chép bản nâng cấp</button>' +
-      (getGroqConfig().apiKey ? '<button type="button" class="btn" onclick="startUpgrade(true)">Viết lại bản khác</button>' : '') + '</div>';
+      (hasGroqAI() ? '<button type="button" class="btn" onclick="startUpgrade(true)">Viết lại bản khác</button>' : '') + '</div>';
     renderUpFilters();
   }
   function renderUpFilters() {
@@ -2894,7 +2896,7 @@ body.full-work .shell>main{padding:10px}
   };
   window.startUpgrade = async function (force) {
     if (!__rs || !__rs.data.ai || __rs.upgrading) return;
-    if (!getGroqConfig().apiKey) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
     const rs = __rs;
     if (force) rs.data.ai.upgrade = null;
     rs.upgrading = true; rs.upError = ''; rs.upMsg = '';
@@ -2938,7 +2940,7 @@ body.full-work .shell>main{padding:10px}
 
   window.regradeCurrent = async function () {
     if (!__rs) return;
-    if (!getGroqConfig().apiKey) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
     const rs = __rs, id = rs.ref.id;
     if (__gradingIds.has(id)) return;
     __gradingIds.add(id); rs.grading = true;

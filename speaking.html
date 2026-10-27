@@ -2204,6 +2204,8 @@ Is it better to read a physical book or an e-book?"></textarea>
   function getGroqConfig() {
     try { return JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || '{}'); } catch (e) { return {}; }
   }
+  function hasGroqAI() { return !!(getGroqConfig().apiKey || (window.NightPlan && NightPlan.freeOK())); }
+  window.hasGroqAI = hasGroqAI;
   function saveGroqConfig(cfg) {
     try { localStorage.setItem('nightIeltsGroqCfg', JSON.stringify(cfg)); } catch (e) {}
   }
@@ -2222,7 +2224,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   function updateGroqGearIndicator() {
     const cfg = getGroqConfig();
     const dot = document.getElementById('groqGearDot');
-    if (dot) dot.classList.toggle('hidden', !!cfg.apiKey);
+    if (dot) dot.classList.toggle('hidden', hasGroqAI());
   }
 
   window.openGroqSettingsModal = function () {
@@ -2253,6 +2255,8 @@ Is it better to read a physical book or an e-book?"></textarea>
     setTimeout(() => { closeGroqSettingsModal(); }, 700);
   };
 
+  // Tài khoản User dùng AI miễn phí: khi biết vai trò thì cập nhật lại dấu chấm đỏ + dòng nhắc
+  if (window.NightPlan) NightPlan.init().then(() => { try { updateGroqGearIndicator(); ['spGroqBoxCreate', 'spGroqBoxPractice'].forEach(id => { const b = document.getElementById(id); if (b) b.innerHTML = groqMissingHint(); }); } catch (e) {} });
   const APP_VERSION = '17/10 · v9';
   const GROQ_TPM_BUDGET = 7600;
   try { document.getElementById('appVersionLabel').textContent = APP_VERSION; } catch (e) {}
@@ -2437,7 +2441,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const keywords = (input.value || '').trim();
     if (!keywords) { alert('Vui lòng gõ vài chữ hoặc ý chính trước đã nhé.'); return; }
     const cfg = getGroqConfig();
-    if (!cfg.apiKey) { alert('Vui lòng cấu hình Groq API Key trước khi dùng gợi ý AI (bấm biểu tượng ⚙️ ở góc trên bên phải).'); return; }
+    if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước khi dùng gợi ý AI (bấm biểu tượng ⚙️ ở góc trên bên phải).'); return; }
     if (!__pkg) return;
     const q = __pkg.questions[__qIdx];
 
@@ -2592,7 +2596,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   async function generateTipsForPackage(pkgId, questions) {
     const cfg = getGroqConfig();
-    if (!cfg.apiKey) return; // không có key -> bỏ qua, gợi ý để trống, có thể tạo sau
+    if (!hasGroqAI()) return; // không có key -> bỏ qua, gợi ý để trống, có thể tạo sau
     const updated = [];
     for (const q of questions) {
       try {
@@ -2614,7 +2618,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const pkg = __spAllPackages.find(p => p.id === pkgId);
     if (!pkg) return;
     const cfg = getGroqConfig();
-    if (!cfg.apiKey) { alert('Vui lòng cấu hình Groq API Key trước (ở khung "Tạo bộ câu hỏi mới").'); return; }
+    if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước (ở khung "Tạo bộ câu hỏi mới").'); return; }
     await generateTipsForPackage(pkgId, pkg.questions);
   };
 
@@ -3803,7 +3807,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   window.scoreRecording = async function () {
     if (!__recBlob) return;
     const cfg = getGroqConfig();
-    if (!cfg.apiKey) { alert('Vui lòng cấu hình Groq API Key trước khi chấm điểm (biểu tượng ⚙️ góc trên).'); return; }
+    if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước khi chấm điểm (biểu tượng ⚙️ góc trên).'); return; }
 
     document.getElementById('recPreviewBox').classList.add('hidden');
     const qBox = document.getElementById('recQualityBox');
@@ -4402,7 +4406,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (!__res) return;
     const rec = __res.record, busyKey = (rec.id || '') + 'refined';
     if (__upBusy[busyKey]) return;
-    if (!getGroqConfig().apiKey) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
+    if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
     __upBusy[busyKey] = true; renderSide(rec);
     const disp = SPCore.displayBand(rec);
     const target = disp.band != null ? Math.min(9, Math.floor(disp.band) + 1) : 6;
@@ -4454,7 +4458,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (!__res) return;
     const rec = __res.record, kind = UPGRADE_KINDS[kindKey], busyKey = (rec.id || '') + kindKey;
     if (__upBusy[busyKey]) return;
-    if (!getGroqConfig().apiKey) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
+    if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
     const targets = upTargets(rec, kind).filter(t => t.target != null);
     if (!targets.length) return;
     const step = msg => { __upBusy[busyKey] = msg; if (__res && __res.record === rec) renderSide(rec); };
@@ -4579,7 +4583,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (!__res) return;
     const rec = __res.record, key = (rec.id || '') + tab;
     if (__deepBusy[key]) return;
-    if (!getGroqConfig().apiKey) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
+    if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
     __deepBusy[key] = 'Đang phân tích... (khoảng 10–30 giây)'; renderDeep(rec);
     const prevWait = window.__onGroqWait;
     window.__onGroqWait = s => { __deepBusy[key] = 'Groq đang giới hạn lượt dùng, tự thử lại sau ' + s + ' giây...'; if (__res && __res.record === rec) renderDeep(rec); };
