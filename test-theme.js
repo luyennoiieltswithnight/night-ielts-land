@@ -120,7 +120,7 @@
 /* Nộp đề Reading / Listening → màn hình ăn mừng + chuỗi học + huy hiệu (night-fame.js) */
 (function () {
   if (window.__nightFameHook) return; window.__nightFameHook = true;
-  var src; try { src = new URL('../../night-fame.js?v=20261028a', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/night-fame.js'; }
+  var src; try { src = new URL('../../night-fame.js?v=20261028b', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/night-fame.js'; }
   function wrapSave() {
     var orig = window.saveProgressRecord;
     if (typeof orig !== 'function' || orig.__fame) return;

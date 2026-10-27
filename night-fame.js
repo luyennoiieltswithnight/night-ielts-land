@@ -60,6 +60,7 @@
   var RAR = { common: ['Thường', '#64748B', '#F1F5F9'], rare: ['Hiếm', '#2563EB', '#DBEAFE'], epic: ['Sử thi', '#9333EA', '#F3E8FF'], legend: ['Huyền thoại', '#D97706', '#FEF3C7'] };
   var BADGES = [
     { id: 'first', n: 'Bước đầu tiên', d: 'Hoàn thành hoạt động học đầu tiên', r: 'common', i: 'kaidan_woman_noboru' },
+    { id: 'streak2', n: 'Nhóm lửa', d: 'Học 2 ngày liên tiếp', r: 'common', i: 'yaruki_moeru_woman_8815' },
     { id: 'streak3', n: 'Lửa nhỏ', d: 'Học 3 ngày liên tiếp', r: 'common', i: 'yaruki_moeru_woman_8815' },
     { id: 'streak7', n: 'Một tuần bốc cháy', d: 'Học 7 ngày liên tiếp', r: 'rare', i: 'yaruki_moeru_woman_8815' },
     { id: 'streak30', n: 'Tháng không nghỉ', d: 'Học 30 ngày liên tiếp', r: 'epic', i: 'yaruki_moeru_man_2348' },
@@ -87,7 +88,7 @@
     var acts = 0; Object.keys(t).forEach(function (k) { acts += t[k]; });
     var h = hourVN(ev.at);
     if (acts >= 1) out.push('first');
-    if (f.streak >= 3) out.push('streak3'); if (f.streak >= 7) out.push('streak7'); if (f.streak >= 30) out.push('streak30'); if (f.streak >= 100) out.push('streak100');
+    if (f.streak >= 2) out.push('streak2'); if (f.streak >= 3) out.push('streak3'); if (f.streak >= 7) out.push('streak7'); if (f.streak >= 30) out.push('streak30'); if (f.streak >= 100) out.push('streak100');
     if (ev.kind !== 'kudos' && (h >= 23 || h < 4)) out.push('owl');
     if (ev.kind !== 'kudos' && h >= 4 && h < 7) out.push('bird');
     if (ev.comeback) out.push('comeback');
@@ -113,7 +114,7 @@
     any: ['Học xong rồi, giờ lướt TikTok không áy náy 😌', 'Một bước gần hơn tới band mơ ước ✨', 'Ai cản được tui nữa 😤', 'IELTS ơi chờ đó 🫡', 'Hôm nay tui chọn học thay vì nằm 🛌❌'],
     high: ['Band này ai dạy vậy trời 😭🔥', 'Mẹ ơi con giỏi rồi 😭', 'Không phải flex đâu, chỉ là sự thật 💅', 'Ủa sao giỏi vậy 😳'],
     night: ['3 giờ sáng vẫn còn cày, cú đêm chính hiệu 🦉', 'Đêm khuya chỉ có tui và IELTS 🌙'],
-    streak: ['Chuỗi này mà đứt là tui khóc 🔥', 'Ngày thứ {n} không bỏ cuộc 🔥'],
+    streak: ['Chuỗi này mà đứt là tui khóc 🔥', 'Ngày thứ {n} không bỏ cuộc 🔥', '{n} ngày liền, ai cản nổi 😤'],
     checkin: ['Check-in bàn học, chứng minh tui có học 📸', 'Góc học tập hôm nay ✨', 'Đang chăm, đừng làm phiền 🤫'],
     kudos: ['Được thầy Night đóng mộc, khung ảnh liền 🖼️', 'Thầy khen đó, nói ít hiểu nhiều 😎']
   };
@@ -237,7 +238,8 @@
     if (ev.kind === 'kudos') return pick(CAPS.kudos);
     if (ev.band >= 7 || (ev.total >= 10 && ev.score / ev.total >= .85)) return pick(CAPS.high);
     if (h >= 23 || h < 4) return pick(CAPS.night);
-    if (f && f.streak >= 3 && Math.random() < .5) return pick(CAPS.streak).replace('{n}', f.streak);
+    if (f && [2, 3, 7, 14, 30, 50, 100].indexOf(f.streak) >= 0 && f.lastDay === dayKey(ev.at) && !f.__shownStreak) return pick(CAPS.streak).replace('{n}', f.streak);
+    if (f && f.streak >= 3 && Math.random() < .4) return pick(CAPS.streak).replace('{n}', f.streak);
     return pick(CAPS.any);
   }
   function celebrate(ev, r) {
