@@ -107,16 +107,16 @@
 
   /* ---------- Ghi nhận 1 hoạt động ---------- */
   var KIND = {
-    reading: ['Reading', '📖'], listening: ['Listening', '🎧'], speaking: ['Speaking', '🗣️'], writing: ['Writing', '✍️'],
-    lesson: ['Bài học', '📚'], checkin: ['Check-in', '📸'], kudos: ['Thầy khen', '🏅']
+    reading: ['Reading', ''], listening: ['Listening', ''], speaking: ['Speaking', ''], writing: ['Writing', ''],
+    lesson: ['Bài học', ''], checkin: ['Check-in', ''], kudos: ['Thầy khen', '']
   };
   var CAPS = {
-    any: ['Học xong rồi, giờ lướt TikTok không áy náy 😌', 'Một bước gần hơn tới band mơ ước ✨', 'Ai cản được tui nữa 😤', 'IELTS ơi chờ đó 🫡', 'Hôm nay tui chọn học thay vì nằm 🛌❌'],
-    high: ['Band này ai dạy vậy trời 😭🔥', 'Mẹ ơi con giỏi rồi 😭', 'Không phải flex đâu, chỉ là sự thật 💅', 'Ủa sao giỏi vậy 😳'],
-    night: ['3 giờ sáng vẫn còn cày, cú đêm chính hiệu 🦉', 'Đêm khuya chỉ có tui và IELTS 🌙'],
-    streak: ['Chuỗi này mà đứt là tui khóc 🔥', 'Ngày thứ {n} không bỏ cuộc 🔥', '{n} ngày liền, ai cản nổi 😤'],
-    checkin: ['Check-in bàn học, chứng minh tui có học 📸', 'Góc học tập hôm nay ✨', 'Đang chăm, đừng làm phiền 🤫'],
-    kudos: ['Được thầy Night đóng mộc, khung ảnh liền 🖼️', 'Thầy khen đó, nói ít hiểu nhiều 😎']
+    any: ['Học xong rồi, giờ lướt TikTok không áy náy', 'Một bước gần hơn tới band mơ ước', 'Ai cản được tui nữa', 'IELTS ơi chờ đó', 'Hôm nay tui chọn học thay vì nằm'],
+    high: ['Band này ai dạy vậy trời', 'Mẹ ơi con giỏi rồi', 'Không phải flex đâu, chỉ là sự thật', 'Ủa sao giỏi vậy'],
+    night: ['3 giờ sáng vẫn còn cày, cú đêm chính hiệu', 'Đêm khuya chỉ có tui và IELTS'],
+    streak: ['Chuỗi này mà đứt là tui khóc', 'Ngày thứ {n} không bỏ cuộc', '{n} ngày liền, ai cản nổi'],
+    checkin: ['Check-in bàn học, chứng minh tui có học', 'Góc học tập hôm nay', 'Đang chăm, đừng làm phiền'],
+    kudos: ['Được thầy Night đóng mộc, khung ảnh liền', 'Thầy khen đó, nói ít hiểu nhiều']
   };
   function seenId(id) { if (!id) return false; var a = lsGet('nightFameSeen', []); if (a.indexOf(id) >= 0) return true; a.push(id); lsSet('nightFameSeen', a.slice(-300)); return false; }
 
@@ -215,6 +215,35 @@
     '.nf-sl h3{font-size:18px;font-weight:700;opacity:.85;margin:0 0 10px}.nf-sl .num{font-size:110px;font-weight:800;line-height:1;margin:6px 0}.nf-sl p{font-size:18px;line-height:1.5;margin:8px 0}.nf-sl .q{font-size:24px;font-weight:800;line-height:1.4;font-style:italic}' +
     '.nf-sl .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin:18px auto 0;max-width:280px}.nf-sl .cal i{aspect-ratio:1;border-radius:6px;background:rgba(255,255,255,.12)}.nf-sl .cal i.on{background:#FFD38A}' +
     '.nf-sl .x{position:absolute;top:26px;right:16px;border:0;background:rgba(255,255,255,.15);color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer}';
+  CSS += '.nf-lk{position:fixed;inset:0;z-index:100058;background:#121212;color:#fff;display:flex;flex-direction:column;font-family:"Plus Jakarta Sans",system-ui,sans-serif;-webkit-tap-highlight-color:transparent}' +
+    '.nf-lk-load{margin:auto;text-align:center;color:#bbb;font-weight:700;padding:20px}' +
+    '.nf-lk-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top,0px) + 12px) 16px 8px;flex:none}' +
+    '.nf-lk-ic{width:46px;height:46px;border-radius:50%;border:0;background:#262626;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}.nf-lk-ic.big{width:56px;height:56px;background:transparent}' +
+    '.nf-lk-pill{display:inline-flex;align-items:center;gap:8px;background:#262626;color:#fff;border:0;border-radius:999px;padding:10px 16px;font:700 14px inherit;font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.nf-lk-pill img{width:22px;height:22px;object-fit:contain}.nf-lk-pill.red{background:#B91C1C;padding:8px 14px;font-size:13px;cursor:pointer}' +
+    '.nf-lk-me{width:46px;height:46px;border-radius:50%;border:2.5px solid #F5B301;padding:0;background:#fff;overflow:hidden;cursor:pointer;flex:none}.nf-lk-me img{width:100%;height:100%;object-fit:cover}' +
+    '.nf-lk-feed{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none}.nf-lk-feed::-webkit-scrollbar{display:none}' +
+    '.nf-lk-s{height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 10px;box-sizing:border-box}' +
+    '.nf-lk-ph{position:relative;width:min(100%,calc(100% - 0px),56vh);aspect-ratio:1;border-radius:46px;overflow:hidden;background:#1F1F1F}.nf-lk-ph>img{width:100%;height:100%;object-fit:cover;display:block}' +
+    '.nf-lk-ph.compose{background:#1C1C1C;border:1.5px dashed #3a3a3a}.nf-lk-ph.compose.has{border:0}' +
+    '.nf-lk-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:8px}.nf-lk-empty img{width:120px;height:120px;object-fit:contain}.nf-lk-empty b{font-size:18px}.nf-lk-empty span{font-size:13px;color:#aaa;line-height:1.45;max-width:260px}' +
+    '.nf-lk-capv,.nf-lk-cap{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);max-width:82%;background:rgba(40,40,40,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#fff;font:700 15px inherit;font-family:inherit;padding:10px 16px;border-radius:999px;text-align:center;border:0;outline:0;box-sizing:border-box}.nf-lk-cap{width:82%}.nf-lk-cap::placeholder{color:#ddd}' +
+    '.nf-lk-stamp{position:absolute;top:22px;right:20px;transform:rotate(10deg);border:3px solid #EF4444;color:#EF4444;background:rgba(255,255,255,.85);font-weight:800;font-size:15px;padding:4px 10px;border-radius:8px;letter-spacing:.04em}' +
+    '.nf-lk-who{display:flex;align-items:center;gap:10px;margin-top:18px}.nf-lk-who img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#fff}.nf-lk-who b{font-size:17px}.nf-lk-who span{color:#8a8a8a;font-weight:700;font-size:15px}' +
+    '.nf-lk-rxs{display:flex;gap:6px;margin-top:10px}.nf-lk-rxs span{display:inline-flex;align-items:center;gap:2px;background:#262626;border-radius:999px;padding:3px 9px 3px 4px;font-weight:800;font-size:13px}.nf-lk-rxs img{width:26px;height:26px;object-fit:contain}' +
+    '.nf-lk-bot{flex:none;padding:6px 16px calc(env(safe-area-inset-bottom,0px) + 14px)}' +
+    '.nf-lk-msg{display:flex;align-items:center;gap:6px;background:#262626;border-radius:999px;padding:8px 10px 8px 22px;min-height:44px;max-width:520px;margin:0 auto}.nf-lk-msg>span{flex:1;color:#9a9a9a;font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '.nf-lk-rx{border:0;background:transparent;padding:2px;border-radius:50%;cursor:pointer;transition:transform .15s}.nf-lk-rx img{width:38px;height:38px;object-fit:contain;display:block}.nf-lk-rx.on{background:#F5B301}.nf-lk-rx:active{transform:scale(1.25)}' +
+    '.nf-lk-nav{display:flex;align-items:center;justify-content:space-between;max-width:420px;margin:14px auto 0}' +
+    '.nf-lk-shut{width:84px;height:84px;border-radius:50%;border:4px solid #F5B301;background:transparent;padding:5px;cursor:pointer}.nf-lk-shut i{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;background:#fff;color:#121212}.nf-lk-shut i img{width:70%;height:70%;object-fit:contain}' +
+    '.nf-lk-shut.ring{animation:nfRing 1.2s ease infinite}@keyframes nfRing{50%{box-shadow:0 0 0 10px rgba(245,179,1,.28)}}.nf-lk-shut.send i{background:#F5B301}.nf-lk-shut:disabled{opacity:.5}' +
+    '.nf-lk-grid{position:absolute;inset:0;background:#121212;display:flex;flex-direction:column;z-index:2}.nf-lk-gg{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px 10px 20px;align-content:start}.nf-lk-gg button{border:0;padding:0;aspect-ratio:1;border-radius:18px;overflow:hidden;background:#222;cursor:pointer}.nf-lk-gg img{width:100%;height:100%;object-fit:cover}' +
+    '.nf-lk-toast{position:absolute;left:50%;top:80px;transform:translateX(-50%);background:#fff;color:#121212;font-weight:800;font-size:14px;padding:10px 16px;border-radius:999px;max-width:86%;text-align:center;z-index:3}' +
+    '.nf-avp{position:fixed;inset:0;z-index:100070;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;font-family:"Plus Jakarta Sans",system-ui,sans-serif}@media(min-width:700px){.nf-avp{align-items:center}}' +
+    '.nf-avbox{width:100%;max-width:520px;max-height:88vh;overflow:auto;background:#1B1B1B;color:#fff;border-radius:28px 28px 0 0;padding:18px 16px 24px}@media(min-width:700px){.nf-avbox{border-radius:28px}}' +
+    '.nf-avhd{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.nf-avhd b{font-size:20px}.nf-avnote{color:#aaa;font-size:14px;line-height:1.5;margin:0 0 14px}.nf-avnote b{color:#F5B301}' +
+    '.nf-avgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.nf-avi{position:relative;aspect-ratio:1;border-radius:50%;border:3px solid transparent;background:#fff;padding:6px;cursor:pointer}.nf-avi img{width:100%;height:100%;object-fit:contain}.nf-avi.on{border-color:#F5B301}' +
+    '.nf-avi.lock img{filter:grayscale(1);opacity:.35}.nf-avi.lock span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#121212}.nf-avi.shake{animation:nfShake .4s}@keyframes nfShake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}' +
+    '.nf-tile img.ic{width:46px;height:46px;object-fit:contain;flex:none}.nf-hello{flex-basis:100%;display:flex;align-items:center;gap:12px;background:#fff;border-radius:22px;padding:10px 14px;box-shadow:0 10px 30px -22px rgba(36,36,42,.45)}.nf-hello button.av{width:52px;height:52px;border-radius:50%;border:3px solid #F5B301;background:#FFF7ED;padding:3px;cursor:pointer;flex:none}.nf-hello button.av img{width:100%;height:100%;object-fit:contain;border-radius:50%}.nf-hello b{font-size:16px}.nf-hello small{display:block;color:#6B6B78;font-size:12px}';
   function css() { if (document.getElementById('nf-css')) return; var s = document.createElement('style'); s.id = 'nf-css'; s.textContent = CSS; document.head.appendChild(s); }
 
   function confetti() {
@@ -245,24 +274,24 @@
   function celebrate(ev, r) {
     css();
     var f = (r && r.f) || {}, news = (r && r.news) || [], u = (r && r.u) || {};
-    var big = ev.big || (ev.band ? Number(ev.band).toFixed(1) : (ev.total && typeof ev.score === 'number' ? ev.score + '/' + ev.total : (ev.kind === 'checkin' ? '📸' : ev.kind === 'kudos' ? '🏅' : '✓')));
-    var label = (KIND[ev.kind] || ['', ''])[1] + ' ' + (ev.kind === 'checkin' ? 'Check-in xong!' : ev.kind === 'kudos' ? 'Thầy Night khen bạn!' : (KIND[ev.kind][0] + (ev.band ? ' · Band' : ev.total && typeof ev.score === 'number' ? ' · Đúng' : ' · Hoàn thành')));
+    var big = ev.big || (ev.band ? Number(ev.band).toFixed(1) : (ev.total && typeof ev.score === 'number' ? ev.score + '/' + ev.total : (ev.kind === 'kudos' ? 'Đỉnh!' : '✓')));
+    var label = (ev.kind === 'checkin' ? 'Check-in xong!' : ev.kind === 'kudos' ? 'Thầy Night khen bạn!' : (KIND[ev.kind][0] + (ev.band ? ' · Band' : ev.total && typeof ev.score === 'number' ? ' · Đúng' : ' · Hoàn thành')));
     var cap = ev.caption || captionOf(ev, f), st = stickerOf(ev, news);
-    var data = { label: label, big: big, title: ev.title || '', cap: cap, sticker: st, streak: f.streak || 0, name: u.name || '', photo: u.photo || '', img: ev.img || '', news: news };
+    var data = { label: label, big: big, title: ev.title || '', cap: cap, sticker: st, streak: f.streak || 0, name: u.name || '', photo: f.av ? avUrl(f.av) : (u.photo || ''), img: ev.img || '', news: news };
     var ov = document.createElement('div'); ov.className = 'nf-ov';
     ov.innerHTML = '<div class="nf-card"><span class="nf-kind">' + esc(label) + '</span>' +
       (ev.img ? '<div class="nf-pol" style="max-width:220px;margin:14px auto 4px;transform:rotate(-3deg)"><img class="ph" src="' + esc(ev.img) + '"></div>' : '<div class="nf-big' + (String(big).length > 4 ? ' sm' : '') + '">' + esc(big) + '</div>') +
       (ev.title ? '<p class="nf-t">' + esc(ev.title) + '</p>' : '') +
       (ev.img ? '' : '<img class="nf-stk" src="' + IRA + st + '.webp" alt="">') +
       '<div class="nf-cap">' + esc(cap) + '</div>' +
-      '<div class="nf-chips">' + (f.streak ? '<span class="nf-chip">🔥 Chuỗi ' + f.streak + ' ngày</span>' : '') + (f.best > f.streak ? '<span class="nf-chip">Kỷ lục ' + f.best + '</span>' : '') + '</div>' +
-      news.slice(0, 3).map(function (id) { var b = BMAP[id], rr = RAR[b.r]; return '<div class="nf-badge"><img src="' + IRA + b.i + '.webp" alt=""><div><small style="color:' + rr[1] + '">🏅 HUY HIỆU MỚI · ' + rr[0].toUpperCase() + '</small><b>' + esc(b.n) + '</b></div></div>'; }).join('') +
-      (news.length > 3 ? '<p style="margin:0 0 10px;font-weight:800">+' + (news.length - 3) + ' huy hiệu nữa trong album 🏅</p>' : '') +
-      '<div class="nf-btns"><button class="nf-btn gold" data-a="story">📸 Lưu ảnh story</button><button class="nf-btn ghost" data-a="close">Đóng</button></div></div>';
+      '<div class="nf-chips">' + (f.streak ? '<span class="nf-chip"><img src="' + IRA + 'yaruki_moeru_woman_8815.webp" style="width:22px;height:22px;object-fit:contain;vertical-align:-6px;margin-right:4px">Chuỗi ' + f.streak + ' ngày</span>' : '') + (f.best > f.streak ? '<span class="nf-chip">Kỷ lục ' + f.best + '</span>' : '') + '</div>' +
+      news.slice(0, 3).map(function (id) { var b = BMAP[id], rr = RAR[b.r]; return '<div class="nf-badge"><img src="' + IRA + b.i + '.webp" alt=""><div><small style="color:' + rr[1] + '">HUY HIỆU MỚI · ' + rr[0].toUpperCase() + '</small><b>' + esc(b.n) + '</b></div></div>'; }).join('') +
+      (news.length > 3 ? '<p style="margin:0 0 10px;font-weight:800">+' + (news.length - 3) + ' huy hiệu nữa trong album</p>' : '') +
+      '<div class="nf-btns"><button class="nf-btn gold" data-a="story">Lưu ảnh story</button><button class="nf-btn ghost" data-a="close">Đóng</button></div></div>';
     ov.addEventListener('click', function (e) {
       var a = e.target.closest('[data-a]'); if (!a) return;
       if (a.dataset.a === 'close') ov.remove();
-      if (a.dataset.a === 'story') { a.disabled = true; a.textContent = 'Đang tạo ảnh…'; story(data).then(function () { a.disabled = false; a.textContent = '📸 Lưu ảnh story'; }); }
+      if (a.dataset.a === 'story') { a.disabled = true; a.textContent = 'Đang tạo ảnh…'; story(data).then(function () { a.disabled = false; a.textContent = 'Lưu ảnh story'; }); }
     });
     document.body.appendChild(ov); confetti();
     try { navigator.vibrate && navigator.vibrate([30, 40, 60]); } catch (e) {}
@@ -285,7 +314,7 @@
       x.fillStyle = g; x.fillRect(0, 0, W, H);
       x.globalAlpha = .08; x.fillStyle = '#fff'; for (var i = 0; i < 60; i++) { x.beginPath(); x.arc((i * 197) % W, (i * 331) % H, 2 + (i % 4), 0, 7); x.fill(); } x.globalAlpha = 1;
       x.textAlign = 'center'; x.fillStyle = '#fff';
-      x.font = '800 44px ' + F; x.fillText('🌙 Night IELTS', W / 2, 150);
+      x.font = '800 44px ' + F; x.fillText('NIGHT IELTS', W / 2, 150);
       x.font = '700 40px ' + F; x.globalAlpha = .85; x.fillText(d.label, W / 2, 230); x.globalAlpha = 1;
       var y = 300;
       if (d.img && im[0]) {
@@ -302,8 +331,8 @@
       x.fillStyle = '#fff';
       if (d.title) { x.font = '600 40px ' + F; x.globalAlpha = .85; y = wrap(x, d.title, W / 2, y, 900, 54) + 30; x.globalAlpha = 1; }
       x.font = '800 62px ' + F; y = wrap(x, d.cap, W / 2, y + 30, 920, 80) + 40;
-      if (d.streak) { x.font = '800 48px ' + F; var tx = '🔥 Chuỗi ' + d.streak + ' ngày', tw = x.measureText(tx).width + 70; x.fillStyle = 'rgba(255,255,255,.16)'; roundRect(x, W / 2 - tw / 2, y, tw, 90, 45); x.fill(); x.fillStyle = '#fff'; x.fillText(tx, W / 2, y + 63); y += 130; }
-      if (d.news && d.news.length) { x.font = '700 40px ' + F; wrap(x, '🏅 Huy hiệu mới: ' + d.news.map(function (id) { return BMAP[id].n; }).join(' · '), W / 2, Math.min(y + 20, 1640), 940, 52); }
+      if (d.streak) { x.font = '800 48px ' + F; var tx = 'Chuỗi ' + d.streak + ' ngày', tw = x.measureText(tx).width + 70; x.fillStyle = 'rgba(255,255,255,.16)'; roundRect(x, W / 2 - tw / 2, y, tw, 90, 45); x.fill(); x.fillStyle = '#fff'; x.fillText(tx, W / 2, y + 63); y += 130; }
+      if (d.news && d.news.length) { x.font = '700 40px ' + F; wrap(x, 'Huy hiệu mới: ' + d.news.map(function (id) { return BMAP[id].n; }).join(' · '), W / 2, Math.min(y + 20, 1640), 940, 52); }
       if (im[1]) { x.save(); x.beginPath(); x.arc(W / 2 - 250, 1810, 42, 0, 7); x.clip(); x.drawImage(im[1], W / 2 - 292, 1768, 84, 84); x.restore(); }
       x.font = '800 40px ' + F; x.textAlign = 'left'; x.fillText(d.name || 'Night IELTS', W / 2 - 190, 1800);
       x.font = '600 32px ' + F; x.globalAlpha = .8; x.fillText('nightielts.id.vn · ' + new Date().toLocaleDateString('vi-VN'), W / 2 - 190, 1846); x.globalAlpha = 1;
@@ -326,11 +355,64 @@
     return ov;
   }
 
-  /* ---------- Night Check-in + Tường lớp ---------- */
+  /* ---------- Avatar biểu cảm (Irasutoya): 5 ảnh miễn phí, cứ mỗi 5 ngày chuỗi (kỷ lục) mở thêm 1 ảnh ---------- */
+  var AV_FREE = ['boy03_smile', 'girl03_smile', 'boy01_laugh', 'girl01_laugh', 'girl_tehe'];
+  var AV_ALL = AV_FREE.concat(['boy_tehe', 'boy_heart', 'girl_heart', 'boy_idea', 'girl_idea', 'boy_think', 'girl_think', 'boy_surprise', 'girl_surprise', 'boy_shock', 'girl_shock', 'boy_question', 'girl_question', 'boy_sleep', 'girl_sleep', 'boy02_angry', 'girl02_angry', 'boy04_cry', 'girl04_cry',
+    'whiteboy1_1smile', 'whitegirl1_1smile', 'whiteboy1_laugh', 'whitegirl1_2laugh', 'whiteboy3_4tehe', 'whitegirl3_4tehe', 'whiteboy3_2heart', 'whitegirl3_2heart', 'whiteboy2_1idea', 'whitegirl2_1idea', 'whiteboy2_3think', 'whitegirl2_3think',
+    'whiteboy2_2surprise', 'whitegirl2_2surprise', 'whiteboy2_4shock', 'whitegirl2_4shock', 'whiteboy3_1question', 'whitegirl3_1question', 'whiteboy3_3sleep', 'whitegirl3_3sleep', 'whiteboy1_4angry', 'whitegirl1_4angry', 'whiteboy1_3cry', 'whitegirl1_3cry']);
+  function avUrl(id) { return IRA + 'av/' + id + '.webp'; }
+  function avOf(x) { return x && x.av ? avUrl(x.av) : (x && x.photo) || avUrl('boy03_smile'); }
+  function avOwned(f) { return AV_FREE.concat(f.avatars || []); }
+  function avTokens(f) { return Math.max(0, Math.floor((f.best || 0) / 5) - (f.avatars || []).length); }
+  function openAvatar(done) {
+    css();
+    me().then(function (u) {
+      if (!u) return;
+      var o = u.o, ref = o.fs.doc(o.db, 'fame', u.uid);
+      o.fs.getDoc(ref).then(function (sn) {
+        var f = sn.exists() ? sn.data() : {};
+        var ov = document.createElement('div'); ov.className = 'nf-avp';
+        function paint() {
+          var own = avOwned(f), tk = avTokens(f), next = ((Math.floor((f.best || 0) / 5) + 1) * 5);
+          ov.innerHTML = '<div class="nf-avbox"><div class="nf-avhd"><b>Ảnh đại diện</b><button class="nf-lk-ic" data-a="x" aria-label="Đóng">' + SVG.x + '</button></div>' +
+            '<p class="nf-avnote">' + (tk ? 'Bạn có <b>' + tk + ' lượt mở khoá</b>. Chạm vào ảnh đang khoá để mở.' : 'Cứ mỗi <b>5 ngày chuỗi</b> mở được 1 ảnh mới. Kỷ lục của bạn: <b>' + (f.best || 0) + ' ngày</b>, lượt tiếp theo ở mốc <b>' + next + ' ngày</b>.') + '</p>' +
+            '<div class="nf-avgrid">' + AV_ALL.map(function (id) {
+              var has = own.indexOf(id) >= 0;
+              return '<button class="nf-avi' + (f.av === id ? ' on' : '') + (has ? '' : ' lock') + '" data-av="' + id + '"><img src="' + avUrl(id) + '" alt="" loading="lazy">' + (has ? '' : '<span>' + SVG.lock + '</span>') + '</button>';
+            }).join('') + '</div></div>';
+        }
+        ov.addEventListener('click', function (e) {
+          if (e.target === ov || e.target.closest('[data-a="x"]')) return ov.remove();
+          var b = e.target.closest('[data-av]'); if (!b) return;
+          var id = b.dataset.av, own = avOwned(f);
+          if (own.indexOf(id) < 0) {
+            if (!avTokens(f)) { b.classList.add('shake'); setTimeout(function () { b.classList.remove('shake'); }, 500); return; }
+            f.avatars = (f.avatars || []).concat([id]);
+          }
+          f.av = id; paint();
+          o.fs.setDoc(ref, { av: id, avatars: f.avatars || [] }, { merge: true }).then(function () { lsSet('nightFameAv', id); if (done) done(id); });
+        });
+        paint(); document.body.appendChild(ov);
+      });
+    });
+  }
+
+  /* ---------- Night Check-in: giao diện kiểu Locket ---------- */
+  var SVG = {
+    x: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+    back: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+    grid: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></svg>',
+    share: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/></svg>',
+    send: '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>',
+    lock: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'
+  };
+  var RX = { heart: 'girl_heart', laugh: 'boy01_laugh', cry: 'girl04_cry', wow: 'boy_surprise' };
+  var RX_OLD = { '🔥': 'heart', '😭': 'cry', '👏': 'laugh' };
+  function ago(t) { var m = Math.floor((Date.now() - t) / 60000); if (m < 1) return 'vừa xong'; if (m < 60) return m + ' phút'; var h = Math.floor(m / 60); return h < 24 ? h + ' giờ' : 'hôm qua'; }
   function shrink(file, max, q) {
     return new Promise(function (res, rej) {
       var fr = new FileReader();
-      fr.onload = function () { var im = new Image(); im.onload = function () { var s = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', q)); }; im.onerror = rej; im.src = fr.result; };
+      fr.onload = function () { var im = new Image(); im.onload = function () { var side = Math.min(im.width, im.height), sc = Math.min(1, max / side), c = document.createElement('canvas'); c.width = c.height = Math.round(side * sc); c.getContext('2d').drawImage(im, (im.width - side) / 2, (im.height - side) / 2, side, side, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', q)); }; im.onerror = rej; im.src = fr.result; };
       fr.onerror = rej; fr.readAsDataURL(file);
     });
   }
@@ -347,105 +429,140 @@
     }).catch(function () { return { streak: 0, today: 0, need: 2, members: 0 }; });
   }
   function openCheckin() {
-    var ov = sheet('📸 Night Check-in', '<p style="color:#6B6B78">Đang tải…</p>'), body = ov.querySelector('.nf-body');
+    css();
+    var ov = document.createElement('div'); ov.className = 'nf-lk';
+    ov.innerHTML = '<div class="nf-lk-load">Đang mở…</div>'; document.body.appendChild(ov);
+    document.documentElement.style.overflow = 'hidden';
+    var close = function () { ov.remove(); document.documentElement.style.overflow = ''; };
     me().then(function (u) {
-      if (!u) { body.innerHTML = '<p>Đăng nhập bằng Gmail ở trang chủ để check-in nhé.</p>'; return; }
-      var o = u.o, today = dayKey(), myRef = o.fs.doc(o.db, 'checkins', u.uid + '_' + today), isT = u.role === 'admin';
-      Promise.all([moment(o), flame(o), o.fs.getDoc(myRef).catch(function () { return null; })]).then(function (r) {
-        var mo = r[0], fl = r[1], mine = r[2] && r[2].exists() ? r[2].data() : null;
-        var open = mo && Date.now() - mo.at < CHECKIN_WINDOW;
-        body.innerHTML = '<div class="nf-flame"><img src="' + IRA + 'friends_kids_7874.webp" style="width:54px;height:54px;object-fit:contain"><div style="flex:1"><b class="n">🔥 ' + fl.streak + '</b> ngày <b>Lửa lớp</b><br><span style="color:#9A3412">Hôm nay ' + fl.today + '/' + fl.need + ' bạn đã check-in. Đủ ' + fl.need + ' bạn thì lửa lớp cháy thêm 1 ngày, thiếu là tắt cả lớp 😱</span></div></div>' +
-          (isT ? '<div class="nf-post"><b>Thầy</b> xem tường lớp bên dưới, bấm <b>Đóng mộc</b> để khen. ' + '<button class="nf-btn gold" data-a="sotw" style="margin-top:8px">⭐ Chọn Học sinh của tuần</button></div>'
-            : '<div class="nf-post" id="nf-me">' + (mine ? '<b>✅ Hôm nay bạn đã check-in lúc ' + hm(mine.ts) + '</b>' + (mine.ontime ? ' · ⚡ đúng giờ vàng' : '') + '<br><span style="color:#6B6B78;font-size:13px">Chụp lại sẽ thay ảnh cũ.</span>' :
-              (open ? '<b style="color:#C2410C">⏰ Chuông check-in đang reo! Còn ' + Math.ceil((mo.at + CHECKIN_WINDOW - Date.now()) / 60000) + ' phút để lấy huy hiệu Đúng giờ vàng</b>' : '<b>Chụp góc học tập hôm nay</b><br><span style="color:#6B6B78;font-size:13px">Bàn học, vở, màn hình đang làm bài… Chỉ chụp mới, không chọn ảnh cũ.</span>')) +
-              '<input type="file" accept="image/*" capture="environment" id="nf-cam" hidden><button class="nf-shot' + (open && !mine ? ' on' : '') + '" data-a="cam" style="margin-top:10px">📷 ' + (mine ? 'Chụp lại' : 'Chụp check-in') + '</button><div id="nf-prev"></div></div>') +
-          '<div id="nf-wall"><p style="color:#6B6B78">Đang tải tường lớp…</p></div>';
-        var cam = body.querySelector('#nf-cam'), shot = null;
-        body.addEventListener('click', function (e) {
-          var a = e.target.closest('[data-a]'); if (!a) return;
-          if (a.dataset.a === 'cam') cam.click();
-          if (a.dataset.a === 'sotw') pickSotw(o);
-          if (a.dataset.a === 'post') post(a);
-        });
-        if (cam) cam.onchange = function () {
-          var f = cam.files && cam.files[0]; if (!f) return;
-          if (f.lastModified && Date.now() - f.lastModified > 10 * 60000) { body.querySelector('#nf-prev').innerHTML = '<p style="color:#E11D48;font-weight:700;margin:10px 0 0">Ảnh này cũ rồi nha 😏 Check-in phải chụp mới ngay lúc này.</p>'; cam.value = ''; return; }
-          shrink(f, 720, .62).then(function (url) {
-            shot = url;
-            body.querySelector('#nf-prev').innerHTML = '<div class="nf-pol" style="max-width:260px;margin:12px auto 0"><img class="ph" src="' + url + '"></div>' +
-              '<input class="nf-inp" id="nf-cap" maxlength="80" placeholder="Đang học gì nè? (vd: cày Cam 15 Listening 🎧)">' +
-              '<button class="nf-shot on" data-a="post">🚀 Đăng lên tường lớp</button>';
-          });
-        };
-        function post(btn) {
-          if (!shot) return; btn.disabled = true; btn.textContent = 'Đang đăng…';
-          var now = Date.now(), ontime = !!(mo && now - mo.at >= 0 && now - mo.at < CHECKIN_WINDOW), late = !!(mo && now - mo.at >= CHECKIN_WINDOW);
-          var cap = (body.querySelector('#nf-cap').value || '').trim();
-          o.fs.getDoc(o.fs.doc(o.db, 'fame', u.uid)).then(function (s) { return s.exists() ? (s.data().streak || 0) : 0; }).catch(function () { return 0; }).then(function (stk) {
-            var dayRef = o.fs.doc(o.db, 'checkinDays', today), upd = { day: today, uids: {} }; upd.uids[u.uid] = 1;
-            return Promise.all([
-              o.fs.setDoc(myRef, { uid: u.uid, name: u.name, photo: u.photo, img: shot, caption: cap, day: today, ts: now, ontime: ontime, late: late, streak: stk + (mine ? 0 : 1), reacts: {} }),
-              o.fs.setDoc(dayRef, upd, { merge: true })
-            ]);
-          }).then(function () {
-            ov.remove();
-            event({ kind: 'checkin', id: 'ci_' + today + (mine ? '_' + now : ''), title: cap || 'Góc học tập hôm nay', img: shot, ontime: ontime });
-          }).catch(function (e) { btn.disabled = false; btn.textContent = '🚀 Đăng lên tường lớp'; alert('Chưa đăng được (' + (e.code || e.message) + ')'); });
+      if (!u) { ov.innerHTML = '<div class="nf-lk-load">Đăng nhập bằng Gmail ở trang chủ để check-in nhé.<br><br><button class="nf-lk-pill" data-a="close">Đóng</button></div>'; ov.onclick = function (e) { if (e.target.closest('[data-a="close"]')) close(); }; return; }
+      var o = u.o, today = dayKey(), isT = u.role === 'admin', since = dayKey(Date.now() - 864e5);
+      Promise.all([
+        moment(o), flame(o),
+        o.fs.getDoc(o.fs.doc(o.db, 'fame', u.uid)).then(function (s) { return s.exists() ? s.data() : {}; }).catch(function () { return {}; }),
+        o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'checkins'), o.fs.where('day', '>=', since))).then(function (s) { var a = []; s.forEach(function (d) { var x = d.data(); x.id = d.id; a.push(x); }); return a; }).catch(function () { return []; })
+      ]).then(function (r) {
+        var mo = r[0], fl = r[1], f = r[2], posts = r[3].sort(function (a, b) { return b.ts - a.ts; });
+        var mine = posts.filter(function (x) { return x.uid === u.uid && x.day === today; })[0];
+        var shot = null, idx = 0;
+        var ring = function () { return mo && Date.now() - mo.at < CHECKIN_WINDOW; };
+        var slides = (!isT && !mine ? [{ compose: true }] : []).concat(posts);
+        function rxRow(x) {
+          var rx = x.reacts || {}, cnt = {};
+          Object.keys(rx).forEach(function (k) { var v = RX[rx[k]] ? rx[k] : RX_OLD[rx[k]]; if (v) cnt[v] = (cnt[v] || 0) + 1; });
+          var ks = Object.keys(cnt); if (!ks.length) return '';
+          return '<div class="nf-lk-rxs">' + ks.map(function (k) { return '<span><img src="' + avUrl(RX[k]) + '">' + (cnt[k] > 1 ? cnt[k] : '') + '</span>'; }).join('') + '</div>';
         }
-        loadWall(o, u, body.querySelector('#nf-wall'));
+        function slideHtml(x, i) {
+          if (x.compose) {
+            return '<section class="nf-lk-s" data-i="' + i + '"><div class="nf-lk-ph compose' + (shot ? ' has' : '') + '">' +
+              (shot ? '<img src="' + shot + '" alt=""><input class="nf-lk-cap" id="nf-cap" maxlength="60" placeholder="Thêm lời nhắn…">'
+                : '<div class="nf-lk-empty"><img src="' + IRA + 'kaden_smartphone_8658.webp" alt=""><b>' + (ring() ? 'Chuông check-in đang reo!' : 'Góc học của bạn hôm nay') + '</b><span>' + (ring() ? 'Chụp trong ' + Math.ceil((mo.at + CHECKIN_WINDOW - Date.now()) / 60000) + ' phút nữa để có huy hiệu Đúng giờ vàng' : 'Bấm nút tròn bên dưới để chụp. Chỉ chụp mới, không chọn ảnh cũ.') + '</span></div>') +
+              '</div><div class="nf-lk-who"><img src="' + avOf({ av: f.av, photo: u.photo }) + '" alt=""><b>Bạn</b><span>' + (shot ? 'xem trước' : 'chưa check-in') + '</span></div></section>';
+          }
+          return '<section class="nf-lk-s" data-i="' + i + '"><div class="nf-lk-ph"><img src="' + esc(x.img) + '" alt="" loading="lazy">' +
+            (x.caption ? '<span class="nf-lk-capv">' + esc(x.caption) + '</span>' : '') +
+            (x.stamp ? '<span class="nf-lk-stamp">' + esc(x.stamp.text) + '</span>' : '') + '</div>' +
+            '<div class="nf-lk-who"><img src="' + esc(avOf(x)) + '" alt="" onerror="this.src=\'' + avUrl('boy03_smile') + '\'"><b>' + esc(x.uid === u.uid ? 'Bạn' : x.name || '') + '</b><span>' + ago(x.ts) + (x.ontime ? ' · đúng giờ' : x.late ? ' · trễ' : '') + (x.streak ? ' · chuỗi ' + x.streak : '') + '</span></div>' + rxRow(x) + '</section>';
+        }
+        function barHtml() {
+          var x = slides[idx] || {};
+          if (x.compose) return '<div class="nf-lk-msg">' + (shot ? '<span>Nhấn nút gửi để đăng lên Tường lớp</span>' : '<span>' + fl.today + ' bạn đã check-in hôm nay</span>') + '</div>';
+          if (isT) return '<div class="nf-lk-msg"><span>' + esc(x.name || '') + '</span><button class="nf-lk-pill red" data-a="stamp">' + (x.stamp ? 'Đã đóng mộc' : 'Đóng mộc khen') + '</button></div>';
+          if (x.uid === u.uid) { var n = Object.keys(x.reacts || {}).length; return '<div class="nf-lk-msg"><span>' + (n ? n + ' bạn đã thả cảm xúc' : 'Chưa ai thả cảm xúc') + '</span></div>'; }
+          var my = (x.reacts || {})[u.uid]; my = RX[my] ? my : RX_OLD[my];
+          return '<div class="nf-lk-msg"><span>Thả cảm xúc…</span>' + Object.keys(RX).map(function (k) { return '<button class="nf-lk-rx' + (my === k ? ' on' : '') + '" data-rx="' + k + '"><img src="' + avUrl(RX[k]) + '" alt="' + k + '"></button>'; }).join('') + '</div>';
+        }
+        function paint(keep) {
+          var top = keep && ov.querySelector('.nf-lk-feed') ? ov.querySelector('.nf-lk-feed').scrollTop : 0;
+          ov.innerHTML = '<div class="nf-lk-top"><button class="nf-lk-ic" data-a="close" aria-label="Đóng">' + SVG.back + '</button>' +
+            '<div class="nf-lk-pill"><img src="' + IRA + 'yaruki_moeru_woman_8815.webp" alt="">Cả lớp · lửa ' + fl.streak + ' ngày · ' + fl.today + '/' + fl.need + '</div>' +
+            '<button class="nf-lk-me" data-a="avatar" aria-label="Ảnh đại diện"><img src="' + avOf({ av: f.av, photo: u.photo }) + '" alt=""></button></div>' +
+            '<div class="nf-lk-feed">' + (slides.length ? slides.map(slideHtml).join('') : '<section class="nf-lk-s"><div class="nf-lk-ph compose"><div class="nf-lk-empty"><img src="' + IRA + 'camera_film_2730.webp"><b>Chưa ai check-in</b><span>Hôm nay lớp còn im ắng lắm.</span></div></div></section>') + '</div>' +
+            '<div class="nf-lk-bot"><div class="nf-lk-bar">' + barHtml() + '</div><div class="nf-lk-nav">' +
+            '<button class="nf-lk-ic big" data-a="grid" aria-label="Xem tất cả">' + SVG.grid + '</button>' +
+            (isT ? '<button class="nf-lk-shut" data-a="sotw" title="Chọn Học sinh của tuần"><i><img src="' + IRA + 'trophy_school_boy.webp" alt=""></i></button>'
+              : '<button class="nf-lk-shut' + (ring() && !mine ? ' ring' : '') + (shot ? ' send' : '') + '" data-a="' + (shot ? 'post' : 'cam') + '" aria-label="Chụp"><i>' + (shot ? SVG.send : '') + '</i></button>') +
+            '<button class="nf-lk-ic big" data-a="share" aria-label="Lưu ảnh story">' + SVG.share + '</button></div></div>' +
+            '<input type="file" accept="image/*" capture="environment" id="nf-cam" hidden>';
+          var feed = ov.querySelector('.nf-lk-feed');
+          if (keep) feed.scrollTop = top;
+          feed.addEventListener('scroll', function () { var i = Math.round(feed.scrollTop / Math.max(1, feed.clientHeight)); if (i !== idx) { idx = i; ov.querySelector('.nf-lk-bar').innerHTML = barHtml(); } }, { passive: true });
+          ov.querySelector('#nf-cam').onchange = onShot;
+        }
+        function onShot(e) {
+          var file = e.target.files && e.target.files[0]; if (!file) return;
+          if (file.lastModified && Date.now() - file.lastModified > 10 * 60000) { toast('Ảnh này cũ rồi nha. Check-in phải chụp mới ngay lúc này.'); return; }
+          shrink(file, 900, .66).then(function (url) {
+            shot = url; if (!slides[0] || !slides[0].compose) slides.unshift({ compose: true }); idx = 0; paint();
+            var c = ov.querySelector('#nf-cap'); if (c) c.focus();
+          });
+        }
+        function toast(t) { var el = document.createElement('div'); el.className = 'nf-lk-toast'; el.textContent = t; ov.appendChild(el); setTimeout(function () { el.remove(); }, 3200); }
+        function post(btn) {
+          if (!shot) return; btn.disabled = true;
+          var now = Date.now(), ontime = !!(mo && now - mo.at >= 0 && now - mo.at < CHECKIN_WINDOW), late = !!(mo && now - mo.at >= CHECKIN_WINDOW);
+          var cap = ((ov.querySelector('#nf-cap') || {}).value || '').trim();
+          var dayRef = o.fs.doc(o.db, 'checkinDays', today), upd = { day: today, uids: {} }; upd.uids[u.uid] = 1;
+          var stk = (f.lastDay === today ? f.streak : (f.lastDay && dayNum(today) - dayNum(f.lastDay) === 1 ? (f.streak || 0) + 1 : 1)) || 1;
+          Promise.all([
+            o.fs.setDoc(o.fs.doc(o.db, 'checkins', u.uid + '_' + today), { uid: u.uid, name: u.name, photo: u.photo, av: f.av || '', img: shot, caption: cap, day: today, ts: now, ontime: ontime, late: late, streak: stk, reacts: {} }),
+            o.fs.setDoc(dayRef, upd, { merge: true })
+          ]).then(function () {
+            close();
+            event({ kind: 'checkin', id: 'ci_' + today + (mine ? '_' + now : ''), title: cap || 'Góc học hôm nay', img: shot, ontime: ontime });
+          }).catch(function (e) { btn.disabled = false; toast('Chưa đăng được (' + (e.code || e.message) + ')'); });
+        }
+        function grid() {
+          var g = document.createElement('div'); g.className = 'nf-lk-grid';
+          g.innerHTML = '<div class="nf-lk-top"><button class="nf-lk-ic" data-a="gclose">' + SVG.back + '</button><div class="nf-lk-pill">Hôm nay và hôm qua · ' + posts.length + ' ảnh</div><span style="width:44px"></span></div><div class="nf-lk-gg">' +
+            slides.map(function (x, i) { return x.compose ? '' : '<button data-go="' + i + '"><img src="' + esc(x.img) + '" alt="" loading="lazy"></button>'; }).join('') + '</div>';
+          g.onclick = function (e) {
+            if (e.target.closest('[data-a="gclose"]')) return g.remove();
+            var b = e.target.closest('[data-go]'); if (!b) return;
+            g.remove(); var feed = ov.querySelector('.nf-lk-feed'); feed.scrollTop = +b.dataset.go * feed.clientHeight;
+          };
+          ov.appendChild(g);
+        }
+        ov.onclick = function (e) {
+          var a = e.target.closest('[data-a]'), x = slides[idx] || {};
+          var rb = e.target.closest('[data-rx]');
+          if (rb && x.id) {
+            var v = rb.dataset.rx; x.reacts = x.reacts || {}; var cur = x.reacts[u.uid];
+            if (cur === v) delete x.reacts[u.uid]; else x.reacts[u.uid] = v;
+            var pp = {}; pp['reacts.' + u.uid] = x.reacts[u.uid] || o.fs.deleteField();
+            o.fs.updateDoc(o.fs.doc(o.db, 'checkins', x.id), pp).catch(function () {});
+            paint(true); return;
+          }
+          if (!a) return;
+          var k = a.dataset.a;
+          if (k === 'close') close();
+          if (k === 'cam') ov.querySelector('#nf-cam').click();
+          if (k === 'post') post(a);
+          if (k === 'grid') grid();
+          if (k === 'avatar') openAvatar(function (id) { f.av = id; paint(true); });
+          if (k === 'sotw') pickSotw(o);
+          if (k === 'share' && (x.img || shot)) story({ label: 'Night Check-in', big: '', title: '', cap: x.caption || (x.compose ? '' : '') || 'Góc học hôm nay', sticker: 'camera_film_2730', streak: x.streak || 0, name: x.compose ? u.name : x.name, photo: x.compose ? avOf({ av: f.av, photo: u.photo }) : avOf(x), img: x.img || shot, news: [] });
+          if (k === 'stamp' && x.id && !x.stamp) {
+            var text = pick(['THẦY DUYỆT', 'ĐỈNH', 'CHĂM QUÁ', '10 ĐIỂM']);
+            x.stamp = { text: text, at: Date.now() }; paint(true);
+            Promise.all([o.fs.updateDoc(o.fs.doc(o.db, 'checkins', x.id), { stamp: x.stamp }), giveKudos(o, x.uid, 'Thầy đóng mộc “' + text + '” lên check-in của bạn', 'kudos')]).catch(function (er) { toast('Lỗi: ' + (er.code || er.message)); });
+          }
+        };
+        paint();
       });
     });
-  }
-  function loadWall(o, u, el) {
-    var since = dayKey(Date.now() - 864e5);
-    o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'checkins'), o.fs.where('day', '>=', since))).then(function (s) {
-      var arr = []; s.forEach(function (d) { var x = d.data(); x.id = d.id; arr.push(x); });
-      arr.sort(function (a, b) { return b.ts - a.ts; });
-      if (!arr.length) { el.innerHTML = '<p style="color:#6B6B78;text-align:center;margin:20px 0">Chưa ai check-in. Làm người đầu tiên đi 🔥</p>'; return; }
-      var days = {}; arr.forEach(function (x) { (days[x.day] = days[x.day] || []).push(x); });
-      var isT = u.role === 'admin';
-      el.innerHTML = Object.keys(days).sort().reverse().map(function (d) {
-        return '<div class="nf-day">' + (d === dayKey() ? 'HÔM NAY' : 'HÔM QUA') + ' · ' + days[d].length + ' bạn</div><div class="nf-wall">' + days[d].map(function (x) {
-          var rx = x.reacts || {}, cnt = {}; Object.keys(rx).forEach(function (k) { cnt[rx[k]] = (cnt[rx[k]] || 0) + 1; });
-          return '<div class="nf-pol" data-id="' + esc(x.id) + '"><img class="ph" src="' + esc(x.img) + '" loading="lazy"><span class="tm">' + hm(x.ts) + '</span>' +
-            (x.ontime ? '<span class="late ok">⚡ đúng giờ</span>' : x.late ? '<span class="late">trễ 😴</span>' : '') +
-            (x.stamp ? '<span class="stamp">' + esc(x.stamp.text) + '</span>' : '') +
-            '<div class="meta"><img src="' + esc(x.photo || '') + '" onerror="this.style.visibility=\'hidden\'"><b>' + esc(x.name || '') + '</b>' + (x.streak ? '<span>🔥' + x.streak + '</span>' : '') + '</div>' +
-            (x.caption ? '<div class="cap">' + esc(x.caption) + '</div>' : '') +
-            '<div class="nf-rx">' + ['🔥', '😭', '👏'].map(function (e) { return '<button data-rx="' + e + '"' + (rx[u.uid] === e ? ' class="me"' : '') + '>' + e + ' ' + (cnt[e] || '') + '</button>'; }).join('') +
-            (isT ? '<button data-stamp="1" style="border-color:#DC2626;color:#DC2626;font-weight:800">' + (x.stamp ? '✓ Đã đóng mộc' : '🏅 Đóng mộc') + '</button>' : '') + '</div></div>';
-        }).join('') + '</div>';
-      }).join('');
-      el.onclick = function (e) {
-        var card = e.target.closest('.nf-pol'); if (!card) return;
-        var id = card.dataset.id, x = arr.filter(function (y) { return y.id === id; })[0]; if (!x) return;
-        var b = e.target.closest('[data-rx]');
-        if (b) {
-          var v = b.dataset.rx; x.reacts = x.reacts || {}; if (x.reacts[u.uid] === v) delete x.reacts[u.uid]; else x.reacts[u.uid] = v;
-          var p = {}; p['reacts.' + u.uid] = x.reacts[u.uid] || o.fs.deleteField();
-          o.fs.updateDoc(o.fs.doc(o.db, 'checkins', id), p).catch(function () {});
-          loadWall(o, u, el);
-        }
-        if (e.target.closest('[data-stamp]') && !x.stamp) {
-          var text = pick(['THẦY DUYỆT ✓', 'ĐỈNH 🔥', 'CHĂM QUÁ ✓', '10 ĐIỂM ✓']);
-          Promise.all([
-            o.fs.updateDoc(o.fs.doc(o.db, 'checkins', id), { stamp: { text: text, at: Date.now() } }),
-            giveKudos(o, x.uid, 'Thầy đóng mộc “' + text + '” lên check-in của bạn', 'kudos')
-          ]).then(function () { loadWall(o, u, el); }).catch(function (er) { alert('Lỗi: ' + (er.code || er.message)); });
-        }
-      };
-    }).catch(function (e) { el.innerHTML = '<p style="color:#E11D48">Không tải được tường lớp (' + esc(e.code || e.message) + ')</p>'; });
   }
   function giveKudos(o, uid, text, type) {
     return o.fs.setDoc(o.fs.doc(o.db, 'fame', uid), { kudos: o.fs.arrayUnion({ at: Date.now(), text: text, type: type || 'kudos' }) }, { merge: true });
   }
   function pickSotw(o) {
-    var ov = sheet('⭐ Học sinh của tuần', '<p style="color:#6B6B78">Đang tải danh sách…</p>'), body = ov.querySelector('.nf-body');
+    var ov = sheet('Học sinh của tuần', '<p style="color:#6B6B78">Đang tải danh sách…</p>'), body = ov.querySelector('.nf-body');
     o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'users'), o.fs.where('role', '==', 'student'))).then(function (s) {
       var us = []; s.forEach(function (d) { var x = d.data(); x.uid = d.id; us.push(x); }); us.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       body.innerHTML = '<select class="nf-inp" id="nf-su">' + us.map(function (x) { return '<option value="' + esc(x.uid) + '">' + esc(x.name || x.email) + '</option>'; }).join('') + '</select>' +
         '<input class="nf-inp" id="nf-sn" maxlength="90" placeholder="Lời khen (vd: Check-in 7/7 ngày, Speaking lên 6.5 🔥)">' +
-        '<button class="nf-shot on" id="nf-sok">⭐ Vinh danh</button>';
+        '<button class="nf-shot on" id="nf-sok">Vinh danh</button>';
       body.querySelector('#nf-sok').onclick = function () {
         var uid = body.querySelector('#nf-su').value, x = us.filter(function (y) { return y.uid === uid; })[0], note = body.querySelector('#nf-sn').value.trim();
         Promise.all([
@@ -458,12 +575,12 @@
 
   /* ---------- Album huy hiệu ---------- */
   function openBadges() {
-    var ov = sheet('🏅 Album huy hiệu', '<p style="color:#6B6B78">Đang tải…</p>'), body = ov.querySelector('.nf-body');
+    var ov = sheet('Album huy hiệu', '<p style="color:#6B6B78">Đang tải…</p>'), body = ov.querySelector('.nf-body');
     me().then(function (u) {
       if (!u) { body.innerHTML = '<p>Đăng nhập để xem huy hiệu.</p>'; return; }
       return u.o.fs.getDoc(u.o.fs.doc(u.o.db, 'fame', u.uid)).then(function (s) {
         var f = s.exists() ? s.data() : {}, got = f.badges || {}, n = Object.keys(got).length;
-        body.innerHTML = '<p style="margin:0 0 12px;color:#6B6B78">Đã có <b style="color:#24242A">' + n + '/' + BADGES.length + '</b> · Chuỗi hiện tại 🔥 ' + (f.streak || 0) + ' · Kỷ lục ' + (f.best || 0) + ' ngày</p><div class="nf-grid">' +
+        body.innerHTML = '<p style="margin:0 0 12px;color:#6B6B78">Đã có <b style="color:#24242A">' + n + '/' + BADGES.length + '</b> · Chuỗi hiện tại ' + (f.streak || 0) + ' · Kỷ lục ' + (f.best || 0) + ' ngày</p><div class="nf-grid">' +
           BADGES.map(function (b) {
             var has = got[b.id], rr = RAR[b.r], hid = !has && b.h;
             return '<div class="nf-b' + (has ? '' : ' lock') + '" style="' + (has ? 'border-color:' + rr[1] : '') + '"><img src="' + IRA + b.i + '.webp" alt=""><b>' + (hid ? '???' : esc(b.n)) + '</b><small>' + (hid ? 'Huy hiệu ẩn, tự khám phá nha 👀' : esc(b.d)) + '</small><span class="r" style="color:' + rr[1] + ';background:' + rr[2] + '">' + rr[0] + '</span>' + (has ? '<small>' + new Date(has).toLocaleDateString('vi-VN') + '</small>' : '') + '</div>';
@@ -505,11 +622,11 @@
         var slides = [
           '<h3>Night Wrapped</h3><div class="num" style="font-size:72px">' + MONTHS[mo] + '</div><p>của <b>' + esc(u.name) + '</b></p><p style="opacity:.7;margin-top:40px">Chạm để xem tiếp 👉</p>',
           '<h3>Bạn đã học</h3><div class="num">' + nd + '</div><p>ngày trong ' + dim + ' ngày</p><div class="cal">' + cal + '</div>',
-          '<h3>Tổng cộng</h3><div class="num">' + acts + '</div><p>hoạt động học</p><p style="opacity:.85">' + Object.keys(k).map(function (x) { return (KIND[x] || ['', ''])[1] + ' ' + k[x] + ' ' + (KIND[x] || [x])[0]; }).join(' · ') + '</p>',
-          '<h3>Chuỗi dài nhất tháng</h3><div class="num">🔥' + (m.maxStreak || 1) + '</div><p>ngày liên tiếp không bỏ học</p>',
-          bandRows.length ? '<h3>Band cao nhất tháng</h3>' + bandRows.map(function (x) { return '<p style="font-size:24px"><b>' + KIND[x][1] + ' ' + KIND[x][0] + ': <span style="color:#FFD38A">' + Number(b[x]).toFixed(1) + '</span></b></p>'; }).join('') : '',
+          '<h3>Tổng cộng</h3><div class="num">' + acts + '</div><p>hoạt động học</p><p style="opacity:.85">' + Object.keys(k).map(function (x) { return k[x] + ' ' + (KIND[x] || [x])[0]; }).join(' · ') + '</p>',
+          '<h3>Chuỗi dài nhất tháng</h3><div class="num">' + (m.maxStreak || 1) + '</div><p>ngày liên tiếp không bỏ học</p>',
+          bandRows.length ? '<h3>Band cao nhất tháng</h3>' + bandRows.map(function (x) { return '<p style="font-size:24px"><b>' + KIND[x][0] + ': <span style="color:#FFD38A">' + Number(b[x]).toFixed(1) + '</span></b></p>'; }).join('') : '',
           m.quote ? '<h3>Câu nói hay nhất tháng của bạn</h3><p class="q">“' + esc(m.quote) + '”</p><p style="opacity:.7">— Speaking, band ' + Number(m.qb || 0).toFixed(1) + '</p>' : '',
-          '<h3>Tính cách học của bạn là</h3><img src="' + IRA + p[2] + '.webp" style="width:160px;height:160px;object-fit:contain;margin:10px auto"><div class="num" style="font-size:38px;line-height:1.25">' + esc(p[0]) + '</div><p>' + esc(p[1]) + '</p><button class="nf-btn gold" data-a="story" style="margin-top:16px">📸 Lưu ảnh story</button>'
+          '<h3>Tính cách học của bạn là</h3><img src="' + IRA + p[2] + '.webp" style="width:160px;height:160px;object-fit:contain;margin:10px auto"><div class="num" style="font-size:38px;line-height:1.25">' + esc(p[0]) + '</div><p>' + esc(p[1]) + '</p><button class="nf-btn gold" data-a="story" style="margin-top:16px">Lưu ảnh story</button>'
         ].filter(Boolean);
         var ov = document.createElement('div'), idx = 0; ov.className = 'nf-wr';
         function paint() {
@@ -545,16 +662,20 @@
         var alive = f.lastDay && dayNum(dayKey()) - dayNum(f.lastDay) <= 1, stk = alive ? (f.streak || 0) : 0;
         var ring = mo && !did && Date.now() - mo.at < CHECKIN_WINDOW;
         var nb = Object.keys(f.badges || {}).length, mk = dayKey().slice(0, 6);
+        var tk = avTokens(f), meAv = avOf({ av: f.av, photo: u.photo });
+        if (f.av) { var ha = document.getElementById('user-avatar'); if (ha) ha.src = meAv; }
         el.innerHTML = '<div class="nf-strip">' +
-          (sw && Date.now() - sw.at < 8 * 864e5 ? '<div class="nf-sotw"><img class="av" src="' + esc(sw.photo || '') + '" onerror="this.style.visibility=\'hidden\'"><div style="flex:1"><b>⭐ Học sinh của tuần: ' + esc(sw.name) + '</b><br><span style="color:#92400E">' + esc(sw.note || 'Được thầy Night vinh danh 🎉') + '</span></div><img src="' + IRA + 'trophy_school_boy.webp" style="width:52px;height:52px;object-fit:contain"></div>' : '') +
-          (isT ? '' : '<button class="nf-tile dark" data-a="badges"><span class="e">🔥</span><span><b>' + stk + ' ngày' + (stk && f.lastDay !== dayKey() ? ' · học ngay kẻo tắt!' : '') + '</b><small>Chuỗi học · kỷ lục ' + (f.best || 0) + '</small></span></button>') +
-          '<button class="nf-tile' + (ring ? ' hot' : '') + '" data-a="checkin"><span class="e">📸</span><span><b>' + (isT ? 'Tường lớp' : did ? 'Đã check-in ✓' : ring ? 'Chuông check-in đang reo!' : 'Check-in hôm nay') + '</b><small>' + (isT ? 'Xem ảnh, đóng mộc khen' : 'Chụp góc học, giữ lửa lớp') + '</small></span></button>' +
-          (isT ? '' : '<button class="nf-tile" data-a="badges"><span class="e">🏅</span><span><b>' + nb + '/' + BADGES.length + ' huy hiệu</b><small>Mở album</small></span></button>' +
-            '<button class="nf-tile" data-a="wrapped"><span class="e">🎁</span><span><b>Night Wrapped</b><small>' + MONTHS[+mk.slice(4)] + ' của bạn</small></span></button>') +
+          (sw && Date.now() - sw.at < 8 * 864e5 ? '<div class="nf-sotw"><img class="av" src="' + esc(avOf(sw)) + '" onerror="this.style.visibility=\'hidden\'"><div style="flex:1"><b>Học sinh của tuần: ' + esc(sw.name) + '</b><br><span style="color:#92400E">' + esc(sw.note || 'Được thầy Night vinh danh') + '</span></div><img src="' + IRA + 'trophy_school_boy.webp" style="width:52px;height:52px;object-fit:contain"></div>' : '') +
+          (isT ? '' : '<div class="nf-hello"><button class="av" data-a="avatar" aria-label="Đổi ảnh đại diện"><img src="' + esc(meAv) + '" alt=""></button><div style="flex:1;min-width:0"><b>Chào ' + esc((u.name || '').split(' ').pop()) + '</b><small>' + (tk ? 'Bạn có ' + tk + ' lượt mở avatar mới, chạm để chọn' : 'Chạm ảnh để đổi avatar · mỗi 5 ngày chuỗi mở thêm 1 ảnh') + '</small></div></div>') +
+          (isT ? '' : '<button class="nf-tile dark" data-a="badges"><img class="ic" src="' + IRA + 'yaruki_moeru_woman_8815.webp" alt=""><span><b>' + stk + ' ngày</b><small>' + (stk && f.lastDay !== dayKey() ? 'Học ngay kẻo tắt chuỗi' : 'Chuỗi học · kỷ lục ' + (f.best || 0)) + '</small></span></button>') +
+          '<button class="nf-tile' + (ring ? ' hot' : '') + '" data-a="checkin"><img class="ic" src="' + IRA + 'camera_film_2730.webp" alt=""><span><b>' + (isT ? 'Tường lớp' : did ? 'Đã check-in' : ring ? 'Chuông đang reo!' : 'Check-in') + '</b><small>' + (isT ? 'Xem ảnh, đóng mộc khen' : 'Chụp góc học, giữ lửa lớp') + '</small></span></button>' +
+          (isT ? '' : '<button class="nf-tile" data-a="badges"><img class="ic" src="' + IRA + 'trophy_school_boy.webp" alt=""><span><b>' + nb + '/' + BADGES.length + ' huy hiệu</b><small>Mở album</small></span></button>' +
+            '<button class="nf-tile" data-a="wrapped"><img class="ic" src="' + IRA + 'present_box_3084.webp" alt=""><span><b>Night Wrapped</b><small>' + MONTHS[+mk.slice(4)] + ' của bạn</small></span></button>') +
           '</div>';
         el.onclick = function (e) {
           var a = e.target.closest('[data-a]'); if (!a) return;
           if (a.dataset.a === 'checkin') openCheckin(); if (a.dataset.a === 'badges') openBadges(); if (a.dataset.a === 'wrapped') openWrapped();
+          if (a.dataset.a === 'avatar') openAvatar(function () { mount(el); });
         };
         if (/[?&]checkin=1/.test(location.search) && !window.__nfAutoCI) { window.__nfAutoCI = true; openCheckin(); }
         /* Lời khen mới từ thầy → ăn mừng + huy hiệu */
@@ -563,7 +684,7 @@
           if (fresh.length) {
             var k = fresh[fresh.length - 1];
             o.fs.setDoc(o.fs.doc(o.db, 'fame', u.uid), { kudosSeen: Date.now() }, { merge: true }).then(function () {
-              record({ kind: 'kudos', type: k.type, at: Date.now() }).then(function (rr) { celebrate({ kind: 'kudos', title: k.text, at: Date.now(), big: k.type === 'sotw' ? '⭐' : '🏅' }, rr); });
+              record({ kind: 'kudos', type: k.type, at: Date.now() }).then(function (rr) { celebrate({ kind: 'kudos', title: k.text, at: Date.now(), big: k.type === 'sotw' ? '#1' : 'Đỉnh!' }, rr); });
             });
           }
         }
@@ -571,6 +692,6 @@
     });
   }
 
-  window.NightFame = { event: event, celebrate: celebrate, openCheckin: openCheckin, openBadges: openBadges, openWrapped: openWrapped, mount: mount, BADGES: BADGES, story: story };
+  window.NightFame = { openAvatar: openAvatar, event: event, celebrate: celebrate, openCheckin: openCheckin, openBadges: openBadges, openWrapped: openWrapped, mount: mount, BADGES: BADGES, story: story };
   var auto = document.getElementById('night-fame-strip'); if (auto) mount(auto);
 })();
