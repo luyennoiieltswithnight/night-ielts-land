@@ -2969,7 +2969,10 @@
   #np-root .np-tip { font-size: 11px; color: #64748b; padding: 6px 14px; background: #fffbeb; border-bottom: 1px solid #fde68a; }
   #np-root .np-scroll { flex: 1; overflow: auto; padding: 24px 12px 60px; }
   .np-sheet { --np-fs: 10.5pt; --acc: #6C70DC; --acc-soft: #EDEEFD; --acc-ink: #fff; --acc-text: #4A4EB8; box-sizing: border-box; background: #fff; margin: 0 auto; width: 210mm; min-height: 297mm; padding: 13mm 13mm; box-shadow: 0 10px 40px -12px rgba(15,23,42,.35); font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', system-ui, sans-serif; font-size: var(--np-fs); line-height: 1.55; color: #23232B; outline: none; }
-  .np-sheet.two { width: 297mm; min-height: 210mm; padding: 10mm 10mm; column-count: 2; column-gap: 12mm; column-rule: 1px dashed #D9D9E3; font-size: calc(var(--np-fs) * .86); }
+  .np-sheet.two { width: 297mm; min-height: 210mm; padding: 10mm 10mm; font-size: calc(var(--np-fs) * .86); }
+  .np-sheet.two .np-lesson { column-count: 2; column-gap: 12mm; column-rule: 1px dashed #D9D9E3; }
+  .np-sheet .np-lesson + .np-lesson, .np-sheet .np-cover + .np-lesson { break-before: page; page-break-before: always; }
+  .np-sheet.two .np-cover { min-height: 180mm; }
   .np-sheet * { box-sizing: border-box; }
   .np-sheet h1 { font-size: 1.9em; font-weight: 800; margin: .05em 0 .15em; line-height: 1.18; letter-spacing: -.01em; }
   .np-sheet h2 { font-size: 1.22em; font-weight: 800; margin: 0 0 .35em; color: #23232B; display: flex; gap: .55em; align-items: center; line-height: 1.25; }
@@ -3315,10 +3318,10 @@
     const hideStyle = root.querySelector(".np-hide");
     const fill = () => {
       sheet.setAttribute("style", printThemeStyle(lesson));
-      if (!multi) { sheet.innerHTML = buildPrintHtml(lesson, sections); return; }
+      if (!multi) { sheet.innerHTML = `<div class="np-lesson">${buildPrintHtml(lesson, sections)}</div>`; return; }
       const skip = new Set(["pairs", "homework"]);
       sheet.innerHTML = fixPrintImgs(buildCoverHtml(meta, lessons), lesson.__base) +
-        lessons.map((L, i) => `<div class="np-lesson" data-les="${i}" style="${printThemeStyle(L)};${i ? "break-before:page;page-break-before:always;" : ""}">${fixPrintImgs(buildPrintHtml(L, (L.sections || []).filter((x) => x && x.type && !skip.has(x.type))), L.__base)}</div>`).join("");
+        lessons.map((L, i) => `<div class="np-lesson" data-les="${i}" style="${printThemeStyle(L)};break-before:page;page-break-before:always;">${fixPrintImgs(buildPrintHtml(L, (L.sections || []).filter((x) => x && x.type && !skip.has(x.type))), L.__base)}</div>`).join("");
     };
     const apply = () => {
       sheet.classList.toggle("two", !!opt.two);
