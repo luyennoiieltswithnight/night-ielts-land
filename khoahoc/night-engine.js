@@ -2968,66 +2968,121 @@
   #np-root .np-secs { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 8px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
   #np-root .np-tip { font-size: 11px; color: #64748b; padding: 6px 14px; background: #fffbeb; border-bottom: 1px solid #fde68a; }
   #np-root .np-scroll { flex: 1; overflow: auto; padding: 24px 12px 60px; }
-  .np-sheet { --np-fs: 11pt; box-sizing: border-box; background: #fff; margin: 0 auto; width: 210mm; min-height: 297mm; padding: 14mm 14mm; box-shadow: 0 10px 40px -12px rgba(15,23,42,.35); font-size: var(--np-fs); line-height: 1.45; color: #0f172a; outline: none; }
-  .np-sheet.two { width: 297mm; min-height: 210mm; padding: 10mm 10mm; column-count: 2; column-gap: 14mm; column-rule: 1px dashed #cbd5e1; font-size: calc(var(--np-fs) * .86); }
+  .np-sheet { --np-fs: 10.5pt; --acc: #6C70DC; --acc-soft: #EDEEFD; --acc-ink: #fff; --acc-text: #4A4EB8; box-sizing: border-box; background: #fff; margin: 0 auto; width: 210mm; min-height: 297mm; padding: 13mm 13mm; box-shadow: 0 10px 40px -12px rgba(15,23,42,.35); font-family: 'Plus Jakarta Sans', 'Be Vietnam Pro', system-ui, sans-serif; font-size: var(--np-fs); line-height: 1.55; color: #23232B; outline: none; }
+  .np-sheet.two { width: 297mm; min-height: 210mm; padding: 10mm 10mm; column-count: 2; column-gap: 12mm; column-rule: 1px dashed #D9D9E3; font-size: calc(var(--np-fs) * .86); }
   .np-sheet * { box-sizing: border-box; }
-  .np-sheet h1 { font-size: 1.65em; font-weight: 800; margin: .1em 0 .15em; line-height: 1.2; }
-  .np-sheet h2 { font-size: 1.2em; font-weight: 800; margin: 0 0 .25em; color: #312e81; display: flex; gap: .45em; align-items: baseline; }
-  .np-sheet h2 .np-num { font-size: .8em; color: #fff; background: #4338ca; border-radius: 6px; padding: 0 .4em; }
-  .np-sheet h3 { font-size: 1em; font-weight: 800; margin: .7em 0 .3em; color: #334155; }
-  .np-sheet p { margin: .2em 0; }
-  .np-sheet ul, .np-sheet ol { margin: .2em 0 .2em 1.3em; padding: 0; }
-  .np-sheet li { margin: .12em 0; }
-  .np-sheet .np-head { border-bottom: 2px solid #4338ca; padding-bottom: .5em; margin-bottom: .8em; break-inside: avoid; }
-  .np-sheet .np-brand { font-size: .78em; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: #4338ca; }
-  .np-sheet .np-meta { font-size: .85em; color: #475569; }
-  .np-sheet .np-who { display: flex; gap: 1.5em; margin-top: .5em; font-size: .9em; }
-  .np-sheet .np-who span { flex: 1; border-bottom: 1px dotted #94a3b8; padding-bottom: .15em; }
-  .np-sheet .np-who span:first-child { flex: 2; }
-  .np-sheet .np-sec { margin: 0 0 1.1em; }
-  .np-sheet .np-desc { color: #475569; font-size: .9em; margin-bottom: .45em; }
+  .np-sheet h1 { font-size: 1.9em; font-weight: 800; margin: .05em 0 .15em; line-height: 1.18; letter-spacing: -.01em; }
+  .np-sheet h2 { font-size: 1.22em; font-weight: 800; margin: 0 0 .35em; color: #23232B; display: flex; gap: .55em; align-items: center; line-height: 1.25; }
+  .np-sheet h2 .np-num { flex: none; font-size: .78em; min-width: 2.1em; height: 2.1em; display: inline-flex; align-items: center; justify-content: center; color: var(--acc-ink); background: var(--acc); border-radius: .65em; }
+  .np-sheet h2 .np-b8 { font-size: .62em; font-weight: 800; letter-spacing: .08em; color: #92570A; background: #FEF3C7; border-radius: 999px; padding: .25em .7em; }
+  .np-sheet h2 .np-stk { width: 2.6em; height: 2.6em; object-fit: contain; margin-left: auto; }
+  .np-sheet h3 { font-size: 1em; font-weight: 800; margin: .8em 0 .35em; color: var(--acc-text); }
+  .np-sheet p { margin: .22em 0; }
+  .np-sheet ul, .np-sheet ol { margin: .25em 0 .25em 1.25em; padding: 0; }
+  .np-sheet li { margin: .15em 0; }
+  .np-sheet li::marker { color: var(--acc-text); font-weight: 800; }
+  /* --- đầu bài --- */
+  .np-sheet .np-head { display: grid; grid-template-columns: auto 1fr auto; gap: 0 1.1em; align-items: center; background: var(--acc-soft); border-radius: 1.1em; padding: 1em 1.2em; margin-bottom: .9em; break-inside: avoid; position: relative; }
+  .np-sheet .np-bnum { width: 4.3em; height: 4.3em; border-radius: 1em; background: var(--acc); color: var(--acc-ink); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+  .np-sheet .np-bnum small { font-size: .62em; font-weight: 800; letter-spacing: .12em; opacity: .85; }
+  .np-sheet .np-bnum b { font-size: 1.85em; font-weight: 800; margin-top: .08em; }
+  .np-sheet .np-brand { font-size: .74em; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--acc-text); }
+  .np-sheet .np-meta { font-size: .86em; color: #5B5B6B; }
+  .np-sheet .np-hstk { width: 5.2em; height: 5.2em; object-fit: contain; }
+  .np-sheet .np-who { grid-column: 1 / -1; display: flex; gap: .7em; margin-top: .8em; font-size: .86em; }
+  .np-sheet .np-who span { flex: 1; background: #fff; border-radius: .6em; padding: .45em .7em; color: #8A8A99; font-weight: 700; }
+  .np-sheet .np-who span:first-child { flex: 2.2; }
+  /* --- mục tiêu --- */
+  .np-sheet .np-goals { border: 1.5px solid #E6E6EE; border-radius: 1em; padding: .7em 1em .6em; margin: 0 0 1.2em; break-inside: avoid; }
+  .np-sheet .np-goals .np-gt { font-weight: 800; font-size: .8em; letter-spacing: .1em; text-transform: uppercase; color: var(--acc-text); margin-bottom: .25em; }
+  .np-sheet .np-goals p { padding-left: 1.7em; position: relative; margin: .3em 0; }
+  .np-sheet .np-goals p::before { content: ""; position: absolute; left: 0; top: .2em; width: 1.05em; height: 1.05em; border: 1.6px solid var(--acc); border-radius: .3em; }
+  /* --- mỗi phần + lề ghi chú --- */
+  .np-sheet .np-sec { margin: 0 0 1.3em; }
+  .np-sheet .np-aside { display: none; }
+  .np-sheet.show-notes .np-body { display: grid; grid-template-columns: minmax(0, 1fr) 30mm; gap: 0 5mm; }
+  .np-sheet.show-notes .np-aside { display: block; border-left: 1.5px solid var(--acc-soft); padding-left: 3mm; background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(1.85em - 1px), #E3E3EC calc(1.85em - 1px), #E3E3EC 1.85em); background-clip: content-box; min-height: 3em; }
+  .np-sheet .np-aside span { display: block; background: #fff; font-size: .62em; font-weight: 800; letter-spacing: .14em; color: #B3B3C2; text-transform: uppercase; padding-bottom: .2em; }
+  .np-sheet.two .np-body { display: block !important; } .np-sheet.two .np-aside { display: none !important; }
+  .np-sheet.show-notes:not(.two) .np-vgrid { grid-template-columns: repeat(2, 1fr); }
+  .np-sheet .np-desc { color: #6B6B78; font-size: .88em; margin: -.1em 0 .6em; padding-left: .8em; border-left: 3px solid var(--acc-soft); font-style: italic; }
   .np-sheet .np-blk { position: relative; }
   .np-sheet .np-avoid { break-inside: avoid; page-break-inside: avoid; }
-  .np-sheet .np-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: .5em .7em; margin: .4em 0; }
+  .np-sheet .np-box { background: #F7F7FA; border-radius: .9em; padding: .6em .85em; margin: .45em 0; }
   .np-sheet .np-box.np-avoid, .np-sheet .np-avoid .np-box { break-inside: avoid; page-break-inside: avoid; }
+  .np-sheet .np-box.hl { background: var(--acc-soft); border-left: 4px solid var(--acc); border-radius: .4em .9em .9em .4em; font-size: 1.05em; }
   .np-sheet ul { list-style: disc; } .np-sheet ol { list-style: decimal; }
-  .np-sheet .np-soft { color: #64748b; font-size: .88em; }
-  .np-sheet .np-ipa { color: #4338ca; font-size: .9em; }
-  .np-sheet .np-tag { display: inline-block; font-size: .78em; font-weight: 800; background: #eef2ff; color: #4338ca; border-radius: 4px; padding: 0 .35em; margin-right: .3em; }
-  .np-sheet table { width: 100%; border-collapse: collapse; font-size: .92em; margin: .3em 0; }
-  .np-sheet th, .np-sheet td { border: 1px solid #cbd5e1; padding: .25em .4em; vertical-align: top; text-align: left; }
-  .np-sheet th { background: #f1f5f9; font-weight: 800; }
+  .np-sheet .np-soft { color: #6B6B78; font-size: .9em; }
+  .np-sheet .np-ipa { color: var(--acc-text); font-size: .88em; }
+  .np-sheet .np-tag { display: inline-block; font-size: .74em; font-weight: 800; background: var(--acc-soft); color: var(--acc-text); border-radius: 999px; padding: .05em .6em; margin-right: .4em; vertical-align: .08em; }
+  .np-sheet .np-hint { display: block; background: #FFFBEB; border-radius: .7em; padding: .45em .75em; margin: .45em 0; font-size: .92em; }
+  .np-sheet .np-hint b.np-tl { display: inline-block; font-size: .72em; letter-spacing: .1em; text-transform: uppercase; color: #B45309; margin-right: .5em; }
+  .np-sheet table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .92em; margin: .35em 0; border: 1px solid #E6E6EE; border-radius: .7em; overflow: hidden; }
+  .np-sheet th, .np-sheet td { border-bottom: 1px solid #EEEEF4; padding: .35em .55em; vertical-align: top; text-align: left; }
+  .np-sheet tr:last-child > * { border-bottom: 0; }
+  .np-sheet th { background: var(--acc-soft); font-weight: 800; color: #3A3A48; }
   .np-sheet tr { break-inside: avoid; }
-  .np-sheet .np-vgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .45em; }
+  /* --- thẻ từ vựng --- */
+  .np-sheet .np-vgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5em; }
   .np-sheet.two .np-vgrid { grid-template-columns: repeat(2, 1fr); }
-  .np-sheet .np-v { border: 1px solid #cbd5e1; border-radius: 8px; padding: .35em .45em; display: flex; gap: .45em; align-items: flex-start; break-inside: avoid; }
-  .np-sheet .np-v img { width: 3.6em; height: 3.6em; object-fit: contain; flex: none; }
-  .np-sheet .np-v .np-w { font-weight: 800; line-height: 1.2; }
-  .np-sheet .np-v .np-ex { font-style: italic; color: #475569; font-size: .85em; }
-  .np-sheet .np-mean { color: #0369a1; font-weight: 600; font-size: .92em; }
-  .np-sheet .np-blank { display: none; border-bottom: 1px solid #94a3b8; min-height: 1.3em; }
+  .np-sheet .np-v { border: 1.2px solid #E6E6EE; border-radius: .9em; padding: .45em .55em; display: flex; gap: .55em; align-items: flex-start; break-inside: avoid; background: #fff; }
+  .np-sheet .np-v img { width: 3.4em; height: 3.4em; object-fit: contain; flex: none; }
+  .np-sheet .np-v .np-w { font-weight: 800; line-height: 1.2; font-size: 1.04em; }
+  .np-sheet .np-v .np-ex { font-style: italic; color: #5B5B6B; font-size: .84em; margin-top: .15em; }
+  .np-sheet .np-v .np-mine { display: none; border-bottom: 1px dotted #B9B9C8; height: 1.5em; margin-top: .2em; font-size: .72em; color: #B3B3C2; }
+  .np-sheet.show-lines .np-v .np-mine { display: block; }
+  .np-sheet .np-mean { color: #0F766E; font-weight: 700; font-size: .92em; }
+  .np-sheet .np-blank { display: none; border-bottom: 1px solid #B9B9C8; min-height: 1.3em; }
   .np-sheet.hide-mean .np-mean { display: none; }
   .np-sheet.hide-mean .np-blank { display: block; }
-  .np-sheet.hide-img .np-v img { display: none; }
-  .np-sheet.hide-img .np-cimg { display: none; }
-  .np-sheet .np-cimg { float: right; width: 4.5em; height: 4.5em; object-fit: contain; margin: 0 0 .3em .5em; }
+  .np-sheet.hide-img .np-v img, .np-sheet.hide-img .np-cimg, .np-sheet.hide-img .np-stk, .np-sheet.hide-img .np-hstk { display: none; }
+  .np-sheet .np-cimg { float: right; width: 4.2em; height: 4.2em; object-fit: contain; margin: 0 0 .3em .5em; }
   .np-sheet .np-hz { font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif; font-size: 1.15em; }
-  .np-sheet .np-line-ans { color: #94a3b8; }
+  .np-sheet .np-line-ans { color: #A3A3B2; }
   .np-sheet .np-ans { color: #047857; }
-  .np-sheet .np-anskey { border-top: 1px dashed #94a3b8; margin-top: .5em; padding-top: .3em; font-size: .88em; }
+  .np-sheet .np-anskey { border-top: 1.5px dashed #D1D1DC; margin-top: .55em; padding-top: .35em; font-size: .86em; color: #047857; }
   .np-sheet.hide-ans .np-ans, .np-sheet.hide-ans .np-anskey { display: none; }
-  .np-sheet .np-lines { display: none; }
+  /* --- dòng kẻ vở --- */
+  .np-sheet .np-lines { display: none; margin: .5em 0 .2em; border-left: 2px solid #FCA5A5; padding-left: .4em; }
   .np-sheet.show-lines .np-lines { display: block; }
-  .np-sheet .np-lines div { border-bottom: 1px solid #cbd5e1; height: 1.75em; }
-  .np-sheet .np-line { margin: .1em 0; }
-  .np-sheet .np-line b.np-sp { display: inline-block; min-width: 3.2em; color: #4338ca; }
-  .np-sheet .np-opts { margin: .1em 0 0 1.2em; } .np-sheet .np-opt { display: inline-block; margin-right: 1.6em; }
-  .np-sheet .np-check::before { content: "☐ "; }
-  .np-sheet u { text-decoration: none; background: #fde68a; border-radius: 2px; padding: 0 .05em; }
+  .np-sheet .np-lines div { border-bottom: 1px solid #C7D7F2; height: 1.95em; }
+  .np-sheet .np-line { margin: .12em 0; }
+  .np-sheet .np-line b.np-sp { display: inline-block; min-width: 3.2em; color: var(--acc-text); }
+  .np-sheet .np-q { margin: .55em 0 .25em; }
+  .np-sheet .np-q > b:first-child { display: inline-flex; align-items: center; justify-content: center; min-width: 1.6em; height: 1.6em; border-radius: 50%; background: var(--acc-soft); color: var(--acc-text); font-size: .82em; margin-right: .4em; }
+  .np-sheet .np-opts { margin: .15em 0 0 2.1em; display: flex; flex-wrap: wrap; gap: .25em 1.6em; }
+  .np-sheet .np-opt { display: inline-flex; gap: .45em; align-items: baseline; }
+  .np-sheet .np-opt::before { content: ""; flex: none; width: .95em; height: .95em; border: 1.5px solid #9A9AAB; border-radius: 50%; transform: translateY(.12em); }
+  .np-sheet .np-gap { display: inline-block; min-width: 6.5em; border-bottom: 1.5px solid #9A9AAB; margin: 0 .2em; height: 1.1em; vertical-align: -.15em; }
+  .np-sheet .np-check { position: relative; padding-left: 1.75em; }
+  .np-sheet .np-check::before { content: ""; position: absolute; left: 0; top: .22em; width: 1.05em; height: 1.05em; border: 1.6px solid #9A9AAB; border-radius: .28em; }
+  .np-sheet .np-ex-badge { display: inline-block; font-size: .7em; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #fff; background: #23232B; border-radius: 999px; padding: .2em .8em; margin: .2em 0 .3em; }
+  .np-sheet u { text-decoration: none; background: #FDE68A; border-radius: 2px; padding: 0 .05em; }
+  /* --- cuối bài --- */
+  .np-sheet .np-end { display: none; break-inside: avoid; margin-top: 1.2em; border: 1.5px solid #E6E6EE; border-radius: 1em; padding: .7em 1em; }
+  .np-sheet.show-lines .np-end { display: block; }
+  .np-sheet .np-end .np-gt { font-weight: 800; font-size: .8em; letter-spacing: .1em; text-transform: uppercase; color: var(--acc-text); }
+  .np-sheet .np-dots { height: 5.5cm; margin: .4em 0 .6em; background-image: radial-gradient(circle, #C9C9D6 1px, transparent 1.3px); background-size: 6mm 6mm; border-radius: .5em; }
+  .np-sheet .np-rate { display: flex; align-items: center; gap: .6em; font-size: .9em; font-weight: 700; color: #5B5B6B; flex-wrap: wrap; }
+  .np-sheet .np-rate i { width: 1.4em; height: 1.4em; border: 1.6px solid #9A9AAB; border-radius: 50%; display: inline-block; }
+  /* --- bìa khoá --- */
+  .np-sheet .np-cover { min-height: 255mm; display: flex; flex-direction: column; break-after: page; }
+  .np-sheet .np-cv-top { background: var(--acc); color: var(--acc-ink); border-radius: 1.4em; padding: 2.2em 2em 1.8em; position: relative; overflow: hidden; }
+  .np-sheet .np-cv-top .np-brand { color: inherit; opacity: .85; }
+  .np-sheet .np-cv-top h1 { font-size: 2.9em; margin: .3em 0 .2em; max-width: 75%; }
+  .np-sheet .np-cv-top p { opacity: .9; max-width: 70%; }
+  .np-sheet .np-cv-top img { position: absolute; right: 1.2em; bottom: .8em; width: 9em; height: 9em; object-fit: contain; }
+  .np-sheet .np-cv-who { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: .7em; margin: 1.2em 0; }
+  .np-sheet .np-cv-who span { border: 1.5px solid #E6E6EE; border-radius: .7em; padding: .7em .9em; font-weight: 700; color: #8A8A99; font-size: .9em; }
+  .np-sheet .np-toc { columns: 2; column-gap: 2em; font-size: .92em; }
+  .np-sheet .np-toc p { display: flex; gap: .6em; align-items: baseline; break-inside: avoid; border-bottom: 1px dotted #D1D1DC; padding: .3em 0; margin: 0; }
+  .np-sheet .np-toc b { color: var(--acc-text); min-width: 2em; }
+  .np-sheet .np-toc i { margin-left: auto; flex: none; width: 1em; height: 1em; border: 1.5px solid #9A9AAB; border-radius: .25em; }
   .np-sheet .np-x { display: none; position: absolute; top: -.2em; right: -.2em; z-index: 2; width: 1.5em; height: 1.5em; border-radius: 999px; border: 0; background: #f43f5e; color: #fff; font-size: 12px; font-weight: 800; cursor: pointer; line-height: 1.5em; text-align: center; }
   .np-sheet.editing .np-blk:hover { outline: 1px dashed #a5b4fc; outline-offset: 2px; }
   .np-sheet.editing .np-blk:hover > .np-x { display: block; }
   .np-sheet .np-pb { break-before: page; }
+  @page { @bottom-left { content: "Night IELTS · nightielts.id.vn"; font: 8pt 'Plus Jakarta Sans', sans-serif; color: #A3A3B2; } @bottom-right { content: counter(page); font: 700 8pt 'Plus Jakarta Sans', sans-serif; color: #A3A3B2; } }
   @media print {
     body.np-open > *:not(#np-root) { display: none !important; }
     body.np-open { padding: 0 !important; background: #fff !important; }
@@ -3043,6 +3098,7 @@
   const rh = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>").replace(/\[([^\]]+)\]/g, "<u>$1</u>");
   const blk = (inner, cls = "") => `<div class="np-blk ${cls}"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button>${inner}</div>`;
   const lines = (n) => `<div class="np-lines">${"<div></div>".repeat(n)}</div>`;
+  const tip = (t, label = "Mẹo") => t ? `<p class="np-hint"><b class="np-tl">${label}</b>${rh(t)}</p>` : "";
   const li = (arr, f = rh) => (arr && arr.length) ? `<ul>${arr.map((x) => `<li>${f(x)}</li>`).join("")}</ul>` : "";
   const ABC = "abcdefgh";
 
@@ -3058,13 +3114,13 @@
   const PRINTERS = {
     vocab(s) {
       const groups = s.groups || [{ cards: s.cards || [] }];
-      let out = groups.map((g) => blk(`${g.label ? `<h3>${rh(g.label)} <span class="np-soft">· ${g.cards.length} từ</span></h3>` : ""}<div class="np-vgrid">${g.cards.map((c) => blk(`<div class="np-v">${c.ira ? `<img src="${esc(IRA_BASE + c.ira)}" alt="">` : c.emoji ? `<span style="font-size:2em;line-height:1">${esc(c.emoji)}</span>` : ""}<div style="min-width:0;flex:1"><div class="np-w">${esc(c.word)}</div>${c.phonetic ? `<div class="np-ipa">${esc(c.phonetic)}</div>` : ""}<div class="np-mean">${rh(c.meaning)}</div><div class="np-blank"></div>${c.example ? `<div class="np-ex">${rh(c.example)}</div>` : ""}</div></div>`)).join("")}</div>`)).join("");
-      if (s.note) out += blk(`<div class="np-box"><b>${rh(s.note.title)}</b>${li(s.note.rows)}</div>`);
+      let out = groups.map((g) => blk(`${g.label ? `<h3>${rh(g.label)} <span class="np-soft">· ${g.cards.length} từ</span></h3>` : ""}<div class="np-vgrid">${g.cards.map((c) => blk(`<div class="np-v">${c.ira ? `<img src="${esc(IRA_BASE + c.ira)}" alt="">` : c.emoji ? `<span style="font-size:2em;line-height:1">${esc(c.emoji)}</span>` : ""}<div style="min-width:0;flex:1"><div class="np-w">${esc(c.word)}</div>${c.phonetic ? `<div class="np-ipa">${esc(c.phonetic)}</div>` : ""}<div class="np-mean">${rh(c.meaning)}</div><div class="np-blank"></div>${c.example ? `<div class="np-ex">${rh(c.example)}</div>` : ""}<div class="np-mine">Câu của em:</div></div></div>`)).join("")}</div>`)).join("");
+      if (s.note) out += blk(`<div class="np-box hl"><b>${rh(s.note.title)}</b>${li(s.note.rows)}</div>`);
       return out;
     },
     dialogue(s) {
       const sp = s.speakers || [];
-      let out = (s.parts || []).map((p, i) => blk(`<div class="np-box">${p.heading ? `<h3 style="margin-top:0">${i + 1}. ${rh(p.heading)}</h3>` : ""}${p.text ? `<p>${rh(p.text)}</p>` : ""}${(p.lines || []).map((l) => `<p class="np-line"><b class="np-sp">${esc(l.who)}:</b> ${rh(l.line)}</p>`).join("")}${(p.vocabHighlights || []).length ? `<p class="np-soft" style="margin-top:.35em">📌 ${p.vocabHighlights.map((v) => `<b>${esc(v.word)}</b> <span class="np-ipa">${esc(v.phonetic || "")}</span> <span class="np-mean">${rh(v.meaning)}</span>`).join(" · ")}</p>` : ""}</div>`, "np-avoid")).join("");
+      let out = (s.parts || []).map((p, i) => blk(`<div class="np-box">${p.heading ? `<h3 style="margin-top:0">${i + 1}. ${rh(p.heading)}</h3>` : ""}${p.text ? `<p>${rh(p.text)}</p>` : ""}${(p.lines || []).map((l) => `<p class="np-line"><b class="np-sp">${esc(l.who)}:</b> ${rh(l.line)}</p>`).join("")}${(p.vocabHighlights || []).length ? `<p class="np-soft" style="margin-top:.35em"><b>Từ cần nhớ:</b> ${p.vocabHighlights.map((v) => `<b>${esc(v.word)}</b> <span class="np-ipa">${esc(v.phonetic || "")}</span> <span class="np-mean">${rh(v.meaning)}</span>`).join(" · ")}</p>` : ""}</div>`, "np-avoid")).join("");
       if (s.phrases) out += PRINTERS.phrases({ boxTitle: s.phrases.title, groups: s.phrases.groups, phrases: s.phrases.phrases });
       return out;
     },
@@ -3073,11 +3129,11 @@
       return blk(`<div class="np-box">${s.boxTitle ? `<b>${rh(s.boxTitle)}</b>` : ""}${groups.map((g) => `${g.label ? `<h3>${rh(g.label)}</h3>` : ""}<ul>${(g.phrases || []).map((p) => typeof p === "string" ? `<li>${rh(p)}</li>` : `<li><b>${rh(p.phrase || p.en || "")}</b>${p.vi ? ` — ${rh(p.vi)}` : ""}${p.note ? ` <span class="np-soft">(${rh(p.note)})</span>` : ""}</li>`).join("")}</ul>`).join("")}</div>`);
     },
     grammar(s) {
-      return (s.points || []).map((g, i) => blk(`<div class="np-box"><h3 style="margin-top:0">${i + 1}. ${rh(g.name)}</h3>${(g.forms || []).length ? `<table>${g.forms.map((f) => `<tr><th style="width:28%">${rh(f.label)}</th><td>${rh(f.pattern)}</td></tr>`).join("")}</table>` : ""}${(g.uses || []).length ? `<p><b>Cách dùng:</b></p>${li(g.uses)}` : ""}${(g.examples || []).length ? `<p><b>Ví dụ:</b></p><ul>${g.examples.map((e) => `<li>${rh(e.en)}${e.vi ? ` <span class="np-soft">— ${rh(e.vi)}</span>` : ""}</li>`).join("")}</ul>` : ""}${g.signals ? `<p><b>Dấu hiệu:</b> ${rh(g.signals)}</p>` : ""}${g.note ? `<p class="np-soft">💡 ${rh(g.note)}</p>` : ""}</div>`)).join("");
+      return (s.points || []).map((g, i) => blk(`<div class="np-box"><h3 style="margin-top:0">${i + 1}. ${rh(g.name)}</h3>${(g.forms || []).length ? `<table>${g.forms.map((f) => `<tr><th style="width:28%">${rh(f.label)}</th><td>${rh(f.pattern)}</td></tr>`).join("")}</table>` : ""}${(g.uses || []).length ? `<p><b>Cách dùng:</b></p>${li(g.uses)}` : ""}${(g.examples || []).length ? `<p><b>Ví dụ:</b></p><ul>${g.examples.map((e) => `<li>${rh(e.en)}${e.vi ? ` <span class="np-soft">— ${rh(e.vi)}</span>` : ""}</li>`).join("")}</ul>` : ""}${g.signals ? `<p><b>Dấu hiệu:</b> ${rh(g.signals)}</p>` : ""}${tip(g.note)}</div>`)).join("");
     },
     quiz(s) {
       const items = s.items || [];
-      return items.map((q, i) => blk(`<div class="np-avoid" style="margin:.35em 0"><p><b>${i + 1}.</b> ${rh(q.q)}</p><p class="np-opts">${(q.options || []).map((o, k) => `<span class="np-opt">${ABC[k]}) ${rh(o)}</span>`).join("")}</p></div>`)).join("") +
+      return `<span class="np-ex-badge">Luyện tập</span>` + items.map((q, i) => blk(`<div class="np-avoid"><p class="np-q"><b>${i + 1}</b>${rh(q.q)}</p><p class="np-opts">${(q.options || []).map((o, k) => `<span class="np-opt">${ABC[k]}. ${rh(o)}</span>`).join("")}</p></div>`)).join("") +
         blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((q, i) => `${i + 1}${ABC[q.answer] || ""}`).join(" · ")}${items.some((q) => q.explain) ? `<ol>${items.map((q) => `<li>${rh((q.options || [])[q.answer] || "")}${q.explain ? ` — <span class="np-soft">${rh(q.explain)}</span>` : ""}</li>`).join("")}</ol>` : ""}</div>`);
     },
     reflex(s) {
@@ -3134,42 +3190,75 @@
       return blk(`<div class="np-box"><p class="np-hz">大家好！我来介绍一下儿。我姓……，叫……。我是……人。我是……。我家有……口人。我学习……。认识大家，我很高兴！</p></div>`);
     },
     cards(s) {
-      return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.cards || []).map((c) => blk(`<div class="np-box np-avoid">${c.ira ? `<img class="np-cimg" src="${esc(IRA_BASE + c.ira)}" alt="">` : ""}${c.tag ? `<span class="np-tag">${rh(c.tag)}</span>` : ""}${c.sub ? `<span class="np-soft">${rh(c.sub)}</span>` : ""}${c.title ? `<p><b>${rh(c.title)}</b></p>` : ""}${c.body ? `<p>${rh(c.body)}</p>` : ""}${li(c.bullets)}${c.foot ? `<p class="np-soft">💡 ${rh(c.foot)}</p>` : ""}</div>`)).join("");
+      return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.cards || []).map((c) => blk(`<div class="np-box np-avoid">${c.ira ? `<img class="np-cimg" src="${esc(IRA_BASE + c.ira)}" alt="">` : ""}${c.tag ? `<span class="np-tag">${rh(c.tag)}</span>` : ""}${c.sub ? `<span class="np-soft">${rh(c.sub)}</span>` : ""}${c.title ? `<p><b>${rh(c.title)}</b></p>` : ""}${c.body ? `<p>${rh(c.body)}</p>` : ""}${li(c.bullets)}${tip(c.foot)}</div>`)).join("");
     },
     criteria(s) {
-      return (s.items || []).map((c, i) => blk(`<div class="np-box np-avoid"><p><b>${i + 1}. ${rh(c.name)}</b> <span class="np-soft">${rh(c.en || "")}</span></p>${c.short ? `<p>${rh(c.short)}</p>` : ""}${li(c.check)}${c.band5 ? `<p><span class="np-tag">Band 5</span>${rh(c.band5)}</p>` : ""}${c.band6 ? `<p><span class="np-tag">Band 6</span>${rh(c.band6)}</p>` : ""}</div>`)).join("") + (s.note ? blk(`<p class="np-soft">💡 ${rh(s.note)}</p>`) : "");
+      return (s.items || []).map((c, i) => blk(`<div class="np-box np-avoid"><p><b>${i + 1}. ${rh(c.name)}</b> <span class="np-soft">${rh(c.en || "")}</span></p>${c.short ? `<p>${rh(c.short)}</p>` : ""}${li(c.check)}${c.band5 ? `<p><span class="np-tag">Band 5</span>${rh(c.band5)}</p>` : ""}${c.band6 ? `<p><span class="np-tag">Band 6</span>${rh(c.band6)}</p>` : ""}</div>`)).join("") + (s.note ? blk(tip(s.note)) : "");
     },
     formula(s) {
-      return blk(`<div class="np-box" style="text-align:center"><b>${rh(s.formula)}</b></div>`) +
+      return blk(`<div class="np-box hl np-avoid"><span class="np-tag">Công thức</span><b>${rh(s.formula)}</b></div>`) +
         (s.img ? blk(`<img src="${esc(s.img)}" alt="" style="max-width:100%;max-height:8cm">`) : "") +
         ((s.steps || []).length ? blk(`<table>${s.steps.map((st) => `<tr><th style="width:22%">${rh(st.tag)}</th><td><b>${rh(st.label || "")}</b>${st.text ? `<br><span class="np-soft">${rh(st.text)}</span>` : ""}</td></tr>`).join("")}</table>`) : "") +
         (s.examples || []).map((e) => blk(`<div class="np-box np-avoid np-ans"><p><b>${rh(e.q)}</b></p>${(e.parts || []).map((p) => `<p><span class="np-tag">${rh(p.tag)}</span>${rh(p.text)}</p>`).join("")}</div>`)).join("") +
-        (s.note ? blk(`<p class="np-soft">💡 ${rh(s.note)}</p>`) : "");
+        (s.note ? blk(tip(s.note)) : "");
     },
     speak(s) {
       return (s.tabs || []).map((t) => blk(`<h3>${rh(t.label)}</h3>${t.intro ? `<p class="np-soft">${rh(t.intro)}</p>` : ""}${(t.items || []).map((it, i) => it.card ? `<div class="np-box"><p><b>${rh(it.card.topic)}</b></p><p class="np-soft">You should say:</p>${li(it.card.points)}${it.card.explain ? `<p>${rh(it.card.explain)}</p>` : ""}${lines(6)}${it.sample ? `<p class="np-ans"><b>Bài mẫu:</b> ${rh(it.sample)}</p>` : ""}</div>` : `<div class="np-box np-avoid"><p><b>${i + 1}. ${rh(it.q)}</b>${it.vi ? ` <span class="np-soft">(${rh(it.vi)})</span>` : ""}</p>${(it.hints || []).length ? `<p class="np-soft">Gợi ý: ${it.hints.map(rh).join(" · ")}</p>` : ""}${lines(2)}${it.sample ? `<p class="np-ans"><b>Mẫu:</b> ${rh(it.sample)}</p>` : ""}</div>`).join("")}${(t.checklist || []).length ? `<div class="np-box"><b>Tự kiểm tra:</b>${t.checklist.map((c) => `<p class="np-check">${rh(c)}</p>`).join("")}</div>` : ""}`)).join("");
     }
   };
   PRINTERS.sounds = PRINTERS.vowels;
-  PRINTERS.figure = (s) => blk(`<div class="np-box">${(s.items || []).map((f) => `<figure style="margin:.4em 0"><img src="${esc(f.src)}" alt="" style="max-width:100%;max-height:9cm">${f.caption ? `<figcaption class="np-soft">${rh(f.caption)}</figcaption>` : ""}</figure>`).join("")}${s.note ? `<p>💡 ${rh(s.note)}</p>` : ""}</div>`);
-  PRINTERS.compare = (s) => (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.items || []).map((v) => blk(`<div class="np-box np-avoid"><b>${rh(v.label)}</b><p>${rh(v.text)}</p>${v.comment ? `<p class="np-soft">💬 ${rh(v.comment)}</p>` : ""}</div>`)).join("") + (s.takeaway ? blk(`<p>💡 ${rh(s.takeaway)}</p>`) : "");
+  PRINTERS.figure = (s) => blk(`<div class="np-box">${(s.items || []).map((f) => `<figure style="margin:.4em 0"><img src="${esc(f.src)}" alt="" style="max-width:100%;max-height:9cm">${f.caption ? `<figcaption class="np-soft">${rh(f.caption)}</figcaption>` : ""}</figure>`).join("")}${tip(s.note)}</div>`);
+  PRINTERS.compare = (s) => (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.items || []).map((v) => blk(`<div class="np-box np-avoid"><b>${rh(v.label)}</b><p>${rh(v.text)}</p>${tip(v.comment, "Nhận xét")}</div>`)).join("") + (s.takeaway ? blk(tip(s.takeaway, "Ghi nhớ")) : "");
   PRINTERS.checklist = (s) => { let n = 0; return (s.groups || []).map((g) => blk(`<div class="np-box np-avoid"><b>${rh(g.label)}</b>${g.items.map((x) => `<p class="np-check">${++n}) ${rh(x)}</p>`).join("")}</div>`)).join(""); };
-  PRINTERS.fill = (s) => { const items = s.items || []; return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.img ? blk(`<img src="${esc(s.img)}" alt="" style="max-width:100%;max-height:8cm">`) : "") + items.map((it, i) => blk(`<p class="np-avoid"><b>${i + 1}.</b> ${rh(String(it.text).replace(/\[\[(.+?)\]\]/g, "________"))}</p>`)).join("") + blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((it, i) => `${i + 1}. ${(String(it.text).match(/\[\[(.+?)\]\]/g) || []).map((g) => esc(g.slice(2, -2).split("|")[0])).join(" / ")}`).join(" · ")}</div>`, "np-ans"); };
+  PRINTERS.fill = (s) => { const items = s.items || []; return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.img ? blk(`<img src="${esc(s.img)}" alt="" style="max-width:100%;max-height:8cm">`) : "") + `<span class="np-ex-badge">Luyện tập</span>` + items.map((it, i) => blk(`<p class="np-avoid np-q"><b>${i + 1}</b>${rh(String(it.text).replace(/\[\[(.+?)\]\]/g, "@@GAP@@")).replace(/@@GAP@@/g, '<span class="np-gap"></span>')}</p>`)).join("") + blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((it, i) => `${i + 1}. ${(String(it.text).match(/\[\[(.+?)\]\]/g) || []).map((g) => esc(g.slice(2, -2).split("|")[0])).join(" / ")}`).join(" · ")}</div>`, "np-ans"); };
   PRINTERS.aiwrite = (s) => PRINTERS.write({ tasks: (s.items || []).map((t) => ({ prompt: (t.title ? `**${t.title}** — ` : "") + t.prompt, img: t.img, min: t.task === "task1" ? 150 : 250, lines: t.task === "task1" ? 14 : 22 })) });
-  PRINTERS.write = (s) => (s.tasks || []).map((t, i) => blk(`<div class="np-box"><p><b>✍️ ${i + 1}.</b> ${rh(t.prompt)}</p>${t.img ? `<img src="${esc(t.img)}" alt="" style="max-width:100%;max-height:8cm">` : ""}${t.hint ? `<p class="np-soft">${rh(t.hint)}</p>` : ""}${lines(t.lines || Math.max(4, Math.round((t.min || 60) / 12)))}</div>`) + (t.model ? blk(`<div class="np-anskey"><b>Bài mẫu:</b><p>${rh(t.model).replace(/\n/g, "<br>")}</p></div>`, "np-ans") : "")).join("");
+  PRINTERS.write = (s) => (s.tasks || []).map((t, i) => blk(`<div class="np-box"><span class="np-ex-badge">Bài viết ${i + 1}</span><p>${rh(t.prompt).replace(/\n/g, "<br>")}</p>${t.img ? `<img src="${esc(t.img)}" alt="" style="max-width:100%;max-height:8cm">` : ""}${tip(t.hint, "Gợi ý")}${lines(t.lines || Math.max(4, Math.round((t.min || 60) / 12)))}</div>`) + (t.model ? blk(`<div class="np-anskey"><b>Bài mẫu:</b><p>${rh(t.model).replace(/\n/g, "<br>")}</p></div>`, "np-ans") : "")).join("");
 
+  /* Màu theo khoá (giống lộ trình) */
+  const PRINT_THEMES = {
+    giaotiep: ["#FF8A3D", "#FFF0E4", "#fff", "#C2511A", "cafe_talk_couple.webp"],
+    speaking6: ["#6C70DC", "#EDEEFD", "#fff", "#4A4EB8", "ai_talk_woman.webp"],
+    writing: ["#FBBF24", "#FEF4D6", "#24242A", "#92570A", "book_sakubun_kodomo_girl.webp"],
+    chuyende: ["#10B981", "#DDF7EC", "#fff", "#04704F", "study_night_boy_0934.webp"],
+    tiengtrung: ["#C8102E", "#FDECEC", "#fff", "#9B0D23", "zh_lantern.webp"]
+  };
+  function printThemeKey(L) {
+    const id = (L && L.id) || "";
+    if (/^wr-/.test(id)) return "writing";
+    if (/^cd-/.test(id)) return "chuyende";
+    if (/^sp6?-/.test(id)) return "speaking6";
+    if (/^zh/.test(id)) return "tiengtrung";
+    const m = String((L && L.__base) || location.pathname).match(/khoahoc\/([a-z0-9]+)\//);
+    return m && PRINT_THEMES[m[1]] ? m[1] : (isZhLesson(L || {}) ? "tiengtrung" : "giaotiep");
+  }
+  function printThemeStyle(L) { const t = PRINT_THEMES[printThemeKey(L)]; return `--acc:${t[0]};--acc-soft:${t[1]};--acc-ink:${t[2]};--acc-text:${t[3]}`; }
   function buildPrintHtml(lesson, sections) {
-    const head = `<div class="np-blk np-head"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button><div class="np-brand">${esc(lesson.brand || "Night IELTS")} · ${esc(lesson.course || "")}</div><h1>${esc(lesson.session ? lesson.session + ": " : "")}${rh(lesson.title || "")}</h1><div class="np-meta">${esc(lesson.unit || "")}${lesson.subtitle ? " — " + rh(lesson.subtitle) : ""}</div><div class="np-who"><span>Họ tên:</span><span>Lớp:</span><span>Ngày:</span></div></div>`;
-    const goals = (lesson.goals || []).length ? blk(`<div class="np-box"><b>🎯 Sau buổi học, bạn sẽ:</b><ol>${lesson.goals.map((g) => `<li>${rh(g)}</li>`).join("")}</ol></div>`) : "";
+    const th = PRINT_THEMES[printThemeKey(lesson)];
+    const num = (String(lesson.session || "").match(/\d+/) || [""])[0];
+    const stk = ((sections.find((x) => x.sticker) || {}).sticker) || th[4];
+    const head = `<div class="np-blk np-head"><button class="np-x" contenteditable="false" title="Bỏ khối này khỏi bản in">✕</button>` +
+      `<div class="np-bnum"><small>BUỔI</small><b>${esc(num ? num.padStart(2, "0") : "•")}</b></div>` +
+      `<div style="min-width:0"><div class="np-brand">${esc(lesson.brand || "Night IELTS")} · ${esc(lesson.course || "")}</div><h1>${rh(lesson.title || "")}</h1><div class="np-meta">${esc(lesson.unit || "")}</div></div>` +
+      `<img class="np-hstk" src="${esc(IRA_BASE + stk)}" alt="" onerror="this.remove()">` +
+      `<div class="np-who"><span>Họ tên</span><span>Lớp</span><span>Ngày</span></div></div>`;
+    const goals = (lesson.goals || []).length ? blk(`<div class="np-goals"><div class="np-gt">Mục tiêu buổi học · tích khi làm được</div>${lesson.goals.map((g) => `<p>${rh(g)}</p>`).join("")}</div>`) : "";
     const body = sections.map((s, i) => {
       let inner = "";
       try { inner = (PRINTERS[s.type] || printGeneric)(s); } catch (e) { inner = printGeneric(s); }
-      return `<section class="np-sec np-blk" data-sec="${esc(s.id)}"><button class="np-x" contenteditable="false" title="Bỏ cả phần này">✕</button><h2><span class="np-num">${String(i + 1).padStart(2, "0")}</span>${s.band8 ? "★ Band 8 · " : ""}${rh(s.title || s.nav || "")}</h2>${s.desc ? `<p class="np-desc">${rh(s.desc)}</p>` : ""}${inner}</section>`;
+      return `<section class="np-sec np-blk" data-sec="${esc(s.id)}"><button class="np-x" contenteditable="false" title="Bỏ cả phần này">✕</button><h2><span class="np-num">${String(i + 1).padStart(2, "0")}</span><span>${rh(s.title || s.nav || "")}</span>${s.band8 ? '<span class="np-b8">BAND 8</span>' : ""}${s.sticker ? `<img class="np-stk" src="${esc(IRA_BASE + s.sticker)}" alt="" onerror="this.remove()">` : ""}</h2>${s.desc ? `<p class="np-desc">${rh(s.desc)}</p>` : ""}<div class="np-body"><div class="np-main">${inner}</div><div class="np-aside"><span>Ghi chú</span></div></div></section>`;
     }).join("");
-    return head + goals + body;
+    const end = blk(`<div class="np-end"><div class="np-gt">Ghi chú của tôi</div><div class="np-dots"></div><div class="np-rate">Hôm nay mình hiểu bài: <i></i><i></i><i></i><i></i><i></i><span style="margin-left:auto">Điều mình muốn hỏi thầy: ...........................................</span></div></div>`);
+    return head + goals + body + end;
+  }
+  function buildCoverHtml(meta, lessons) {
+    const L0 = lessons[0] || {}, th = PRINT_THEMES[printThemeKey(L0)];
+    return `<div class="np-blk np-cover"><button class="np-x" contenteditable="false">✕</button><div class="np-cv-top"><div class="np-brand">Night IELTS · Tài liệu học tập</div><h1>${esc(meta.title || L0.course || "")}</h1><p>${lessons.length} buổi · học xong buổi nào tích buổi đó</p><img src="${esc(IRA_BASE + th[4])}" alt="" onerror="this.remove()"></div>` +
+      `<div class="np-cv-who"><span>Họ tên</span><span>Lớp</span><span>Bắt đầu</span></div>` +
+      `<h2 style="margin-top:.4em"><span class="np-num">✓</span><span>Mục lục</span></h2><div class="np-toc">${lessons.map((L, i) => `<p><b>${String(i + 1).padStart(2, "0")}</b><span>${rh(L.title || L.session || "")}</span><i></i></p>`).join("")}</div>` +
+      `<div class="np-goals" style="margin-top:auto"><div class="np-gt">Cam kết của mình</div><p>Học đều mỗi tuần, làm đủ bài tập về nhà.</p><p>Viết ghi chú ở lề và cuối mỗi buổi.</p><p>Không hiểu chỗ nào thì hỏi thầy liền.</p></div></div>`;
   }
 
-  const PRINT_PREF = "night-print-prefs-v1";
+  const PRINT_PREF = "night-print-prefs-v2";
   // Ảnh trong bài dùng đường dẫn tương đối (img/b16/…) → khi in cả khoá từ trang khác phải đổi sang đường dẫn đầy đủ
   function fixPrintImgs(html, base) {
     if (!base) return html;
@@ -3188,7 +3277,7 @@
     const lesOn = lessons.map(() => true);
     let pref = {};
     try { pref = JSON.parse(localStorage.getItem(PRINT_PREF) || "{}"); } catch (e) {}
-    const opt = Object.assign({ two: false, fs: 11, mean: true, img: true, ans: false, lines: true }, pref.opt || {});
+    const opt = Object.assign({ two: false, fs: 10.5, mean: true, img: true, ans: false, lines: true, notes: true }, pref.opt || {});
     const skipDefault = new Set(["pairs", "homework"]);
     const on = {}; sections.forEach((s) => { on[s.id] = !skipDefault.has(s.type); });
     const savePref = () => { try { localStorage.setItem(PRINT_PREF, JSON.stringify({ opt })); } catch (e) {} };
@@ -3199,12 +3288,13 @@
       <div class="np-bar">
         <b>🖨 Bản in / PDF</b>
         <div class="np-grp"><span class="np-lbl">Mỗi mặt giấy</span><span class="np-seg" data-k="two"><button data-v="0">1 trang (A4 dọc)</button><button data-v="1">2 trang (A4 ngang)</button></span></div>
-        <div class="np-grp"><span class="np-lbl">Cỡ chữ</span><span class="np-seg" data-k="fs"><button data-v="9.5">Nhỏ</button><button data-v="11">Vừa</button><button data-v="12.5">To</button></span></div>
+        <div class="np-grp"><span class="np-lbl">Cỡ chữ</span><span class="np-seg" data-k="fs"><button data-v="9.5">Nhỏ</button><button data-v="10.5">Vừa</button><button data-v="12">To</button></span></div>
         <div class="np-grp">
           <label class="np-chk"><input type="checkbox" data-o="mean"> Hiện nghĩa từ</label>
           <label class="np-chk"><input type="checkbox" data-o="img"> Ảnh minh họa</label>
           <label class="np-chk"><input type="checkbox" data-o="ans"> Đáp án & câu mẫu</label>
           <label class="np-chk"><input type="checkbox" data-o="lines"> Dòng kẻ để viết</label>
+          <label class="np-chk"><input type="checkbox" data-o="notes"> Lề ghi chú</label>
         </div>
         <div class="np-grp" style="margin-left:auto">
           <button class="np-btn ghost" data-act="reset" title="Bỏ mọi chỉnh sửa tay, tạo lại từ bài học">↺ Làm lại</button>
@@ -3224,10 +3314,11 @@
     const pageStyle = root.querySelector(".np-page");
     const hideStyle = root.querySelector(".np-hide");
     const fill = () => {
+      sheet.setAttribute("style", printThemeStyle(lesson));
       if (!multi) { sheet.innerHTML = buildPrintHtml(lesson, sections); return; }
       const skip = new Set(["pairs", "homework"]);
-      sheet.innerHTML = (meta.title ? `<div class="np-blk np-head"><div class="np-brand">Night IELTS · Tài liệu cả khoá</div><h1>${esc(meta.title)}</h1><div class="np-meta">${lessons.length} buổi</div></div>` : "") +
-        lessons.map((L, i) => `<div class="np-lesson" data-les="${i}" style="${i || meta.title ? "break-before:page;page-break-before:always;" : ""}">${fixPrintImgs(buildPrintHtml(L, (L.sections || []).filter((x) => x && x.type && !skip.has(x.type))), L.__base)}</div>`).join("");
+      sheet.innerHTML = fixPrintImgs(buildCoverHtml(meta, lessons), lesson.__base) +
+        lessons.map((L, i) => `<div class="np-lesson" data-les="${i}" style="${printThemeStyle(L)};${i ? "break-before:page;page-break-before:always;" : ""}">${fixPrintImgs(buildPrintHtml(L, (L.sections || []).filter((x) => x && x.type && !skip.has(x.type))), L.__base)}</div>`).join("");
     };
     const apply = () => {
       sheet.classList.toggle("two", !!opt.two);
@@ -3236,6 +3327,7 @@
       sheet.classList.toggle("hide-img", !opt.img);
       sheet.classList.toggle("hide-ans", !opt.ans);
       sheet.classList.toggle("show-lines", !!opt.lines);
+      sheet.classList.toggle("show-notes", !!opt.notes);
       pageStyle.textContent = `@page { size: A4 ${opt.two ? "landscape" : "portrait"}; margin: ${opt.two ? "9mm" : "12mm"}; }`;
       hideStyle.textContent = sections.filter((s) => !on[s.id]).map((s) => `.np-sheet [data-sec="${CSS.escape(s.id)}"]{display:none!important}`).concat(lessons.map((L, i) => lesOn[i] ? "" : `.np-sheet [data-les="${i}"]{display:none!important}`)).join("\n");
       root.querySelectorAll(".np-seg").forEach((seg) => seg.querySelectorAll("button").forEach((b) => b.classList.toggle("on", String(seg.dataset.k === "two" ? (opt.two ? 1 : 0) : opt[seg.dataset.k]) === b.dataset.v)));
