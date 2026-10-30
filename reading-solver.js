@@ -70,90 +70,134 @@
         qs.forEach(function (x) { x.group = G; });
         gs.push(G);
       });
-      res.push({ p: p, paras: paras, groups: gs, steps: simulate(paras, gs) });
+      res.push({ p: p, paras: paras, groups: gs });
     });
     return res;
   }
-  /* Mô phỏng: trả về danh sách bước. Mỗi bước: {kind:'pre'|'para'|'review', para, solved:[], waiting:[], heading:[], sandwich:[]} */
-  function simulate(paras, gs) {
-    var steps = [{ kind: 'pre', solved: [], waiting: [], heading: [], sandwich: [] }];
-    var ptr = gs.map(function () { return 0; });
-    var done = {};
+  /* ---------- Kịch bản từng bước nhỏ ---------- */
+  var TYPE_NAME = { tfng: 'True / False / Not Given', text: 'Điền từ', table: 'Điền bảng', wordbank: 'Summary chọn từ', mcq: 'Trắc nghiệm', inline: 'Điền tóm tắt', list_match: 'Nối thông tin', grid: 'Matching', matching: 'Matching', multi: 'Chọn nhiều đáp án', heading: 'Matching Headings' };
+  function range(G) { var a = G.qs[0].num, b = G.qs[G.qs.length - 1].num; return a === b ? 'Câu ' + a : 'Câu ' + a + '–' + b; }
+  function gName(G) { return range(G) + ' · ' + (TYPE_NAME[G.type] || G.type); }
+  function firstSentence(t) { t = (t || '').replace(/\s+/g, ' ').trim(); var m = /^.{20,}?[.!?](\s|$)/.exec(t); return (m ? m[0] : t.slice(0, 160)).trim(); }
+  function nums(a) { return a.map(function (x) { return x.num; }).join(', '); }
+
+  function script(P) {
+    var paras = P.paras, gs = P.groups, out = [], done = {}, ptr = gs.map(function () { return 0; });
+    var nonH = gs.filter(function (G) { return G.kind !== 'H'; });
+    var hasH = gs.some(function (G) { return G.kind === 'H'; });
+    function add(o) { o.sec = o.sec == null ? -1 : o.sec; out.push(o); }
+
+    /* Pre-reading */
+    add({ sec: 'pre', st: 'book_2458', title: 'Pre-reading: đọc câu hỏi trước', html: 'Chưa đọc bài vội. Nhìn qua <b>' + gs.length + ' nhóm câu hỏi</b> để biết cần tìm gì.' + (hasH ? ' Đề có <b>Headings</b> → đọc từng đoạn xong mới chọn heading.' : '') });
+    gs.forEach(function (G) {
+      var o = { sec: 'pre', color: G.color, title: gName(G) };
+      if (G.kind === 'A') { o.st = 'magnifier6_girl'; o.html = '<b>Nhóm A – Matching:</b> thông tin rải khắp bài, không theo thứ tự → đọc <b>HẾT</b> các câu, gạch keyword, rồi canh suốt bài.'; o.read = G.qs; }
+      else if (G.kind === 'B') {
+        o.st = 'pose_yubisashi_kakunin_businessman'; o.html = '<b>Nhóm B – theo thứ tự:</b> chỉ đọc <b>câu ' + G.qs[0].num + '</b>, gạch keyword. Giải xong câu nào mới đọc câu kế tiếp.'; o.read = [G.qs[0]];
+        var bad = [], mx = -1; G.qs.forEach(function (x) { if (x.para >= 0) { if (x.para < mx) bad.push(x.num); mx = Math.max(mx, x.para); } });
+        if (bad.length) o.warn = 'Nhóm này có câu <b>không theo thứ tự</b> (câu ' + bad.join(', ') + ' nằm trước câu liền trước nó) → khi thấy câu sau mà chưa thấy câu này thì nhớ quay lại đoạn trước.';
+      } else { o.st = 'pose_puzzle_kumiawaseru'; o.html = '<b>Headings:</b> chưa cần đọc list. Đọc xong <b>mỗi đoạn</b> → tóm ý → chọn heading cho đoạn đó.'; }
+      add(o);
+    });
+
+    /* Từng đoạn */
     for (var k = 0; k < paras.length; k++) {
-      var st = { kind: 'para', para: k, solved: [], waiting: [], heading: [], sandwich: [], watch: [] };
-      gs.forEach(function (G, gi) {
-        if (G.kind === 'H') {
-          G.qs.forEach(function (x) { if (x.para === k && !done[x.num]) { st.heading.push(x); done[x.num] = 1; } });
-        } else if (G.kind === 'A') {
-          G.qs.forEach(function (x) { if (x.para === k && !done[x.num]) { st.solved.push(x); done[x.num] = 1; } });
-        } else {
-          var i = ptr[gi];
-          while (i < G.qs.length) {
-            var x = G.qs[i];
-            if (x.para >= 0 && x.para <= k) { st.solved.push(x); done[x.num] = 1; i++; continue; }
-            if (x.para < 0) {
-              var j = i + 1; while (j < G.qs.length && G.qs[j].para < 0) j++;
-              if (j < G.qs.length && G.qs[j].para <= k) { st.sandwich.push(x); done[x.num] = 1; i++; continue; }
-            }
-            break;
-          }
-          ptr[gi] = i;
-          if (i < G.qs.length) st.watch.push(G.qs[i]);
-        }
+      var pt = paraText(paras[k].el);
+      add({ sec: k, para: k, st: 'book_inu_yomu_0009', title: 'Đọc đoạn ' + (k + 1) + ' – lấy ý chính (gist)', html: 'Đọc lướt cả đoạn, tự hỏi: <b>đoạn này nói về gì?</b>', quote: firstSentence(pt) });
+      gs.forEach(function (G) {
+        if (G.kind !== 'H') return;
+        G.qs.forEach(function (x) { if (x.para === k && !done[x.num]) { done[x.num] = 1; add({ sec: k, para: k, color: G.color, st: 'pose_puzzle_kumiawaseru', title: 'Chọn heading cho đoạn ' + (k + 1), html: 'Dựa vào ý chính vừa đọc, chọn heading khớp nhất (cẩn thận heading chỉ khớp 1 chi tiết nhỏ).', reveal: x, gap: x }); } });
       });
-      gs.forEach(function (G) { G.qs.forEach(function (x) { if (!done[x.num] && G.kind !== 'H') { var seen = G.kind === 'A' || st.watch.indexOf(x) >= 0; if (seen) st.waiting.push(x); } }); });
-      steps.push(st);
+      nonH.forEach(function (G) {
+        var gi = gs.indexOf(G);
+        if (G.kind === 'A') {
+          var left = G.qs.filter(function (x) { return !done[x.num]; });
+          if (!left.length) return;
+          var hit = left.filter(function (x) { return x.para === k; });
+          if (!hit.length) { add({ sec: k, para: k, color: G.color, st: 'pose_iraira_matsu_3103', title: gName(G), html: 'Rà keyword các câu còn lại (<b>' + nums(left) + '</b>) → đoạn này <b>không nhắc</b> → bỏ qua.', watch: left, no: 1 }); return; }
+          hit.forEach(function (x) { done[x.num] = 1; add({ sec: k, para: k, color: G.color, st: 'denkyuu_on', title: 'Có! Câu ' + x.num + ' nằm ở đoạn này', html: 'Keyword của câu ' + x.num + ' xuất hiện ở đây → đối chiếu kỹ rồi chọn.', reveal: x }); });
+          return;
+        }
+        var i = ptr[gi]; if (i >= G.qs.length) return;
+        var any = false;
+        while (i < G.qs.length) {
+          var x = G.qs[i], nx = G.qs[i + 1];
+          var tail = nx ? 'Xong → <b>đọc tiếp câu ' + nx.num + '</b>, xét luôn đoạn này.' : 'Xong nhóm ' + range(G) + '.';
+          if (x.para >= 0 && x.para <= k) {
+            done[x.num] = 1; any = true;
+            add({ sec: k, para: k, color: G.color, st: 'denkyuu_on', title: 'Câu ' + x.num + (x.ng ? ': tìm thấy vùng liên quan' : ': có thông tin!'), html: x.ng ? 'Đoạn này nhắc tới chủ đề của câu ' + x.num + ' → so kỹ từng ý: bài <b>không nói</b> tới điểm cụ thể trong câu → NOT GIVEN.' : (x.para < k ? '' : 'Đoạn này chứa thông tin của câu ' + x.num + '.'), warn: x.para < k ? 'Đáp án <b>không theo thứ tự</b>: thông tin câu ' + x.num + ' nằm ở <b>đoạn ' + (x.para + 1) + '</b> phía trước → quay lại đọc.' : '', reveal: x, after: tail, backPara: x.para < k ? x.para : null });
+            i++; continue;
+          }
+          if (x.para < 0) {
+            var j = i + 1; while (j < G.qs.length && G.qs[j].para < 0) j++;
+            if (j < G.qs.length && G.qs[j].para <= k) {
+              done[x.num] = 1; any = true;
+              add({ sec: k, para: k, color: G.color, st: 'pose_sagasu_kyorokyoro_woman_0851', title: 'Câu ' + x.num + ': bị “kẹp giữa”', html: 'Thông tin của câu ' + G.qs[j].num + ' đã xuất hiện mà vẫn không thấy câu ' + x.num + ' → nhiều khả năng <b>NOT GIVEN</b> (hoặc đọc lại kỹ đoạn giữa).', reveal: x, after: tail });
+              i++; continue;
+            }
+          }
+          add({ sec: k, para: k, color: G.color, st: 'pose_iraira_matsu_3103', title: gName(G), html: 'Đang canh <b>câu ' + x.num + '</b> → đoạn này ' + (any ? 'không còn' : 'chưa có') + ' thông tin → <b>để lại</b>, sang ' + (gi < gs.length - 1 ? 'nhóm tiếp theo' : 'đoạn sau') + '.', watch: [x], no: 1 });
+          break;
+        }
+        ptr[gi] = i;
+      });
     }
+
+    /* Rà soát */
     var rest = [];
     gs.forEach(function (G) { G.qs.forEach(function (x) { if (!done[x.num]) rest.push(x); }); });
-    steps.push({ kind: 'review', solved: [], waiting: rest, heading: [], sandwich: [] });
-    return steps;
+    add({ sec: 'rev', st: 'pose_yubisashi_kakunin_businessman', title: 'Rà soát cuối bài', html: rest.length ? 'Còn <b>' + rest.length + ' câu</b> chưa tìm thấy chỗ (' + nums(rest) + '). Lần lượt xử lý từng câu.' : 'Không còn câu nào để lại. Kiểm tra chính tả, giới hạn số từ, số ít / số nhiều.' });
+    rest.forEach(function (x) { add({ sec: 'rev', color: x.group.color, st: 'pose_sagasu_kyorokyoro_woman_0851', title: 'Câu ' + x.num + ' (để lại)', html: x.ng ? 'Đọc lại cả bài vẫn không có thông tin → <b>NOT GIVEN</b>.' : 'Câu này cần suy luận từ nhiều chỗ / cả bài → đọc lại các đoạn liên quan.', reveal: x }); });
+    add({ sec: 'rev', st: 'pose_doyagao_woman_0170', title: 'Xong Passage ' + P.p + '!', html: 'Đã đi hết ' + paras.length + ' đoạn. Bấm <b>Tiếp</b> để sang passage sau.' });
+    return out;
   }
 
   /* ---------- Giao diện ---------- */
-  var S = null; // {an, p, step, showAns}
+  var S = null; // {an, p, i, rev:{}}
+  var IRA = (function () { try { return new URL('khoahoc/img/ira/', document.currentScript.src).href; } catch (e) { return '/khoahoc/img/ira/'; } })();
   var CSS = '' +
-    'body.rs-on #panel-passage .content-wrapper.active > *{transition:opacity .25s}' +
-    'body.rs-on.rs-dim #panel-passage .content-wrapper.active > *:not(.rs-cur):not(h2){opacity:.28}' +
-    '.rs-cur{outline:3px solid #f59e0b;outline-offset:6px;border-radius:6px;background:#fffbeb}' +
-    '.rs-loc{border-radius:4px;padding:0 2px;box-shadow:0 0 0 2px var(--rsc);background:color-mix(in srgb,var(--rsc) 18%,transparent)}' +
-    '.rs-badge{display:inline-block;min-width:20px;padding:0 5px;margin-right:3px;border-radius:10px;background:var(--rsc);color:#fff;font:700 11px/18px system-ui;text-align:center;vertical-align:1px}' +
-    '.rs-qhit{outline:3px solid var(--rsc)!important;outline-offset:2px;border-radius:8px;background:color-mix(in srgb,var(--rsc) 8%,transparent)}' +
-    '.rs-qdone{opacity:.55}' +
-    '.rs-qwatch{outline:2px dashed #f59e0b!important;outline-offset:2px;border-radius:8px}' +
-    '.rs-qread{outline:2px solid var(--rsc)!important;outline-offset:2px;border-radius:8px}' +
-    '#rs-btn{background:#1f2937;color:#fde68a;border:0;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer;margin-right:6px}' +
-    '#rs-bar{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:9999;width:min(980px,calc(100vw - 20px));background:#111827;color:#f9fafb;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.35);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;max-height:46vh}' +
-    '#rs-bar .rs-top{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #374151;flex-wrap:wrap}' +
-    '#rs-bar .rs-title{font-weight:800;color:#fde68a;margin-right:4px}' +
-    '#rs-bar button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:5px 10px;background:#374151;color:#f9fafb}' +
-    '#rs-bar button.on{background:#f59e0b;color:#111827;font-weight:700}' +
-    '#rs-bar .rs-steps{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:120px;scrollbar-width:thin}' +
-    '#rs-bar .rs-steps button{padding:4px 9px;white-space:nowrap;font-size:13px}' +
-    '#rs-bar .rs-steps button.has{box-shadow:inset 0 -3px 0 #34d399}' +
-    '#rs-bar .rs-body{padding:10px 14px 12px;overflow:auto}' +
-    '#rs-bar.mini .rs-body{display:none}' +
-    'body.rs-on .panel-content{padding-bottom:40vh!important}' +
-    '#rs-bar .rs-h{font-weight:800;font-size:15px;margin-bottom:6px}' +
-    '#rs-bar .rs-sec{margin:8px 0 4px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#9ca3af;font-weight:700}' +
-    '#rs-bar .rs-it{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:10px;background:#1f2937;margin:4px 0;cursor:pointer}' +
-    '#rs-bar .rs-it:hover{background:#273244}' +
-    '#rs-bar .rs-n{flex:none;min-width:26px;height:22px;border-radius:11px;background:var(--rsc);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}' +
-    '#rs-bar .rs-t{flex:1;min-width:0}' +
-    '#rs-bar .rs-ans{color:#86efac;font-weight:700}' +
-    '#rs-bar .rs-exp{color:#d1d5db;font-size:13px;margin-top:3px;display:none}' +
-    '#rs-bar .rs-it.open .rs-exp{display:block}' +
-    '#rs-bar .rs-tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;margin-right:6px;background:#374151;color:#e5e7eb}' +
-    '#rs-bar .rs-muted{color:#9ca3af}' +
-    '#rs-bar .rs-hide .rs-ans{filter:blur(6px)}' +
-    '@media (max-width:640px){#rs-bar{bottom:0;border-radius:14px 14px 0 0;width:100vw;max-height:55vh}}';
+    'body.rs-on #panel-passage .content-wrapper.active > *{transition:opacity .25s,background .25s}' +
+    'body.rs-on.rs-dim #panel-passage .content-wrapper.active > *:not(.rs-cur):not(h2){opacity:.32}' +
+    '.rs-cur{background:#fff8e1;box-shadow:-10px 0 0 #fff8e1,10px 0 0 #fff8e1,-14px 0 0 #fbbf24;border-radius:2px}' +
+    '.rs-back{background:#fff1f2;box-shadow:-10px 0 0 #fff1f2,10px 0 0 #fff1f2,-14px 0 0 #fb7185;opacity:1!important}' +
+    '.rs-loc{border-radius:4px;padding:1px 2px;background:color-mix(in srgb,var(--rsc) 20%,transparent);box-shadow:inset 0 -2px 0 var(--rsc)}' +
+    '.rs-badge{display:inline-block;min-width:20px;padding:0 6px;margin-right:4px;border-radius:10px;background:var(--rsc);color:#fff;font:700 11px/18px system-ui;text-align:center;vertical-align:1px}' +
+    '.rs-qhit{outline:2.5px solid var(--rsc)!important;outline-offset:3px;border-radius:10px}' +
+    '.rs-qwatch{outline:2px dashed var(--rsc)!important;outline-offset:3px;border-radius:10px}' +
+    '.rs-qdone{opacity:.5}' +
+    'body.rs-on .panel-content{padding-bottom:300px!important}' +
+    '#rs-btn{background:#fff7d6;color:#7a5200;border:0;border-radius:999px;padding:7px 14px;font-weight:700;cursor:pointer;margin-right:6px}' +
+    '#rs-card{position:fixed;right:22px;bottom:22px;z-index:9999;width:390px;max-width:calc(100vw - 16px);background:#fff;color:#1f2340;border-radius:20px;box-shadow:0 14px 40px rgba(60,40,140,.22),0 2px 6px rgba(0,0,0,.06);font:14px/1.5 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;border-top:5px solid var(--rsc,#7c6cf0)}' +
+    '#rs-card .rh{display:flex;align-items:center;gap:6px;padding:10px 12px 0}' +
+    '#rs-card .rh .lb{font-size:12px;font-weight:700;color:#8a86a8;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+    '#rs-card .pt{border:0;background:#f1effb;color:#5b51c9;font:700 12px system-ui;border-radius:999px;padding:3px 9px;cursor:pointer}' +
+    '#rs-card .pt.on{background:#6d5dfc;color:#fff}' +
+    '#rs-card .ic{border:0;background:transparent;color:#a3a0bd;font-size:16px;cursor:pointer;padding:2px 6px;border-radius:8px}' +
+    '#rs-card .ic:hover{background:#f3f2fa}' +
+    '#rs-card .dots{display:flex;gap:3px;padding:8px 12px 0;flex-wrap:wrap}' +
+    '#rs-card .dots i{height:6px;flex:1;min-width:8px;max-width:26px;border-radius:3px;background:#ebe9f5;cursor:pointer}' +
+    '#rs-card .dots i.d{background:#c9c2fb}#rs-card .dots i.on{background:#6d5dfc}' +
+    '#rs-card .rb{display:flex;gap:12px;padding:12px 14px 4px;align-items:flex-start}' +
+    '#rs-card .rb img{width:62px;height:62px;object-fit:contain;flex:none}' +
+    '#rs-card .tt{font-weight:800;font-size:15.5px;line-height:1.3;margin-bottom:3px;color:#1f2340}' +
+    '#rs-card .tx{color:#4a4e6a}' +
+    '#rs-card .qt{margin:8px 14px 0;padding:8px 11px;border-radius:12px;background:#f7f6fd;color:#3d4060;font-size:13.5px}' +
+    '#rs-card .qt b.n{display:inline-block;min-width:22px;text-align:center;border-radius:9px;background:var(--rsc);color:#fff;font-size:12px;margin-right:6px}' +
+    '#rs-card .quote{margin:8px 14px 0;padding:8px 11px;border-left:3px solid #fbbf24;background:#fffbeb;border-radius:0 10px 10px 0;font-style:italic;color:#5c4a12;font-size:13.5px}' +
+    '#rs-card .warn{margin:8px 14px 0;padding:8px 11px;border-radius:12px;background:#fff1f2;color:#9f1239;font-size:13.5px}' +
+    '#rs-card .ans{margin:8px 14px 0;padding:9px 11px;border-radius:12px;background:#ecfdf3;color:#14532d}' +
+    '#rs-card .ans .a{font-weight:800;font-size:15px}' +
+    '#rs-card .ans .e{font-size:12.5px;color:#3f6b4f;margin-top:4px;max-height:96px;overflow:auto}' +
+    '#rs-card .show{margin:8px 14px 0;width:calc(100% - 28px);border:1.5px dashed #9ee2b8;background:#f6fef9;color:#15803d;font-weight:700;border-radius:12px;padding:8px;cursor:pointer}' +
+    '#rs-card .after{margin:8px 14px 0;font-size:13px;color:#5b51c9;font-weight:600}' +
+    '#rs-card .rf{display:flex;gap:8px;padding:12px 14px 14px;align-items:center}' +
+    '#rs-card .rf .k{font-size:11.5px;color:#a3a0bd;flex:1}' +
+    '#rs-card .bk{border:0;background:#f1effb;color:#5b51c9;font-weight:700;border-radius:12px;padding:9px 14px;cursor:pointer}' +
+    '#rs-card .nx{border:0;background:#6d5dfc;color:#fff;font-weight:800;border-radius:12px;padding:9px 20px;cursor:pointer;box-shadow:0 4px 12px rgba(109,93,252,.35)}' +
+    '#rs-card.mini .rb,#rs-card.mini .qt,#rs-card.mini .quote,#rs-card.mini .warn,#rs-card.mini .ans,#rs-card.mini .show,#rs-card.mini .after,#rs-card.mini .dots{display:none}' +
+    '#rs-card.mini .rf{padding-top:8px}' +
+    '@media (max-width:640px){#rs-card .rf .k{visibility:hidden}#rs-card{right:8px;bottom:8px;width:auto;left:8px}#rs-card .rb img{width:48px;height:48px}}';
 
-  function groupLabel(G) {
-    var nums = G.qs.map(function (x) { return x.num; });
-    var r = nums.length > 1 ? 'Câu ' + nums[0] + '–' + nums[nums.length - 1] : 'Câu ' + nums[0];
-    var name = { tfng: 'True/False/Not Given', text: 'Điền từ', table: 'Điền bảng', wordbank: 'Summary chọn từ', mcq: 'Trắc nghiệm', inline: 'Điền tóm tắt', list_match: 'Nối thông tin', grid: 'Matching (bảng)', matching: 'Matching', multi: 'Chọn nhiều đáp án', heading: 'Matching Headings' }[G.type] || G.type;
-    return r + ' · ' + name;
-  }
   function qBox(num) {
     var el = document.getElementById('q-container-' + num);
     if (el) return el;
@@ -164,8 +208,8 @@
   function clearMarks() {
     $$('.rs-badge').forEach(function (b) { b.remove(); });
     $$('.rs-loc').forEach(function (e) { e.classList.remove('rs-loc'); e.style.removeProperty('--rsc'); });
-    $$('.rs-cur').forEach(function (e) { e.classList.remove('rs-cur'); });
-    $$('.rs-qhit,.rs-qdone,.rs-qwatch,.rs-qread').forEach(function (e) { e.classList.remove('rs-qhit', 'rs-qdone', 'rs-qwatch', 'rs-qread'); e.style.removeProperty('--rsc'); });
+    $$('.rs-cur,.rs-back').forEach(function (e) { e.classList.remove('rs-cur', 'rs-back'); });
+    $$('.rs-qhit,.rs-qdone,.rs-qwatch').forEach(function (e) { e.classList.remove('rs-qhit', 'rs-qdone', 'rs-qwatch'); e.style.removeProperty('--rsc'); });
   }
   function markLoc(x) {
     if (!x.locEl) return;
@@ -173,123 +217,101 @@
     var b = document.createElement('span'); b.className = 'rs-badge'; b.textContent = x.num; b.style.setProperty('--rsc', x.group.color);
     x.locEl.insertBefore(b, x.locEl.firstChild);
   }
-  function markQ(x, cls) { var el = qBox(x.num); if (el) { el.classList.add(cls); el.style.setProperty('--rsc', x.group.color); } }
-
-  function itemHtml(x, note) {
+  function markQ(x, cls) { var el = qBox(x.num); if (el) { el.classList.add(cls); el.style.setProperty('--rsc', x.group.color); } return el; }
+  function ansOf(x) {
     var a = x.q.answer, ans = Array.isArray(a) ? a.join(' / ') : a;
     if (x.group.kind === 'H' && x.group.g.options) { var o = x.group.g.options.filter(function (t) { return new RegExp('^\\s*' + String(ans).trim() + '[.)\\s]', 'i').test(plain(t)); })[0]; if (o) ans = plain(o); }
-    return '<div class="rs-it" data-q="' + x.num + '" style="--rsc:' + x.group.color + '"><div class="rs-n">' + x.num + '</div><div class="rs-t">' +
-      (note ? '<span class="rs-tag">' + note + '</span>' : '') +
-      '<span>' + esc(short(x.q.text, 110) || ('Câu ' + x.num)) + '</span>' +
-      (ans != null && ans !== '' ? ' → <span class="rs-ans">' + esc(ans) + '</span>' : '') +
-      (x.q.exp ? '<div class="rs-exp">' + esc(plain(x.q.exp)) + '</div>' : '') +
-      '</div></div>';
+    return ans;
   }
+  function hl(el, cls) { if (el) el.classList.add(cls); }
+  function scrollIn(el, block) { try { el && el.scrollIntoView({ block: block || 'center', behavior: 'smooth' }); } catch (e) {} }
 
   function render() {
     if (!S) return;
-    var P = S.an[S.p - 1]; if (!P) return;
-    var st = P.steps[S.step];
+    var P = S.an[S.p - 1], L = P.script, o = L[S.i];
     clearMarks();
-    document.body.classList.toggle('rs-dim', st.kind === 'para');
-    var html = '', i;
-    var doneSet = {};
-    for (i = 1; i < S.step; i++) P.steps[i].solved.concat(P.steps[i].heading, P.steps[i].sandwich).forEach(function (x) { doneSet[x.num] = 1; });
-
-    if (st.kind === 'pre') {
-      html += '<div class="rs-h">Bước 0 · Pre-reading — đọc câu hỏi trước khi đọc bài</div>';
-      P.groups.forEach(function (G) {
-        var how, show = [];
-        if (G.kind === 'A') { how = 'Nhóm A · matching → đọc HẾT các câu, gạch keyword, rồi canh suốt bài'; show = G.qs; }
-        else if (G.kind === 'B') { how = 'Nhóm B · theo thứ tự → chỉ đọc câu ĐẦU (' + G.qs[0].num + '), giải xong mới đọc câu tiếp'; show = [G.qs[0]]; }
-        else { how = 'Headings → chưa đọc list; đọc xong MỖI đoạn mới chọn heading cho đoạn đó'; }
-        html += '<div class="rs-it" style="--rsc:' + G.color + ';cursor:default"><div class="rs-n">' + (G.kind) + '</div><div class="rs-t"><b>' + esc(groupLabel(G)) + '</b><br><span class="rs-muted">' + how + '</span></div></div>';
-        show.forEach(function (x) { markQ(x, 'rs-qread'); });
-      });
-      var anyH = P.groups.some(function (G) { return G.kind === 'H'; });
-      html += '<div class="rs-muted" style="margin-top:6px">Có ' + P.paras.length + ' đoạn. ' + (anyH ? 'Đề có Headings → đọc từng đoạn, chốt heading ngay sau đoạn đó.' : 'Đọc lần lượt từng đoạn, câu nào thấy thông tin thì giải.') + '</div>';
-      var first = P.groups.filter(function (G) { return G.kind !== 'H'; })[0];
-      if (first) { var el = qBox(first.qs[0].num); if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
-    } else if (st.kind === 'para') {
-      var para = P.paras[st.para];
-      para.el.classList.add('rs-cur'); para.extra.forEach(function (e) { e.classList.add('rs-cur'); });
-      try { (para.extra[0] || para.el).scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {}
-      html += '<div class="rs-h">Đoạn ' + (st.para + 1) + '/' + P.paras.length + ' <span class="rs-muted" style="font-weight:400">— ' + esc(short(paraText(para.el), 70)) + '</span></div>';
-      if (st.heading.length) { html += '<div class="rs-sec">Chọn heading cho đoạn này</div>'; st.heading.forEach(function (x) { html += itemHtml(x, 'Heading'); var g = $('.heading-gap[data-qnum="' + x.num + '"]'); if (g) { g.classList.add('rs-qhit'); g.style.setProperty('--rsc', x.group.color); } markQ(x, 'rs-qhit'); }); }
-      if (st.solved.length) { html += '<div class="rs-sec">Giải được ngay trong đoạn này</div>'; st.solved.forEach(function (x) { html += itemHtml(x, x.group.kind === 'A' ? 'Nhóm A' : 'Nhóm B'); markLoc(x); markQ(x, 'rs-qhit'); }); }
-      if (st.sandwich.length) { html += '<div class="rs-sec">Bị “kẹp giữa” — câu sau đã thấy mà câu này không có → nghiêng NOT GIVEN / kiểm lại</div>'; st.sandwich.forEach(function (x) { html += itemHtml(x, 'Kẹp giữa'); markQ(x, 'rs-qhit'); }); }
-      if (!st.heading.length && !st.solved.length && !st.sandwich.length) html += '<div class="rs-muted">Đoạn này không chứa đáp án nào → đọc lướt, nắm ý rồi đi tiếp.</div>';
-      if (st.watch.length || st.waiting.length) {
-        var w = st.watch.map(function (x) { return x.num; });
-        var waitA = st.waiting.filter(function (x) { return x.group.kind === 'A'; }).map(function (x) { return x.num; });
-        html += '<div class="rs-sec">Để lại · mang sang đoạn sau</div><div class="rs-muted">' +
-          (w.length ? 'Đang canh (nhóm B): <b style="color:#fde68a">' + w.join(', ') + '</b>. ' : '') +
-          (waitA.length ? 'Nhóm A chưa thấy: ' + waitA.join(', ') + '.' : '') + '</div>';
-        st.watch.forEach(function (x) { markQ(x, 'rs-qwatch'); });
-      }
-    } else {
-      html += '<div class="rs-h">Rà soát cuối bài</div>';
-      if (!st.waiting.length) html += '<div class="rs-muted">Không còn câu nào để lại. Kiểm tra chính tả, số từ (NO MORE THAN…), số ít/số nhiều.</div>';
-      else {
-        html += '<div class="rs-muted" style="margin-bottom:4px">Các câu chưa tìm thấy chỗ trong bài → thường là NOT GIVEN, hoặc phải suy luận cả bài.</div>';
-        st.waiting.forEach(function (x) { html += itemHtml(x, x.ng ? 'Not Given' : 'Còn lại'); markQ(x, 'rs-qwatch'); });
-      }
+    var isPara = typeof o.sec === 'number';
+    document.body.classList.toggle('rs-dim', isPara);
+    // câu đã giải trước bước này → mờ
+    for (var j = 0; j < S.i; j++) if (L[j].reveal && !(o.reveal && o.reveal.num === L[j].reveal.num)) { var e = qBox(L[j].reveal.num); if (e) e.classList.add('rs-qdone'); }
+    var revealed = o.reveal && S.rev[S.p + ':' + S.i];
+    if (isPara) {
+      var pa = P.paras[o.para]; hl(pa.el, 'rs-cur'); pa.extra.forEach(function (e) { hl(e, 'rs-cur'); });
+      if (o.backPara != null) { var bp = P.paras[o.backPara]; hl(bp.el, 'rs-back'); }
     }
-    Object.keys(doneSet).forEach(function (n) { var el = qBox(n); if (el && !el.classList.contains('rs-qhit')) el.classList.add('rs-qdone'); });
+    var focusQ = null, focusP = isPara ? (o.backPara != null ? P.paras[o.backPara].el : (P.paras[o.para].extra[0] || P.paras[o.para].el)) : null;
+    (o.read || []).forEach(function (x) { var e = markQ(x, 'rs-qhit'); focusQ = focusQ || e; });
+    (o.watch || []).forEach(function (x) { var e = markQ(x, 'rs-qwatch'); focusQ = focusQ || e; });
+    if (o.reveal) {
+      focusQ = markQ(o.reveal, 'rs-qhit');
+      if (o.gap) { var g = $('.heading-gap[data-qnum="' + o.gap.num + '"]'); if (g) { g.classList.add('rs-qhit'); g.style.setProperty('--rsc', o.gap.group.color); } }
+      if (revealed) { markLoc(o.reveal); if (o.reveal.locEl) focusP = o.reveal.locEl; }
+    }
+    if (focusP) scrollIn(focusP, revealed ? 'center' : 'start');
+    if (focusQ) scrollIn(focusQ, 'start');
 
-    var bar = $('#rs-bar');
-    var tabs = S.an.map(function (x) { return '<button data-p="' + x.p + '" class="' + (x.p === S.p ? 'on' : '') + '">P' + x.p + '</button>'; }).join('');
-    var steps = P.steps.map(function (s, j) {
-      var lab = s.kind === 'pre' ? 'Pre' : s.kind === 'review' ? 'Rà soát' : 'Đ' + (s.para + 1);
-      var has = (s.solved.length + s.heading.length + s.sandwich.length) > 0;
-      return '<button data-s="' + j + '" class="' + (j === S.step ? 'on ' : '') + (has ? 'has' : '') + '">' + lab + '</button>';
-    }).join('');
-    bar.innerHTML = '<div class="rs-top"><span class="rs-title">Giải đề</span>' + tabs +
-      '<button data-k="prev" title="Phím ←">‹</button><div class="rs-steps">' + steps + '</div><button data-k="next" title="Phím →">›</button>' +
-      '<button data-k="ans" class="' + (S.showAns ? 'on' : '') + '" title="Phím A">' + (S.showAns ? 'Đáp án: hiện' : 'Đáp án: che') + '</button>' +
-      '<button data-k="mini" title="Thu gọn (M)">' + (bar.classList.contains('mini') ? '▴' : '▾') + '</button><button data-k="close" title="Esc">✕</button></div><div class="rs-body ' + (S.showAns ? '' : 'rs-hide') + '">' + html + '</div>';
-    var on = bar.querySelector('.rs-steps .on'); if (on) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+    // nhãn vị trí
+    var lab = o.sec === 'pre' ? 'Pre-reading' : o.sec === 'rev' ? 'Rà soát' : 'Đoạn ' + (o.sec + 1) + '/' + P.paras.length;
+    var inSec = L.filter(function (z) { return z.sec === o.sec; }), pos = inSec.indexOf(o) + 1;
+    lab += ' · bước ' + pos + '/' + inSec.length;
+    var secs = ['pre'].concat(P.paras.map(function (_, k) { return k; }), ['rev']);
+    var curIdx = secs.indexOf(o.sec);
+    var dots = secs.map(function (s, k) { var t = s === 'pre' ? 'Pre-reading' : s === 'rev' ? 'Rà soát' : 'Đoạn ' + (s + 1); return '<i data-sec="' + k + '" title="' + t + '" class="' + (k === curIdx ? 'on' : k < curIdx ? 'd' : '') + '"></i>'; }).join('');
+    var tabs = S.an.map(function (x) { return '<button class="pt' + (x.p === S.p ? ' on' : '') + '" data-p="' + x.p + '">P' + x.p + '</button>'; }).join('');
+
+    var h = '<div class="rh">' + tabs + '<span class="lb">' + lab + '</span><button class="ic" data-k="mini" title="Thu gọn (M)">' + (S.mini ? '▴' : '▾') + '</button><button class="ic" data-k="close" title="Tắt (Esc)">✕</button></div>' +
+      '<div class="dots">' + dots + '</div>' +
+      '<div class="rb"><img src="' + IRA + (o.st || 'book_2458') + '.webp" alt=""><div><div class="tt">' + o.title + '</div><div class="tx">' + (o.html || '') + '</div></div></div>';
+    if (o.quote) h += '<div class="quote">Câu chủ đề: ' + esc(o.quote) + '</div>';
+    if (o.warn) h += '<div class="warn">' + o.warn + '</div>';
+    if (o.reveal) {
+      var x = o.reveal;
+      h += '<div class="qt"><b class="n">' + x.num + '</b>' + esc(short(x.q.text, 140) || 'Câu ' + x.num) + '</div>';
+      if (revealed) h += '<div class="ans"><div class="a">Đáp án: ' + esc(ansOf(x)) + '</div>' + (x.q.exp ? '<div class="e">' + esc(plain(x.q.exp)) + '</div>' : '') + '</div>' + (o.after ? '<div class="after">' + o.after + '</div>' : '');
+      else h += '<button class="show" data-k="show">Hiện đáp án + chỗ có thông tin (Space)</button>';
+    }
+    h += '<div class="rf"><span class="k">← → chuyển bước · Space hiện đáp án</span><button class="bk" data-k="prev">‹</button><button class="nx" data-k="next">' + (o.reveal && !revealed ? 'Hiện đáp án' : 'Tiếp ›') + '</button></div>';
+    var card = $('#rs-card'); card.innerHTML = h; card.classList.toggle('mini', !!S.mini);
+    card.style.setProperty('--rsc', o.color || '#7c6cf0');
   }
 
-  function go(p, step) {
+  function go(p, i) {
     if (!S) return;
     if (p !== S.p) { S.p = p; try { window.switchPassage && window.switchPassage(p); } catch (e) {} }
-    var n = S.an[S.p - 1].steps.length;
-    S.step = Math.max(0, Math.min(n - 1, step));
+    S.i = Math.max(0, Math.min(S.an[S.p - 1].script.length - 1, i));
     render();
   }
-  function onBar(e) {
-    var b = e.target.closest('button'), it = e.target.closest('.rs-it[data-q]');
-    if (b) {
-      if (b.dataset.p) return go(+b.dataset.p, 0);
-      if (b.dataset.s) return go(S.p, +b.dataset.s);
-      var k = b.dataset.k;
-      if (k === 'prev') return step(-1);
-      if (k === 'next') return step(1);
-      if (k === 'ans') { S.showAns = !S.showAns; return render(); }
-      if (k === 'close') return close();
-      if (k === 'mini') { $('#rs-bar').classList.toggle('mini'); return render(); }
-    } else if (it) {
-      it.classList.toggle('open');
-      var n = it.dataset.q, el = qBox(n);
-      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      var loc = document.querySelector('.rs-loc .rs-badge') && Array.prototype.find.call(document.querySelectorAll('.rs-badge'), function (x) { return x.textContent == n; });
-      if (loc) loc.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
+  function next() {
+    var L = S.an[S.p - 1].script, o = L[S.i];
+    if (o.reveal && !S.rev[S.p + ':' + S.i]) { S.rev[S.p + ':' + S.i] = 1; return render(); }
+    if (S.i + 1 < L.length) return go(S.p, S.i + 1);
+    if (S.p < S.an.length) go(S.p + 1, 0);
   }
-  function step(d) {
-    var n = S.an[S.p - 1].steps.length, s = S.step + d;
-    if (s >= n && S.p < S.an.length) return go(S.p + 1, 0);
-    if (s < 0 && S.p > 1) return go(S.p - 1, S.an[S.p - 2].steps.length - 1);
-    go(S.p, s);
+  function prev() {
+    if (S.i > 0) return go(S.p, S.i - 1);
+    if (S.p > 1) go(S.p - 1, S.an[S.p - 2].script.length - 1);
+  }
+  function onCard(e) {
+    var b = e.target.closest('button,i[data-sec]'); if (!b) return;
+    if (b.dataset.p) return go(+b.dataset.p, 0);
+    if (b.dataset.sec != null) {
+      var P = S.an[S.p - 1], secs = ['pre'].concat(P.paras.map(function (_, k) { return k; }), ['rev']), want = secs[+b.dataset.sec];
+      for (var i = 0; i < P.script.length; i++) if (P.script[i].sec === want) return go(S.p, i);
+      return;
+    }
+    var k = b.dataset.k;
+    if (k === 'next') next(); else if (k === 'prev') prev();
+    else if (k === 'show') { S.rev[S.p + ':' + S.i] = 1; render(); }
+    else if (k === 'mini') { S.mini = !S.mini; render(); }
+    else if (k === 'close') close();
   }
   function onKey(e) {
     if (!S) return;
     var t = e.target; if (t && /INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
-    if (e.key === 'ArrowRight') { e.preventDefault(); step(1); }
-    else if (e.key === 'ArrowLeft') { e.preventDefault(); step(-1); }
-    else if (e.key === 'a' || e.key === 'A') { S.showAns = !S.showAns; render(); }
-    else if (e.key === 'm' || e.key === 'M') { $('#rs-bar').classList.toggle('mini'); render(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); next(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+    else if (e.key === ' ') { e.preventDefault(); S.rev[S.p + ':' + S.i] = 1; render(); }
+    else if (e.key === 'm' || e.key === 'M') { S.mini = !S.mini; render(); }
     else if (e.key === 'Escape') close();
   }
   function curPassage() {
@@ -302,17 +324,18 @@
       try { if (window.selectMode) window.selectMode('practice'); if (window.startTest) window.startTest(); } catch (e) {}
     }
     var an = analyse(); if (!an || !an.length) return;
-    S = { an: an, p: curPassage(), step: 0, showAns: true };
+    an.forEach(function (P) { P.script = script(P); });
+    S = { an: an, p: curPassage(), i: 0, rev: {} };
     if (!$('#rs-css')) { var st = document.createElement('style'); st.id = 'rs-css'; st.textContent = CSS; document.head.appendChild(st); }
-    var bar = $('#rs-bar'); if (!bar) { bar = document.createElement('div'); bar.id = 'rs-bar'; document.body.appendChild(bar); bar.addEventListener('click', onBar); }
-    bar.style.display = '';
+    var card = $('#rs-card'); if (!card) { card = document.createElement('div'); card.id = 'rs-card'; document.body.appendChild(card); card.addEventListener('click', onCard); }
+    card.style.display = '';
     document.body.classList.add('rs-on');
     render();
   }
   function close() {
     clearMarks(); S = null;
     document.body.classList.remove('rs-on', 'rs-dim');
-    var bar = $('#rs-bar'); if (bar) bar.style.display = 'none';
+    var c = $('#rs-card'); if (c) c.style.display = 'none';
   }
   document.addEventListener('keydown', onKey);
 
