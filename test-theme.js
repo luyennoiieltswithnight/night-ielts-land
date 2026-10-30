@@ -146,3 +146,9 @@
   var add = function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
 })();
+
+/* Web app: mở trang trong cùng cửa sổ + nút quay lại (night-app.js) — cho cả các đề tạo mới sau này */
+(function () {
+  if (window.__nightApp || document.querySelector('script[src*="night-app.js"]')) return;
+  var s = document.createElement('script'); s.src = '/night-app.js'; s.defer = true; (document.head || document.documentElement).appendChild(s);
+})();
