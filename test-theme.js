@@ -142,6 +142,7 @@
 /* Reading: chế độ "Giải đề" của thầy (reading-solver.js tự kiểm tra admin, người khác không thấy gì) */
 (function () {
   if (window.__nightSolverHook || !/\/reading\//.test(location.pathname)) return; window.__nightSolverHook = true;
-  var src; try { src = new URL('reading-solver.js?v=20261030c', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/reading-solver.js'; }
-  window.addEventListener('load', function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); });
+  var src; try { src = new URL('reading-solver.js?v=20261030d', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/reading-solver.js'; }
+  var add = function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
 })();

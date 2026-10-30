@@ -47,6 +47,11 @@
  *     allow read: if true;
  *     allow write: if isAdmin();
  *   }
+ *   match /readingEdits/{id} {          // "Sửa đề" Reading: ai cũng đọc, chỉ admin sửa
+ *     allow read: if true;
+ *     allow write: if isAdmin();
+ *   }
+ *   (khối "match /{col}/{rest=**}" cuối cùng nhớ thêm 'readingEdits' vào danh sách loại trừ)
  */
 
 const FIREBASE_WEB_KEY = 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8';   // khoá web công khai của Firebase (không phải bí mật)
