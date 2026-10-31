@@ -20,7 +20,8 @@
   var V = '10.8.1', CK = 'nrs_admin_uid', FBX = null;
   var COLORS = ['#2563eb', '#d97706', '#059669', '#db2777', '#7c3aed', '#0891b2', '#dc2626', '#65a30d'];
   var TYPE_NAME = { text: 'Điền từ (notes)', table: 'Điền bảng', flowchart: 'Điền sơ đồ', wordbank: 'Chọn từ trong khung', mcq: 'Trắc nghiệm', multi: 'Chọn nhiều đáp án', matching: 'Matching', list_match: 'Matching', grid: 'Matching', planlabel: 'Bản đồ / sơ đồ (map)', short: 'Trả lời ngắn' };
-  var OPT_TYPES = { matching: 1, list_match: 1, grid: 1, planlabel: 1, multi: 1, wordbank: 1 };
+  var OPT_TYPES = { matching: 1, list_match: 1, grid: 1, planlabel: 1, wordbank: 1 };
+  var MCQ_TYPES = { mcq: 1, multi: 1 };
   var TEST_ID = location.pathname.replace(/^\/+|\.html$/g, '').replace(/[^a-z0-9]+/gi, '__');
   var IRA = (function () { try { return new URL('khoahoc/img/ira/', document.currentScript.src).href; } catch (e) { return '/khoahoc/img/ira/'; } })();
 
@@ -39,11 +40,11 @@
       var gs = (groups || []).map(function (g, gi) {
         var gaps = [];
         if (g.notesTemplate && /___/.test(g.notesTemplate)) {
-          var lines = g.notesTemplate.split('\n'), head = '';
+          var lines = g.notesTemplate.split('\n'), prev = '';
           lines.forEach(function (ln) {
             var parts = ln.split('___');
-            if (parts.length < 2) { if (ln.trim() && !/:/.test(ln)) head = ln.trim(); return; }
-            for (var k = 0; k < parts.length - 1; k++) gaps.push({ line: ln, k: k, head: head });
+            if (parts.length >= 2) for (var k = 0; k < parts.length - 1; k++) gaps.push({ line: ln, k: k, head: prev });
+            if (ln.trim()) prev = ln.trim().replace(/___/g, '…');
           });
         } else if (g.type === 'table' && g.tableRows) {
           g.tableRows.forEach(function (row) {
@@ -55,14 +56,14 @@
         }
         var qs = (g.questions || []).map(function (q, qi) {
           n++;
-          var num = q.qNum || n, ctx = plain(q.text);
+          var num = q.qNum || n, ctx = plain(q.text), x_prev = '';
           var gp = gaps[qi];
           if (gp) {
             var c = 0;
             ctx = gp.line.replace(/___/g, function () { return c++ === gp.k ? '[' + num + ' ____ ]' : '…'; }).trim();
-            if (gp.head && gp.head !== gp.line.trim()) ctx = gp.head + ' › ' + ctx;
+            x_prev = gp.head && gp.head !== gp.line.trim() ? gp.head : '';
           }
-          return { num: num, q: q, ctx: ctx, gi: gi };
+          return { num: num, q: q, ctx: ctx, prev: x_prev, gi: gi };
         });
         return { gi: gi, g: g, type: g.type, qs: qs, color: COLORS[gi % COLORS.length], opts: (g.options || []).map(plain), title: plain(g.instruction) };
       });
@@ -78,14 +79,14 @@
     'The walkthrough is used BEFORE listening (prediction), then to explain answers. Explanations in Vietnamese, English words kept in English. Be concise. ' +
     'Return ONLY a JSON object with this exact shape:\n' +
     '{"vocab":[{"q":"word/phrase as written in the QUESTION or OPTIONS","t":"the matching paraphrase/synonym as SAID in the transcript","ipa":"British IPA of t with slashes","vi":"short Vietnamese meaning","ja":"1-2 word Japanese keyword to find an irasutoya illustration of this idea"}],' +
-    '"groups":[{"gi":0,"how":"1-2 sentences: how to read this group before listening","extra":"which options are distractors / never used (letters), or empty","options":[{"o":"option letter or text","key":"its keyword / core idea in Vietnamese (max 10 words)"}]}],' +
+    '"groups":[{"gi":0,"how":"1-2 sentences in Vietnamese: how to read this group BEFORE listening (do not mention any answer)","extra":"","options":[{"o":"option letter or text","key":"its keyword / core idea in Vietnamese (max 10 words)"}]}],' +
     '"questions":[{"n":1,"pos":"for gap-fill: part of speech + kind, e.g. danh từ chỉ nghề nghiệp, số tiền, tính từ; for others: empty","guess":["4-6 plausible answers BEFORE listening, from context only"],' +
-    '"signals":["2-4 words/short phrases from the question line or nearby lines that the listener should WAIT for in the audio (prefer the transcript wording when it differs)"],' +
+    '"signals":["2-4 easy-to-hear words copied from the QUESTION PAPER itself (the gap line, the line just above it, e.g. a heading, label, name or number like Address, 24, Andrea Brown) that the listener waits for to know the gap is coming. NEVER include the answer or words that only appear in the transcript"],' +
     '"keywords":["for mcq/matching: keywords in the stem/item to underline"],"diff":"for mcq: how options A/B/C differ in 1-2 sentences (Vietnamese); else empty",' +
     '"why":"1 sentence in Vietnamese: why this is the answer, mention the trap/distractor if any","pairs":[["question/option words","transcript words"]]}]}\n' +
     'Rules: vocab = 8-15 items, ONLY pairs where the question/option wording DIFFERS from the transcript wording (paraphrase), plus key words beyond the answer that help locate the info; no pairs that are identical. ' +
     '"guess" must not simply copy the answer unless it is very predictable; include the real answer among them only if a student could reasonably predict it. ' +
-    'Every question number given must appear once in "questions". Groups: include every group index; "options" only for groups that have options.';
+    'Every question number given must appear once in "questions". Groups: include every group index; "options" only for groups that have options, list EVERY option (all letters A, B, C, D, E…) with its key idea — never only the correct ones.';
   function buildPrompt(P) {
     var out = 'SECTION ' + P.s + '\n\n';
     P.groups.forEach(function (G) {
@@ -93,7 +94,7 @@
       if (G.opts.length) out += 'Options:\n' + G.opts.map(function (o) { return '  ' + o; }).join('\n') + '\n';
       G.qs.forEach(function (x) {
         var opts = (x.q.options || []).map(plain);
-        out += 'Q' + x.num + ': ' + (x.ctx || '(no text)') + (opts.length ? ' | options: ' + opts.join(' / ') : '') +
+        out += 'Q' + x.num + ': ' + (x.prev ? '[line above: ' + x.prev + '] ' : '') + (x.ctx || '(no text)') + (opts.length ? ' | options: ' + opts.join(' / ') : '') +
           ' | ANSWER: ' + (Array.isArray(x.q.answer) ? x.q.answer.join(' / ') : x.q.answer) + ' | transcript: "' + plain(x.q.loc) + '"\n';
       });
       out += '\n';
@@ -190,12 +191,13 @@
     if ((A.vocab || []).length) out.push({ kind: 'vocab', st: 'bunbougu_memo_7150', title: 'Từ cần nhớ — chép vào vở', html: 'Bên trái là chữ <b>trong đề</b>, bên phải là cách người nói <b>nói trong bài nghe</b>. Nghe được vế phải là biết sắp tới đáp án.' });
     P.groups.forEach(function (G) {
       var gi = gInfo[G.gi] || {};
-      var isOpt = OPT_TYPES[G.type] && G.opts.length;
-      var how = gi.how || (G.type === 'mcq' ? 'Đọc tiêu đề, gạch keyword của từng câu; lướt A/B/C để thấy chúng khác nhau ở đâu.' : isOpt ? 'Câu hỏi đi theo thứ tự. Đọc kỹ TỪNG option vì sẽ có option thừa.' : 'Đề đi theo thứ tự câu 1, 2, 3… Đọc lướt từ trên xuống, dự đoán từng chỗ trống.');
-      out.push({ kind: 'group', G: G, st: G.type === 'mcq' ? 'magnifier6_girl' : isOpt ? 'pose_puzzle_kumiawaseru' : 'pose_yubisashi_kakunin_businessman', title: range(G) + ' · ' + (TYPE_NAME[G.type] || G.type), html: esc(how), opts: isOpt ? (gi.options && gi.options.length ? gi.options : G.opts.map(function (o) { return { o: o, key: '' }; })) : null, extra: gi.extra || '', groupInfo: gi });
+      var isOpt = (OPT_TYPES[G.type] || G.type === 'multi') && G.opts.length;
+      var how = gi.how || (MCQ_TYPES[G.type] ? 'Đọc tiêu đề, gạch keyword của từng câu; lướt A/B/C để thấy chúng khác nhau ở đâu.' : isOpt ? 'Câu hỏi đi theo thứ tự. Đọc kỹ TỪNG option vì sẽ có option thừa.' : 'Đề đi theo thứ tự câu 1, 2, 3… Đọc lướt từ trên xuống, dự đoán từng chỗ trống.');
+      var keyOf = {}; (gi.options || []).forEach(function (op) { var L = (/^\s*([A-Z])\b/.exec(op.o || '') || [])[1]; if (L) keyOf[L] = op.key; });
+      out.push({ kind: 'group', G: G, st: MCQ_TYPES[G.type] ? 'magnifier6_girl' : isOpt ? 'pose_puzzle_kumiawaseru' : 'pose_yubisashi_kakunin_businessman', title: range(G) + ' · ' + (TYPE_NAME[G.type] || G.type), html: esc(how), diff: G.type === 'multi' ? ((qInfo[G.qs[0].num] || {}).diff || '') : '', kws: G.type === 'multi' ? ((qInfo[G.qs[0].num] || {}).keywords || []) : [], opts: isOpt ? G.opts.map(function (o) { var L = (/^\s*([A-Z])[.)\s]/.exec(o) || [])[1]; return { o: o, key: L ? keyOf[L] || '' : '' }; }) : null, groupInfo: gi });
       G.qs.forEach(function (x) {
         var info = qInfo[x.num] || {};
-        out.push({ kind: 'predict', G: G, x: x, info: info, st: 'kangaeruhito_1840', title: 'Câu ' + x.num + ': dự đoán trước khi nghe' });
+        if (G.type !== 'multi') out.push({ kind: 'predict', G: G, x: x, info: info, st: 'kangaeruhito_1840', title: 'Câu ' + x.num + ': dự đoán trước khi nghe' });
         out.push({ kind: 'answer', G: G, x: x, info: info, st: 'denkyuu_on', title: 'Câu ' + x.num + ': đáp án & vị trí trong transcript' });
       });
     });
@@ -287,6 +289,26 @@
   }
   function scrollIn(el, block) { try { el && el.scrollIntoView({ block: block || 'center', behavior: 'smooth' }); } catch (e) {} }
   function ansText(x) { var a = x.q.answer; return Array.isArray(a) ? a.join(' / ') : String(a == null ? '' : a).split('|').join(' / '); }
+  function answersOf(x) { var a = x.q.answer; return (Array.isArray(a) ? a : String(a == null ? '' : a).split('|')).map(function (t) { return String(t).toLowerCase().trim(); }).filter(Boolean); }
+  function shuffled(arr, seed) {
+    var a = (arr || []).filter(Boolean).slice(), r = seed * 9301 + 49297;
+    for (var i = a.length - 1; i > 0; i--) { r = (r * 9301 + 49297) % 233280; var j = Math.floor(r / 233280 * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+  var STOP = /^(the|a|an|of|to|in|on|at|for|and|or|is|are|be|by|with|your|you|it|its|per|from|which|who|that|this|must|will|can|has|have|was|were|not|less|more|about|each|usually|best)$/i;
+  function signalsOf(x, inf) {
+    var ans = answersOf(x), paper = ((x.prev || '') + ' ' + (x.ctx || '') + ' ' + plain(x.q.text) + ' ' + (x.q.options || []).map(plain).join(' ')).toLowerCase();
+    var ok = (inf.signals || []).filter(function (w) {
+      var lw = String(w || '').toLowerCase().trim(); if (!lw) return false;
+      if (ans.some(function (a) { return a && (lw.indexOf(a) >= 0 || a.indexOf(lw) >= 0); })) return false;
+      return paper.indexOf(lw) >= 0;
+    });
+    if (ok.length) return ok;
+    var src = ((x.prev || '') + ' ' + (x.ctx || '').replace(/\[\d+ ____ \]/, ' ')).replace(/[…:›,;()?.!"“”]/g, ' ');
+    var out = [];
+    src.split(/\s+/).forEach(function (w) { if (w && !STOP.test(w) && (w.length > 3 || /\d/.test(w)) && ans.indexOf(w.toLowerCase()) < 0 && out.indexOf(w) < 0) out.push(w); });
+    return out.slice(-4);
+  }
   function chips(arr, cls) { return (arr || []).filter(Boolean).map(function (w) { return '<span class="chip ' + (cls || '') + '">' + esc(w) + '</span>'; }).join(''); }
   function ctxHtml(x) { return esc(x.ctx || ('Câu ' + x.num)).replace(/\[(\d+) ____ \]/, '<span class="gap">$1 ______</span>'); }
 
@@ -325,27 +347,31 @@
     if (o.kind === 'group') {
       o.G.qs.forEach(function (x) { var e = qBox(x.num); if (e) { e.classList.add('ls-qhit'); e.style.setProperty('--lsc', o.G.color); focus = focus || e; } });
       if (o.opts) {
-        var extra = String(o.extra || '');
-        h += '<div class="bx"><h5>Đọc từng option (' + o.opts.length + ' option cho ' + o.G.qs.length + ' câu → thừa ' + Math.max(0, o.opts.length - o.G.qs.length) + ')</h5>' +
+        var spare = Math.max(0, o.opts.length - o.G.qs.length), isMcq = MCQ_TYPES[o.G.type];
+        var hd = isMcq ? 'Câu hỏi: ' + esc(o.G.title.replace(/^Questions?[^A-Za-z]*[\d–\- and]+\s*/i, '')) + '<br>Đọc tổng quan ' + o.opts.length + ' đáp án — chọn ' + o.G.qs.length + ', thấy chúng khác nhau ở đâu'
+          : 'Đọc từng option — ' + o.opts.length + ' option cho ' + o.G.qs.length + ' câu' + (spare ? ' → sẽ có ' + spare + ' option không dùng (chưa biết là cái nào)' : '');
+        h += '<div class="bx"><h5 style="text-transform:none;font-size:13px">' + hd + '</h5>' +
           o.opts.map(function (op) {
             var letter = (/^\s*([A-Z])[.)\s]/.exec(op.o || '') || [])[1] || '';
-            var isX = letter && new RegExp('\\b' + letter + '\\b').test(extra);
-            return '<div class="opt' + (S.showX && isX ? ' x' : '') + '"><b>' + esc(letter || '•') + '</b><div>' + esc(String(op.o || '').replace(/^\s*[A-Z][.)]\s*/, '')) + (op.key ? '<div style="color:#8a86a8;font-size:13px">→ ' + esc(op.key) + '</div>' : '') + '</div></div>';
+            return '<div class="opt"><b>' + esc(letter || '•') + '</b><div>' + esc(String(op.o || '').replace(/^\s*[A-Z][.)]\s*/, '')) + (op.key ? '<div style="color:#8a86a8;font-size:13px">→ ' + esc(op.key) + '</div>' : '') + '</div></div>';
           }).join('') + '</div>';
-        if (extra) h += S.showX ? '<div class="warn">Option thừa / gây nhiễu: ' + esc(extra) + '</div>' : '<button class="show" data-k="showx">Hiện option thừa</button>';
+        if (o.kws && o.kws.length) h += '<div class="bx"><h5>Keyword cần gạch</h5>' + chips(o.kws, 'kw') + '</div>';
+        if (o.diff) h += '<div class="bx"><h5>Các đáp án khác nhau ở đâu?</h5>' + esc(o.diff) + '</div>';
       }
     }
     if (o.kind === 'predict' || o.kind === 'answer') {
       var x = o.x, inf = o.info || {}, e2 = qBox(x.num);
       if (e2) { e2.classList.add('ls-qhit'); e2.style.setProperty('--lsc', o.G.color); focus = e2; }
       var opts = (x.q.options || []).map(plain);
-      h += '<div class="bx"><h5>' + (TYPE_NAME[o.G.type] || '') + '</h5><div class="ctx">' + ctxHtml(x) + '</div>' + (opts.length ? '<div style="margin-top:4px">' + opts.map(esc).join('<br>') + '</div>' : '') + '</div>';
+      h += '<div class="bx"><h5>' + (TYPE_NAME[o.G.type] || '') + '</h5>' + (x.prev ? '<div style="color:#8a86a8;font-size:14px">' + esc(x.prev) + '</div>' : '') + '<div class="ctx">' + ctxHtml(x) + '</div>' + (opts.length ? '<div style="margin-top:4px">' + opts.map(esc).join('<br>') + '</div>' : '') + '</div>';
       if (o.kind === 'predict') {
-        if (inf.pos) h += '<div class="bx"><h5>Loại từ cần điền</h5>' + esc(inf.pos) + (inf.guess && inf.guess.length ? '<div style="margin-top:4px">Có thể là: ' + chips(inf.guess) + '</div>' : '') + '</div>';
-        else if (inf.guess && inf.guess.length) h += '<div class="bx"><h5>Dự đoán</h5>' + chips(inf.guess) + '</div>';
+        var gs = shuffled(inf.guess, x.num);
+        if (inf.pos) h += '<div class="bx"><h5>Loại từ cần điền</h5>' + esc(inf.pos) + (gs.length ? '<div style="margin-top:4px">Có thể là: ' + chips(gs) + '</div>' : '') + '</div>';
+        else if (gs.length && !MCQ_TYPES[o.G.type]) h += '<div class="bx"><h5>Dự đoán</h5>' + chips(gs) + '</div>';
         if (inf.keywords && inf.keywords.length) h += '<div class="bx"><h5>Keyword cần gạch</h5>' + chips(inf.keywords, 'kw') + '</div>';
         if (inf.diff) h += '<div class="bx"><h5>A / B / C khác nhau ở đâu?</h5>' + esc(inf.diff) + '</div>';
-        if (inf.signals && inf.signals.length) h += '<div class="bx"><h5>Từ tín hiệu — đợi những từ này</h5>' + chips(inf.signals, 'sig') + '</div>';
+        var sg = signalsOf(x, inf);
+        if (sg.length) h += '<div class="bx"><h5>Từ tín hiệu trong đề — nghe thấy những từ này là sắp tới chỗ trống</h5>' + chips(sg, 'sig') + '</div>';
       } else {
         h += '<div class="ans"><div class="a">Đáp án: ' + esc(ansText(x)) + '</div>' + (inf.why || x.q.exp ? '<div style="font-size:13.5px;margin-top:3px">' + esc(inf.why || plain(x.q.exp)) + '</div>' : '') +
           ((inf.pairs || []).length ? '<div style="margin-top:6px">' + inf.pairs.map(function (p) { return '<div class="pair"><b>' + esc(p[0]) + '</b><i>↔</i><span>' + esc(p[1]) + '</span></div>'; }).join('') + '</div>' : '') + '</div>';
@@ -354,12 +380,12 @@
           loc.classList.add('ls-loc'); loc.style.setProperty('--lsc', o.G.color);
           var b = document.createElement('span'); b.className = 'ls-badge'; b.textContent = x.num; b.style.setProperty('--lsc', o.G.color); loc.insertBefore(b, loc.firstChild);
           var para = loc.closest('p') || loc.parentNode;
-          markWords(para, (inf.pairs || []).map(function (p) { return p[1]; }).concat(inf.signals || []));
+          markWords(para, (inf.pairs || []).map(function (p) { return p[1]; }).concat(signalsOf(x, inf)));
           focus = loc;
         } else if (tp) focus = tp;
       }
     }
-    if (o.kind === 'end') { var tp2 = openTranscript(S.s); markWords(document.getElementById('passage-' + S.s + '-text'), [].concat.apply([], (P.ai.questions || []).map(function (q) { return q.signals || []; }))); focus = tp2; }
+    if (o.kind === 'end') { var tp2 = openTranscript(S.s); markWords(document.getElementById('passage-' + S.s + '-text'), [].concat.apply([], P.groups.reduce(function (a, G) { return a.concat(G.qs); }, []).map(function (x) { return signalsOf(x, (P.ai.questions || []).filter(function (q) { return q.n === x.num; })[0] || {}); }))); focus = tp2; }
     var nextLabel = o.kind === 'end' ? (S.s < S.an.length ? 'Sang Section ' + (S.s + 1) + ' ›' : 'Xong') : 'Tiếp ›';
     h += '<div class="rf"><span class="k">← → chuyển bước · M thu gọn · Esc tắt</span><button class="bk" data-k="prev">‹</button><button class="nx" data-k="next">' + nextLabel + '</button></div>';
     card.innerHTML = h; card.classList.toggle('mini', !!S.mini);
@@ -390,7 +416,6 @@
   function next() {
     var P = S.an[S.s - 1]; if (!P.script) return;
     var o = P.script[S.i];
-    if (o.kind === 'group' && o.extra && !S.showX) { S.showX = true; return render(); }
     S.showX = false;
     if (S.i + 1 < P.script.length) { S.i++; return render(); }
     if (S.s < S.an.length) goSection(S.s + 1);

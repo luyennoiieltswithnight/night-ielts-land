@@ -150,7 +150,7 @@
 /* Listening: chế độ "Giải đề cùng thầy" (listening-solver.js tự kiểm tra admin, người khác không thấy gì) */
 (function () {
   if (window.__nightLSolverHook || !/\/listening\//.test(location.pathname)) return; window.__nightLSolverHook = true;
-  var src; try { src = new URL('listening-solver.js?v=20261031a', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/listening-solver.js'; }
+  var src; try { src = new URL('listening-solver.js?v=20261031b', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/listening-solver.js'; }
   var add = function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
 })();
