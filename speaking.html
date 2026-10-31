@@ -3102,41 +3102,61 @@ Is it better to read a physical book or an e-book?"></textarea>
     await Promise.all([pA, pB, pC]);
   }
   let __spDoneByPkg = {};
-  function spRing(done, total) {
-    const pct = total ? Math.min(1, done / total) : 0, r = 21, c = 2 * Math.PI * r, full = total && done >= total;
-    return '<span class="sp-ring" title="Đã làm ' + done + '/' + total + ' câu"><svg viewBox="0 0 52 52" width="52" height="52"><circle cx="26" cy="26" r="' + r + '" fill="none" stroke="#E7F8F1" stroke-width="6"/><circle cx="26" cy="26" r="' + r + '" fill="none" stroke="' + (full ? '#059669' : '#10B981') + '" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (c * pct).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 26 26)"/></svg><b>' + done + '/' + total + '</b></span>';
+  const SP_COL = { '1': { c: '#4F46E5', bg: '#EEF2FF', soft: '#E0E7FF', ink: '#3730A3' }, '23': { c: '#EA580C', bg: '#FFF7ED', soft: '#FFEDD5', ink: '#9A3412' } };
+  function spRing(done, total, k) {
+    const col = SP_COL[k || '1'], pct = total ? Math.min(1, done / total) : 0, r = 21, c = 2 * Math.PI * r;
+    return '<span class="sp-ring" title="Đã làm ' + done + '/' + total + ' câu"><svg viewBox="0 0 52 52" width="52" height="52"><circle cx="26" cy="26" r="' + r + '" fill="none" stroke="' + col.soft + '" stroke-width="6"/><circle cx="26" cy="26" r="' + r + '" fill="none" stroke="' + col.c + '" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (c * pct).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 26 26)"/></svg><b style="color:' + col.ink + '">' + done + '/' + total + '</b></span>';
   }
   function spDoneCount(p) { const m = __spDoneByPkg[p.id] || {}; return (p.questions || []).filter(q => m[q.id]).length; }
-  function spStudentGroup(title, list, rowFn) {
-    if (!list.length) return '';
-    return '<div class="ni-panel-label px-1 mt-4">' + title + ' <span style="opacity:.6;">(' + list.length + ')</span></div><div class="sp-grid">' + list.map(rowFn).join('') + '</div>';
+  function spGetPart() { try { return localStorage.getItem('nightSpPart') || '1'; } catch (e) { return '1'; } }
+  window.spSetPart = function (k) {
+    try { localStorage.setItem('nightSpPart', k); } catch (e) {}
+    document.documentElement.setAttribute('data-sp-part', k);
+  };
+  // Hai tab Part 1 / Part 2 + 3: bấm để chuyển, mỗi Part một màu, ô hình chữ nhật
+  function spStudentTabs(list1, list23, tileFn) {
+    if (!list1.length && !list23.length) return '';
+    const tab = (k, label, n) => '<button type="button" class="sp-tab sp-tab-' + k + '" onclick="spSetPart(\'' + k + '\')">' + label + ' <span>' + n + '</span></button>';
+    const grid = (k, list) => '<div class="sp-tiles sp-g' + k + '">' + (list.length ? list.map(x => tileFn(x, k)).join('') : '<p class="sp-empty">Chưa có bài nào ở phần này.</p>') + '</div>';
+    return '<div class="sp-tabs">' + tab('1', 'Part 1', list1.length) + tab('23', 'Part 2 + 3', list23.length) + '</div>' + grid('1', list1) + grid('23', list23);
+  }
+  function spTile(href, k, title, sub, done, total, badge) {
+    const col = SP_COL[k];
+    return '<a href="' + href + '" class="sp-tile" style="background:' + col.bg + ';border-color:' + col.soft + ';">' +
+      '<span class="sp-tag" style="background:' + col.c + ';">' + (k === '1' ? 'Part 1' : 'Part 2 + 3') + '</span>' +
+      '<p class="sp-tt" style="color:' + col.ink + ';">' + escapeHtml(title) + '</p>' +
+      '<div class="sp-bot"><div style="min-width:0;"><p class="sp-sub">' + sub + '</p>' + (badge || '') + '</div>' + (total ? spRing(done, total, k) : '') + '</div></a>';
   }
   function paintStudentHome(assigned) {
-    if (!document.getElementById('sp-ring-css')) { const st = document.createElement('style'); st.id = 'sp-ring-css'; st.textContent = '.sp-grid{display:grid;gap:10px}@media(min-width:720px){.sp-grid{grid-template-columns:1fr 1fr}}.sp-row{display:flex!important;align-items:center;gap:12px}.sp-row .sp-mid{flex:1;min-width:0}.sp-ring{position:relative;flex:none;width:52px;height:52px;display:inline-flex;align-items:center;justify-content:center}.sp-ring svg{position:absolute;inset:0}.sp-ring b{position:relative;font-size:12px;font-weight:800;color:#047857}'; document.head.appendChild(st); }
+    if (!document.getElementById('sp-ring-css')) { const st = document.createElement('style'); st.id = 'sp-ring-css'; st.textContent = '.sp-ring{position:relative;flex:none;width:52px;height:52px;display:inline-flex;align-items:center;justify-content:center}.sp-ring svg{position:absolute;inset:0}.sp-ring b{position:relative;font-size:12px;font-weight:800}' +
+      '.sp-tabs{display:flex;gap:6px;max-width:440px;padding:5px;background:rgba(255,255,255,.7);border-radius:16px;margin:12px 0 12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}.sp-tab{flex:1;padding:10px 8px;border-radius:12px;font-weight:800;font-size:14px;color:#64748B;transition:all .2s}.sp-tab span{display:inline-block;min-width:22px;padding:1px 7px;border-radius:99px;font-size:12px;background:#F1F5F9;margin-left:4px}' +
+      'html:not([data-sp-part="23"]) .sp-tab-1{background:#4F46E5;color:#fff}html:not([data-sp-part="23"]) .sp-tab-1 span{background:rgba(255,255,255,.25)}html[data-sp-part="23"] .sp-tab-23{background:#EA580C;color:#fff}html[data-sp-part="23"] .sp-tab-23 span{background:rgba(255,255,255,.25)}' +
+      'html[data-sp-part="23"] .sp-g1,html:not([data-sp-part="23"]) .sp-g23{display:none}' +
+      '.sp-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(min-width:720px){.sp-tiles{grid-template-columns:repeat(3,1fr)}}@media(min-width:1024px){.sp-tiles{grid-template-columns:repeat(4,1fr)}}' +
+      '.sp-tile{display:flex;flex-direction:column;gap:8px;min-height:150px;padding:14px;border:2px solid;border-radius:18px;transition:transform .15s,box-shadow .15s}.sp-tile:hover{transform:translateY(-2px);box-shadow:0 10px 24px -12px rgba(0,0,0,.25)}' +
+      '.sp-tag{align-self:flex-start;color:#fff;font-size:10px;font-weight:800;letter-spacing:.5px;padding:3px 8px;border-radius:99px;text-transform:uppercase}.sp-tt{font-weight:800;font-size:15px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}' +
+      '.sp-bot{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:6px}.sp-sub{font-size:12px;font-weight:700;color:#64748B}.sp-bot .ni-badge{margin-top:4px;font-size:10px}.sp-empty{grid-column:1/-1;text-align:center;padding:24px;opacity:.6;font-weight:600}'; document.head.appendChild(st); }
+    document.documentElement.setAttribute('data-sp-part', spGetPart());
     const pkgOf = (id) => __spAllPackages.find(p => p.id === id);
 
     const assignedEl = document.getElementById('spAssignedList');
-    const aRow = (a) => {
+    const aTile = (a, k) => {
       const p = pkgOf(a.packageId), total = p ? p.questions.length : 0, done = p ? spDoneCount(p) : 0;
       const badge = a.status === 'completed' ? '<span class="ni-badge ni-badge-green">Đã hoàn thành</span>' : '<span class="ni-badge ni-badge-neutral">Chưa xong</span>';
-      return '<a href="speaking.html?packageId=' + a.packageId + '&assignmentId=' + a.id + '" class="ni-card ni-dash-item sp-row">' + (total ? spRing(done, total) : '') +
-        '<div class="sp-mid"><p class="font-extrabold" style="color:var(--border-color);">' + escapeHtml(a.packageTitle || (p && p.title) || '') + '</p><div class="mt-1">' + badge + '</div></div></a>';
+      return spTile('speaking.html?packageId=' + a.packageId + '&assignmentId=' + a.id, k, a.packageTitle || (p && p.title) || '', total + ' câu hỏi', done, total, badge);
     };
     const aIs1 = (a) => { const p = pkgOf(a.packageId); return p ? p.part === '1' : false; };
     assignedEl.innerHTML = assigned.length === 0
       ? '<div class="ni-panel text-center py-8"><p class="font-semibold" style="color:var(--border-color);opacity:.6;">Chưa có bài Speaking nào được giao.</p></div>'
-      : spStudentGroup('Part 1', assigned.filter(aIs1), aRow) + spStudentGroup('Part 2 + 3', assigned.filter(a => !aIs1(a)), aRow);
+      : spStudentTabs(assigned.filter(aIs1), assigned.filter(a => !aIs1(a)), aTile);
 
     const allEl = document.getElementById('spAllPkgList');
     allEl.innerHTML = __spAllPackages.length === 0
       ? '<div class="ni-panel text-center py-8"><p class="font-semibold" style="color:var(--border-color);opacity:.6;">Chưa có bộ câu hỏi nào.</p></div>'
       : (() => {
-          const row = (p) => '<a href="speaking.html?packageId=' + p.id + '" class="ni-card ni-dash-item sp-row">' + spRing(spDoneCount(p), p.questions.length) +
-            '<div class="sp-mid"><div class="flex items-center gap-2 flex-wrap"><span class="part-chip">' + (PART_LABELS[p.part] || p.part) + '</span>' +
-            '<p class="font-extrabold" style="color:var(--border-color);">' + escapeHtml(p.title) + '</p></div>' +
-            '<p class="text-xs font-semibold mt-1" style="opacity:.6;">' + p.questions.length + ' câu hỏi</p></div></a>';
+          const tile = (p, k) => spTile('speaking.html?packageId=' + p.id, k, p.title, p.questions.length + ' câu hỏi', spDoneCount(p), p.questions.length);
           const { part1, part23 } = splitPackagesByPart(__spAllPackages);
-          return spStudentGroup('Part 1', part1, row) + spStudentGroup('Part 2 + 3', part23, row);
+          return spStudentTabs(part1, part23, tile);
         })();
 
     showOnly('studentHomeView');
