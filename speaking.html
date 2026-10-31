@@ -3080,6 +3080,13 @@ Is it better to read a physical book or an e-book?"></textarea>
     let assigned = null;
     const paint = () => paintStudentHome(assigned || []);
     const pA = loadAllPackages(paint).catch(() => {});
+    // Tiến độ: mỗi bộ đã làm bao nhiêu câu (đếm theo câu khác nhau đã có ít nhất 1 lần làm)
+    __spDoneByPkg = {};
+    const pC = (async () => {
+      const take = (snap) => { const m = {}; snap.forEach(d => { const a = d.data(); if (a.kind && a.kind !== 'attempt') return; if (!a.packageId || !a.questionId) return; (m[a.packageId] = m[a.packageId] || {})[a.questionId] = 1; }); __spDoneByPkg = m; paint(); };
+      try { take(await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid), where('kind', '==', 'attempt')))); }
+      catch (e) { try { take(await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid)))); } catch (e2) {} }
+    })();
     const now = Date.now();
     const q = query(collection(db, 'assignments'), where('studentId', '==', uid), where('kind', '==', 'speaking'));
     const pB = swrDocs(q, (snap, fromCache) => {
@@ -3092,32 +3099,45 @@ Is it better to read a physical book or an e-book?"></textarea>
       assigned.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       paint();
     }).catch(() => {});
-    await Promise.all([pA, pB]);
+    await Promise.all([pA, pB, pC]);
+  }
+  let __spDoneByPkg = {};
+  function spRing(done, total) {
+    const pct = total ? Math.min(1, done / total) : 0, r = 21, c = 2 * Math.PI * r, full = total && done >= total;
+    return '<span class="sp-ring" title="Đã làm ' + done + '/' + total + ' câu"><svg viewBox="0 0 52 52" width="52" height="52"><circle cx="26" cy="26" r="' + r + '" fill="none" stroke="#E7F8F1" stroke-width="6"/><circle cx="26" cy="26" r="' + r + '" fill="none" stroke="' + (full ? '#059669' : '#10B981') + '" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + (c * pct).toFixed(1) + ' ' + c.toFixed(1) + '" transform="rotate(-90 26 26)"/></svg><b>' + done + '/' + total + '</b></span>';
+  }
+  function spDoneCount(p) { const m = __spDoneByPkg[p.id] || {}; return (p.questions || []).filter(q => m[q.id]).length; }
+  function spStudentGroup(title, list, rowFn) {
+    if (!list.length) return '';
+    return '<div class="ni-panel-label px-1 mt-4">' + title + ' <span style="opacity:.6;">(' + list.length + ')</span></div><div class="sp-grid">' + list.map(rowFn).join('') + '</div>';
   }
   function paintStudentHome(assigned) {
+    if (!document.getElementById('sp-ring-css')) { const st = document.createElement('style'); st.id = 'sp-ring-css'; st.textContent = '.sp-grid{display:grid;gap:10px}@media(min-width:720px){.sp-grid{grid-template-columns:1fr 1fr}}.sp-row{display:flex!important;align-items:center;gap:12px}.sp-row .sp-mid{flex:1;min-width:0}.sp-ring{position:relative;flex:none;width:52px;height:52px;display:inline-flex;align-items:center;justify-content:center}.sp-ring svg{position:absolute;inset:0}.sp-ring b{position:relative;font-size:12px;font-weight:800;color:#047857}'; document.head.appendChild(st); }
+    const pkgOf = (id) => __spAllPackages.find(p => p.id === id);
 
     const assignedEl = document.getElementById('spAssignedList');
+    const aRow = (a) => {
+      const p = pkgOf(a.packageId), total = p ? p.questions.length : 0, done = p ? spDoneCount(p) : 0;
+      const badge = a.status === 'completed' ? '<span class="ni-badge ni-badge-green">Đã hoàn thành</span>' : '<span class="ni-badge ni-badge-neutral">Chưa xong</span>';
+      return '<a href="speaking.html?packageId=' + a.packageId + '&assignmentId=' + a.id + '" class="ni-card ni-dash-item sp-row">' + (total ? spRing(done, total) : '') +
+        '<div class="sp-mid"><p class="font-extrabold" style="color:var(--border-color);">' + escapeHtml(a.packageTitle || (p && p.title) || '') + '</p><div class="mt-1">' + badge + '</div></div></a>';
+    };
+    const aIs1 = (a) => { const p = pkgOf(a.packageId); return p ? p.part === '1' : false; };
     assignedEl.innerHTML = assigned.length === 0
       ? '<div class="ni-panel text-center py-8"><p class="font-semibold" style="color:var(--border-color);opacity:.6;">Chưa có bài Speaking nào được giao.</p></div>'
-      : assigned.map(a => {
-          const badge = a.status === 'completed' ? '<span class="ni-badge ni-badge-green">✅ Đã hoàn thành</span>' : '<span class="ni-badge ni-badge-neutral">🎙️ Chưa làm</span>';
-          return '<a href="speaking.html?packageId=' + a.packageId + '&assignmentId=' + a.id + '" class="ni-card ni-dash-item">' +
-            '<div class="flex justify-between items-start gap-3 flex-wrap"><p class="font-extrabold" style="color:var(--border-color);">' + escapeHtml(a.packageTitle || '') + '</p>' + badge + '</div>' +
-          '</a>';
-        }).join('');
+      : spStudentGroup('Part 1', assigned.filter(aIs1), aRow) + spStudentGroup('Part 2 + 3', assigned.filter(a => !aIs1(a)), aRow);
 
     const allEl = document.getElementById('spAllPkgList');
     allEl.innerHTML = __spAllPackages.length === 0
       ? '<div class="ni-panel text-center py-8"><p class="font-semibold" style="color:var(--border-color);opacity:.6;">Chưa có bộ câu hỏi nào.</p></div>'
-      : __spAllPackages.map(p => (
-          '<a href="speaking.html?packageId=' + p.id + '" class="ni-card ni-dash-item">' +
-            '<div class="flex items-center gap-2 flex-wrap">' +
-              '<span class="part-chip">' + (PART_LABELS[p.part] || p.part) + '</span>' +
-              '<p class="font-extrabold" style="color:var(--border-color);">' + escapeHtml(p.title) + '</p>' +
-            '</div>' +
-            '<p class="text-xs font-semibold mt-1" style="opacity:.6;">' + p.questions.length + ' câu hỏi</p>' +
-          '</a>'
-        )).join('');
+      : (() => {
+          const row = (p) => '<a href="speaking.html?packageId=' + p.id + '" class="ni-card ni-dash-item sp-row">' + spRing(spDoneCount(p), p.questions.length) +
+            '<div class="sp-mid"><div class="flex items-center gap-2 flex-wrap"><span class="part-chip">' + (PART_LABELS[p.part] || p.part) + '</span>' +
+            '<p class="font-extrabold" style="color:var(--border-color);">' + escapeHtml(p.title) + '</p></div>' +
+            '<p class="text-xs font-semibold mt-1" style="opacity:.6;">' + p.questions.length + ' câu hỏi</p></div></a>';
+          const { part1, part23 } = splitPackagesByPart(__spAllPackages);
+          return spStudentGroup('Part 1', part1, row) + spStudentGroup('Part 2 + 3', part23, row);
+        })();
 
     showOnly('studentHomeView');
   }
