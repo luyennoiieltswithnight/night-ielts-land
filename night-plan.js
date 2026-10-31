@@ -176,6 +176,19 @@
       (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { b.textContent = 'Đã copy'; }, function () { b.textContent = t; });
     });
   }
+  /* VietQR: ảnh QR có sẵn số tiền + nội dung CK (quét là điền hết). Đoán mã ngân hàng từ tên thầy nhập. */
+  var BANKS = [['vietcombank|vcb','970436'],['vietinbank|ctg|icb','970415'],['bidv','970418'],['agribank|vba','970405'],['techcombank|tcb','970407'],['mbbank|mb bank|^mb$|quan doi','970422'],['acb|a chau','970416'],['vpbank|vp bank','970432'],['tpbank|tp bank|tien phong','970423'],['sacombank|stb','970403'],['hdbank','970437'],['vib','970441'],['shb','970443'],['ocb|phuong dong','970448'],['msb|maritime','970426'],['seabank','970440'],['eximbank|eib','970431'],['lpbank|lienviet|lpb','970449'],['vietcapital|ban viet','970454'],['abbank','970425'],['namabank|nam a','970428'],['bac a|bab','970409'],['pvcombank','970412'],['kienlong','970452'],['cake','546034'],['ubank','546035'],['timo','963388'],['scb','970429'],['dong a','970406'],['baoviet','970438'],['saigonbank','970400'],['vietabank|viet a','970427'],['ncb|quoc dan','970419'],['pgbank','970430'],['oceanbank','970414'],['gpbank','970408'],['vrb','970421'],['woori','970457'],['shinhan','970424'],['uob','970458'],['cimb','422589'],['public bank','970439'],['hong leong','970442'],['standard chartered','970410'],['vikki','970406']];
+  function bankBin(name) {
+    var n = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').trim();
+    if (/^\d{6}$/.test(n)) return n;
+    for (var i = 0; i < BANKS.length; i++) if (new RegExp(BANKS[i][0]).test(n)) return BANKS[i][1];
+    return '';
+  }
+  function vietQR(st, amount, info) {
+    var bin = bankBin(st.bank), acc = String(st.acc || '').replace(/\s/g, '');
+    if (!bin || !acc) return '';
+    return 'https://img.vietqr.io/image/' + bin + '-' + encodeURIComponent(acc) + '-compact2.png?amount=' + Math.round(amount || 0) + '&addInfo=' + encodeURIComponent(info || '') + '&accountName=' + encodeURIComponent(st.holder || '');
+  }
   function payCode(uid) { return 'NIGHTPRO ' + String(uid || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase(); }
 
   /* ---------- Nâng cấp Pro (người dùng) ---------- */
@@ -207,14 +220,14 @@
         if (rq && rq.status === 'rejected' && r !== 'pro') status += '<div class="npl-ok" style="background:#FFF1F2;color:#9F1239">Yêu cầu trước chưa được duyệt (chưa thấy chuyển khoản). Nhắn Night IELTS nếu bạn đã chuyển.</div>';
         var hasBank = settings.acc || settings.qr;
         box.innerHTML = head + status +
-          (hasBank ? '<div class="npl-pay">' + (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : '') +
+          (hasBank ? '<div class="npl-pay">' + (function () { var dq = vietQR(settings, price, code); return dq ? '<img src="' + esc(dq) + '" alt="QR chuyển khoản"' + (settings.qr ? ' onerror="this.onerror=null;this.src=\'' + esc(settings.qr) + '\'"' : '') + '>' : (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : ''); })() +
             '<div class="npl-kv"><div><span>Ngân hàng</span><b>' + esc(settings.bank || '') + '</b></div>' +
             '<div><span>Số tài khoản</span><b>' + esc(settings.acc || '') + (settings.acc ? copyBtn(settings.acc) : '') + '</b></div>' +
             '<div><span>Chủ tài khoản</span><b>' + esc(settings.holder || '') + '</b></div>' +
             '<div><span>Số tiền</span><b>' + money(price) + '</b></div>' +
             '<div><span>Nội dung CK</span><b>' + esc(code) + copyBtn(code) + '</b></div></div></div>'
             : '<p class="npl-note">Night IELTS chưa cập nhật thông tin chuyển khoản. Nhắn Night IELTS để đăng ký nhé.</p>') +
-          '<p class="npl-note" style="margin:0 0 12px">Ghi đúng <b>nội dung chuyển khoản</b> để Night IELTS biết là bạn. Chuyển xong bấm nút dưới, Night IELTS duyệt trong ngày. Gặp lỗi gì cứ nhắn Night IELTS.</p>' +
+          (vietQR(settings, price, code) ? '<p class="npl-note" style="margin:0 0 8px">📱 Quét mã QR bằng app ngân hàng: <b>số tiền và nội dung đã điền sẵn</b>, chỉ cần bấm chuyển.</p>' : '') + '<p class="npl-note" style="margin:0 0 12px">Ghi đúng <b>nội dung chuyển khoản</b> để Night IELTS biết là bạn. Chuyển xong bấm nút dưới, Night IELTS duyệt trong ngày. Gặp lỗi gì cứ nhắn Night IELTS.</p>' +
           '<button type="button" class="npl-btn gold" id="npl-sent"' + (rq && rq.status === 'pending' ? ' disabled' : '') + '>💸 Tôi đã chuyển khoản</button>';
         wireCopy(box);
         var b = box.querySelector('#npl-sent');
@@ -301,7 +314,7 @@
           '<label class="npl-f"><span>Link máy chủ AI miễn phí (Apps Script ai-proxy, dạng https://script.google.com/macros/s/…/exec)</span><input class="npl-inp" id="npl-proxy" value="' + esc(s.aiProxy || '') + '" placeholder="Để trống = tắt AI miễn phí cho User"></label>' +
           '<p class="npl-note" style="margin:-4px 0 12px">Tài khoản User được AI miễn phí <b>5 phút mỗi 5 tiếng</b> cho mỗi kỹ năng (Speaking tính thời lượng ghi âm, Writing ≈ 1–2 bài chấm). Key Groq của thầy nằm trong Apps Script, không lộ ra web. Hướng dẫn cài ở đầu file <b>apps-script/ai-proxy/Code.gs</b>.</p>' +
           '<div class="npl-f"><span>Thông tin chuyển khoản hiện cho người mua Pro</span><div class="npl-ok" style="background:#F8F8FB;color:#24242A">' +
-          (s.acc ? esc(s.bank || '') + ' · <b>' + esc(s.acc) + '</b> · ' + esc(s.holder || '') + (s.qr ? ' · có ảnh QR' : '') : 'Chưa có') +
+          (s.acc ? esc(s.bank || '') + ' · <b>' + esc(s.acc) + '</b> · ' + esc(s.holder || '') + (s.qr ? ' · có ảnh QR' : '') + (s.acc ? (bankBin(s.bank) ? '<br><span style="color:#047857;font-size:12px">✅ QR tự điền số tiền + nội dung: đang bật</span>' : '<br><span style="color:#E11D48;font-size:12px">⚠️ Không nhận ra tên ngân hàng "' + esc(s.bank || '') + '" để tạo QR tự điền — sửa tên ngân hàng trong Học Phí (vd: Vietcombank, MB Bank, Techcombank)</span>') : '') : 'Chưa có') +
           '<br><span style="color:#6B6B78;font-size:12px">Lấy tự động từ mục <b>Học Phí → Thông tin chuyển khoản</b> mỗi lần thầy bấm Lưu ở đây.</span></div></div>' +
           '<button class="npl-btn" id="npl-save">Lưu cài đặt</button> <span id="npl-msg" class="npl-note"></span>';
         body.querySelector('#npl-save').onclick = function () {
