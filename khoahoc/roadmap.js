@@ -24,7 +24,8 @@
   };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const rich = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>");
-  const CSS = `
+  const CSS = `html:not(.nv-admin) .nv-admin-only{display:none!important}
+
 :root{--ink:#24242A;--panel:#F4F4F7;--line:#E6E6EE;--muted:#6B6B78}
 *{box-sizing:border-box}
 body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--ink);background:linear-gradient(160deg,#ECEBFB 0%,#F7F3FF 45%,#FFF4EC 100%);min-height:100vh;-webkit-font-smoothing:antialiased}
@@ -173,7 +174,7 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
       </div></article>`;
     const facts = cfg.facts || [];
     const html = `<div class="rm-frame">
-      <div class="rm-top"><a class="rm-logo" href="../index.html"><i></i><span><b>Night IELTS</b><small>CLASSROOM HUB</small></span></a><span class="rm-sp"></span><span class="rm-me" id="rm-me"></span>${cfg.folder ? `<a class="rm-back rm-pdf" href="in.html?course=${encodeURIComponent(String(cfg.folder).replace(/\/$/, ""))}&title=${encodeURIComponent(String(cfg.title || "").replace(/\*/g, ""))}" title="In / lưu PDF toàn bộ tài liệu các buổi của khoá">🖨 PDF cả khoá</a>` : ""}<a class="rm-back" href="../index.html">← Trang chủ</a></div>
+      <div class="rm-top"><a class="rm-logo" href="../index.html"><i></i><span><b>Night IELTS</b><small>CLASSROOM HUB</small></span></a><span class="rm-sp"></span><span class="rm-me" id="rm-me"></span>${cfg.folder ? `<a class="rm-back rm-pdf nv-admin-only" href="in.html?course=${encodeURIComponent(String(cfg.folder).replace(/\/$/, ""))}&title=${encodeURIComponent(String(cfg.title || "").replace(/\*/g, ""))}" title="In / lưu PDF toàn bộ tài liệu các buổi của khoá">🖨 PDF cả khoá</a>` : ""}<a class="rm-back" href="../index.html">← Trang chủ</a></div>
       <div class="rm-in">
         <div class="rm-hero">
           <div class="rm-main">
@@ -251,6 +252,7 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
         if (me) me.innerHTML = `${ctx.user.photoURL ? `<img src="${esc(ctx.user.photoURL)}" alt="">` : ""}<span>${esc((ctx.user.displayName || "").split(" ").pop())}</span>`;
         const key = cfg.theme;
         if (ctx.access === "free") lockFree(root, ctx, NP);
+        if (ctx.role === "admin") document.documentElement.classList.add("nv-admin");
         if (ctx.role !== "admin") {
           return NP.myCourse(ctx, key).then((docs) => { const byN = {}; docs.forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN); });
         }

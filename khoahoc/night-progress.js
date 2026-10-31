@@ -63,6 +63,7 @@
     el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
       '<h1>Đăng nhập để vào học</h1><p>Khoá học của Night IELTS chỉ dành cho học viên. Đăng nhập bằng Gmail để vào bài và lưu lại tiến độ học.</p>' +
       '<button type="button" id="np-login"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Đăng nhập bằng Gmail</button>' +
+      '<p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#8A8A98">🔒 Đăng nhập qua cửa sổ chính chủ của Google. Night IELTS chỉ nhận <b>tên, email và ảnh đại diện</b> — không xem được mật khẩu, thư Gmail hay danh bạ của bạn.</p>' +
       '<div class="err" id="np-err"></div></div></div>';
     document.getElementById('np-login').onclick = function () {
       var b = this; b.disabled = true; document.getElementById('np-err').textContent = '';
@@ -128,37 +129,47 @@
     document.getElementById('np-out').onclick = function () { o.authM.signOut(o.auth); };
   }
   var gateP = null;
+  /* Nhớ quyền vào khoá trên máy (14 ngày) → lần sau mở bài không hiện màn "Đang kiểm tra đăng nhập",
+     vào ngay khi Firebase nhận ra tài khoản; quyền vẫn được kiểm tra lại ngầm và chặn nếu đã đổi. */
+  var ACC_TTL = 14 * 864e5;
+  function accKey(key) { return 'np-acc-v1:' + (key || '_'); }
+  function readAcc(key) { try { var c = JSON.parse(localStorage.getItem(accKey(key)) || 'null'); return c && Date.now() - c.t < ACC_TTL ? c : null; } catch (e) { return null; } }
+  function writeAcc(key, c) { try { c.t = Date.now(); localStorage.setItem(accKey(key), JSON.stringify(c)); } catch (e) {} }
+  function clearAcc(key) { try { localStorage.removeItem(accKey(key)); } catch (e) {} }
   function gate(courseKey) {
     if (gateP) return gateP;
     var key = courseKey || pageCourse();
     if (LOCAL) { gateP = Promise.resolve({ user: null, role: 'local', offline: true }); return gateP; }
-    gateEl();
+    var n = pageLessonN(), cached = readAcc(key);
+    var fast = !!(cached && (cached.access === 'full' || n <= FREE_N));
+    if (!fast) gateEl();
     gateP = fb().then(function (o) {
       return new Promise(function (resolve) {
         var done = false, unsubUser = null;
+        function finish(ctx) { if (done) return; done = true; hideGate(); resolve(ctx); }
         o.authM.onAuthStateChanged(o.auth, function (user) {
           if (unsubUser) { unsubUser(); unsubUser = null; }
-          if (done) return;
-          if (!user) { showLogin(o, resolve); return; }
+          if (!user) { clearAcc(key); if (done) { location.reload(); return; } showLogin(o, resolve); return; }
+          if (fast && cached.uid === user.uid) {
+            finish({ user: user, role: cached.role, plan: cached.plan, access: cached.access, freeN: FREE_N, o: o, courses: cached.courses || [] });
+          }
           var ref = o.fs.doc(o.db, 'users', user.uid), created = false;
           unsubUser = o.fs.onSnapshot(ref, function (snap) {
-            if (done) return;
             if (!snap.exists() && !created) {
               created = true;
               o.fs.setDoc(ref, { email: user.email, name: user.displayName, role: 'user', createdAt: Date.now(), photo: user.photoURL || '', courses: [] }).catch(function () {});
             }
             var u = snap.exists() ? snap.data() : { role: 'user' };
             var role = u.role || 'student';
-            var access = accessOf(u, key), n = pageLessonN();
-            if (access === 'free' && n > FREE_N) { showPaywall(o, user, key, u); return; }
-            done = true; if (unsubUser) { unsubUser(); unsubUser = null; }
-            hideGate();
-            resolve({ user: user, role: role, plan: effRole(u), access: access, freeN: FREE_N, o: o, courses: u.courses || [] });
+            var access = accessOf(u, key);
+            if (access === 'free' && n > FREE_N) { clearAcc(key); showPaywall(o, user, key, u); return; }
+            writeAcc(key, { uid: user.uid, role: role, plan: effRole(u), access: access, courses: u.courses || [] });
+            if (unsubUser) { unsubUser(); unsubUser = null; }
+            finish({ user: user, role: role, plan: effRole(u), access: access, freeN: FREE_N, o: o, courses: u.courses || [] });
           }, function (e) {
             /* Không đọc được hồ sơ → không chặn, coi như học sinh */
             console.warn('[NightProgress] users:', e);
-            if (done) return; done = true; hideGate();
-            resolve({ user: user, role: 'student', o: o });
+            finish({ user: user, role: 'student', o: o });
           });
         });
       });
