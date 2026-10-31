@@ -61,17 +61,19 @@
   function showLogin(o, resolve) {
     var el = gateEl();
     el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
-      '<h1>Đăng nhập để vào học</h1><p>Khoá học của Night IELTS chỉ dành cho học viên. Đăng nhập bằng Gmail để vào bài và lưu lại tiến độ học.</p>' +
-      '<button type="button" id="np-login"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Đăng nhập bằng Gmail</button>' +
+      '<h1>Đăng nhập để vào học</h1><p>Đăng nhập bằng Google hoặc email để vào bài và lưu lại tiến độ học.</p>' +
+      '<button type="button" id="np-login"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Đăng nhập</button>' +
       '<p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#8A8A98">🔒 Đăng nhập qua cửa sổ chính chủ của Google. Night IELTS chỉ nhận <b>tên, email và ảnh đại diện</b> — không xem được mật khẩu, thư Gmail hay danh bạ của bạn.</p>' +
       '<div class="err" id="np-err"></div></div></div>';
     document.getElementById('np-login').onclick = function () {
-      var b = this; b.disabled = true; document.getElementById('np-err').textContent = '';
-      o.authM.signInWithPopup(o.auth, new o.authM.GoogleAuthProvider()).catch(function (e) {
-        b.disabled = false;
-        document.getElementById('np-err').textContent = 'Chưa đăng nhập được (' + (e && e.code || 'lỗi') + '). Thử lại nhé.';
-      });
+      withLogin(function () { NightLogin.open({ auth: o.auth, authM: o.authM, title: 'Đăng nhập để vào học', note: 'Chọn Google hoặc nhận link đăng nhập qua email bất kỳ.' }); });
     };
+  }
+  function withLogin(fn) {
+    if (window.NightLogin) return fn();
+    var sc = document.createElement('script');
+    try { sc.src = new URL('../night-login.js?v=20261031a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-login.js'; }
+    sc.onload = fn; document.head.appendChild(sc);
   }
   function hideGate() { var el = document.getElementById('np-gate'); if (el) el.remove(); }
 
@@ -111,21 +113,21 @@
     var back; try { back = new URL('../' + key + '.html', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { back = '../index.html'; }
     el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
       '<h1>' + (stu ? 'Bạn chưa được thêm vào khoá này' : 'Buổi này dành cho tài khoản Pro ⭐') + '</h1>' +
-      '<p>' + (stu ? 'Khoá <b>' + (COURSE_NAMES[key] || key) + '</b>: bạn được học thử ' + FREE_N + ' buổi đầu. Muốn học tiếp, nhắn thầy Night kèm Gmail <b style="color:#24242A">' + (user.email || '') + '</b> để được thêm vào khoá, hoặc nâng cấp Pro.'
+      '<p>' + (stu ? 'Khoá <b>' + (COURSE_NAMES[key] || key) + '</b>: bạn được học thử ' + FREE_N + ' buổi đầu. Muốn học tiếp, nhắn Night IELTS kèm Gmail <b style="color:#24242A">' + (user.email || '') + '</b> để được thêm vào khoá, hoặc nâng cấp Pro.'
         : 'Tài khoản thường được học thử <b>' + FREE_N + ' buổi đầu</b> của mỗi khoá. Nâng cấp <b>Pro 99k/tháng</b> để mở toàn bộ buổi học của mọi khoá' + (r === 'user' && u && u.role === 'pro' ? ' (gói Pro của bạn đã hết hạn)' : '') + '.') +
-      '<br><small>Thầy duyệt xong, trang này tự mở.</small></p>' +
+      '<br><small>Duyệt xong, trang này tự mở.</small></p>' +
       '<button type="button" id="np-pro" style="background:linear-gradient(135deg,#F59E0B,#EA580C)">⭐ Nâng cấp Pro</button>' +
       '<div style="margin-top:12px"><a href="' + back + '" style="display:inline-block;background:#F1F1F6;color:#24242A;font-weight:800;font-size:14px;padding:11px 18px;border-radius:999px;text-decoration:none">← Về lộ trình khoá</a></div>' +
-      '<div style="margin-top:8px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập Gmail khác</button></div></div></div>';
+      '<div style="margin-top:8px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập tài khoản khác</button></div></div></div>';
     document.getElementById('np-pro').onclick = function () { loadPlan().then(function (P) { if (P) P.openUpgrade(); else alert('Không tải được trang nâng cấp, thử lại nhé.'); }); };
     document.getElementById('np-out').onclick = function () { o.authM.signOut(o.auth); };
   }
   function showLocked(o, user, key) {
     var el = gateEl();
     el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
-      '<h1>Bạn chưa được thêm vào khoá này</h1><p>Khoá <b>' + (COURSE_NAMES[key] || key) + '</b> chỉ mở cho học viên đã được thầy thêm vào. Nhắn thầy Night kèm Gmail của bạn:<br><b style="color:#24242A">' + (user.email || '') + '</b><br>Khi thầy thêm xong, trang sẽ tự mở.</p>' +
+      '<h1>Bạn chưa được thêm vào khoá này</h1><p>Khoá <b>' + (COURSE_NAMES[key] || key) + '</b> chỉ mở cho học viên đã được thêm vào. Nhắn Night IELTS kèm Gmail của bạn:<br><b style="color:#24242A">' + (user.email || '') + '</b><br>Khi được thêm xong, trang sẽ tự mở.</p>' +
       '<a href="' + (function () { try { return new URL('../index.html', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { return '/'; } })() + '" style="display:inline-block;background:#24242A;color:#fff;font-weight:800;font-size:14px;padding:12px 20px;border-radius:999px;text-decoration:none">← Về trang chủ</a>' +
-      '<div style="margin-top:12px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập Gmail khác</button></div></div></div>';
+      '<div style="margin-top:12px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập tài khoản khác</button></div></div></div>';
     document.getElementById('np-out').onclick = function () { o.authM.signOut(o.auth); };
   }
   var gateP = null;
@@ -144,6 +146,9 @@
     var fast = !!(cached && (cached.access === 'full' || n <= FREE_N));
     if (!fast) gateEl();
     gateP = fb().then(function (o) {
+      if (/[?&]oobCode=/.test(location.search)) return new Promise(function (r) { withLogin(function () { NightLogin.complete(o.auth, o.authM).then(function () { r(o); }, function () { r(o); }); }); });
+      return o;
+    }).then(function (o) {
       return new Promise(function (resolve) {
         var done = false, unsubUser = null;
         function finish(ctx) { if (done) return; done = true; hideGate(); resolve(ctx); }

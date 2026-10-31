@@ -86,14 +86,39 @@
           if (!user) { me = null; lsSet(LS_ME, null); return res(); }
           o.fs.getDoc(o.fs.doc(o.db, 'users', user.uid)).then(function (s) {
             var d = s.exists() ? s.data() : { role: 'user' };
-            me = { uid: user.uid, email: user.email || d.email || '', name: user.displayName || d.name || '', photo: user.photoURL || d.photo || '', role: d.role || 'student', proUntil: d.proUntil || 0 };
-            lsSet(LS_ME, me); res();
+            me = { uid: user.uid, email: user.email || d.email || '', name: user.displayName || d.name || '', photo: user.photoURL || d.photo || '', role: d.role || 'student', groqKey: d.groqKey || '', proUntil: d.proUntil || 0 };
+            lsSet(LS_ME, me); syncManagedKey(); res();
           }).catch(function () { res(); });
         });
       });
       return Promise.all([setP, meP]).then(function () { return me; });
     }).catch(function () { return me; });
     return initP;
+  }
+  /* Tài khoản Pro: key Groq do admin cấp riêng (users/<uid>.groqKey) → tự điền vào máy, khoá ô nhập key.
+     Học sinh: tự nhập key như cũ. Hết Pro → gỡ key được cấp khỏi máy. */
+  var GK = 'nightIeltsGroqCfg';
+  function syncManagedKey() {
+    var cfg = {}; try { cfg = JSON.parse(localStorage.getItem(GK) || '{}') || {}; } catch (e) {}
+    var pro = effRole(me) === 'pro', k = me && me.groqKey;
+    if (pro && k) { if (cfg.apiKey !== k || !cfg.managed) { cfg.apiKey = k; cfg.managed = true; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} } }
+    else if (cfg.managed) { delete cfg.apiKey; delete cfg.managed; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} }
+    lockKeyInputs();
+  }
+  function lockKeyInputs() {
+    if (effRole(me) !== 'pro') return;
+    var run = function () {
+      ['groqModalKeyInput', 'groqKeyInput'].forEach(function (id) {
+        var el = document.getElementById(id); if (!el || el.dataset.nplLocked) return;
+        el.dataset.nplLocked = '1'; el.disabled = true; el.type = 'password';
+        el.value = (me && me.groqKey) || '';
+        el.placeholder = 'Night IELTS sẽ cấp key cho tài khoản Pro';
+        var n = document.createElement('p'); n.style.cssText = 'font-size:12px;color:#6B6B78;margin:4px 0 8px';
+        n.textContent = (me && me.groqKey) ? 'Key AI do Night IELTS cấp riêng cho tài khoản Pro của bạn — không cần nhập. Lỗi thì nhắn admin.' : 'Tài khoản Pro: Night IELTS sẽ cấp key AI riêng cho bạn (thường trong ngày). Chưa có thì nhắn admin.';
+        el.insertAdjacentElement('afterend', n);
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
   }
   function ensure() { if (!me || !initP) initP = null; return boot(); }
   function role() { return effRole(me); }
@@ -165,12 +190,12 @@
         (reason ? '<div class="npl-ok" style="background:#FFF7ED;color:#9A3412">' + reason + '</div>' : '') +
         '<div class="npl-price"><b>' + money(price) + '</b><span>/ tháng</span></div>' +
         '<ul class="npl-ul"><li>Mở <b>toàn bộ buổi học</b> của mọi khoá (Giao tiếp, Speaking 6.0, Writing 6.0 → 8.0, Chuyên đề…)</li>' +
-        '<li>Luyện <b>Speaking, Writing</b> với AI chấm chữa <b>không giới hạn thời gian</b> (dùng Groq API key miễn phí của bạn, thầy hướng dẫn lấy key)</li>' +
+        '<li>Luyện <b>Speaking, Writing</b> với AI chấm chữa <b>không giới hạn thời gian</b> (dùng Groq API key miễn phí của bạn, xem hướng dẫn lấy key)</li>' +
         '<li>Lưu tiến độ từng bài, học tiếp trên mọi thiết bị</li></ul>';
       if (!user) { box.innerHTML = head + '<p class="npl-note">Đăng nhập bằng Gmail ở trang chủ trước, rồi bấm nâng cấp lại nhé.</p>'; return; }
       var r = role();
       if (r === 'admin' || r === 'student') {
-        box.innerHTML = head + '<div class="npl-ok">Bạn là ' + (r === 'admin' ? 'giáo viên' : '<b>học sinh</b> của thầy Night') + ', không cần nâng cấp.</div>'; return;
+        box.innerHTML = head + '<div class="npl-ok">Bạn là ' + (r === 'admin' ? 'giáo viên' : '<b>học sinh</b> của Night IELTS') + ', không cần nâng cấp.</div>'; return;
       }
       var reqRef = o.fs.doc(o.db, 'proRequests', user.uid);
       o.fs.getDoc(reqRef).catch(function () { return null; }).then(function (rs) {
@@ -178,8 +203,8 @@
         var code = payCode(user.uid);
         var status = '';
         if (r === 'pro') status = '<div class="npl-ok">✅ Bạn đang là <b>Pro</b> đến hết ngày <b>' + dmy(me.proUntil) + '</b>. Chuyển khoản thêm để gia hạn 1 tháng.</div>';
-        if (rq && rq.status === 'pending') status += '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF">⏳ Đã gửi yêu cầu lúc ' + hm(rq.createdAt) + ' ' + dmy(rq.createdAt) + '. Thầy kiểm tra chuyển khoản rồi duyệt, trang sẽ tự mở khi bạn tải lại.</div>';
-        if (rq && rq.status === 'rejected' && r !== 'pro') status += '<div class="npl-ok" style="background:#FFF1F2;color:#9F1239">Yêu cầu trước chưa được duyệt (chưa thấy chuyển khoản). Nhắn thầy Night nếu bạn đã chuyển.</div>';
+        if (rq && rq.status === 'pending') status += '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF">⏳ Đã gửi yêu cầu lúc ' + hm(rq.createdAt) + ' ' + dmy(rq.createdAt) + '. Night IELTS kiểm tra chuyển khoản rồi duyệt, trang sẽ tự mở khi bạn tải lại.</div>';
+        if (rq && rq.status === 'rejected' && r !== 'pro') status += '<div class="npl-ok" style="background:#FFF1F2;color:#9F1239">Yêu cầu trước chưa được duyệt (chưa thấy chuyển khoản). Nhắn Night IELTS nếu bạn đã chuyển.</div>';
         var hasBank = settings.acc || settings.qr;
         box.innerHTML = head + status +
           (hasBank ? '<div class="npl-pay">' + (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : '') +
@@ -188,16 +213,16 @@
             '<div><span>Chủ tài khoản</span><b>' + esc(settings.holder || '') + '</b></div>' +
             '<div><span>Số tiền</span><b>' + money(price) + '</b></div>' +
             '<div><span>Nội dung CK</span><b>' + esc(code) + copyBtn(code) + '</b></div></div></div>'
-            : '<p class="npl-note">Thầy chưa cập nhật thông tin chuyển khoản. Nhắn thầy Night để đăng ký nhé.</p>') +
-          '<p class="npl-note" style="margin:0 0 12px">Ghi đúng <b>nội dung chuyển khoản</b> để thầy biết là bạn. Chuyển xong bấm nút dưới, thầy duyệt trong ngày. Gặp lỗi gì cứ nhắn thầy Night.</p>' +
+            : '<p class="npl-note">Night IELTS chưa cập nhật thông tin chuyển khoản. Nhắn Night IELTS để đăng ký nhé.</p>') +
+          '<p class="npl-note" style="margin:0 0 12px">Ghi đúng <b>nội dung chuyển khoản</b> để Night IELTS biết là bạn. Chuyển xong bấm nút dưới, Night IELTS duyệt trong ngày. Gặp lỗi gì cứ nhắn Night IELTS.</p>' +
           '<button type="button" class="npl-btn gold" id="npl-sent"' + (rq && rq.status === 'pending' ? ' disabled' : '') + '>💸 Tôi đã chuyển khoản</button>';
         wireCopy(box);
         var b = box.querySelector('#npl-sent');
         if (b) b.onclick = function () {
           b.disabled = true; b.textContent = 'Đang gửi…';
           o.fs.setDoc(reqRef, { uid: user.uid, email: user.email || '', name: user.displayName || '', photo: user.photoURL || '', code: code, amount: price, status: 'pending', createdAt: Date.now() })
-            .then(function () { b.textContent = '✅ Đã gửi, chờ thầy duyệt'; })
-            .catch(function (e) { b.disabled = false; b.textContent = '💸 Tôi đã chuyển khoản'; alert('Chưa gửi được (' + (e.code || e.message) + '). Nhắn thầy Night giúp nhé.'); });
+            .then(function () { b.textContent = '✅ Đã gửi, chờ duyệt'; })
+            .catch(function (e) { b.disabled = false; b.textContent = '💸 Tôi đã chuyển khoản'; alert('Chưa gửi được (' + (e.code || e.message) + '). Nhắn Night IELTS giúp nhé.'); });
         };
       });
     }).catch(function (e) { box.innerHTML = '<p class="npl-note">Không tải được (' + esc(e && e.message) + ').</p>'; });
@@ -266,7 +291,7 @@
             return '<div class="npl-row" data-uid="' + esc(u.uid) + '">' + who(u) + tag(u) +
               (raw === 'pro' && u.proUntil ? '<span style="font-size:12px;color:#6B6B78">đến ' + dmy(u.proUntil) + '</span>' : '') +
               (r === 'admin' ? '' : '<select class="npl-sel" data-role>' + ['user', 'pro', 'student'].map(function (x) { return '<option value="' + x + '"' + (raw === x ? ' selected' : '') + '>' + ROLE_LABEL[x] + '</option>'; }).join('') + '</select>' +
-                (raw === 'pro' ? '<button class="npl-btn sm gold" data-plus>+1 tháng</button>' : '')) + '</div>';
+                (raw === 'pro' ? '<button class="npl-btn sm gold" data-plus>+1 tháng</button><input class="npl-inp" data-key type="password" placeholder="Key Groq cấp riêng (gsk_…)" value="' + esc(u.groqKey || '') + '" style="flex:1;min-width:170px;padding:6px 10px;font-size:12px"><button class="npl-btn sm" data-savekey>' + (u.groqKey ? 'Đổi key' : 'Lưu key') + '</button>' : '')) + '</div>';
           }).join('') + (list.length > 300 ? '<p class="npl-note">Đang hiện 300 tài khoản đầu, gõ tìm để lọc.</p>' : '');
         var qi = body.querySelector('#npl-q'); qi.oninput = function () { q = qi.value.trim().toLowerCase(); var p = qi.selectionStart; paint(); var n = body.querySelector('#npl-q'); n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} };
         body.querySelector('#npl-f').onchange = function (e) { filt = e.target.value; paint(); };
@@ -293,6 +318,15 @@
       var row = e.target.closest('.npl-row'); if (!row) return;
       var uid = row.dataset.uid, d = e.target.closest('[data-d]'), plus = e.target.closest('[data-plus]');
       if (d) { d.disabled = true; decide(uid, d.dataset.d).catch(function (er) { d.disabled = false; alert('Lỗi: ' + (er.code || er.message)); }); }
+      var sk = e.target.closest('[data-savekey]');
+      if (sk) {
+        var inp = row.querySelector('[data-key]'), val = (inp.value || '').trim();
+        if (val && !/^gsk_\S{20,}$/.test(val)) { alert('Key Groq phải bắt đầu bằng gsk_'); return; }
+        sk.disabled = true;
+        o.fs.setDoc(o.fs.doc(o.db, 'users', uid), { groqKey: val }, { merge: true }).then(function () { var uu = uOf(uid); if (uu) uu.groqKey = val; sk.disabled = false; sk.textContent = val ? '✓ Đã lưu' : 'Đã xoá key'; })
+          .catch(function (er) { sk.disabled = false; alert('Lỗi: ' + (er.code || er.message)); });
+        return;
+      }
       if (plus) { plus.disabled = true; setRole(uid, 'pro', true).then(paint).catch(function (er) { plus.disabled = false; alert('Lỗi: ' + (er.code || er.message)); }); }
     });
     body.addEventListener('change', function (e) {
@@ -335,8 +369,8 @@
     if (hasRealKey(init)) return fetch(url, init);
     skill = skill === 'writing' ? 'writing' : 'speaking';
     return ensure().then(function () {
-      if (!freeOK()) { var e0 = new Error('Chưa cấu hình Groq API Key. Tài khoản Pro / Học sinh tự nhập key ở nút bánh răng (lỗi thì nhắn thầy Night).'); e0.code = 'NO_KEY'; throw e0; }
-      if (!settings.aiProxy) throw new Error('AI miễn phí đang tạm tắt. Nhắn thầy Night, hoặc nâng cấp ⭐ Pro và nhập API key riêng.');
+      if (!freeOK()) { var e0 = new Error('Chưa có Groq API Key. Học sinh tự nhập key ở nút bánh răng; tài khoản Pro sẽ được Night IELTS cấp key riêng (chưa có thì nhắn admin).'); e0.code = 'NO_KEY'; throw e0; }
+      if (!settings.aiProxy) throw new Error('AI miễn phí đang tạm tắt. Nhắn admin Night IELTS, hoặc nâng cấp ⭐ Pro và nhập API key riêng.');
       return fb();
     }).then(function (o) {
       var user = o.auth.currentUser;

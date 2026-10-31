@@ -1153,7 +1153,7 @@
                     </button>
 
                     <button id="login-btn" title="Đăng nhập qua cửa sổ chính chủ của Google — Night IELTS chỉ nhận tên, email, ảnh đại diện; không xem được mật khẩu, thư hay danh bạ." class="px-5 py-2.5 bg-brand-purple text-white font-bold rounded-full shadow-sm hover:shadow-md transition-shadow">
-                        <i class="fa-brands fa-google mr-2"></i> Đăng nhập với Google
+                        <i class="fa-solid fa-right-to-bracket mr-2"></i> Đăng nhập
                     </button>
 
                     <div id="user-profile" class="hidden items-center gap-3 bg-white px-4 py-2 rounded-full shadow-sm cursor-pointer hover:shadow-md transition-shadow border border-gray-100">
@@ -1556,8 +1556,8 @@
             <div class="nv-hero">
                 <span class="star" style="right:38%;top:26px">★</span><span class="star" style="right:24px;top:40%;color:#fff;opacity:.6">✦</span>
                 <div class="chips"><span>Classroom Hub</span><span>IELTS · Giao tiếp · 4 kỹ năng</span></div>
-                <h2>Chào mừng đến lớp của Mr. Night 🌙</h2>
-                <p>Luyện đủ 4 kỹ năng, làm bài Thầy giao và theo dõi tiến độ — tất cả ở một nơi.</p>
+                <h2>Chào mừng đến Night IELTS 🌙</h2>
+                <p>Luyện đủ 4 kỹ năng, làm bài được giao và theo dõi tiến độ — tất cả ở một nơi.</p>
                 <div class="row"><a href="#nv-skills" class="nv-go" aria-label="Bắt đầu học">→</a><img src="khoahoc/img/ira/jugyou_fukei_3019.webp" alt="" aria-hidden="true" onerror="this.style.display='none'"></div>
             </div>
             <div class="nv-side">
@@ -1567,7 +1567,7 @@
                 </div>
                 <div class="nv-courses">
                     <div class="k">Khoá học</div>
-                    <h4>Học theo lộ trình của Thầy</h4>
+                    <h4>Học theo lộ trình Night IELTS</h4>
                     <a href="khoahoc/giaotiep.html"><span class="ic" style="background:#FF9E5E"><i class="fa-solid fa-comments"></i></span><span><b>Giao tiếp Thực chiến</b><small>Phát âm · phản xạ · hội thoại</small></span><span class="ar"><i class="fa-solid fa-arrow-right"></i></span></a>
                     <a href="khoahoc/speaking6.html"><span class="ic" style="background:#6C70DC"><i class="fa-solid fa-microphone-lines"></i></span><span><b>IELTS Speaking 6.0</b><small>Part 1 · 2 · 3 theo công thức</small></span><span class="ar"><i class="fa-solid fa-arrow-right"></i></span></a>
                     <a href="khoahoc/writing.html"><span class="ic" style="background:#FBBF24;color:#24242A"><i class="fa-solid fa-pen-nib"></i></span><span><b>IELTS Writing 6.0 → 8.0</b><small>Task 1 · Task 2 · Band 8</small></span><span class="ar"><i class="fa-solid fa-arrow-right"></i></span></a>
@@ -1597,7 +1597,7 @@
                 <span id="writing-hero-badge" class="hidden absolute top-4 right-4 min-w-[26px] h-[26px] px-2 rounded-full bg-red-500 text-white text-xs font-black items-center justify-center shadow-sm">0</span>
                 <span class="ic"><i class="fa-solid fa-pen-nib"></i></span>
                 <h4>Writing</h4>
-                <p>Làm bài luận được giao, nộp bài và xem lại phần Thầy đã chấm/sửa.</p>
+                <p>Làm bài luận được giao, nộp bài và xem lại phần đã được chấm/sửa.</p>
                 <span class="ar"><i class="fa-solid fa-arrow-right"></i></span>
             </a>
             <!-- Ô Speaking: tự chứa trong speaking.html (bấm vào hiện nguyên tắc học trước). -->
@@ -1626,6 +1626,7 @@
         <div class="nv-list">
             <div id="test-list-container" class="space-y-4"></div>
         </div></div>
+        <p style="margin:36px 0 0;text-align:center;font-size:13px;color:#94a3b8;font-weight:600">© Night IELTS · <a href="privacy.html" style="color:#6C70DC">Chính sách bảo mật</a> · <a href="terms.html" style="color:#6C70DC">Điều khoản sử dụng</a></p>
     </main>
     </div></div></div>
 
@@ -2434,7 +2435,7 @@
     <!-- SCRIPT FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, getDocFromCache, setDoc, updateDoc, collection, query, where, getDocs, getDocsFromCache, addDoc, deleteDoc, onSnapshot, orderBy, limit, writeBatch, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -2519,7 +2520,10 @@
         const adminBtn = document.getElementById('admin-studio-btn');
         const progressBtn = document.getElementById('admin-progress-btn');
 
-        loginBtn.addEventListener('click', () => signInWithPopup(auth, provider));
+        const __authM = { signInWithPopup, GoogleAuthProvider, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile };
+        const __withLogin = (fn) => { if (window.NightLogin) return fn(); const sc = document.createElement('script'); sc.src = 'night-login.js?v=20261031a'; sc.onload = fn; document.head.appendChild(sc); };
+        loginBtn.addEventListener('click', () => __withLogin(() => NightLogin.open({ auth, authM: __authM })));
+        if (/[?&]oobCode=/.test(location.search)) __withLogin(() => NightLogin.complete(auth, __authM));
         document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
 
         // ==========================================
@@ -2702,7 +2706,7 @@
                     id: "MY_TASKS",
                     name: "Bài Tập Được Giao",
                     icon: "fa-solid fa-star text-yellow-500",
-                    description: "Bài tập Thầy Night giao riêng cho bạn.",
+                    description: "Bài tập được giao riêng cho bạn.",
                     tests: myTasks
                 });
             }
@@ -5483,7 +5487,7 @@
         // ==========================================
         (function initChat() {
             const CH_TTL = 30 * 24 * 60 * 60 * 1000;
-            const TEACHER_NAME = 'Thầy Night';
+            const TEACHER_NAME = 'Night IELTS';
             const C = { u: null, isT: false, sid: null, sname: '', unsubTop: null, unsubMsgs: null, msgs: [], chats: {}, view: 'list', studs: null, sending: false, marking: false };
             const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
             const linkify = s => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
@@ -5569,7 +5573,7 @@
                     <div class="ch-head">
                         ${C.isT ? '<button title="Quay lại" data-back><i class="fa-solid fa-arrow-left"></i></button>' : ''}
                         ${C.isT ? av(studPhoto(C.sid), title, 'ch-av') : av(tPhoto(), '', 'ch-av', '👨‍🏫')}
-                        <div class="ch-t"><b>${esc(title)}</b><span>${C.isT ? 'Học viên' : 'Hỏi Thầy bất cứ lúc nào nhé'}</span></div>
+                        <div class="ch-t"><b>${esc(title)}</b><span>${C.isT ? 'Học viên' : 'Hỏi Night IELTS bất cứ lúc nào nhé'}</span></div>
                         <button title="Đóng" data-x><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     <div class="ch-body" id="ch-body"><p class="ch-empty">Đang tải...</p></div>
@@ -5605,7 +5609,7 @@
                 const body = panel.querySelector('#ch-body'); if (!body) return;
                 const me = C.isT ? 't' : 's';
                 if (!C.msgs.length) {
-                    body.innerHTML = `<p class="ch-empty">${C.isT ? 'Chưa có tin nhắn nào.<br>Gõ tin đầu tiên cho ' + esc(C.sname) + ' nhé.' : 'Chưa có tin nhắn nào.<br>Em có thắc mắc gì cứ nhắn Thầy nhé 👋'}</p>`;
+                    body.innerHTML = `<p class="ch-empty">${C.isT ? 'Chưa có tin nhắn nào.<br>Gõ tin đầu tiên cho ' + esc(C.sname) + ' nhé.' : 'Chưa có tin nhắn nào.<br>Có thắc mắc gì cứ nhắn Night IELTS nhé 👋'}</p>`;
                     return;
                 }
                 let html = '', lastDay = '';
