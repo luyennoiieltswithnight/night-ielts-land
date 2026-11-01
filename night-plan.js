@@ -151,6 +151,7 @@
     '.npl-btn:disabled{opacity:.55;cursor:default}' +
     '.npl-note{font-size:13px;color:#6B6B78;line-height:1.55;margin:10px 0 0}.npl-ok{background:#ECFDF5;color:#065F46;border-radius:14px;padding:10px 12px;font-size:14px;margin:8px 0}' +
     '.npl-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}.npl-tab{border:0;background:#F1F1F6;color:#24242A;font:700 13px inherit;font-family:inherit;padding:8px 14px;border-radius:999px;cursor:pointer}.npl-tab[aria-selected=true]{background:#24242A;color:#fff}' +
+    '.npl-seg{display:flex;gap:6px;padding:5px;background:#F1F1F5;border-radius:16px;margin-bottom:10px}.npl-seg button{flex:1;padding:10px 8px;border:0;border-radius:12px;background:transparent;font:inherit;font-weight:800;font-size:14px;color:#6B6B78;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}.npl-seg button span{background:#fff;border-radius:99px;padding:1px 8px;font-size:12px}.npl-seg button em{font-style:normal;font-size:11px;background:#FEF3C7;color:#92400E;border-radius:99px;padding:2px 7px}.npl-seg button.on{background:#24242A;color:#fff}.npl-seg button.on span{background:rgba(255,255,255,.2)}' +
     '.npl-row{display:flex;align-items:center;gap:10px;padding:10px;border:1.5px solid #EEEEF4;border-radius:16px;margin-bottom:8px;flex-wrap:wrap}' +
     '.npl-row img{width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;background:#eee}.npl-who{flex:1;min-width:150px;font-size:13px;line-height:1.35}.npl-who b{font-size:14px}.npl-who small{color:#6B6B78;display:block;word-break:break-all}' +
     '.npl-tag{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;background:#F1F1F6}.npl-tag.pro{background:#FEF3C7;color:#92400E}.npl-tag.student{background:#E0E7FF;color:#3730A3}.npl-tag.admin{background:#24242A;color:#fff}.npl-tag.user{background:#F1F5F9;color:#475569}' +
@@ -251,7 +252,7 @@
   function openAdmin(onChange) {
     var ov = modal('<div class="npl-hd"><h2>👑 Tài khoản & gói Pro</h2><button class="npl-x" aria-label="Đóng">×</button></div>' +
       '<div class="npl-tabs"><button class="npl-tab" data-t="req" aria-selected="true">Yêu cầu Pro</button><button class="npl-tab" data-t="all" aria-selected="false">Tất cả tài khoản</button><button class="npl-tab" data-t="set" aria-selected="false">Cài đặt</button></div><div id="npl-body"><p class="npl-note">Đang tải…</p></div>', true);
-    var body = ov.querySelector('#npl-body'), tab = 'req', users = [], reqs = [], q = '', filt = 'all', o;
+    var body = ov.querySelector('#npl-body'), tab = 'req', users = [], reqs = [], q = '', seg = 'stu', o, PAGE = 40, shown = 40;
     var changed = function () { try { onChange && onChange(); } catch (e) {} };
     ov.querySelector('.npl-tabs').addEventListener('click', function (e) {
       var t = e.target.closest('.npl-tab'); if (!t) return;
@@ -279,7 +280,26 @@
       }).then(function () { reqs = reqs.filter(function (r) { return r.uid !== uid; }); paint(); changed(); });
     }
     function tag(u) { var r = effRole(u), raw = u.role || 'student'; return '<span class="npl-tag ' + r + '">' + (raw === 'pro' && r === 'user' ? 'Pro hết hạn' : ROLE_LABEL[r] || r) + '</span>'; }
-    function who(u) { return '<img src="' + esc(u.photo || '') + '" alt="" onerror="this.style.visibility=\'hidden\'"><div class="npl-who"><b>' + esc(u.name || '(chưa có tên)') + '</b><small>' + esc(u.email || '') + '</small></div>'; }
+    function who(u) { return '<img loading="lazy" decoding="async" src="' + esc(u.photo || '') + '" alt="" onerror="this.style.visibility=\'hidden\'"><div class="npl-who"><b>' + esc(u.name || '(chưa có tên)') + '</b><small>' + esc(u.email || '') + '</small></div>'; }
+    function rowHtml(u) {
+      var r = effRole(u), raw = u.role || 'student';
+      return '<div class="npl-row" data-uid="' + esc(u.uid) + '">' + who(u) + tag(u) +
+        (raw === 'pro' && u.proUntil ? '<span style="font-size:12px;color:#6B6B78">đến ' + dmy(u.proUntil) + '</span>' : '') +
+        (r === 'admin' ? '' : '<select class="npl-sel" data-role>' + ['user', 'pro', 'student'].map(function (x) { return '<option value="' + x + '"' + (raw === x ? ' selected' : '') + '>' + ROLE_LABEL[x] + '</option>'; }).join('') + '</select>' +
+          (raw === 'pro' ? '<button class="npl-btn sm gold" data-plus>+1 tháng</button><input class="npl-inp" data-key type="password" placeholder="Key Groq cấp riêng (gsk_…)" value="' + esc(u.groqKey || '') + '" style="flex:1;min-width:170px;padding:6px 10px;font-size:12px"><button class="npl-btn sm" data-savekey>' + (u.groqKey ? 'Đổi key' : 'Lưu key') + '</button>' : '')) + '</div>';
+    }
+    function paintList() {
+      var box = body.querySelector('#npl-list'); if (!box) return;
+      var isStu = function (u) { var r = effRole(u); return r === 'student' || r === 'admin'; };
+      var rank = function (u) { var r = effRole(u), raw = u.role || 'student'; return r === 'admin' ? 0 : r === 'pro' ? 1 : raw === 'pro' ? 2 : 3; };
+      var list = users.filter(function (u) {
+        if ((seg === 'stu') !== isStu(u)) return false;
+        return !q || ((u.name || '') + ' ' + (u.email || '')).toLowerCase().indexOf(q) >= 0;
+      }).sort(function (a, b) { return rank(a) - rank(b) || (rank(a) === 1 ? (b.proUntil || 0) - (a.proUntil || 0) : 0) || (b.createdAt || 0) - (a.createdAt || 0); });
+      box.innerHTML = list.length ? list.slice(0, shown).map(rowHtml).join('') +
+        (list.length > shown ? '<button class="npl-btn ghost" data-more style="width:100%">Hiện thêm (' + (list.length - shown) + ' tài khoản nữa)</button>' : '')
+        : '<p class="npl-note">' + (q ? 'Không tìm thấy tài khoản nào.' : seg === 'stu' ? 'Chưa có học sinh nào.' : 'Chưa có User nào.') + '</p>';
+    }
     function paint() {
       if (tab === 'req') {
         body.innerHTML = reqs.length ? reqs.map(function (r) {
@@ -290,24 +310,15 @@
         }).join('') + '<p class="npl-note">Đối chiếu <b>nội dung chuyển khoản</b> trong app ngân hàng với mã NIGHTPRO ở mỗi dòng rồi mới duyệt.</p>'
           : '<p class="npl-note">Chưa có yêu cầu nào đang chờ. 🎉</p>';
       } else if (tab === 'all') {
-        var cnt = { all: users.length, student: 0, pro: 0, user: 0, admin: 0 };
-        users.forEach(function (u) { cnt[effRole(u)] = (cnt[effRole(u)] || 0) + 1; });
-        var list = users.filter(function (u) {
-          if (filt !== 'all' && effRole(u) !== filt) return false;
-          if (!q) return true;
-          return ((u.name || '') + ' ' + (u.email || '')).toLowerCase().indexOf(q) >= 0;
-        }).sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
-        body.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><input class="npl-inp" id="npl-q" placeholder="Tìm tên hoặc Gmail…" value="' + esc(q) + '" style="flex:1;min-width:180px">' +
-          '<select class="npl-sel" id="npl-f">' + [['all', 'Tất cả'], ['student', 'Học sinh'], ['pro', 'Pro'], ['user', 'User'], ['admin', 'Thầy']].map(function (x) { return '<option value="' + x[0] + '"' + (filt === x[0] ? ' selected' : '') + '>' + x[1] + ' (' + (cnt[x[0]] || 0) + ')</option>'; }).join('') + '</select></div>' +
-          list.slice(0, 300).map(function (u) {
-            var r = effRole(u), raw = u.role || 'student';
-            return '<div class="npl-row" data-uid="' + esc(u.uid) + '">' + who(u) + tag(u) +
-              (raw === 'pro' && u.proUntil ? '<span style="font-size:12px;color:#6B6B78">đến ' + dmy(u.proUntil) + '</span>' : '') +
-              (r === 'admin' ? '' : '<select class="npl-sel" data-role>' + ['user', 'pro', 'student'].map(function (x) { return '<option value="' + x + '"' + (raw === x ? ' selected' : '') + '>' + ROLE_LABEL[x] + '</option>'; }).join('') + '</select>' +
-                (raw === 'pro' ? '<button class="npl-btn sm gold" data-plus>+1 tháng</button><input class="npl-inp" data-key type="password" placeholder="Key Groq cấp riêng (gsk_…)" value="' + esc(u.groqKey || '') + '" style="flex:1;min-width:170px;padding:6px 10px;font-size:12px"><button class="npl-btn sm" data-savekey>' + (u.groqKey ? 'Đổi key' : 'Lưu key') + '</button>' : '')) + '</div>';
-          }).join('') + (list.length > 300 ? '<p class="npl-note">Đang hiện 300 tài khoản đầu, gõ tìm để lọc.</p>' : '');
-        var qi = body.querySelector('#npl-q'); qi.oninput = function () { q = qi.value.trim().toLowerCase(); var p = qi.selectionStart; paint(); var n = body.querySelector('#npl-q'); n.focus(); try { n.setSelectionRange(p, p); } catch (e) {} };
-        body.querySelector('#npl-f').onchange = function (e) { filt = e.target.value; paint(); };
+        // 2 nhóm riêng: Học sinh | User (Pro xếp lên đầu). Đổi vai trò là tài khoản tự chuyển sang nhóm kia.
+        var isStu = function (u) { var r = effRole(u); return r === 'student' || r === 'admin'; };
+        var nStu = users.filter(isStu).length, nUsr = users.length - nStu;
+        var nPro = users.filter(function (u) { return effRole(u) === 'pro'; }).length;
+        body.innerHTML = '<div class="npl-seg"><button data-seg="stu"' + (seg === 'stu' ? ' class="on"' : '') + '>🎓 Học sinh <span>' + nStu + '</span></button><button data-seg="usr"' + (seg === 'usr' ? ' class="on"' : '') + '>👤 User <span>' + nUsr + '</span>' + (nPro ? '<em>⭐ ' + nPro + ' Pro</em>' : '') + '</button></div>' +
+          '<input class="npl-inp" id="npl-q" placeholder="Tìm tên hoặc Gmail…" value="' + esc(q) + '" style="width:100%;margin-bottom:10px"><div id="npl-list"></div>';
+        var qi = body.querySelector('#npl-q'), tmr = null;
+        qi.oninput = function () { clearTimeout(tmr); tmr = setTimeout(function () { q = qi.value.trim().toLowerCase(); shown = PAGE; paintList(); }, 180); };
+        paintList();
       } else {
         var s = settings || {};
         body.innerHTML = '<label class="npl-f"><span>Giá gói Pro (đồng / tháng)</span><input class="npl-inp" id="npl-price" type="number" value="' + esc(s.price || 99000) + '"></label>' +
@@ -329,6 +340,9 @@
       }
     }
     body.addEventListener('click', function (e) {
+      var sg = e.target.closest('[data-seg]');
+      if (sg) { seg = sg.dataset.seg; shown = PAGE; paint(); return; }
+      if (e.target.closest('[data-more]')) { shown += PAGE; paintList(); return; }
       var row = e.target.closest('.npl-row'); if (!row) return;
       var uid = row.dataset.uid, d = e.target.closest('[data-d]'), plus = e.target.closest('[data-plus]');
       if (d) { d.disabled = true; decide(uid, d.dataset.d).catch(function (er) { d.disabled = false; alert('Lỗi: ' + (er.code || er.message)); }); }
@@ -346,7 +360,8 @@
     body.addEventListener('change', function (e) {
       var sel = e.target.closest('[data-role]'); if (!sel) return;
       var uid = sel.closest('.npl-row').dataset.uid; sel.disabled = true;
-      setRole(uid, sel.value, false).then(paint).catch(function (er) { sel.disabled = false; alert('Lỗi: ' + (er.code || er.message)); });
+      var nv = sel.value;
+      setRole(uid, nv, false).then(function () { paint(); pill(nv === 'student' ? '🎓 Đã chuyển sang nhóm Học sinh' : nv === 'pro' ? '⭐ Đã lên Pro (nhóm User, xếp đầu)' : '👤 Đã chuyển sang nhóm User', 2500); }).catch(function (er) { sel.disabled = false; alert('Lỗi: ' + (er.code || er.message)); });
     });
     fb().then(function (x) { o = x; return boot(); }).then(load).then(paint).catch(function (e) { body.innerHTML = '<p class="npl-note">Không tải được (' + esc(e.code || e.message) + '). Kiểm tra Firestore rules (xem apps-script/ai-proxy/Code.gs).</p>'; });
   }
