@@ -78,7 +78,7 @@
     if (initP) return initP;
     initP = fb().then(function (o) {
       var setP = o.fs.getDoc(o.fs.doc(o.db, 'publicSettings', 'main')).then(function (s) {
-        settings = s.exists() ? s.data() : {}; lsSet(LS_SET, settings);
+        settings = s.exists() ? s.data() : {}; lsSet(LS_SET, settings); showSupportBtn();
       }).catch(function () {});
       var meP = new Promise(function (res) {
         var unsub = o.authM.onAuthStateChanged(o.auth, function (user) {
@@ -313,6 +313,7 @@
         body.innerHTML = '<label class="npl-f"><span>Giá gói Pro (đồng / tháng)</span><input class="npl-inp" id="npl-price" type="number" value="' + esc(s.price || 99000) + '"></label>' +
           '<label class="npl-f"><span>Link máy chủ AI miễn phí (Apps Script ai-proxy, dạng https://script.google.com/macros/s/…/exec)</span><input class="npl-inp" id="npl-proxy" value="' + esc(s.aiProxy || '') + '" placeholder="Để trống = tắt AI miễn phí cho User"></label>' +
           '<p class="npl-note" style="margin:-4px 0 12px">Tài khoản User được AI miễn phí <b>5 phút mỗi 5 tiếng</b> cho mỗi kỹ năng (Speaking tính thời lượng ghi âm, Writing ≈ 1–2 bài chấm). Key Groq của thầy nằm trong Apps Script, không lộ ra web. Hướng dẫn cài ở đầu file <b>apps-script/ai-proxy/Code.gs</b>.</p>' +
+          '<label class="npl-f"><span>Số Zalo nhận góp ý / khiếu nại (hiện nút 💬 ở góc trái dưới mọi trang)</span><input class="npl-inp" id="npl-zalo" value="' + esc(s.zalo || '') + '" placeholder="vd: 0912345678 — để trống = ẩn nút"></label>' +
           '<div class="npl-f"><span>Thông tin chuyển khoản hiện cho người mua Pro</span><div class="npl-ok" style="background:#F8F8FB;color:#24242A">' +
           (s.acc ? esc(s.bank || '') + ' · <b>' + esc(s.acc) + '</b> · ' + esc(s.holder || '') + (s.qr ? ' · có ảnh QR' : '') + (s.acc ? (bankBin(s.bank) ? '<br><span style="color:#047857;font-size:12px">✅ QR tự điền số tiền + nội dung: đang bật</span>' : '<br><span style="color:#E11D48;font-size:12px">⚠️ Không nhận ra tên ngân hàng "' + esc(s.bank || '') + '" để tạo QR tự điền — sửa tên ngân hàng trong Học Phí (vd: Vietcombank, MB Bank, Techcombank)</span>') : '') : 'Chưa có') +
           '<br><span style="color:#6B6B78;font-size:12px">Lấy tự động từ mục <b>Học Phí → Thông tin chuyển khoản</b> mỗi lần thầy bấm Lưu ở đây.</span></div></div>' +
@@ -321,8 +322,8 @@
           var btn = this; btn.disabled = true;
           o.fs.getDoc(o.fs.doc(o.db, 'tuitionSettings', 'main')).catch(function () { return null; }).then(function (ts) {
             var t = ts && ts.exists() ? ts.data() : {};
-            var rec = { price: Number(body.querySelector('#npl-price').value) || 99000, aiProxy: body.querySelector('#npl-proxy').value.trim(), bank: t.bank || s.bank || '', acc: t.acc || s.acc || '', holder: t.holder || s.holder || '', qr: t.qr || s.qr || '', updatedAt: Date.now() };
-            return o.fs.setDoc(o.fs.doc(o.db, 'publicSettings', 'main'), rec).then(function () { settings = rec; lsSet(LS_SET, rec); paint(); body.querySelector('#npl-msg').textContent = '✅ Đã lưu'; });
+            var rec = { price: Number(body.querySelector('#npl-price').value) || 99000, aiProxy: body.querySelector('#npl-proxy').value.trim(), zalo: body.querySelector('#npl-zalo').value.replace(/[^0-9]/g, ''), bank: t.bank || s.bank || '', acc: t.acc || s.acc || '', holder: t.holder || s.holder || '', qr: t.qr || s.qr || '', updatedAt: Date.now() };
+            return o.fs.setDoc(o.fs.doc(o.db, 'publicSettings', 'main'), rec).then(function () { settings = rec; lsSet(LS_SET, rec); showSupportBtn(); paint(); body.querySelector('#npl-msg').textContent = '✅ Đã lưu'; });
           }).catch(function (e) { btn.disabled = false; body.querySelector('#npl-msg').textContent = 'Lỗi: ' + (e.code || e.message); });
         };
       }
@@ -422,8 +423,48 @@
     openUpgrade: openUpgrade, openAdmin: openAdmin, pendingCount: pendingCount,
     groqFetch: groqFetch, freeHint: freeHint, payCode: payCode, siteRoot: siteRoot
   };
+  /* Nút "Góp ý · Khiếu nại" -> mở Zalo của thầy (số nhập trong 👑 Tài khoản → Cài đặt) */
+  function zaloNum() { var z = String((settings && settings.zalo) || '').replace(/[^0-9]/g, ''); return z.length >= 9 ? z : ''; }
+  function showSupportBtn() {
+    if (!document.body) return;
+    var z = zaloNum(), b = document.getElementById('ni-support-btn');
+    if (!z) { if (b) b.remove(); return; }
+    if (b) return;
+    if (!document.getElementById('ni-support-css')) {
+      var st = document.createElement('style'); st.id = 'ni-support-css';
+      st.textContent = '#ni-support-btn{position:fixed;left:14px;bottom:14px;z-index:9990;display:flex;align-items:center;gap:7px;padding:10px 15px 10px 12px;border:0;border-radius:99px;background:#0068FF;color:#fff;font:700 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 10px 24px -8px rgba(0,104,255,.6);cursor:pointer}#ni-support-btn svg{width:18px;height:18px}' +
+        '#ni-sup-ov{position:fixed;inset:0;z-index:9999;background:rgba(20,20,30,.45);display:flex;align-items:flex-end;justify-content:center;padding:14px}@media(min-width:640px){#ni-sup-ov{align-items:center}}' +
+        '#ni-sup{width:100%;max-width:380px;background:#fff;border-radius:22px;padding:18px;font:500 14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#24242A;box-shadow:0 30px 70px -20px rgba(0,0,0,.45)}#ni-sup h3{margin:0 0 4px;font-size:17px;font-weight:800}#ni-sup p{margin:0 0 12px;color:#6B6B78;font-size:13px}' +
+        '#ni-sup button.o{display:flex;width:100%;align-items:center;gap:10px;text-align:left;padding:12px 14px;margin-bottom:8px;border:1.5px solid #E4E4EC;border-radius:14px;background:#fff;font:inherit;font-weight:700;cursor:pointer}#ni-sup button.o:hover{border-color:#0068FF;background:#F2F7FF}#ni-sup button.o small{display:block;font-weight:500;color:#6B6B78;font-size:12px}#ni-sup .x{margin-top:4px;width:100%;padding:10px;border:0;border-radius:12px;background:#F1F1F5;font:inherit;font-weight:700;cursor:pointer}';
+      document.head.appendChild(st);
+    }
+    b = document.createElement('button');
+    b.id = 'ni-support-btn'; b.type = 'button';
+    b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Góp ý · Khiếu nại';
+    b.onclick = openSupport;
+    document.body.appendChild(b);
+  }
+  function openSupport() {
+    var z = zaloNum(); if (!z) return;
+    var ov = document.createElement('div'); ov.id = 'ni-sup-ov';
+    var opts = [['🐞', 'Báo lỗi web / AI chấm bài', 'Trang bị đơ, không chấm được, chấm sai...'], ['📣', 'Khiếu nại / góp ý', 'Điều bạn chưa hài lòng hoặc muốn web tốt hơn'], ['⭐', 'Hỏi về khoá học, gói Pro', 'Học phí, chuyển khoản, mở khoá bài học']];
+    ov.innerHTML = '<div id="ni-sup"><h3>Trò chuyện với Night IELTS</h3><p>Chọn nội dung, web sẽ chép sẵn tin nhắn rồi mở Zalo, bạn chỉ cần dán và gửi.</p>' +
+      opts.map(function (o, i) { return '<button class="o" data-i="' + i + '"><span style="font-size:20px">' + o[0] + '</span><span>' + o[1] + '<small>' + o[2] + '</small></span></button>'; }).join('') +
+      '<button class="x">Đóng</button></div>';
+    ov.onclick = function (e) { if (e.target === ov || e.target.className === 'x') ov.remove(); };
+    Array.prototype.forEach.call(ov.querySelectorAll('button.o'), function (btn) {
+      btn.onclick = function () {
+        var o = opts[+btn.getAttribute('data-i')];
+        var msg = '[' + o[1] + '] Night IELTS\n' + (me && (me.name || me.email) ? 'Tài khoản: ' + (me.name || '') + (me.email ? ' (' + me.email + ')' : '') + '\n' : '') + 'Trang: ' + location.href + '\nNội dung: ';
+        var go = function () { window.open('https://zalo.me/' + z, '_blank', 'noopener'); ov.remove(); };
+        try { navigator.clipboard.writeText(msg).then(function () { pill('📋 Đã chép sẵn tin nhắn — mở Zalo rồi dán vào nhé', 3500); go(); }, go); } catch (e) { go(); }
+      };
+    });
+    document.body.appendChild(ov);
+  }
+  if (document.body) showSupportBtn(); else document.addEventListener('DOMContentLoaded', showSupportBtn);
   /* Thông báo đang cập nhật — tắt: đổi UPDATE_NOTICE thành '' */
-  var UPDATE_NOTICE = '🛠️ <b>Thông báo:</b> Tất cả các kỹ năng và bài test đang trong quá trình cập nhật. Nếu gặp lỗi, các bạn nhắn thầy Night nhé!';
+  var UPDATE_NOTICE = '🛠️ <b>Thông báo:</b> Tất cả các kỹ năng và bài test đang trong quá trình cập nhật. Nếu gặp lỗi, các bạn <a data-zalo style="color:#fff;font-weight:800;text-decoration:underline;cursor:pointer">nhắn Zalo</a> cho Night IELTS nhé!';
   function showUpdateNotice() {
     if (!UPDATE_NOTICE || document.getElementById('ni-update-notice')) return;
     try { if (sessionStorage.getItem('niUpdHide') === '1') return; } catch (e) {}
@@ -431,6 +472,7 @@
     d.id = 'ni-update-notice';
     d.style.cssText = 'position:relative;z-index:9998;display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(90deg,#4F46E5,#7C3AED);color:#fff;font:600 13.5px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(79,70,229,.25)';
     d.innerHTML = '<span style="flex:1">' + UPDATE_NOTICE + '</span><button type="button" aria-label="Đóng" style="flex:none;background:rgba(255,255,255,.2);border:0;color:#fff;border-radius:99px;width:26px;height:26px;font-size:16px;line-height:1;cursor:pointer">×</button>';
+    var za = d.querySelector('[data-zalo]'); if (za) za.onclick = function () { if (zaloNum()) openSupport(); else pill('Chưa có số Zalo hỗ trợ', 2500); };
     d.querySelector('button').onclick = function () { d.remove(); try { sessionStorage.setItem('niUpdHide', '1'); } catch (e) {} };
     document.body.insertBefore(d, document.body.firstChild);
   }
