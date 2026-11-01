@@ -602,7 +602,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 #studentHomeView .ni-panel-label:before{content:"";width:12px;height:12px;border-radius:999px;background:var(--peach);flex:none}
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
-<script src="night-plan.js?v=20261031q"></script>
+<script src="night-plan.js?v=20261101a"></script>
 <script src="night-fame.js?v=20261028d"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -1014,7 +1014,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v8',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v9',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -1022,6 +1022,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     verbatimPrompt: 'Um, well, I I think, uh, the the main reason is... I mean, it is, like, really useful, you know. So, er, I went, I went there last year.',
     llmModelDefault: 'openai/gpt-oss-120b',
     intentModel: 'openai/gpt-oss-20b',   // dựng lại 'ý học sinh muốn nói' — model nhỏ, giới hạn lượt/phút riêng với model chấm
+    llmFallback: 'llama-3.3-70b-versatile',   // dự phòng khi model chính quá tải / bị cắt giữa chừng
     llmTemperature: 0,
     rounding: 'down-to-half'            // xem overallBand()
   };
@@ -2032,7 +2033,13 @@ Is it better to read a physical book or an e-book?"></textarea>
       if (k === 'pronunciation' && !pronAvailable) band = null;
       var llmBand = band, checks = null, ckDetail = null;
       if (CHECKLIST[k] && !(k === 'pronunciation' && !pronAvailable)) {
-        checks = Array.isArray(c.checks) && c.checks.length ? normChecks(k, c.checks) : [];
+        var rawChecks = c.checks;
+        // Định dạng gọn (v9): {"F4a":"y", ...} + why: {"F6b":"trích dẫn"} -> mảng như cũ
+        if (rawChecks && typeof rawChecks === 'object' && !Array.isArray(rawChecks)) {
+          var SH = { y: 'yes', yes: 'yes', p: 'partly', partly: 'partly', n: 'no', no: 'no', '-': 'na', na: 'na' }, whyMap = c.why || c.ev || {};
+          rawChecks = Object.keys(rawChecks).map(function (id) { return { id: id, status: SH[String(rawChecks[id]).toLowerCase()] || 'na', evidence: whyMap[id] || '' }; });
+        }
+        checks = Array.isArray(rawChecks) && rawChecks.length ? normChecks(k, rawChecks) : [];
         if (k === 'pronunciation' && pronEv) checks = fillPronChecks(checks, pronEv);
         if (checks.length) { var r = checklistBand(k, checks, llmBand); band = r.band; ckDetail = r.detail; }
         else checks = null;
@@ -2060,7 +2067,12 @@ Is it better to read a physical book or an e-book?"></textarea>
       edits: (Array.isArray(parsed.edits) ? parsed.edits : []).map(function (e) {
         var st = String(e.status || '').toLowerCase(); if (['confirmed', 'likely', 'uncertain'].indexOf(st) === -1) st = (e.asrPossible || e.asr_possible) ? 'uncertain' : 'likely';
         return { find: String(e.find || ''), replace: String(e.replace == null ? '' : e.replace), criterion: spCrit(e.criterion), why: String(e.why || ''), status: st, asrPossible: st === 'uncertain', evidence: String(e.evidence || '') };
-      }).filter(function (e) { return e.find && (pronAvailable || e.criterion !== 'pronunciation'); }).slice(0, 40),
+      }).filter(function (e) {
+        // Bỏ chỗ "sửa" mà thực ra giữ nguyên (chỉ khác hoa/thường, dấu câu, khoảng trắng)
+        var k1 = e.find.toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim(), k2 = e.replace.toLowerCase().replace(/[^a-z0-9']+/g, ' ').trim();
+        if (e.replace && k1 === k2) return false;
+        return e.find && (pronAvailable || e.criterion !== 'pronunciation');
+      }).slice(0, 40),
       refinedAnswer: String(parsed.refinedAnswer || ''),
       refinementNotes: (Array.isArray(parsed.refinementNotes) ? parsed.refinementNotes : []).map(function (n) {
         return { from: String(n.from || ''), to: String(n.to || ''), criterion: n.criterion ? spCrit(n.criterion) : '', change: String(n.change || ''), reason: String(n.reason || '') };
@@ -2294,11 +2306,12 @@ Is it better to read a physical book or an e-book?"></textarea>
       // Model "suy nghĩ" (gpt-oss) tốn token cho phần nghĩ trước khi viết: nghĩ ít lại để còn chỗ cho câu trả lời
       if (opts && opts.reasoning && /gpt-oss/i.test(model)) payload.reasoning_effort = opts.reasoning;
       if (useJson) payload.response_format = { type: 'json_object' };
-      res = await (window.NightPlan ? NightPlan.groqFetch : fetch)('https://api.groq.com/openai/v1/chat/completions', {
+      // Không để treo mãi: quá thời gian thì báo lỗi để chuyển sang cách chấm dự phòng
+      res = await withTimeout((window.NightPlan ? NightPlan.groqFetch : fetch)('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
         body: JSON.stringify(payload)
-      }, 'speaking');
+      }, 'speaking'), (opts && opts.timeoutMs) || 90000, 'AI phản hồi quá lâu.');
       // Model không hỗ trợ chế độ JSON / reasoning_effort -> gửi lại kiểu thường
       if (res.status === 400 && (useJson || payload.reasoning_effort)) { useJson = false; opts = Object.assign({}, opts, { reasoning: null }); continue; }
       // 413 = 1 lần gọi lớn hơn hạn mức/phút. Groq báo "Limit X, Requested Y": thu nhỏ phần xin viết ra rồi gửi lại.
@@ -2308,7 +2321,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         const next = mm ? maxOut - (parseInt(mm[2], 10) - parseInt(mm[1], 10)) - 500 : Math.floor(maxOut * 0.6);
         if (next >= 900 && next < maxOut) { maxOut = next; continue; }
       }
-      if (res.status !== 429 || attempt >= 2) break;
+      if (res.status !== 429 || attempt >= ((opts && opts.max429) != null ? opts.max429 : 2)) break;
       const t = await res.text().catch(() => '');
       const m = t.match(/try again in ([\d.]+)(ms|s|m)/i);
       let wait = m ? parseFloat(m[1]) * (m[2] === 'ms' ? 1 : m[2] === 'm' ? 60000 : 1000) : 15000;
@@ -2346,8 +2359,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       if (verbose) { fd.append('response_format', 'verbose_json'); fd.append('timestamp_granularities[]', 'word'); fd.append('timestamp_granularities[]', 'segment'); }
       return (window.NightPlan ? NightPlan.groqFetch : fetch)('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { 'Authorization': 'Bearer ' + cfg.apiKey }, body: fd }, 'speaking');
     };
-    let res = await send(true);
-    if (res.status === 400) res = await send(false);   // API không nhận verbose_json -> vẫn lấy chữ
+    let res = await withTimeout(send(true), 120000, 'Nhận dạng giọng nói quá lâu (mạng chậm?).');
+    if (res.status === 400) res = await withTimeout(send(false), 120000, 'Nhận dạng giọng nói quá lâu (mạng chậm?).');   // API không nhận verbose_json -> vẫn lấy chữ
     if (!res.ok) {
       const t = await res.text().catch(() => '');
       throw new Error('Groq lỗi HTTP ' + res.status + ': ' + t.slice(0, 200));
@@ -2390,6 +2403,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     try {
       return parseGroqJson(raw);
     } catch (e) {
+      if (opts && opts.noRetry) throw e;
       const retryMessages = messages.concat([
         { role: 'user', content: 'Your previous reply was not valid JSON, or it got cut off before the closing brace. Reply again with ONLY one complete, valid JSON object in the exact shape requested above — no markdown code fences, no extra commentary before or after it.' }
       ]);
@@ -3978,14 +3992,34 @@ Is it better to read a physical book or an e-book?"></textarea>
       const model = cfg.model || SPCore.ENGINE.llmModelDefault;
       let parsed;
       const tL = performance.now();
+      // Bài dài: rút gọn bằng chứng gửi đi để không vượt hạn mức token
+      const longAns = transcript.split(/\s+/).length > 160;
+      if (longAns) {
+        evidence.speech_findings = evidence.speech_findings.slice(0, 8);
+        evidence.asr_low_confidence_segments = (evidence.asr_low_confidence_segments || []).slice(0, 3);
+        evidence.pronunciation_evidence.likely_mispronounced = evidence.pronunciation_evidence.likely_mispronounced.slice(0, 10);
+        evidence.pronunciation_evidence.intended_text = null;
+      }
+      const userMsg = { role: 'user', content: 'Assess this response. All evidence is below as JSON.\n\n' + JSON.stringify(evidence) };
+      let usedModel = model;
       try {
-        parsed = await callGroqChatJson([
-          { role: 'system', content: SCORING_SYSTEM_PROMPT },
-          { role: 'user', content: 'Assess this response. All evidence is below as JSON.\n\n' + JSON.stringify(evidence) }
-        ], { temperature: SPCore.ENGINE.llmTemperature, maxTokens: 5200, json: true, reasoning: 'low' });
-      } catch (e) {
-        console.warn('Chấm điểm lỗi:', e);
-        throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
+        parsed = await callGroqChatJson([{ role: 'system', content: SCORING_SYSTEM_PROMPT }, userMsg],
+          { temperature: SPCore.ENGINE.llmTemperature, maxTokens: 5200, json: true, reasoning: 'low', noRetry: true, max429: 1, timeoutMs: 90000 });
+      } catch (e1) {
+        if (e1 && (e1.code === 'NO_KEY' || e1.code === 'QUOTA')) throw e1;
+        console.warn('Chấm lần 1 lỗi, chuyển sang chấm dự phòng:', e1);
+        // Dự phòng: model khác (hạn mức riêng, không tốn token "suy nghĩ") + yêu cầu trả lời gọn hơn
+        spinnerMsg.textContent = 'Bài khá dài, đang chấm lại bằng chế độ gọn...';
+        usedModel = SPCore.ENGINE.llmFallback;
+        try {
+          parsed = await callGroqChatJson([
+            { role: 'system', content: SCORING_SYSTEM_PROMPT + '\n\nCOMPACT MODE: at most 5 edits; feedback 1 short sentence; toNextBand and uncertainty 1 short sentence or "".' }, userMsg
+          ], { model: usedModel, temperature: 0, maxTokens: 3500, json: true, timeoutMs: 90000 });
+        } catch (e2) {
+          console.warn('Chấm dự phòng lỗi:', e2);
+          if (e2 && (e2.code === 'NO_KEY' || e2.code === 'QUOTA')) throw e2;
+          throw new Error('Chưa chấm được lần này (AI đang quá tải hoặc mạng chậm). Bài ghi âm vẫn được giữ: đợi khoảng 1 phút rồi bấm "Chấm" lại nhé.');
+        }
       }
       lap('llm', tL);
       const norm = SPCore.normalizeScoring(parsed, true, pron.strength === 'groq_intent' ? 'medium' : 'low', evidence.pronunciation_evidence);
@@ -4013,7 +4047,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         audioMetrics: audio ? { duration: +audio.duration.toFixed(2), speechSec: audio.speechSec, snrDb: +audio.snrDb.toFixed(1), clipRatio: +audio.clipRatio.toFixed(4), peak: +audio.peak.toFixed(3) } : null,
         quality: { status: quality.status, issues: quality.issues },
         pronunciation: pron,
-        engine: { rubric: SPCore.ENGINE.rubric, asr: SPCore.ENGINE.asrModel, llm: model, temperature: SPCore.ENGINE.llmTemperature, pron: pron.method, rounding: SPCore.ENGINE.rounding },
+        engine: { rubric: SPCore.ENGINE.rubric, asr: SPCore.ENGINE.asrModel, llm: usedModel, temperature: SPCore.ENGINE.llmTemperature, pron: pron.method, rounding: SPCore.ENGINE.rounding },
         audioChunkCount: audioChunkCount, audioMime: audioMime, timing: tm,
         createdAt: createdAt, expiresAt: expiresAt
       }));
@@ -4067,15 +4101,15 @@ Is it better to read a physical book or an e-book?"></textarea>
   const SCORING_SYSTEM_PROMPT = [
     'You are a calibrated IELTS Speaking examiner estimating, for practice, what a trained examiner would award ONE recorded answer. Use only the evidence given.',
     'INPUT (JSON): part; question; transcript_asr_hypothesis (Whisper, prompted to keep fillers/repetitions, but it may still correct grammar, add plurals, drop disfluencies, mishear words, add punctuation: a hypothesis, not truth); speech_findings (code-computed from a second independent recognition and the audio: where the two recognitions differ and an audio check of final /s/; category filler|repetition|morphology|final_s|asr_disagreement, likely = probable spoken form or null, status likely|uncertain); asr_low_confidence_segments; audio_quality; fluency_measurements (code-computed from audio: words per minute, pauses over 1s/2s, longest pause, words between pauses, repetitions); pronunciation_evidence (see rule 6).',
-    'HOW BANDS ARE SET: you do NOT choose the band. For each criterion tick EVERY box of bands 4-9 listed below as "yes" (clearly shown, with a quote or measurement), "partly" (shown but inconsistent), "no" (not shown although the answer gave the chance, or contradicted) or "na" (impossible to observe in one answer of this kind; use rarely: a short answer that does not attempt something is "no"). Boxes are cumulative: if a higher feature is clearly shown, matching lower boxes are normally "yes". The application computes the band from your ticks (a band is reached when it has no "no", at least half of its assessable boxes are "yes", bands 8-9 need two "yes", and all lower bands are reached).\n' + SPCore.checklistPromptText(),
-    'RULES. (1) ONE ANSWER, NOT A FULL TEST: judge each box against what a strong candidate could show in one answer of this Part (Part 1 about 2-5 sentences; Part 2 a 1-2 minute turn; Part 3 an extended answer). A short Part 1 answer can still show less common vocabulary, a complex structure or flexible linking and gets credit for it. ' +
+    'HOW BANDS ARE SET: you do NOT choose the band. For each criterion tick EVERY box of bands 4-9 listed below as "yes" (clearly shown, with a quote or measurement), "partly" (shown but inconsistent), "no" (positive evidence AGAINST it, see rule 1) or "na" (simply not shown because this one answer gave little need or room for it, see rule 1). Boxes are cumulative: if a higher feature is clearly shown, matching lower boxes are normally "yes". The application computes the band from your ticks (a band is reached when it has no "no", at least half of its assessable boxes are "yes", bands 8-9 need two "yes", and all lower bands are reached).\n' + SPCore.checklistPromptText(),
+    'RULES. (1) ONE ANSWER IS ONLY A SMALL SAMPLE OF AN 11-14 MINUTE TEST. Estimate what an examiner would award if the candidate spoke at this level for the whole test (Part 1 about 2-5 sentences; Part 2 a 1-2 minute turn; Part 3 an extended answer). One answer cannot show everything: a box this answer had no need or room for (e.g. no idiom or collocation in a short Part 1 reply, no conditional when none was needed, few discourse markers in two sentences) is "na", NOT "no". Tick "no" only on positive evidence against the box: errors, misuse, breakdown, a measurement that contradicts it, or very basic / repeated wording where the question clearly invited more. Credit anything good the answer does show, even once: one natural collocation can tick L7b "partly" or "yes"; one correct complex structure counts. ' +
       '(2) Interpret features in context; no fixed penalties. Speed is not fluency; planning pauses are fine; hesitation matters only when frequent, language-related or disruptive. Rare words alone earn nothing; common words used precisely are fine; sentence length is not range; complexity is not accuracy. Fillers are usually removed by the ASR, so their absence proves nothing. ' +
       '(3) WHAT WAS ACTUALLY SAID: judge grammar and vocabulary on the most likely spoken words. A speech_findings item with status "likely" gives the probable form (e.g. no final /s/ heard, so "many student"): assess that form and report the error with status "likely". An "uncertain" item, or anything that could be a recognition error, must not count against the student and must not turn a box into "no"; if mentioned, mark the edit "uncertain". Repetitions, fillers and false starts are Fluency evidence only, never grammar errors. ' +
       '(4) Do not inflate and do not pull criteria towards an average; bands 8-9 are reachable when the boxes are met. ' +
       '(5) Quote only words that are in the transcript; never invent pauses or audio events; use fluency_measurements for claims about pauses and speed. ' +
       '(6) PRONUNCIATION is always assessed with its boxes, from pronunciation_evidence (all code-computed except intended_text). evidence_strength: "groq_intent" (full analysis), "indirect" (partial) or "minimal" (audio not analysable). likely_mispronounced lists places where the recogniser heard a different word that sounds similar to the word the learner meant (heard vs meant, sound_similarity 0-1, level likely/possible; kind "ending" = a dropped final -s/-ed that may be grammar instead). pct_words_affected is the share of words affected: few isolated cases are normal even for strong speakers; frequent ones, or the same sound repeatedly, show that individual sounds reduce clarity. sentence_stress: contentLouderDb / contentHigherSt > 0 means content words are made more prominent than function words (stress-timed, positive); near 0 means every word gets equal weight (flat, syllable-timed). weak_forms.functionVsContentDurRatio < 0.8 suggests function words are reduced (positive). linking: linked / opportunities = consonant-to-vowel links realised. intonation: phrases with pitch movement and phrase-final falls/rises; pitch_range_semitones small = flat. All of these are approximate measurements from word timings (accurate to a few hundredths of a second): use them as supporting evidence, never alone to decide a band, and never convert numbers into a band. An intelligible Vietnamese accent is never an error. Use "na" for pronunciation ONLY for things truly not measured (word stress inside words; individual sounds when evidence_strength is not groq_intent). Intelligibility, chunking, linking/weak forms and intonation boxes can always be judged from the evidence above: tick them yes/partly/no. Pronunciation confidence: "medium" at most with groq_intent, otherwise "low".',
-    'OUTPUT. Write all explanations in natural Vietnamese for a Vietnamese learner, short and specific to THIS answer. Per criterion: "checks": [{"id", "status", "e": evidence of at most 8 words, only for yes/no, otherwise ""}] covering every box; "band": your own overall impression (for comparison only); "confidence": "high"|"medium"|"low" (pronunciation: "medium" at most with phoneme_level, otherwise "low"); "uncertainty": "" or 1 short sentence on what limits certainty; "feedback": 2-3 sentences quoting the student\'s words: what was good, what was weak, which box decided the band; "toNextBand": 1 sentence naming the missing box of the next band with an example ("" at band 9). Also "sampleAdequacy": {"level": "adequate"|"limited"|"insufficient", "note": 1 sentence}; "whyNotHigher": 1-2 sentences on what holds the overall score back; "edits": real grammar / word-choice / collocation errors and clear coherence problems, at most 10, each {"find": exact transcript text of 1-6 words, "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 sentence, "status": "confirmed"|"likely"|"uncertain", "evidence": short source note}; no punctuation or capitalisation edits; edits must not overlap.',
-    'Respond with ONE JSON object only: {"sampleAdequacy": {}, "criteria": {"fluency": {"checks": [], "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "toNextBand": ""}, "lexical": {}, "grammar": {}, "pronunciation": {}}, "whyNotHigher": "", "edits": []}'
+    'OUTPUT (keep it compact). Write all explanations in natural Vietnamese for a Vietnamese learner, short and specific to THIS answer. Per criterion: "checks": ONE object mapping EVERY box id of that criterion to "y" | "p" | "n" | "-" (yes / partly / no / na), e.g. {"F4a":"y","F4b":"y","F5a":"p",...}; "why": object with, ONLY for boxes ticked "n", a quote or measurement of at most 8 words; "band": your own whole-test impression (for comparison only); "confidence": "high"|"medium"|"low" (pronunciation: "medium" at most with phoneme_level, otherwise "low"); "uncertainty": "" or 1 short sentence on what limits certainty; "feedback": 1-2 sentences quoting the student\'s words: what was good, what was weak; "toNextBand": 1 sentence naming the missing box of the next band with an example ("" at band 9). Also "sampleAdequacy": {"level": "adequate"|"limited"|"insufficient", "note": 1 sentence}; "whyNotHigher": 1-2 sentences on what holds the overall score back; "edits": real grammar / word-choice / collocation errors and clear coherence problems, at most 10, each {"find": exact transcript text of 1-6 words, "replace": correction ("" to delete), "criterion": "fluency"|"lexical"|"grammar", "why": 1 sentence, "status": "confirmed"|"likely"|"uncertain", "evidence": short source note}; no punctuation or capitalisation edits; "replace" must differ from "find" in its words (never repeat the same text as a "correction"; if the phrase is already correct, leave it out); list only errors you are sure of; edits must not overlap.',
+    'Respond with ONE JSON object only: {"sampleAdequacy": {}, "criteria": {"fluency": {"checks": {}, "why": {}, "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "toNextBand": ""}, "lexical": {}, "grammar": {}, "pronunciation": {}}, "whyNotHigher": "", "edits": []}'
   ].join('\n\n');
 
   // Màu theo tiêu chí — dùng chung cho điểm, chỗ sửa, nhận xét, bản nâng cấp
@@ -4267,6 +4301,23 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
 
   let __res = null;   // { record, filter, view }
+  // Ước tính cả bài nói: 1 câu chỉ là mẫu nhỏ của bài thi 11–14 phút, nên lấy lần làm mới nhất
+  // của từng câu trong bộ, trung bình từng tiêu chí rồi tính band tổng -> ổn định, sát điểm thật hơn.
+  function paintWholeEstimate(record) {
+    let el = document.getElementById('resWholeEst');
+    if (!el) { el = document.createElement('div'); el.id = 'resWholeEst'; el.style.cssText = 'margin-top:10px;padding:10px 12px;border-radius:12px;background:#EEF2FF;color:#3730A3;font-size:13px;font-weight:600;line-height:1.5'; document.getElementById('resMiniBands').insertAdjacentElement('afterend', el); }
+    const latest = [];
+    Object.keys(__history || {}).forEach(qid => {
+      const arr = (__history[qid] || []).filter(r => r && r.scores);
+      if (arr.length) latest.push(arr.reduce((a, b) => (Number(b.createdAt) || 0) > (Number(a.createdAt) || 0) ? b : a));
+    });
+    if (record && record.scores && !latest.some(r => r === record || r.questionId === record.questionId)) latest.push(record);
+    const avg = {};
+    SP_CRIT.forEach(k => { const v = latest.map(r => r.scores[k]).filter(x => typeof x === 'number'); avg[k] = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; });
+    const n = latest.length, ov = SPCore.overallBand(avg);
+    if (n < 2 || ov == null) { el.innerHTML = '📊 Điểm 1 câu dao động khá nhiều. Làm thêm vài câu trong bộ này để có <b>ước tính cả bài nói</b> sát điểm thi thật hơn.'; return; }
+    el.innerHTML = '📊 Ước tính cả bài nói: <b style="font-size:16px">' + fmtBand(ov) + '</b> <span style="opacity:.75">(từ ' + n + ' câu đã làm trong bộ này · ' + SP_CRIT.map(k => SP_SHORT[k] + ' ' + (avg[k] == null ? '-' : (Math.round(avg[k] * 2) / 2).toFixed(1))).join(' · ') + ')</span><br><span style="font-weight:500;opacity:.8">Một câu chỉ là phần nhỏ của bài thi 11–14 phút, nên con số này sát điểm thật hơn điểm từng câu.</span>';
+  }
   function showResult(record) {
     __viewingAttemptId = record.id || null;
     window.__spCurRecord = record;   // để phần đánh dấu áp dụng chỗ Thầy đã đánh dấu
@@ -4289,6 +4340,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       if (c.band == null) return '<span class="cpill na" title="' + escapeHtml(k === 'pronunciation' ? pronStatusText(record) : '') + '">' + SP_SHORT[k] + ': chưa chấm</span>';
       return '<span class="cpill ' + k + '">' + SP_SHORT[k] + ': ' + (Number(c.band) % 1 ? fmtBand(c.band) : c.band) + (k === 'pronunciation' && !isNewRubric(record) ? ' <small>(từ văn bản)</small>' : '') + '</span>';
     }).join('');
+    paintWholeEstimate(record);
     const why = document.getElementById('resWhy');
     why.classList.toggle('hidden', !record.whyNotHigher);
     if (record.whyNotHigher) why.innerHTML = whyHtml(record);

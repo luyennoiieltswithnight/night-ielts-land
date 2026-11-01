@@ -422,5 +422,18 @@
     openUpgrade: openUpgrade, openAdmin: openAdmin, pendingCount: pendingCount,
     groqFetch: groqFetch, freeHint: freeHint, payCode: payCode, siteRoot: siteRoot
   };
+  /* Thông báo đang cập nhật — tắt: đổi UPDATE_NOTICE thành '' */
+  var UPDATE_NOTICE = '🛠️ <b>Thông báo:</b> Tất cả các kỹ năng và bài test đang trong quá trình cập nhật. Nếu gặp lỗi, các bạn nhắn thầy Night nhé!';
+  function showUpdateNotice() {
+    if (!UPDATE_NOTICE || document.getElementById('ni-update-notice')) return;
+    try { if (sessionStorage.getItem('niUpdHide') === '1') return; } catch (e) {}
+    var d = document.createElement('div');
+    d.id = 'ni-update-notice';
+    d.style.cssText = 'position:relative;z-index:9998;display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(90deg,#4F46E5,#7C3AED);color:#fff;font:600 13.5px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 2px 10px rgba(79,70,229,.25)';
+    d.innerHTML = '<span style="flex:1">' + UPDATE_NOTICE + '</span><button type="button" aria-label="Đóng" style="flex:none;background:rgba(255,255,255,.2);border:0;color:#fff;border-radius:99px;width:26px;height:26px;font-size:16px;line-height:1;cursor:pointer">×</button>';
+    d.querySelector('button').onclick = function () { d.remove(); try { sessionStorage.setItem('niUpdHide', '1'); } catch (e) {} };
+    document.body.insertBefore(d, document.body.firstChild);
+  }
+  if (document.body) showUpdateNotice(); else document.addEventListener('DOMContentLoaded', showUpdateNotice);
   boot();
 })();
