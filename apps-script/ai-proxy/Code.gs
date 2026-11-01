@@ -14,6 +14,11 @@
  * 1. script.google.com → Dự án mới → dán file này vào Code.gs.
  *    Bật "Hiện tệp kê khai appsscript.json" trong Cài đặt dự án, dán nội dung appsscript.json đi kèm.
  * 2. Cài đặt dự án → Thuộc tính tập lệnh → Thêm: GROQ_API_KEY = (key Groq của thầy).
+ *    NHIỀU KEY: dán nhiều key vào cùng ô, cách nhau bằng dấu phẩy (gsk_aaa,gsk_bbb,gsk_ccc)
+ *    hoặc thêm thuộc tính GROQ_API_KEY_2, GROQ_API_KEY_3... Máy chủ chia lượt lần lượt cho các key;
+ *    key nào bị bận (429/413/5xx) thì tự chuyển sang key kế tiếp và tạm "nghỉ" key đó khoảng 1 phút.
+ *    Lưu ý: giới hạn của Groq tính theo TÀI KHOẢN (organization), nhiều key trong cùng 1 tài khoản
+ *    vẫn dùng chung 1 hạn mức.
  * 3. Triển khai → Tùy chọn triển khai mới → Loại: Ứng dụng web
  *      Thực thi với tư cách: Tôi · Người có quyền truy cập: Bất kỳ ai → Triển khai → Cho phép.
  * 4. Copy "URL ứng dụng web" (…/exec) → trang chủ Night IELTS → 👑 Tài khoản → Cài đặt → dán vào
@@ -63,7 +68,8 @@ const MAX_BODY = 3000000;                       // ký tự, chặn gửi bài q
 const GROQ = 'https://api.groq.com/openai/v1/';
 
 function doGet() {
-  return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (groqKey_() ? '' : ' — CHƯA có GROQ_API_KEY trong Thuộc tính tập lệnh!'));
+  const n = groqKeys_().length;
+  return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (n ? ' · ' + n + ' key Groq' : ' — CHƯA có GROQ_API_KEY trong Thuộc tính tập lệnh!'));
 }
 
 function doPost(e) {
@@ -71,12 +77,12 @@ function doPost(e) {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const user = verify_(req.idToken);
     if (!user) return out_({ error: 'Phiên đăng nhập hết hạn. Tải lại trang rồi thử lại nhé.' });
-    if (!groqKey_()) return out_({ error: 'Máy chủ AI chưa có key. Nhắn thầy Night nhé.' });
+    if (!groqKey_()) return out_({ error: 'AI đang bảo trì, bạn chờ một lát hoặc nhắn Night IELTS nhé.' });
     const skill = LIMITS[req.skill] ? req.skill : 'speaking';
 
     let q = getQ_(user.uid);
     if (q.used[skill] >= LIMITS[skill]) return out_({ error: 'QUOTA', quota: view_(q, skill) });
-    if (!daily_(false)) return out_({ error: 'AI miễn phí đã hết lượt của cả hệ thống hôm nay. Thử lại ngày mai, hoặc nâng cấp Pro và dùng key riêng nhé.' });
+    if (!daily_(false)) return out_({ error: 'AI miễn phí hôm nay đã đủ số lần dùng. Bạn quay lại vào ngày mai, hoặc nâng cấp Pro để dùng không giới hạn nhé.' });
 
     let resp, cost = 0;
     if (req.kind === 'stt') {
@@ -94,9 +100,12 @@ function doPost(e) {
       if (payload.max_completion_tokens > 6000) payload.max_completion_tokens = 6000;
       if (payload.max_tokens > 6000) payload.max_tokens = 6000;
       delete payload.stream;
-      resp = UrlFetchApp.fetch(GROQ + 'chat/completions', {
-        method: 'post', contentType: 'application/json', payload: JSON.stringify(payload),
-        headers: { Authorization: 'Bearer ' + groqKey_() }, muteHttpExceptions: true
+      const pl = JSON.stringify(payload);
+      resp = withKeys_(function (k) {
+        return UrlFetchApp.fetch(GROQ + 'chat/completions', {
+          method: 'post', contentType: 'application/json', payload: pl,
+          headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true
+        });
       });
       if (resp.getResponseCode() === 200) cost = CHAT_COST[skill];
     }
@@ -104,12 +113,38 @@ function doPost(e) {
     if (cost) q = charge_(user.uid, skill, cost);
     return out_({ status: resp.getResponseCode(), body: resp.getContentText(), quota: view_(q, skill) });
   } catch (err) {
-    return out_({ error: 'Máy chủ AI lỗi: ' + (err && err.message || err) });
+    return out_({ error: 'AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.', detail: String(err && err.message || err) });
   }
 }
 
 function out_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
-function groqKey_() { return PropertiesService.getScriptProperties().getProperty('GROQ_API_KEY') || ''; }
+function groqKeys_() {
+  const P = PropertiesService.getScriptProperties().getProperties();
+  let keys = String(P.GROQ_API_KEY || '').split(/[\s,;]+/);
+  Object.keys(P).filter(function (n) { return /^GROQ_API_KEY_\d+$/.test(n); }).sort().forEach(function (n) { keys = keys.concat(String(P[n]).split(/[\s,;]+/)); });
+  return keys.filter(function (k, i, a) { return /^gsk_/.test(k) && a.indexOf(k) === i; });
+}
+function groqKey_() { return groqKeys_()[0] || ''; }
+/* Gọi Groq lần lượt qua các key: bắt đầu từ key kế tiếp (chia đều), bỏ qua key đang "nghỉ";
+   gặp 429 / 413 / 5xx thì cho key đó nghỉ rồi thử key khác. Trả về phản hồi cuối cùng. */
+function withKeys_(call) {
+  const keys = groqKeys_(), c = CacheService.getScriptCache();
+  if (keys.length <= 1) return call(keys[0] || '');
+  const start = (Number(c.get('rr') || 0) + 1) % keys.length;
+  c.put('rr', String(start), 21600);
+  let resp = null, tried = 0;
+  for (let n = 0; n < keys.length; n++) {
+    const i = (start + n) % keys.length;
+    if (c.get('cool_' + i) && n < keys.length - 1) continue;   // đang nghỉ (còn key khác thì bỏ qua)
+    resp = call(keys[i]); tried++;
+    const code = resp.getResponseCode();
+    if (code !== 429 && code !== 413 && code < 500) return resp;
+    let wait = 60;
+    try { const h = resp.getHeaders(); const ra = Number(h['retry-after'] || h['Retry-After']); if (ra > 0) wait = Math.min(120, Math.ceil(ra) + 2); } catch (x) {}
+    c.put('cool_' + i, '1', Math.max(5, wait));
+  }
+  return resp || call(keys[0]);
+}
 
 /* Kiểm tra token đăng nhập Firebase (Google xác thực giúp), nhớ 50 phút cho đỡ chậm. */
 function verify_(tok) {
@@ -153,7 +188,7 @@ function daily_(add) {
   const c = CacheService.getScriptCache();
   const n = Number(c.get(key) || 0);
   if (add) c.put(key, String(n + 1), 21600);
-  return n < DAILY_CAP;
+  return n < DAILY_CAP * Math.max(1, groqKeys_().length);   // thêm key thì thêm hạn mức ngày
 }
 
 /* Gửi file ghi âm sang Groq Whisper (dựng multipart bằng tay để giữ được các trường lặp lại). */
@@ -168,8 +203,10 @@ function stt_(req) {
   bytes = bytes.concat(enc('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + name + '"\r\nContent-Type: ' + String(req.file.type || 'audio/webm').replace(/[\r\n]/g, '') + '\r\n\r\n'));
   bytes = bytes.concat(Utilities.base64Decode(req.file.b64));
   bytes = bytes.concat(enc('\r\n--' + boundary + '--\r\n'));
-  return UrlFetchApp.fetch(GROQ + 'audio/transcriptions', {
-    method: 'post', contentType: 'multipart/form-data; boundary=' + boundary, payload: bytes,
-    headers: { Authorization: 'Bearer ' + groqKey_() }, muteHttpExceptions: true
+  return withKeys_(function (k) {
+    return UrlFetchApp.fetch(GROQ + 'audio/transcriptions', {
+      method: 'post', contentType: 'multipart/form-data; boundary=' + boundary, payload: bytes,
+      headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true
+    });
   });
 }

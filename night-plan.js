@@ -457,7 +457,7 @@
     }).then(function (req) {
       return fetch(settings.aiProxy, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(req) });
     }).then(function (r) {
-      if (!r.ok) throw new Error('Máy chủ AI miễn phí lỗi ' + r.status + '. Thử lại sau ít phút nhé.');
+      if (!r.ok) throw new Error('AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.');
       return r.json();
     }).then(function (j) {
       if (j.error === 'QUOTA') { var e = new Error(quotaMsg(j.quota)); e.code = 'QUOTA'; showQuota(j.quota); throw e; }
