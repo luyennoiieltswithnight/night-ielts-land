@@ -298,7 +298,10 @@
       }).sort(function (a, b) { return rank(a) - rank(b) || (rank(a) === 1 ? (b.proUntil || 0) - (a.proUntil || 0) : 0) || (b.createdAt || 0) - (a.createdAt || 0); });
       box.innerHTML = list.length ? list.slice(0, shown).map(rowHtml).join('') +
         (list.length > shown ? '<button class="npl-btn ghost" data-more style="width:100%">Hiện thêm (' + (list.length - shown) + ' tài khoản nữa)</button>' : '')
-        : '<p class="npl-note">' + (q ? 'Không tìm thấy tài khoản nào.' : seg === 'stu' ? 'Chưa có học sinh nào.' : 'Chưa có User nào.') + '</p>';
+        : (q ? (function () {
+            var other = users.filter(function (u) { return (seg === 'stu') === !isStu(u) && ((u.name || '') + ' ' + (u.email || '')).toLowerCase().indexOf(q) >= 0; }).length;
+            return '<p class="npl-note">Không có tài khoản nào khớp “<b>' + esc(q) + '</b>” trong nhóm ' + (seg === 'stu' ? 'Học sinh' : 'User') + (other ? ' (có ' + other + ' ở nhóm ' + (seg === 'stu' ? 'User' : 'Học sinh') + ')' : '') + '.</p><button class="npl-btn ghost" data-clearq>Xoá ô tìm kiếm</button>';
+          })() : '<p class="npl-note">' + (seg === 'stu' ? 'Chưa có học sinh nào.' : 'Chưa có User nào.') + '</p>');
     }
     function paint() {
       if (tab === 'req') {
@@ -315,7 +318,7 @@
         var nStu = users.filter(isStu).length, nUsr = users.length - nStu;
         var nPro = users.filter(function (u) { return effRole(u) === 'pro'; }).length;
         body.innerHTML = '<div class="npl-seg"><button data-seg="stu"' + (seg === 'stu' ? ' class="on"' : '') + '>🎓 Học sinh <span>' + nStu + '</span></button><button data-seg="usr"' + (seg === 'usr' ? ' class="on"' : '') + '>👤 User <span>' + nUsr + '</span>' + (nPro ? '<em>⭐ ' + nPro + ' Pro</em>' : '') + '</button></div>' +
-          '<input class="npl-inp" id="npl-q" placeholder="Tìm tên hoặc Gmail…" value="' + esc(q) + '" style="width:100%;margin-bottom:10px"><div id="npl-list"></div>';
+          '<input class="npl-inp" id="npl-q" type="search" name="npl-find-' + Date.now() + '" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Tìm tên hoặc Gmail…" value="' + esc(q) + '" style="width:100%;margin-bottom:10px"><div id="npl-list"></div>';
         var qi = body.querySelector('#npl-q'), tmr = null;
         qi.oninput = function () { clearTimeout(tmr); tmr = setTimeout(function () { q = qi.value.trim().toLowerCase(); shown = PAGE; paintList(); }, 180); };
         paintList();
@@ -341,7 +344,8 @@
     }
     body.addEventListener('click', function (e) {
       var sg = e.target.closest('[data-seg]');
-      if (sg) { seg = sg.dataset.seg; shown = PAGE; paint(); return; }
+      if (sg) { seg = sg.dataset.seg; shown = PAGE; q = ''; paint(); return; }
+      if (e.target.closest('[data-clearq]')) { q = ''; shown = PAGE; paint(); return; }
       if (e.target.closest('[data-more]')) { shown += PAGE; paintList(); return; }
       var row = e.target.closest('.npl-row'); if (!row) return;
       var uid = row.dataset.uid, d = e.target.closest('[data-d]'), plus = e.target.closest('[data-plus]');
