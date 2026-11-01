@@ -4857,6 +4857,8 @@ Is it better to read a physical book or an e-book?"></textarea>
   // "Bản sửa lỗi": chính câu trả lời của học sinh, chỉ thay các chỗ sửa chắc chắn (giữ nguyên cách nói, kể cả um/uh).
   // Làm bằng code từ các chỗ sửa đã có -> hiện ngay, không tốn lượt AI.
   function correctedSide(rec) {
+    // Bài không có lỗi chắc chắn: dùng bản "sửa nhẹ cho tự nhiên" do AI viết (nếu đã tạo)
+    if (rec.polish && rec.polish.text) return { text: rec.polish.text, notes: rec.polish.notes || [], title: 'Bản sửa lỗi', polished: true };
     const tr = (rec.transcript || '').trim(), edits = (rec.edits || []).filter(e => e.status !== 'uncertain');
     const placed = spPlace(tr, edits, 'find');
     let out = '', pos = 0; const notes = [];
@@ -4915,7 +4917,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     let sub;
     if (up && up.targets) sub = up.targets.filter(t => t.target != null).map(t => SP_SHORT[t.crit] + ' ' + fmtBand(t.cur) + ' → ' + fmtBand(t.target)).join(' · ') + ' (lên đúng 1 band)';
     else if (up && up.checkedBand != null) sub = 'Bộ chấm chấm thử bản này: ' + SP_SHORT[up.checkedCrit] + ' ' + fmtBand(up.checkedBand);
-    else sub = side.notes.length ? 'giữ nguyên cách nói của bạn, chỉ sửa ' + side.notes.length + ' lỗi' : 'không có lỗi chắc chắn cần sửa';
+    else sub = side.polished ? 'sửa lỗi + thêm đúng điểm còn thiếu để lên band, giữ ý của bạn' : side.notes.length ? 'giữ nguyên cách nói của bạn, chỉ sửa ' + side.notes.length + ' lỗi' : 'không có lỗi sai rõ ràng';
     document.getElementById('resRefinedSub').textContent = sub;
     document.getElementById('upCaveat').classList.toggle('hidden', !up);
     const boxes = document.getElementById('upBoxes');
@@ -4923,13 +4925,48 @@ Is it better to read a physical book or an e-book?"></textarea>
     boxes.classList.toggle('hidden', !(up && up.targets));
     document.getElementById('resRefinedAnswer').innerHTML = side.notes.some(n => n.to) ? spMarkRefined(side.text, side.notes) : escapeHtml(side.text);
     document.getElementById('resRefinementNotes').innerHTML = sideNotesHtml(side.notes);
-    document.getElementById('upNotesWrap').classList.toggle('hidden', __upTab === 'refined');   // đã có mục "Vì sao sửa?" dưới bài nói
+    document.getElementById('upNotesWrap').classList.toggle('hidden', __upTab === 'refined' && !side.polished);   // đã có mục "Vì sao sửa?" dưới bài nói
+    // Không có lỗi để sửa -> mời AI sửa nhẹ cho tự nhiên hơn (bấm mới gọi, đỡ tốn lượt AI)
+    let pb = document.getElementById('polishBox');
+    if (!pb) { pb = document.createElement('div'); pb.id = 'polishBox'; document.getElementById('resRefinedAnswer').insertAdjacentElement('afterend', pb); }
+    const needPolish = __upTab === 'refined' && !side.polished && (rec.transcript || '').trim();
+    const dB = SPCore.displayBand(rec).band, tgt = dB != null ? fmtBand(Math.min(9, Math.floor(dB * 2 + 1) / 2)) : '';
+    const pbusy = __upBusy[(rec.id || '') + 'polish'];
+    pb.innerHTML = needPolish ? '<div style="margin-top:12px;padding:12px;border-radius:14px;background:#fff;border:1.5px dashed #FDBA74;font-size:13.5px">' + (side.notes.length ? 'Bản trên chỉ sửa lỗi sai, đọc theo thường <b>chưa lên band</b>.' : 'Bài này không có lỗi sai rõ ràng, đọc lại y vậy thì <b>chưa lên band</b>.') + ' Bấm để có bản sửa lỗi + thêm đúng những điểm còn thiếu' + (tgt ? ' để lên <b>' + tgt + '</b>' : '') + ', vẫn giữ ý và cách nói của bạn.<br><button type="button" class="ni-submit-btn" style="margin-top:8px" ' + (pbusy ? 'disabled' : '') + ' onclick="generatePolish()">' + (pbusy ? '<i class="fa-solid fa-circle-notch fa-spin"></i> Đang viết...' : '✨ Tạo bản lên band' + (tgt ? ' ' + tgt : '')) + '</button></div>' : '';
     document.getElementById('upRetryBtn').textContent = 'Nói lại theo ' + (kind ? 'bản ' + kind.label.toLowerCase() : 'bản sửa lỗi');
   }
   window.setUpTab = function (t) {
     __upTab = t;
     spHidePop();
     if (__res) renderSide(__res.record);
+  };
+  window.generatePolish = async function () {
+    if (!__res) return;
+    const rec = __res.record, key = (rec.id || '') + 'polish';
+    if (__upBusy[key]) return;
+    if (!hasGroqAI()) { alert('Cần có AI trước (biểu tượng ⚙️ góc trên).'); return; }
+    __upBusy[key] = true; renderSide(rec);
+    const disp = SPCore.displayBand(rec);
+    const target = disp.band != null ? Math.min(9, Math.floor(disp.band * 2 + 1) / 2) : 6;
+    // Ô tiêu chí còn thiếu ở band kế tiếp của từng tiêu chí (Trôi chảy, Từ vựng, Ngữ pháp) -> AI phải thêm đúng những điểm này
+    const crit = rec.criteria || {}, gaps = [];
+    ['fluency', 'lexical', 'grammar'].forEach(k => {
+      const c = crit[k]; if (!c || c.band == null) return;
+      const nb = Math.min(9, Math.floor(Number(c.band)) + 1), st = {}; (c.checks || []).forEach(x => { st[x.id] = x.status; });
+      (SPCore.CHECKLIST[k][nb] || []).forEach(it => { if (st[it[0]] !== 'yes') gaps.push(SP_NAME[k] + ' band ' + nb + ': ' + it[1]); });
+    });
+    const fixes = (rec.edits || []).filter(e => e.status !== 'uncertain').map(e => '"' + e.find + '" -> "' + e.replace + '"');
+    try {
+      const parsed = await callGroqChatJson([
+        { role: 'system', content: 'Rewrite a Vietnamese learner\'s spoken IELTS answer so that, read aloud, it would score about ONE half band higher (target overall band ' + target + '). Keep the SAME ideas and order and as much of the student\'s own wording as possible; it must sound like natural speech, not an essay, and stay a similar length (you may add one short extension: a reason, example or result, if the answer is short). 1) Apply every required fix. 2) Add exactly what the missing band boxes ask for, with simple, natural language a learner can remember (everyday collocations, spoken discourse markers, one or two complex structures); no rare, academic or showy words, no forced idioms. 3) Remove fillers (um, uh, er) and accidental repetitions. Never change a phrase into the same words. Respond with ONE JSON object: {"text": the new answer as one paragraph, "notes": [{"from": exact words from the original ("" if added), "to": exact words in your text, "criterion": "lexical"|"grammar"|"fluency", "reason": 1 short Vietnamese sentence saying which band point it adds or which error it fixes}]} with 3-7 notes in order.' },
+        { role: 'user', content: 'Question: "' + (rec.questionText || '') + '"\nOriginal answer: "' + (rec.transcript || '') + '"\nRequired fixes: ' + (fixes.join('; ') || 'none') + '\nMissing band boxes to add: ' + (gaps.slice(0, 8).join(' | ') || 'add a short reason or example and one natural collocation') }
+      ], { temperature: 0.3, maxTokens: 1800, json: true, reasoning: 'low' });
+      const text = String(parsed.text || '').trim();
+      if (!text) throw new Error('AI chưa trả lời xong, bạn thử lại nhé.');
+      rec.polish = { text: text, notes: (Array.isArray(parsed.notes) ? parsed.notes : []).map(n => ({ from: String(n.from || ''), to: String(n.to || ''), criterion: n.criterion ? spCrit(n.criterion) : '', change: String(n.from || '') + ' → ' + String(n.to || ''), reason: String(n.reason || '') })).filter(n => n.to && n.from.trim().toLowerCase() !== n.to.trim().toLowerCase()).slice(0, 6) };
+      if (rec.id) updateDoc(doc(db, 'speakingAttempts', rec.id), { polish: rec.polish }).catch(e => console.warn('Không lưu được bản sửa:', e));
+    } catch (e) { alert('Lỗi: ' + e.message); }
+    finally { delete __upBusy[key]; if (__res && __res.record === rec) renderSide(rec); }
   };
   // Bản nâng cấp chung (tab đầu): chỉ tạo khi bấm, để lần chấm điểm không vượt giới hạn token/phút của Groq
   window.generateRefined = async function () {
