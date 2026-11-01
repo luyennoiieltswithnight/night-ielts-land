@@ -286,7 +286,7 @@
       return '<div class="npl-row" data-uid="' + esc(u.uid) + '">' + who(u) + tag(u) +
         (raw === 'pro' && u.proUntil ? '<span style="font-size:12px;color:#6B6B78">đến ' + dmy(u.proUntil) + '</span>' : '') +
         (r === 'admin' ? '' : '<select class="npl-sel" data-role>' + ['user', 'pro', 'student'].map(function (x) { return '<option value="' + x + '"' + (raw === x ? ' selected' : '') + '>' + ROLE_LABEL[x] + '</option>'; }).join('') + '</select>' +
-          (raw === 'pro' ? '<button class="npl-btn sm gold" data-plus>+1 tháng</button><input class="npl-inp" data-key type="password" placeholder="Key Groq cấp riêng (gsk_…)" value="' + esc(u.groqKey || '') + '" style="flex:1;min-width:170px;padding:6px 10px;font-size:12px"><button class="npl-btn sm" data-savekey>' + (u.groqKey ? 'Đổi key' : 'Lưu key') + '</button>' : '')) + '</div>';
+          (raw === 'pro' ? '<button class="npl-btn sm gold" data-plus>+1 tháng</button><input class="npl-inp" data-key type="text" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false" placeholder="Key Groq cấp riêng (gsk_…)" value="' + esc(u.groqKey || '') + '" style="flex:1;min-width:170px;padding:6px 10px;font-size:12px;-webkit-text-security:disc"><button class="npl-btn sm" data-savekey>' + (u.groqKey ? 'Đổi key' : 'Lưu key') + '</button>' : '')) + '</div>';
     }
     function paintList() {
       var box = body.querySelector('#npl-list'); if (!box) return;
