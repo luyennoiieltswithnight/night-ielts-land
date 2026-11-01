@@ -1038,7 +1038,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     verbatimPrompt: 'Um, well, I I think, uh, the the main reason is... I mean, it is, like, really useful, you know. So, er, I went, I went there last year.',
     llmModelDefault: 'openai/gpt-oss-120b',
     intentModel: 'openai/gpt-oss-20b',   // dựng lại 'ý học sinh muốn nói' — model nhỏ, giới hạn lượt/phút riêng với model chấm
-    llmFallback: 'llama-3.3-70b-versatile',   // dự phòng khi model chính quá tải / bị cắt giữa chừng
+    llmFallback: 'openai/gpt-oss-20b',   // dự phòng khi model chính quá tải / bị cắt giữa chừng
     llmTemperature: 0,
     rounding: 'down-to-half'            // xem overallBand()
   };
@@ -2363,18 +2363,27 @@ Is it better to read a physical book or an e-book?"></textarea>
   const APP_VERSION = '17/10 · v9';
   const GROQ_TPM_BUDGET = 7600;
   try { document.getElementById('appVersionLabel').textContent = APP_VERSION; } catch (e) {}
+  const GROQ_CHAT_CHAIN = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b', 'meta-llama/llama-4-maverick-17b-128e-instruct', 'llama-3.3-70b-versatile'];
+  function groqBusyMap() { try { return JSON.parse(sessionStorage.getItem('groqBusy') || '{}'); } catch (e) { return {}; } }
+  function groqBusySave(m) { try { sessionStorage.setItem('groqBusy', JSON.stringify(m)); } catch (e) {} }
   async function callGroqChat(messages, opts) {
     const cfg = getGroqConfig();
     if (!cfg.apiKey && !(window.NightPlan && NightPlan.freeOK())) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     let res;
-    const model = (opts && opts.model) || cfg.model || 'openai/gpt-oss-120b';
+    // Mỗi model của Groq có hạn mức riêng: model này bận lâu (429 phải chờ > 8 giây) hoặc bị khai tử (404/400 model)
+    // thì chuyển ngay sang model kế tiếp thay vì bắt học sinh chờ; model bận được nhớ trong phiên để lần sau bỏ qua.
+    const first = (opts && opts.model) || cfg.model || 'openai/gpt-oss-120b';
+    const chain = [first].concat(GROQ_CHAT_CHAIN.filter(m => m !== first));
+    const busy = groqBusyMap(), nowT = Date.now();
+    let mi = chain.findIndex(m => !(busy[m] > nowT)); if (mi < 0) mi = 0;
+    let model = chain[mi];
     let useJson = !!(opts && opts.json);
     // Groq bản miễn phí giới hạn token/phút: gặp 429 thì chờ đúng số giây Groq báo rồi thử lại (tối đa 2 lần)
     // Gói miễn phí của Groq: ~8.000 token/phút cho mỗi model, tính cả phần gửi đi lẫn phần xin viết ra.
     // Ước lượng phần gửi đi (≈ 3,2 ký tự/token, dư cho tiếng Việt) rồi chỉ xin viết ra phần còn lại.
     const estIn = Math.ceil(JSON.stringify(messages).length / 3.2);
     let maxOut = Math.max(1200, Math.min((opts && opts.maxTokens) || 1800, GROQ_TPM_BUDGET - estIn));
-    for (let attempt = 0; attempt < 4; attempt++) {
+    for (let attempt = 0; attempt < 4 + chain.length; attempt++) {
       const payload = {
         model: model,
         messages: messages,
@@ -2390,6 +2399,11 @@ Is it better to read a physical book or an e-book?"></textarea>
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cfg.apiKey },
         body: JSON.stringify(payload)
       }, 'speaking'), (opts && opts.timeoutMs) || 90000, 'AI phản hồi quá lâu.');
+      // Model bị khai tử / không có -> model kế tiếp
+      if ((res.status === 404 || res.status === 400) && mi < chain.length - 1) {
+        const tm = await res.clone().text().catch(() => '');
+        if (/model|decommission|does not exist|not found/i.test(tm)) { busy[model] = Date.now() + 6 * 3600e3; groqBusySave(busy); model = chain[++mi]; continue; }
+      }
       // Model không hỗ trợ chế độ JSON / reasoning_effort -> gửi lại kiểu thường
       if (res.status === 400 && (useJson || payload.reasoning_effort)) { useJson = false; opts = Object.assign({}, opts, { reasoning: null }); continue; }
       // 413 = 1 lần gọi lớn hơn hạn mức/phút. Groq báo "Limit X, Requested Y": thu nhỏ phần xin viết ra rồi gửi lại.
@@ -2400,9 +2414,12 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (next >= 900 && next < maxOut) { maxOut = next; continue; }
       }
       if (res.status !== 429 || attempt >= ((opts && opts.max429) != null ? opts.max429 : 2)) break;
-      const t = await res.text().catch(() => '');
-      const m = t.match(/try again in ([\d.]+)(ms|s|m)/i);
-      let wait = m ? parseFloat(m[1]) * (m[2] === 'ms' ? 1 : m[2] === 'm' ? 60000 : 1000) : 15000;
+      const t = await res.clone().text().catch(() => '');
+      const m = t.match(/try again in (?:(\d+)h)?(?:(\d+)m(?!s))?([\d.]+)?(ms|s)?/i);
+      let wait = m ? ((+m[1] || 0) * 3600e3 + (+m[2] || 0) * 60000 + (m[3] ? parseFloat(m[3]) * (m[4] === 'ms' ? 1 : 1000) : 0)) : 15000;
+      if (!wait) wait = 15000;
+      // Chờ lâu -> đổi model ngay (nhớ model này bận đến lúc mở lại)
+      if (wait > 8000 && mi < chain.length - 1) { busy[model] = Date.now() + wait; groqBusySave(busy); model = chain[++mi]; attempt--; continue; }
       wait = Math.min(Math.max(wait + 800, 2000), 65000);
       try { if (window.__onGroqWait) window.__onGroqWait(Math.ceil(wait / 1000)); } catch (e) {}
       await new Promise(r => setTimeout(r, wait));
