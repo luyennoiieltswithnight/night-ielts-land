@@ -94,7 +94,8 @@
   function effRole(u) { var r = (u && u.role) || 'student'; return r === 'pro' && !(Number(u.proUntil) > Date.now()) ? 'user' : r; }
   function accessOf(u, key) {
     var r = effRole(u);
-    if (r === 'admin' || r === 'pro' || !key) return 'full';
+    if (r === 'admin' || !key) return 'full';
+    if (r === 'pro' && u.tier !== 'pro') return 'full';   // Astra (hoặc Pro mua trước khi chia gói); gói Pro chỉ có AI
     if (r === 'student' && enrolledIn(u, key)) return 'full';
     return 'free';
   }
@@ -112,14 +113,14 @@
     var el = gateEl(), r = effRole(u), stu = r === 'student';
     var back; try { back = new URL('../' + key + '.html', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { back = '../index.html'; }
     el.innerHTML = '<div class="bx"><div class="in"><img class="lg" src="' + logoUrl() + '" alt="" onerror="this.remove()">' +
-      '<h1>' + (stu ? 'Bạn chưa được thêm vào khoá này' : 'Buổi này dành cho tài khoản Pro ⭐') + '</h1>' +
+      '<h1>' + (stu ? 'Bạn chưa được thêm vào khoá này' : 'Buổi này dành cho gói Astra 🌟') + '</h1>' +
       '<p>' + (stu ? 'Khoá <b>' + (COURSE_NAMES[key] || key) + '</b>: bạn được học thử ' + FREE_N + ' buổi đầu. Muốn học tiếp, nhắn Night IELTS kèm Gmail <b style="color:#24242A">' + (user.email || '') + '</b> để được thêm vào khoá, hoặc nâng cấp Pro.'
-        : 'Tài khoản thường được học thử <b>' + FREE_N + ' buổi đầu</b> của mỗi khoá. Nâng cấp <b>Pro 99k/tháng</b> để mở toàn bộ buổi học của mọi khoá' + (r === 'user' && u && u.role === 'pro' ? ' (gói Pro của bạn đã hết hạn)' : '') + '.') +
+        : 'Tài khoản thường được học thử <b>' + FREE_N + ' buổi đầu</b> của mỗi khoá. Nâng cấp gói <b>Astra</b> (AI chấm Speaking, Writing + mở toàn bộ khoá học) để học tiếp' + (r === 'user' && u && u.role === 'pro' ? ' (gói của bạn đã hết hạn)' : r === 'pro' && u && u.tier === 'pro' ? ' (gói Pro hiện tại chỉ gồm AI chấm bài)' : '') + '.') +
       '<br><small>Duyệt xong, trang này tự mở.</small></p>' +
-      '<button type="button" id="np-pro" style="background:linear-gradient(135deg,#F59E0B,#EA580C)">⭐ Nâng cấp Pro</button>' +
+      '<button type="button" id="np-pro" style="background:linear-gradient(135deg,#F59E0B,#EA580C)">🌟 Xem gói Astra</button>' +
       '<div style="margin-top:12px"><a href="' + back + '" style="display:inline-block;background:#F1F1F6;color:#24242A;font-weight:800;font-size:14px;padding:11px 18px;border-radius:999px;text-decoration:none">← Về lộ trình khoá</a></div>' +
       '<div style="margin-top:8px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập tài khoản khác</button></div></div></div>';
-    document.getElementById('np-pro').onclick = function () { loadPlan().then(function (P) { if (P) P.openUpgrade(); else alert('Không tải được trang nâng cấp, thử lại nhé.'); }); };
+    document.getElementById('np-pro').onclick = function () { loadPlan().then(function (P) { if (P) P.openUpgrade('', 'astra'); else alert('Không tải được trang nâng cấp, thử lại nhé.'); }); };
     document.getElementById('np-out').onclick = function () { o.authM.signOut(o.auth); };
   }
   function showLocked(o, user, key) {

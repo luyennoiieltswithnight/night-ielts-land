@@ -127,7 +127,7 @@
   /* Quyền vào khoá: 'full' | 'free' (3 buổi đầu) */
   function courseAccess(u, enrolled) {
     var r = effRole(u);
-    if (r === 'admin' || r === 'pro') return 'full';
+    if (r === 'admin' || (r === 'pro' && tierOf(u) === 'astra')) return 'full';
     if (r === 'student' && enrolled) return 'full';
     return 'free';
   }
@@ -141,6 +141,8 @@
     '.npl-hd{display:flex;align-items:center;gap:10px;margin-bottom:12px}.npl-hd h2{flex:1;margin:0;font-size:20px;font-weight:800}' +
     '.npl-x{border:0;background:#F1F1F6;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;color:#555}' +
     '.npl-price{display:flex;align-items:baseline;gap:6px;margin:4px 0 12px}.npl-price b{font-size:30px;font-weight:800;color:#C2410C}.npl-price span{color:#6B6B78;font-size:14px}' +
+    '.npl-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 10px}@media(max-width:520px){.npl-plans{grid-template-columns:1fr}}.npl-plan{position:relative;text-align:left;padding:14px;border:2px solid #E4E4EC;border-radius:18px;background:#fff;font:inherit;cursor:pointer}.npl-plan.on{border-color:#F59E0B;background:#FFFBEB;box-shadow:0 10px 24px -14px rgba(245,158,11,.6)}.npl-plan.astra.on{border-color:#7C3AED;background:#F5F3FF;box-shadow:0 10px 24px -14px rgba(124,58,237,.6)}.npl-plan>b{display:block;font-size:17px}.npl-pp{display:block;font-size:20px;font-weight:800;color:#C2410C;margin:2px 0 6px}.npl-plan.astra .npl-pp{color:#6D28D9}.npl-pp small{font-size:12px;color:#6B6B78;font-weight:600}.npl-plan ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.45;color:#3F3F46}.npl-hot{position:absolute;top:-9px;right:10px;white-space:nowrap;line-height:1.4;background:#7C3AED;color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px}' +
+    '.npl-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}.npl-m{position:relative;padding:10px 6px;border:2px solid #E4E4EC;border-radius:14px;background:#fff;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}.npl-m b{font-size:14px}.npl-m span{font-size:13px;font-weight:700;color:#3F3F46}.npl-m small{font-size:11px;color:#059669;font-weight:700}.npl-m.on{border-color:#24242A;background:#24242A}.npl-m.on b,.npl-m.on span{color:#fff}.npl-m.on small{color:#6EE7B7}.npl-m .npl-hot{right:50%;transform:translateX(50%);background:#F59E0B}' +
     '.npl-ul{margin:0 0 14px;padding:0;list-style:none}.npl-ul li{padding:6px 0 6px 26px;position:relative;font-size:14px;line-height:1.5}.npl-ul li:before{content:"✓";position:absolute;left:4px;top:6px;color:#16A34A;font-weight:800}' +
     '.npl-pay{display:flex;gap:14px;align-items:flex-start;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:18px;padding:12px;margin-bottom:12px;flex-wrap:wrap}' +
     '.npl-pay img{width:150px;height:150px;object-fit:contain;background:#fff;border-radius:12px;flex:none}' +
@@ -190,68 +192,96 @@
     if (!bin || !acc) return '';
     return 'https://img.vietqr.io/image/' + bin + '-' + encodeURIComponent(acc) + '-compact2.png?amount=' + Math.round(amount || 0) + '&addInfo=' + encodeURIComponent(info || '') + '&accountName=' + encodeURIComponent(st.holder || '');
   }
-  function payCode(uid) { return 'NIGHTPRO ' + String(uid || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase(); }
+  function payCode(uid, plan, months) { return (plan ? 'NIGHT' + (plan === 'astra' ? 'A' : 'P') + (months || 1) : 'NIGHTPRO') + ' ' + String(uid || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase(); }
+  /* ---------- Gói: Pro (AI chấm Speaking + Writing) · Astra (AI + mọi khoá học) ---------- */
+  var PLAN_DEF = {
+    pro: { name: 'Pro', icon: '⭐', prices: { 1: 49000, 3: 129000, 6: 229000 }, perks: ['AI chấm chữa <b>Speaking</b> và <b>Writing</b> không giới hạn', 'Bản sửa lỗi, nâng cấp từ vựng, phân tích band chi tiết', 'Lưu bài làm, xem lại tiến bộ trên mọi thiết bị'] },
+    astra: { name: 'Astra', icon: '🌟', prices: { 1: 79000, 3: 199000, 6: 359000 }, perks: ['<b>Tất cả quyền lợi gói Pro</b>', 'Mở <b>toàn bộ buổi học</b> của mọi khoá: Giao tiếp, Speaking, Writing, Chuyên đề…', 'Học theo lộ trình, lưu tiến độ từng buổi'] }
+  };
+  var MONTHS = [1, 3, 6];
+  function planPrice(plan, m) {
+    var sp = settings && settings.plans && settings.plans[plan];
+    var v = sp && Number(sp[m]); return v > 0 ? v : PLAN_DEF[plan].prices[m];
+  }
+  /* Gói của tài khoản Pro còn hạn: tier 'pro' = chỉ AI; 'astra' hoặc không ghi (Pro mua trước khi chia gói) = AI + khoá học */
+  function tierOf(u) { return effRole(u) === 'pro' ? (u.tier === 'pro' ? 'pro' : 'astra') : ''; }
+  function planName(u) { var t = tierOf(u); return t ? PLAN_DEF[t].name : ''; }
 
   /* ---------- Nâng cấp Pro (người dùng) ---------- */
-  function openUpgrade(reason) {
+  function openUpgrade(reason, wantPlan) {
     css();
-    var ov = modal('<div class="npl-hd"><h2>⭐ Night IELTS Pro</h2><button class="npl-x" aria-label="Đóng">×</button></div><p class="npl-note">Đang tải…</p>');
+    var ov = modal('<div class="npl-hd"><h2>🌟 Nâng cấp Night IELTS</h2><button class="npl-x" aria-label="Đóng">×</button></div><p class="npl-note">Đang tải…</p>');
     var box = ov.querySelector('.npl-in');
+    var plan = wantPlan === 'pro' ? 'pro' : 'astra', months = 3;
     ensure().then(function () { return fb(); }).then(function (o) {
       var user = o.auth.currentUser;
-      var price = Number(settings.price) || 99000;
-      var head = '<div class="npl-hd"><h2>⭐ Night IELTS Pro</h2><button class="npl-x" aria-label="Đóng">×</button></div>' +
-        (reason ? '<div class="npl-ok" style="background:#FFF7ED;color:#9A3412">' + reason + '</div>' : '') +
-        '<div class="npl-price"><b>' + money(price) + '</b><span>/ tháng</span></div>' +
-        '<ul class="npl-ul"><li>Mở <b>toàn bộ buổi học</b> của mọi khoá (Giao tiếp, Speaking 6.0, Writing 6.0 → 8.0, Chuyên đề…)</li>' +
-        '<li>Luyện <b>Speaking, Writing</b> với AI chấm chữa <b>không giới hạn thời gian</b> (dùng Groq API key miễn phí của bạn, xem hướng dẫn lấy key)</li>' +
-        '<li>Lưu tiến độ từng bài, học tiếp trên mọi thiết bị</li></ul>';
-      if (!user) { box.innerHTML = head + '<p class="npl-note">Đăng nhập bằng Gmail ở trang chủ trước, rồi bấm nâng cấp lại nhé.</p>'; return; }
+      var hd = '<div class="npl-hd"><h2>🌟 Nâng cấp Night IELTS</h2><button class="npl-x" aria-label="Đóng">×</button></div>' +
+        (reason ? '<div class="npl-ok" style="background:#FFF7ED;color:#9A3412">' + reason + '</div>' : '');
+      if (!user) { box.innerHTML = hd + '<p class="npl-note">Đăng nhập bằng Gmail ở trang chủ trước, rồi bấm nâng cấp lại nhé.</p>'; return; }
       var r = role();
       if (r === 'admin' || r === 'student') {
-        box.innerHTML = head + '<div class="npl-ok">Bạn là ' + (r === 'admin' ? 'giáo viên' : '<b>học sinh</b> của Night IELTS') + ', không cần nâng cấp.</div>'; return;
+        box.innerHTML = hd + '<div class="npl-ok">Bạn là ' + (r === 'admin' ? 'giáo viên' : '<b>học sinh</b> của Night IELTS') + ', không cần nâng cấp.</div>'; return;
       }
       var reqRef = o.fs.doc(o.db, 'proRequests', user.uid);
       o.fs.getDoc(reqRef).catch(function () { return null; }).then(function (rs) {
         var rq = rs && rs.exists() ? rs.data() : null;
-        var code = payCode(user.uid);
-        var status = '';
-        if (r === 'pro') status = '<div class="npl-ok">✅ Bạn đang là <b>Pro</b> đến hết ngày <b>' + dmy(me.proUntil) + '</b>. Chuyển khoản thêm để gia hạn 1 tháng.</div>';
-        if (rq && rq.status === 'pending') status += '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF">⏳ Đã gửi yêu cầu lúc ' + hm(rq.createdAt) + ' ' + dmy(rq.createdAt) + '. Night IELTS kiểm tra chuyển khoản rồi duyệt, trang sẽ tự mở khi bạn tải lại.</div>';
-        if (rq && rq.status === 'rejected' && r !== 'pro') status += '<div class="npl-ok" style="background:#FFF1F2;color:#9F1239">Yêu cầu trước chưa được duyệt (chưa thấy chuyển khoản). Nhắn Night IELTS nếu bạn đã chuyển.</div>';
-        var hasBank = settings.acc || settings.qr;
-        box.innerHTML = head + status +
-          (hasBank ? '<div class="npl-pay">' + (function () { var dq = vietQR(settings, price, code); return dq ? '<img src="' + esc(dq) + '" alt="QR chuyển khoản"' + (settings.qr ? ' onerror="this.onerror=null;this.src=\'' + esc(settings.qr) + '\'"' : '') + '>' : (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : ''); })() +
-            '<div class="npl-kv"><div><span>Ngân hàng</span><b>' + esc(settings.bank || '') + '</b></div>' +
-            '<div><span>Số tài khoản</span><b>' + esc(settings.acc || '') + (settings.acc ? copyBtn(settings.acc) : '') + '</b></div>' +
-            '<div><span>Chủ tài khoản</span><b>' + esc(settings.holder || '') + '</b></div>' +
-            '<div><span>Số tiền</span><b>' + money(price) + '</b></div>' +
-            '<div><span>Nội dung CK</span><b>' + esc(code) + copyBtn(code) + '</b></div></div></div>'
-            : '<p class="npl-note">Night IELTS chưa cập nhật thông tin chuyển khoản. Nhắn Night IELTS để đăng ký nhé.</p>') +
-          (vietQR(settings, price, code) ? '<p class="npl-note" style="margin:0 0 8px">📱 Quét mã QR bằng app ngân hàng: <b>số tiền và nội dung đã điền sẵn</b>, chỉ cần bấm chuyển.</p>' : '') + '<p class="npl-note" style="margin:0 0 12px">Ghi đúng <b>nội dung chuyển khoản</b> để Night IELTS biết là bạn. Chuyển xong bấm nút dưới, Night IELTS duyệt trong ngày. Gặp lỗi gì cứ nhắn Night IELTS.</p>' +
-          '<button type="button" class="npl-btn gold" id="npl-sent"' + (rq && rq.status === 'pending' ? ' disabled' : '') + '>💸 Tôi đã chuyển khoản</button>';
-        wireCopy(box);
-        var b = box.querySelector('#npl-sent');
-        if (b) b.onclick = function () {
-          b.disabled = true; b.textContent = 'Đang gửi…';
-          o.fs.setDoc(reqRef, { uid: user.uid, email: user.email || '', name: user.displayName || '', photo: user.photoURL || '', code: code, amount: price, status: 'pending', createdAt: Date.now() })
-            .then(function () { b.textContent = '✅ Đã gửi, chờ duyệt'; })
-            .catch(function (e) { b.disabled = false; b.textContent = '💸 Tôi đã chuyển khoản'; alert('Chưa gửi được (' + (e.code || e.message) + '). Nhắn Night IELTS giúp nhé.'); });
-        };
+        if (r === 'pro' && !wantPlan) plan = tierOf(me) || 'astra';
+        function paint() {
+          var price = planPrice(plan, months), per = Math.round(price / months / 1000) * 1000, base = planPrice(plan, 1) * months;
+          var save = base > price ? Math.round((1 - price / base) * 100) : 0;
+          var code = payCode(user.uid, plan, months);
+          var status = '';
+          if (r === 'pro') status = '<div class="npl-ok">✅ Bạn đang dùng gói <b>' + planName(me) + '</b> đến hết ngày <b>' + dmy(me.proUntil) + '</b>. Chuyển khoản thêm để gia hạn' + (tierOf(me) === 'pro' ? ' hoặc lên <b>Astra</b>' : '') + '.</div>';
+          if (rq && rq.status === 'pending') status += '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF">⏳ Đã gửi yêu cầu' + (rq.plan ? ' gói <b>' + PLAN_DEF[rq.plan].name + ' ' + rq.months + ' tháng</b>' : '') + ' lúc ' + hm(rq.createdAt) + ' ' + dmy(rq.createdAt) + '. Night IELTS kiểm tra chuyển khoản rồi duyệt, trang sẽ tự mở khi bạn tải lại.</div>';
+          if (rq && rq.status === 'rejected' && r !== 'pro') status += '<div class="npl-ok" style="background:#FFF1F2;color:#9F1239">Yêu cầu trước chưa được duyệt (chưa thấy chuyển khoản). Nhắn Night IELTS nếu bạn đã chuyển.</div>';
+          var cards = ['pro', 'astra'].map(function (k) {
+            var d = PLAN_DEF[k];
+            return '<button type="button" class="npl-plan' + (plan === k ? ' on' : '') + (k === 'astra' ? ' astra' : '') + '" data-plan="' + k + '">' + (k === 'astra' ? '<span class="npl-hot">Đầy đủ nhất</span>' : '') +
+              '<b>' + d.icon + ' ' + d.name + '</b><span class="npl-pp">' + money(planPrice(k, 1)) + '<small>/tháng</small></span><ul>' + d.perks.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul></button>';
+          }).join('');
+          var chips = MONTHS.map(function (m) {
+            var pr = planPrice(plan, m), bs = planPrice(plan, 1) * m, sv = bs > pr ? Math.round((1 - pr / bs) * 100) : 0;
+            return '<button type="button" class="npl-m' + (months === m ? ' on' : '') + '" data-m="' + m + '">' + (m === 3 ? '<span class="npl-hot">Phổ biến</span>' : '') + '<b>' + m + ' tháng</b><span>' + money(pr) + '</span>' + (sv ? '<small>tiết kiệm ' + sv + '%</small>' : '<small>&nbsp;</small>') + '</button>';
+          }).join('');
+          var hasBank = settings.acc || settings.qr, dq = vietQR(settings, price, code);
+          box.innerHTML = hd + status + '<div class="npl-plans">' + cards + '</div><div class="npl-ms">' + chips + '</div>' +
+            '<div class="npl-price"><b>' + money(price) + '</b><span>' + months + ' tháng' + (months > 1 ? ' · ≈ ' + money(per) + '/tháng' + (save ? ' · tiết kiệm ' + save + '%' : '') : '') + '</span></div>' +
+            (hasBank ? '<div class="npl-pay">' + (dq ? '<img src="' + esc(dq) + '" alt="QR chuyển khoản"' + (settings.qr ? ' onerror="this.onerror=null;this.src=\'' + esc(settings.qr) + '\'"' : '') + '>' : (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : '')) +
+              '<div class="npl-kv"><div><span>Ngân hàng</span><b>' + esc(settings.bank || '') + '</b></div>' +
+              '<div><span>Số tài khoản</span><b>' + esc(settings.acc || '') + (settings.acc ? copyBtn(settings.acc) : '') + '</b></div>' +
+              '<div><span>Chủ tài khoản</span><b>' + esc(settings.holder || '') + '</b></div>' +
+              '<div><span>Số tiền</span><b>' + money(price) + '</b></div>' +
+              '<div><span>Nội dung CK</span><b>' + esc(code) + copyBtn(code) + '</b></div></div></div>'
+              : '<p class="npl-note">Night IELTS chưa cập nhật thông tin chuyển khoản. Nhắn Night IELTS để đăng ký nhé.</p>') +
+            (dq ? '<p class="npl-note" style="margin:0 0 8px">📱 Quét mã QR bằng app ngân hàng: <b>số tiền và nội dung đã điền sẵn</b>, chỉ cần bấm chuyển.</p>' : '') +
+            '<p class="npl-note" style="margin:0 0 12px">Ghi đúng <b>nội dung chuyển khoản</b> để Night IELTS biết bạn mua gói nào. Chuyển xong bấm nút dưới, Night IELTS duyệt trong ngày.</p>' +
+            '<button type="button" class="npl-btn gold" id="npl-sent"' + (rq && rq.status === 'pending' ? ' disabled' : '') + '>💸 Tôi đã chuyển khoản ' + money(price) + '</button>';
+          wireCopy(box);
+          box.querySelectorAll('[data-plan]').forEach(function (x) { x.onclick = function () { plan = x.dataset.plan; paint(); }; });
+          box.querySelectorAll('[data-m]').forEach(function (x) { x.onclick = function () { months = +x.dataset.m; paint(); }; });
+          var b = box.querySelector('#npl-sent');
+          if (b) b.onclick = function () {
+            b.disabled = true; b.textContent = 'Đang gửi…';
+            o.fs.setDoc(reqRef, { uid: user.uid, email: user.email || '', name: user.displayName || '', photo: user.photoURL || '', code: code, amount: price, plan: plan, months: months, status: 'pending', createdAt: Date.now() })
+              .then(function () { rq = { status: 'pending', plan: plan, months: months, createdAt: Date.now() }; paint(); })
+              .catch(function (e) { b.disabled = false; b.textContent = '💸 Tôi đã chuyển khoản'; alert('Chưa gửi được (' + (e.code || e.message) + '). Nhắn Night IELTS giúp nhé.'); });
+          };
+        }
+        paint();
       });
     }).catch(function (e) { box.innerHTML = '<p class="npl-note">Không tải được (' + esc(e && e.message) + ').</p>'; });
   }
 
   /* ---------- Quản lý tài khoản (thầy) ---------- */
-  var ROLE_LABEL = { user: 'User', pro: 'Pro', student: 'Học sinh', admin: 'Thầy' };
+  var ROLE_LABEL = { user: 'User', pro: 'Pro', astra: 'Astra', student: 'Học sinh', admin: 'Thầy' };
   function pendingCount() {
     return fb().then(function (o) {
       return o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'proRequests'), o.fs.where('status', '==', 'pending'))).then(function (s) { return s.size; });
     }).catch(function () { return 0; });
   }
   function openAdmin(onChange) {
-    var ov = modal('<div class="npl-hd"><h2>👑 Tài khoản & gói Pro</h2><button class="npl-x" aria-label="Đóng">×</button></div>' +
-      '<div class="npl-tabs"><button class="npl-tab" data-t="req" aria-selected="true">Yêu cầu Pro</button><button class="npl-tab" data-t="all" aria-selected="false">Tất cả tài khoản</button><button class="npl-tab" data-t="set" aria-selected="false">Cài đặt</button></div><div id="npl-body"><p class="npl-note">Đang tải…</p></div>', true);
+    var ov = modal('<div class="npl-hd"><h2>👑 Tài khoản & gói Pro · Astra</h2><button class="npl-x" aria-label="Đóng">×</button></div>' +
+      '<div class="npl-tabs"><button class="npl-tab" data-t="req" aria-selected="true">Yêu cầu nâng cấp</button><button class="npl-tab" data-t="all" aria-selected="false">Tất cả tài khoản</button><button class="npl-tab" data-t="set" aria-selected="false">Cài đặt</button></div><div id="npl-body"><p class="npl-note">Đang tải…</p></div>', true);
     var body = ov.querySelector('#npl-body'), tab = 'req', users = [], reqs = [], q = '', seg = 'stu', o, PAGE = 40, shown = 40;
     var changed = function () { try { onChange && onChange(); } catch (e) {} };
     ov.querySelector('.npl-tabs').addEventListener('click', function (e) {
@@ -265,27 +295,31 @@
       ]);
     }
     function uOf(uid) { for (var i = 0; i < users.length; i++) if (users[i].uid === uid) return users[i]; return null; }
-    function setRole(uid, r, plusMonth) {
-      var u = uOf(uid) || {}, data = { role: r };
-      if (r === 'pro') {
+    /* r: user | student | pro | astra (pro/astra = role 'pro' + tier). addMonths: số tháng cộng thêm (0 = chỉ cho 1 tháng nếu đang hết hạn) */
+    function setRole(uid, r, addMonths) {
+      var u = uOf(uid) || {}, paid = r === 'pro' || r === 'astra', data = { role: paid ? 'pro' : r };
+      if (paid) {
+        data.tier = r;
         var base = Math.max(Date.now(), Number(u.proUntil) || 0);
-        if (plusMonth || !(Number(u.proUntil) > Date.now())) data.proUntil = base + MONTH;
+        if (addMonths) data.proUntil = base + addMonths * MONTH;
+        else if (!(Number(u.proUntil) > Date.now())) data.proUntil = base + MONTH;
       }
       return o.fs.setDoc(o.fs.doc(o.db, 'users', uid), data, { merge: true }).then(function () { Object.assign(u, data); changed(); });
     }
     function decide(uid, how) {
-      var p = how === 'reject' ? Promise.resolve() : setRole(uid, how, true);
+      var rq = reqs.filter(function (x) { return x.uid === uid; })[0] || {};
+      var p = how === 'reject' ? Promise.resolve() : how === 'approve' ? setRole(uid, rq.plan === 'pro' ? 'pro' : 'astra', Number(rq.months) || 1) : setRole(uid, how, 0);
       return p.then(function () {
         return o.fs.setDoc(o.fs.doc(o.db, 'proRequests', uid), { status: how === 'reject' ? 'rejected' : 'approved', decidedAt: Date.now(), decidedAs: how }, { merge: true });
       }).then(function () { reqs = reqs.filter(function (r) { return r.uid !== uid; }); paint(); changed(); });
     }
-    function tag(u) { var r = effRole(u), raw = u.role || 'student'; return '<span class="npl-tag ' + r + '">' + (raw === 'pro' && r === 'user' ? 'Pro hết hạn' : ROLE_LABEL[r] || r) + '</span>'; }
+    function tag(u) { var r = effRole(u), raw = u.role || 'student'; return '<span class="npl-tag ' + r + '">' + (raw === 'pro' && r === 'user' ? (u.tier === 'pro' ? 'Pro' : 'Astra') + ' hết hạn' : r === 'pro' ? (tierOf(u) === 'pro' ? '⭐ Pro' : '🌟 Astra') : ROLE_LABEL[r] || r) + '</span>'; }
     function who(u) { return '<img loading="lazy" decoding="async" src="' + esc(u.photo || '') + '" alt="" onerror="this.style.visibility=\'hidden\'"><div class="npl-who"><b>' + esc(u.name || '(chưa có tên)') + '</b><small>' + esc(u.email || '') + '</small></div>'; }
     function rowHtml(u) {
       var r = effRole(u), raw = u.role || 'student';
       return '<div class="npl-row" data-uid="' + esc(u.uid) + '">' + who(u) + tag(u) +
         (raw === 'pro' && u.proUntil ? '<span style="font-size:12px;color:#6B6B78">đến ' + dmy(u.proUntil) + '</span>' : '') +
-        (r === 'admin' ? '' : '<select class="npl-sel" data-role>' + ['user', 'pro', 'student'].map(function (x) { return '<option value="' + x + '"' + (raw === x ? ' selected' : '') + '>' + ROLE_LABEL[x] + '</option>'; }).join('') + '</select>' +
+        (r === 'admin' ? '' : '<select class="npl-sel" data-role>' + ['user', 'pro', 'astra', 'student'].map(function (x) { var cur = raw === 'pro' ? (u.tier === 'pro' ? 'pro' : 'astra') : raw; return '<option value="' + x + '"' + (cur === x ? ' selected' : '') + '>' + ROLE_LABEL[x] + '</option>'; }).join('') + '</select>' +
           (raw === 'pro' ? '<button class="npl-btn sm gold" data-plus>+1 tháng</button><input class="npl-inp" data-key type="text" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false" placeholder="Key Groq cấp riêng (gsk_…)" value="' + esc(u.groqKey || '') + '" style="flex:1;min-width:170px;padding:6px 10px;font-size:12px;-webkit-text-security:disc"><button class="npl-btn sm" data-savekey>' + (u.groqKey ? 'Đổi key' : 'Lưu key') + '</button>' : '')) + '</div>';
     }
     function paintList() {
@@ -309,21 +343,23 @@
           var u = uOf(r.uid) || r;
           return '<div class="npl-row" data-uid="' + esc(r.uid) + '">' + who({ photo: r.photo || u.photo, name: r.name || u.name, email: r.email || u.email }) +
             '<div style="font-size:12px;line-height:1.4"><b>' + esc(r.code || '') + '</b><br><span style="color:#6B6B78">' + money(r.amount) + ' · ' + hm(r.createdAt) + ' ' + dmy(r.createdAt) + '</span></div>' +
-            '<button class="npl-btn sm gold" data-d="pro">Duyệt Pro +1 tháng</button><button class="npl-btn sm" data-d="student">Cho làm Học sinh</button><button class="npl-btn sm ghost" data-d="reject">Từ chối</button></div>';
+            '<button class="npl-btn sm gold" data-d="approve">Duyệt ' + (r.plan ? PLAN_DEF[r.plan].name + ' ' + (r.months || 1) + ' tháng' : 'Astra 1 tháng') + '</button><button class="npl-btn sm" data-d="student">Cho làm Học sinh</button><button class="npl-btn sm ghost" data-d="reject">Từ chối</button></div>';
         }).join('') + '<p class="npl-note">Đối chiếu <b>nội dung chuyển khoản</b> trong app ngân hàng với mã NIGHTPRO ở mỗi dòng rồi mới duyệt.</p>'
           : '<p class="npl-note">Chưa có yêu cầu nào đang chờ. 🎉</p>';
       } else if (tab === 'all') {
         // 2 nhóm riêng: Học sinh | User (Pro xếp lên đầu). Đổi vai trò là tài khoản tự chuyển sang nhóm kia.
         var isStu = function (u) { var r = effRole(u); return r === 'student' || r === 'admin'; };
         var nStu = users.filter(isStu).length, nUsr = users.length - nStu;
-        var nPro = users.filter(function (u) { return effRole(u) === 'pro'; }).length;
-        body.innerHTML = '<div class="npl-seg"><button data-seg="stu"' + (seg === 'stu' ? ' class="on"' : '') + '>🎓 Học sinh <span>' + nStu + '</span></button><button data-seg="usr"' + (seg === 'usr' ? ' class="on"' : '') + '>👤 User <span>' + nUsr + '</span>' + (nPro ? '<em>⭐ ' + nPro + ' Pro</em>' : '') + '</button></div>' +
+        var nPro = users.filter(function (u) { return effRole(u) === 'pro'; }).length;   // Pro + Astra còn hạn
+        body.innerHTML = '<div class="npl-seg"><button data-seg="stu"' + (seg === 'stu' ? ' class="on"' : '') + '>🎓 Học sinh <span>' + nStu + '</span></button><button data-seg="usr"' + (seg === 'usr' ? ' class="on"' : '') + '>👤 User <span>' + nUsr + '</span>' + (nPro ? '<em>⭐ ' + nPro + ' trả phí</em>' : '') + '</button></div>' +
           '<div id="npl-list"></div>';
         q = '';
         paintList();
       } else {
         var s = settings || {};
-        body.innerHTML = '<label class="npl-f"><span>Giá gói Pro (đồng / tháng)</span><input class="npl-inp" id="npl-price" type="number" value="' + esc(s.price || 99000) + '"></label>' +
+        body.innerHTML = '<div class="npl-f"><span>Bảng giá (đồng)</span><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th></th>' + MONTHS.map(function (m) { return '<th style="text-align:left;padding:4px">' + m + ' tháng</th>'; }).join('') + '</tr>' +
+          ['pro', 'astra'].map(function (k) { return '<tr><td style="padding:4px;font-weight:800">' + PLAN_DEF[k].icon + ' ' + PLAN_DEF[k].name + '</td>' + MONTHS.map(function (m) { return '<td style="padding:4px"><input class="npl-inp" type="number" data-pp="' + k + m + '" value="' + planPrice(k, m) + '" style="width:100%;padding:6px 8px"></td>'; }).join('') + '</tr>'; }).join('') +
+          '</table><p class="npl-note" style="margin:4px 0 0">Pro = AI chấm Speaking + Writing. Astra = Pro + mở toàn bộ khoá học. Tài khoản Pro mua trước khi chia gói được tính là Astra đến hết hạn.</p></div>' +
           '<label class="npl-f"><span>Link máy chủ AI miễn phí (Apps Script ai-proxy, dạng https://script.google.com/macros/s/…/exec)</span><input class="npl-inp" id="npl-proxy" value="' + esc(s.aiProxy || '') + '" placeholder="Để trống = tắt AI miễn phí cho User"></label>' +
           '<p class="npl-note" style="margin:-4px 0 12px">Tài khoản User được AI miễn phí <b>5 phút mỗi 5 tiếng</b> cho mỗi kỹ năng (Speaking tính thời lượng ghi âm, Writing ≈ 1–2 bài chấm). Key Groq của thầy nằm trong Apps Script, không lộ ra web. Hướng dẫn cài ở đầu file <b>apps-script/ai-proxy/Code.gs</b>.</p>' +
           '<label class="npl-f"><span>Số Zalo nhận góp ý / khiếu nại (hiện nút 💬 ở góc trái dưới mọi trang)</span><input class="npl-inp" id="npl-zalo" value="' + esc(s.zalo || '') + '" placeholder="vd: 0912345678 — để trống = ẩn nút"></label>' +
@@ -335,7 +371,8 @@
           var btn = this; btn.disabled = true;
           o.fs.getDoc(o.fs.doc(o.db, 'tuitionSettings', 'main')).catch(function () { return null; }).then(function (ts) {
             var t = ts && ts.exists() ? ts.data() : {};
-            var rec = { price: Number(body.querySelector('#npl-price').value) || 99000, aiProxy: body.querySelector('#npl-proxy').value.trim(), zalo: body.querySelector('#npl-zalo').value.replace(/[^0-9]/g, ''), bank: t.bank || s.bank || '', acc: t.acc || s.acc || '', holder: t.holder || s.holder || '', qr: t.qr || s.qr || '', updatedAt: Date.now() };
+            var plans = {}; ['pro', 'astra'].forEach(function (k) { plans[k] = {}; MONTHS.forEach(function (m) { plans[k][m] = Number(body.querySelector('[data-pp="' + k + m + '"]').value) || PLAN_DEF[k].prices[m]; }); });
+            var rec = { plans: plans, price: plans.astra[1], aiProxy: body.querySelector('#npl-proxy').value.trim(), zalo: body.querySelector('#npl-zalo').value.replace(/[^0-9]/g, ''), bank: t.bank || s.bank || '', acc: t.acc || s.acc || '', holder: t.holder || s.holder || '', qr: t.qr || s.qr || '', updatedAt: Date.now() };
             return o.fs.setDoc(o.fs.doc(o.db, 'publicSettings', 'main'), rec).then(function () { settings = rec; lsSet(LS_SET, rec); showSupportBtn(); paint(); body.querySelector('#npl-msg').textContent = '✅ Đã lưu'; });
           }).catch(function (e) { btn.disabled = false; body.querySelector('#npl-msg').textContent = 'Lỗi: ' + (e.code || e.message); });
         };
@@ -358,13 +395,13 @@
           .catch(function (er) { sk.disabled = false; alert('Lỗi: ' + (er.code || er.message)); });
         return;
       }
-      if (plus) { plus.disabled = true; setRole(uid, 'pro', true).then(paint).catch(function (er) { plus.disabled = false; alert('Lỗi: ' + (er.code || er.message)); }); }
+      if (plus) { plus.disabled = true; var pu = uOf(uid) || {}; setRole(uid, pu.tier === 'pro' ? 'pro' : 'astra', 1).then(paint).catch(function (er) { plus.disabled = false; alert('Lỗi: ' + (er.code || er.message)); }); }
     });
     body.addEventListener('change', function (e) {
       var sel = e.target.closest('[data-role]'); if (!sel) return;
       var uid = sel.closest('.npl-row').dataset.uid; sel.disabled = true;
       var nv = sel.value;
-      setRole(uid, nv, false).then(function () { paint(); pill(nv === 'student' ? '🎓 Đã chuyển sang nhóm Học sinh' : nv === 'pro' ? '⭐ Đã lên Pro (nhóm User, xếp đầu)' : '👤 Đã chuyển sang nhóm User', 2500); }).catch(function (er) { sel.disabled = false; alert('Lỗi: ' + (er.code || er.message)); });
+      setRole(uid, nv, false).then(function () { paint(); pill(nv === 'student' ? '🎓 Đã chuyển sang nhóm Học sinh' : nv === 'pro' || nv === 'astra' ? '⭐ Đã lên ' + ROLE_LABEL[nv] + ' (nhóm User, xếp đầu)' : '👤 Đã chuyển sang nhóm User', 2500); }).catch(function (er) { sel.disabled = false; alert('Lỗi: ' + (er.code || er.message)); });
     });
     fb().then(function (x) { o = x; return boot(); }).then(load).then(paint).catch(function (e) { body.innerHTML = '<p class="npl-note">Không tải được (' + esc(e.code || e.message) + '). Kiểm tra Firestore rules (xem apps-script/ai-proxy/Code.gs).</p>'; });
   }
@@ -378,7 +415,7 @@
   function pill(html, ms) {
     css();
     var el = document.getElementById('npl-pill');
-    if (!el) { el = document.createElement('div'); el.id = 'npl-pill'; el.className = 'npl-pill'; document.body.appendChild(el); el.addEventListener('click', function (e) { if (e.target.closest('a')) openUpgrade(); }); }
+    if (!el) { el = document.createElement('div'); el.id = 'npl-pill'; el.className = 'npl-pill'; document.body.appendChild(el); el.addEventListener('click', function (e) { if (e.target.closest('a')) openUpgrade('', 'pro'); }); }
     el.innerHTML = html; el.style.opacity = '1';
     clearTimeout(pillT); pillT = setTimeout(function () { el.style.opacity = '0'; setTimeout(function () { if (el.style.opacity === '0') el.remove(); }, 450); }, ms || 6000);
   }
@@ -432,14 +469,14 @@
   /* Dòng nhắc thay cho "Chưa cấu hình API key" khi tài khoản User đang dùng AI miễn phí */
   function freeHint() {
     return '<div class="groq-missing" style="background:#FFF7ED;color:#9A3412;border-color:#FED7AA">🎁 Bạn đang dùng <b>AI miễn phí</b>: 5 phút mỗi 5 tiếng. ' +
-      '<button type="button" class="ni-nav-btn" style="padding:4px 10px;font-size:11px;" onclick="NightPlan.openUpgrade()">⭐ Nâng cấp Pro</button></div>';
+      '<button type="button" class="ni-nav-btn" style="padding:4px 10px;font-size:11px;" onclick="NightPlan.openUpgrade(\'\', \'pro\')">⭐ Nâng cấp Pro</button></div>';
   }
 
   window.NightPlan = {
     FREE_LESSONS: FREE_LESSONS, init: boot, role: role, effRole: effRole, me: function () { return me; }, settings: function () { return settings; },
     freeOK: freeOK, courseAccess: courseAccess, lessonFree: lessonFree,
     openUpgrade: openUpgrade, openAdmin: openAdmin, pendingCount: pendingCount,
-    groqFetch: groqFetch, freeHint: freeHint, payCode: payCode, siteRoot: siteRoot
+    groqFetch: groqFetch, freeHint: freeHint, payCode: payCode, siteRoot: siteRoot, tierOf: tierOf, planName: planName, planPrice: planPrice
   };
   /* Nút "Góp ý · Khiếu nại" -> mở Zalo của thầy (số nhập trong 👑 Tài khoản → Cài đặt) */
   function zaloNum() { var z = String((settings && settings.zalo) || '').replace(/[^0-9]/g, ''); return z.length >= 9 ? z : ''; }

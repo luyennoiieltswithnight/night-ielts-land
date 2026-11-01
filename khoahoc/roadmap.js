@@ -267,16 +267,16 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
   function lockFree(root, ctx, NP) {
     const freeN = ctx.freeN || NP.FREE_N || 3, stu = ctx.plan === "student";
     const slot = root.querySelector("#rm-teacher");
-    if (slot && !root.querySelector(".rm-free")) slot.insertAdjacentHTML("beforebegin", `<div class="rm-free" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:22px;padding:14px 16px;margin:0 0 16px;color:#9A3412;font-size:14px;line-height:1.5"><span style="flex:1;min-width:220px">🎁 ${stu ? "Bạn chưa được thêm vào khoá này, đang" : "Bạn đang"} <b>học thử ${freeN} buổi đầu</b>. Nâng cấp <b>⭐ Pro 99k/tháng</b> để mở toàn bộ buổi của mọi khoá.</span><button type="button" class="rm-pro" style="border:0;cursor:pointer;background:linear-gradient(135deg,#F59E0B,#EA580C);color:#fff;font:800 13px inherit;font-family:inherit;padding:10px 16px;border-radius:999px">⭐ Nâng cấp Pro</button></div>`);
+    if (slot && !root.querySelector(".rm-free")) slot.insertAdjacentHTML("beforebegin", `<div class="rm-free" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:22px;padding:14px 16px;margin:0 0 16px;color:#9A3412;font-size:14px;line-height:1.5"><span style="flex:1;min-width:220px">🎁 ${stu ? "Bạn chưa được thêm vào khoá này, đang" : "Bạn đang"} <b>học thử ${freeN} buổi đầu</b>. Nâng cấp gói <b>🌟 Astra</b> để mở toàn bộ buổi của mọi khoá.</span><button type="button" class="rm-pro" style="border:0;cursor:pointer;background:linear-gradient(135deg,#F59E0B,#EA580C);color:#fff;font:800 13px inherit;font-family:inherit;padding:10px 16px;border-radius:999px">🌟 Xem gói Astra</button></div>`);
     const paint = () => root.querySelectorAll(".rm-s").forEach((el) => {
       if (+el.dataset.n <= freeN) return;
       const a = el.querySelector(".rm-go"); if (!a) return;
-      a.outerHTML = `<button type="button" class="rm-go rm-pro" style="border:0;cursor:pointer;font-family:inherit;background:#24242A;color:#fff">🔒 Pro</button>`;
+      a.outerHTML = `<button type="button" class="rm-go rm-pro" style="border:0;cursor:pointer;font-family:inherit;background:#24242A;color:#fff">🔒 Astra</button>`;
     });
     paint(); setTimeout(paint, 1500);
     if (!root.__proWired) {
       root.__proWired = true;
-      root.addEventListener("click", (e) => { if (e.target.closest(".rm-pro")) NP.loadPlan().then((P) => P && P.openUpgrade()); });
+      root.addEventListener("click", (e) => { if (e.target.closest(".rm-pro")) NP.loadPlan().then((P) => P && P.openUpgrade('', 'astra')); });
     }
   }
   function teacherPanel(cfg, root, docs, students, ctx, NP) {
