@@ -318,9 +318,8 @@
         var nStu = users.filter(isStu).length, nUsr = users.length - nStu;
         var nPro = users.filter(function (u) { return effRole(u) === 'pro'; }).length;
         body.innerHTML = '<div class="npl-seg"><button data-seg="stu"' + (seg === 'stu' ? ' class="on"' : '') + '>🎓 Học sinh <span>' + nStu + '</span></button><button data-seg="usr"' + (seg === 'usr' ? ' class="on"' : '') + '>👤 User <span>' + nUsr + '</span>' + (nPro ? '<em>⭐ ' + nPro + ' Pro</em>' : '') + '</button></div>' +
-          '<input class="npl-inp" id="npl-q" type="search" name="npl-find-' + Date.now() + '" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Tìm tên hoặc Gmail…" value="' + esc(q) + '" style="width:100%;margin-bottom:10px"><div id="npl-list"></div>';
-        var qi = body.querySelector('#npl-q'), tmr = null;
-        qi.oninput = function () { clearTimeout(tmr); tmr = setTimeout(function () { q = qi.value.trim().toLowerCase(); shown = PAGE; paintList(); }, 180); };
+          '<div id="npl-list"></div>';
+        q = '';
         paintList();
       } else {
         var s = settings || {};
