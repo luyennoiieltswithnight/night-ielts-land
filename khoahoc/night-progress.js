@@ -329,7 +329,7 @@
     var fs = ctx.o.fs, db = ctx.o.db;
     return Promise.all([
       fs.getDocs(fs.query(fs.collection(db, COL), fs.where('courseKey', '==', courseKey))).then(function (sn) { var a = []; sn.forEach(function (d) { a.push(d.data()); }); return a; }),
-      fs.getDocs(fs.query(fs.collection(db, 'users'), fs.where('role', '==', 'student'))).then(function (sn) { var a = []; sn.forEach(function (d) { var u = d.data(); u.uid = d.id; a.push(u); }); return a; }).catch(function () { return []; })
+      fs.getDocs(fs.query(fs.collection(db, 'users'), fs.where('role', 'in', ['student', 'pro']))).then(function (sn) { var a = []; sn.forEach(function (d) { var u = d.data(); u.uid = d.id; a.push(u); }); return a; }).catch(function () { return []; })
     ]).then(function (r) { return { docs: r[0], students: r[1] }; });
   }
 

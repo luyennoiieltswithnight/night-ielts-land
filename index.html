@@ -3394,7 +3394,7 @@
             select.innerHTML = '<option value="">-- Đang tải danh sách học sinh... --</option>';
             classSelect.innerHTML = '<option value="">-- Đang tải danh sách lớp... --</option>';
 
-            const q = query(collection(db, "users"), where("role", "==", "student"));
+            const q = query(collection(db, "users"), where('role', 'in', ['student', 'pro']));
             const snap = await getDocs(q);
             select.innerHTML = '<option value="">-- Chọn học sinh --</option>';
             snap.forEach(doc => {
@@ -3687,7 +3687,7 @@
                 const sig = JSON.stringify(rows.map(r => [r.id, r.isDone, r.isNew, r.percent, r.status, r.doneCount])) + JSON.stringify(students.map(s => [s.studentId, s.docUrl]));
                 if (sig !== __progSig) { __progSig = sig; if (onUpdate) onUpdate(); }
             };
-            const pS = swrDocs(query(collection(db, "users"), where("role", "==", "student")), snap => {
+            const pS = swrDocs(query(collection(db, "users"), where('role', 'in', ['student', 'pro'])), snap => {
                 const m = {}; snap.forEach(d => { m[d.id] = d.data(); }); __progStudents = m; build();
             });
             const pA = swrDocs(collection(db, "assignments"), (snap, fromCache) => {
@@ -4036,7 +4036,7 @@
 
         async function ensureStudentsCache() {
             if (__allStudentsCache) return __allStudentsCache;
-            const snap = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
+            const snap = await getDocs(query(collection(db, 'users'), where('role', 'in', ['student', 'pro'])));
             const list = [];
             snap.forEach(d => list.push(Object.assign({ id: d.id }, d.data())));
             list.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi'));
@@ -5072,7 +5072,7 @@
 
         async function loadHwStudents() {
             try {
-                const us = await getDocs(query(collection(db, 'users'), where('role', '==', 'student')));
+                const us = await getDocs(query(collection(db, 'users'), where('role', 'in', ['student', 'pro'])));
                 HW.students = []; us.forEach(d => { const x = d.data(); HW.students.push({ id: d.id, name: x.name || x.email || d.id, email: x.email || '', hwDocUrl: x.hwDocUrl || '' }); });
                 HW.students.sort((a, b) => (!!b.hwDocUrl - !!a.hwDocUrl) || a.name.localeCompare(b.name, 'vi'));
                 paintStuSelect();

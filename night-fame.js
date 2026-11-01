@@ -559,7 +559,7 @@
   }
   function pickSotw(o) {
     var ov = sheet('Học sinh của tuần', '<p style="color:#6B6B78">Đang tải danh sách…</p>'), body = ov.querySelector('.nf-body');
-    o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'users'), o.fs.where('role', '==', 'student'))).then(function (s) {
+    o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'users'), o.fs.where('role', 'in', ['student', 'pro']))).then(function (s) {
       var us = []; s.forEach(function (d) { var x = d.data(); x.uid = d.id; us.push(x); }); us.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
       body.innerHTML = '<select class="nf-inp" id="nf-su">' + us.map(function (x) { return '<option value="' + esc(x.uid) + '">' + esc(x.name || x.email) + '</option>'; }).join('') + '</select>' +
         '<input class="nf-inp" id="nf-sn" maxlength="90" placeholder="Lời khen (vd: Check-in 7/7 ngày, Speaking lên 6.5 🔥)">' +
