@@ -176,10 +176,10 @@
     '.nf-kind{display:inline-block;background:rgba(255,255,255,.14);border-radius:999px;padding:6px 14px;font-weight:800;font-size:13px;letter-spacing:.04em}' +
     '.nf-big{font-size:96px;line-height:1;font-weight:800;margin:14px 0 4px;color:#FFD38A;animation:nfGlow 2.4s ease infinite}' +
     '.nf-big.sm{font-size:64px}.nf-t{font-size:16px;opacity:.85;margin:0 0 14px;line-height:1.45}' +
-    '.nf-stk{width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 12px 24px rgba(0,0,0,.35))}' +
+    '.nf-stk{display:block;margin:8px auto 0;width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 12px 24px rgba(0,0,0,.35))}' +
     '.nf-cap{font-size:20px;font-weight:800;line-height:1.35;margin:10px 0 14px}' +
     '.nf-chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}.nf-chip{background:rgba(255,255,255,.14);border-radius:999px;padding:7px 12px;font-weight:800;font-size:13px}' +
-    '.nf-badge{display:flex;align-items:center;gap:10px;text-align:left;background:#fff;color:#24242A;border-radius:18px;padding:8px 12px;margin:0 auto 8px;max-width:340px}.nf-badge img{width:44px;height:44px;object-fit:contain}.nf-badge small{display:block;font-weight:800;font-size:11px}.nf-badge b{font-size:14px}' +
+    '.nf-badge{display:flex;align-items:center;gap:10px;text-align:left;background:#fff;color:#24242A;border-radius:18px;padding:8px 12px;margin:0 auto 8px;max-width:340px}.nf-badge img{display:block;flex:none;width:44px;height:44px;object-fit:contain}.nf-badge small{display:block;font-weight:800;font-size:11px}.nf-badge b{font-size:14px}' +
     '.nf-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:6px}.nf-btn{border:0;cursor:pointer;font:800 14px inherit;font-family:inherit;padding:12px 18px;border-radius:999px;background:#fff;color:#24242A}.nf-btn.gold{background:linear-gradient(135deg,#F59E0B,#EA580C);color:#fff}.nf-btn.ghost{background:rgba(255,255,255,.14);color:#fff}' +
     '.nf-conf{position:fixed;inset:0;pointer-events:none;z-index:100061}' +
     /* hộp thoại sáng (tường lớp, huy hiệu) */
