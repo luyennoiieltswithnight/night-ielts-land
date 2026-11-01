@@ -2077,8 +2077,25 @@ Is it better to read a physical book or an e-book?"></textarea>
   function conf(x) { x = String(x || '').toLowerCase(); return x === 'high' || x === 'medium' || x === 'low' ? x : 'low'; }
   function strList(a, n) { return (Array.isArray(a) ? a : []).map(function (x) { return String(x || '').trim(); }).filter(Boolean).slice(0, n || 6); }
   // pronAvailable=false: bỏ qua mọi điểm Phát âm AI trả về (không cho đoán phát âm từ văn bản)
+  // AI đôi khi đổi tên khoá ("Fluency & Coherence", "lexical_resource"...) hoặc bỏ lớp "criteria" -> gom về 4 khoá chuẩn
+  function canonCriteria(parsed) {
+    var src = parsed.criteria && typeof parsed.criteria === 'object' ? parsed.criteria : parsed, out = {};
+    Object.keys(src || {}).forEach(function (key) {
+      var v = src[key]; if (!v || typeof v !== 'object' || Array.isArray(v)) return;
+      if (!('checks' in v) && !('band' in v) && !('feedback' in v)) return;
+      var k = /^(flu|fc|coh)/i.test(key) ? 'fluency' : /^(lex|lr|voc)/i.test(key) ? 'lexical' : /^(gra|gr)/i.test(key) ? 'grammar' : /^(pro|pr)/i.test(key) ? 'pronunciation' : null;
+      if (k && !out[k]) out[k] = v;
+    });
+    // checks dạng mảng chuỗi "F4a:y" -> object
+    Object.keys(out).forEach(function (k) {
+      var c = out[k].checks;
+      if (Array.isArray(c) && c.length && typeof c[0] === 'string') { var o = {}; c.forEach(function (x) { var m = String(x).match(/^\s*([A-Za-z]\d[a-z])\s*[:=]\s*(\S+)/); if (m) o[m[1]] = m[2]; }); out[k].checks = o; }
+    });
+    return out;
+  }
   function normalizeScoring(parsed, pronAvailable, pronConfCap, pronEv) {
     parsed = parsed || {};
+    parsed.criteria = canonCriteria(parsed);
     var crit = {};
     CRITS.forEach(function (k) {
       var c = (parsed.criteria && parsed.criteria[k]) || {};
@@ -2179,7 +2196,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     encodeWav16: encodeWav16, opTokens: opTokens, planPronChunks: planPronChunks, mapPronErrors: mapPronErrors, aggregateOpenPronounce: aggregateOpenPronounce, OP_MAX_SEC: OP_MAX_SEC,
     finalSibilant: finalSibilant, noiseFloor16: noiseFloor16, wantsFinalS: wantsFinalS, speechFindings: speechFindings,
     phoneticKey: phoneticKey, phonSim: phonSim, pronDiffs: pronDiffs, prosodyByWords: prosodyByWords, groqPronEvidence: groqPronEvidence,
-    pronAutoTicks: pronAutoTicks, fillPronChecks: fillPronChecks,
+    pronAutoTicks: pronAutoTicks, fillPronChecks: fillPronChecks, canonCriteria: canonCriteria,
     linkerStats: linkerStats, repetitionStats: repetitionStats, bankKey: bankKey, bankMerge: bankMerge, bankMarkUsed: bankMarkUsed, recurringEdits: recurringEdits,
     CHECKLIST: CHECKLIST, filterPronFlags: filterPronFlags, WEAK_FORM_WORDS: WEAK_FORM_WORDS, checklistBand: checklistBand, normChecks: normChecks, checklistPromptText: checklistPromptText,
     normalizeScoring: normalizeScoring, spCrit: spCrit, agreement: agreement
@@ -4334,7 +4351,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       }
       lap('llm', tL);
       // AI đôi khi bỏ sót cả 1 tiêu chí (thường là Ngữ pháp, khi bài dài) -> chấm bù riêng tiêu chí đó, gọn
-      const missing = ['fluency', 'lexical', 'grammar'].filter(k => { const c = parsed && parsed.criteria && parsed.criteria[k]; return !c || !c.checks || !Object.keys(c.checks).length; });
+      if (parsed) parsed.criteria = SPCore.canonCriteria(parsed);
+      const missing = ['fluency', 'lexical', 'grammar'].filter(k => { const c = parsed && parsed.criteria && parsed.criteria[k]; return !c || ((!c.checks || !Object.keys(c.checks).length) && !(Number(c.band) > 0)); });
       if (missing.length) {
         spinnerMsg.textContent = 'AI đang chấm nốt ' + missing.map(k => SP_SHORT[k]).join(', ') + '...';
         try {
@@ -4343,12 +4361,14 @@ Is it better to read a physical book or an e-book?"></textarea>
             userMsg
           ], { model: SPCore.ENGINE.llmFallback, temperature: 0, maxTokens: 2500, json: true, timeoutMs: 60000, noRetry: true });
           parsed.criteria = parsed.criteria || {};
-          missing.forEach(k => { if (extra && extra.criteria && extra.criteria[k]) parsed.criteria[k] = extra.criteria[k]; });
+          const ex = extra ? SPCore.canonCriteria(extra) : {};
+          missing.forEach(k => { if (ex[k]) parsed.criteria[k] = ex[k]; });
         } catch (e) { console.warn('Chấm bù tiêu chí lỗi:', e); }
       }
       const norm = SPCore.normalizeScoring(parsed, true, pron.strength === 'groq_intent' ? 'medium' : 'low', evidence.pronunciation_evidence);
       // Vẫn thiếu: ước tính tạm từ các tiêu chí còn lại để không bị trống điểm tổng
       const have = ['fluency', 'lexical', 'grammar'].map(k => norm.criteria[k].band).filter(b => b != null);
+      if (!have.length) throw new Error('AI chưa chấm xong bài này, bạn bấm "Chấm điểm" lại nhé (bài ghi âm vẫn được giữ).');
       ['fluency', 'lexical', 'grammar'].forEach(k => {
         const c = norm.criteria[k];
         if (c.band == null && have.length) {
