@@ -373,7 +373,7 @@
             var t = ts && ts.exists() ? ts.data() : {};
             var plans = {}; ['pro', 'astra'].forEach(function (k) { plans[k] = {}; MONTHS.forEach(function (m) { plans[k][m] = Number(body.querySelector('[data-pp="' + k + m + '"]').value) || PLAN_DEF[k].prices[m]; }); });
             var rec = { plans: plans, price: plans.astra[1], aiProxy: body.querySelector('#npl-proxy').value.trim(), zalo: body.querySelector('#npl-zalo').value.replace(/[^0-9]/g, ''), bank: t.bank || s.bank || '', acc: t.acc || s.acc || '', holder: t.holder || s.holder || '', qr: t.qr || s.qr || '', updatedAt: Date.now() };
-            return o.fs.setDoc(o.fs.doc(o.db, 'publicSettings', 'main'), rec).then(function () { settings = rec; lsSet(LS_SET, rec); showSupportBtn(); paint(); body.querySelector('#npl-msg').textContent = '✅ Đã lưu'; });
+            return o.fs.setDoc(o.fs.doc(o.db, 'publicSettings', 'main'), rec, { merge: true }).then(function () { settings = Object.assign({}, settings, rec); lsSet(LS_SET, rec); showSupportBtn(); paint(); body.querySelector('#npl-msg').textContent = '✅ Đã lưu'; });
           }).catch(function (e) { btn.disabled = false; body.querySelector('#npl-msg').textContent = 'Lỗi: ' + (e.code || e.message); });
         };
       }

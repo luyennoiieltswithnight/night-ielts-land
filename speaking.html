@@ -105,6 +105,8 @@ textarea.ni-input{line-height:1.5;}
 .sheet > .sheet-sec:first-child{border-top:0;}
 @media (max-width:640px){ .sheet-sec{padding:20px 18px;} }
 .sec-h{font-size:15px;font-weight:700;color:var(--ink);margin:0 0 16px;}
+.real-cta{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin:0 0 18px;padding:14px 16px;border:1.5px dashed #A5B4FC;border-radius:18px;background:#EEF2FF;color:#312E81;font:inherit;cursor:pointer}.real-cta>span:first-child{font-size:24px}.real-cta b{display:block;font-size:14.5px}.real-cta small{display:block;font-size:12.5px;opacity:.8;margin-top:2px}.real-cta i{margin-left:auto;opacity:.5}
+.rs-ov{position:fixed;inset:0;z-index:70;background:rgba(20,20,30,.5);display:flex;align-items:center;justify-content:center;padding:14px}.rs-box{background:#fff;border-radius:22px;padding:20px;width:100%;max-width:560px;max-height:92vh;overflow:auto;font-size:14px}.rs-box h3{margin:0 0 4px;font-size:18px;font-weight:800}.rs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:12px 0}.rs-grid label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--ink-2)}.rs-grid select,.rs-grid input{padding:8px;border:1.5px solid var(--rule);border-radius:10px;font:inherit}.rs-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}.rs-tbl th,.rs-tbl td{padding:6px 4px;border-bottom:1px solid var(--rule);text-align:center}.rs-tbl td:first-child,.rs-tbl th:first-child{text-align:left}
 details.fold>summary{cursor:pointer;list-style:none;margin:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}details.fold>summary::-webkit-details-marker{display:none}details.fold>summary:before{content:"▸";color:var(--ink-3);transition:transform .2s}details.fold[open]>summary:before{transform:rotate(90deg)}details.fold[open]>summary{margin-bottom:16px}details.fold>summary small{font-weight:500;font-size:12.5px;color:var(--ink-3)}
 .res-more{margin-top:10px;font-size:13px}.res-more>summary{cursor:pointer;color:var(--ink-3);font-weight:600}.res-more[open]>summary{margin-bottom:8px}
 
@@ -605,7 +607,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 #studentHomeView .ni-panel-label:before{content:"";width:12px;height:12px;border-radius:999px;background:var(--peach);flex:none}
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
-<script src="night-plan.js?v=20261101g"></script>
+<script src="night-plan.js?v=20261101h"></script>
 <script src="night-fame.js?v=20261028d"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -682,6 +684,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
           <button type="button" id="spTabPkgBtn" onclick="switchSpTab('pkg')" class="ni-tab-btn active">📦 Bộ câu hỏi</button>
           <button type="button" id="spTabAssignBtn" onclick="switchSpTab('assign')" class="ni-tab-btn">📨 Giao bài &amp; Kết quả <span id="spResultsBadge" class="hidden ni-tab-count">0</span></button>
           <button type="button" id="spTabPracticeBtn" onclick="switchSpTab('practice')" class="ni-tab-btn">🎙️ Tự luyện</button>
+          <button type="button" onclick="openCalib()" class="ni-tab-btn">🎯 Điểm thật &amp; hiệu chỉnh</button>
         </div>
       </div>
 
@@ -802,6 +805,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         <span class="sp-spark s1">✦</span><span class="sp-spark s2">★</span>
       </div>
       <p class="ni-instruction mb-4">Chọn 1 bộ câu hỏi bất kỳ để luyện tự do, hoặc làm đúng bộ đã được giao cho bạn.</p>
+      <button type="button" class="real-cta" onclick="openRealScore()"><span>🎯</span><span><b>Bạn đã thi IELTS thật?</b><small>Nhập điểm Speaking thật để so với điểm AI, giúp Night IELTS chấm sát hơn cho mọi người</small></span><i class="fa-solid fa-chevron-right"></i></button>
 
       <div class="ni-panel-label px-1">Bài được giao</div>
       <div id="spAssignedList" class="mb-6"><p class="font-semibold text-center py-6" style="color:var(--border-color);opacity:.6;">Đang tải...</p></div>
@@ -3001,7 +3005,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         snap.forEach(d => {
           const a = d.data();
           if (a.expiresAt && now > a.expiresAt) { if (!fromCache) deleteDoc(doc(db, 'speakingAttempts', d.id)).catch(() => {}); return; }
-          if (a.kind === 'audioChunk') return;
+          if (a.kind === 'audioChunk' || a.kind === 'realScore') return;
           items.push(Object.assign({ id: d.id }, a));
         });
         const sig = items.map(x => x.id).join('|');
@@ -3144,7 +3148,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     // Tiến độ: mỗi bộ đã làm bao nhiêu câu (đếm theo câu khác nhau đã có ít nhất 1 lần làm)
     __spDoneByPkg = {};
     const pC = (async () => {
-      const take = (snap) => { const m = {}; snap.forEach(d => { const a = d.data(); if (a.kind && a.kind !== 'attempt') return; if (!a.packageId || !a.questionId) return; (m[a.packageId] = m[a.packageId] || {})[a.questionId] = 1; }); __spDoneByPkg = m; paint(); };
+      const take = (snap) => { const m = {}; __spMyAttempts = []; snap.forEach(d => { const a = d.data(); if (a.kind && a.kind !== 'attempt') return; if (!a.packageId || !a.questionId) return; (m[a.packageId] = m[a.packageId] || {})[a.questionId] = 1; if (a.scores) __spMyAttempts.push({ q: a.questionId, t: Number(a.createdAt) || 0, s: a.scores }); }); __spDoneByPkg = m; paint(); };
       try { take(await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid), where('kind', '==', 'attempt')))); }
       catch (e) { try { take(await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid)))); } catch (e2) {} }
     })();
@@ -3162,7 +3166,77 @@ Is it better to read a physical book or an e-book?"></textarea>
     }).catch(() => {});
     await Promise.all([pA, pB, pC]);
   }
-  let __spDoneByPkg = {};
+  let __spDoneByPkg = {}, __spMyAttempts = [];
+  // ==========================================
+  // ĐIỂM THI THẬT -> HIỆU CHỈNH CHẤM AI
+  // Học sinh nhập điểm Speaking thật; web chụp lại điểm AI ước tính cả bài nói lúc đó (lần mới nhất mỗi câu,
+  // trong 90 ngày). Thầy xem bảng so sánh, bấm "Áp dụng" -> mỗi tiêu chí được cộng/trừ độ lệch trung bình.
+  // ==========================================
+  const RS_CRIT = ['fluency', 'lexical', 'grammar', 'pronunciation'];
+  function aiSnapshot(list) {
+    const since = Date.now() - 90 * 86400000, last = {};
+    (list || []).filter(a => a.t >= since).forEach(a => { if (!last[a.q] || a.t > last[a.q].t) last[a.q] = a; });
+    const L = Object.values(last), out = { n: L.length };
+    RS_CRIT.forEach(k => { const v = L.map(a => a.s[k]).filter(x => typeof x === 'number'); out[k] = v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2) : null; });
+    out.overall = SPCore.overallBand(out);
+    return out;
+  }
+  function rsModal(html) { const ov = document.createElement('div'); ov.className = 'rs-ov'; ov.innerHTML = '<div class="rs-box">' + html + '</div>'; ov.onclick = e => { if (e.target === ov || e.target.closest('[data-x]')) ov.remove(); }; document.body.appendChild(ov); return ov; }
+  const bandOpts = (sel) => '<option value="">–</option>' + Array.from({ length: 19 }, (_, i) => i / 2).reverse().filter(b => b >= 3).map(b => '<option' + (sel === b ? ' selected' : '') + '>' + b.toFixed(1) + '</option>').join('');
+  window.openRealScore = function () {
+    const snap = aiSnapshot(__spMyAttempts);
+    const ov = rsModal('<h3>🎯 Nhập điểm Speaking thi thật</h3><p style="color:var(--ink-2);margin:0">Điểm này chỉ dùng để so với điểm AI, giúp chấm sát điểm thi hơn. Nhập đúng như trên phiếu điểm nhé.</p>' +
+      '<div class="rs-grid"><label>Ngày thi<input type="date" id="rsDate"></label><label>Speaking (tổng)<select id="rs_overall">' + bandOpts() + '</select></label></div>' +
+      '<p style="margin:0;font-weight:700;font-size:13px">Điểm từng tiêu chí (nếu biết)</p><div class="rs-grid">' + RS_CRIT.map(k => '<label>' + SP_SHORT[k] + '<select id="rs_' + k + '">' + bandOpts() + '</select></label>').join('') + '</div>' +
+      '<p style="font-size:12.5px;color:var(--ink-3)">' + (snap.n ? 'Điểm AI ước tính cả bài nói của bạn lúc này: <b>' + (snap.overall != null ? snap.overall.toFixed(1) : '–') + '</b> (từ ' + snap.n + ' câu làm trong 90 ngày).' : 'Bạn chưa làm câu nào trên web trong 90 ngày qua, nên chưa có điểm AI để so.') + '</p>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="ni-nav-btn" data-x>Huỷ</button><button type="button" class="ni-submit-btn" id="rsSave">Gửi điểm</button></div>');
+    ov.querySelector('#rsSave').onclick = async function () {
+      const real = {}; ['overall'].concat(RS_CRIT).forEach(k => { const v = ov.querySelector('#rs_' + k).value; real[k] = v ? Number(v) : null; });
+      if (real.overall == null) { alert('Chọn điểm Speaking tổng nhé.'); return; }
+      this.disabled = true; this.textContent = 'Đang gửi...';
+      const uid = window.__currentUid, id = 'real_' + uid + '_' + Date.now();
+      try {
+        await setDoc(doc(db, 'speakingAttempts', id), { kind: 'realScore', studentId: uid, studentName: (__names && __names[uid]) || '', real: real, ai: snap, testDate: ov.querySelector('#rsDate').value || '', createdAt: Date.now() });
+        ov.querySelector('.rs-box').innerHTML = '<h3>✅ Cảm ơn bạn!</h3><p>Night IELTS đã nhận điểm thi thật' + (snap.overall != null ? ': thật <b>' + real.overall.toFixed(1) + '</b> · AI ước tính <b>' + snap.overall.toFixed(1) + '</b>' : '') + '. Điểm này giúp AI chấm sát hơn cho mọi người.</p><div style="text-align:right"><button type="button" class="ni-submit-btn" data-x>Đóng</button></div>';
+      } catch (e) { this.disabled = false; this.textContent = 'Gửi điểm'; alert('Chưa gửi được (' + (e.code || e.message) + '). Nhắn Night IELTS giúp nhé.'); }
+    };
+  };
+  // Độ lệch đang áp dụng (thầy lưu trong publicSettings/main.speakingCalib)
+  let __calib = null;
+  async function loadCalib() {
+    if (__calib) return __calib;
+    try { const d = await getDoc(doc(db, 'publicSettings', 'main')); __calib = (d.exists() && d.data().speakingCalib) || {}; } catch (e) { __calib = {}; }
+    return __calib;
+  }
+  window.openCalib = async function () {
+    const ov = rsModal('<h3>🎯 Điểm thi thật &amp; hiệu chỉnh AI</h3><p>Đang tải…</p>');
+    const box = ov.querySelector('.rs-box');
+    let rows = [];
+    try { const sn = await getDocs(query(collection(db, 'speakingAttempts'), where('kind', '==', 'realScore'))); sn.forEach(d => rows.push(Object.assign({ id: d.id }, d.data()))); }
+    catch (e) { box.innerHTML = '<h3>Không tải được</h3><p>' + escapeHtml(e.code || e.message) + '</p>'; return; }
+    rows.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const cur = await loadCalib(), off = {}, stat = {};
+    ['overall'].concat(RS_CRIT).forEach(k => {
+      const pairs = rows.filter(r => r.real && r.ai && typeof r.real[k] === 'number' && typeof r.ai[k] === 'number').map(r => ({ ai: Math.round(r.ai[k] * 2) / 2, human: r.real[k], d: r.real[k] - r.ai[k] }));
+      stat[k] = Object.assign(SPCore.agreement(pairs), { bias: pairs.length ? pairs.reduce((a, p) => a + p.d, 0) / pairs.length : 0 });
+      if (k !== 'overall') off[k] = pairs.length >= 3 ? Math.max(-1.5, Math.min(1.5, Math.round(stat[k].bias * 4) / 4)) : 0;
+    });
+    // Tiêu chí chưa có điểm riêng: dùng độ lệch của điểm tổng
+    RS_CRIT.forEach(k => { if (!(stat[k].n >= 3) && stat.overall.n >= 3) off[k] = Math.max(-1.5, Math.min(1.5, Math.round(stat.overall.bias * 4) / 4)); });
+    const f = x => (x > 0 ? '+' : '') + x.toFixed(2);
+    box.innerHTML = '<h3>🎯 Điểm thi thật &amp; hiệu chỉnh AI</h3>' +
+      '<p style="color:var(--ink-2)">' + rows.length + ' học sinh đã gửi điểm thi thật. Độ lệch = điểm thật − điểm AI (dương: AI chấm thấp hơn thật). Cần ít nhất 3 điểm mỗi tiêu chí mới hiệu chỉnh.</p>' +
+      '<table class="rs-tbl"><tr><th>Tiêu chí</th><th>Số điểm</th><th>Lệch TB</th><th>Sai số TB</th><th>Lệch ≤0.5</th><th>Đề xuất</th><th>Đang dùng</th></tr>' +
+      ['overall'].concat(RS_CRIT).map(k => { const st = stat[k]; return '<tr><td><b>' + (k === 'overall' ? 'Tổng' : SP_SHORT[k]) + '</b></td><td>' + (st.n || 0) + '</td><td>' + (st.n ? f(st.bias) : '–') + '</td><td>' + (st.n ? st.mae.toFixed(2) : '–') + '</td><td>' + (st.n ? Math.round(st.within05 * 100) + '%' : '–') + '</td><td>' + (k === 'overall' ? '' : f(off[k])) + '</td><td>' + (k === 'overall' ? '' : f(Number((cur.offsets || {})[k]) || 0)) + '</td></tr>'; }).join('') + '</table>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="ni-nav-btn" id="calOff">Tắt hiệu chỉnh</button><button type="button" class="ni-submit-btn" id="calOn">Áp dụng đề xuất</button></div>' +
+      '<p style="font-weight:800;margin:16px 0 6px">Danh sách</p><table class="rs-tbl"><tr><th>Học sinh</th><th>Ngày thi</th><th>Thật</th><th>AI</th><th>Số câu AI</th><th></th></tr>' +
+      rows.map(r => '<tr><td>' + escapeHtml(r.studentName || __names[r.studentId] || r.studentId || '') + '</td><td>' + escapeHtml(r.testDate || '') + '</td><td><b>' + (r.real && r.real.overall != null ? r.real.overall.toFixed(1) : '–') + '</b></td><td>' + (r.ai && r.ai.overall != null ? r.ai.overall.toFixed(1) : '–') + '</td><td>' + ((r.ai && r.ai.n) || 0) + '</td><td><button type="button" class="ni-nav-btn" data-del="' + r.id + '" style="padding:2px 8px">Xoá</button></td></tr>').join('') + '</table>' +
+      '<div style="text-align:right"><button type="button" class="ni-nav-btn" data-x>Đóng</button></div>';
+    const save = async (o) => { try { await setDoc(doc(db, 'publicSettings', 'main'), { speakingCalib: { offsets: o, n: rows.length, updatedAt: Date.now() } }, { merge: true }); __calib = null; alert('✅ Đã lưu. Các lần chấm từ giờ sẽ dùng mức hiệu chỉnh này.'); ov.remove(); } catch (e) { alert('Lỗi: ' + (e.code || e.message)); } };
+    box.querySelector('#calOn').onclick = () => save(off);
+    box.querySelector('#calOff').onclick = () => save({});
+    box.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => { if (!confirm('Xoá điểm này?')) return; await deleteDoc(doc(db, 'speakingAttempts', b.dataset.del)).catch(() => {}); ov.remove(); openCalib(); });
+  };
   const SP_COL = { '1': { c: '#4F46E5', bg: '#EEF2FF', soft: '#E0E7FF', ink: '#3730A3' }, '23': { c: '#EA580C', bg: '#FFF7ED', soft: '#FFEDD5', ink: '#9A3412' } };
   function spRing(done, total, k) {
     const col = SP_COL[k || '1'], pct = total ? Math.min(1, done / total) : 0, r = 21, c = 2 * Math.PI * r;
@@ -4093,6 +4167,15 @@ Is it better to read a physical book or an e-book?"></textarea>
           norm.scores[k] = c.band;
         }
       });
+      // Hiệu chỉnh theo điểm thi thật (thầy bấm Áp dụng trong "Điểm thật & hiệu chỉnh")
+      const cal = await loadCalib(), calApplied = {};
+      if (cal && cal.offsets) RS_CRIT.forEach(k => {
+        const o = Number(cal.offsets[k]) || 0, c = norm.criteria[k];
+        if (!o || !c || c.band == null) return;
+        const nb = Math.max(0, Math.min(9, Math.round((c.band + o) * 2) / 2));
+        if (nb !== c.band) { calApplied[k] = { from: c.band, to: nb }; c.band = nb; norm.scores[k] = nb; }
+      });
+      norm.calib = Object.keys(calApplied).length ? { applied: calApplied, n: cal.n || 0 } : null;
       norm.scores.overall = SPCore.overallBand(norm.scores);
       norm.scores.partial = norm.scores.overall == null ? SPCore.partialBand(norm.scores) : null;
 
@@ -4108,7 +4191,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         studentId: window.__currentUid, packageId: __pkg.id, packageTitle: __pkg.title,
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: norm.scores, criteria: norm.criteria, rubric: norm.rubric,
-        sampleAdequacy: norm.sampleAdequacy,
+        sampleAdequacy: norm.sampleAdequacy, calib: norm.calib || null,
         whyNotHigher: norm.whyNotHigher, edits: norm.edits,
         refinedAnswer: norm.refinedAnswer,
         refinementNotes: norm.refinementNotes,
@@ -4425,6 +4508,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const fUnc = (record.findings || []).filter(f => f.category === 'asr_disagreement' || (f.category === 'morphology' && f.status === 'uncertain'));
     if (fUnc.length) notes.push('Có ' + fUnc.length + ' chỗ 2 lần máy nghe ra khác nhau (vd. “' + escapeHtml(fUnc[0].asr) + '” / “' + escapeHtml(fUnc[0].alt || '') + '”). Các chỗ này không bị tính là lỗi của bạn.');
     if (record.asrUncertain && record.asrUncertain.length) notes.push('Máy nghe chưa chắc ở: “' + record.asrUncertain.slice(0, 2).join('”, “') + '”. Lỗi ở các đoạn này có thể do nhận dạng, không hẳn do bạn.');
+    if (record.calib && record.calib.applied) notes.push('Điểm đã được hiệu chỉnh theo ' + (record.calib.n || 'các') + ' điểm thi thật học viên gửi về (' + Object.keys(record.calib.applied).map(k => SP_SHORT[k] + ' ' + fmtBand(record.calib.applied[k].from) + ' → ' + fmtBand(record.calib.applied[k].to)).join(', ') + ').');
     qEl.classList.toggle('hidden', !notes.length);
     qEl.classList.remove('bad');
     qEl.innerHTML = notes.length ? '<b>Lưu ý độ tin cậy</b><ul>' + notes.map(n => '<li>' + escapeHtml(n) + '</li>').join('') + '</ul>' : '';
