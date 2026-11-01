@@ -2378,14 +2378,14 @@ Is it better to read a physical book or an e-book?"></textarea>
     }
     if (!res.ok) {
       const t = await res.text().catch(() => '');
-      if (res.status === 413 || (res.status === 429 && /tokens per minute|TPM/i.test(t))) throw new Error('Groq (gói miễn phí) đang hết lượt trong phút này. Đợi khoảng 1 phút rồi bấm lại nhé (bài ghi âm vẫn được giữ).');
-      if (res.status === 429) throw new Error('Groq đang giới hạn số lần gọi (gói miễn phí). Đợi một lát rồi bấm lại nhé.');
-      throw new Error('Groq lỗi HTTP ' + res.status + ': ' + t.slice(0, 200));
+      if (res.status === 413 || (res.status === 429 && /tokens per minute|TPM/i.test(t))) throw new Error('AI đang bận, bạn chờ khoảng 1 phút rồi bấm lại nhé (bài ghi âm vẫn được giữ).');
+      if (res.status === 429) throw new Error('AI đang bận, bạn chờ khoảng 1 phút rồi bấm lại nhé.');
+      { console.warn('AI HTTP', res.status, t.slice(0, 300)); throw new Error('AI đang gặp sự cố tạm thời, bạn chờ khoảng 1 phút rồi thử lại nhé.'); }
     }
     const data = await res.json();
     const ch = data.choices && data.choices[0];
     const content = ch && ch.message && ch.message.content;
-    if (!content) throw new Error(ch && ch.finish_reason === 'length' ? 'AI viết chưa xong thì hết lượt chữ, thử lại nhé.' : 'AI không trả lời, thử lại nhé.');
+    if (!content) throw new Error(ch && ch.finish_reason === 'length' ? 'AI chưa trả lời xong, bạn thử lại nhé.' : 'AI không trả lời, thử lại nhé.');
     return content;
   }
 
@@ -2410,7 +2410,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (res.status === 400) res = await withTimeout(send(false), 120000, 'Nhận dạng giọng nói quá lâu (mạng chậm?).');   // API không nhận verbose_json -> vẫn lấy chữ
     if (!res.ok) {
       const t = await res.text().catch(() => '');
-      throw new Error('Groq lỗi HTTP ' + res.status + ': ' + t.slice(0, 200));
+      { console.warn('AI HTTP', res.status, t.slice(0, 300)); throw new Error('AI đang gặp sự cố tạm thời, bạn chờ khoảng 1 phút rồi thử lại nhé.'); }
     }
     const data = await res.json();
     const words = (Array.isArray(data.words) ? data.words : []).map(w => ({ w: String(w.word || '').trim(), s: Number(w.start), e: Number(w.end) })).filter(w => w.w && isFinite(w.s) && isFinite(w.e));
@@ -2535,7 +2535,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         ], { temperature: 0.5, maxTokens: 4000, json: true, reasoning: 'low' });
       } catch (e) {
         console.warn('Gợi ý AI lỗi:', e);
-        throw new Error(/HTTP|hết lượt|không trả lời|API Key/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
+        throw new Error(/AI đang|AI chưa|AI của|không trả lời|API [Kk]ey|đăng nhập|Đăng nhập|miễn phí/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.');
       }
 
       document.getElementById('ideaVocabList').innerHTML = (parsed.vocabulary || []).map(v =>
@@ -3937,7 +3937,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const part = String(q.part || __pkg.part || '1');
     const T0 = performance.now(), tm = {};
     const lap = (k, t) => { tm[k] = +((performance.now() - t) / 1000).toFixed(1); };
-    window.__onGroqWait = s => { spinnerMsg.textContent = 'Groq (gói miễn phí) đang giới hạn lượt dùng trong phút này — tự thử lại sau ' + s + ' giây...'; };
+    window.__onGroqWait = s => { spinnerMsg.textContent = 'AI đang bận, tự thử lại sau ' + s + ' giây...'; };
     let audioSave = null, savedOk = false, cleanupId = null;
     try {
       if (!recBlob.size) throw Object.assign(new Error('File ghi âm trống.'), { quality: { status: 'reject', issues: [{ code: 'empty', level: 'reject', msg: 'File ghi âm trống. Hãy ghi âm lại.' }] } });
@@ -4056,7 +4056,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (e1 && (e1.code === 'NO_KEY' || e1.code === 'QUOTA')) throw e1;
         console.warn('Chấm lần 1 lỗi, chuyển sang chấm dự phòng:', e1);
         // Dự phòng: model khác (hạn mức riêng, không tốn token "suy nghĩ") + yêu cầu trả lời gọn hơn
-        spinnerMsg.textContent = 'Bài khá dài, đang chấm lại bằng chế độ gọn...';
+        spinnerMsg.textContent = 'Bài khá dài, AI đang chấm tiếp...';
         usedModel = SPCore.ENGINE.llmFallback;
         try {
           parsed = await callGroqChatJson([
@@ -4065,7 +4065,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         } catch (e2) {
           console.warn('Chấm dự phòng lỗi:', e2);
           if (e2 && (e2.code === 'NO_KEY' || e2.code === 'QUOTA')) throw e2;
-          throw new Error('Chưa chấm được lần này (AI đang quá tải hoặc mạng chậm). Bài ghi âm vẫn được giữ: đợi khoảng 1 phút rồi bấm "Chấm" lại nhé.');
+          throw new Error('AI đang bận, bạn chờ khoảng 1 phút rồi bấm "Chấm" lại nhé (bài ghi âm vẫn được giữ).');
         }
       }
       lap('llm', tL);
@@ -4588,7 +4588,7 @@ Is it better to read a physical book or an e-book?"></textarea>
           { role: 'system', content: 'You upgrade a Vietnamese IELTS student\'s spoken answer by about ONE band (target overall band given). Reuse their ideas, their order and as much of their wording as possible; fix errors and improve only what is needed; keep it natural spoken English and similar length. Respond with ONE JSON object: {"text": one paragraph, "notes": [{"from": exact text from the original ("" if added), "to": exact text from your text, "criterion": "fluency"|"lexical"|"grammar", "change": short English "before -> after", "reason": 1 Vietnamese sentence}]} with 3-8 notes in order.' },
           { role: 'user', content: 'Question: "' + (rec.questionText || '') + '"\nTarget band: ' + target + '\nOriginal answer: "' + (rec.transcript || '') + '"' }
         ], { temperature: 0.3, maxTokens: 2500, json: true, reasoning: 'low' });
-      } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
+      } catch (e) { throw new Error(/AI đang|AI chưa|AI của|không trả lời|API [Kk]ey|đăng nhập|Đăng nhập|miễn phí/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
       const text = String(parsed.text || '').trim();
       if (!text) throw new Error('AI không trả về bản nâng cấp, thử lại nhé.');
       rec.refinedAnswer = text;
@@ -4643,7 +4643,7 @@ Is it better to read a physical book or an e-book?"></textarea>
           { role: 'user', content: 'IELTS Speaking question: "' + (rec.questionText || '') + '"\n\nTARGETS\n' + targetsPrompt(targets) +
             '\n\nStudent\'s original answer (speech transcript):\n"' + (rec.transcript || '') + '"' + (feedback ? '\n\n' + feedback : '') }
         ], { temperature: 0.3, maxTokens: 2500, json: true, reasoning: 'low' });
-      } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
+      } catch (e) { throw new Error(/AI đang|AI chưa|AI của|không trả lời|API [Kk]ey|đăng nhập|Đăng nhập|miễn phí/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
       const text = String(parsed.text || '').trim();
       if (!text) throw new Error('AI không trả về bản nâng cấp, thử lại nhé.');
       const notes = (Array.isArray(parsed.notes) ? parsed.notes : []).map(n => {
@@ -4757,7 +4757,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước (biểu tượng ⚙️ góc trên).'); return; }
     __deepBusy[key] = 'Đang phân tích... (khoảng 10–30 giây)'; renderDeep(rec);
     const prevWait = window.__onGroqWait;
-    window.__onGroqWait = s => { __deepBusy[key] = 'Groq đang giới hạn lượt dùng, tự thử lại sau ' + s + ' giây...'; if (__res && __res.record === rec) renderDeep(rec); };
+    window.__onGroqWait = s => { __deepBusy[key] = 'AI đang bận, tự thử lại sau ' + s + ' giây...'; if (__res && __res.record === rec) renderDeep(rec); };
     try {
       if (tab === 'plan') await loadBank();
       let parsed;
@@ -4766,7 +4766,7 @@ Is it better to read a physical book or an e-book?"></textarea>
           { role: 'system', content: DEEP_COMMON + '\n' + DEEP[tab].schema },
           { role: 'user', content: JSON.stringify(deepContext(rec, tab)) }
         ], { temperature: 0.2, maxTokens: 3800, json: true, reasoning: 'low' });
-      } catch (e) { throw new Error(/HTTP|hết lượt|không trả lời|API Key|Groq/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
+      } catch (e) { throw new Error(/AI đang|AI chưa|AI của|không trả lời|API [Kk]ey|đăng nhập|Đăng nhập|miễn phí/.test(e.message || '') ? e.message : 'AI trả về không đúng định dạng, vui lòng thử lại.'); }
       const data = JSON.parse(JSON.stringify(parsed));
       data.createdAt = Date.now();
       rec.analysis = Object.assign({}, rec.analysis, { [tab]: data });

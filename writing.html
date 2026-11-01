@@ -1278,7 +1278,8 @@ body.full-work .shell>main{padding:10px}
     }
     if (!res.ok) {
       const t = await res.text().catch(() => '');
-      const e = new Error('Groq lỗi HTTP ' + res.status + ': ' + t.slice(0, 220));
+      console.warn('AI HTTP', res.status, t.slice(0, 300));
+      const e = new Error(res.status === 429 || res.status === 413 ? 'AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.' : 'AI đang gặp sự cố tạm thời, bạn chờ khoảng 1 phút rồi thử lại nhé.');
       e.status = res.status;
       throw e;
     }
@@ -1809,7 +1810,7 @@ body.full-work .shell>main{padding:10px}
         { role: 'system', content: GUIDE_A_SYSTEM },
         { role: 'user', content: taskContext(it, visual) + '\n\nTarget band: ' + __targetBand.toFixed(1) +
           '\n\nStudent\'s own ideas (may be Vietnamese): ' + (ideas || '(none)') }
-      ], { temperature: 0.4, maxTokens: 7000, onWait: s => step('Chờ Groq ' + s + ' giây (giới hạn bản miễn phí)...') });
+      ], { temperature: 0.4, maxTokens: 7000, onWait: s => step('AI đang bận, tự thử lại sau ' + s + ' giây...') });
       a.partB = 'loading'; a.__key = key;
       a.__visual = visual ? visual.slice(0, 6000) : '';
       __guideTab = 'plan';
@@ -2215,7 +2216,7 @@ body.full-work .shell>main{padding:10px}
           '\n\nCURRENT STEP: ' + st.id + ' (' + st.kind + ') — ' + st.ask +
           '\nStudent\'s answer:\n"""\n' + s.answer.trim() + '\n"""' +
           '\n\nNEXT STEP: ' + (next ? next.id + ' (' + next.kind + ') — ' + next.ask : '(none — this is the last step)') }
-      ], { temperature: 0.2, maxTokens: 4000, onWait: sec => { s.checkMsg = 'Chờ Groq ' + sec + ' giây (giới hạn bản miễn phí)...'; if (__coach === coach) renderCoach(); } });
+      ], { temperature: 0.2, maxTokens: 4000, onWait: sec => { s.checkMsg = 'AI đang bận, tự thử lại sau ' + sec + ' giây...'; if (__coach === coach) renderCoach(); } });
       s.result = {
         score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))), verdict: String(r.verdict || ''), feedback: String(r.feedback || ''),
         errors: (Array.isArray(r.errors) ? r.errors : []).map(e => ({ wrong: String(e.wrong || ''), right: String(e.right || ''), why: String(e.why || '') })).filter(e => e.wrong).slice(0, 12),
@@ -2420,7 +2421,7 @@ body.full-work .shell>main{padding:10px}
         '\n\nQuestion:\n' + htmlToText(data.promptHtml) +
         (visual ? '\n\nTranscription of the image(s):\n' + visual : '') +
         '\n\nStudent essay (copy "find" strings exactly from this text):\n"""\n' + essay + '\n"""' }
-    ], { temperature: 0, maxTokens: 10000, onWait: s => onStep('Chờ Groq ' + s + ' giây (giới hạn bản miễn phí)...') });
+    ], { temperature: 0, maxTokens: 10000, onWait: s => onStep('AI đang bận, tự thử lại sau ' + s + ' giây...') });
 
     const crit = {};
     ['ta', 'cc', 'lr', 'gra'].forEach(k => {
@@ -2450,7 +2451,7 @@ body.full-work .shell>main{padding:10px}
           '\nBands: ' + ['ta', 'cc', 'lr', 'gra'].map(k => k.toUpperCase() + ' ' + crit[k].band).join(', ') +
           '\nReal errors found per criterion: ' + JSON.stringify(errCount) +
           '\nErrors list: ' + JSON.stringify(edits.filter(e => e.kind === 'error').map(e => e.find + ' -> ' + e.replace).slice(0, 40)) }
-      ], { temperature: 0, maxTokens: 5000, onWait: s => onStep('Chờ Groq ' + s + ' giây (giới hạn bản miễn phí)...') });
+      ], { temperature: 0, maxTokens: 5000, onWait: s => onStep('AI đang bận, tự thử lại sau ' + s + ' giây...') });
       ['ta', 'cc', 'lr', 'gra'].forEach(k => {
         const m = (mod.criteria && mod.criteria[k]) || {};
         if (m.band != null && isFinite(Number(m.band))) {
@@ -2542,7 +2543,7 @@ body.full-work .shell>main{padding:10px}
         '\n\nQuestion:\n' + htmlToText(data.promptHtml) +
         (data.promptVisualText ? '\n\nTranscription of the image(s):\n' + data.promptVisualText : '') +
         '\n\nStudent answer, numbered paragraphs:\n' + paras.map((p, i) => '[' + (i + 1) + '] ' + p).join('\n\n') }
-    ], { temperature: 0.3, maxTokens: 9000, onWait: s => onStep('Chờ Groq ' + s + ' giây (giới hạn bản miễn phí)...') });
+    ], { temperature: 0.3, maxTokens: 9000, onWait: s => onStep('AI đang bận, tự thử lại sau ' + s + ' giây...') });
     const out = Array.isArray(res.paragraphs) ? res.paragraphs : [];
     const rows = paras.map((p, i) => {
       const m = out.find(x => Number(x.index) === i + 1) || out[i] || {};

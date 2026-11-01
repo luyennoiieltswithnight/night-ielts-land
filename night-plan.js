@@ -438,7 +438,7 @@
     if (hasRealKey(init)) return fetch(url, init);
     skill = skill === 'writing' ? 'writing' : 'speaking';
     return ensure().then(function () {
-      if (!freeOK()) { var e0 = new Error('Chưa có Groq API Key. Học sinh tự nhập key ở nút bánh răng; tài khoản Pro sẽ được Night IELTS cấp key riêng (chưa có thì nhắn admin).'); e0.code = 'NO_KEY'; throw e0; }
+      if (!freeOK()) { var e0 = new Error(role() === 'pro' ? 'AI của tài khoản bạn đang được kích hoạt, bạn chờ một lát hoặc nhắn Night IELTS nhé.' : 'Chưa có API key AI. Bấm nút bánh răng ⚙️ để nhập key.'); e0.code = 'NO_KEY'; throw e0; }
       if (!settings.aiProxy) throw new Error('AI miễn phí đang tạm tắt. Nhắn admin Night IELTS, hoặc nâng cấp ⭐ Pro và nhập API key riêng.');
       return fb();
     }).then(function (o) {
