@@ -524,7 +524,7 @@ body.full-work .shell>main{padding:10px}
 .modal-bg{background:rgba(36,36,42,.55)!important;backdrop-filter:blur(6px)}
 .view-center .sheet{background:#fff!important;box-shadow:0 20px 50px -24px rgba(36,36,42,.45)}
 </style>
-<script src="night-plan.js?v=20261101h"></script>
+<script src="night-plan.js?v=20261102a"></script>
 <script src="night-fame.js?v=20261102a"></script>
 </head>
 <body>
@@ -1223,11 +1223,13 @@ body.full-work .shell>main{padding:10px}
   // ==========================================
   function getGroqConfig() { try { return JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || '{}'); } catch (e) { return {}; } }
   function saveGroqConfig(cfg) { try { localStorage.setItem('nightIeltsGroqCfg', JSON.stringify(cfg)); } catch (e) {} }
-  function hasGroqAI() { return !!(getGroqConfig().apiKey || (window.NightPlan && NightPlan.freeOK())); }
+  // Writing: AI chỉ dành cho người có key (Học sinh tự nhập, Pro / Astra được cấp). Tài khoản miễn phí -> mời nâng cấp.
+  function hasGroqAI() { return !!getGroqConfig().apiKey; }
+  function askAI() { if (window.NightPlan && NightPlan.freeOK()) NightPlan.openUpgrade('AI chấm và hướng dẫn Writing dành cho tài khoản ⭐ Pro / 🌟 Astra.', 'pro'); else openGroqSettingsModal(); }
   function updateGear() { document.getElementById('groqGearDot').classList.toggle('hidden', hasGroqAI()); }
   function groqMissingHint() {
     if (getGroqConfig().apiKey) return '';
-    if (window.NightPlan && NightPlan.freeOK()) return '<div class="warn-box mb12" style="background:#FFF7ED;border-color:#FED7AA;color:#9A3412">🎁 Bạn đang dùng <b>AI miễn phí</b>: 5 phút mỗi 5 tiếng. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="NightPlan.openUpgrade()">⭐ Nâng cấp Pro</button></div>';
+    if (window.NightPlan && NightPlan.freeOK()) return '<div class="warn-box mb12" style="background:#FFF7ED;border-color:#FED7AA;color:#9A3412">⭐ AI chấm và hướng dẫn Writing dành cho tài khoản <b>Pro / Astra</b>. Bạn vẫn viết và nộp bài bình thường. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="NightPlan.openUpgrade(\'\', \'pro\')">⭐ Nâng cấp Pro</button></div>';
     return '<div class="warn-box mb12"><i class="fa-solid fa-circle-exclamation"></i> Chưa cấu hình Groq API Key trên máy này. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="openGroqSettingsModal()">Cấu hình</button></div>';
   }
   window.openGroqSettingsModal = function () {
@@ -1793,7 +1795,7 @@ body.full-work .shell>main{padding:10px}
 
   window.generateGuide = async function () {
     if (!__work) return;
-    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { askAI(); return; }
     const box = document.getElementById('wkGuide');
     const btn = document.getElementById('wkGuideBtn');
     btn.disabled = true;
@@ -2195,7 +2197,7 @@ body.full-work .shell>main{padding:10px}
     'Respond with STRICT JSON only, no markdown: {"score": integer, "verdict": string (VN, 3-6 words), "feedback": string, "errors": [], "betterAnswer": string, "rule": string, "nextGuide": string, "frames": [string], "vocabulary": [{"phrase": string, "meaning_vi": string}]}';
 
   window.coachCheck = async function (i) {
-    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { askAI(); return; }
     const steps = coachSteps(), st = steps[i], s = __coach.steps[i];
     const ta = document.getElementById('csIn' + i);
     if (ta) s.answer = ta.value;
@@ -2899,7 +2901,7 @@ body.full-work .shell>main{padding:10px}
   };
   window.startUpgrade = async function (force) {
     if (!__rs || !__rs.data.ai || __rs.upgrading) return;
-    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { askAI(); return; }
     const rs = __rs;
     if (force) rs.data.ai.upgrade = null;
     rs.upgrading = true; rs.upError = ''; rs.upMsg = '';
@@ -2943,7 +2945,7 @@ body.full-work .shell>main{padding:10px}
 
   window.regradeCurrent = async function () {
     if (!__rs) return;
-    if (!hasGroqAI()) { openGroqSettingsModal(); return; }
+    if (!hasGroqAI()) { askAI(); return; }
     const rs = __rs, id = rs.ref.id;
     if (__gradingIds.has(id)) return;
     __gradingIds.add(id); rs.grading = true;

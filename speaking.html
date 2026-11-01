@@ -611,7 +611,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 #studentHomeView .ni-panel-label:before{content:"";width:12px;height:12px;border-radius:999px;background:var(--peach);flex:none}
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
-<script src="night-plan.js?v=20261101h"></script>
+<script src="night-plan.js?v=20261102a"></script>
 <script src="night-fame.js?v=20261102a"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -2370,6 +2370,8 @@ Is it better to read a physical book or an e-book?"></textarea>
   function groqBusySave(m) { try { sessionStorage.setItem('groqBusy', JSON.stringify(m)); } catch (e) {} }
   async function callGroqChat(messages, opts) {
     const cfg = getGroqConfig();
+    // Tài khoản miễn phí: AI chỉ dùng trong lúc chấm điểm Speaking; các tính năng AI khác dành cho Pro / Astra
+    if (!cfg.apiKey && window.NightPlan && NightPlan.freeOK() && !window.__aiScoring) { const e = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra. Tài khoản miễn phí được 2 lượt chấm Speaking mỗi ngày.'); e.code = 'PRO_ONLY'; throw e; }
     if (!cfg.apiKey && !(window.NightPlan && NightPlan.freeOK())) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     let res;
     // Mỗi model của Groq có hạn mức riêng: model này bận lâu (429 phải chờ > 8 giây) hoặc bị khai tử (404/400 model)
@@ -3278,6 +3280,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     });
   }
   window.openMockTest = function () {
+    if (!getGroqConfig().apiKey && window.NightPlan && NightPlan.freeOK()) { NightPlan.openUpgrade('Thi thử full test (15 câu, chấm đủ 4 tiêu chí) dành cho tài khoản ⭐ Pro / 🌟 Astra.', 'pro'); return; }
     if (!hasGroqAI()) { alert('Cần có AI chấm trước khi thi thử (biểu tượng ⚙️ góc trên).'); return; }
     const qs = buildMockQuestions();
     if (!qs) { alert('Chưa đủ bộ câu hỏi Part 1 và Part 2 + 3 để tạo đề thi thử.'); return; }
@@ -4320,14 +4323,18 @@ Is it better to read a physical book or an e-book?"></textarea>
     const T0 = performance.now(), tm = {};
     const lap = (k, t) => { tm[k] = +((performance.now() - t) / 1000).toFixed(1); };
     window.__onGroqWait = s => { spinnerMsg.textContent = 'AI đang bận, tự thử lại sau ' + s + ' giây...'; };
+    window.__aiScoring = true;
     let audioSave = null, savedOk = false, cleanupId = null;
     try {
       if (!recBlob.size) throw Object.assign(new Error('File ghi âm trống.'), { quality: { status: 'reject', issues: [{ code: 'empty', level: 'reject', msg: 'File ghi âm trống. Hãy ghi âm lại.' }] } });
       // CHẠY SONG SONG ngay từ đầu: 2 lần nghe (Groq) + lưu file ghi âm (Firestore) + giải mã âm thanh trên máy
       spinnerMsg.textContent = 'Đang nghe và phân tích bài nói...';
       const tA = performance.now();
+      // Tài khoản miễn phí: lần gọi đầu tiên trừ 1 lượt/ngày (máy chủ mở vé cho các lần gọi còn lại của lần chấm này)
+      const isFree = !getGroqConfig().apiKey && window.NightPlan && NightPlan.freeOK();
+      if (isFree) window.__aiChargeNext = true;
       const asrP = callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel, SPCore.ENGINE.verbatimPrompt).then(r => { lap('asr', tA); return r; });
-      const asr2P = callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2).catch(e => { console.warn('Lần nhận dạng thứ 2 lỗi:', e); return null; });
+      const asr2P = (isFree ? asrP.then(() => callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)) : callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)).catch(e => { console.warn('Lần nhận dạng thứ 2 lỗi:', e); return null; });
       asrP.catch(() => {}); // tránh báo lỗi "chưa bắt" nếu bài bị loại vì chất lượng
       const createdAt = Date.now();
       const expiresAt = createdAt + ATTEMPT_TTL_MS;
@@ -4575,7 +4582,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       if (sameQ) document.getElementById('recPreviewBox').classList.remove('hidden');
       alert('Lỗi: ' + e.message);
     } finally {
-      window.__onGroqWait = null;
+      window.__onGroqWait = null; window.__aiScoring = false;
       // Chấm lỗi giữa chừng: xoá các mảnh file ghi âm đã lưu song song, để không sót file rác
       if (!savedOk && audioSave && cleanupId) audioSave.then(cs => cs.forEach(c => deleteDoc(doc(db, 'speakingAttempts', cleanupId + '_a' + c.idx)).catch(() => {}))).catch(() => {});
     }

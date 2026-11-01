@@ -5,9 +5,10 @@
  * Vì sao cần: nếu để key Groq trong trang web, ai bấm F12 cũng lấy được key. Ở đây key nằm trong
  * Apps Script, trang web chỉ gửi bài lên, máy chủ kiểm tra đăng nhập + giới hạn rồi mới gọi Groq.
  *
- * Giới hạn: mỗi tài khoản 5 phút / 5 tiếng cho MỖI kỹ năng.
- *   - Speaking: tính đúng thời lượng ghi âm (Groq trả về), mỗi lần AI nhận xét tính thêm 10 giây.
- *   - Writing: mỗi lần gọi AI tính 75 giây (chấm 1 bài ≈ 2–3 lần gọi → ~1–2 bài / 5 tiếng).
+ * Giới hạn (từ 11/2026): tài khoản User chỉ được AI chấm SPEAKING, mỗi ngày FREE_PER_DAY lượt chấm.
+ *   - 1 lượt = 1 lần bấm "Chấm điểm": trang gửi charge:true ở lần nhận dạng giọng nói đầu tiên, máy chủ
+ *     trừ 1 lượt và mở "vé" cho các lần gọi AI tiếp theo của chính lần chấm đó (TICKET_CALLS lần, TICKET_MIN phút).
+ *   - Writing và mọi tính năng AI khác: chỉ dành cho Pro / Astra (key riêng), máy chủ này từ chối.
  *   - Cả hệ thống tối đa DAILY_CAP lần gọi / ngày để key của thầy không bị quá tải.
  *
  * ===================== CÀI ĐẶT (làm 1 lần) =====================
@@ -72,27 +73,53 @@ function doGet() {
   return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (n ? ' · ' + n + ' key Groq' : ' — CHƯA có GROQ_API_KEY trong Thuộc tính tập lệnh!'));
 }
 
+const FREE_PER_DAY = 2, TICKET_CALLS = 20, TICKET_MIN = 30;
+function today_() { return Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyyMMdd'); }
+function dailyQuota_(uid) {
+  const n = Number(PropertiesService.getScriptProperties().getProperty('f_' + today_() + '_' + uid) || 0);
+  return { skill: 'speaking', kind: 'daily', used: Math.min(n, FREE_PER_DAY), limit: FREE_PER_DAY, resetAt: new Date(Utilities.formatDate(new Date(Date.now() + 86400000), 'Asia/Ho_Chi_Minh', "yyyy-MM-dd'T'00:00:00XXX")).getTime() };
+}
+/* Trừ 1 lượt + mở vé. Trả false nếu hết lượt. */
+function chargeTurn_(uid) {
+  const lock = LockService.getScriptLock(); lock.waitLock(8000);
+  try {
+    const P = PropertiesService.getScriptProperties(), key = 'f_' + today_() + '_' + uid, n = Number(P.getProperty(key) || 0);
+    if (n >= FREE_PER_DAY) return false;
+    P.setProperty(key, String(n + 1));
+    CacheService.getScriptCache().put('tk_' + uid, String(TICKET_CALLS), TICKET_MIN * 60);
+    if (Math.random() < 0.05) { const pre = 'f_' + today_(); Object.keys(P.getProperties()).forEach(function (k) { if (k.indexOf('f_') === 0 && k.indexOf(pre) !== 0) P.deleteProperty(k); }); }
+    return true;
+  } finally { lock.releaseLock(); }
+}
+function refundTurn_(uid) {
+  const P = PropertiesService.getScriptProperties(), key = 'f_' + today_() + '_' + uid, n = Number(P.getProperty(key) || 0);
+  if (n > 0) P.setProperty(key, String(n - 1));
+}
+/* Dùng 1 lần gọi trong vé của lượt chấm hiện tại. */
+function useTicket_(uid) {
+  const c = CacheService.getScriptCache(), n = Number(c.get('tk_' + uid) || 0);
+  if (n <= 0) return false;
+  c.put('tk_' + uid, String(n - 1), TICKET_MIN * 60);
+  return true;
+}
+
 function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const user = verify_(req.idToken);
     if (!user) return out_({ error: 'Phiên đăng nhập hết hạn. Tải lại trang rồi thử lại nhé.' });
     if (!groqKey_()) return out_({ error: 'AI đang bảo trì, bạn chờ một lát hoặc nhắn Night IELTS nhé.' });
-    const skill = LIMITS[req.skill] ? req.skill : 'speaking';
-
-    let q = getQ_(user.uid);
-    if (q.used[skill] >= LIMITS[skill]) return out_({ error: 'QUOTA', quota: view_(q, skill) });
+    const skill = req.skill === 'writing' ? 'writing' : 'speaking';
+    if (skill !== 'speaking') return out_({ error: 'PRO_ONLY' });
+    if (req.charge) { if (!chargeTurn_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) }); }
+    else if (!useTicket_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) });
     if (!daily_(false)) return out_({ error: 'AI miễn phí hôm nay đã đủ số lần dùng. Bạn quay lại vào ngày mai, hoặc nâng cấp Pro để dùng không giới hạn nhé.' });
 
-    let resp, cost = 0;
+    let resp;
     if (req.kind === 'stt') {
       if (!req.file || !req.file.b64) return out_({ error: 'Thiếu file ghi âm.' });
       if (req.file.b64.length > 25000000) return out_({ error: 'File ghi âm quá dài.' });
       resp = stt_(req);
-      if (resp.getResponseCode() === 200) {
-        let d = 0; try { d = Number(JSON.parse(resp.getContentText()).duration) || 0; } catch (x) {}
-        cost = Math.max(5, Math.ceil(d || 30));
-      }
     } else {
       const body = String(req.body || '');
       if (body.length > MAX_BODY) return out_({ error: 'Bài gửi lên quá dài.' });
@@ -107,11 +134,10 @@ function doPost(e) {
           headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true
         });
       });
-      if (resp.getResponseCode() === 200) cost = CHAT_COST[skill];
     }
     daily_(true);
-    if (cost) q = charge_(user.uid, skill, cost);
-    return out_({ status: resp.getResponseCode(), body: resp.getContentText(), quota: view_(q, skill) });
+    if (req.charge && resp.getResponseCode() !== 200) refundTurn_(user.uid);   // lỗi ngay bước đầu -> trả lại lượt
+    return out_({ status: resp.getResponseCode(), body: resp.getContentText(), quota: req.charge ? dailyQuota_(user.uid) : null });
   } catch (err) {
     return out_({ error: 'AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.', detail: String(err && err.message || err) });
   }

@@ -421,12 +421,13 @@
   }
   function quotaMsg(qt) {
     var nm = SKILL_NAME[qt.skill] || qt.skill;
-    return 'Bạn đã dùng hết ' + Math.round(qt.limit / 60) + ' phút AI miễn phí cho ' + nm + '. Mở lại lúc ' + hm(qt.resetAt) + ' ngày ' + dmy(qt.resetAt) + '. Muốn dùng không giới hạn: nâng cấp ⭐ Pro (hoặc nhập Groq API key riêng ở nút bánh răng).';
+    if (qt.kind === 'daily') return 'Bạn đã dùng hết ' + qt.limit + ' lượt chấm Speaking miễn phí hôm nay. Ngày mai bạn có lượt mới, hoặc nâng cấp ⭐ Pro để chấm không giới hạn nhé.';
+    return 'Bạn đã dùng hết lượt AI miễn phí cho ' + nm + '. Nâng cấp ⭐ Pro để dùng không giới hạn nhé.';
   }
   function showQuota(qt) {
     if (!qt) return;
-    var left = qt.limit - qt.used, nm = SKILL_NAME[qt.skill] || qt.skill;
-    pill('🎁 AI miễn phí · ' + nm + ' còn <b>' + mmss(left) + '</b> phút' + (left <= 0 ? ' (mở lại ' + hm(qt.resetAt) + ')' : '') + '<a>Nâng cấp Pro</a>', left <= 60 ? 9000 : 5000);
+    var left = Math.max(0, qt.limit - qt.used);
+    pill('🎁 Chấm Speaking miễn phí · còn <b>' + left + '/' + qt.limit + '</b> lượt hôm nay<a>Nâng cấp Pro</a>', left <= 0 ? 9000 : 5000);
   }
   function hasRealKey(init) {
     var h = (init && init.headers) || {}, a = h.Authorization || h.authorization || '';
@@ -444,8 +445,11 @@
     }).then(function (o) {
       var user = o.auth.currentUser;
       if (!user) throw new Error('Đăng nhập bằng Gmail để dùng AI.');
+      if (skill !== 'speaking') { var e1 = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra.'); e1.code = 'PRO_ONLY'; throw e1; }
+      var charge = !!window.__aiChargeNext; window.__aiChargeNext = false;
+      if (!charge && !window.__aiScoring) { var e2 = new Error('Tài khoản miễn phí chỉ dùng AI để chấm điểm Speaking (2 lượt/ngày). Tính năng này dành cho ⭐ Pro.'); e2.code = 'PRO_ONLY'; throw e2; }
       return user.getIdToken().then(function (tok) {
-        var req = { idToken: tok, skill: skill, kind: /audio\/transcriptions/.test(url) ? 'stt' : 'chat' };
+        var req = { idToken: tok, skill: skill, charge: charge, kind: /audio\/transcriptions/.test(url) ? 'stt' : 'chat' };
         if (req.kind === 'chat') { req.body = init.body; return req; }
         var fields = [], file = null, jobs = [];
         init.body.forEach(function (v, k) {
@@ -461,6 +465,7 @@
       return r.json();
     }).then(function (j) {
       if (j.error === 'QUOTA') { var e = new Error(quotaMsg(j.quota)); e.code = 'QUOTA'; showQuota(j.quota); throw e; }
+      if (j.error === 'PRO_ONLY') { var e3 = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra.'); e3.code = 'PRO_ONLY'; throw e3; }
       if (j.error) throw new Error(j.error);
       if (j.quota) showQuota(j.quota);
       return new Response(j.body == null ? '' : j.body, { status: j.status || 200, headers: { 'Content-Type': 'application/json' } });
@@ -468,7 +473,7 @@
   }
   /* Dòng nhắc thay cho "Chưa cấu hình API key" khi tài khoản User đang dùng AI miễn phí */
   function freeHint() {
-    return '<div class="groq-missing" style="background:#FFF7ED;color:#9A3412;border-color:#FED7AA">🎁 Bạn đang dùng <b>AI miễn phí</b>: 5 phút mỗi 5 tiếng. ' +
+    return '<div class="groq-missing" style="background:#FFF7ED;color:#9A3412;border-color:#FED7AA">🎁 Tài khoản miễn phí: <b>2 lượt chấm Speaking mỗi ngày</b>. Các tính năng AI khác (nâng cấp bài, phân tích, Writing, thi thử) dành cho Pro. ' +
       '<button type="button" class="ni-nav-btn" style="padding:4px 10px;font-size:11px;" onclick="NightPlan.openUpgrade(\'\', \'pro\')">⭐ Nâng cấp Pro</button></div>';
   }
 
