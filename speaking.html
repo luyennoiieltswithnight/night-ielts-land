@@ -4389,6 +4389,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   // ctx (tuỳ chọn) = chấm NGẦM 1 câu của bài thi thử: {pkg, qIdx, blob, history, quiet:true} — không đụng giao diện
   // luyện tập đang mở (học sinh vẫn làm việc khác được), trả kết quả vào ctx.record / lỗi vào ctx.error.
+  const __asrCache = new WeakMap();
   window.scoreRecording = async function (ctx) {
     const C = ctx && ctx.pkg ? ctx : null, quiet = !!(C && C.quiet);
     const pkg = C ? C.pkg : __pkg, qIdx = C ? C.qIdx : __qIdx, hist = C ? (C.history || (C.history = {})) : __history;
@@ -4423,8 +4424,12 @@ Is it better to read a physical book or an e-book?"></textarea>
       // Tài khoản miễn phí: lần gọi đầu tiên trừ 1 lượt/ngày (máy chủ mở vé cho các lần gọi còn lại của lần chấm này)
       const isFree = !getGroqConfig().apiKey && window.NightPlan && NightPlan.freeOK();
       if (isFree) window.__aiChargeNext = true;
-      const asrP = callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel, SPCore.ENGINE.verbatimPrompt).then(r => { lap('asr', tA); return r; });
-      const asr2P = (isFree ? asrP.then(() => callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)) : callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)).catch(e => { console.warn('Lần nhận dạng thứ 2 lỗi:', e); return null; });
+      // Chấm lại CÙNG 1 file ghi âm (lỗi AI bận ở bước sau) -> dùng lại kết quả nghe & phát âm đã có, không gọi AI lại từ đầu
+      const cache = __asrCache.get(recBlob) || {}; __asrCache.set(recBlob, cache);
+      if (cache.asr && isFree) window.__aiChargeNext = true;
+      const asrP = cache.asr ? Promise.resolve(cache.asr) : callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel, SPCore.ENGINE.verbatimPrompt).then(r => { lap('asr', tA); cache.asr = r; return r; });
+      // Lần nghe thứ 2 (để so) bỏ qua khi chấm ngầm bài thi thử -> bớt 1 lần gọi AI mỗi câu
+      const asr2P = cache.asr2 !== undefined ? Promise.resolve(cache.asr2) : quiet ? Promise.resolve(null) : (isFree ? asrP.then(() => callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)) : callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)).then(r => { cache.asr2 = r; return r; }).catch(e => { console.warn('Lần nhận dạng thứ 2 lỗi:', e); return null; });
       asrP.catch(() => {}); // tránh báo lỗi "chưa bắt" nếu bài bị loại vì chất lượng
       const createdAt = Date.now();
       const expiresAt = createdAt + ATTEMPT_TTL_MS;
@@ -4485,7 +4490,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       // 4) Phát âm: số đo từ âm thanh
       spinnerMsg.textContent = 'Đang phân tích phát âm, ngữ điệu, nối âm...';
       const tP = performance.now();
-      const pron = await assessPronunciation(pcm, audio, asr, asr2, quality, findings, q);
+      const pron = cache.pron || await assessPronunciation(pcm, audio, asr, asr2, quality, findings, q);
+      if (!pron.intentError) cache.pron = pron;
       lap('pron', tP);
       const pronAvailable = true;   // Phát âm luôn được chấm; độ tin cậy theo mức bằng chứng
 
