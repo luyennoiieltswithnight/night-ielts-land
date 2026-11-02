@@ -105,7 +105,27 @@
     else if (cfg.managed) { delete cfg.apiKey; delete cfg.managed; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} }
     lockKeyInputs();
   }
+  /* User (miễn phí) và Pro / Astra không tự nhập key: ẩn nút bánh răng "Cấu hình Groq API Key".
+     Bấm vào chỗ nào gọi tới cửa sổ nhập key thì User được mời nâng cấp, Pro được báo key do Night IELTS cấp. */
+  function hideKeyUI() {
+    var r = effRole(me), raw = me && me.role;
+    if (!me || !(r === 'user' || r === 'pro' || raw === 'pro')) return;
+    var run = function () {
+      if (!document.getElementById('npl-nokey-css')) { var st = document.createElement('style'); st.id = 'npl-nokey-css'; st.textContent = '#groqSettingsBtn,.btn.gear,#groqGearDot{display:none!important}'; document.head.appendChild(st); }
+      var orig = window.openGroqSettingsModal;
+      if (orig && !orig.__npl) {
+        var f = function () {
+          if (effRole(me) === 'pro') { if (me && me.groqKey) return orig.apply(this, arguments); pill('Key AI của tài khoản bạn đang được Night IELTS cấp, chờ một lát nhé.', 4000); return; }
+          openUpgrade('AI không giới hạn dành cho tài khoản ⭐ Pro / 🌟 Astra.', 'pro');
+        };
+        f.__npl = true; window.openGroqSettingsModal = f;
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+    setTimeout(run, 1500);
+  }
   function lockKeyInputs() {
+    hideKeyUI();
     if (effRole(me) !== 'pro') return;
     var run = function () {
       ['groqModalKeyInput', 'groqKeyInput'].forEach(function (id) {
@@ -523,6 +543,7 @@
     document.body.appendChild(ov);
   }
   if (document.body) showSupportBtn(); else document.addEventListener('DOMContentLoaded', showSupportBtn);
+  try { hideKeyUI(); } catch (e) {}
   /* Thông báo đang cập nhật — tắt: đổi UPDATE_NOTICE thành '' */
   var UPDATE_NOTICE = '🛠️ <b>Thông báo:</b> Tất cả các kỹ năng và bài test đang trong quá trình cập nhật. Nếu gặp lỗi, các bạn <a data-zalo style="color:#fff;font-weight:800;text-decoration:underline;cursor:pointer">nhắn Zalo</a> cho Night IELTS nhé!';
   function showUpdateNotice() {
