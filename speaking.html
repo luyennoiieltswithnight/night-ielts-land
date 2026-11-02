@@ -3311,19 +3311,44 @@ Is it better to read a physical book or an e-book?"></textarea>
     __mk.pkg = { id: 'mock_' + Date.now(), title: 'Thi thử Speaking · ' + new Date().toLocaleDateString('vi-VN'), part: 'mix', questions: __mk.qs };
     __pkg = __mk.pkg; __history = {}; __doneQIds = {}; __retryMode = false;
     __mk.results = []; __mk.doneN = 0; __mk.queue = Promise.resolve();
-    __mk.alert = window.alert; window.alert = m => console.warn('Thi thử:', m);
+    __mk.key = 'mk_' + Date.now(); mkClean();
+    __mk.alert = window.alert; window.alert = m => { if (__mk) __mk.lastErr = String(m || ''); console.warn('Thi thử:', m); };
     window.__mkSilent = true;   // không bật màn hình huy hiệu sau từng câu khi đang thi thử
     mockAsk();
   };
+  // Lưu file ghi âm bài thi thử trên máy (IndexedDB) để mở lại từ lịch sử vẫn chấm lại được câu lỗi
+  function mkDB() { return new Promise((res, rej) => { try { const r = indexedDB.open('nightMock', 1); r.onupgradeneeded = () => r.result.createObjectStore('a'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); }
+  function mkPut(key, blob) { return mkDB().then(db2 => new Promise(res => { const t = db2.transaction('a', 'readwrite'); t.objectStore('a').put({ blob: blob, t: Date.now() }, key); t.oncomplete = res; t.onerror = res; })).catch(() => {}); }
+  function mkGet(key) { return mkDB().then(db2 => new Promise(res => { const r = db2.transaction('a').objectStore('a').get(key); r.onsuccess = () => res(r.result ? r.result.blob : null); r.onerror = () => res(null); })).catch(() => null); }
+  function mkClean() { mkDB().then(db2 => { const st = db2.transaction('a', 'readwrite').objectStore('a'), lim = Date.now() - 14 * 86400000; st.openCursor().onsuccess = e => { const c = e.target.result; if (!c) return; if (!c.value || c.value.t < lim) c.delete(); c.continue(); }; }).catch(() => {}); }
+  // Chấm 1 câu của bài thi thử: AI bận thì tự đợi rồi chấm lại (tối đa 4 lần); ghi lại lý do nếu vẫn chưa chấm được
+  async function mockScoreOne(mk, i) {
+    const blob = mk.blobs && mk.blobs[i];
+    if (!blob || !blob.size) { (mk.errs = mk.errs || [])[i] = 'Không có file ghi âm'; return null; }
+    const id = mk.qs[i].id;
+    for (let tryN = 0; tryN < 4; tryN++) {
+      if (__mk !== mk) return null;
+      __pkg = mk.pkg; __qIdx = i; __recBlob = blob; mk.lastErr = '';
+      const before = (__history[id] || []).length;
+      try { await window.scoreRecording(); } catch (e) { mk.lastErr = e.message; }
+      const arr = __history[id] || [];
+      if (arr.length > before) { (mk.errs = mk.errs || [])[i] = ''; return arr[arr.length - 1]; }
+      const qb = document.getElementById('recQualityBox');
+      const err = mk.lastErr || (qb && !qb.classList.contains('hidden') ? qb.textContent.trim().slice(0, 140) : 'Chưa chấm được');
+      (mk.errs = mk.errs || [])[i] = err;
+      if (!/bận|quá lâu|chưa trả lời|chưa chấm xong|sự cố|mạng|timeout|AI/i.test(err) || /hết .*lượt|Pro/i.test(err)) return null;   // lỗi file ghi âm / hết lượt: không thử lại
+      const wait = 20 + tryN * 20;
+      const el = document.getElementById('mkBg'); if (el) el.textContent = '⏳ AI đang bận, câu ' + (i + 1) + ' sẽ được chấm lại sau ' + wait + ' giây…';
+      await new Promise(r => setTimeout(r, wait * 1000));
+    }
+    return null;
+  }
   function mockEnqueue(i, blob) {
     const mk = __mk;
+    mkPut(mk.key + '_' + i, blob);
     mk.queue = mk.queue.then(async () => {
       if (__mk !== mk) return;
-      __pkg = mk.pkg; __qIdx = i; __recBlob = blob;
-      const id = mk.qs[i].id, before = (__history[id] || []).length;
-      try { if (blob && blob.size) await window.scoreRecording(); } catch (e) { console.warn(e); }
-      const arr = __history[id] || [];
-      mk.results[i] = arr.length > before ? arr[arr.length - 1] : null;
+      mk.results[i] = await mockScoreOne(mk, i);
       mk.doneN++;
       mk.okN = (mk.okN || 0) + (mk.results[i] ? 1 : 0); const el = document.getElementById('mkBg'); if (el) el.textContent = '✅ Đã chấm ngầm ' + mk.okN + ' câu';
     });
@@ -3384,11 +3409,16 @@ Is it better to read a physical book or an e-book?"></textarea>
     const paint = () => {
       if (__mk !== mk) return;
       const sm = document.getElementById('scoringSpinnerMsg');
-      mkShell('<div class="mk-part">ĐANG CHẤM NỐT</div><p class="mk-q">Đã chấm ' + mk.doneN + '/' + n + ' câu…</p><div class="mk-bar" style="height:10px"><i style="width:' + Math.round(mk.doneN / n * 100) + '%"></i></div><p class="mk-sub" style="margin-top:14px">' + (sm && sm.textContent ? escapeHtml(sm.textContent) : 'Các câu đã được chấm ngầm trong lúc bạn thi, chỉ còn vài câu cuối.') + '</p>');
+      const okN = mk.results.filter(Boolean).length;
+      mkShell('<div class="mk-part">ĐANG CHẤM NỐT</div><p class="mk-q">Đã chấm ' + okN + '/' + n + ' câu…</p><div class="mk-bar" style="height:10px"><i style="width:' + Math.round(okN / n * 100) + '%"></i></div><p class="mk-sub" style="margin-top:14px">' + (sm && sm.textContent ? escapeHtml(sm.textContent) : 'Các câu đã được chấm ngầm trong lúc bạn thi, chỉ còn vài câu cuối.') + '</p>');
     };
     paint(); const t = setInterval(paint, 1500);
-    await mk.queue; clearInterval(t);
-    if (__mk !== mk) return;
+    await mk.queue;
+    if (__mk !== mk) { clearInterval(t); return; }
+    // Câu chưa chấm được: chấm lại thêm 1 lượt trước khi ra bảng kết quả
+    const left = mk.qs.map((q, i) => i).filter(i => !mk.results[i] && mk.blobs[i] && mk.blobs[i].size && !/hết .*lượt|Pro/i.test((mk.errs || [])[i] || ''));
+    for (const i of left) { if (__mk !== mk) { clearInterval(t); return; } const r = await mockScoreOne(mk, i); if (r) { mk.results[i] = r; } }
+    clearInterval(t);
     if (mk.alert) window.alert = mk.alert;
     mk.scoring = false; window.__mkSilent = false;
     mk.id = 'mock_' + window.__currentUid + '_' + Date.now(); mk.createdAt = Date.now();
@@ -3406,7 +3436,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
   function mockSave(mk) {
     const sc = mockScores(mk.results);
-    setDoc(doc(db, 'speakingAttempts', mk.id), { kind: 'mockTest', studentId: window.__currentUid, title: mk.pkg.title, scores: sc, total: mk.qs.length, createdAt: mk.createdAt,
+    setDoc(doc(db, 'speakingAttempts', mk.id), { kind: 'mockTest', studentId: window.__currentUid, title: mk.pkg.title, scores: sc, total: mk.qs.length, createdAt: mk.createdAt, audioKey: mk.key || '',
       items: mk.qs.map((q, i) => { const r = mk.results[i]; return { qid: q.id, q: String(q.text).slice(0, 300), part: q.part, topic: q.topic || '', band: r && r.scores ? SPCore.displayBand(r).band : null, id: (r && r.id) || null }; }) }).catch(e => console.warn('Không lưu được bài thi thử:', e));
   }
   // Bảng kết quả (dùng cho bài vừa thi lẫn bài mở lại từ lịch sử)
@@ -3418,12 +3448,13 @@ Is it better to read a physical book or an e-book?"></textarea>
     mkShell('<div class="mk-top"><span>' + escapeHtml(mk.pkg.title) + '</span><button class="mk-btn ghost" style="margin:0;padding:6px 12px" onclick="mockQuit()">Đóng</button></div>' +
       '<div class="mk-part">KẾT QUẢ THI THỬ</div><div style="text-align:center"><div class="mk-big">' + (sc.overall != null ? fmtBand(sc.overall) : '–') + '</div><p class="mk-sub">Band Speaking ước tính cả bài · chấm được ' + sc.n + '/' + n + ' câu</p></div>' +
       '<div class="mk-crit">' + RS_CRIT.map(k => '<div>' + SP_SHORT[k] + '<b>' + (sc[k] != null ? fmtBand(sc[k]) : '–') + '</b></div>').join('') + '</div>' +
-      (miss.length ? '<div class="mk-card" style="background:rgba(251,191,36,.15)">⚠️ Còn <b>' + miss.length + ' câu chưa chấm được</b>' + (miss.some(canRescore) ? ' <button class="mk-btn" style="margin:8px 0 0;padding:8px 16px;font-size:14px" ' + (busy ? 'disabled' : '') + ' onclick="mockRescore(-1)">' + (busy ? 'Đang chấm lại…' : '🔁 Chấm lại tất cả câu chưa chấm') + '</button>' : ' (bài mở từ lịch sử không còn file ghi âm để chấm lại)') + '</div>' : '') +
+      (miss.length ? '<div class="mk-card" style="background:rgba(251,191,36,.15)">⚠️ Còn <b>' + miss.length + ' câu chưa chấm được</b>' + (miss.some(canRescore) ? ' <button class="mk-btn" style="margin:8px 0 0;padding:8px 16px;font-size:14px" ' + (busy ? 'disabled' : '') + ' onclick="mockRescore(-1)">' + (busy ? 'Đang chấm lại…' : '🔁 Chấm lại tất cả câu chưa chấm') + '</button>' : ' (máy này không còn file ghi âm của các câu đó để chấm lại)') + '</div>' : '') +
       ['1', '2', '3'].map(pt => { const idx = mk.qs.map((q, i) => i).filter(i => mk.qs[i].part === pt); if (!idx.length) return ''; return '<div class="mk-card"><b>Part ' + pt + '</b>' + idx.map(i => {
         const r = mk.results[i], bd = r && r.scores ? SPCore.displayBand(r).band : null;
         const act = r ? '<button class="mk-btn ghost" style="margin:0;padding:4px 10px;font-size:12px" onclick="mockOpen(' + i + ')">Xem</button>'
-          : canRescore(i) ? '<button class="mk-btn ghost" style="margin:0;padding:4px 10px;font-size:12px" ' + (busy ? 'disabled' : '') + ' onclick="mockRescore(' + i + ')">Chấm lại</button>' : '<span style="font-size:12px;opacity:.6">chưa chấm</span>';
-        return '<div style="display:flex;gap:10px;align-items:center;margin-top:8px;font-size:14px"><span style="opacity:.5;width:20px">' + (i + 1) + '</span><span style="flex:1;opacity:.85">' + escapeHtml(String(mk.qs[i].text).split(/you should say/i)[0].slice(0, 110)) + '</span><b>' + (bd != null ? fmtBand(bd) : '–') + '</b>' + act + '</div>';
+          : canRescore(i) ? '<button class="mk-btn ghost" style="margin:0;padding:4px 10px;font-size:12px" ' + (busy ? 'disabled' : '') + ' onclick="mockRescore(' + i + ')" title="' + escapeHtml((mk.errs || [])[i] || '') + '">Chấm lại</button>' : '<span style="font-size:12px;opacity:.6">chưa chấm</span>';
+        const why = !r && (mk.errs || [])[i] ? '<div style="font-size:12px;opacity:.6;margin:-2px 0 0 30px">' + escapeHtml(mk.errs[i]) + '</div>' : '';
+        return '<div style="display:flex;gap:10px;align-items:center;margin-top:8px;font-size:14px"><span style="opacity:.5;width:20px">' + (i + 1) + '</span><span style="flex:1;opacity:.85">' + escapeHtml(String(mk.qs[i].text).split(/you should say/i)[0].slice(0, 110)) + '</span><b>' + (bd != null ? fmtBand(bd) : '–') + '</b>' + act + '</div>' + why;
       }).join('') + '</div>'; }).join('') +
       '<p class="mk-sub" style="margin-top:14px">Bấm "Xem" để nghe lại, xem bài sửa và bản nâng cấp từng câu.</p><button class="mk-btn" onclick="openMockTest()">Thi đề khác</button><button class="mk-btn ghost" onclick="mockQuit()">Đóng</button>');
   }
@@ -3432,15 +3463,11 @@ Is it better to read a physical book or an e-book?"></textarea>
     const list = mk.results.map((r, i) => i).filter(i => !mk.results[i] && mk.blobs && mk.blobs[i] && (only < 0 || i === only));
     if (!list.length) return;
     mk.rescoring = true; mk.doneN = 0; mk.okN = 0; mockReport(mk);
-    const _a = window.alert; window.alert = m => console.warn('Chấm lại:', m); window.__mkSilent = true;
-    __pkg = mk.pkg;
+    const _a = window.alert; window.alert = m => { mk.lastErr = String(m || ''); console.warn('Chấm lại:', m); }; window.__mkSilent = true;
     for (const i of list) {
       if (__mk !== mk) break;
-      __qIdx = i; __recBlob = mk.blobs[i];
-      const id = mk.qs[i].id, before = (__history[id] || []).length;
-      try { await window.scoreRecording(); } catch (e) { console.warn(e); }
-      const arr = __history[id] || [];
-      if (arr.length > before) mk.results[i] = arr[arr.length - 1];
+      const r = await mockScoreOne(mk, i);
+      if (r) mk.results[i] = r;
       if (__mk === mk) mockReport(mk);
     }
     window.alert = _a; window.__mkSilent = false; mk.rescoring = false;
@@ -3475,7 +3502,8 @@ Is it better to read a physical book or an e-book?"></textarea>
     const recs = await Promise.all(items.map(it => it.id ? getDoc(doc(db, 'speakingAttempts', it.id)).then(d => d.exists() ? Object.assign({ id: d.id }, d.data()) : null).catch(() => null) : Promise.resolve(null)));
     const qs = items.map(it => ({ id: it.qid || ('h' + Math.random()), text: it.q, part: String(it.part || '1'), topic: it.topic || '' }));
     __history = {}; recs.forEach((r, i) => { if (r) __history[qs[i].id] = [r]; });
-    mockReport({ done: true, history: true, id: m.id, createdAt: m.createdAt, qs: qs, pkg: { id: m.id, title: m.title || 'Thi thử Speaking', part: 'mix', questions: qs }, results: recs, blobs: null });
+    const blobs = m.audioKey ? await Promise.all(items.map((it, i) => recs[i] ? null : mkGet(m.audioKey + '_' + i))) : null;
+    mockReport({ done: true, history: true, id: m.id, key: m.audioKey, createdAt: m.createdAt, qs: qs, pkg: { id: m.id, title: m.title || 'Thi thử Speaking', part: 'mix', questions: qs }, results: recs, blobs: blobs });
   };
   // ==========================================
   // ĐIỂM THI THẬT -> HIỆU CHỈNH CHẤM AI
