@@ -3309,10 +3309,9 @@ Is it better to read a physical book or an e-book?"></textarea>
     try { const Ctx = window.AudioContext || window.webkitAudioContext; if (Ctx && !__cueCtx) __cueCtx = new Ctx(); if (__cueCtx && __cueCtx.state === 'suspended') __cueCtx.resume(); } catch (e) {}
     // Chấm ngầm: nói xong câu nào là xếp hàng chấm câu đó luôn (lần lượt từng câu), trong lúc học sinh làm câu tiếp
     __mk.pkg = { id: 'mock_' + Date.now(), title: 'Thi thử Speaking · ' + new Date().toLocaleDateString('vi-VN'), part: 'mix', questions: __mk.qs };
-    __pkg = __mk.pkg; __history = {}; __doneQIds = {}; __retryMode = false;
     __mk.results = []; __mk.doneN = 0; __mk.queue = Promise.resolve();
     __mk.key = 'mk_' + Date.now(); mkClean();
-    __mk.alert = window.alert; window.alert = m => { if (__mk) __mk.lastErr = String(m || ''); console.warn('Thi thử:', m); };
+    __mk.id = 'mock_' + window.__currentUid + '_' + Date.now(); __mk.createdAt = Date.now(); __mk.status = 'testing';
     window.__mkSilent = true;   // không bật màn hình huy hiệu sau từng câu khi đang thi thử
     mockAsk();
   };
@@ -3328,13 +3327,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     const id = mk.qs[i].id;
     for (let tryN = 0; tryN < 4; tryN++) {
       if (__mk !== mk) return null;
-      __pkg = mk.pkg; __qIdx = i; __recBlob = blob; mk.lastErr = '';
-      const before = (__history[id] || []).length;
-      try { await window.scoreRecording(); } catch (e) { mk.lastErr = e.message; }
-      const arr = __history[id] || [];
-      if (arr.length > before) { (mk.errs = mk.errs || [])[i] = ''; return arr[arr.length - 1]; }
-      const qb = document.getElementById('recQualityBox');
-      const err = mk.lastErr || (qb && !qb.classList.contains('hidden') ? qb.textContent.trim().slice(0, 140) : 'Chưa chấm được');
+      const ctx = { pkg: mk.pkg, qIdx: i, blob: blob, history: (mk.hist = mk.hist || {}), quiet: true };
+      try { await window.scoreRecording(ctx); } catch (e) { ctx.error = e.message; }
+      if (ctx.record) { (mk.errs = mk.errs || [])[i] = ''; return ctx.record; }
+      const err = ctx.error || 'Chưa chấm được';
       (mk.errs = mk.errs || [])[i] = err;
       if (!/bận|quá lâu|chưa trả lời|chưa chấm xong|sự cố|mạng|timeout|AI/i.test(err) || /hết .*lượt|Pro/i.test(err)) return null;   // lỗi file ghi âm / hết lượt: không thử lại
       const wait = 20 + tryN * 20;
@@ -3350,6 +3346,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       if (__mk !== mk) return;
       mk.results[i] = await mockScoreOne(mk, i);
       mk.doneN++;
+      if (mk.status === 'scoring') { mockSave(mk); mockProgress(mk); }
       mk.okN = (mk.okN || 0) + (mk.results[i] ? 1 : 0); const el = document.getElementById('mkBg'); if (el) el.textContent = '✅ Đã chấm ngầm ' + mk.okN + ' câu';
     });
   }
@@ -3411,32 +3408,81 @@ Is it better to read a physical book or an e-book?"></textarea>
     __mk.tick = setInterval(() => { if (__mk.rec !== rec) return; sec++; const el = document.getElementById('mkT'); if (el) el.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); if (sec >= MK_LIMIT[q.part]) mockNext(); }, 1000);
   };
   window.mockNext = function () { if (!__mk || !__mk.rec || __mk.rec.state !== 'recording') return; clearInterval(__mk.tick); __mk.rec.stop(); };
+  // Nộp bài: lưu ngay, chấm tiếp NGẦM (học sinh làm gì thì làm). Chấm xong -> bật thông báo "Bạn được x.x · Xem chi tiết".
+  // Rời trang Speaking giữa chừng: lần sau mở trang chủ Speaking sẽ tự chấm tiếp (ghi âm đã lưu trên máy).
   async function mockFinish() {
     if (__mk.stream) __mk.stream.getTracks().forEach(t => t.stop());
-    const mk = __mk; mk.scoring = true;
-    const n = mk.qs.length;
-    const paint = () => {
-      if (__mk !== mk) return;
-      const sm = document.getElementById('scoringSpinnerMsg');
-      const okN = mk.results.filter(Boolean).length;
-      mkShell('<div class="mk-part">ĐANG CHẤM NỐT</div><p class="mk-q">Đã chấm ' + okN + '/' + n + ' câu…</p><div class="mk-bar" style="height:10px"><i style="width:' + Math.round(okN / n * 100) + '%"></i></div><p class="mk-sub" style="margin-top:14px">' + (sm && sm.textContent ? escapeHtml(sm.textContent) : 'Các câu đã được chấm ngầm trong lúc bạn thi, chỉ còn vài câu cuối.') + '</p>');
-    };
-    paint(); const t = setInterval(paint, 1500);
-    await mk.queue;
-    if (__mk !== mk) { clearInterval(t); return; }
-    // Câu chưa chấm được: chấm lại thêm 1 lượt trước khi ra bảng kết quả
-    const left = mk.qs.map((q, i) => i).filter(i => !mk.results[i] && mk.blobs[i] && mk.blobs[i].size && !/hết .*lượt|Pro/i.test((mk.errs || [])[i] || ''));
-    for (const i of left) { if (__mk !== mk) { clearInterval(t); return; } const r = await mockScoreOne(mk, i); if (r) { mk.results[i] = r; } }
-    clearInterval(t);
-    if (mk.alert) window.alert = mk.alert;
-    mk.scoring = false; window.__mkSilent = false;
-    mk.id = 'mock_' + window.__currentUid + '_' + Date.now(); mk.createdAt = Date.now();
+    const mk = __mk; mk.scoring = true; mk.status = 'scoring';
     mk.results = mk.qs.map((q, i) => mk.results[i] || null);
-    mk.done = true;
-    mockSave(mk); mockReport(mk);
-    // 1 màn ăn mừng cho cả bài thi
-    const ov = mockScores(mk.results).overall;
-    try { if (window.NightFame && ov != null) NightFame.event({ kind: 'speaking', id: mk.id, title: 'Thi thử Speaking full test', band: ov, text: '' }); } catch (e) {}
+    mockSave(mk);
+    mockSubmitted(mk);
+    mockBackground(mk);
+  }
+  function mockSubmitted(mk) {
+    const okN = mk.results.filter(Boolean).length, n = mk.qs.length;
+    mkShell('<div style="text-align:center"><div style="font-size:56px">📨</div><div class="mk-part">ĐÃ NỘP BÀI</div><p class="mk-q">Night IELTS đang chấm bài thi thử của bạn</p>' +
+      '<div class="mk-bar" style="height:10px"><i style="width:' + Math.round(okN / n * 100) + '%"></i></div><p class="mk-sub" style="margin-top:10px">Đã chấm ' + okN + '/' + n + ' câu</p>' +
+      '<p class="mk-sub" style="margin-top:14px">Bạn cứ đi luyện câu khác hay làm việc khác. Chấm xong trang sẽ báo điểm ngay.<br>Nếu rời trang Speaking, lần sau mở lại trang này sẽ chấm tiếp.</p>' +
+      '<button class="mk-btn" onclick="mockHide()">Đi làm việc khác</button><button class="mk-btn ghost" onclick="mockWait()">Ở lại chờ</button></div>');
+    mk.view = 'submitted';
+  }
+  window.mockHide = function () { const ov = document.getElementById('mkOv'); if (ov) ov.style.display = 'none'; if (__mk) __mk.view = 'hidden'; mockChip(); };
+  window.mockWait = function () { if (__mk) { __mk.view = 'submitted'; mockSubmitted(__mk); } };
+  // Chip nhỏ góc màn hình: đang chấm x/15, bấm để mở lại
+  function mockChip() {
+    const mk = __mk; let c = document.getElementById('mkChip');
+    if (!mk || !mk.scoring) { if (c) c.remove(); return; }
+    if (!c) { c = document.createElement('button'); c.id = 'mkChip'; c.type = 'button'; c.style.cssText = 'position:fixed;right:14px;bottom:70px;z-index:9991;border:0;border-radius:99px;padding:10px 16px;background:#4F46E5;color:#fff;font:700 13px system-ui,sans-serif;box-shadow:0 10px 24px -10px rgba(0,0,0,.5);cursor:pointer'; c.onclick = () => { const ov = document.getElementById('mkOv'); if (ov) ov.style.display = ''; if (__mk) { __mk.view = 'submitted'; mockSubmitted(__mk); } c.remove(); }; document.body.appendChild(c); }
+    c.textContent = '🎤 Đang chấm thi thử ' + mk.results.filter(Boolean).length + '/' + mk.qs.length;
+  }
+  function mockProgress(mk) {
+    if (__mk !== mk) return;
+    if (mk.view === 'submitted' && document.getElementById('mkOv') && document.getElementById('mkOv').style.display !== 'none') mockSubmitted(mk);
+    if (mk.view === 'hidden') mockChip();
+  }
+  async function mockBackground(mk) {
+    window.__mkSilent = true;
+    await mk.queue;
+    if (__mk !== mk) return;
+    mockProgress(mk);
+    // Câu chưa chấm được: chấm lại thêm 1 lượt
+    const left = mk.qs.map((q, i) => i).filter(i => !mk.results[i] && mk.blobs && mk.blobs[i] && mk.blobs[i].size && !/hết .*lượt|Pro/i.test((mk.errs || [])[i] || ''));
+    for (const i of left) { if (__mk !== mk) return; const r = await mockScoreOne(mk, i); if (r) { mk.results[i] = r; mockSave(mk); mockProgress(mk); } }
+    if (__mk !== mk) return;
+    window.__mkSilent = false;
+    mk.scoring = false; mk.done = true; mk.status = 'done';
+    mockSave(mk);
+    const c = document.getElementById('mkChip'); if (c) c.remove();
+    mockDonePopup(mk);
+  }
+  function mockDonePopup(mk) {
+    const sc = mockScores(mk.results), n = mk.qs.length;
+    const ov = document.getElementById('mkOv'); if (ov) ov.style.display = 'none';
+    const old = document.getElementById('mkDone'); if (old) old.remove();
+    const d = document.createElement('div'); d.id = 'mkDone'; d.className = 'mk-ov';
+    d.style.cssText = 'background:radial-gradient(circle at 50% 30%,rgba(78,82,190,.98),rgba(16,14,34,.99));justify-content:center';
+    d.innerHTML = '<div class="mk-in" style="text-align:center;max-width:420px"><div class="mk-part">' + (sc.n ? '🎉 ĐÃ CHẤM XONG BÀI THI THỬ' : '⚠️ CHƯA CHẤM ĐƯỢC BÀI THI THỬ') + '</div>' + (sc.n < n ? '<p class="mk-sub">' + (sc.n ? 'Còn ' + (n - sc.n) + ' câu chưa chấm được, ' : 'AI đang bận, ') + 'bấm "Xem chi tiết" để chấm lại.</p>' : '') + '' +
+      '<div class="mk-big" style="font-size:96px;color:#FFD38A;margin:10px 0 4px">' + (sc.overall != null ? fmtBand(sc.overall) : '–') + '</div><p class="mk-sub">Band Speaking ước tính cả bài' + (sc.n < n ? ' · chấm được ' + sc.n + '/' + n + ' câu' : '') + '</p>' +
+      '<img src="/khoahoc/img/ira/' + (sc.overall >= 7 ? 'trophy_school_boy' : 'music_recording_singer_woman_5761') + '.webp" alt="" style="display:block;margin:12px auto;width:130px;height:130px;object-fit:contain" onerror="this.remove()">' +
+      '<div class="mk-crit">' + RS_CRIT.map(k => '<div>' + SP_SHORT[k] + '<b>' + (sc[k] != null ? fmtBand(sc[k]) : '–') + '</b></div>').join('') + '</div>' +
+      '<button class="mk-btn" id="mkDoneView">Xem chi tiết</button><button class="mk-btn ghost" id="mkDoneClose">Đóng</button></div>';
+    document.body.appendChild(d);
+    d.querySelector('#mkDoneView').onclick = () => { d.remove(); const o = document.getElementById('mkOv'); if (o) o.style.display = ''; mockReport(mk); };
+    d.querySelector('#mkDoneClose').onclick = () => { d.remove(); };
+    loadMockHistory(window.__currentUid);
+  }
+  // Mở trang chủ Speaking: bài thi thử nào còn đang chấm dở (rời trang giữa chừng) thì chấm tiếp
+  async function resumeMocks(list) {
+    if (__mk && (__mk.scoring || __mk.stream)) return;
+    const m = list.find(x => x.status === 'scoring' && x.audioKey && Date.now() - (x.createdAt || 0) < 3 * 86400000);
+    if (!m) return;
+    const items = m.items || [];
+    const recs = await Promise.all(items.map(it => it.id ? getDoc(doc(db, 'speakingAttempts', it.id)).then(d => d.exists() ? Object.assign({ id: d.id }, d.data()) : null).catch(() => null) : Promise.resolve(null)));
+    const blobs = await Promise.all(items.map((it, i) => recs[i] ? null : mkGet(m.audioKey + '_' + i)));
+    const qs = items.map(it => ({ id: it.qid || ('h' + Math.random()), text: it.q, part: String(it.part || '1'), topic: it.topic || '' }));
+    const mk = { id: m.id, key: m.audioKey, createdAt: m.createdAt, qs: qs, pkg: { id: m.id.replace(/^mock_[^_]+_/, 'mock_'), title: m.title || 'Thi thử Speaking', part: 'mix', questions: qs }, results: recs, blobs: blobs, errs: [], queue: Promise.resolve(), scoring: true, status: 'scoring', view: 'hidden' };
+    if (__mk && (__mk.scoring || __mk.stream)) return;
+    __mk = mk; mockChip(); mockBackground(mk);
   }
   function mockScores(results) {
     const ok = results.filter(r => r && r.scores), avg = {};
@@ -3445,7 +3491,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   }
   function mockSave(mk) {
     const sc = mockScores(mk.results);
-    setDoc(doc(db, 'speakingAttempts', mk.id), { kind: 'mockTest', studentId: window.__currentUid, title: mk.pkg.title, scores: sc, total: mk.qs.length, createdAt: mk.createdAt, audioKey: mk.key || '',
+    setDoc(doc(db, 'speakingAttempts', mk.id), { kind: 'mockTest', studentId: window.__currentUid, title: mk.pkg.title, scores: sc, total: mk.qs.length, createdAt: mk.createdAt, audioKey: mk.key || '', status: mk.status || 'done',
       items: mk.qs.map((q, i) => { const r = mk.results[i]; return { qid: q.id, q: String(q.text).slice(0, 300), part: q.part, topic: q.topic || '', band: r && r.scores ? SPCore.displayBand(r).band : null, id: (r && r.id) || null }; }) }).catch(e => console.warn('Không lưu được bài thi thử:', e));
   }
   // Bảng kết quả (dùng cho bài vừa thi lẫn bài mở lại từ lịch sử)
@@ -3472,14 +3518,14 @@ Is it better to read a physical book or an e-book?"></textarea>
     const list = mk.results.map((r, i) => i).filter(i => !mk.results[i] && mk.blobs && mk.blobs[i] && (only < 0 || i === only));
     if (!list.length) return;
     mk.rescoring = true; mk.doneN = 0; mk.okN = 0; mockReport(mk);
-    const _a = window.alert; window.alert = m => { mk.lastErr = String(m || ''); console.warn('Chấm lại:', m); }; window.__mkSilent = true;
+    window.__mkSilent = true;
     for (const i of list) {
       if (__mk !== mk) break;
       const r = await mockScoreOne(mk, i);
       if (r) mk.results[i] = r;
       if (__mk === mk) mockReport(mk);
     }
-    window.alert = _a; window.__mkSilent = false; mk.rescoring = false;
+    window.__mkSilent = false; mk.rescoring = false;
     if (__mk === mk) { mockSave(mk); mockReport(mk); }
   };
   window.mockOpen = function (i) {
@@ -3499,9 +3545,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     try { const sn = await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid), where('kind', '==', 'mockTest'))); sn.forEach(d => list.push(Object.assign({ id: d.id }, d.data()))); } catch (e) { return; }
     list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     window.__mockHist = list;
+    resumeMocks(list);
     el.innerHTML = list.length ? '<div class="ni-panel-label px-1">Lịch sử thi thử</div><div class="mock-hist">' + list.slice(0, 20).map((m, k) => {
       const sc = m.scores || {}, d = new Date(m.createdAt || 0);
-      return '<button type="button" class="mh-item" onclick="openMockHist(' + k + ')"><b>' + (sc.overall != null ? fmtBand(sc.overall) : '–') + '</b><span>' + d.toLocaleDateString('vi-VN') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '<small>' + (sc.n || 0) + '/' + (m.total || (m.items || []).length) + ' câu chấm được · ' + RS_CRIT.map(c => SP_SHORT[c] + ' ' + (sc[c] != null ? fmtBand(sc[c]) : '–')).join(' · ') + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
+      return '<button type="button" class="mh-item" onclick="openMockHist(' + k + ')"><b>' + (m.status === 'scoring' ? '⏳' : sc.overall != null ? fmtBand(sc.overall) : '–') + '</b><span>' + d.toLocaleDateString('vi-VN') + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '<small>' + (m.status === 'scoring' ? 'Đang chấm · ' : '') + (sc.n || 0) + '/' + (m.total || (m.items || []).length) + ' câu chấm được · ' + RS_CRIT.map(c => SP_SHORT[c] + ' ' + (sc[c] != null ? fmtBand(sc[c]) : '–')).join(' · ') + '</small></span><i class="fa-solid fa-chevron-right"></i></button>';
     }).join('') + '</div>' : '';
   }
   window.openMockHist = async function (k) {
@@ -4340,27 +4387,33 @@ Is it better to read a physical book or an e-book?"></textarea>
     el.classList.remove('hidden');
   }
 
-  window.scoreRecording = async function () {
-    if (!__recBlob) return;
+  // ctx (tuỳ chọn) = chấm NGẦM 1 câu của bài thi thử: {pkg, qIdx, blob, history, quiet:true} — không đụng giao diện
+  // luyện tập đang mở (học sinh vẫn làm việc khác được), trả kết quả vào ctx.record / lỗi vào ctx.error.
+  window.scoreRecording = async function (ctx) {
+    const C = ctx && ctx.pkg ? ctx : null, quiet = !!(C && C.quiet);
+    const pkg = C ? C.pkg : __pkg, qIdx = C ? C.qIdx : __qIdx, hist = C ? (C.history || (C.history = {})) : __history;
+    const dummy = document.createElement('div'), D = id => quiet ? dummy : D(id);
+    const fail = m => { if (quiet) C.error = m; else alert(m); };
+    if (!(C ? C.blob : __recBlob)) return;
     const cfg = getGroqConfig();
-    if (!hasGroqAI()) { alert('Vui lòng cấu hình Groq API Key trước khi chấm điểm (biểu tượng ⚙️ góc trên).'); return; }
+    if (!hasGroqAI()) { fail('Vui lòng cấu hình Groq API Key trước khi chấm điểm (biểu tượng ⚙️ góc trên).'); return; }
 
-    document.getElementById('recPreviewBox').classList.add('hidden');
-    const qBox = document.getElementById('recQualityBox');
+    D('recPreviewBox').classList.add('hidden');
+    const qBox = D('recQualityBox');
     qBox.classList.add('hidden');
-    const spinner = document.getElementById('scoringSpinner');
-    const spinnerMsg = document.getElementById('scoringSpinnerMsg');
+    const spinner = D('scoringSpinner');
+    const spinnerMsg = D('scoringSpinnerMsg');
     spinner.classList.remove('hidden');
 
     // Giữ bản ghi + câu hỏi tại thời điểm bấm chấm, để dù học sinh chuyển câu trong lúc chờ
     // thì vẫn lưu đúng file ghi âm cho đúng câu.
-    const recBlob = __recBlob;
-    const q = __pkg.questions[__qIdx];
-    const part = String(q.part || __pkg.part || '1');
+    const recBlob = C ? C.blob : __recBlob;
+    const q = pkg.questions[qIdx];
+    const part = String(q.part || pkg.part || '1');
     const T0 = performance.now(), tm = {};
     const lap = (k, t) => { tm[k] = +((performance.now() - t) / 1000).toFixed(1); };
-    window.__onGroqWait = s => { spinnerMsg.textContent = 'AI đang bận, tự thử lại sau ' + s + ' giây...'; };
-    window.__aiScoring = true;
+    if (!quiet) window.__onGroqWait = s => { spinnerMsg.textContent = 'AI đang bận, tự thử lại sau ' + s + ' giây...'; };
+    if (!quiet) window.__aiScoring = true;
     let audioSave = null, savedOk = false, cleanupId = null;
     try {
       if (!recBlob.size) throw Object.assign(new Error('File ghi âm trống.'), { quality: { status: 'reject', issues: [{ code: 'empty', level: 'reject', msg: 'File ghi âm trống. Hãy ghi âm lại.' }] } });
@@ -4375,7 +4428,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       asrP.catch(() => {}); // tránh báo lỗi "chưa bắt" nếu bài bị loại vì chất lượng
       const createdAt = Date.now();
       const expiresAt = createdAt + ATTEMPT_TTL_MS;
-      const attemptId = window.__currentUid + '_' + __pkg.id + '_' + q.id + '_' + createdAt;
+      const attemptId = window.__currentUid + '_' + pkg.id + '_' + q.id + '_' + createdAt;
       cleanupId = attemptId;
       const audioMime = recBlob.type || 'audio/webm';
       const tS = performance.now();
@@ -4385,7 +4438,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         for (let i = 0; i * AUDIO_CHUNK_CHARS < payload.length; i++) {
           chunkDocs.push({
             kind: 'audioChunk', attemptId: attemptId, idx: i,
-            studentId: window.__currentUid, packageId: __pkg.id, questionId: q.id,
+            studentId: window.__currentUid, packageId: pkg.id, questionId: q.id,
             data: payload.slice(i * AUDIO_CHUNK_CHARS, (i + 1) * AUDIO_CHUNK_CHARS),
             createdAt: createdAt, expiresAt: expiresAt
           });
@@ -4474,7 +4527,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         evidence.pronunciation_evidence.intended_text = null;
       }
       // Lần làm trước của CHÍNH câu này (nếu có): để chấm nhất quán và giải thích vì sao điểm thay đổi
-      const prevRec = ((__history[q.id] || []).filter(r => r && r.scores && r.transcript).sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0)))[0] || null;
+      const prevRec = ((hist[q.id] || []).filter(r => r && r.scores && r.transcript).sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0)))[0] || null;
       if (prevRec) evidence.previous_attempt = {
         transcript: String(prevRec.transcript).slice(0, 1200),
         bands: { fluency: prevRec.scores.fluency, lexical: prevRec.scores.lexical, grammar: prevRec.scores.grammar, pronunciation: prevRec.scores.pronunciation },
@@ -4563,7 +4616,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 
       const record = JSON.parse(JSON.stringify({
         kind: 'attempt',
-        studentId: window.__currentUid, packageId: __pkg.id, packageTitle: __pkg.title,
+        studentId: window.__currentUid, packageId: pkg.id, packageTitle: pkg.title,
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: norm.scores, criteria: norm.criteria, rubric: norm.rubric,
         sampleAdequacy: norm.sampleAdequacy, calib: norm.calib || null,
@@ -4587,13 +4640,14 @@ Is it better to read a physical book or an e-book?"></textarea>
       record.id = attemptId;
       logPracticeToProgress(record, attemptId);
       if (audioChunkCount) __audioChunks[attemptId] = chunkDocs;
-      (__history[q.id] = __history[q.id] || []).push(record);
+      (hist[q.id] = hist[q.id] || []).push(record);
+      if (quiet) { C.record = record; spinner.classList.add('hidden'); try { sendSpeakingDocLog(record); } catch (e) {} return; }
       __doneQIds[q.id] = record;
 
       spinner.classList.add('hidden');
       renderQNav();
       // Nếu học sinh đã chuyển sang câu khác trong lúc chờ chấm thì không nhảy kết quả sang câu đó.
-      if (__pkg.questions[__qIdx].id === q.id) {
+      if (__pkg && __pkg.questions[__qIdx] && __pkg.questions[__qIdx].id === q.id) {
         __retryMode = false;
         discardRecording();
         showResult(record);
@@ -4602,24 +4656,25 @@ Is it better to read a physical book or an e-book?"></textarea>
       sendSpeakingDocLog(record);
       bankCheckUsed(record.transcript).then(used => {
         if (!used.length || !__res || __res.record !== record) return;
-        const qEl = document.getElementById('resQuality');
+        const qEl = D('resQuality');
         qEl.classList.remove('hidden', 'bad');
         qEl.innerHTML = '<b>🎉 Bạn đã tự dùng cụm trong sổ:</b> ' + used.map(u => '“' + escapeHtml(u) + '”').join(', ') + (qEl.innerHTML ? '<hr style="margin:8px 0;border:0;border-top:1px solid #f6dca6">' + qEl.innerHTML : '');
       });
       await maybeCompleteAssignment();
     } catch (e) {
       spinner.classList.add('hidden');
-      const sameQ = __pkg.questions[__qIdx].id === q.id && __recBlob === recBlob;
+      if (quiet) { C.error = e.quality ? ((e.quality.issues || []).map(x => x.msg).join(' ') || 'Chất lượng ghi âm chưa đủ để chấm') : (e.message || 'Chưa chấm được'); return; }
+      const sameQ = __pkg && __pkg.questions[__qIdx] && __pkg.questions[__qIdx].id === q.id && __recBlob === recBlob;
       if (e.quality) {
         // Chất lượng ghi âm không đủ: KHÔNG chấm, không bịa điểm thấp — yêu cầu ghi lại
-        if (sameQ) { showQualityBox(qBox, e.quality, true); document.getElementById('recPreviewBox').classList.remove('hidden'); document.getElementById('scoreBtn').classList.add('hidden'); }
+        if (sameQ) { showQualityBox(qBox, e.quality, true); D('recPreviewBox').classList.remove('hidden'); D('scoreBtn').classList.add('hidden'); }
         return;
       }
       // Giữ nguyên bản ghi để học sinh bấm chấm lại, không phải nói lại từ đầu.
-      if (sameQ) document.getElementById('recPreviewBox').classList.remove('hidden');
+      if (sameQ) D('recPreviewBox').classList.remove('hidden');
       alert('Lỗi: ' + e.message);
     } finally {
-      window.__onGroqWait = null; window.__aiScoring = false;
+      if (!quiet) { window.__onGroqWait = null; window.__aiScoring = false; }
       // Chấm lỗi giữa chừng: xoá các mảnh file ghi âm đã lưu song song, để không sót file rác
       if (!savedOk && audioSave && cleanupId) audioSave.then(cs => cs.forEach(c => deleteDoc(doc(db, 'speakingAttempts', cleanupId + '_a' + c.idx)).catch(() => {}))).catch(() => {});
     }
