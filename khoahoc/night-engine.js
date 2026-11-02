@@ -3208,7 +3208,33 @@
     grammar(s) {
       return (s.points || []).map((g, i) => blk(`<div class="np-box"><h3 style="margin-top:0">${i + 1}. ${rh(g.name)}</h3>${(g.forms || []).length ? `<table>${g.forms.map((f) => `<tr><th style="width:28%">${rh(f.label)}</th><td>${rh(f.pattern)}</td></tr>`).join("")}</table>` : ""}${(g.uses || []).length ? `<p><b>Cách dùng:</b></p>${li(g.uses)}` : ""}${(g.examples || []).length ? `<p><b>Ví dụ:</b></p><ul>${g.examples.map((e) => `<li>${rh(e.en)}${e.vi ? ` <span class="np-soft">— ${rh(e.vi)}</span>` : ""}</li>`).join("")}</ul>` : ""}${g.signals ? `<p><b>Dấu hiệu:</b> ${rh(g.signals)}</p>` : ""}${tip(g.note)}</div>`)).join("");
     },
+    /* Chọn từ có phần gạch chân đọc khác (type "odd"): "h[ea]d /hed/" -> h<u>ea</u>d; phiên âm chỉ hiện trong đáp án */
+    odd(s) {
+      const sets = s.sets || [{ items: s.items || [] }];
+      const word = (w) => esc(String(w).replace(/\s*\/[^/]*\/\s*$/, "")).replace(/\[([^\]]+)\]/g, '<span style="text-decoration:underline;text-underline-offset:2px;font-weight:800">$1</span>');
+      const ipa = (w) => (String(w).match(/\/[^/]*\/\s*$/) || [""])[0].trim();
+      let n = 0;
+      return (s.intro ? blk(`<p class="np-soft">${rh(s.intro)}</p>`) : "") + `<span class="np-ex-badge">Luyện tập</span>` + sets.map((g) => {
+        const start = n;
+        const body = (g.items || []).map((it) => { n++; return `<div class="np-avoid"><p class="np-q"><b>${n}</b><span class="np-opts" style="display:inline">${(it.w || []).map((w, k) => `<span class="np-opt">${ABC[k]}. <span>${word(w)}</span></span>`).join("")}</span></p></div>`; }).join("");
+        const key = (g.items || []).map((it, i) => `${start + i + 1}${ABC[it.a] || ""}`).join(" · ");
+        const ipas = (g.items || []).map((it, i) => `${start + i + 1}. ${(it.w || []).map((w, k) => (k === it.a ? "<b>" : "") + word(w) + " " + esc(ipa(w)) + (k === it.a ? "</b>" : "")).join(", ")}`).join("<br>");
+        return blk(`${g.label ? `<h3>${rh(g.label)}</h3>` : ""}${body}<div class="np-anskey"><b>Đáp án:</b> ${key}<div style="margin-top:.3em">${ipas}</div></div>`);
+      }).join("");
+    },
+    /* Điền từ (type "fill"): [[đáp án|đáp án khác]] -> chỗ trống ______ ; đáp án ở cuối */
+    fill(s) {
+      const sets = s.sets || [{ items: s.items || [] }];
+      let n = 0;
+      return `<span class="np-ex-badge">Luyện tập</span>` + sets.map((g) => {
+        const start = n;
+        const body = (g.items || []).map((it) => { n++; const t = String(it.text || "").replace(/\[\[[^\]]*\]\]/g, "§§"); return `<div class="np-avoid"><p class="np-q"><b>${n}</b><span>${rh(t).replace(/§§/g, '<span class="np-gap"></span>').replace(/\n/g, "<br>")}</span></p></div>`; }).join("");
+        const key = (g.items || []).map((it, i) => { const ans = [...String(it.text || "").matchAll(/\[\[([^\]]*)\]\]/g)].map((m) => m[1].split("|")[0]); return `<li value="${start + i + 1}">${esc(ans.join(" / "))}${it.explain ? ` — <span class="np-soft">${rh(it.explain)}</span>` : ""}</li>`; }).join("");
+        return blk(`${g.label ? `<h3>${rh(g.label)}</h3>` : ""}${body}<div class="np-anskey"><b>Đáp án:</b><ol style="margin:.2em 0 0 1.2em;padding:0">${key}</ol></div>`);
+      }).join("");
+    },
     quiz(s) {
+      if (s.sets) { let n = 0; return `<span class="np-ex-badge">Luyện tập</span>` + s.sets.map((g) => { const start = n; const items = g.items || []; return blk(`${g.label ? `<h3>${rh(g.label)}</h3>` : ""}${items.map((q) => { n++; return `<div class="np-avoid"><p class="np-q"><b>${n}</b>${rh(q.q)}</p><p class="np-opts">${(q.options || []).map((o, k) => `<span class="np-opt">${ABC[k]}. ${rh(o)}</span>`).join("")}</p></div>`; }).join("")}<div class="np-anskey"><b>Đáp án:</b> ${items.map((q, i) => `${start + i + 1}${ABC[q.answer] || ""}`).join(" · ")}${items.some((q) => q.explain) ? `<ol style="margin:.2em 0 0 1.2em;padding:0">${items.map((q, i) => `<li value="${start + i + 1}">${rh((q.options || [])[q.answer] || "")}${q.explain ? ` — <span class="np-soft">${rh(q.explain)}</span>` : ""}</li>`).join("")}</ol>` : ""}</div>`); }).join(""); }
       const items = s.items || [];
       return `<span class="np-ex-badge">Luyện tập</span>` + items.map((q, i) => blk(`<div class="np-avoid"><p class="np-q"><b>${i + 1}</b>${rh(q.q)}</p><p class="np-opts">${(q.options || []).map((o, k) => `<span class="np-opt">${ABC[k]}. ${rh(o)}</span>`).join("")}</p></div>`)).join("") +
         blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((q, i) => `${i + 1}${ABC[q.answer] || ""}`).join(" · ")}${items.some((q) => q.explain) ? `<ol>${items.map((q) => `<li>${rh((q.options || [])[q.answer] || "")}${q.explain ? ` — <span class="np-soft">${rh(q.explain)}</span>` : ""}</li>`).join("")}</ol>` : ""}</div>`);
@@ -3287,7 +3313,7 @@
   PRINTERS.figure = (s) => blk(`<div class="np-box">${(s.items || []).map((f) => `<figure style="margin:.4em 0"><img src="${esc(f.src)}" alt="" style="max-width:100%;max-height:9cm">${f.caption ? `<figcaption class="np-soft">${rh(f.caption)}</figcaption>` : ""}</figure>`).join("")}${tip(s.note)}</div>`);
   PRINTERS.compare = (s) => (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.items || []).map((v) => blk(`<div class="np-box np-avoid"><b>${rh(v.label)}</b><p>${rh(v.text)}</p>${tip(v.comment, "Nhận xét")}</div>`)).join("") + (s.takeaway ? blk(tip(s.takeaway, "Ghi nhớ")) : "");
   PRINTERS.checklist = (s) => { let n = 0; return (s.groups || []).map((g) => blk(`<div class="np-box np-avoid"><b>${rh(g.label)}</b>${g.items.map((x) => `<p class="np-check">${++n}) ${rh(x)}</p>`).join("")}</div>`)).join(""); };
-  PRINTERS.fill = (s) => { const items = s.items || []; return (s.intro ? blk(`<p>${rh(s.intro)}</p>`) : "") + (s.img ? blk(`<img src="${esc(s.img)}" alt="" style="max-width:100%;max-height:8cm">`) : "") + `<span class="np-ex-badge">Luyện tập</span>` + items.map((it, i) => blk(`<p class="np-avoid np-q"><b>${i + 1}</b>${rh(String(it.text).replace(/\[\[(.+?)\]\]/g, "@@GAP@@")).replace(/@@GAP@@/g, '<span class="np-gap"></span>')}</p>`)).join("") + blk(`<div class="np-anskey"><b>Đáp án:</b> ${items.map((it, i) => `${i + 1}. ${(String(it.text).match(/\[\[(.+?)\]\]/g) || []).map((g) => esc(g.slice(2, -2).split("|")[0])).join(" / ")}`).join(" · ")}</div>`, "np-ans"); };
+  // PRINTERS.fill: định nghĩa trong PRINTERS ở trên (hỗ trợ cả items lẫn sets)
   PRINTERS.aiwrite = (s) => PRINTERS.write({ tasks: (s.items || []).map((t) => ({ prompt: (t.title ? `**${t.title}** — ` : "") + t.prompt, img: t.img, min: t.task === "task1" ? 150 : 250, lines: t.task === "task1" ? 14 : 22 })) });
   PRINTERS.write = (s) => (s.tasks || []).map((t, i) => blk(`<div class="np-box"><span class="np-ex-badge">Bài viết ${i + 1}</span><p>${rh(t.prompt).replace(/\n/g, "<br>")}</p>${t.img ? `<img src="${esc(t.img)}" alt="" style="max-width:100%;max-height:8cm">` : ""}${tip(t.hint, "Gợi ý")}${lines(t.lines || Math.max(4, Math.round((t.min || 60) / 12)))}</div>`) + (t.model ? blk(`<div class="np-anskey"><b>Bài mẫu:</b><p>${rh(t.model).replace(/\n/g, "<br>")}</p></div>`, "np-ans") : "")).join("");
 
