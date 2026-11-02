@@ -3363,23 +3363,29 @@ Is it better to read a physical book or an e-book?"></textarea>
     const bul = (parts[1] || '').split(/\n|•|- (?=[A-Za-z])/).map(x => x.trim()).filter(Boolean);
     return '<p class="mk-q">' + escapeHtml(parts[0].trim()) + (bul.length ? '<br><span style="font-size:15px;opacity:.7">You should say:</span><ul>' + bul.map(b => '<li>' + escapeHtml(b) + '</li>').join('') + '</ul>' : '') + '</p>';
   }
+  // Mỗi câu chỉ đi đúng 1 chiều: hỏi -> (chuẩn bị) -> ghi âm -> xong. __mk.stage chặn việc 1 bước chạy 2 lần
+  // (vd. bấm "Nói luôn" lúc giám khảo còn đọc đề Part 2 -> lời đọc bị cắt -> trước đây lại bật đồng hồ chuẩn bị chồng lên).
   async function mockAsk() {
-    const q = __mk.qs[__mk.i];
+    const q = __mk.qs[__mk.i], idx = __mk.i;
+    __mk.stage = 'ask';
     if (q.part === '2') {
       // 1 phút chuẩn bị, có ô ghi chú
       mkShell(mkHead() + mkQHtml(q) + '<p class="mk-sub">⏳ Thời gian chuẩn bị</p><div class="mk-timer" id="mkT">1:00</div><textarea class="mk-notes" id="mkNotes" placeholder="Ghi chú nhanh ý chính (không bắt buộc)…"></textarea><button class="mk-btn" onclick="mockRecord()">Nói luôn</button>');
       await mkSay('Now I am going to give you a topic, and I would like you to talk about it for one to two minutes. You have one minute to prepare. ' + String(q.text).split(/you should say/i)[0]);
-      if (!__mk || __mk.qs[__mk.i] !== q) return;
+      if (!__mk || __mk.i !== idx || __mk.stage !== 'ask') return;
+      __mk.stage = 'prep';
       let left = 60; clearInterval(__mk.tick);
-      __mk.tick = setInterval(() => { left--; const el = document.getElementById('mkT'); if (el) el.textContent = '0:' + String(Math.max(0, left)).padStart(2, '0'); if (left <= 0) { clearInterval(__mk.tick); mockRecord(); } }, 1000);
+      __mk.tick = setInterval(() => { left--; const el = document.getElementById('mkT'); if (el) el.textContent = '0:' + String(Math.max(0, left)).padStart(2, '0'); if (left <= 0) { clearInterval(__mk.tick); if (__mk.i === idx && __mk.stage === 'prep') mockRecord(); } }, 1000);
       return;
     }
     mkShell(mkHead() + mkQHtml(q) + '<div class="mk-timer">🔊</div><p class="mk-sub">Giám khảo đang hỏi…</p>');
     await mkSay(q.text);
-    if (__mk && __mk.qs[__mk.i] === q) mockRecord();
+    if (__mk && __mk.i === idx && __mk.stage === 'ask') mockRecord();
   }
   window.mockRecord = async function () {
-    const q = __mk.qs[__mk.i];
+    if (!__mk || __mk.stage === 'rec' || __mk.stage === 'done') return;   // đang ghi rồi thì bỏ qua
+    __mk.stage = 'rec';
+    const q = __mk.qs[__mk.i], idx = __mk.i;
     clearInterval(__mk.tick);
     const notes = document.getElementById('mkNotes'); if (notes) __mk.notes = notes.value;
     try { window.speechSynthesis.cancel(); } catch (e) {}
@@ -3391,15 +3397,18 @@ Is it better to read a physical book or an e-book?"></textarea>
     __mk.rec = rec;
     rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
     rec.onstop = () => {
-      __mk.blobs[__mk.i] = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
-      mockEnqueue(__mk.i, __mk.blobs[__mk.i]);
+      if (!__mk || __mk.rec !== rec || __mk.i !== idx) return;
+      __mk.stage = 'done';
+      __mk.blobs[idx] = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+      mockEnqueue(idx, __mk.blobs[idx]);
       playCue('stop');
       __mk.i++;
       if (__mk.i < __mk.qs.length) mockAsk(); else mockFinish();
     };
     rec.start();
     let sec = 0;
-    __mk.tick = setInterval(() => { sec++; const el = document.getElementById('mkT'); if (el) el.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); if (sec >= MK_LIMIT[q.part]) mockNext(); }, 1000);
+    clearInterval(__mk.tick);
+    __mk.tick = setInterval(() => { if (__mk.rec !== rec) return; sec++; const el = document.getElementById('mkT'); if (el) el.textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); if (sec >= MK_LIMIT[q.part]) mockNext(); }, 1000);
   };
   window.mockNext = function () { if (!__mk || !__mk.rec || __mk.rec.state !== 'recording') return; clearInterval(__mk.tick); __mk.rec.stop(); };
   async function mockFinish() {
