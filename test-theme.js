@@ -160,3 +160,11 @@
   if (window.__nightApp || document.querySelector('script[src*="night-app.js"]')) return;
   var s = document.createElement('script'); s.src = '/night-app.js'; s.defer = true; (document.head || document.documentElement).appendChild(s);
 })();
+
+/* Reading / Listening: "In đề" cho giáo viên (test-print.js tự kiểm tra admin) */
+(function () {
+  if (window.__nightPrintHook || !/\/(reading|listening)\//.test(location.pathname)) return; window.__nightPrintHook = true;
+  var src; try { src = new URL('test-print.js?v=20261104a', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/test-print.js'; }
+  var add = function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
+})();
