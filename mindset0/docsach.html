@@ -1288,6 +1288,67 @@
     const j = await res.json();
     return (j.text || "").trim();
   }
+        /* --- Dịch đoạn bôi đen sang tiếng Việt, GIỮ định dạng (chữ đỏ/đậm ở câu gốc -> nghĩa tiếng Việt tương ứng cũng đỏ/đậm),
+               chèn thành 1 dòng ngay dưới dòng đang chọn. Dùng chung Groq key của web. --- */
+        const NOTE_TR_PROMPT = "Translate the given English HTML fragment (a learner's note) into natural, simple Vietnamese.\n" +
+          "Rules:\n- Keep inline formatting: every formatted segment (tags <b>, <strong>, <i>, <em>, <u>, <span ...>, <font ...>) must become the Vietnamese words that translate THAT segment, wrapped in exactly the same tag with exactly the same attributes. Example: 'it <span style=\"color: red;\"><b>encourages</b></span> me' -> 'nó <span style=\"color: red;\"><b>khuyến khích</b></span> tôi'.\n" +
+          "- Unformatted words stay unformatted. Do not add new tags, quotes, notes or explanations.\n- Keep IPA symbols and proper names as they are.\n- Output ONLY the translated HTML fragment on one line.";
+        const NOTE_INLINE_TAGS = ["B", "STRONG", "I", "EM", "U", "SPAN", "FONT", "MARK", "SUB", "SUP"];
+        function noteCleanInline(html) {
+          const box = document.createElement("div"); box.innerHTML = html;
+          const walk = (el) => { Array.from(el.childNodes).forEach((n) => {
+            if (n.nodeType !== 1) return;
+            walk(n);
+            if (NOTE_INLINE_TAGS.indexOf(n.tagName) === -1) { if (n.tagName === "BR") { n.replaceWith(document.createTextNode(" ")); return; } n.replaceWith(...n.childNodes); return; }
+            Array.from(n.attributes).forEach((a) => { if (a.name !== "style" && a.name !== "color") n.removeAttribute(a.name); });
+          }); };
+          walk(box);
+          return box.innerHTML.replace(/\s+/g, " ").trim();
+        }
+        // HTML của vùng bôi đen, bọc thêm các thẻ định dạng bên ngoài (vd. bôi đen 1 chữ nằm trong span đỏ -> vẫn giữ màu đỏ)
+        function noteSelectionHtml(range, editor) {
+          const box = document.createElement("div"); box.appendChild(range.cloneContents());
+          let html = box.innerHTML;
+          let n = range.commonAncestorContainer; if (n.nodeType === 3) n = n.parentNode;
+          while (n && n !== editor) { if (n.nodeType === 1 && NOTE_INLINE_TAGS.indexOf(n.tagName) !== -1) { const c = n.cloneNode(false); c.innerHTML = html; html = c.outerHTML; } n = n.parentNode; }
+          return noteCleanInline(html);
+        }
+        // Chèn bản dịch thành 1 dòng NGAY DƯỚI dòng chứa cuối vùng bôi đen
+        function noteInsertBelowLine(editor, range, html) {
+          const end = range.cloneRange(); end.collapse(false);
+          const blocks = ["DIV", "P", "LI", "H1", "H2", "H3", "BLOCKQUOTE"];
+          const after = Array.from(editor.querySelectorAll("br,div,p,li,h1,h2,h3,blockquote")).find((el) => { try { return end.comparePoint(el, 0) > 0; } catch (e) { return false; } });
+          let blk = end.endContainer.nodeType === 3 ? end.endContainer.parentNode : end.endContainer;
+          while (blk && blk !== editor && blocks.indexOf(blk.tagName) === -1) blk = blk.parentNode;
+          const frag = document.createElement("span"); frag.innerHTML = html;
+          const nodes = [document.createElement("br")].concat(Array.from(frag.childNodes));
+          let lastNode = nodes[nodes.length - 1];
+          if (after && after.tagName === "BR" && (!blk || blk === editor || blk.contains(after))) nodes.forEach((x) => after.parentNode.insertBefore(x, after));
+          else if (blk && blk !== editor) nodes.forEach((x) => blk.appendChild(x));
+          else if (after) { nodes.shift(); nodes.forEach((x) => after.parentNode.insertBefore(x, after)); lastNode = nodes[nodes.length - 1] || lastNode; }
+          else nodes.forEach((x) => editor.appendChild(x));
+          return lastNode;
+        }
+        async function noteAiTranslate(html) {
+          const cfg = getGroqCfg();
+          if (!cfg.apiKey) { const e = new Error("NO_KEY"); e.code = "NO_KEY"; throw e; }
+          const model = cfg.model || "openai/gpt-oss-120b";
+          let payload = { model, temperature: 0.2, max_completion_tokens: 2000, messages: [{ role: "system", content: NOTE_TR_PROMPT }, { role: "user", content: html }] };
+          if (/gpt-oss/i.test(model)) payload.reasoning_effort = "low";
+          let res;
+          for (let i = 0; i < 3; i++) {
+            res = await fetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + cfg.apiKey }, body: JSON.stringify(payload) });
+            if (res.status === 400 && payload.reasoning_effort) { payload = { ...payload }; delete payload.reasoning_effort; continue; }
+            if (res.status !== 429 || i === 2) break;
+            await new Promise((r) => setTimeout(r, 4000));
+          }
+          if (res.status === 401) throw new Error("Groq key không hợp lệ — kiểm tra lại key.");
+          if (!res.ok) throw new Error("AI lỗi (HTTP " + res.status + "), thử lại nhé.");
+          const j = await res.json();
+          const out = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+          if (!out) throw new Error("AI không trả lời, thử lại nhé.");
+          return noteCleanInline(out.replace(/^```(?:html)?\s*|\s*```$/g, "").replace(/^\s*["“]|["”]\s*$/g, ""));
+        }
         const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
         const textToHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>");
 
@@ -1343,6 +1404,7 @@
             const [needKey, setNeedKey] = useState(false);
             const [keyInput, setKeyInput] = useState('');
             const [aiBusy, setAiBusy] = useState(false);
+            const [trBusy, setTrBusy] = useState(false);
             const [lang, setLang] = useState(() => { try { return localStorage.getItem('night-notes-voice-lang') || 'en'; } catch (e) { return 'en'; } });
             const [rec, setRec] = useState(null); // null | 'live' | 'record' | 'busy'
             const recRef = useRef(null);
@@ -1585,6 +1647,30 @@
               }
               setAiBusy(false);
             };
+            /* --- Dịch đoạn bôi đen -> 1 dòng tiếng Việt ngay dưới, giữ định dạng --- */
+            const runTranslate = async () => {
+              if (trBusy) return;
+              const s = window.getSelection();
+              let r = s && s.rangeCount ? s.getRangeAt(0) : null;
+              if (!r || r.collapsed || !inEditor(r)) r = lastRange.current && !lastRange.current.collapsed && inEditor(lastRange.current) ? lastRange.current : null;
+              if (!r) { flash("Bôi đen câu / cụm cần dịch trước nhé.", "error"); return; }
+              if (!r.toString().trim()) { flash("Đoạn bôi đen chưa có chữ.", "error"); return; }
+              if (!getGroqCfg().apiKey) { setNeedKey(true); return; }
+              const saved = r.cloneRange();
+              const src = noteSelectionHtml(saved, ref.current);
+              setTrBusy(true); flash("🌐 Đang dịch…", "info", 0);
+              try {
+                const out = await noteAiTranslate(src);
+                if (!out) throw new Error("AI không trả lời, thử lại nhé.");
+                const last = noteInsertBelowLine(ref.current, saved, out);
+                try { const nr = document.createRange(); nr.setStartAfter(last); nr.collapse(true); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(nr); lastRange.current = nr.cloneRange(); } catch (e) {}
+                save();
+                flash("Đã chèn bản dịch ngay dưới dòng.", "ok", 3500);
+              } catch (e) {
+                if (e.code === "NO_KEY") setNeedKey(true); else flash(e.message, "error");
+              }
+              setTrBusy(false);
+            };
 
             const startMove = (e) => {
                 e.stopPropagation(); e.preventDefault();
@@ -1657,6 +1743,7 @@
                             <TB title={recording ? 'Dừng ghi giọng nói' : 'Nói để nhập chữ (giọng nói → chữ)'} onClick={startVoice} className={recording ? 'bg-rose-500 text-white hover:bg-rose-600' : ''}>{recording ? '■ Dừng' : rec === 'busy' ? '⏳' : '🎤 Nói'}</TB>
                             <TB title="Đổi ngôn ngữ nhận diện giọng nói" onClick={() => { if (!recording) setLang(lang === 'en' ? 'vi' : 'en'); }} className="text-[11px] font-bold">{lang === 'en' ? '🇬🇧 EN' : '🇻🇳 VI'}</TB>
                             <TB title="Bôi đen đoạn chữ rồi bấm: AI sửa lặp từ, nhận diện sai, thêm dấu câu — không sửa quá tay" onClick={runAi} className="font-semibold text-indigo-700">{aiBusy ? '⏳ Đang xử lí…' : '✨ AI xử lí lại'}</TB>
+                            <TB title="Bôi đen câu / cụm rồi bấm: dịch sang tiếng Việt, chèn 1 dòng ngay dưới, giữ nguyên định dạng (chữ đỏ → nghĩa cũng đỏ)" onClick={runTranslate} className="font-semibold text-emerald-700">{trBusy ? '⏳ Đang dịch…' : '🌐 Dịch'}</TB>
                         </div>
                     )}
                     <div className="flex flex-col overflow-hidden rounded-2xl border-2 transition-colors"
