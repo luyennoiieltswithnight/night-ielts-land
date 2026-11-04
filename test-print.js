@@ -42,6 +42,13 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (d && d.fields) t.passages.forEach(function (ps, i) { var f = d.fields['p' + (i + 1)]; if (ps && f && f.stringValue) ps.html = f.stringValue; });
+        if (d && d.fields && d.fields.qd && d.fields.qd.stringValue) {
+          try {
+            var nq = JSON.parse(d.fields.qd.stringValue);
+            nq.forEach(function (gs, pi) { (gs || []).forEach(function (g, gi) { if (g.imageUrl === '@orig') g.imageUrl = (t.qd[pi] && t.qd[pi][gi] && t.qd[pi][gi].imageUrl) || ''; }); });
+            if (Array.isArray(nq) && nq.length) t.qd = nq;
+          } catch (e) {}
+        }
         return t;
       }).catch(function () { return t; });
   }
