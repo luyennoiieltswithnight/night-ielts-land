@@ -101,6 +101,7 @@
         button, [role="button"], input[type="file"] + label, label.cursor-pointer {
             touch-action: manipulation;
         }
+        .pdf-note-ed:empty::before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
         button:focus-visible, select:focus-visible, textarea:focus-visible {
             outline: 2px solid #818CF8;
             outline-offset: 2px;
@@ -1286,340 +1287,253 @@
         // tay/con trỏ) — thay vì tự đặt 1 kích thước khung cố định, vì khung giờ luôn tự khớp theo nội
         // dung + cỡ chữ rồi.
         const PdfTextBox = React.memo(function PdfTextBox({ t, scale, updateText, removeText, maxWidthPdf }) {
+            // Ô chữ RICH TEXT (giống ô ghi chú trong khoá học): bôi đen phần nào thì định dạng / đổi cỡ phần đó,
+            // phím tắt Cmd/Ctrl + B / I / U, Cmd/Ctrl + "=" / "−" đổi cỡ. Lưu t.html (định dạng) + t.text (chữ thuần
+            // cho các chức năng khác như Tóm tắt phiên dạy). Cỡ chữ từng phần lưu bằng "em" để phóng to/thu nhỏ trang vẫn đúng tỉ lệ.
             const [active, setActive] = useState(true);
-            // QUAN TRỌNG (sửa lỗi "gõ bị nhảy giật giật nhẹ"): TRƯỚC ĐÂY viền đậm + nút Xoá + nắm kéo
-            // Move + 3 núm resize hiện ra NGAY khi vừa chạm 1 lần vào box (dùng chung điều kiện "active"
-            // với việc cho phép gõ chữ) — trong lúc gõ, box liên tục tự đổi kích thước (2 effect tự-giãn
-            // bên dưới), kéo theo viền + 5 phần tử điều khiển định vị tuyệt đối đó phải định vị lại theo
-            // MỌI lần đổi kích thước, tạo cảm giác "giật" nhẹ. Giờ TÁCH RIÊNG 2 khái niệm: "active" (cho
-            // phép gõ chữ — vẫn bật ngay từ 1 lần chạm, để gõ chữ mượt mà không đợi) và "controlsVisible"
-            // (hiện viền đậm + toàn bộ nút điều khiển — CHỈ bật khi chạm/click ĐÚP vào box, theo đúng yêu
-            // cầu) — lúc chỉ đang gõ (controlsVisible=false), không còn phần tử điều khiển nào phải định
-            // vị lại nữa nên hết giật.
-            const [controlsVisible, setControlsVisible] = useState(false);
-            // Mốc thời gian lần chạm gần nhất vào CHÍNH box này — dùng để tự bắt double-tap/double-click
-            // (giống cơ chế bắt double-tap tạo box mới ở PdfPage) thay vì dựa vào sự kiện "dblclick" có
-            // sẵn (không đáng tin cậy với Apple Pencil/chạm trên iPad).
-            const lastBoxTapRef = useRef(0);
+            const [selSize, setSelSize] = useState(null);
+            const [ipaOn, setIpaOnState] = useState(getIpaOn);
+            const setIpaOn = (v) => { setIpaOnState(v); try { localStorage.setItem('night-notes-ipa', v ? 'on' : 'off'); } catch (e) {} };
+            const [showIpaSheet, setShowIpaSheet] = useState(false);
             const containerRef = useRef(null);
-            const textareaRef = useRef(null);
-            // Đang kéo resize thủ công (đổi cỡ chữ) -> tạm ngưng 2 effect tự-giãn-theo-nội-dung bên
-            // dưới, tránh 2 cơ chế "giằng co" kích thước với nhau ngay trong lúc đang kéo.
+            const editorRef = useRef(null);
+            const textareaRef = editorRef; // tên cũ, dùng trong startResize
+            const lastRange = useRef(null);
+            const tRef = useRef(t); tRef.current = t;
             const isManualResizingRef = useRef(false);
-            // Đếm nhịp mỗi khi VỪA buông tay sau khi kéo resize xong — đưa vào deps của 2 effect tự
-            // giãn bên dưới để chúng CHẮC CHẮN được đánh giá lại đúng 1 lần ngay sau đó (dùng state
-            // local, không đụng gì tới t/updateText, nên không có nguy cơ đọc phải closure t "cũ" từ
-            // lúc bắt đầu kéo như khi cố tình gọi lại updateText ở đây).
-            const [resizeTick, setResizeTick] = useState(0);
-            // Hiện/ẩn bảng chọn cỡ chữ nổi phía trên nắm kéo Move — bật bằng cách chạm/click ĐÚP vào
-            // chính nắm kéo đó (xem onMoveHandlePointerDown), tắt bằng cách chạm lại vào box hoặc chạm
-            // ra ngoài (theo đúng yêu cầu "bấm lại vào box thì nó mất đi").
-            const [showFontSizeControl, setShowFontSizeControl] = useState(false);
-            // Mốc thời gian lần chạm gần nhất vào ĐÚNG nắm kéo Move — tách riêng khỏi lastBoxTapRef
-            // (dùng cho double-tap vào THÂN box để hiện controlsVisible) vì đây là double-tap vào 1
-            // phần tử con khác, cần đếm nhịp độc lập.
-            const lastMoveHandleTapRef = useRef(0);
+            const basePx = (t.size || 16) * scale;
 
-            // Focus tự động khi tạo mới
             useEffect(() => {
-                if (active && textareaRef.current) {
-                    textareaRef.current.focus();
-                }
-            }, [active]);
-
-            // Bấm ra ngoài -> Ẩn box viền (tàng hình) + ẩn luôn các nút điều khiển nếu đang hiện.
+                const ed = editorRef.current; if (!ed) return;
+                ed.innerHTML = t.html != null ? t.html : String(t.text || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/\n/g, '<br>');
+                if (active) setTimeout(() => { try { ed.focus(); const r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) {} }, 0);
+            }, []);
             useEffect(() => {
                 const handleClickOutside = (e) => {
-                    if (containerRef.current && !containerRef.current.contains(e.target)) {
-                        setActive(false);
-                        setControlsVisible(false);
-                        setShowFontSizeControl(false);
-                    }
+                    if (containerRef.current && !containerRef.current.contains(e.target) && !(e.target.closest && e.target.closest('.ipa-sheet'))) { setActive(false); setSelSize(null); }
                 };
                 document.addEventListener('pointerdown', handleClickOutside);
                 return () => document.removeEventListener('pointerdown', handleClickOutside);
             }, []);
-
-            // TỰ GIÃN CHIỀU RỘNG theo đúng bề ngang chữ đang gõ (đo bằng canvas, khớp chính xác font
-            // đang hiển thị: fontPx = t.size * scale, y hệt style fontSize thật của textarea bên
-            // dưới), giới hạn tối đa bằng maxWidthPdf (mép phải trang) — vượt quá thì tự đứng lại ở
-            // mức tối đa, chữ sẽ tự xuống dòng bên trong (xử lý bởi effect đo chiều cao kế tiếp).
-            // QUAN TRỌNG (sửa theo yêu cầu "resize không đổi cỡ chữ nữa"): nếu người dùng đã từng tự
-            // kéo núm resize ngang/góc (t.manualWidth có giá trị — xem startResize), coi đó là bề rộng
-            // CỐ ĐỊNH người dùng muốn (ví dụ cố tình để box hẹp lại cho xuống dòng sớm, hoặc rộng ra
-            // thoáng hơn nội dung) — không còn tự co/giãn về đúng khít nội dung nữa, CHỈ vẫn tôn trọng
-            // trần mép trang (maxWidthPdf) để không tràn ra ngoài. Chưa từng tự kéo lần nào thì vẫn tự
-            // khít theo nội dung như trước (hành vi mặc định không đổi).
+            // Kích thước thật của ô (đơn vị PDF) -> t.width / t.height (dùng để bấm trúng ô, xuất PDF...)
             useEffect(() => {
-                if (isManualResizingRef.current) return;
-                const maxAllowedPx = maxWidthPdf != null
-                    ? Math.max(TEXTBOX_MIN_WIDTH * scale, maxWidthPdf * scale)
-                    : Infinity;
-                let desiredPx;
-                if (t.manualWidth != null) {
-                    desiredPx = Math.min(maxAllowedPx, Math.max(TEXTBOX_MIN_WIDTH * scale, t.manualWidth * scale));
-                } else {
-                    const fontPx = t.size * scale;
-                    const maxLineWidthPx = measureMaxLineWidthPx(t.text, fontPx);
-                    desiredPx = Math.min(maxAllowedPx, Math.max(TEXTBOX_MIN_WIDTH * scale, maxLineWidthPx + TEXTBOX_PADDING_PX));
-                }
-                const desiredPdf = desiredPx / scale;
-                if (Math.abs(desiredPdf - (t.width || 150)) > 1) {
-                    updateText(t.id, { ...t, width: desiredPdf });
-                }
-                // Cố ý CHỈ phụ thuộc vào nội dung/cỡ chữ/scale/giới hạn mép trang/bề rộng tự đặt — KHÔNG
-                // phụ thuộc t.width/t (object đổi identity liên tục) để tránh vòng lặp effect vô hạn.
-                // eslint-disable-next-line react-hooks/exhaustive-deps
-            }, [t.text, t.size, scale, maxWidthPdf, t.manualWidth, resizeTick]);
+                const ed = editorRef.current; if (!ed || typeof ResizeObserver === 'undefined') return;
+                const ro = new ResizeObserver(() => {
+                    if (isManualResizingRef.current) return;
+                    const cur = tRef.current, w = ed.offsetWidth / scale, h = ed.offsetHeight / scale;
+                    if (Math.abs(w - (cur.width || 0)) > 1 || Math.abs(h - (cur.height || 0)) > 1) updateText(cur.id, { ...cur, width: w, height: h });
+                });
+                ro.observe(ed);
+                return () => ro.disconnect();
+            }, [scale]);
 
-            // TỰ GIÃN CHIỀU CAO — chạy SAU khi chiều rộng ở effect trên đã áp dụng xong vào DOM
-            // (useLayoutEffect, đồng bộ trước khi trình duyệt vẽ khung hình kế tiếp) để đo scrollHeight
-            // ĐÚNG theo bề ngang MỚI (chữ đã xuống dòng khớp bề ngang đó), tránh đo hụt/thừa 1 nhịp.
-            // Kỹ thuật chuẩn: tạm bỏ khoá "h-full" bằng style.height='auto' để textarea co theo đúng
-            // nội dung thật, đọc scrollHeight, rồi trả lại như cũ — toàn bộ diễn ra TRƯỚC khi trình
-            // duyệt vẽ hình (useLayoutEffect + setState đồng bộ) nên không hề có 1 khung hình nào bị
-            // "nháy" giữa lúc đo và lúc áp dụng kích thước mới.
-            // QUAN TRỌNG: nếu người dùng đã tự kéo núm resize dọc/góc (t.manualHeight), coi đó là chiều
-            // cao TỐI THIỂU mong muốn (sàn) — vẫn LUÔN tự cao thêm nếu nội dung cần nhiều chỗ hơn (không
-            // bao giờ để chữ bị cắt/khuất), nhưng không tự thu nhỏ xuống dưới mức đã tự đặt nữa khi xoá
-            // bớt chữ (khác với chiều rộng — chiều cao luôn phải đủ để KHÔNG BAO GIỜ cắt mất chữ).
-            useLayoutEffect(() => {
-                if (isManualResizingRef.current) return;
-                const ta = textareaRef.current;
-                if (!ta) return;
-                const prevHeight = ta.style.height;
-                ta.style.height = 'auto';
-                const neededPx = ta.scrollHeight;
-                ta.style.height = prevHeight;
-                const minHeightPx = TEXTBOX_MIN_HEIGHT * scale;
-                const manualHeightPx = t.manualHeight != null ? t.manualHeight * scale : 0;
-                const desiredPx = Math.max(minHeightPx, manualHeightPx, neededPx);
-                const desiredPdf = desiredPx / scale;
-                if (Math.abs(desiredPdf - (t.height || 40)) > 1) {
-                    updateText(t.id, { ...t, height: desiredPdf });
-                }
-                // eslint-disable-next-line react-hooks/exhaustive-deps
-            }, [t.text, t.size, t.width, scale, t.manualHeight, resizeTick]);
-
-            // THUẬT TOÁN KÉO DI CHUYỂN BOX (di chuyển vị trí)
-            // SỬA LỖI "text box không di chuyển được": trước đây việc kéo-thả di chuyển được lập
-            // trình gián tiếp qua rất nhiều tầng (PdfTextBox -> PdfPage -> App giữ "dragState" ->
-            // App lắng nghe pointermove/pointerup ở tận div gốc -> tự dò canvas bằng
-            // document.querySelectorAll('.draw-canvas')[pageNum-1] -> bắn CustomEvent để PdfPage
-            // nhận lại) — chuỗi này rất dễ gãy, đặc biệt khi có trang PDF nào đó CHƯA được render
-            // (lazy-mount ngoài vùng nhìn thấy) làm lệch chỉ số canvas cần tìm. Bút TẨY/RESIZE vốn
-            // đã hoạt động tốt vì tự xử lý gọn trong chính component, không phụ thuộc tầng nào khác
-            // — nay áp dụng ĐÚNG cách làm y hệt cho việc "di chuyển", đơn giản & chắc chắn hơn hẳn:
-            // tự tính độ lệch chuột ngay trong component này rồi gọi thẳng updateText, không cần
-            // đi vòng qua App/PdfPage nữa.
-            const startMove = (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-
-                const startX = e.clientX;
-                const startY = e.clientY;
-                const startTX = t.x;
-                const startTY = t.y;
-
-                const onMove = (ev) => {
-                    const newX = startTX + (ev.clientX - startX) / scale;
-                    const newY = startTY + (ev.clientY - startY) / scale;
-                    updateText(t.id, { ...t, x: newX, y: newY });
+            const inEditor = (r) => r && editorRef.current && editorRef.current.contains(r.commonAncestorContainer);
+            useEffect(() => {
+                const onSel = () => {
+                    const s = window.getSelection();
+                    if (!s || !s.rangeCount) return;
+                    const r = s.getRangeAt(0);
+                    if (!inEditor(r)) return;
+                    lastRange.current = r.cloneRange();
+                    if (r.collapsed) { setSelSize(null); return; }
+                    let el = r.startContainer.nodeType === 3 ? r.startContainer.parentElement : r.startContainer;
+                    if (el === editorRef.current && el.childNodes[r.startOffset] && el.childNodes[r.startOffset].nodeType === 1) el = el.childNodes[r.startOffset];
+                    setSelSize(Math.round((parseFloat(getComputedStyle(el).fontSize) || basePx) / scale));
                 };
+                document.addEventListener('selectionchange', onSel);
+                return () => document.removeEventListener('selectionchange', onSel);
+            }, [scale, basePx]);
 
-                const onUp = () => {
-                    window.removeEventListener('pointermove', onMove);
-                    window.removeEventListener('pointerup', onUp);
-                };
-
-                window.addEventListener('pointermove', onMove);
-                window.addEventListener('pointerup', onUp);
+            const save = () => {
+                const ed = editorRef.current; if (!ed) return;
+                const cur = tRef.current;
+                updateText(cur.id, { ...cur, html: ed.innerHTML, text: ed.innerText.replace(/\n$/, '') });
             };
-
-            // THUẬT TOÁN KÉO RESIZE BOX — theo yêu cầu MỚI: 3 núm resize (ngang/dọc/góc) giờ CHỈ đổi
-            // kích thước khung, KHÔNG còn kèm đổi cỡ chữ nữa (đổi cỡ chữ giờ có cách riêng — xem bảng
-            // chọn cỡ chữ nổi lên khi chạm đúp vào nắm kéo Move, bên dưới). Kích thước vừa kéo được ghi
-            // luôn vào t.manualWidth/t.manualHeight — 2 effect "tự giãn theo nội dung" ở trên đọc lại 2
-            // giá trị này để không tự ý ghi đè kích thước người dùng vừa tự đặt (xem giải thích chi tiết
-            // ở 2 effect đó). Đặt cờ isManualResizingRef=true trong suốt lúc kéo để 2 effect đó tạm đứng
-            // yên, không giằng co ngược lại kích thước đang kéo bằng tay.
-            const startResize = (e, direction) => {
-                e.stopPropagation();
-                e.preventDefault();
-
-                isManualResizingRef.current = true;
-
-                const startX = e.clientX;
-                const startY = e.clientY;
-
-                // Lấy kích thước thực tế hiện tại
-                const rect = (textareaRef.current || containerRef.current).getBoundingClientRect();
-                const startW = rect.width / scale;
-                const startH = rect.height / scale;
-
-                const onMove = (ev) => {
-                    let w = startW;
-                    let h = startH;
-                    if (direction === 'w' || direction === 'both') {
-                        w = startW + (ev.clientX - startX) / scale;
-                    }
-                    if (direction === 'h' || direction === 'both') {
-                        h = startH + (ev.clientY - startY) / scale;
-                    }
-                    w = Math.max(TEXTBOX_MIN_WIDTH, w);
-                    h = Math.max(TEXTBOX_MIN_HEIGHT, h);
-
-                    const next = { ...t, width: w, height: h };
-                    if (direction === 'w' || direction === 'both') next.manualWidth = w;
-                    if (direction === 'h' || direction === 'both') next.manualHeight = h;
-                    updateText(t.id, next);
-                };
-
-                const onUp = () => {
-                    window.removeEventListener('pointermove', onMove);
-                    window.removeEventListener('pointerup', onUp);
-                    // Buông tay xong mới cho 2 effect tự-giãn-theo-nội-dung chạy lại — chúng đọc lại
-                    // manualWidth/manualHeight vừa ghi ở trên để tôn trọng đúng kích thước vừa kéo (chỉ
-                    // vẫn tự cao thêm nếu nội dung cần nhiều chỗ hơn, không bao giờ để chữ bị cắt). Dùng
-                    // resizeTick (state LOCAL) để ép effect chạy lại — KHÔNG gọi updateText({...t}) ở
-                    // đây vì `t` trong closure này là giá trị "cũ" chụp lại lúc BẮT ĐẦU kéo, gọi lại sẽ
-                    // vô tình ghi ĐÈ mất kích thước vừa kéo xong bằng giá trị cũ đó.
-                    isManualResizingRef.current = false;
-                    setResizeTick(v => v + 1);
-                };
-
-                window.addEventListener('pointermove', onMove);
-                window.addEventListener('pointerup', onUp);
+            const restoreRange = () => {
+                const ed = editorRef.current, s = window.getSelection();
+                if (document.activeElement !== ed) ed.focus({ preventScroll: true });
+                let r = s.rangeCount && inEditor(s.getRangeAt(0)) ? s.getRangeAt(0) : lastRange.current;
+                if (!r || !inEditor(r)) { r = document.createRange(); r.selectNodeContents(ed); r.collapse(false); }
+                s.removeAllRanges(); s.addRange(r);
+                return r;
             };
-
-            // Chạm/click ĐÚP vào nắm kéo Move -> bật/tắt bảng chọn cỡ chữ nổi phía trên (thay vì kéo di
-            // chuyển) — chạm/kéo 1 lần vẫn di chuyển box như bình thường. Tự đo thời gian giữa 2 lần
-            // chạm liên tiếp (giống mọi chỗ bắt double-tap khác trong file này) thay vì dùng "dblclick"
-            // có sẵn của trình duyệt, vì sự kiện đó không đáng tin cậy với Apple Pencil/chạm trên iPad.
-            const onMoveHandlePointerDown = (e) => {
-                const now = Date.now();
-                const isDouble = now - lastMoveHandleTapRef.current < 400;
-                lastMoveHandleTapRef.current = now;
-                if (isDouble) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    setShowFontSizeControl(v => !v);
-                    return;
+            const cmd = (c, v) => {
+                restoreRange();
+                try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+                document.execCommand(c, false, v);
+                save();
+            };
+            // Đổi cỡ: có bôi đen -> chỉ phần bôi đen (lưu bằng em); không bôi đen -> cỡ chữ cả ô
+            const resizeSelection = (delta) => {
+                const s = window.getSelection();
+                if (!s || !s.rangeCount) return false;
+                const r = s.getRangeAt(0);
+                if (r.collapsed || !inEditor(r)) return false;
+                const ed = editorRef.current;
+                const pdfPx = Math.max(6, Math.min(120, (selSize || t.size) + delta));
+                try { document.execCommand('styleWithCSS', false, false); } catch (e) {}
+                document.execCommand('fontSize', false, '7');
+                try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+                const marks = [...ed.querySelectorAll('font[size="7"], span[style*="xxx-large"]')];
+                const spans = marks.map((f) => {
+                    const sp = document.createElement('span');
+                    if (f.tagName === 'FONT') { if (f.color) sp.style.color = f.color; while (f.firstChild) sp.appendChild(f.firstChild); }
+                    else { sp.setAttribute('style', f.getAttribute('style')); while (f.firstChild) sp.appendChild(f.firstChild); }
+                    sp.style.fontSize = (pdfPx / (t.size || 16)).toFixed(3) + 'em';
+                    sp.querySelectorAll('[style]').forEach((x) => { x.style.fontSize = ''; if (!x.getAttribute('style')) x.removeAttribute('style'); });
+                    sp.querySelectorAll('font[size]').forEach((x) => x.removeAttribute('size'));
+                    f.replaceWith(sp);
+                    return sp;
+                });
+                if (spans.length) {
+                    const nr = document.createRange();
+                    nr.setStart(spans[0], 0);
+                    const last = spans[spans.length - 1];
+                    nr.setEnd(last, last.childNodes.length);
+                    s.removeAllRanges(); s.addRange(nr);
+                    lastRange.current = nr.cloneRange();
                 }
-                startMove(e);
+                setSelSize(pdfPx);
+                save();
+                return true;
             };
-
-            // Đổi cỡ chữ qua bảng chọn nổi (nút -/+) — áp dụng ngay lập tức, thấy chữ to/nhỏ dần liền.
             const adjustFontSize = (delta) => {
-                const newSize = Math.max(8, Math.min(72, (t.size || 10) + delta));
-                updateText(t.id, { ...t, size: newSize });
+                restoreRange();
+                if (!resizeSelection(delta)) { const cur = tRef.current; updateText(cur.id, { ...cur, size: Math.max(6, Math.min(72, (cur.size || 16) + delta)) }); }
             };
-
-            const [ipaOn, setIpaOnState] = useState(getIpaOn);
-            const setIpaOn = (v) => { setIpaOnState(v); try { localStorage.setItem('night-notes-ipa', v ? 'on' : 'off'); } catch (e) {} };
-            const [showIpaSheet, setShowIpaSheet] = useState(false);
-            const onTextChange = (e) => {
-                let val = e.target.value;
+            const onKeyDown = (e) => {
+                const mod = e.metaKey || e.ctrlKey;
+                if (!mod) return;
+                const k = e.key.toLowerCase();
+                if (k === 'b' || k === 'i' || k === 'u') { e.preventDefault(); cmd(k === 'b' ? 'bold' : k === 'i' ? 'italic' : 'underline'); }
+                else if (k === '=' || k === '+') { e.preventDefault(); adjustFontSize(2); }
+                else if (k === '-' || k === '_') { e.preventDefault(); adjustFontSize(-2); }
+                else if (e.shiftKey && k === 'h') { e.preventDefault(); cmd('hiliteColor', '#fde047'); }
+            };
+            const onInput = () => {
                 if (ipaOn) {
-                    const ta = e.target, r = expandIpaInText(val, ta.selectionStart);
-                    if (r) {
-                        val = r.text;
-                        requestAnimationFrame(() => { try { ta.setSelectionRange(r.caret, r.caret); } catch (er) {} });
+                    const sel = window.getSelection();
+                    if (sel && sel.rangeCount && sel.isCollapsed && sel.anchorNode && sel.anchorNode.nodeType === 3) {
+                        const node = sel.anchorNode, r = expandIpaInText(node.textContent, sel.anchorOffset);
+                        if (r) { node.textContent = r.text; const nr = document.createRange(); nr.setStart(node, r.caret); nr.collapse(true); sel.removeAllRanges(); sel.addRange(nr); }
                     }
                 }
-                updateText(t.id, { ...t, text: val });
+                save();
             };
+            const onPaste = (e) => {
+                e.preventDefault();
+                const txt = (e.clipboardData || window.clipboardData).getData('text/plain');
+                document.execCommand('insertText', false, txt);
+            };
+
+            const startMove = (e) => {
+                e.stopPropagation(); e.preventDefault();
+                const startX = e.clientX, startY = e.clientY, startTX = t.x, startTY = t.y;
+                const onMove = (ev) => { const cur = tRef.current; updateText(cur.id, { ...cur, x: startTX + (ev.clientX - startX) / scale, y: startTY + (ev.clientY - startY) / scale }); };
+                const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
+                window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+            };
+            const startResize = (e) => {
+                e.stopPropagation(); e.preventDefault();
+                isManualResizingRef.current = true;
+                const startX = e.clientX, startY = e.clientY;
+                const rect = editorRef.current.getBoundingClientRect();
+                const startW = rect.width / scale, startH = rect.height / scale;
+                const onMove = (ev) => {
+                    const w = Math.max(TEXTBOX_MIN_WIDTH, startW + (ev.clientX - startX) / scale);
+                    const h = Math.max(TEXTBOX_MIN_HEIGHT, startH + (ev.clientY - startY) / scale);
+                    const cur = tRef.current;
+                    updateText(cur.id, { ...cur, width: w, height: h, manualWidth: w, manualHeight: h });
+                };
+                const onUp = () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); isManualResizingRef.current = false; };
+                window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onUp);
+            };
+
             const bg = t.bg || '#ffffff';
             const clear = bg === 'transparent';
-            // Chữ màu quá nhạt (vd. màu bút trắng) trên nền ô sáng -> tự dùng màu đậm cho đọc được
             const isLight = (c) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(c || '').trim()); if (!m) return false; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 200; };
             const txtColor = !t.color || (!clear && isLight(t.color)) ? '#0f172a' : t.color;
             const keep = (e) => { e.preventDefault(); e.stopPropagation(); };
-            const TB = ({ title, onClick, children, on }) => (
-                <button type="button" title={title} onPointerDown={keep} onClick={onClick}
-                    className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-sm ${on ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700 hover:bg-slate-100'}`}>{children}</button>
+            const TB = ({ title, onClick, children, className = '' }) => (
+                <button type="button" title={title} onPointerDown={keep} onMouseDown={keep} onClick={onClick}
+                    className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-sm text-slate-700 hover:bg-slate-100 ${className}`}>{children}</button>
             );
             const Sep = () => <span className="mx-1 h-5 w-px bg-slate-200"></span>;
+            const maxW = maxWidthPdf != null ? Math.max(TEXTBOX_MIN_WIDTH, maxWidthPdf) * scale : undefined;
 
             return (
-                <div
-                    ref={containerRef}
-                    style={{
-                        position: 'absolute',
-                        left: t.x * scale,
-                        top: t.y * scale - NOTE_HEAD_PX,
-                        width: (t.width || 150) * scale,
-                        zIndex: active ? 100 : 15,
-                        fontFamily: "'Plus Jakarta Sans', 'Segoe UI', 'Arial Unicode MS', sans-serif"
-                    }}
-                    onPointerDown={(e) => { e.stopPropagation(); setActive(true); }}
-                >
-                    {/* Thanh công cụ nổi phía trên — giống ô ghi chú trong khoá học */}
+                <div ref={containerRef}
+                    style={{ position: 'absolute', left: t.x * scale, top: t.y * scale - NOTE_HEAD_PX, zIndex: active ? 100 : 15, fontFamily: "'Plus Jakarta Sans', 'Segoe UI', 'Arial Unicode MS', sans-serif" }}
+                    onPointerDown={(e) => { e.stopPropagation(); setActive(true); }}>
                     {active && (
                         <div onPointerDown={(e) => e.stopPropagation()}
                             className="absolute bottom-full left-0 mb-2 flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
-                            style={{ width: 'max-content', maxWidth: 'min(94vw, 600px)', zIndex: 30 }}>
-                            <TB title="In đậm cả ô" on={t.bold} onClick={() => updateText(t.id, { ...t, bold: !t.bold })}><b>B</b></TB>
-                            <TB title="In nghiêng cả ô" on={t.italic} onClick={() => updateText(t.id, { ...t, italic: !t.italic })}><i className="font-serif">I</i></TB>
+                            style={{ width: 'max-content', maxWidth: 'min(94vw, 640px)', zIndex: 30 }}>
+                            <TB title="In đậm (Cmd/Ctrl+B)" onClick={() => cmd('bold')}><b>B</b></TB>
+                            <TB title="In nghiêng (Cmd/Ctrl+I)" onClick={() => cmd('italic')}><i className="font-serif">I</i></TB>
+                            <TB title="Gạch chân (Cmd/Ctrl+U)" onClick={() => cmd('underline')}><u>U</u></TB>
                             <Sep />
                             {NOTE_COLORS.map(c => (
-                                <button key={c} type="button" title="Màu chữ" onPointerDown={keep} onClick={() => updateText(t.id, { ...t, color: c })}
-                                    className="mx-0.5 h-5 w-5 rounded-full" style={{ background: c, boxShadow: txtColor === c ? '0 0 0 2px #fff, 0 0 0 4px #6366f1' : '0 0 0 1px #cbd5e1' }}></button>
+                                <button key={c} type="button" title="Màu chữ (phần đang bôi đen)" onPointerDown={keep} onMouseDown={keep} onClick={() => cmd('foreColor', c)}
+                                    className="mx-0.5 h-5 w-5 rounded-full" style={{ background: c, boxShadow: '0 0 0 1px #cbd5e1' }}></button>
                             ))}
+                            <TB title="Tô nền chữ (Cmd/Ctrl+Shift+H)" onClick={() => cmd('hiliteColor', '#fde047')}><span className="rounded bg-yellow-300 px-1 text-xs font-bold">ab</span></TB>
+                            <TB title="Bỏ định dạng phần đang bôi đen" onClick={() => cmd('removeFormat')}><span className="text-xs font-semibold">T<sub>×</sub></span></TB>
                             <Sep />
-                            <TB title="Giảm cỡ chữ" onClick={() => adjustFontSize(-1)}>A−</TB>
-                            <span className="w-8 text-center text-xs tabular-nums text-slate-500">{Math.round(t.size)}</span>
-                            <TB title="Tăng cỡ chữ" onClick={() => adjustFontSize(1)}>A+</TB>
+                            <TB title={selSize ? 'Giảm cỡ phần đang bôi đen (Cmd/Ctrl −)' : 'Giảm cỡ chữ cả ô (Cmd/Ctrl −) — bôi đen để chỉ đổi phần đó'} onClick={() => adjustFontSize(-2)}>A−</TB>
+                            <span className={`w-9 text-center text-xs tabular-nums ${selSize ? 'font-bold text-indigo-600' : 'text-slate-400'}`} title={selSize ? 'Cỡ chữ phần đang bôi đen' : 'Cỡ chữ mặc định của ô'}>{selSize || Math.round(t.size)}</span>
+                            <TB title={selSize ? 'Tăng cỡ phần đang bôi đen (Cmd/Ctrl +)' : 'Tăng cỡ chữ cả ô (Cmd/Ctrl +) — bôi đen để chỉ đổi phần đó'} onClick={() => adjustFontSize(2)}>A+</TB>
                             <Sep />
                             {NOTE_BGS.map(c => (
-                                <button key={c} type="button" title={c === 'transparent' ? 'Nền trong suốt' : 'Màu nền ô'} onPointerDown={keep} onClick={() => updateText(t.id, { ...t, bg: c })}
-                                    className="mx-0.5 h-5 w-5 rounded-md text-[9px] font-bold text-slate-400"
+                                <button key={c} type="button" title={c === 'transparent' ? 'Nền trong suốt' : 'Màu nền ô'} onPointerDown={keep} onMouseDown={keep} onClick={() => updateText(t.id, { ...tRef.current, bg: c })}
+                                    className="mx-0.5 h-5 w-5 rounded-md"
                                     style={{ background: c === 'transparent' ? 'repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 50% / 8px 8px' : c, boxShadow: bg === c ? '0 0 0 2px #fff, 0 0 0 4px #6366f1' : '0 0 0 1px #cbd5e1' }}></button>
                             ))}
                             <Sep />
-                            <TB title="Gõ tắt IPA: /d3 → dʒ, /i: → iː (bật/tắt)" on={ipaOn} onClick={() => setIpaOn(!ipaOn)}><span className="text-xs font-bold">/IPA/</span></TB>
+                            <TB title="Gõ tắt IPA: /d3 → dʒ, /i: → iː (bật/tắt)" onClick={() => setIpaOn(!ipaOn)} className={ipaOn ? 'bg-indigo-100 text-indigo-700' : ''}><span className="text-xs font-bold">/IPA/</span></TB>
                             <TB title="Bảng gõ tắt IPA" onClick={() => setShowIpaSheet(true)}>⌨️</TB>
                         </div>
                     )}
-
                     <div className="flex flex-col overflow-hidden rounded-2xl border-2 transition-colors"
                         style={{ background: bg, borderColor: active ? '#4338CA' : (clear ? 'transparent' : '#e2e8f0'), boxShadow: clear && !active ? 'none' : '0 10px 25px -5px rgba(15,23,42,.12), 0 4px 10px -4px rgba(15,23,42,.08)' }}>
-                        {/* Thanh kéo — giống khoá học */}
                         <div onPointerDown={(e) => { setActive(true); startMove(e); }}
-                            className="flex flex-shrink-0 cursor-move items-center justify-between bg-slate-900/5 px-2 touch-none"
+                            className="flex flex-shrink-0 cursor-move items-center justify-between gap-2 bg-slate-900/5 px-2 touch-none"
                             style={{ height: NOTE_HEAD_PX, visibility: clear && !active ? 'hidden' : 'visible' }}>
                             <span className="min-w-0 truncate whitespace-nowrap text-[10px] font-bold tracking-widest text-slate-400">⋮⋮ KÉO ĐỂ DI CHUYỂN</span>
                             <button type="button" onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); removeText(t.id); }}
                                 className="text-xs font-bold text-slate-400 hover:text-rose-500" title="Xóa ô này">✕</button>
                         </div>
-                        <textarea
-                            ref={textareaRef}
-                            value={t.text}
-                            onChange={onTextChange}
-                            onFocus={() => setActive(true)}
-                            placeholder="Gõ chữ... (/d3 → dʒ)"
+                        <div
+                            ref={editorRef}
+                            contentEditable
+                            suppressContentEditableWarning
                             spellCheck={false}
+                            data-placeholder="Gõ chữ... (/d3 → dʒ)"
+                            onFocus={() => setActive(true)}
+                            onBlur={save}
+                            onInput={onInput}
+                            onKeyDown={onKeyDown}
+                            onPaste={onPaste}
+                            className="pdf-note-ed outline-none px-3 py-2 leading-snug"
                             style={{
-                                color: txtColor,
-                                fontSize: (t.size * scale) + 'px',
-                                fontWeight: t.bold ? 700 : 400,
-                                fontStyle: t.italic ? 'italic' : 'normal',
-                                height: (t.height || 40) * scale,
-                                resize: 'none',
-                                fontFamily: 'inherit'
+                                color: txtColor, fontSize: basePx + 'px',
+                                width: t.manualWidth != null ? Math.min(maxW || Infinity, t.manualWidth * scale) : 'max-content',
+                                maxWidth: maxW, minWidth: TEXTBOX_MIN_WIDTH * scale,
+                                minHeight: TEXTBOX_MIN_HEIGHT * scale,
+                                height: t.manualHeight != null ? t.manualHeight * scale : undefined,
+                                overflow: t.manualHeight != null ? 'auto' : 'visible',
+                                whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
+                                pointerEvents: active ? 'auto' : 'none'
                             }}
-                            className={`w-full outline-none bg-transparent px-3 py-2 block leading-snug overflow-hidden ${active ? 'pointer-events-auto' : 'pointer-events-none'}`}
                         />
                     </div>
-
-                    {/* Núm đổi kích thước góc dưới phải — giống khoá học */}
                     {active && (
-                        <div onPointerDown={(e) => startResize(e, 'both')} title="Kéo để đổi kích thước"
+                        <div onPointerDown={startResize} title="Kéo để đổi kích thước"
                             className="absolute -bottom-1 -right-1 h-5 w-5 cursor-nwse-resize touch-none" style={{ zIndex: 20 }}>
                             <svg viewBox="0 0 20 20" className="h-5 w-5 text-slate-400"><path d="M18 8v10H8M18 13v5h-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" /></svg>
                         </div>
                     )}
-                    {showIpaSheet && ReactDOM.createPortal(<IpaCheatSheet onClose={() => setShowIpaSheet(false)} />, document.body)}
+                    {showIpaSheet && ReactDOM.createPortal(<div className="ipa-sheet"><IpaCheatSheet onClose={() => setShowIpaSheet(false)} /></div>, document.body)}
                 </div>
             );
         });
