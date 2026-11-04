@@ -1187,7 +1187,7 @@
         // Khoảng đệm ngang (px CSS thật, KHÔNG nhân theo scale — khớp đúng padding "p-2" của
         // textarea, 8px mỗi bên = 16px, cộng thêm 1 chút cho con trỏ nhập khỏi bị che/xuống dòng
         // hụt 1 nhịp ngay khi vừa gõ thêm ký tự).
-        const TEXTBOX_PADDING_PX = 24;
+        const TEXTBOX_PADDING_PX = 32;
 
         // --- TRÌNH PHÁT FILE ÂM THANH NỔI (kéo-thả được) — hằng số dùng chung ---
         // Các mức tốc độ phát cho phép, bấm nút "1x" để đổi vòng qua từng mức theo đúng thứ tự này.
@@ -1205,6 +1205,74 @@
             const sec = Math.floor(s % 60);
             return m + ':' + String(sec).padStart(2, '0');
         };
+
+        // --- GÕ TẮT IPA trong Text Box (giống ô ghi chú của khoá học night-engine.js) ---
+        // Gõ "/" + mã rồi gõ tiếp 1 ký tự khác (hoặc mã đủ dài) -> tự đổi thành ký hiệu IPA, vd. /d3 -> dʒ, /i: -> iː.
+        // Bật/tắt dùng CHUNG khoá localStorage "night-notes-ipa" với các khoá học.
+        const IPA_GROUPS = [
+            { label: 'Nguyên âm đơn', items: [['i:', 'iː', 'sheep'], ['I', 'ɪ', 'ship (hoặc /ih)'], ['ae', 'æ', 'cat'], ['^', 'ʌ', 'cup (hoặc /uh)'], ['a:', 'ɑː', 'car'], ['O', 'ɒ', 'hot (hoặc /oh)'], ['o:', 'ɔː', 'door'], ['U', 'ʊ', 'book'], ['u:', 'uː', 'food'], ['3:', 'ɜː', 'bird'], ['3', 'ɜ', '(không dài)'], ['@', 'ə', 'about (schwa)']] },
+            { label: 'Nguyên âm đôi', items: [['ei', 'eɪ', 'day'], ['ai', 'aɪ', 'my'], ['oi', 'ɔɪ', 'boy'], ['au', 'aʊ', 'now'], ['ou', 'əʊ', 'go (hoặc /@u)'], ['i@', 'ɪə', 'near'], ['e@', 'eə', 'hair'], ['u@', 'ʊə', 'tour']] },
+            { label: 'Phụ âm', items: [['th', 'θ', 'think'], ['dh', 'ð', 'this'], ['sh', 'ʃ', 'shop'], ['zh', 'ʒ', 'usually'], ['ch', 'tʃ', 'chair'], ['d3', 'dʒ', 'job (hoặc /dj)'], ['ng', 'ŋ', 'sing']] },
+            { label: 'Ký hiệu', items: [["'", 'ˈ', 'trọng âm chính'], [',', 'ˌ', 'trọng âm phụ'], [':', 'ː', 'âm dài'], ['->', '→', 'mũi tên'], ['/', '∕', 'gõ // để ra dấu / thường']] }
+        ];
+        const IPA_CODES = { ih: 'ɪ', uh: 'ʌ', oh: 'ɒ', '@u': 'əʊ', dj: 'dʒ' };
+        IPA_GROUPS.forEach(g => g.items.forEach(([c, s]) => { if (c !== '/') IPA_CODES[c] = s; }));
+        const IPA_KEYS = Object.keys(IPA_CODES);
+        const ipaHasLonger = (t) => IPA_KEYS.some(k => k.length > t.length && k.startsWith(t));
+        // Cùng thuật toán với expandIpaAtCaret() của night-engine.js, nhưng chạy trên <textarea> (selectionStart).
+        // Trả về { text, caret } nếu có đổi, ngược lại null.
+        const expandIpaInText = (full, off) => {
+            const T = full.slice(0, off);
+            let start, len, sym;
+            if (T.endsWith('//')) { start = off - 2; len = 2; sym = '∕'; }
+            else {
+                const idx = T.lastIndexOf('/');
+                if (idx < 0 || off - idx > 5) return null;
+                const tok = T.slice(idx + 1);
+                if (!tok) {
+                    const T2 = T.slice(0, -1), i2 = T2.lastIndexOf('/'), tok2 = i2 >= 0 ? T2.slice(i2 + 1) : '';
+                    if (!tok2 || !IPA_CODES[tok2] || off - i2 > 6) return null;
+                    start = i2; len = tok2.length + 1; sym = IPA_CODES[tok2];
+                } else if (IPA_CODES[tok] && !ipaHasLonger(tok)) { start = idx; len = tok.length + 1; sym = IPA_CODES[tok]; }
+                else if (ipaHasLonger(tok)) return null;
+                else {
+                    const head = tok.slice(0, -1);
+                    if (!head || !IPA_CODES[head]) return null;
+                    start = idx; len = head.length + 1; sym = IPA_CODES[head];
+                }
+            }
+            return { text: full.slice(0, start) + sym + full.slice(start + len), caret: off - len + sym.length };
+        };
+        const getIpaOn = () => { try { return localStorage.getItem('night-notes-ipa') !== 'off'; } catch (e) { return true; } };
+        const NOTE_COLORS = ['#0f172a', '#e11d48', '#4338ca', '#059669', '#ea580c', '#9333ea'];
+        const NOTE_BGS = ['#ffffff', '#fef9c3', '#e0f2fe', '#dcfce7', '#fce7f3', 'transparent'];
+        const NOTE_HEAD_PX = 24; // thanh kéo phía trên ô (không nhân theo scale, giống khoá học)
+
+        const IpaCheatSheet = ({ onClose }) => (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/40 p-4" onPointerDown={(e) => e.stopPropagation()} onClick={onClose}>
+                <div className="max-h-[85vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="mb-4 flex items-center justify-between">
+                        <p className="text-lg font-extrabold text-slate-900">⌨️ Bảng gõ tắt IPA</p>
+                        <button onClick={onClose} className="rounded-full px-3 py-1 text-sm font-semibold text-slate-500 hover:bg-slate-100">Đóng</button>
+                    </div>
+                    <p className="mb-4 text-sm text-slate-600">Trong ô chữ, gõ <b>/</b> + mã rồi gõ tiếp (dấu cách hoặc chữ khác) để đổi thành ký hiệu. Ví dụ <b>/d3</b> → dʒ, <b>/i:</b> → iː, <b>/th</b> → θ.</p>
+                    {IPA_GROUPS.map(g => (
+                        <div key={g.label} className="mb-4">
+                            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-indigo-500">{g.label}</p>
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                {g.items.map(([c, s, ex]) => (
+                                    <div key={c} className="flex items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                                        <code className="rounded-md bg-white px-1.5 py-0.5 text-xs font-bold text-slate-700 shadow-sm">/{c}</code>
+                                        <span className="text-lg font-semibold text-slate-900">{s}</span>
+                                        <span className="truncate text-xs text-slate-400">{ex}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
 
         // --- COMPONENT TEXT BOX THÔNG MINH CÓ 3 NÚM RESIZE ---
         // QUAN TRỌNG (viết lại theo yêu cầu "text box khó dùng"): TRƯỚC ĐÂY box có kích thước CỐ ĐỊNH
@@ -1385,7 +1453,7 @@
                 const startY = e.clientY;
 
                 // Lấy kích thước thực tế hiện tại
-                const rect = containerRef.current.getBoundingClientRect();
+                const rect = (textareaRef.current || containerRef.current).getBoundingClientRect();
                 const startW = rect.width / scale;
                 const startH = rect.height / scale;
 
@@ -1447,141 +1515,111 @@
                 updateText(t.id, { ...t, size: newSize });
             };
 
+            const [ipaOn, setIpaOnState] = useState(getIpaOn);
+            const setIpaOn = (v) => { setIpaOnState(v); try { localStorage.setItem('night-notes-ipa', v ? 'on' : 'off'); } catch (e) {} };
+            const [showIpaSheet, setShowIpaSheet] = useState(false);
+            const onTextChange = (e) => {
+                let val = e.target.value;
+                if (ipaOn) {
+                    const ta = e.target, r = expandIpaInText(val, ta.selectionStart);
+                    if (r) {
+                        val = r.text;
+                        requestAnimationFrame(() => { try { ta.setSelectionRange(r.caret, r.caret); } catch (er) {} });
+                    }
+                }
+                updateText(t.id, { ...t, text: val });
+            };
+            const bg = t.bg || '#ffffff';
+            const clear = bg === 'transparent';
+            // Chữ màu quá nhạt (vd. màu bút trắng) trên nền ô sáng -> tự dùng màu đậm cho đọc được
+            const isLight = (c) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(c || '').trim()); if (!m) return false; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 200; };
+            const txtColor = !t.color || (!clear && isLight(t.color)) ? '#0f172a' : t.color;
+            const keep = (e) => { e.preventDefault(); e.stopPropagation(); };
+            const TB = ({ title, onClick, children, on }) => (
+                <button type="button" title={title} onPointerDown={keep} onClick={onClick}
+                    className={`flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-1.5 text-sm ${on ? 'bg-indigo-100 text-indigo-700' : 'text-slate-700 hover:bg-slate-100'}`}>{children}</button>
+            );
+            const Sep = () => <span className="mx-1 h-5 w-px bg-slate-200"></span>;
+
             return (
-                <div 
+                <div
                     ref={containerRef}
                     style={{
                         position: 'absolute',
                         left: t.x * scale,
-                        top: t.y * scale,
+                        top: t.y * scale - NOTE_HEAD_PX,
                         width: (t.width || 150) * scale,
-                        height: (t.height || 40) * scale,
-                        // QUAN TRỌNG — sửa lỗi "chuyển qua bút chì thì không chọn được text box nữa,
-                        // vẽ/viết đè lên box luôn": trước đây khi KHÔNG active, z-index box = 10, TRÙNG
-                        // với z-index cố định (10) của canvas vẽ (.draw-canvas) — 2 phần tử này chỉ còn
-                        // phân biệt được nhờ đúng vào THỨ TỰ trong DOM (box vốn nằm sau canvas trong
-                        // JSX nên VỀ LÝ THUYẾT vẫn được vẽ đè lên trên), nhưng box khi không active lại
-                        // gần như trong suốt hoàn toàn (không viền, không nền — xem className bên dưới)
-                        // nên bất kỳ nét mực nào lỡ vẽ NGAY DƯỚI nó (canvas z=10, cùng mức) vẫn hiện rõ
-                        // xuyên qua như thể vẽ ĐÈ LÊN box — đúng hiện tượng người dùng gặp phải. Nâng
-                        // hẳn z-index box khi không active lên 15 (rõ ràng CAO HƠN canvas z=10, không
-                        // còn dựa vào thứ tự DOM để "may rủi" phân định nữa) — box giờ LUÔN nhận đúng
-                        // sự kiện chạm trước tiên để có thể chọn lại/di chuyển, bất kể đang ở chế độ vẽ
-                        // hay không.
                         zIndex: active ? 100 : 15,
+                        fontFamily: "'Plus Jakarta Sans', 'Segoe UI', 'Arial Unicode MS', sans-serif"
                     }}
-                    /* QUAN TRỌNG — sửa lỗi kéo-thả/resize bị "ghì lại", không mượt: trước đây dùng
-                       class "transition-all" ở đây, khiến MỌI thay đổi style (kể cả left/top/width/
-                       height cập nhật liên tục bằng inline style lúc đang kéo) đều bị CSS animate
-                       trong ~150ms thay vì áp dụng ngay lập tức — tạo cảm giác box bị "đuổi theo"
-                       con trỏ/ngón tay có độ trễ thay vì bám sát tức thời. Đổi sang "transition-colors"
-                       để CHỈ hiệu ứng mượt cho phần đổi màu viền/nền khi bật/tắt active, còn vị trí và
-                       kích thước luôn cập nhật NGAY LẬP TỨC, bám sát 100% theo thao tác kéo. */
-                    className={`group transition-colors ${controlsVisible ? 'border-2 border-dashed border-indigo-400 bg-white/70 shadow-lg backdrop-blur-md rounded-lg' : 'border-2 border-transparent bg-transparent'}`}
-                    onPointerDown={(e) => {
-                        e.stopPropagation();
-                        setActive(true);
-                        // Bấm/chạm vào thân box -> ẩn bảng chọn cỡ chữ nổi nếu đang hiện (theo đúng yêu
-                        // cầu "bấm lại vào box thì nó mất đi"). Bảng chọn cỡ chữ tự chặn sự kiện này
-                        // (stopPropagation riêng) nên bấm NGAY TRÊN bảng đó không bị tính là "bấm vào box".
-                        setShowFontSizeControl(false);
-                        // Bắt double-tap/double-click NGAY TRÊN box (tự đo thời gian giữa 2 lần chạm
-                        // liên tiếp, giống cơ chế bắt double-tap tạo box mới trong PdfPage) — chỉ chạm
-                        // đúp mới hiện viền đậm + các nút điều khiển, chạm 1 lần chỉ để gõ chữ tiếp.
-                        const now = Date.now();
-                        const isDouble = now - lastBoxTapRef.current < 400;
-                        lastBoxTapRef.current = now;
-                        if (isDouble) setControlsVisible(true);
-                    }}
+                    onPointerDown={(e) => { e.stopPropagation(); setActive(true); }}
                 >
-                    {/* Nút Xóa — chỉ hiện khi đã chạm đúp (controlsVisible) */}
-                    {controlsVisible && (
-                        <button
-                            onPointerDown={(e) => { e.stopPropagation(); removeText(t.id); }}
-                            className="absolute -top-3 -right-3 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md touch-none z-20 hover:scale-110 transition-transform"
-                        >
-                            <i className="fas fa-times text-[10px]"></i>
-                        </button>
-                    )}
-
-                    {/* Nắm Kéo Move (Bên Trên) — chỉ hiện khi đã chạm đúp vào box. Chạm/kéo 1 lần: di
-                        chuyển box (như cũ). Chạm/click ĐÚP vào chính nắm này: hiện/ẩn bảng chọn cỡ chữ
-                        nổi ngay phía trên (xem onMoveHandlePointerDown + bảng render bên dưới). */}
-                    {controlsVisible && (
-                        <div
-                            onPointerDown={onMoveHandlePointerDown}
-                            className="absolute -top-5 left-1/2 transform -translate-x-1/2 w-14 h-5 bg-indigo-500 text-white rounded-t-lg cursor-move shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600 transition-colors"
-                            title="Kéo để di chuyển — chạm/click đúp để đổi cỡ chữ"
-                        >
-                            <i className="fas fa-grip-lines text-[10px]"></i>
+                    {/* Thanh công cụ nổi phía trên — giống ô ghi chú trong khoá học */}
+                    {active && (
+                        <div onPointerDown={(e) => e.stopPropagation()}
+                            className="absolute bottom-full left-0 mb-2 flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
+                            style={{ width: 'max-content', maxWidth: 'min(94vw, 600px)', zIndex: 30 }}>
+                            <TB title="In đậm cả ô" on={t.bold} onClick={() => updateText(t.id, { ...t, bold: !t.bold })}><b>B</b></TB>
+                            <TB title="In nghiêng cả ô" on={t.italic} onClick={() => updateText(t.id, { ...t, italic: !t.italic })}><i className="font-serif">I</i></TB>
+                            <Sep />
+                            {NOTE_COLORS.map(c => (
+                                <button key={c} type="button" title="Màu chữ" onPointerDown={keep} onClick={() => updateText(t.id, { ...t, color: c })}
+                                    className="mx-0.5 h-5 w-5 rounded-full" style={{ background: c, boxShadow: txtColor === c ? '0 0 0 2px #fff, 0 0 0 4px #6366f1' : '0 0 0 1px #cbd5e1' }}></button>
+                            ))}
+                            <Sep />
+                            <TB title="Giảm cỡ chữ" onClick={() => adjustFontSize(-1)}>A−</TB>
+                            <span className="w-8 text-center text-xs tabular-nums text-slate-500">{Math.round(t.size)}</span>
+                            <TB title="Tăng cỡ chữ" onClick={() => adjustFontSize(1)}>A+</TB>
+                            <Sep />
+                            {NOTE_BGS.map(c => (
+                                <button key={c} type="button" title={c === 'transparent' ? 'Nền trong suốt' : 'Màu nền ô'} onPointerDown={keep} onClick={() => updateText(t.id, { ...t, bg: c })}
+                                    className="mx-0.5 h-5 w-5 rounded-md text-[9px] font-bold text-slate-400"
+                                    style={{ background: c === 'transparent' ? 'repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%) 50% / 8px 8px' : c, boxShadow: bg === c ? '0 0 0 2px #fff, 0 0 0 4px #6366f1' : '0 0 0 1px #cbd5e1' }}></button>
+                            ))}
+                            <Sep />
+                            <TB title="Gõ tắt IPA: /d3 → dʒ, /i: → iː (bật/tắt)" on={ipaOn} onClick={() => setIpaOn(!ipaOn)}><span className="text-xs font-bold">/IPA/</span></TB>
+                            <TB title="Bảng gõ tắt IPA" onClick={() => setShowIpaSheet(true)}>⌨️</TB>
                         </div>
                     )}
 
-                    {/* Bảng chọn cỡ chữ nổi — hiện khi chạm đúp vào nắm kéo Move ở trên. Tự chặn sự
-                        kiện pointerdown của chính nó (stopPropagation) để bấm nút -/+ bên trong KHÔNG bị
-                        tính là "bấm vào box" (vốn dĩ sẽ tự ẩn bảng này đi, xem onPointerDown của container). */}
-                    {controlsVisible && showFontSizeControl && (
-                        <div
-                            onPointerDown={(e) => e.stopPropagation()}
-                            className="absolute -top-16 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white rounded-xl shadow-xl px-1.5 py-1.5 flex items-center gap-1.5 z-30 touch-none whitespace-nowrap"
-                        >
-                            <button
-                                onPointerDown={(e) => { e.stopPropagation(); adjustFontSize(-1); }}
-                                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors active:scale-95"
-                            >
-                                <i className="fas fa-minus text-[10px]"></i>
-                            </button>
-                            <span className="text-xs font-bold w-8 text-center tabular-nums">{Math.round(t.size)}</span>
-                            <button
-                                onPointerDown={(e) => { e.stopPropagation(); adjustFontSize(1); }}
-                                className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 flex items-center justify-center transition-colors active:scale-95"
-                            >
-                                <i className="fas fa-plus text-[10px]"></i>
-                            </button>
+                    <div className="flex flex-col overflow-hidden rounded-2xl border-2 transition-colors"
+                        style={{ background: bg, borderColor: active ? '#4338CA' : (clear ? 'transparent' : '#e2e8f0'), boxShadow: clear && !active ? 'none' : '0 10px 25px -5px rgba(15,23,42,.12), 0 4px 10px -4px rgba(15,23,42,.08)' }}>
+                        {/* Thanh kéo — giống khoá học */}
+                        <div onPointerDown={(e) => { setActive(true); startMove(e); }}
+                            className="flex flex-shrink-0 cursor-move items-center justify-between bg-slate-900/5 px-2 touch-none"
+                            style={{ height: NOTE_HEAD_PX, visibility: clear && !active ? 'hidden' : 'visible' }}>
+                            <span className="min-w-0 truncate whitespace-nowrap text-[10px] font-bold tracking-widest text-slate-400">⋮⋮ KÉO ĐỂ DI CHUYỂN</span>
+                            <button type="button" onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); removeText(t.id); }}
+                                className="text-xs font-bold text-slate-400 hover:text-rose-500" title="Xóa ô này">✕</button>
+                        </div>
+                        <textarea
+                            ref={textareaRef}
+                            value={t.text}
+                            onChange={onTextChange}
+                            onFocus={() => setActive(true)}
+                            placeholder="Gõ chữ... (/d3 → dʒ)"
+                            spellCheck={false}
+                            style={{
+                                color: txtColor,
+                                fontSize: (t.size * scale) + 'px',
+                                fontWeight: t.bold ? 700 : 400,
+                                fontStyle: t.italic ? 'italic' : 'normal',
+                                height: (t.height || 40) * scale,
+                                resize: 'none',
+                                fontFamily: 'inherit'
+                            }}
+                            className={`w-full outline-none bg-transparent px-3 py-2 block leading-snug overflow-hidden ${active ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                        />
+                    </div>
+
+                    {/* Núm đổi kích thước góc dưới phải — giống khoá học */}
+                    {active && (
+                        <div onPointerDown={(e) => startResize(e, 'both')} title="Kéo để đổi kích thước"
+                            className="absolute -bottom-1 -right-1 h-5 w-5 cursor-nwse-resize touch-none" style={{ zIndex: 20 }}>
+                            <svg viewBox="0 0 20 20" className="h-5 w-5 text-slate-400"><path d="M18 8v10H8M18 13v5h-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" /></svg>
                         </div>
                     )}
-
-                    {/* 3 NÚM ĐIỀU KHIỂN RESIZE CHO IPAD — chỉ hiện khi đã chạm đúp */}
-                    {controlsVisible && (
-                        <>
-                            {/* Núm ngang */}
-                            <div
-                                onPointerDown={(e) => startResize(e, 'w')}
-                                className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-4 h-8 bg-indigo-500 text-white rounded-md cursor-e-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600"
-                            >
-                                <i className="fas fa-ellipsis-v text-[8px]"></i>
-                            </div>
-
-                            {/* Núm dọc */}
-                            <div
-                                onPointerDown={(e) => startResize(e, 'h')}
-                                className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-8 h-4 bg-indigo-500 text-white rounded-md cursor-s-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-600"
-                            >
-                                <i className="fas fa-ellipsis-h text-[8px]"></i>
-                            </div>
-
-                            {/* Núm 2 chiều góc dưới */}
-                            <div
-                                onPointerDown={(e) => startResize(e, 'both')}
-                                className="absolute -bottom-2 -right-2 w-5 h-5 bg-indigo-600 text-white rounded-full cursor-se-resize shadow-md flex items-center justify-center touch-none z-20 hover:bg-indigo-700 hover:scale-110 transition-transform"
-                            >
-                                <i className="fas fa-expand-arrows-alt text-[10px] rotate-90"></i>
-                            </div>
-                        </>
-                    )}
-
-                    <textarea
-                        ref={textareaRef}
-                        value={t.text}
-                        onChange={(e) => updateText(t.id, { ...t, text: e.target.value })}
-                        placeholder="Gõ chữ..."
-                        style={{ 
-                            color: t.color, 
-                            fontSize: (t.size * scale) + 'px',
-                            resize: 'none' // Khóa resize native vì đã dùng núm xịn
-                        }}
-                        className={`w-full h-full outline-none bg-transparent p-2 font-sans block leading-relaxed overflow-hidden ${active ? 'pointer-events-auto' : 'pointer-events-none'}`}
-                    />
+                    {showIpaSheet && ReactDOM.createPortal(<IpaCheatSheet onClose={() => setShowIpaSheet(false)} />, document.body)}
                 </div>
             );
         });
