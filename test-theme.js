@@ -168,3 +168,38 @@
   var add = function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
 })();
+
+/* Reading / Listening: chỉ bấm ĐÚNG ô tròn/ô vuông mới chọn đáp án; bôi đen / highlight / ghi chú chữ trong đáp án thoải mái.
+   Và chữ của đáp án luôn nằm trong 1 khối <span> duy nhất để highlight không làm vỡ dòng (trước đây mỗi đoạn highlight thành 1 cột flex). */
+(function () {
+  if (window.__nightOptClick) return; window.__nightOptClick = true;
+  try {
+    var st = document.createElement('style');
+    st.textContent = 'html body label.radio-label{cursor:default}html body label.radio-label>input{flex:none;cursor:pointer;width:18px;height:18px;margin:0}'
+      + 'html body label.radio-label>.rl-text{flex:1 1 auto;min-width:0;display:block;cursor:text;user-select:text;-webkit-user-select:text}';
+    (document.head || document.documentElement).appendChild(st);
+  } catch (e) {}
+  function wrap(label) {
+    if (label.__rlDone) return; label.__rlDone = true;
+    var kids = Array.prototype.slice.call(label.childNodes), span = null;
+    kids.forEach(function (n) {
+      if (n.nodeType === 1 && n.tagName === 'INPUT') return;
+      if (n.nodeType === 3 && !n.nodeValue.trim() && !span) return;
+      if (!span) { span = document.createElement('span'); span.className = 'rl-text'; label.insertBefore(span, n); }
+      span.appendChild(n);
+    });
+  }
+  function scan(root) { (root.querySelectorAll ? root : document).querySelectorAll('label.radio-label').forEach(wrap); }
+  function start() {
+    scan(document);
+    new MutationObserver(function (ms) {
+      ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) { if (n.matches && n.matches('label.radio-label')) wrap(n); else scan(n); } }); });
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  /* click vào chữ (không phải ô chọn) thì không chuyển thành click vào ô chọn */
+  document.addEventListener('click', function (e) {
+    var t = e.target, lb = t && t.closest ? t.closest('label.radio-label') : null;
+    if (lb && !(t.tagName === 'INPUT')) e.preventDefault();
+  }, true);
+})();
