@@ -59,9 +59,9 @@ function serve() { return new Promise((res) => { const s = http.createServer((q,
     const chk = await pg.evaluate(() => { const r = []; let n = 0; testState.sections.forEach((s, si) => s.groups.forEach((g) => g.questions.forEach((q) => { n++; if (['text', 'wordbank', 'table', 'flowchart', 'short'].includes(g.type) && q.answer) { const t = (s.transcript || '').toLowerCase().replace(/[‘’]/g, "'"); const ok = q.answer.split('|').some((v) => t.includes(v.toLowerCase().trim().replace(/[‘’]/g, "'"))); if (!ok) r.push(`Câu ${n} (S${si + 1}): "${q.answer}" không có nguyên văn trong transcript`); } }))); return r; });
     chk.forEach((m) => W(m));
     // chạy thử
-    const tmp = path.join(ROOT, '_lis_preview.html'); fs.writeFileSync(tmp, html);
+    const tmp = path.join(ROOT, '_lis_preview_' + process.pid + '.html'); fs.writeFileSync(tmp, html);
     const p2 = await ctx.newPage(); const perr = []; p2.on('pageerror', (e) => perr.push(e.message));
-    await p2.goto(`http://localhost:${port}/_lis_preview.html`, { waitUntil: 'load' }); await p2.waitForTimeout(500);
+    await p2.goto(`http://localhost:${port}/${path.basename(tmp)}`, { waitUntil: 'load' }); await p2.waitForTimeout(500);
     const sm = await p2.evaluate(() => { try { selectMode('practice'); startTest(); } catch (e) { return { err: e.message }; } return { qs: document.querySelectorAll('.q-circle').length, inputs: document.querySelectorAll('input[type=text],input:not([type]),select').length }; });
     fs.unlinkSync(tmp);
     perr.forEach((m) => E('Lỗi khi chạy thử: ' + m)); if (sm.err) E('Không bắt đầu làm bài: ' + sm.err); else if (sm.qs < 40) E('Chạy thử: chỉ thấy ' + sm.qs + ' câu');
