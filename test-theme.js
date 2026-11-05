@@ -247,3 +247,14 @@
   ].join('\n');
   try { var st = document.createElement('style'); st.setAttribute('data-nt-paper', '1'); st.textContent = css; (document.head || document.documentElement).appendChild(st); } catch (e) {}
 })();
+
+/* Reading / Listening: nút "🎀 Giảng vocab" (vocab-teach.js) cho MỌI đề — kể cả đề dựng bằng dây chuyền mới chưa gắn sẵn thẻ script */
+(function () {
+  if (window.__nightVocabHook || !/\/(reading|listening)\//.test(location.pathname)) return; window.__nightVocabHook = true;
+  var add = function () {
+    if (window.NightVocabTeach || document.querySelector('script[src*="vocab-teach.js"]')) return;
+    var src; try { src = new URL('vocab-teach.js', document.currentScript ? document.currentScript.src : 'https://nightielts.id.vn/test-theme.js').href; } catch (e) { src = 'https://nightielts.id.vn/vocab-teach.js'; }
+    var s = document.createElement('script'); s.src = src; s.defer = true; document.head.appendChild(s);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
+})();
