@@ -252,7 +252,8 @@
         .iv-bottom>div:first-child{border-right:1.5px solid #c9c9c9;padding-right:22px}
         .iv-pay{display:flex;gap:18px;align-items:center}
         .iv-qr{width:220px;flex:none;border:1.5px solid #c9c9c9;border-radius:4px;background:#fff;padding:6px}
-        .iv-qr img{width:100%;display:block}
+        .iv-qr img{width:100%;display:block;image-rendering:pixelated}
+        .iv-qra{text-align:center;font-size:14px;margin-top:4px;color:#333}
         .iv-bank{font-size:15.5px}
         .iv-bank div{display:grid;grid-template-columns:130px 18px auto;line-height:2.4}
         .iv-notes{font-size:14.5px;line-height:1.75}
@@ -4599,6 +4600,7 @@
                 <div class="tf-card tf-form" style="max-width:640px">
                     <p class="tf-mini">In ở mục “Thông tin thanh toán” trên mọi phiếu.</p>
                     <label class="tf-f"><span>Ngân hàng</span><input type="text" id="tf-s-bank" value="${esc(s.bank || '')}" placeholder="vd: MB Bank"></label>
+                    <label class="tf-f"><span>Ngân hàng cho QR tự động <small>(phiếu tự có mã QR kèm sẵn số tiền)</small></span><select id="tf-s-bin" class="tf-sel"><option value="">— Tự nhận theo tên ngân hàng ở trên —</option>${VQR_BANKS.map(b => `<option value="${b[0]}" ${s.bankBin === b[0] ? 'selected' : ''}>${b[1]}</option>`).join('')}</select></label>
                     <label class="tf-f"><span>Số tài khoản</span><input type="text" id="tf-s-acc" value="${esc(s.acc || '')}"></label>
                     <label class="tf-f"><span>Chủ tài khoản</span><input type="text" id="tf-s-holder" value="${esc(s.holder || '')}" placeholder="NGUYEN VAN A"></label>
                     <label class="tf-f"><span>Dòng cuối mục Ghi chú</span><input type="text" id="tf-s-foot" value="${esc(s.foot != null ? s.foot : 'Mọi thắc mắc vui lòng liên hệ để được hỗ trợ.')}"></label>
@@ -4609,7 +4611,7 @@
                                 <input type="file" accept="image/*" id="tf-s-qr" hidden>
                                 <button class="tf-btn tf-ghost" id="tf-s-qrbtn">📷 Chọn ảnh QR</button>
                                 ${s.qr ? '<button class="tf-btn tf-danger" id="tf-s-qrdel" style="margin-left:6px">Bỏ ảnh</button>' : ''}
-                                <p class="tf-mini" style="margin-top:6px">Ảnh chụp màn hình QR từ app ngân hàng là được, web tự thu nhỏ.</p>
+                                <p class="tf-mini" style="margin-top:6px">Ảnh chụp màn hình QR từ app ngân hàng là được, web tự thu nhỏ. Khi đã có ngân hàng + số tài khoản, phiếu sẽ <b>tự tạo QR có sẵn số tiền</b>; ảnh này chỉ dùng khi không tạo được.</p>
                             </div>
                         </div>
                     </div>
@@ -4624,7 +4626,7 @@
                     try { qr = await shrinkImage(f, 520); body.querySelector('#tf-s-qrprev').innerHTML = `<img src="${qr}" alt="QR">`; } catch (e) { toast('Không đọc được ảnh', true); }
                 };
                 body.querySelector('#tf-s-save').onclick = async () => {
-                    const rec = { bank: body.querySelector('#tf-s-bank').value.trim(), acc: body.querySelector('#tf-s-acc').value.trim(), holder: body.querySelector('#tf-s-holder').value.trim(), foot: body.querySelector('#tf-s-foot').value.trim(), qr, updatedAt: Date.now() };
+                    const rec = { bankBin: body.querySelector('#tf-s-bin').value, bank: body.querySelector('#tf-s-bank').value.trim(), acc: body.querySelector('#tf-s-acc').value.trim(), holder: body.querySelector('#tf-s-holder').value.trim(), foot: body.querySelector('#tf-s-foot').value.trim(), qr, updatedAt: Date.now() };
                     try { await setDoc(doc(db, 'tuitionSettings', 'main'), rec); TF.settings = rec; toast('Đã lưu'); } catch (e) { toast(errMsg(e), true); }
                 };
             }
@@ -4644,6 +4646,45 @@
                     fr.onerror = rej; fr.readAsDataURL(file);
                 });
             }
+
+            // ---------- QR VietQR có sẵn số tiền (chuẩn NAPAS/EMVCo, tạo ngay trên máy, không cần nội dung) ----------
+            const VQR_BANKS = [
+                ['970436', 'Vietcombank', /vietcom|vcb/], ['970415', 'VietinBank', /vietin|ctg|icb/], ['970418', 'BIDV', /bidv/], ['970405', 'Agribank', /agri/],
+                ['970422', 'MB Bank', /^mb|mbbank|quan ?doi|military/], ['970407', 'Techcombank', /techcom|tcb/], ['970416', 'ACB', /^acb|a ?chau/], ['970432', 'VPBank', /vpbank|vp bank|^vpb/],
+                ['970423', 'TPBank', /tpbank|tp bank|tien phong/], ['970403', 'Sacombank', /sacom|stb/], ['970437', 'HDBank', /hdbank|hd bank/], ['970441', 'VIB', /^vib/],
+                ['970443', 'SHB', /^shb/], ['970431', 'Eximbank', /exim/], ['970426', 'MSB', /^msb|maritime|hang hai/], ['970448', 'OCB', /^ocb|phuong dong/],
+                ['970440', 'SeABank', /seabank|sea bank/], ['970449', 'LPBank', /lpbank|lienviet|lpb/], ['970428', 'Nam A Bank', /nam ?a/], ['970409', 'Bac A Bank', /bac ?a/],
+                ['970425', 'ABBANK', /abbank|an binh/], ['970454', 'BVBank (Bản Việt)', /bvbank|ban viet|viet capital|timo/], ['970412', 'PVcomBank', /pvcom/], ['970452', 'KienlongBank', /kienlong/],
+                ['970433', 'VietBank', /^vietbank/], ['970427', 'VietABank', /viet ?a/], ['970429', 'SCB', /^scb/], ['970424', 'Shinhan Bank', /shinhan/],
+                ['970419', 'NCB', /^ncb|quoc dan/], ['970400', 'Saigonbank', /saigonbank/], ['970438', 'BaoViet Bank', /bao ?viet/], ['970430', 'PGBank', /pgbank/],
+                ['970414', 'MBV (OceanBank)', /mbv|ocean/], ['970408', 'GPBank', /gpbank/], ['546034', 'Cake by VPBank', /cake/], ['546035', 'Ubank by VPBank', /ubank/]
+            ];
+            const unaccent = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().trim();
+            function vqrBin(st) {
+                if (st.bankBin) return st.bankBin;
+                const b = unaccent(st.bank); if (!b) return '';
+                const hit = VQR_BANKS.find(x => x[2].test(b)); return hit ? hit[0] : '';
+            }
+            function crc16(str) {
+                let crc = 0xFFFF;
+                for (let i = 0; i < str.length; i++) {
+                    crc ^= str.charCodeAt(i) << 8;
+                    for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+                }
+                return crc.toString(16).toUpperCase().padStart(4, '0');
+            }
+            function vqrPayload(bin, acc, amount) {
+                const f = (id, v) => id + String(v.length).padStart(2, '0') + v;
+                const merchant = f('00', 'A000000727') + f('01', f('00', bin) + f('01', acc)) + f('02', 'QRIBFTTA');
+                let p = f('00', '01') + f('01', amount ? '12' : '11') + f('38', merchant) + f('53', '704') + (amount ? f('54', String(Math.round(amount))) : '') + f('58', 'VN') + '6304';
+                return p + crc16(p);
+            }
+            function vqrImage(st, amount) {
+                const bin = vqrBin(st), acc = String(st.acc || '').replace(/\s+/g, '');
+                if (!bin || !acc || !(amount > 0) || typeof window.qrcode !== 'function') return '';
+                try { const q = window.qrcode(0, 'M'); q.addData(vqrPayload(bin, acc, amount)); q.make(); return q.createDataURL(8, 2); } catch (e) { return ''; }
+            }
+            const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
 
             // ---------- Xuất phiếu ----------
             const B = { pid: null, from: null, to: null, name: '', dedLabel: '', ded: null, notes: '' };
@@ -4852,7 +4893,8 @@
                         <div>
                             <h3 class="iv-h">${n5}. THÔNG TIN THANH TOÁN</h3>
                             <div class="iv-pay">
-                                ${st.qr ? `<div class="iv-qr"><img src="${st.qr}"></div>` : ''}
+                                ${(() => { const due = pre ? Math.max(0, total - remain) : total, auto = vqrImage(st, due);
+                                    return auto ? `<div class="iv-qr"><img src="${auto}"><div class="iv-qra">Quét để chuyển <b>${money(due)}đ</b></div></div>` : (st.qr ? `<div class="iv-qr"><img src="${st.qr}"></div>` : ''); })()}
                                 <div class="iv-bank">
                                     <div><span>Ngân hàng</span><span>:</span><b>${esc(st.bank || '------------------')}</b></div>
                                     <div><span>Số tài khoản</span><span>:</span><b>${esc(st.acc || '------------------')}</b></div>
@@ -4870,6 +4912,7 @@
 
             function drawPreview() {
                 const host = body.querySelector('#tf-prevscale'); if (!host) return;
+                if (typeof window.qrcode !== 'function' && !drawPreview.qrLoading) { drawPreview.qrLoading = true; loadScript(QR_LIB).then(() => drawPreview()).catch(() => {}); }
                 host.innerHTML = buildInvoice();
                 fitPreview();
             }
