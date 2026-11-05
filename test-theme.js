@@ -203,3 +203,45 @@
     if (lb && !(t.tagName === 'INPUT')) e.preventDefault();
   }, true);
 })();
+
+/* Reading / Listening: giao diện "tờ đề giấy" giống bản In đề (nền xám nhạt, tờ trắng, màu nhấn theo kỹ năng,
+   khung viền mảnh, số câu dạng viên thuốc, chỗ trống gạch chân, chữ bài đọc kiểu sách). Chỉ CSS, không đụng logic chấm. */
+(function () {
+  if (window.__nightPaperUI) return; window.__nightPaperUI = true;
+  var L = /\/listening\//.test(location.pathname), C = L ? '#0d9488' : '#6d5dfc', C2 = L ? '#e3f6f3' : '#efecff';
+  var css = [
+    'html body{--nt-lilac:' + C + ';--nt-lilac-l:' + C2 + ';--nt-ink:#1d2140;--nt-panel:#fff;--pp-c:' + C + ';--pp-c2:' + C2 + ';--pp-line:#c9cbe0;--pp-ink2:#5b6080;--text-color:#1d2140;--primary-button:' + C + '}',
+    'html body:not(.exam-mode){background-color:#eceef6!important;background-image:none!important}',
+    'html body.exam-mode{background:#eceef6!important}',
+    'html body .header{background:#1d2140!important}',
+    'html body .header .submit-btn,html body.exam-mode .header .submit-btn{background:' + C + '!important;box-shadow:0 0 0 3px ' + C2 + '!important}',
+    'html body .header .q-circle.answered{background:' + C + '!important}',
+    'html body .part-indicator{background:' + C + '!important}',
+    'html body .panel{background:#fff!important;border-radius:18px!important;box-shadow:0 4px 20px rgba(29,33,64,.12)!important}',
+    /* bài đọc / transcript: chữ kiểu sách như bản in */
+    'html body .passage-text{font-family:Georgia,"Times New Roman",serif!important;font-size:17px!important;line-height:1.7!important;color:#1d2140}',
+    'html body .passage-text h2,html body .passage-text h3{font-family:"Plus Jakarta Sans",system-ui,sans-serif;font-weight:800;color:#1d2140}',
+    /* khối câu hỏi */
+    'html body .question-group{background:#fff!important;border:1.3px solid var(--pp-line)!important;border-radius:14px!important;padding:18px 20px!important}',
+    'html body .question-group>h3{font-weight:800;color:' + C + ';font-size:16px;letter-spacing:.01em;border-bottom:2.5px solid ' + C + ';padding-bottom:6px;margin-bottom:10px}',
+    'html body .instruction{background:transparent!important;border-left:3px solid ' + C2 + '!important;border-radius:0!important;color:var(--pp-ink2)!important;font-style:italic;padding:2px 0 2px 12px!important}',
+    'html body .q-num{background:' + C + '!important;color:#fff!important;border:0!important;border-radius:999px!important;min-width:26px;width:auto;height:26px;padding:0 7px;font-weight:800;font-size:13px}',
+    'html body .question-item{padding:6px 0}',
+    /* đáp án: dòng thoáng, hover nhẹ như phiếu in */
+    'html body label.radio-label{border-radius:8px!important;padding:4px 8px!important}',
+    'html body label.radio-label:hover{background:' + C2 + '!important}',
+    'html body input[type=radio],html body input[type=checkbox]{accent-color:' + C + '}',
+    /* chỗ trống: chỉ gạch chân */
+    'html body .text-input{border:0!important;border-bottom:1.5px solid #6f7499!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}',
+    'html body .text-input:focus{border-bottom-color:' + C + '!important;background:' + C2 + '!important;box-shadow:none!important}',
+    'html body .inline-blank::placeholder{color:' + C + '!important;font-weight:800}',
+    'html body .inline-summary.notes-template,html body .notes-template{border:1.3px solid var(--pp-line);border-radius:12px;padding:12px 18px;background:#fff}',
+    'html body table th,html body .question-group table th{background:' + C2 + '!important}',
+    'html body table td,html body table th{border-color:var(--pp-line)}',
+    'html body select.lettered-select,html body select.inline-select{border:1.3px solid var(--pp-line);border-radius:8px}',
+    'html body .match-bank{background:' + C2 + '!important;border:1.3px dashed ' + C + '!important}',
+    'html body .match-chip{border:1.5px solid ' + C + '!important;color:' + C + '!important}',
+    'html body .feedback-box{border-radius:10px}'
+  ].join('\n');
+  try { var st = document.createElement('style'); st.setAttribute('data-nt-paper', '1'); st.textContent = css; (document.head || document.documentElement).appendChild(st); } catch (e) {}
+})();
