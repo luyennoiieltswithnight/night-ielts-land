@@ -60,7 +60,9 @@ CHARLOTTE: Understood.
 
 [GROUP]
 type: text
-instruction: Questions 1-6\nComplete the notes below.\nWrite ONE WORD AND/OR A NUMBER for each answer.
+instruction: Questions 1-6
+Complete the notes below.
+Write ONE WORD AND/OR A NUMBER for each answer.
 notes:
 First day at work
 
@@ -103,7 +105,9 @@ exp: Kaeden đọc số điện thoại là 0412 665 903 (double-six = 66).
 
 [GROUP]
 type: table
-instruction: Questions 7-10\nComplete the table below.\nWrite ONE WORD ONLY for each answer.
+instruction: Questions 7-10
+Complete the table below.
+Write ONE WORD ONLY for each answer.
 columns: Section | Responsibilities
 rows:
 Bakery section | Check sell-by dates; change price labels: put a ___ label next to the original price
@@ -146,7 +150,9 @@ Well, I hope that's given...
 
 [GROUP]
 type: multi
-instruction: Questions 11 and 12\nChoose TWO letters, A-E.\nWhich TWO problems with some training programmes for new runners does Liz mention?
+instruction: Questions 11 and 12
+Choose TWO letters, A-E.
+Which TWO problems with some training programmes for new runners does Liz mention?
 options:
 There is a risk of serious injury.
 They are unsuitable for certain age groups.
@@ -167,7 +173,9 @@ exp: Liz nói nếu có thắc mắc riêng thì không có ai giải đáp, t�
 
 [GROUP]
 type: multi
-instruction: Questions 13 and 14\nChoose TWO letters, A-E.\nWhich TWO tips does Liz recommend for new runners?
+instruction: Questions 13 and 14
+Choose TWO letters, A-E.
+Which TWO tips does Liz recommend for new runners?
 options:
 doing two runs a week
 running in the evening
@@ -188,7 +196,9 @@ exp: Liz cho rằng nghe nhạc khi chạy rất hữu ích vì giúp quên mệ
 
 [GROUP]
 type: list_match
-instruction: Questions 15-18\nWhat reason prevented each of the following members of the Compton Park Runners Club from joining until recently?\nWrite the correct letter, A, B, or C next to Questions 15-18.
+instruction: Questions 15-18
+What reason prevented each of the following members of the Compton Park Runners Club from joining until recently?
+Write the correct letter, A, B, or C next to Questions 15-18.
 options:
 a lack of confidence
 a dislike of running
@@ -220,7 +230,8 @@ exp: Mark mất nhiều tháng mới đủ can đảm liên hệ câu lạc bộ
 
 [GROUP]
 type: mcq
-instruction: Questions 19 and 20\nChoose the correct letter, A, B or C.
+instruction: Questions 19 and 20
+Choose the correct letter, A, B or C.
 
 [Q]
 text: What does Liz say about running her first marathon?
@@ -307,7 +318,8 @@ KIERAN: Pretty central then. You'll have to take me there some time!
 
 [GROUP]
 type: mcq
-instruction: Questions 21-25\nChoose the correct letter, A, B or C.
+instruction: Questions 21-25
+Choose the correct letter, A, B or C.
 
 [Q]
 text: Kieran thinks the packing advice given by Jane's grandfather is
@@ -356,7 +368,9 @@ exp: Jane nói sách mới không rẻ và Kieran đáp rằng họ may mắn mu
 
 [GROUP]
 type: list_match
-instruction: Questions 26-30\nWhere does Jane's grandfather keep each of the following types of books in his shop?\nChoose FIVE answers from the box and write the correct letter, A-G, next to Questions 26-30.
+instruction: Questions 26-30
+Where does Jane's grandfather keep each of the following types of books in his shop?
+Choose FIVE answers from the box and write the correct letter, A-G, next to Questions 26-30.
 options:
 near the entrance
 in the attic
@@ -411,7 +425,9 @@ One other important point to consider...
 
 [GROUP]
 type: text
-instruction: Questions 31-40\nComplete the notes below.\nWrite ONE WORD ONLY for each answer.
+instruction: Questions 31-40
+Complete the notes below.
+Write ONE WORD ONLY for each answer.
 notes:
 Tree planting
 

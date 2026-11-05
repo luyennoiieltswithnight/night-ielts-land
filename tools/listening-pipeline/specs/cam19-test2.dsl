@@ -57,7 +57,9 @@ WOMAN: Well, thanks Coleman. I'll go and have a look at that website, I think.
 
 [GROUP]
 type: text
-instruction: Questions 1-6\nComplete the form below.\nWrite ONE WORD AND/OR A NUMBER for each answer.
+instruction: Questions 1-6
+Complete the form below.
+Write ONE WORD AND/OR A NUMBER for each answer.
 notes: Guitar Group
 Coordinator: ___
 Level: ___
@@ -99,7 +101,9 @@ exp: Website bán đàn cũ tên là 'The perfect instrument'.
 
 [GROUP]
 type: table
-instruction: Questions 7-10\nComplete the table below.\nWrite ONE WORD ONLY for each answer.
+instruction: Questions 7-10
+Complete the table below.
+Write ONE WORD ONLY for each answer.
 columns: Activity | Notes
 rows: 5 minutes tuning guitars | using an app or by ___
 10 minutes strumming | keeping time while the teacher starts ___
@@ -142,7 +146,9 @@ So if any of you listeners are interested... .
 
 [GROUP]
 type: mcq
-instruction: Questions 11-16\nChoose the correct letter, A, B or C.\nWorking as a lifeboat volunteer
+instruction: Questions 11-16
+Choose the correct letter, A, B or C.
+Working as a lifeboat volunteer
 
 [Q]
 text: What made David leave London and move to Northsea?
@@ -200,7 +206,9 @@ exp: David nói chuyện với các nhóm thanh niên và câu lạc bộ thuy�
 
 [GROUP]
 type: multi
-instruction: Questions 17 and 18\nChoose TWO letters, A-E.\nWhich TWO things does David say about the lifeboat volunteer training?
+instruction: Questions 17 and 18
+Choose TWO letters, A-E.
+Which TWO things does David say about the lifeboat volunteer training?
 pick: 2
 options: The residential course developed his leadership skills.
 The training in use of ropes and knots was quite brief.
@@ -220,7 +228,9 @@ exp: Bể tạo sóng cho anh thực hành xử lý khi thuyền lật trong bã
 
 [GROUP]
 type: multi
-instruction: Questions 19 and 20\nChoose TWO letters, A-E.\nWhich TWO things does David find most motivating about the work he does?
+instruction: Questions 19 and 20
+Choose TWO letters, A-E.
+Which TWO things does David find most motivating about the work he does?
 pick: 2
 options: working as part of a team
 experiences when working in winter
@@ -281,7 +291,8 @@ DON: Absolutely. So let's discuss .. .
 
 [GROUP]
 type: mcq
-instruction: Questions 21-24\nChoose the correct letter, A, B or C.
+instruction: Questions 21-24
+Choose the correct letter, A, B or C.
 
 [Q]
 text: At first, Don thought the topic of recycling footwear might be too
@@ -321,7 +332,9 @@ exp: Don bối rối vì lượng giày được tái chế giảm (từ 11% xu�
 
 [GROUP]
 type: list_match
-instruction: Questions 25-28\nWhat reasons did the recycling manager give for rejecting footwear, according to the students?\nChoose FOUR answers from the box and write the correct letter, A-F, next to Questions 25-28.
+instruction: Questions 25-28
+What reasons did the recycling manager give for rejecting footwear, according to the students?
+Choose FOUR answers from the box and write the correct letter, A-F, next to Questions 25-28.
 options: one shoe was missing
 the colour of one shoe had faded
 one shoe had a hole in it
@@ -355,7 +368,8 @@ exp: Đế một chiếc giày mòn đến mức thọc ngón tay qua được (
 
 [GROUP]
 type: mcq
-instruction: Questions 29-30\nChoose the correct letter, A, B or C.
+instruction: Questions 29-30
+Choose the correct letter, A, B or C.
 
 [Q]
 text: Why did the project to make 'new' shoes out of old shoes fail?
@@ -388,7 +402,9 @@ Finally, I'd like to mention the conservation status of tardigrades. It is estim
 
 [GROUP]
 type: text
-instruction: Questions 31-40\nComplete the notes below.\nWrite ONE WORD ONLY for each answer.
+instruction: Questions 31-40
+Complete the notes below.
+Write ONE WORD ONLY for each answer.
 notes: Tardigrades
 - more than 1,000 species, 0.05-1.2 millimetres long
 - also known as water 'bears' (due to how they ___ ) and 'moss piglets'

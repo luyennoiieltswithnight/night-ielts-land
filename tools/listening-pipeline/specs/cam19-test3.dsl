@@ -62,7 +62,9 @@ SHANNON: Perfect — hopefully I won't even have to go to the supermarket!
 
 [GROUP]
 type: text
-instruction: Questions 1-6\nComplete the notes below.\nWrite ONE WORD AND/OR A NUMBER for each answer.
+instruction: Questions 1-6
+Complete the notes below.
+Write ONE WORD AND/OR A NUMBER for each answer.
 notes:
 Local food shops
 
@@ -113,7 +115,9 @@ exp: Xe buýt nhỏ đến siêu thị có màu tím (purple), số 289.
 
 [GROUP]
 type: table
-instruction: Questions 7-10\nComplete the table below.\nWrite ONE WORD ONLY for each answer.
+instruction: Questions 7-10
+Complete the table below.
+Write ONE WORD ONLY for each answer.
 columns: Shopping | What to buy
 rows:
 Fish market | prawns and ___ (a type of seaweed)
@@ -155,7 +159,9 @@ PRESENTER: Well Jenny, I think that's really useful. . . .
 
 [GROUP]
 type: list_match
-instruction: Questions 11-16\nWhat information is given about each of the following festival workshops?\nChoose SIX answers from the box and write the correct letter, A-H, next to Questions 11-16.
+instruction: Questions 11-16
+What information is given about each of the following festival workshops?
+Choose SIX answers from the box and write the correct letter, A-H, next to Questions 11-16.
 options:
 involves painting and drawing
 will be led by a prize-winning author
@@ -204,7 +210,9 @@ exp: Sticks and stones giúp trẻ tìm hiểu nguồn gốc Jamaica, tức nân
 
 [GROUP]
 type: multi
-instruction: Questions 17 and 18\nChoose TWO letters, A-E.\nWhich TWO reasons does the speaker give for recommending Alive and Kicking?
+instruction: Questions 17 and 18
+Choose TWO letters, A-E.
+Which TWO reasons does the speaker give for recommending Alive and Kicking?
 options:
 It will appeal to both boys and girls.
 The author is well known.
@@ -225,7 +233,9 @@ exp: Sách đề cập đến vấn đề nghiêm túc là nhập cư.
 
 [GROUP]
 type: multi
-instruction: Questions 19 and 20\nChoose TWO letters, A-E.\nWhich TWO pieces of advice does the speaker give to parents about reading?
+instruction: Questions 19 and 20
+Choose TWO letters, A-E.
+Which TWO pieces of advice does the speaker give to parents about reading?
 options:
 Encourage children to write down new vocabulary.
 Allow children to listen to audio books.
@@ -292,7 +302,8 @@ JAKE: Yes. One thing...
 
 [GROUP]
 type: mcq
-instruction: Questions 21-25\nChoose the correct letter, A, B or C.
+instruction: Questions 21-25
+Choose the correct letter, A, B or C.
 
 [Q]
 text: How does Clare feel about the students in her Year 12 science class?
@@ -341,7 +352,9 @@ exp: Jake gợi ý thí nghiệm tiếp theo cho chuột vận động nhiều h
 
 [GROUP]
 type: wordbank
-instruction: Questions 26-30\nComplete the flowchart below.\nChoose FIVE answers from the box and write the correct letter, A-H, next to Questions 26-30.
+instruction: Questions 26-30
+Complete the flowchart below.
+Choose FIVE answers from the box and write the correct letter, A-H, next to Questions 26-30.
 notes:
 Choose mice which are all the same ___
 
@@ -409,7 +422,9 @@ The conclusions of the study make for very interesting reading — I've included
 
 [GROUP]
 type: text
-instruction: Questions 31-40\nComplete the notes below.\nWrite ONE WORD ONLY for each answer.
+instruction: Questions 31-40
+Complete the notes below.
+Write ONE WORD ONLY for each answer.
 notes:
 Microplastics
 
