@@ -2610,8 +2610,267 @@
       h("path", { d: "M10 1C13 5 17 7 17 11a7 7 0 0 1-14 0c0-4 4-6 7-10z", fill: p.c }), h("circle", { cx: 10, cy: 11, r: 1.6, fill: "#E8B54A" }))));
   }
   const isZhLesson = (lesson) => /^zh/.test((lesson && lesson.lang) || "") || courseKeyOf(lesson) === "tiengtrung";
+  /* ===================== PHƯƠNG PHÁP IPA CỦA NIGHT — "THE EASIEST APPROACH" =====================
+     type "ipamap": bảng IPA nhìn qua từng "lăng kính" (lenses) của thầy:
+       van   — nguyên âm = PHẦN VẦN, phụ âm = ÂM ĐẦU (như tiếng Việt)
+       nhom  — 12 đơn · 8 đôi · 24 phụ âm
+       ueoai — 12 nguyên âm đơn gom về 6 chữ tiếng Việt U E O A I + Ơ (kèm khẩu hình)
+       duoi  — nguyên âm đôi = âm đơn + đuôi (ơ / i / u) theo từng cột
+       cap   — phụ âm cặp TRỐNG – MÁI: cùng khẩu hình, 1 HƠI – 1 RUNG; hàng cuối không cặp → RUNG
+       vitri — vị trí đặt: môi-môi, răng-môi, răng-răng, đầu lưỡi, mình lưỡi, đít lưỡi
+     Dùng: { type:"ipamap", lenses:["van","nhom","ueoai","duoi"], part:"all"|"vowels"|"cons" }
+     type "ipachunk": cụm phụ âm đứng liền + tách từ dài "như đọc số điện thoại".
+     Dùng: { type:"ipachunk", clusters:[{ w:"[pr]epare", ipa:"/prɪˈpeə/", n:"pr" }], words:[{ w, ipa:"/ˌsuː.pə.../" }] } */
+  const NIPA_IMG = (() => { try { return new URL("img/ipa/", ENGINE_SRC || location.href).href; } catch (e) { return "../img/ipa/"; } })();
+  const NIPA_FONT = { fontFamily: '"Charis SIL","Doulos SIL","Gentium Plus","Segoe UI","Noto Sans","Lucida Sans Unicode",Arial,sans-serif' };
+  const NIPA_V = [
+    [["iː", "sheep", "eagle · field"], ["ɪ", "ship", "busy · started"], ["ʊ", "good", "put · should"], ["uː", "moon", "grew · through"], ["ɪə", "ear", "here · career"], ["eɪ", "train", "say · plane"], null],
+    [["e", "bed", "dead · said"], ["ə", "about", "police · the"], ["ɜː", "bird", "hurt · work"], ["ɔː", "door", "walk · saw"], ["ʊə", "your", "sure · tourist"], ["ɔɪ", "boy", "point · oil"], ["əʊ", "coat", "low · note"]],
+    [["æ", "apple", "cat · mat"], ["ʌ", "up", "money · cut"], ["ɑː", "car", "bath · safari"], ["ɒ", "not", "what · because"], ["eə", "hair", "careful · there"], ["aɪ", "by", "high · fine"], ["aʊ", "now", "our · house"]]
+  ];
+  const NIPA_C = [
+    [["p", "pen", "hopping · jump", 0], ["b", "ball", "hobby · herb", 1], ["t", "table", "little · watched", 0], ["d", "dog", "added · played", 1], ["tʃ", "chips", "itch · picture", 0], ["dʒ", "jam", "danger · fudge", 1], ["k", "key", "car · luck", 0], ["ɡ", "green", "hug · league", 1]],
+    [["f", "fire", "laugh · phone", 0], ["v", "video", "move · of", 1], ["θ", "thick", "healthy · teeth", 0], ["ð", "mother", "this · with", 1], ["s", "see", "city · notice", 0], ["z", "zebra", "cosy · has", 1], ["ʃ", "shop", "nation · special", 0], ["ʒ", "television", "visual · leisure", 1]],
+    [["m", "man", "tummy · lamb", 1], ["n", "no", "funny · knife", 1], ["ŋ", "sing", "uncle · angry", 1], ["j", "yes", "onion · view", 1], ["l", "light", "smelly · feel", 1], ["r", "right", "berry · wrong", 1], ["w", "win", "where · one", 1], ["h", "house", "hungry · who", 0]]
+  ];
+  const NIPA_ANCHOR = [
+    { k: "U", s: ["uː", "ʊ"], dot: [73, 28.5], tip: "Chu môi tròn, lưỡi lùi về sau. **/uː/** = “u” kéo dài · **/ʊ/** = “u” ngắn, môi thả lỏng hơn.", rows: [["food /fuːd/", "foot /fʊt/"], ["pool /puːl/", "pull /pʊl/"], ["fool /fuːl/", "full /fʊl/"], ["good /ɡʊd/", "put /pʊt/"]] },
+    { k: "E", s: ["e"], dot: [34, 61], tip: "Giống hệt **“e”** tiếng Việt — nhóm dễ nhất, chỉ có 1 âm.", rows: [["bed /bed/"], ["set /set/"], ["attend /əˈtend/"]] },
+    { k: "O", s: ["ɒ", "ɔː"], dot: [84, 50], tip: "**/ɒ/** = “o” ngắn, gọn · **/ɔː/** = “o” kéo dài, môi tròn hơn.", rows: [["hot /hɒt/", "hall /hɔːl/"], ["not /nɒt/", "naught /nɔːt/"], ["cot /kɒt/", "caught /kɔːt/"], ["dog /dɒɡ/", "draw /drɔː/"], ["shop /ʃɒp/", "short /ʃɔːt/"]] },
+    { k: "A", s: ["æ", "ɑː", "ʌ"], dot: [42, 49], tip: "**/æ/** = “a” bẹt sang “e”, mở miệng rộng · **/ɑː/** = “a” dài, mở to · **/ʌ/** = “ă” ngắn, gọn.", rows: [["cat /kæt/", "cart /kɑːt/", "cut /kʌt/"], ["man /mæn/", "father /ˈfɑːðə/", "mother /ˈmʌðə/"], ["hat /hæt/", "heart /hɑːt/", "hut /hʌt/"], ["cap /kæp/", "calm /kɑːm/", "cup /kʌp/"], ["bad /bæd/", "bark /bɑːk/", "but /bʌt/"]] },
+    { k: "I", s: ["ɪ", "iː"], dot: [32, 32], tip: "**/ɪ/** = “i” ngắn, hơi lơi · **/iː/** = “i” kéo dài, căng môi như đang cười.", rows: [["bit /bɪt/", "beat /biːt/"], ["ship /ʃɪp/", "sheep /ʃiːp/"], ["live /lɪv/", "leave /liːv/"], ["sit /sɪt/", "seat /siːt/"], ["hit /hɪt/", "heat /hiːt/"]] },
+    { k: "Ơ", s: ["ə", "ɜː"], dot: [50, 43], tip: "**/ə/** = “ơ” rất nhẹ, nằm ở âm không nhấn · **/ɜː/** = “ơ” kéo dài.", rows: [["about /əˈbaʊt/", "bird /bɜːd/"], ["banana /bəˈnɑːnə/", "girl /ɡɜːl/"], ["teacher /ˈtiːtʃə/", "learn /lɜːn/"], ["doctor /ˈdɒktə/", "word /wɜːd/"], ["sofa /ˈsəʊfə/", "earth /ɜːθ/"]] }
+  ];
+  const NIPA_TAIL = [
+    { k: "đuôi ơ /ə/", s: ["ɪə", "ʊə", "eə"], vn: ["i → ơ ≈ “ia”", "u → ơ ≈ “ua”", "e → ơ ≈ “eơ”"], ex: ["here", "sure", "hair"] },
+    { k: "đuôi i /ɪ/", s: ["eɪ", "ɔɪ", "aɪ"], vn: ["e → i ≈ “ây”", "o → i ≈ “oi”", "a → i ≈ “ai”"], ex: ["say", "boy", "by"] },
+    { k: "đuôi u /ʊ/", s: ["əʊ", "aʊ"], vn: ["ơ → u ≈ “âu”", "a → u ≈ “ao”"], ex: ["go", "now"] }
+  ];
+  const NIPA_PLACE = [
+    { k: "môi – môi", s: ["p", "b", "m", "w"], at: [27, 47], tip: "Hai môi mím/chu vào nhau rồi bật ra." },
+    { k: "răng – môi", s: ["f", "v"], at: [28.5, 60], tip: "Răng trên chạm nhẹ môi dưới, thổi hơi qua." },
+    { k: "răng – răng", s: ["s", "z", "θ", "ð"], at: [31, 54], tip: "Hơi đi qua kẽ răng. Riêng **/θ/ /ð/**: đặt đầu lưỡi giữa 2 hàm răng." },
+    { k: "đầu lưỡi", s: ["t", "d", "ʃ", "ʒ", "tʃ", "dʒ", "l", "n"], at: [34, 49], tip: "Đầu lưỡi chạm (hoặc sát) lợi trên, ngay sau răng cửa." },
+    { k: "mình lưỡi", s: ["j", "r"], at: [42, 48], tip: "Thân lưỡi nâng lên giữa vòm miệng." },
+    { k: "đít lưỡi", s: ["k", "ɡ", "ŋ"], at: [51, 53], tip: "Cuống lưỡi chạm vòm mềm phía trong." },
+    { k: "cổ họng", s: ["h"], at: [51, 73], tip: "Không chạm gì — chỉ là hơi thở ra từ họng." }
+  ];
+  const NIPA_LENS = { van: "Phần vần · Âm đầu", nhom: "Đơn · Đôi · Phụ âm", ueoai: "U E O A I + Ơ", duoi: "Đôi = đơn + đuôi", cap: "Cặp Trống – Mái", vitri: "Vị trí đặt lưỡi" };
+  const NIPA_VAN_EX = [
+    { w: "cat", ipa: "/kæt/", head: "k", rhyme: "æt", s: ["k", "æ", "t"], vn: "c + at" },
+    { w: "ship", ipa: "/ʃɪp/", head: "ʃ", rhyme: "ɪp", s: ["ʃ", "ɪ", "p"], vn: "s + ip" },
+    { w: "boy", ipa: "/bɔɪ/", head: "b", rhyme: "ɔɪ", s: ["b", "ɔɪ"], vn: "b + oi" },
+    { w: "nine", ipa: "/naɪn/", head: "n", rhyme: "aɪn", s: ["n", "aɪ", "n"], vn: "n + ai(n)" }
+  ];
+  const nipaWord = (x) => String(x).split(" /")[0];
+  function NipaWordBtn({ text, tone }) {
+    const parts = String(text).split(" /");
+    return h("button", { type: "button", onClick: () => speak(parts[0], 0.8), className: `rounded-2xl border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:shadow-floating ${tone || "border-slate-200 bg-white"}` },
+      h("span", { className: "block text-[15px] font-extrabold text-ink" }, parts[0]),
+      parts[1] && h("span", { className: "block text-[13px] text-slate-500", style: NIPA_FONT }, "/" + parts[1]));
+  }
+  function NightIpaMap({ lenses, part, intro }) {
+    const list = (lenses && lenses.length ? lenses : Object.keys(NIPA_LENS)).filter((k) => NIPA_LENS[k]);
+    const [lens, setLens] = useState(list[0]);
+    const [pick, setPick] = useState(0);
+    const [pair, setPair] = useState(null);
+    const [exI, setExI] = useState(null);
+    const [cell, setCell] = useState(null);
+    const choose = (k) => { setLens(k); setPick(0); setPair(null); setExI(null); setCell(null); };
+    const showV = part !== "cons" && lens !== "cap" && lens !== "vitri";
+    const showC = part !== "vowels" && lens !== "ueoai" && lens !== "duoi";
+    const anchor = NIPA_ANCHOR[pick] || NIPA_ANCHOR[0];
+    const tail = NIPA_TAIL[pick] || NIPA_TAIL[0];
+    const place = NIPA_PLACE[pick] || NIPA_PLACE[0];
+    const ex = exI != null ? NIPA_VAN_EX[exI] : null;
+    /* trạng thái từng ô: "on" (nổi bật) · "dim" (mờ) · "" (bình thường) */
+    function stateOf(sym, kind, ri, ci) {
+      if (lens === "van") return ex ? (ex.s.includes(sym) ? "on" : "dim") : "";
+      if (lens === "nhom") return "";
+      if (lens === "ueoai") return kind === "mono" && anchor.s.includes(sym) ? "on" : "dim";
+      if (lens === "duoi") return kind === "diph" && tail.s.includes(sym) ? "on" : "dim";
+      if (lens === "cap") { if (pair == null) return ""; if (pair === "last") return ri === 2 ? "on" : "dim"; return ri === pair[0] && Math.floor(ci / 2) === pair[1] ? "on" : "dim"; }
+      if (lens === "vitri") return place.s.includes(sym) ? "on" : "dim";
+      return "";
+    }
+    function bgOf(kind, voiced) {
+      if (kind === "mono") return "#FFF4EA";
+      if (kind === "diph") return "#FCDDC2";
+      return voiced ? "#C9D9EE" : "#DCEBC6";
+    }
+    function onCell(c, kind, ri, ci) {
+      setCell({ c, kind });
+      if (lens === "ueoai" && kind === "mono") { const i = NIPA_ANCHOR.findIndex((a) => a.s.includes(c[0])); if (i >= 0) setPick(i); }
+      if (lens === "duoi" && kind === "diph") { const i = NIPA_TAIL.findIndex((a) => a.s.includes(c[0])); if (i >= 0) setPick(i); }
+      if (lens === "vitri" && kind === "cons") { const i = NIPA_PLACE.findIndex((a) => a.s.includes(c[0])); if (i >= 0) setPick(i); }
+      if (lens === "cap" && kind === "cons") {
+        if (ri < 2) { const p = [ri, Math.floor(ci / 2)]; setPair(p); const a = NIPA_C[ri][p[1] * 2], b = NIPA_C[ri][p[1] * 2 + 1]; speak(a[1] + " | " + b[1], 0.8); return; }
+        setPair("last");
+      }
+      speak(c[1], 0.8);
+    }
+    function Cell(c, kind, ri, ci) {
+      if (!c) return h("div", { key: ci, className: "rounded-xl bg-white/60" });
+      const st = stateOf(c[0], kind, ri, ci);
+      return h("button", {
+        key: ci, type: "button", onClick: () => onCell(c, kind, ri, ci), title: c[1],
+        style: { background: bgOf(kind, c[3]) },
+        className: `relative flex min-h-[64px] flex-col items-center justify-center rounded-xl px-1 py-1.5 text-center transition duration-300 ${st === "on" ? "z-10 scale-[1.06] shadow-premium ring-2 ring-primary" : st === "dim" ? "opacity-25 grayscale" : "hover:-translate-y-0.5 hover:shadow-floating"}`
+      },
+        h("span", { className: "text-[22px] font-semibold leading-none text-ink sm:text-[26px]", style: NIPA_FONT }, c[0]),
+        h("span", { className: "mt-1 text-[10px] font-bold text-slate-600 sm:text-[11px]" }, c[1]),
+        h("span", { className: "hidden text-[9px] text-slate-400 sm:block" }, c[2]));
+    }
+    const Band = (txt, cls) => h("div", { className: `mb-1.5 rounded-lg px-2 py-1 text-center text-[11px] font-extrabold uppercase tracking-wide ${cls}` }, txt);
+    const vowelGrid = showV && h("div", null,
+      lens === "van" ? Band("Nguyên âm  →  PHẦN VẦN", "bg-amber-100 text-amber-800")
+        : lens === "nhom" ? h("div", { className: "grid grid-cols-7 gap-1.5" }, h("div", { className: "col-span-4" }, Band("12 nguyên âm đơn", "bg-[#FFE9D6] text-[#B4561B]")), h("div", { className: "col-span-3" }, Band("8 nguyên âm đôi", "bg-[#F8C9A2] text-[#8E3B0E]")))
+        : lens === "duoi" ? h("div", { className: "grid grid-cols-7 gap-1.5" }, h("div", { className: "col-span-4" }), NIPA_TAIL.map((t, i) => h("div", { key: i }, Band(t.k.split(" ")[1], pick === i ? "bg-primary text-white" : "bg-slate-100 text-slate-500"))))
+        : null,
+      h("div", { className: "grid grid-cols-7 gap-1.5" }, NIPA_V.map((row, ri) => row.map((c, ci) => Cell(c, ci >= 4 ? "diph" : "mono", ri, ci)))));
+    const consGrid = showC && h("div", { className: showV ? "mt-3" : "" },
+      lens === "van" ? Band("Phụ âm  →  ÂM ĐẦU", "bg-sky-100 text-sky-800")
+        : lens === "nhom" ? Band("24 phụ âm", "bg-[#D6E4F3] text-[#28507F]") : null,
+      h("div", { className: "grid grid-cols-8 gap-1.5" }, NIPA_C.map((row, ri) => row.map((c, ci) => Cell(c, "cons", ri, ci)))),
+      lens === "cap" && h("div", { className: "mt-1.5 flex items-center justify-between gap-2 text-[11px] font-bold" },
+        h("span", { className: "flex items-center gap-1.5" }, h("i", { className: "inline-block h-3 w-3 rounded", style: { background: "#DCEBC6" } }), "HƠI (vô thanh)", h("i", { className: "ml-3 inline-block h-3 w-3 rounded", style: { background: "#C9D9EE" } }), "RUNG (hữu thanh)"),
+        h("button", { type: "button", onClick: () => setPair("last"), className: `rounded-full px-3 py-1 ${pair === "last" ? "bg-primary text-white" : "bg-white text-slate-600 shadow-sm"}` }, "Hàng cuối ↓")));
+    const chart = h("div", { className: "overflow-x-auto rounded-3xl border border-slate-200 bg-white p-2.5 shadow-floating sm:p-4" },
+      h("div", { className: lens === "ueoai" || lens === "duoi" ? "min-w-[330px]" : "min-w-[520px]" }, vowelGrid, consGrid));
+    /* ---- bảng giải thích theo từng lăng kính ---- */
+    const Box = (...kids) => h("div", { className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating sm:p-5" }, ...kids);
+    const P = (t, cls) => h("p", { className: `text-[15px] leading-relaxed text-slate-600 ${cls || ""}` }, rich(t));
+    const Pill = (on, label, onClick, key) => h("button", { key, type: "button", onClick, className: `rounded-full px-4 py-1.5 text-sm font-extrabold transition ${on ? "bg-primary text-white shadow-premium" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}` }, label);
+    let side = null;
+    if (lens === "van") {
+      side = Box(
+        h("p", { className: "text-xs font-extrabold uppercase tracking-widest text-primary" }, "The easiest approach"),
+        h("p", { className: "mt-1 text-lg font-extrabold text-ink" }, "Đọc tiếng Anh y như đánh vần tiếng Việt"),
+        P("Tiếng Việt: **âm đầu + phần vần** → b + an = **ban**. Bảng IPA cũng chỉ có 2 phe: **nguyên âm = phần vần**, **phụ âm = âm đầu**. Biết vậy là bảng 44 âm hết đáng sợ.", "mt-2"),
+        h("p", { className: "mt-4 text-xs font-bold uppercase tracking-wide text-slate-400" }, "Bấm để ghép thử"),
+        h("div", { className: "mt-2 grid grid-cols-2 gap-2" }, NIPA_VAN_EX.map((e, i) => h("button", { key: i, type: "button", onClick: () => { setExI(i); speak(e.w, 0.8); }, className: `rounded-2xl border p-3 text-left transition ${exI === i ? "border-primary bg-primary-light" : "border-slate-200 bg-white hover:border-primary/40"}` },
+          h("span", { className: "block text-base font-extrabold text-ink" }, e.w, " ", h("span", { className: "font-semibold text-slate-400", style: NIPA_FONT }, e.ipa)),
+          h("span", { className: "mt-1 block text-[13px] text-slate-600", style: NIPA_FONT }, h("b", { className: "text-sky-700" }, e.head), " + ", h("b", { className: "text-amber-700" }, e.rhyme), h("span", { className: "text-slate-400" }, "   ≈ " + e.vn))))));
+    } else if (lens === "nhom") {
+      side = Box(
+        h("div", { className: "grid grid-cols-3 gap-2 text-center" },
+          [["12", "đơn", "#FFF4EA", "#B4561B"], ["8", "đôi", "#FCDDC2", "#8E3B0E"], ["24", "phụ âm", "#D6E4F3", "#28507F"]].map((x, i) => h("div", { key: i, className: "rounded-2xl p-3", style: { background: x[2] } }, h("p", { className: "text-3xl font-extrabold", style: { color: x[3] } }, x[0]), h("p", { className: "text-xs font-bold text-slate-600" }, x[1])))),
+        P("**44 âm = 3 khối**, mỗi khối học một kiểu:", "mt-4"),
+        h("ul", { className: "mt-2 space-y-1.5 text-[15px] text-slate-600" },
+          h("li", null, rich("• **Nguyên âm đơn** → gom về 6 chữ quen: **U E O A I + Ơ**")),
+          h("li", null, rich("• **Nguyên âm đôi** → chỉ là âm đơn + **đuôi** (ơ / i / u)")),
+          h("li", null, rich("• **Phụ âm** → học theo **cặp Trống – Mái** và **vị trí đặt lưỡi**"))));
+    } else if (lens === "ueoai") {
+      side = Box(
+        h("div", { className: "flex items-center gap-1 sm:gap-1.5" }, NIPA_ANCHOR.map((a, i) => h(React.Fragment, { key: i }, i === 5 && h("span", { className: "px-0.5 text-lg font-extrabold text-slate-300" }, "+"), h("button", { type: "button", onClick: () => { setPick(i); setCell(null); }, className: `h-9 w-9 rounded-xl text-lg font-extrabold transition sm:h-11 sm:w-11 sm:rounded-2xl sm:text-xl ${pick === i ? "bg-primary text-white shadow-premium" : "bg-amber-50 text-amber-700 hover:bg-amber-100"}` }, a.k)))),
+        h("div", { className: "mt-4 flex gap-4" },
+          h("div", { className: "relative w-36 flex-shrink-0 overflow-hidden rounded-2xl sm:w-44" },
+            h("img", { src: NIPA_IMG + "mouth-vowel.webp", alt: "Khẩu hình", className: "block w-full", onError: (ev) => { ev.currentTarget.parentNode.style.display = "none"; } }),
+            h("span", { className: "absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-pulse rounded-full border-2 border-white bg-red-600 shadow-lg transition-all duration-500", style: { left: anchor.dot[0] + "%", top: anchor.dot[1] + "%" } })),
+          h("div", { className: "min-w-0" },
+            h("p", { className: "text-sm font-bold text-slate-400" }, "Chữ “" + anchor.k + "” tiếng Việt tách thành"),
+            h("p", { className: "mt-0.5 text-3xl font-semibold text-primary", style: NIPA_FONT }, anchor.s.map((s) => "/" + s + "/").join("  ")),
+            P(anchor.tip, "mt-2 text-sm"))),
+        h("div", { className: "mt-4 space-y-2" }, anchor.rows.map((r, i) => h("div", { key: i, className: "flex items-stretch gap-2" },
+          h("div", { className: `grid flex-1 gap-2 ${r.length === 3 ? "grid-cols-3" : r.length === 2 ? "grid-cols-2" : "grid-cols-1"}` }, r.map((w, j) => h(NipaWordBtn, { key: j, text: w }))),
+          r.length > 1 && h("button", { type: "button", onClick: () => speak(r.map(nipaWord).join(" | "), 0.75), title: "Nghe cả nhóm", className: "w-11 flex-shrink-0 rounded-2xl bg-primary-light text-lg text-primary-dark hover:bg-primary hover:text-white" }, "▶")))));
+    } else if (lens === "duoi") {
+      side = Box(
+        P("Nhìn bảng theo **cột**: nguyên âm đôi = một âm đơn **trượt sang cái đuôi**. Cột nào cũng chung một đuôi:"),
+        h("div", { className: "mt-3 flex flex-wrap gap-2" }, NIPA_TAIL.map((t, i) => Pill(pick === i, t.k, () => setPick(i), i))),
+        h("div", { className: "mt-4 space-y-2" }, tail.s.map((s, i) => h("button", { key: s, type: "button", onClick: () => speak(tail.ex[i], 0.8), className: "flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-[#FFF8F2] px-4 py-2.5 text-left hover:border-primary/40" },
+          h("span", { className: "w-14 text-2xl font-semibold text-ink", style: NIPA_FONT }, "/" + s + "/"),
+          h("span", { className: "flex-1 text-[15px] font-semibold text-slate-600" }, tail.vn[i]),
+          h("span", { className: "rounded-full bg-white px-3 py-1 text-sm font-extrabold text-primary shadow-sm" }, "🔊 " + tail.ex[i])))),
+        P("Âm đầu của mỗi âm đôi lại chính là một trong **U E O A I + Ơ** → học xong âm đơn là đọc được âm đôi.", "mt-4 text-sm"));
+    } else if (lens === "cap") {
+      const pa = Array.isArray(pair) ? [NIPA_C[pair[0]][pair[1] * 2], NIPA_C[pair[0]][pair[1] * 2 + 1]] : null;
+      side = Box(
+        h("p", { className: "inline-block rounded-lg bg-yellow-300 px-2 py-1 text-[15px] font-extrabold text-red-700" }, "Một cặp như cặp TRỐNG – MÁI"),
+        P("(chung loài nhưng khác giới) → **cùng khẩu hình, 1 cái HƠI – 1 cái RUNG**.", "mt-2"),
+        pa ? h("div", { className: "mt-4 grid grid-cols-2 gap-2" }, pa.map((c, i) => h("button", { key: i, type: "button", onClick: () => speak(c[1], 0.8), className: "rounded-2xl p-3 text-center", style: { background: bgOf("cons", c[3]) } },
+          h("span", { className: "block text-4xl font-semibold text-ink", style: NIPA_FONT }, c[0]),
+          h("span", { className: "mt-1 block text-sm font-extrabold text-slate-700" }, c[1]),
+          h("span", { className: "mt-1 inline-block rounded-full bg-white/80 px-2.5 py-0.5 text-[11px] font-extrabold " + (c[3] ? "text-sky-700" : "text-lime-700") }, c[3] ? "♂︎ RUNG" : "♀︎ HƠI"))))
+          : pair === "last" ? h("div", { className: "mt-4 rounded-2xl bg-sky-50 p-4" },
+            h("p", { className: "text-[15px] font-extrabold text-sky-800" }, "Không có cặp thì luôn luôn RUNG"),
+            P("(nguyên hàng cuối cùng: m n ŋ j l r w)", "text-sm"),
+            P("Ngoại lệ duy nhất: **/h/** chỉ là hơi thở ra (house, who).", "mt-1 text-sm"))
+          : P("Bấm vào **một phụ âm ở 2 hàng trên** để nghe cả cặp, hoặc bấm **Hàng cuối ↓**.", "mt-4 text-sm"),
+        h("div", { className: "mt-4 rounded-2xl border border-dashed border-slate-300 p-3 text-sm text-slate-600" }, rich("✋ **Thử ngay:** đặt tay lên cổ, đọc **/s/** rồi **/z/** — cùng khẩu hình, nhưng /z/ làm cổ **rung**. Đây chính là chìa khoá đọc đuôi -s, -ed ở phần sau.")));
+    } else if (lens === "vitri") {
+      side = Box(
+        h("div", { className: "relative overflow-hidden rounded-2xl" },
+          h("img", { src: NIPA_IMG + "mouth-place.webp", alt: "Vị trí cấu âm", className: "block w-full" }),
+          NIPA_PLACE.map((p, i) => h("button", { key: i, type: "button", onClick: () => setPick(i), title: p.k, className: `absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white transition-all ${pick === i ? "z-10 h-6 w-6 animate-pulse bg-yellow-300 shadow-lg" : "h-3.5 w-3.5 bg-red-600/80 hover:scale-150"}`, style: { left: p.at[0] + "%", top: p.at[1] + "%" } })),
+          h("span", { className: "absolute rounded-full bg-yellow-300 px-2.5 py-0.5 text-xs font-extrabold text-ink shadow transition-all", style: { left: `calc(${place.at[0]}% + 16px)`, top: `calc(${place.at[1]}% - 34px)` } }, place.k)),
+        h("div", { className: "mt-3 flex flex-wrap gap-1.5" }, NIPA_PLACE.map((p, i) => Pill(pick === i, p.k, () => setPick(i), i))),
+        h("div", { className: "mt-3 flex flex-wrap gap-2" }, place.s.map((s) => { const c = NIPA_C.flat().find((x) => x[0] === s); return h("button", { key: s, type: "button", onClick: () => speak(c[1], 0.8), className: "rounded-xl px-3 py-1.5 text-center", style: { background: bgOf("cons", c[3]) } }, h("span", { className: "text-xl font-semibold", style: NIPA_FONT }, s), h("span", { className: "ml-1.5 text-xs font-bold text-slate-600" }, c[1])); })),
+        P(place.tip, "mt-3 text-sm"));
+    }
+    return h("div", null,
+      intro && h("p", { className: "mb-3 text-[15px] text-slate-600" }, rich(intro)),
+      list.length > 1 && h("div", { className: "mb-4 flex gap-1.5 overflow-x-auto pb-1" }, list.map((k, i) => h("button", { key: k, type: "button", onClick: () => choose(k), className: `flex flex-shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${lens === k ? "bg-ink text-white shadow-floating" : "bg-white text-slate-500 shadow-sm hover:text-ink"}` }, h("span", { className: `grid h-5 w-5 place-items-center rounded-full text-[11px] ${lens === k ? "bg-primary text-white" : "bg-slate-100"}` }, i + 1), NIPA_LENS[k]))),
+      h("div", { className: "grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start" }, chart, side),
+      cell && h("p", { className: "mt-3 text-center text-sm text-slate-500" }, h("b", { className: "text-lg text-ink", style: NIPA_FONT }, "/" + cell.c[0] + "/"), "  ·  ", h("b", null, cell.c[1]), "  ·  ", cell.c[2]));
+  }
+  function NipaMarked({ w }) {
+    /* "[pr]epare" → tô màu phần trong ngoặc vuông */
+    return h("span", null, String(w).split(/(\[[^\]]+\])/).map((p, i) => /^\[/.test(p) ? h("span", { key: i, className: "rounded bg-yellow-200 px-0.5 text-red-700 underline decoration-2 underline-offset-4" }, p.slice(1, -1)) : p));
+  }
+  function NightIpaChunk({ clusters = [], words = [], intro }) {
+    const [open, setOpen] = useState({});
+    const [wi, setWi] = useState(0);
+    const [n, setN] = useState(0);
+    const word = words[wi] || null;
+    const chunks = word ? (String(word.ipa).replace(/^\/|\/$/g, "").match(/[ˌˈ]?[^.ˌˈ]+/g) || []) : [];
+    const pickWord = (i) => { setWi(i); setN(0); };
+    return h("div", { className: "space-y-5" },
+      intro && h("p", { className: "text-[15px] text-slate-600" }, rich(intro)),
+      clusters.length > 0 && h("div", { className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating sm:p-5" },
+        h("div", { className: "grid gap-3 sm:grid-cols-[1fr_1.3fr] sm:items-center" },
+          h("div", { className: "rounded-2xl bg-[#3B2346] p-4 text-[#FFD34E]" },
+            h("p", { className: "text-sm font-bold underline underline-offset-4" }, "Điều mà tiếng Việt gần như không có:"),
+            h("p", { className: "mt-1 text-lg font-extrabold" }, "“nhiều phụ âm đứng cùng với nhau”"),
+            h("p", { className: "mt-2 text-sm text-white/80" }, "Hiếm hoi chỉ có kiểu ", h("b", { className: "text-[#FFD34E]" }, "tr ⇒ ch"), " — mà người Việt còn hay đọc nhập làm một.")),
+          h("div", null,
+            h("p", { className: "text-sm font-bold text-slate-500" }, "Nhưng tiếng Anh có rất nhiều:"),
+            h("p", { className: "text-xl font-extrabold text-ink" }, "MỘT ĐỐNG PHỤ ÂM đứng liền kề"),
+            h("p", { className: "mt-1 text-sm text-slate-500" }, rich("→ Đọc **đủ từng phụ âm**, không nuốt, không thêm “ơ” xen vào. Bấm từng từ để nghe & mở phiên âm.")))),
+        h("div", { className: "mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3" }, clusters.map((c, i) => {
+          const plain = c.w.replace(/[\[\]]/g, "");
+          return h("button", { key: i, type: "button", onClick: () => { setOpen((o) => ({ ...o, [i]: true })); speak(plain, 0.7); }, className: `rounded-2xl border p-3 text-left transition ${open[i] ? "border-primary/40 bg-primary-light/50" : "border-slate-200 bg-white hover:border-primary/40"}` },
+            h("span", { className: "block text-lg font-extrabold text-ink" }, h(NipaMarked, { w: c.w })),
+            h("span", { className: `mt-1 block text-[15px] text-slate-600 transition ${open[i] ? "" : "blur-sm"}`, style: NIPA_FONT }, c.ipa, c.alt ? h("span", { className: "text-slate-400" }, "  hoặc  " + c.alt) : null),
+            c.n && h("span", { className: `mt-1.5 inline-block rounded-full bg-white px-2 py-0.5 text-[11px] font-extrabold text-red-600 shadow-sm ${open[i] ? "" : "invisible"}`, style: NIPA_FONT }, c.n));
+        }))),
+      word && h("div", { className: "rounded-3xl border border-slate-200 bg-white p-4 shadow-floating sm:p-5" },
+        h("p", { className: "text-xs font-extrabold uppercase tracking-widest text-primary" }, "Từ dài? Đọc như đọc số điện thoại"),
+        h("div", { className: "mt-2 flex items-center gap-3 rounded-2xl bg-slate-50 p-3" },
+          h("span", { className: "text-2xl" }, "📱"),
+          h("p", { className: "text-[15px] text-slate-600" }, rich("Không ai đọc **0823456789** một hơi — ta ngắt **0823 · 456 · 789**. Từ dài cũng vậy: tách theo **dấu chấm âm tiết** trong phiên âm, đọc từng cục rồi nối lại."))),
+        words.length > 1 && h("div", { className: "mt-3 flex flex-wrap gap-1.5" }, words.map((w, i) => h("button", { key: i, type: "button", onClick: () => pickWord(i), className: `rounded-full px-3 py-1 text-sm font-bold ${wi === i ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}` }, w.label || w.w))),
+        h("p", { className: "mt-4 break-all text-xl font-extrabold text-ink sm:text-2xl" }, word.w),
+        h("p", { className: "mt-1 break-all text-[15px] text-slate-500", style: NIPA_FONT }, word.ipa),
+        h("div", { className: "mt-4 flex min-h-[52px] flex-wrap items-center gap-1.5" },
+          chunks.map((c, i) => {
+            const shown = i < n, main = c[0] === "ˈ", sec = c[0] === "ˌ";
+            return h("button", { key: i, type: "button", disabled: !shown, className: `rounded-xl px-2.5 py-1.5 text-lg font-semibold transition-all duration-300 ${shown ? (main ? "bg-primary text-white shadow-premium" : sec ? "bg-primary-light text-primary-dark" : "bg-amber-50 text-ink") : "bg-slate-100 text-transparent"}`, style: NIPA_FONT }, shown ? c.replace(/[ˌˈ]/, "") : "··");
+          })),
+        h("p", { className: "mt-2 text-xs text-slate-400" }, rich("Ô **đậm** = nhấn chính (ˈ) · ô **nhạt** = nhấn phụ (ˌ)")),
+        h("div", { className: "mt-4 flex flex-wrap gap-2" },
+          h("button", { type: "button", onClick: () => setN((x) => Math.min(chunks.length, x + 1)), disabled: n >= chunks.length, className: "rounded-full bg-primary px-5 py-2 text-sm font-extrabold text-white shadow-premium disabled:opacity-40" }, "Tách tiếp ▸ ", n, "/", chunks.length),
+          h("button", { type: "button", onClick: () => setN(chunks.length), className: "rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm" }, "Tách hết"),
+          h("button", { type: "button", onClick: () => speak(word.w, 0.6), className: "rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm" }, "🔊 Nghe chậm"),
+          h("button", { type: "button", onClick: () => setN(0), className: "rounded-full px-3 py-2 text-sm font-bold text-slate-400" }, "↺")),
+        n >= chunks.length && chunks.length > 0 && h("p", { className: "mt-3 rounded-2xl bg-green-50 p-3 text-sm font-semibold text-green-800" }, rich(`**${chunks.length} cục** — đọc từng cục như đọc từng nhóm số, rồi nối lại là ra cả từ.`))));
+  }
   function SectionBody({ s, lesson }) {
     switch (s.type) {
+      case "ipamap":
+        return h(NightIpaMap, { lenses: s.lenses, part: s.part, intro: s.intro });
+      case "ipachunk":
+        return h(NightIpaChunk, { clusters: s.clusters, words: s.words, intro: s.intro });
       case "vowels":
       case "sounds":
         return /* @__PURE__ */ React.createElement(VowelChart, { mono: s.mono, diph: s.diph, tabs: s.tabs, hint: s.hint, mistakes: s.mistakes, mistakesTitle: s.mistakesTitle });
