@@ -1,0 +1,487 @@
+[META]
+source: cambridge
+book: 19
+test: 3
+title:
+
+[SECTION 1]
+title: A conversation about local food shops
+transcript:
+LEON: Hi Shannon — how are you settling into your new flat?
+SHANNON: Really well, thanks.
+LEON: You look like you're going shopping.
+SHANNON: Yes, I am. My cousins are coming to stay for a couple of days, and I have to cook for them.
+LEON: Well, there are plenty of places to buy food in Kite Place — it's the area by the harbour.
+SHANNON: Oh, OK, I'll find that on the map. Thanks.
+LEON: What sort of food do you need to get?
+SHANNON: Well, neither of them eats meat but they both like fish.
+LEON: Well, there's a really good fish market there.
+SHANNON: Oh great — where is it exactly?
+LEON: It's at the far end of Kite Place, so you have to go over the bridge and then it's on the right.
+SHANNON: OK — is it open all day?
+LEON: It doesn't close until four, but I'd recommend going earlier than that — it does run out of some things.
+SHANNON: Oh, I don't want that to happen.
+LEON: As long as you get there by 3.30, you should be fine. It's only 11 now, so plenty of time.
+SHANNON: Right.
+LEON: Do you need to buy vegetables too?
+SHANNON: I do, and I want to avoid all the plastic packaging in the supermarket!
+LEON: Well, there's a really nice organic shop there. Now what's it called . . . it's the name of a flower. I know, it's 'Rose'.
+SHANNON: That's a nice name.
+LEON: Yeah — it sells vegetables and quite a lot of other stuff.
+SHANNON: And where's that?
+LEON: Well, as you reach the market, you'll see a big grey building on your left — I think it used to be a warehouse. Anyway, now it's a restaurant upstairs, but the ground floor has two shops either side of the entrance and it's the one on the left.
+SHANNON: That's easy enough.
+LEON: You can't miss it — there's also a big sign on the pavement so you can look for that.
+SHANNON: Fine! I guess if I need anything else, I'll have to go to the supermarket.
+LEON: Yeah — you should be able to get everything you need, but there's a minibus that goes to the supermarket if you need it. It's purple and the number is 289.
+SHANNON: Thanks, that's great.
+LEON: So what do you need to get at the fish market? The salmon is always very good and the shellfish.
+SHANNON: I'm going to make a curry, I think, and I need about 12 prawns for that.
+LEON: They'll have plenty of those.
+LEON: Have you ever tried samphire?
+SHANNON: No — what's that?
+LEON: It's a type of seaweed. I just ask for a handful and you fry it in butter. It's delicious!
+SHANNON: Oh, I might try that — how do you spell it?
+LEON: It's S-A-M-P-H-I-R-E.
+SHANNON: Great — it's always good to try something different.
+LEON: Yeah.
+SHANNON: I'll see what beans they have in the organic shop and I think I'll get something for dessert there.
+LEON: How about a mango?
+SHANNON: I'm not sure — they're not always ripe. I'd prefer a melon — it's bigger too.
+LEON: Good idea. The owner also sells a lot of spices there that you can put in a curry, and things like coconut.
+SHANNON: Oh, that's very helpful. I'll have a look.
+LEON: No problem.
+SHANNON: I know bread doesn't really go with curry but I always like to have some in case.
+LEON: As I said — all the bread is home-made and there's lots of variety. I like the brown bread myself.
+SHANNON: Mm, sounds good.
+LEON: They sell other things there too.
+SHANNON: Like cakes? I love chocolate cake.
+LEON: Well — not that, but they have a whole range of tarts and the best are the strawberry ones.
+SHANNON: Perfect — hopefully I won't even have to go to the supermarket!
+
+
+[GROUP]
+type: text
+instruction: Questions 1-6\nComplete the notes below.\nWrite ONE WORD AND/OR A NUMBER for each answer.
+notes:
+Local food shops
+
+Where to go
+Kite Place - near the ___
+
+Fish market
+- cross the ___ and turn right
+- best to go before ___ pm, earlier than closing time
+
+Organic shop
+- called ___
+- below a restaurant in the large, grey building
+- look for the large ___ outside
+
+Supermarket
+- take a ___
+
+[Q]
+answer: harbour|harbor
+loc: it's the area by the harbour
+exp: Leon nói khu Kite Place nằm cạnh bến cảng (harbour).
+
+[Q]
+answer: bridge
+loc: you have to go over the bridge
+exp: Muốn đến chợ cá phải đi qua cây cầu (bridge) rồi rẽ phải.
+
+[Q]
+answer: 3.30|3:30|three thirty|half 3|half past 3|half past three|three and a half|3 30
+loc: As long as you get there by 3.30
+exp: Leon khuyên đến chợ cá trước 3.30 là ổn, vì chợ đóng cửa lúc 4 giờ.
+
+[Q]
+answer: Rose|rose
+loc: it's 'Rose'
+exp: Cửa hàng hữu cơ tên là Rose, tên một loài hoa.
+
+[Q]
+answer: sign
+loc: there's also a big sign on the pavement
+exp: Có một biển hiệu (sign) lớn trên vỉa hè để nhận ra cửa hàng.
+
+[Q]
+answer: purple
+loc: It's purple and the number is 289
+exp: Xe buýt nhỏ đến siêu thị có màu tím (purple), số 289.
+
+[GROUP]
+type: table
+instruction: Questions 7-10\nComplete the table below.\nWrite ONE WORD ONLY for each answer.
+columns: Shopping | What to buy
+rows:
+Fish market | prawns and ___ (a type of seaweed)
+Organic shop | beans and ___ for dessert
+Organic shop | spices and ___
+Organic shop | home-made bread and tarts with ___
+
+[Q]
+answer: samphire
+loc: Have you ever tried samphire?
+exp: Leon gợi ý mua samphire, một loại rong biển, được đánh vần S-A-M-P-H-I-R-E.
+
+[Q]
+answer: melon
+loc: I'd prefer a melon
+exp: Shannon không chọn xoài mà thích dưa (melon) hơn vì quả to hơn.
+
+[Q]
+answer: coconut
+loc: things like coconut
+exp: Chủ tiệm bán nhiều gia vị cho món cà ri và cả dừa (coconut).
+
+[Q]
+answer: strawberry
+loc: the best are the strawberry ones
+exp: Bánh tart ngon nhất là loại nhân dâu (strawberry).
+
+[SECTION 2]
+title: A radio interview about a children's book festival
+transcript:
+PRESENTER: The children's book festival is coming up again soon and here to tell us all about it is the festival's organiser, Jenny Morgan. So tell us what we can expect this year, Jenny.
+JENNY: Well, as usual we've got five days of action-packed exciting events for children, with writers coming from all over the country getting involved. Just to give you an idea of what's on offer in the workshops, first of all, there's a very special event called Superheroes. This is a chance for deaf children to share their reading experiences with author Madeleine Gordon, who is herself hearing impaired. 'Just do it' is a practical workshop led by the well-known illustrator Mark Keane. He'll take participants on a magical journey to faraway lands with an opportunity for aspiring actors to do some role play. 'Count on me' is an inspiring and entertaining look at the issues of friendship for 13-14-year-olds. It looks at some of the friendships described in popular books and asks participants to compare these with their own experiences. 'Speak up' is part of a series of workshops on the subject of mental health. This is a creative writing workshop encouraging children to describe situations where young people experience loneliness. A recent survey revealed that children can be lonely even when they're at home with their families. 'Jump for joy', as many of you will know, is the heart-warming, best-selling story by Nina Karan about a young girl's trip to visit her relatives in India. It recently received the gold medal at the Waterford Awards. Nina will get children to celebrate the word 'joy' by writing a poem. 'Sticks and stones' is the beautifully illustrated picture book for young readers about a community who organise an African-Caribbean festival to help local children learn about their Jamaican roots. This will be a musical event where children will have the chance to play steel drums. This is bound to be very popular, so please book as soon as possible.
+PRESENTER: Thanks Jenny. That all sounds really interesting. I'm just wondering if you have a favourite book you could recommend for our readers?
+JENNY: It's hard to choose, but Alive and Kicking is definitely worth mentioning. You won't have heard of the writer as it's her first book — which is really impressive. It's basically the teenage diary of a boy from Somalia who comes to live in the UK. It deals with the serious issue of immigration and all the challenges the boy has to face at school and with the language barrier, etc. Usually, books like this are quite sad, but this one actually made me cry with laughter. On each page, there are simple but hilarious black and white stick drawings of the boy with his friends and teachers. At the end of each diary entry, there are new English words the boy learns each day, which may help develop some children's vocabulary.
+PRESENTER: I think my kids would enjoy that. What about any advice for parents on how to encourage their children to read more?
+JENNY: Well, this is something I get asked about a lot. There are so many distractions for kids these days that it can be hard to find time for reading. One thing I'd say is to make time to sit down with your child and share books with them. A lot of parents give up reading aloud to their children as soon as they learn to read independently, but this is a mistake. It's good to read more advanced books to them as it helps to develop their vocabulary. If you don't have time for this, then let them listen to audio books. Often, they'll want to read books they've listened to for themselves. I think it's a good idea to make a mental note of the type of books your child is reading — often they just read the same genre all the time, which can get a bit boring. You can introduce new authors and genres to them. Librarians should be able to help you with this.
+PRESENTER: Well Jenny, I think that's really useful. . . .
+
+
+[GROUP]
+type: list_match
+instruction: Questions 11-16\nWhat information is given about each of the following festival workshops?\nChoose SIX answers from the box and write the correct letter, A-H, next to Questions 11-16.
+options:
+involves painting and drawing
+will be led by a prize-winning author
+is aimed at children with a disability
+involves a drama activity
+focuses on new relationships
+is aimed at a specific age group
+explores an unhappy feeling
+raises awareness of a particular culture
+
+[Q]
+text: Superheroes
+answer: C
+loc: a chance for deaf children to share their reading experiences
+exp: Superheroes dành cho trẻ khiếm thính (deaf), tức trẻ khuyết tật.
+
+[Q]
+text: Just do it
+answer: D
+loc: an opportunity for aspiring actors to do some role play
+exp: Just do it có hoạt động đóng vai (role play), tức hoạt động kịch.
+
+[Q]
+text: Count on me
+answer: F
+loc: friendship for 13-14-year-olds
+exp: Count on me dành cho lứa tuổi 13-14, tức một nhóm tuổi cụ thể.
+
+[Q]
+text: Speak up
+answer: G
+loc: describe situations where young people experience loneliness
+exp: Speak up nói về sự cô đơn (loneliness), một cảm xúc buồn.
+
+[Q]
+text: Jump for joy
+answer: B
+loc: It recently received the gold medal at the Waterford Awards
+exp: Jump for joy là sách đoạt huy chương vàng, tức tác giả từng đoạt giải.
+
+[Q]
+text: Sticks and stones
+answer: H
+loc: a community who organise an African-Caribbean festival
+exp: Sticks and stones giúp trẻ tìm hiểu nguồn gốc Jamaica, tức nâng cao nhận thức về một nền văn hoá.
+
+[GROUP]
+type: multi
+instruction: Questions 17 and 18\nChoose TWO letters, A-E.\nWhich TWO reasons does the speaker give for recommending Alive and Kicking?
+options:
+It will appeal to both boys and girls.
+The author is well known.
+It has colourful illustrations.
+It is funny.
+It deals with an important topic.
+pick: 2
+
+[Q]
+answer: D
+loc: this one actually made me cry with laughter
+exp: Cuốn sách hài hước đến mức người nói cười ra nước mắt.
+
+[Q]
+answer: E
+loc: It deals with the serious issue of immigration
+exp: Sách đề cập đến vấn đề nghiêm túc là nhập cư.
+
+[GROUP]
+type: multi
+instruction: Questions 19 and 20\nChoose TWO letters, A-E.\nWhich TWO pieces of advice does the speaker give to parents about reading?
+options:
+Encourage children to write down new vocabulary.
+Allow children to listen to audio books.
+Get recommendations from librarians.
+Give children a choice about what they read.
+Only read aloud to children until they can read independently.
+pick: 2
+
+[Q]
+answer: B
+loc: then let them listen to audio books
+exp: Người nói khuyên cho trẻ nghe sách nói (audio books).
+
+[Q]
+answer: C
+loc: Librarians should be able to help you with this
+exp: Người nói cho rằng thủ thư có thể giúp gợi ý sách mới.
+
+[SECTION 3]
+title: Two trainee teachers planning a science experiment
+transcript:
+CLARE: Hi Jake. How are you getting on with the practical teaching?
+JAKE: It's harder than I expected, but I've got some great classes. How about you?
+CLARE: Not brilliant. I'm really struggling with my Year 12 science class.
+JAKE: Are they hard to control?
+CLARE: Well, I don't have discipline problems as such. It's just that they don't seem to think that science has anything to do with their lives. It's depressing. They listen to what I say, and I gave them a test last week and the results weren't too bad, but there's no real engagement.
+JAKE: Right.
+CLARE: And as part of my teaching practice, I have to design an experiment for them to do. I was wondering about something on the children's diets . . . you know, asking them to record what they eat and maybe linking it to their state of health.
+JAKE: Mmm. Let's think. So your methodology would involve the children recording what they eat. OK, but you'd also need to have access to the children's medical records and I don't think people would be happy about that; confidentiality would be an issue. If you could get the right data, the conclusions might be significant, but I suspect it's not going to be easy.
+CLARE: Right.
+JAKE: Have you thought about doing an experiment using animals?
+CLARE: Wouldn't that be upsetting for the children?
+JAKE: Well, the animals don't have to be harmed in any way. It could just be an experiment where they're given a certain diet and the effects are observed.
+CLARE: Would I have to get permission to use animals?
+JAKE: Yes, you'd have to submit an outline of the experiment and fill in a form, but it's quite straightforward.
+CLARE: But if we found out that, say, a particular diet affects the health of animals, the same thing wouldn't necessarily be true for people, would it?
+JAKE: No that's true, but the findings for any experiment are going to be limited. It's inevitable.
+CLARE: I suppose so. So what animals could I use to investigate the effects of diet? Mice?
+JAKE: Yes. You'd need experimental mice — ones that have been specially bred for experiments. OK, so what will your experiment be investigating exactly?
+CLARE: Well, something to do with nutrition. So maybe we could look at food supplements . . . things like extra iron and extra protein, and their impact on health.
+JAKE: Mmm. That might be rather broad. Maybe just look at the effects of one supplement, like sugar, on the health of the mice?
+CLARE: In fact, maybe the focus could be on whether mice can control their own diet.
+JAKE: So, what happens when they have access to more sugar, that they don't really need?
+CLARE: Exactly. Do they eat it or do they decide to leave it?
+JAKE: Great. Then later on, you could do a follow-up experiment adding another variable. Like, you could give some of the mice the chance to be more active, running on a wheel or something, and the others just sit around and don't do much.
+CLARE: Or I could repeat the experiment but change the type of food I provided . . . or use mice with a different genetic structure. But I think your idea would be more interesting, I might think about that some more.
+CLARE: So can I talk through a possible procedure for the experiment where mice are given a sugar supplement?
+JAKE: Sure. I did a similar experiment in college actually.
+CLARE: Great. So how many mice would I need?
+JAKE: I'd say about 12. And all young ones, not a mixture of old and young.
+CLARE: OK. And I'd need two groups of equal sizes, so six in each group. And how would I tell them apart? I suppose I could put some sort of tag on one group. . . or just mark them in some way?
+JAKE: You could use food colouring, that wouldn't hurt them.
+CLARE: Perfect. Then each group would go into a separate cage, and one group, let's call them group A, would be the control group. So they'd just have ordinary mouse food. I suppose you can buy that?
+JAKE: Yes, it comes in dry pellets.
+CLARE: And the other group would have the same as the first group, but they'd also have the extra sugar.
+JAKE: Would you just give them straight sugar?
+CLARE: It might be better to give them something like cereal with it.
+JAKE: Mmm. Then you'd need to weigh the mice, I should think once a week. And you'd need an electronic balance.
+CLARE: But we can't hold them on the balance, or it'd affect the reading.
+JAKE: Exactly. So you need something called a weighing chamber to stop the mice from running away. It sounds complicated, but actually you can just use a plastic box with holes in the top.
+CLARE: OK. So once we've measured the weight gain of each mouse we can work out the average for each group, as well as the standard deviation. And then see where we go from there. That sounds cool, I think the students will enjoy it.
+JAKE: Yes. One thing...
+
+
+[GROUP]
+type: mcq
+instruction: Questions 21-25\nChoose the correct letter, A, B or C.
+
+[Q]
+text: How does Clare feel about the students in her Year 12 science class?
+A: worried that they are not making progress
+B: challenged by their poor behaviour in class
+C: frustrated at their lack of interest in the subject
+answer: C
+loc: they don't seem to think that science has anything to do with their lives
+exp: Clare bực vì học sinh không thấy khoa học liên quan đến cuộc sống, tức thiếu hứng thú.
+
+[Q]
+text: How does Jake react to Clare's suggestion about an experiment based on children's diet?
+A: He is concerned that the results might not be meaningful.
+B: He feels some of the data might be difficult to obtain.
+C: He suspects that the conclusions might be upsetting.
+answer: B
+loc: I suspect it's not going to be easy
+exp: Jake cho rằng việc lấy hồ sơ y tế của trẻ sẽ khó (vấn đề bảo mật).
+
+[Q]
+text: What problem do they agree may be involved in an experiment involving animals?
+A: Any results may not apply to humans.
+B: It may be complicated to get permission.
+C: Students may not be happy about animal experiments.
+answer: A
+loc: the same thing wouldn't necessarily be true for people, would it?
+exp: Cả hai đồng ý kết quả trên động vật chưa chắc đúng với con người.
+
+[Q]
+text: What question do they decide the experiment should address?
+A: Are mice capable of controlling their food intake?
+B: Does an increase in sugar lead to health problems?
+C: How much do supplements of different kinds affect health?
+answer: A
+loc: maybe the focus could be on whether mice can control their own diet
+exp: Họ chọn tập trung vào việc chuột có tự kiểm soát khẩu phần ăn hay không.
+
+[Q]
+text: Clare might also consider doing another experiment involving
+A: other types of food supplement.
+B: different genetic strains of mice.
+C: varying amounts of exercise.
+answer: C
+loc: give some of the mice the chance to be more active, running on a wheel
+exp: Jake gợi ý thí nghiệm tiếp theo cho chuột vận động nhiều hay ít (chạy bánh xe).
+
+[GROUP]
+type: wordbank
+instruction: Questions 26-30\nComplete the flowchart below.\nChoose FIVE answers from the box and write the correct letter, A-H, next to Questions 26-30.
+notes:
+Choose mice which are all the same ___
+
+Divide the mice into two groups, each with a different ___
+
+Put each group in a separate cage.
+
+Feed group A commercial mouse food.
+
+Feed group B the same, but also sugar contained in ___
+
+Take measurements using an electronic scale.
+
+Place them in a weighing chamber to prevent ___ occurring.
+
+Do all necessary ___
+options:
+size
+escape
+age
+water
+cereal
+calculations
+changes
+colour
+
+[Q]
+answer: C
+loc: all young ones, not a mixture of old and young
+exp: Jake nói chọn toàn chuột non, không lẫn già và trẻ, tức cùng độ tuổi (age).
+
+[Q]
+answer: H
+loc: You could use food colouring, that wouldn't hurt them
+exp: Hai nhóm được phân biệt bằng cách nhuộm màu thực phẩm (colour).
+
+[Q]
+answer: E
+loc: give them something like cereal with it
+exp: Nhóm B nhận đường kèm trong ngũ cốc (cereal).
+
+[Q]
+answer: B
+loc: to stop the mice from running away
+exp: Buồng cân giúp ngăn chuột chạy thoát (escape).
+
+[Q]
+answer: F
+loc: we can work out the average for each group
+exp: Sau khi đo, họ tính trung bình và độ lệch chuẩn, tức các phép tính (calculations).
+
+[SECTION 4]
+title: A lecture about microplastics
+transcript:
+In today's lecture, I'm going to be talking about microplastics.
+Microplastics are tiny pieces of plastic smaller than five millimetres in size. Recently there's been a greater awareness that there are large quantities of plastic waste — big and small — in the environment. The amount of plastic waste in the oceans has received widespread attention, but far less is known about the effects of microplastics in freshwater and particularly in soil.
+Microplastics can enter the environment via a number of different sources. Threads and microfibres detach from synthetic clothing every time they're put in a washing machine, and these find their way into the water system. Other sources include big pieces of plastic waste that are already in the environment, and these break down into microscopic particles over a period of time. On a larger scale, factory waste is another route, as are tyres which wear down as cars, lorries and so on travel along road surfaces.
+We already understand some of the impacts of microplastics from studies involving fish and other animals. There is evidence that microplastics harm small creatures in a variety of ways, such as by damaging their mouths, or by impairing their ability to feed, for example when microplastics get lodged in their digestive system.
+Surprisingly perhaps, it is likely that humans consume microplastics, as these have been detected in a wide range of food and drink products, including bottled water, as well as in water that comes direct from the tap. What's more, salt and many kinds of seafood have also been found to contain microplastics.
+However, it's important to underline that there is not yet conclusive proof that microplastics cause significant harm to people. In many countries, including here in the UK, there is legislation which prevents manufacturers from adding plastic microbeads to shower gels, facial cleansers and toothpaste.
+It is very difficult to accurately estimate the total amount of microplastic particles in the soil as they can be hard to detect, but we do know they are carried in the air and deposited in the soil by rain. What's more, many of the fertilisers used by both farmers and gardeners contain microplastics.
+A team from the Anglia Ruskin University in Cambridge has carried out a study of the effects of microplastics on the digestive tracts of earthworms. These worms, which live in topsoil, are an essential component of our agricultural system. By feeding on soil, they mix nutrients into it, thereby making it more fertile.
+The researchers set out to discover whether the introduction of microplastics into the soil — and the subsequent ingestion of these by earthworms — would impact soil quality and ultimately inhibit plant growth. The short answer was, yes, it did. After placing three different types of microplastic particles into the soil, they planted perennial rye grass. The particles of microplastic, which included biodegradable PLA and conventional high-density polyethylene, or HDPE, were then ingested by the earthworms in the soil. The result was that the worms lost weight rapidly. What's more, a lower percentage than normal of the rye grass seeds germinated, and the researchers concluded that this was a direct result of the earthworms being unable to fulfil their normal role in making soil more fertile. The team also discovered that there was an increase in the amount of acid found in the soil, and this was attributed mainly to the microplastic particles from conventional HDPE plastic.
+The conclusions of the study make for very interesting reading — I've included the reference in the notes to give you at the end of this session. To summarise, the authors proposed the idea that we need to regard soil as we would regard any other process in nature. This means we should accept the implications of soil being dependent on decaying and dead matter constantly being passed through the bodies of earthworms. That is, when soil becomes impoverished by the presence of microplastics, not only ecosystems but also the whole of society are negatively impacted.
+
+[GROUP]
+type: text
+instruction: Questions 31-40\nComplete the notes below.\nWrite ONE WORD ONLY for each answer.
+notes:
+Microplastics
+
+Where microplastics come from
+- fibres from some ___ during washing
+- the breakdown of large pieces of plastic
+- waste from industry
+- the action of vehicle tyres on roads
+
+Effects of microplastics
+- They cause injuries to the ___ of wildlife and affect their digestive systems.
+- They enter the food chain, e.g., in bottled and tap water, ___ and seafood.
+- They may not affect human health, but they are already banned in skin cleaning products and ___ in some countries.
+- Microplastics enter the soil through the air, rain and ___.
+
+Microplastics in the soil - a study by Anglia Ruskin University
+Earthworms are important because they add ___ to the soil.
+The study aimed to find whether microplastics in earthworms affect the ___ of plants.
+The study found that microplastics caused:
+- ___ loss in earthworms
+- fewer seeds to germinate
+- a rise in the level of ___ in the soil.
+The study concluded:
+- soil should be seen as an important natural process.
+- changes to soil damage both ecosystems and ___.
+
+[Q]
+answer: clothing
+loc: Threads and microfibres detach from synthetic clothing
+exp: Sợi vi nhựa bong ra từ quần áo tổng hợp khi giặt máy.
+
+[Q]
+answer: mouths
+loc: such as by damaging their mouths
+exp: Vi nhựa gây hại cho động vật nhỏ bằng cách làm tổn thương miệng của chúng.
+
+[Q]
+answer: salt
+loc: What's more, salt and many kinds of seafood
+exp: Muối và nhiều loại hải sản cũng bị phát hiện chứa vi nhựa.
+
+[Q]
+answer: toothpaste
+loc: facial cleansers and toothpaste
+exp: Luật cấm thêm vi nhựa vào sữa rửa mặt và kem đánh răng.
+
+[Q]
+answer: fertilisers|fertilizers
+loc: many of the fertilisers used by both farmers and gardeners
+exp: Vi nhựa vào đất qua không khí, mưa và phân bón (fertilisers).
+
+[Q]
+answer: nutrients
+loc: they mix nutrients into it
+exp: Giun đất trộn chất dinh dưỡng (nutrients) vào đất.
+
+[Q]
+answer: growth
+loc: ultimately inhibit plant growth
+exp: Nghiên cứu xem vi nhựa có cản trở sự phát triển (growth) của cây không.
+
+[Q]
+answer: weight
+loc: lost weight rapidly
+exp: Giun đất bị sụt cân (weight) nhanh chóng.
+
+[Q]
+answer: acid
+loc: an increase in the amount of acid found in the soil
+exp: Lượng axit (acid) trong đất tăng lên.
+
+[Q]
+answer: society
+loc: the whole of society
+exp: Khi đất bị suy kiệt, cả hệ sinh thái lẫn toàn xã hội (society) đều chịu ảnh hưởng.
