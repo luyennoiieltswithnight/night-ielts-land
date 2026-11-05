@@ -81,9 +81,9 @@ if (!Array.isArray(spec.passages) || spec.passages.length !== 3) E('Phải có �
       }
       if (g.type === 'heading' && !/\b([A-Z])\s*$/.test(String(q.text || '').trim())) E(`${Q}: câu heading phải ghi rõ đoạn, vd "Paragraph B"`);
       if (FROM_PASSAGE[g.type]) {
+        // ít nhất 1 cách viết của đáp án phải có nguyên văn trong bài (vd "flavour / flavor": bài chỉ có "flavour")
+        if (!alts(ans).some((al) => variants(al).some((v) => v && allText.includes(norm(v).replace(/^\$/, ''))))) E(`${Q}: đáp án "${ans}" không xuất hiện nguyên văn trong bài`);
         alts(ans).forEach((al) => {
-          const found = variants(al).some((v) => v && allText.includes(norm(v).replace(/^\$/, '')));
-          if (!found) E(`${Q}: đáp án "${al}" không xuất hiện nguyên văn trong bài`);
           if (lim) {
             const ws = wc(al), nums = ws.filter(isNum).length, words = ws.length - nums;
             if (lim.num ? (words > lim.n || nums > 1) : ws.length > lim.n) E(`${Q}: đáp án "${al}" vượt giới hạn số từ của đề`);
