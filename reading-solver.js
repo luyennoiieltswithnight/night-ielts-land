@@ -258,8 +258,8 @@
       if (o.gap) { var g = $('.heading-gap[data-qnum="' + o.gap.num + '"]'); if (g) { g.classList.add('rs-qhit'); g.style.setProperty('--rsc', o.gap.group.color); } }
       if (revealed) { markLoc(o.reveal); if (o.reveal.locEl) focusP = o.reveal.locEl; }
     }
-    if (focusP) scrollIn(focusP, revealed ? 'center' : 'start');
-    if (focusQ) scrollIn(focusQ, 'start');
+    if (focusP) scrollIn(focusP, 'center');
+    if (focusQ) scrollIn(focusQ, 'center');
 
     // nhãn vị trí
     var lab = o.sec === 'pre' ? 'Pre-reading' : o.sec === 'rev' ? 'Rà soát' : 'Đoạn ' + (o.sec + 1) + '/' + P.paras.length;

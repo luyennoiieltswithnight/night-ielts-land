@@ -195,9 +195,9 @@
       var how = gi.how || (MCQ_TYPES[G.type] ? 'Đọc tiêu đề, gạch keyword của từng câu; lướt A/B/C để thấy chúng khác nhau ở đâu.' : isOpt ? 'Câu hỏi đi theo thứ tự. Đọc kỹ TỪNG option vì sẽ có option thừa.' : 'Đề đi theo thứ tự câu 1, 2, 3… Đọc lướt từ trên xuống, dự đoán từng chỗ trống.');
       var keyOf = {}; (gi.options || []).forEach(function (op) { var L = (/^\s*([A-Z])\b/.exec(op.o || '') || [])[1]; if (L) keyOf[L] = op.key; });
       out.push({ kind: 'group', G: G, st: MCQ_TYPES[G.type] ? 'magnifier6_girl' : isOpt ? 'pose_puzzle_kumiawaseru' : 'pose_yubisashi_kakunin_businessman', title: range(G) + ' · ' + (TYPE_NAME[G.type] || G.type), html: esc(how), diff: G.type === 'multi' ? ((qInfo[G.qs[0].num] || {}).diff || '') : '', kws: G.type === 'multi' ? ((qInfo[G.qs[0].num] || {}).keywords || []) : [], opts: isOpt ? G.opts.map(function (o) { var L = (/^\s*([A-Z])[.)\s]/.exec(o) || [])[1]; return { o: o, key: L ? keyOf[L] || '' : '' }; }) : null, groupInfo: gi });
+      if (G.type !== 'multi') out.push({ kind: 'predictall', G: G, st: 'kangaeruhito_1840', title: range(G) + ': dự đoán TẤT CẢ các câu trước khi nghe', html: 'Dự đoán xong cả nhóm rồi mới nghe. Sau đó thầy mở đáp án lần lượt từng câu.' });
       G.qs.forEach(function (x) {
         var info = qInfo[x.num] || {};
-        if (G.type !== 'multi') out.push({ kind: 'predict', G: G, x: x, info: info, st: 'kangaeruhito_1840', title: 'Câu ' + x.num + ': dự đoán trước khi nghe' });
         out.push({ kind: 'answer', G: G, x: x, info: info, st: 'denkyuu_on', title: 'Câu ' + x.num + ': đáp án & vị trí trong transcript' });
       });
     });
@@ -214,8 +214,8 @@
     'mark.ls-syn{background:#fde68a;color:inherit;border-radius:3px;padding:0 2px}' +
     '.ls-qhit{outline:2.5px solid var(--lsc)!important;outline-offset:3px;border-radius:10px}' +
     '.ls-qdone{opacity:.5}' +
-    'body.ls-on{padding-bottom:50vh}' +
-    '#ls-card{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:9999;width:min(1020px,calc(100vw - 24px));max-height:48vh;overflow:auto;background:#fff8db;color:#1f2340;border:1.5px solid #fcd34d;border-radius:20px;box-shadow:0 14px 40px rgba(60,40,140,.22);font:14px/1.5 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;border-top:5px solid var(--lsc,#7c6cf0)}' +
+    'body.ls-on{padding-right:calc(min(46vw,620px) + 20px)}body.ls-on .header{flex-wrap:nowrap!important}body.ls-on .header-left{flex:1 1 0!important;min-width:0!important;flex-wrap:nowrap!important;overflow-x:auto!important}body.ls-on .header-right{flex:none!important;flex-wrap:nowrap!important;width:auto!important}' +
+    '#ls-card{position:fixed;right:10px;top:calc(var(--nt-hh,52px) + 8px);bottom:10px;z-index:9999;width:min(46vw,620px);max-height:none;overflow:auto;background:#fff8db;color:#1f2340;border:1.5px solid #fcd34d;border-radius:20px;box-shadow:0 14px 40px rgba(60,40,140,.22);font:14px/1.5 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;border-top:5px solid var(--lsc,#7c6cf0)}' +
     '#ls-card .rh{display:flex;align-items:center;gap:6px;padding:10px 12px 0;flex-wrap:wrap}' +
     '#ls-card .lb{font-size:12px;font-weight:700;color:#8a86a8;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
     '#ls-card .pt{border:0;background:#f1effb;color:#5b51c9;font:700 12px system-ui;border-radius:999px;padding:3px 9px;cursor:pointer}' +
@@ -254,8 +254,8 @@
     '#ls-card .nx{border:0;background:#6d5dfc;color:#fff;font-weight:800;border-radius:12px;padding:9px 20px;cursor:pointer}' +
     '#ls-card .load{padding:22px 16px;text-align:center;color:#5b51c9;font-weight:700}' +
     '#ls-card textarea{width:calc(100% - 28px);margin:8px 14px 0;height:34vh;font:12px/1.4 ui-monospace,monospace;border:1px solid #ddd;border-radius:10px;padding:8px}' +
-    '#ls-card.mini .rb,#ls-card.mini .bx,#ls-card.mini .ans,#ls-card.mini .vg,#ls-card.mini .warn,#ls-card.mini .show{display:none}' +
-    '@media (max-width:760px){#ls-card{left:8px;right:8px;bottom:8px;width:auto;transform:none;max-height:62vh}#ls-card .rb>img{width:48px;height:48px}#ls-card .rf .k{display:none}#ls-card .vg{grid-template-columns:1fr}}';
+    '#ls-card.mini{bottom:auto}#ls-card.mini .rb,#ls-card.mini .bx,#ls-card.mini .ans,#ls-card.mini .vg,#ls-card.mini .warn,#ls-card.mini .show{display:none}' +
+    '@media (max-width:900px){body.ls-on{padding-right:0;padding-bottom:50vh}#ls-card{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:62vh}#ls-card .rb>img{width:48px;height:48px}#ls-card .rf .k{display:none}#ls-card .vg{grid-template-columns:1fr}}';
 
   function qBox(num) {
     var el = document.getElementById('q-container-' + num); if (el) return el;
@@ -330,7 +330,7 @@
     card.style.setProperty('--lsc', o.G ? o.G.color : '#7c6cf0');
     for (var j = 0; j < S.i; j++) if (L[j].kind === 'answer' && (!o.x || L[j].x.num !== o.x.num)) { var e = qBox(L[j].x.num); if (e) e.classList.add('ls-qdone'); }
     var chipsHtml = L.map(function (z, k) {
-      var lab = z.kind === 'intro' ? 'Bắt đầu' : z.kind === 'vocab' ? 'Từ vựng' : z.kind === 'group' ? range(z.G).replace('Câu ', 'C') : z.kind === 'predict' ? 'C' + z.x.num + ' dự đoán' : z.kind === 'answer' ? 'C' + z.x.num + ' đáp án' : 'Xong';
+      var lab = z.kind === 'intro' ? 'Bắt đầu' : z.kind === 'vocab' ? 'Từ vựng' : z.kind === 'group' ? range(z.G).replace('Câu ', 'C') : z.kind === 'predictall' ? range(z.G).replace('Câu ', 'C') + ' dự đoán' : z.kind === 'predict' ? 'C' + z.x.num + ' dự đoán' : z.kind === 'answer' ? 'C' + z.x.num + ' đáp án' : 'Xong';
       return '<b data-i="' + k + '" class="' + (k === S.i ? 'on' : k < S.i ? 'd' : '') + '">' + lab + '</b>';
     }).join('');
     var h = head + '<div class="steps">' + chipsHtml + '</div>' +
@@ -358,6 +358,17 @@
         if (o.kws && o.kws.length) h += '<div class="bx"><h5>Keyword cần gạch</h5>' + chips(o.kws, 'kw') + '</div>';
         if (o.diff) h += '<div class="bx"><h5>Các đáp án khác nhau ở đâu?</h5>' + esc(o.diff) + '</div>';
       }
+    }
+    if (o.kind === 'predictall') {
+      o.G.qs.forEach(function (x, ix) {
+        var inf = (P.ai.questions || []).filter(function (q) { return q.n === x.num; })[0] || {}, e3 = qBox(x.num);
+        if (e3) { e3.classList.add('ls-qhit'); e3.style.setProperty('--lsc', o.G.color); focus = focus || e3; }
+        var opts3 = (x.q.options || []).map(plain), gs3 = shuffled(inf.guess, x.num), sg3 = signalsOf(x, inf);
+        h += '<div class="bx"><h5>Câu ' + x.num + ' · ' + (TYPE_NAME[o.G.type] || '') + '</h5>' + (x.prev ? '<div style="color:#8a86a8;font-size:13px">' + esc(x.prev) + '</div>' : '') + '<div class="ctx">' + ctxHtml(x) + '</div>' + (opts3.length ? '<div style="margin-top:4px">' + opts3.map(esc).join('<br>') + '</div>' : '') +
+          (inf.pos ? '<div style="margin-top:5px"><b>Loại từ:</b> ' + esc(inf.pos) + (gs3.length ? ' · có thể là ' + chips(gs3) : '') + '</div>' : (gs3.length && !MCQ_TYPES[o.G.type] ? '<div style="margin-top:4px">' + chips(gs3) + '</div>' : '')) +
+          (inf.keywords && inf.keywords.length ? '<div>' + chips(inf.keywords, 'kw') + '</div>' : '') + (inf.diff ? '<div style="margin-top:4px;font-size:13px">' + esc(inf.diff) + '</div>' : '') +
+          (sg3.length ? '<div><span style="font-size:11.5px;color:#8a86a8">Từ tín hiệu:</span> ' + chips(sg3, 'sig') + '</div>' : '') + '</div>';
+      });
     }
     if (o.kind === 'predict' || o.kind === 'answer') {
       var x = o.x, inf = o.info || {}, e2 = qBox(x.num);
@@ -390,7 +401,7 @@
     h += '<div class="rf"><span class="k">← → chuyển bước · M thu gọn · Esc tắt</span><button class="bk" data-k="prev">‹</button><button class="nx" data-k="next">' + nextLabel + '</button></div>';
     card.innerHTML = h; card.classList.toggle('mini', !!S.mini);
     var on = card.querySelector('.steps .on'); if (on) try { on.scrollIntoView({ inline: 'center', block: 'nearest' }); } catch (e) {}
-    if (focus) scrollIn(focus, o.kind === 'answer' ? 'center' : 'start');
+    if (focus) scrollIn(focus, 'center');
   }
 
   function prepare(s, force) {

@@ -78,6 +78,19 @@
     'html body .wave-zoom button{border:0!important;background:var(--nt-panel)!important;border-radius:999px!important;padding:2px 9px!important}',
     'html body .section-block{border-radius:24px}',
     'html body .global-audio-bar{top:calc(var(--nt-hh,52px) + 18px)!important;margin-top:0!important;box-shadow:0 16px 36px -14px rgba(36,36,42,.45)!important}',
+    'html body .global-audio-bar{top:calc(var(--nt-hh,52px) + 8px)!important;padding:5px 10px!important;margin:6px 0!important;border-radius:16px!important}',
+    'html body .global-audio-bar .audio-controls{gap:3px!important}',
+    'html body .global-audio-bar .audio-player-head{margin:0!important;gap:6px!important}',
+    'html body .global-audio-bar .audio-player-title{font-size:12px!important}',
+    'html body .global-audio-bar .audio-time{font-size:11px!important}',
+    'html body .global-audio-bar .audio-playpause{width:26px!important;height:26px!important;font-size:11px!important;box-shadow:0 0 0 2px rgba(108,112,220,.2)!important}',
+    'html body .global-audio-bar .transport-btn{padding:2px 7px!important;font-size:10.5px!important;line-height:1.3!important}',
+    'html body .global-audio-bar .audio-transport{gap:3px!important;margin:0!important}',
+    'html body .global-audio-bar .wave-zoom button{padding:0 7px!important;font-size:10.5px!important}',
+    'html body .global-audio-bar select{font-size:10.5px!important;padding:1px 3px!important}',
+    'html body .global-audio-bar .section-quick-jump button{padding:2px 9px!important;font-size:11px!important}',
+    'html body .global-audio-bar .wave-scroll{padding:0!important}',
+    'html body .global-audio-bar .wave-scroll canvas{height:26px!important}',
     /* ---- Cửa sổ chọn chế độ / kết quả ---- */
     'html body .overlay{background:rgba(36,36,42,.55)!important;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}',
     'html body .modal-box{background:#fff!important;border:0!important;border-radius:36px!important;box-shadow:0 30px 80px -20px rgba(0,0,0,.5)!important;padding:36px 32px!important;position:relative;overflow:hidden}',
@@ -150,7 +163,7 @@
 /* Listening: chế độ "Giải đề cùng thầy" (listening-solver.js tự kiểm tra admin, người khác không thấy gì) */
 (function () {
   if (window.__nightLSolverHook || !/\/listening\//.test(location.pathname)) return; window.__nightLSolverHook = true;
-  var src; try { src = new URL('listening-solver.js?v=20261031c', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/listening-solver.js'; }
+  var src; try { src = new URL('listening-solver.js?v=20261106a', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/listening-solver.js'; }
   var add = function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
 })();
