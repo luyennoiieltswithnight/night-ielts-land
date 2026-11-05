@@ -4063,60 +4063,177 @@
     let acc = 0; const cum = [0].concat(w.map((x) => (acc += x / sum)));
     return (t) => { if (!(t > 0)) return 0; if (t >= T) return 1; const x = (t / T) * K, k = Math.floor(x); return cum[k] + (cum[k + 1] - cum[k]) * (x - k); };
   }
+  /* ---------- Vòng 2: BI RƠI (Plinko có vật lý thật — bi va chốt nảy ngẫu nhiên, ai chạm đáy trước đi tiếp) ---------- */
+  function PlinkoStage({ names, keep, onDone }) {
+    const cv = useRef(null), wrap = useRef(null);
+    const [order, setOrder] = useState([]);
+    useEffect(() => {
+      const c = cv.current, box = wrap.current; if (!c || !box) return;
+      const W = box.clientWidth, H = box.clientHeight, dpr = window.devicePixelRatio || 1;
+      c.width = W * dpr; c.height = H * dpr; c.style.width = W + "px"; c.style.height = H + "px";
+      const g = c.getContext("2d"); g.scale(dpr, dpr);
+      const R = Math.max(9, Math.min(16, W / 40)), rows = 9, top = 70, floor = H - 46, gapY = (floor - top - 40) / rows;
+      const cols = Math.max(7, Math.floor(W / (R * 5.2)));
+      const pegs = [];
+      for (let r = 0; r < rows; r++) { const off = r % 2 ? 0.5 : 0; for (let k = 0; k <= cols; k++) { const x = ((k + off) / cols) * W; if (x > 8 && x < W - 8) pegs.push({ x, y: top + 30 + r * gapY, hit: 0 }); } }
+      const balls = names.map((n, i) => ({ name: n, i, x: W / 2 + (raceRand() - 0.5) * W * 0.5, y: -R * 2 - i * R * 3.2, vx: (raceRand() - 0.5) * 1.2, vy: 0, done: false, col: RACE_COLORS[i % RACE_COLORS.length], t: 0 }));
+      const fin = []; let raf = 0, last = performance.now(), ended = false, t0 = last;
+      const short = (s) => { s = String(s).trim(); const p = s.split(/\s+/); return (p.length > 1 ? p[p.length - 1] : s).slice(0, 7); };
+      const step = (now) => {
+        const dt = Math.min(2, (now - last) / 16.7); last = now;
+        balls.forEach((b) => {
+          if (b.done) return;
+          b.vy += 0.32 * dt; b.vx *= 0.995; b.x += b.vx * dt; b.y += b.vy * dt;
+          if (b.x < R) { b.x = R; b.vx = Math.abs(b.vx) * 0.6; } if (b.x > W - R) { b.x = W - R; b.vx = -Math.abs(b.vx) * 0.6; }
+          pegs.forEach((p) => {
+            const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy), m = R + 4;
+            if (d < m && d > 0) {
+              const nx = dx / d, ny = dy / d; b.x = p.x + nx * m; b.y = p.y + ny * m;
+              const vn = b.vx * nx + b.vy * ny; if (vn < 0) { b.vx -= 1.55 * vn * nx; b.vy -= 1.55 * vn * ny; }
+              b.vx += (raceRand() - 0.5) * 1.4; p.hit = 8;
+              if (now - (p.snd || 0) > 90) { p.snd = now; raceBeep(500 + raceRand() * 500, 0.04, "sine", 0.02); }
+            }
+          });
+          // bi chạm nhau
+          balls.forEach((o) => { if (o === b || o.done) return; const dx = b.x - o.x, dy = b.y - o.y, d = Math.hypot(dx, dy); if (d < R * 2 && d > 0) { const k = (R * 2 - d) / 2, nx = dx / d, ny = dy / d; b.x += nx * k; b.y += ny * k; o.x -= nx * k; o.y -= ny * k; } });
+          if (now - t0 > 9000 && Math.abs(b.vy) < 0.3) b.vy += 2; // chống kẹt
+          if (b.y > floor - R && !b.done) { b.done = true; b.y = floor - R; fin.push(b.name); raceBeep(fin.length <= keep ? 880 : 300, 0.15, "triangle", 0.06); setOrder(fin.slice()); }
+        });
+        // vẽ
+        g.clearRect(0, 0, W, H);
+        const grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, "#1e1b4b"); grd.addColorStop(1, "#312e81"); g.fillStyle = grd; g.fillRect(0, 0, W, H);
+        pegs.forEach((p) => { g.beginPath(); g.arc(p.x, p.y, p.hit ? 6 : 4, 0, 7); g.fillStyle = p.hit ? "#fde047" : "rgba(255,255,255,.75)"; g.fill(); if (p.hit) p.hit--; });
+        g.fillStyle = "#22c55e"; g.fillRect(0, floor, W, H - floor);
+        g.fillStyle = "#fff"; g.font = "800 15px system-ui"; g.textAlign = "center"; g.fillText("🏁 VẠCH ĐÍCH — " + keep + " bạn chạm đáy đầu tiên đi tiếp", W / 2, floor + 28);
+        balls.forEach((b) => {
+          if (b.y < -R) return;
+          g.beginPath(); g.arc(b.x, b.y, R, 0, 7); g.fillStyle = b.col; g.fill(); g.lineWidth = 2.5; g.strokeStyle = "#fff"; g.stroke();
+          g.fillStyle = "#fff"; g.font = "800 " + Math.round(R * 0.62) + "px system-ui"; g.fillText(short(b.name), b.x, b.y + R * 0.22);
+        });
+        if (!ended && fin.length >= Math.min(keep, names.length)) { ended = true; setTimeout(() => onDone(fin.slice(0, keep)), 1100); }
+        if (balls.some((b) => !b.done) && now - t0 < 20000) raf = requestAnimationFrame(step);
+        else if (!ended) { ended = true; const rest = balls.filter((b) => !b.done).sort((a, b) => b.y - a.y).map((b) => b.name); onDone(fin.concat(rest).slice(0, keep)); }
+      };
+      raf = requestAnimationFrame(step);
+      return () => cancelAnimationFrame(raf);
+    }, []);
+    const E = h;
+    return E("div", { className: "flex h-full w-full gap-3" },
+      E("div", { ref: wrap, className: "relative min-h-0 flex-1 overflow-hidden rounded-[24px]" }, E("canvas", { ref: cv, className: "block" })),
+      E("div", { className: "hidden w-48 flex-none flex-col gap-1.5 rounded-[24px] bg-white/10 p-3 text-white sm:flex" },
+        E("p", { className: "text-xs font-extrabold uppercase tracking-widest text-white/60" }, "Về đích"),
+        order.map((n, i) => E("div", { key: n, className: `nr-pop flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-sm font-bold ${i < keep ? "bg-emerald-400 text-ink" : "bg-white/10 text-white/60"}` }, E("span", { className: "w-5" }, i + 1), n, i < keep ? " ✓" : ""))));
+  }
+
+  /* ---------- Vòng 3: VÒNG QUAY chung kết ---------- */
+  function WheelStage({ names, onDone }) {
+    const [deg, setDeg] = useState(0), [spinning, setSpinning] = useState(false);
+    const n = names.length, seg = 360 / n;
+    const grad = names.map((_, i) => `${RACE_COLORS[i % RACE_COLORS.length]} ${i * seg}deg ${(i + 1) * seg}deg`).join(",");
+    const spin = () => {
+      if (spinning) return; setSpinning(true);
+      const wi = Math.floor(raceRand() * n);
+      // kim ở đỉnh (0°): ô wi nằm ở [wi*seg, (wi+1)*seg] → quay sao cho giữa ô về 0°
+      const target = 360 * 6 + (360 - (wi * seg + seg / 2)) + (raceRand() - 0.5) * seg * 0.6;
+      setDeg(target);
+      let k = 0; const tick = () => { if (k++ < 26) { raceBeep(700, 0.03, "square", 0.03); setTimeout(tick, 40 + k * k * 0.55); } }; tick();
+      setTimeout(() => onDone(names[wi]), 5600);
+    };
+    useEffect(() => { const t = setTimeout(spin, 900); return () => clearTimeout(t); }, []);
+    const size = Math.min(window.innerWidth - 60, window.innerHeight - 250, 520);
+    const E = h;
+    return E("div", { className: "flex h-full flex-col items-center justify-center" },
+      E("div", { className: "relative", style: { width: size, height: size } },
+        E("div", { className: "absolute left-1/2 top-[-6px] z-10 -translate-x-1/2", style: { width: 0, height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderTop: "30px solid #fde047", filter: "drop-shadow(0 3px 3px rgba(0,0,0,.4))" } }),
+        E("div", { className: "h-full w-full rounded-full border-[10px] border-white shadow-2xl", style: { background: `conic-gradient(${grad})`, transform: `rotate(${deg}deg)`, transition: spinning ? "transform 5.2s cubic-bezier(.12,.6,.12,1)" : "none" } },
+          names.map((nm, i) => E("div", { key: i, className: "absolute left-1/2 top-1/2 origin-left whitespace-nowrap pl-[18%] font-black text-white", style: { transform: `rotate(${i * seg + seg / 2 - 90}deg)`, fontSize: Math.max(13, Math.min(26, size / 16)), textShadow: "0 2px 4px rgba(0,0,0,.35)" } }, nm))),
+        E("div", { className: "absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-3xl shadow-lg" }, "⭐")),
+      E("p", { className: "mt-4 text-lg font-extrabold text-white" }, spinning ? "Đang quay…" : "Chuẩn bị quay!"));
+  }
+
   function DuckRace({ onClose }) {
     const [cfg, setCfg] = useState(raceLoad);
     const [used, setUsedRaw] = useState(() => raceUsedMem);
     const setUsed = (v) => setUsedRaw((u) => { const n = typeof v === "function" ? v(u) : v; raceUsedMem = n; return n; });
-    const [phase, setPhase] = useState("setup"); // setup | count | run | done
+    const [phase, setPhase] = useState("setup"); // setup | count | run | inter | plinko | wheel | done
     const [count, setCount] = useState(3);
     const [pos, setPos] = useState([]);
     const [winner, setWinner] = useState(null);
     const [newName, setNewName] = useState("");
-    const raf = useRef(0);
+    const [stageNames, setStageNames] = useState([]); // người vào vòng kế tiếp
+    const [inter, setInter] = useState(null); // { title, sub, names, next }
+    const [qualified, setQualified] = useState([]); // vịt đã đi tiếp (vòng 1)
+    const raf = useRef(0), timers = useRef([]);
     raceCss();
+    const later = (fn, ms) => timers.current.push(setTimeout(fn, ms));
     const save = (c) => { setCfg(c); lsSet(RACE_KEY, c); };
+    const tour = cfg.mode === "tour";
     const all = String(cfg.lists[cfg.cur] || "").split(/\n|,/).map((x) => x.trim()).filter(Boolean);
     const pool = cfg.skip ? all.filter((n) => !used.includes(n)) : all;
     const racers = useRef([]);
-    useEffect(() => () => cancelAnimationFrame(raf.current), []);
+    useEffect(() => () => { cancelAnimationFrame(raf.current); timers.current.forEach(clearTimeout); }, []);
     useEffect(() => { const k = (e) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, []);
+    const finish = (name) => { setWinner(name); setUsed((u) => u.concat(name)); raceFanfare(); later(() => setPhase("done"), 700); };
+    // chuyển vòng: màn giới thiệu người đi tiếp rồi vào vòng mới
+    const goStage = (names, next) => {
+      if (next === "wheel" && names.length === 1) return finish(names[0]);
+      setStageNames(names);
+      setInter(next === "plinko"
+        ? { title: "VÒNG 2 · BI RƠI", sub: names.length + " bạn đi tiếp! Bi của ai chạm đáy trước sẽ vào chung kết", names }
+        : { title: "CHUNG KẾT · VÒNG QUAY", sub: names.length + " bạn vào chung kết — vòng quay quyết định!", names });
+      setPhase("inter"); raceFanfare();
+      later(() => setPhase(next), 3200);
+    };
     const start = () => {
+      timers.current.forEach(clearTimeout); timers.current = []; cancelAnimationFrame(raf.current);
       let list = pool.length ? pool : all;
       if (cfg.skip && !pool.length) setUsed([]);
       if (list.length < 2) return;
-      const wi = Math.floor(raceRand() * list.length);
+      setWinner(null); setQualified([]);
+      // Giải đấu: ít người thì bỏ bớt vòng
+      if (tour && list.length <= 3) return goStage(list.slice().sort(() => raceRand() - 0.5), "wheel");
+      if (tour && list.length <= 5) return goStage(list.slice().sort(() => raceRand() - 0.5), "plinko");
+      const keepDuck = tour ? Math.min(8, Math.max(4, Math.ceil(list.length / 2))) : 1;
       const base = 4200 + raceRand() * 1200;
-      racers.current = list.map((n, i) => ({ name: n, win: i === wi, prog: raceProfile(i === wi ? base : base * (1.06 + raceRand() * 0.32)) }));
-      setPos(list.map(() => 0)); setWinner(null); setPhase("count"); setCount(3);
-      [3, 2, 1].forEach((c, i) => setTimeout(() => { setCount(c); raceBeep(c === 1 ? 660 : 440, 0.18); }, i * 800));
-      setTimeout(() => {
+      racers.current = list.map((n) => ({ name: n, T: base * (1 + raceRand() * 0.38) }));
+      racers.current.forEach((r) => { r.prog = raceProfile(r.T); });
+      const order = racers.current.slice().sort((a, b) => a.T - b.T).map((r) => r.name);
+      setPos(list.map(() => 0)); setPhase("count"); setCount(3);
+      [3, 2, 1].forEach((c, i) => later(() => { setCount(c); raceBeep(c === 1 ? 660 : 440, 0.18); }, i * 800));
+      later(() => {
         setPhase("run"); raceBeep(880, 0.35);
-        const t0 = performance.now(); let done = false;
+        const t0 = performance.now(); let doneN = 0, ended = false;
         const tick = (now) => {
           const t = Math.max(0, now - t0);
           const p = racers.current.map((r) => r.prog(t));
           setPos(p);
-          const w = racers.current.findIndex((r) => r.win);
-          if (!done && p[w] >= 1) {
-            done = true; const name = racers.current[w].name;
-            setWinner(name); setUsed((u) => u.concat(name)); raceFanfare();
-            setTimeout(() => setPhase("done"), 700);
+          const fin = order.filter((nm) => p[racers.current.findIndex((r) => r.name === nm)] >= 1);
+          if (fin.length > doneN) { doneN = fin.length; if (tour) { setQualified(fin.slice(0, keepDuck)); if (doneN <= keepDuck) raceBeep(990, 0.12, "triangle", 0.07); } }
+          if (!ended && fin.length >= keepDuck) {
+            ended = true;
+            if (!tour) finish(order[0]);
+            else later(() => goStage(order.slice(0, keepDuck), keepDuck > 3 ? "plinko" : "wheel"), 900);
           }
           if (p.some((x) => x < 1) && t < 12000) raf.current = requestAnimationFrame(tick);
         };
         raf.current = requestAnimationFrame(tick);
       }, 2400);
     };
-    const n = phase === "setup" ? 0 : racers.current.length;
+    const n = racers.current.length;
     const startPct = window.innerWidth < 640 ? 44 : 24;
     const laneH = Math.max(26, Math.min(64, Math.floor((window.innerHeight - 260) / Math.max(n, 1))));
     const E = h;
     const conf = phase === "done" ? Array.from({ length: 36 }, (_, i) => E("span", { key: i, className: "nr-conf text-2xl", style: { left: (i * 97) % 100 + "vw", animationDuration: 2.2 + (i % 7) * 0.35 + "s", animationDelay: (i % 9) * 0.08 + "s" } }, ["🎉", "⭐", "✨", "🦆", "💛", "🎊"][i % 6])) : null;
+    const title = { plinko: "Vòng 2 · Bi rơi", wheel: "Chung kết · Vòng quay" }[phase] || (tour ? "Vòng 1 · Đua vịt" : "Đua vịt — ai trả lời?");
+    const modeBtn = (m, label, sub) => E("button", { onClick: () => save({ ...cfg, mode: m }), className: `flex-1 rounded-2xl px-3 py-2.5 text-left transition ${(cfg.mode || "duck") === m ? "bg-ink text-white" : "bg-panel text-slate-600"}` },
+      E("span", { className: "block text-sm font-extrabold" }, label), E("span", { className: "block text-[11px] opacity-70" }, sub));
     return E("div", { className: "fixed inset-0 z-[90] flex flex-col bg-ink/90 p-3 backdrop-blur sm:p-6", onMouseDown: (e) => { if (e.target === e.currentTarget && phase === "setup") onClose(); } },
       conf,
       E("div", { className: "mx-auto flex w-full max-w-5xl items-center gap-3 pb-3 text-white" },
-        E("span", { className: "text-3xl" }, "🦆"),
-        E("div", { className: "min-w-0 flex-1" }, E("p", { className: "text-xl font-extrabold sm:text-2xl" }, "Đua vịt — ai trả lời?"), E("p", { className: "text-xs text-white/50" }, cfg.cur, " · ", all.length, " bạn", cfg.skip && used.length ? ` · đã gọi ${used.length}` : "")),
+        E("span", { className: "text-3xl" }, phase === "plinko" ? "🔮" : phase === "wheel" ? "🎡" : "🦆"),
+        E("div", { className: "min-w-0 flex-1" }, E("p", { className: "text-xl font-extrabold sm:text-2xl" }, title),
+          E("p", { className: "text-xs text-white/50" }, cfg.cur, " · ", all.length, " bạn", cfg.skip && used.length ? ` · đã gọi ${used.length}` : "", tour && phase !== "setup" ? " · Giải đấu 3 vòng" : "")),
+        tour && phase !== "setup" && E("div", { className: "hidden items-center gap-1 sm:flex" }, ["🦆", "🔮", "🎡"].map((ic, i) => E("span", { key: i, className: `flex h-9 w-9 items-center justify-center rounded-full text-lg ${(["run", "count"].includes(phase) && i === 0) || (phase === "plinko" && i === 1) || (phase === "wheel" && i === 2) ? "bg-amber-300" : "bg-white/10"}` }, ic))),
         E("button", { onClick: onClose, "aria-label": "Đóng", className: "flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl hover:bg-white/20" }, "×")),
       phase === "setup"
         ? E("div", { className: "mx-auto grid w-full max-w-5xl flex-1 gap-4 overflow-y-auto md:grid-cols-[1fr_1.2fr]" },
@@ -4126,45 +4243,57 @@
               E("div", { className: "mt-2 flex gap-1.5" },
                 E("input", { value: newName, onChange: (e) => setNewName(e.target.value), placeholder: "Tên lớp mới…", className: "min-w-0 flex-1 rounded-full bg-panel px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40",
                   onKeyDown: (e) => { if (e.key === "Enter" && newName.trim()) { save({ ...cfg, cur: newName.trim(), lists: { ...cfg.lists, [newName.trim()]: cfg.lists[newName.trim()] || "" } }); setNewName(""); setUsed([]); } } }),
-                E("button", { onClick: () => { if (!newName.trim()) return; save({ ...cfg, cur: newName.trim(), lists: { ...cfg.lists, [newName.trim()]: cfg.lists[newName.trim()] || "" } }); setNewName(""); setUsed([]); }, className: "rounded-full bg-primary-light px-3 text-sm font-bold text-primary" }, "＋"),
-                Object.keys(cfg.lists).length > 1 && E("button", { title: "Xoá lớp này", onClick: () => { if (!confirm("Xoá lớp “" + cfg.cur + "”?")) return; const l = { ...cfg.lists }; delete l[cfg.cur]; save({ ...cfg, lists: l, cur: Object.keys(l)[0] }); setUsed([]); }, className: "rounded-full bg-rose-50 px-3 text-sm font-bold text-rose-600" }, "🗑")),
+                E("button", { onClick: () => { if (!newName.trim()) return; save({ ...cfg, cur: newName.trim(), lists: { ...cfg.lists, [newName.trim()]: cfg.lists[newName.trim()] || "" } }); setNewName(""); setUsed([]); }, className: "rounded-full bg-primary-light px-3 text-sm font-bold text-primary" }, "+ Thêm"),
+                Object.keys(cfg.lists).length > 1 && E("button", { title: "Xoá lớp này", onClick: () => { if (!confirm("Xoá lớp “" + cfg.cur + "”?")) return; const l = { ...cfg.lists }; delete l[cfg.cur]; save({ ...cfg, lists: l, cur: Object.keys(l)[0] }); setUsed([]); }, className: "rounded-full bg-panel px-3 text-sm font-bold text-rose-500" }, "🗑")),
               E("p", { className: "mt-4 text-xs font-extrabold uppercase tracking-widest text-slate-400" }, "Tên học sinh (mỗi dòng 1 tên)"),
               E("textarea", { value: cfg.lists[cfg.cur] || "", onChange: (e) => save({ ...cfg, lists: { ...cfg.lists, [cfg.cur]: e.target.value } }), rows: 9, placeholder: "An\nBình\nChi\nDũng…",
                 className: "mt-2 w-full resize-y rounded-2xl bg-panel p-3 text-base font-semibold leading-relaxed text-ink outline-none focus:ring-2 focus:ring-primary/40" }),
               E("label", { className: "mt-3 flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-600" },
                 E("input", { type: "checkbox", checked: !!cfg.skip, onChange: () => save({ ...cfg, skip: !cfg.skip }), className: "h-4 w-4 accent-primary" }), "Không gọi lại bạn đã trả lời (trong buổi này)")),
             E("div", { className: "flex flex-col gap-4" },
+              E("div", { className: "flex gap-2 rounded-[22px] bg-white p-2" },
+                modeBtn("duck", "🦆 Đua vịt nhanh", "1 vòng, ~8 giây"),
+                modeBtn("tour", "🏆 Giải đấu 3 vòng", "Vịt → Bi rơi → Vòng quay")),
               E("div", { className: "relative flex flex-1 flex-col items-center justify-center overflow-hidden rounded-[28px] bg-primary p-6 text-center text-white" },
                 E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10" }),
-                E("span", { className: "inline-block", style: { transform: "scaleX(-1)" } }, E("span", { className: "nr-duck inline-block text-7xl" }, "🦆")),
-                E("p", { className: "mt-3 text-2xl font-extrabold" }, pool.length >= 2 || (cfg.skip && all.length >= 2) ? `${(pool.length || all.length)} chú vịt sẵn sàng!` : "Nhập ít nhất 2 tên nhé"),
-                E("p", { className: "mt-1 text-sm text-white/70" }, "Vịt nào về đích trước, bạn đó trả lời 🙋"),
-                E("button", { onClick: start, disabled: all.length < 2, className: "mt-5 rounded-full bg-ink px-8 py-3.5 text-lg font-extrabold text-white shadow-lg transition hover:scale-105 disabled:opacity-40" }, "🏁 Bắt đầu đua")),
+                E("div", { className: "flex items-end gap-2" }, E("span", { className: "inline-block", style: { transform: "scaleX(-1)" } }, E("span", { className: "nr-duck inline-block text-7xl" }, "🦆")), tour && E("span", { className: "text-5xl" }, "🔮"), tour && E("span", { className: "text-5xl" }, "🎡")),
+                E("p", { className: "mt-3 text-2xl font-extrabold" }, pool.length >= 2 || (cfg.skip && all.length >= 2) ? `${(pool.length || all.length)} người chơi sẵn sàng!` : "Nhập ít nhất 2 tên nhé"),
+                E("p", { className: "mt-1 text-sm text-white/70" }, tour ? "Nửa đàn vịt về trước đi tiếp → bi ai chạm đáy trước vào chung kết → vòng quay chọn người trả lời 🙋" : "Vịt nào về đích trước, bạn đó trả lời 🙋"),
+                E("button", { onClick: start, disabled: all.length < 2, className: "mt-5 rounded-full bg-ink px-8 py-3.5 text-lg font-extrabold text-white shadow-lg transition hover:scale-105 disabled:opacity-40" }, tour ? "🏆 Bắt đầu giải đấu" : "🏁 Bắt đầu đua")),
               used.length > 0 && E("div", { className: "rounded-[28px] bg-white p-4" },
                 E("div", { className: "flex items-center justify-between" }, E("p", { className: "text-xs font-extrabold uppercase tracking-widest text-slate-400" }, "Đã gọi"), E("button", { onClick: () => setUsed([]), className: "text-xs font-bold text-primary" }, "↺ Làm lại từ đầu")),
                 E("div", { className: "mt-2 flex flex-wrap gap-1.5" }, used.map((u, i) => E("span", { key: i, className: "rounded-full bg-peach-light px-3 py-1 text-sm font-bold text-peach-dark" }, i + 1, ". ", u))))))
+        : phase === "plinko"
+          ? E("div", { className: "mx-auto min-h-0 w-full max-w-6xl flex-1" }, E(PlinkoStage, { names: stageNames, keep: Math.min(3, stageNames.length - 1), onDone: (q) => goStage(q, "wheel") }))
+        : phase === "wheel"
+          ? E("div", { className: "mx-auto min-h-0 w-full max-w-6xl flex-1" }, E(WheelStage, { names: stageNames, onDone: finish }))
         : E("div", { className: "relative mx-auto w-full max-w-6xl flex-1 overflow-y-auto rounded-[28px] bg-sky-400 p-2 sm:p-3" },
             E("div", { className: "absolute bottom-0 right-[7%] top-0 w-3 sm:w-4", style: { backgroundImage: "repeating-conic-gradient(#fff 0 25%, #24242A 0 50%)", backgroundSize: "12px 12px" } }),
             racers.current.map((r, i) => {
-              const p = pos[i] || 0, col = RACE_COLORS[i % RACE_COLORS.length], won = winner === r.name;
+              const p = pos[i] || 0, col = RACE_COLORS[i % RACE_COLORS.length], won = winner === r.name || qualified.includes(r.name);
               return E("div", { key: i, className: "nr-water relative mb-1 overflow-hidden rounded-xl bg-sky-500/70", style: { height: laneH } },
                 E("div", { className: "absolute top-1/2 flex items-center gap-1", style: { left: `${(startPct + p * (93 - startPct)).toFixed(2)}%`, transform: "translate(-100%, -50%)" } },
-                  E("span", { className: `whitespace-nowrap rounded-full px-2.5 py-0.5 font-extrabold text-white shadow ${won ? "ring-4 ring-amber-300" : ""}`, style: { background: col, fontSize: Math.max(11, Math.min(16, laneH * 0.34)) } }, won ? "🏆 " : "", r.name),
+                  E("span", { className: `whitespace-nowrap rounded-full px-2.5 py-0.5 font-extrabold text-white shadow ${won ? "ring-4 ring-amber-300" : ""}`, style: { background: col, fontSize: Math.max(11, Math.min(16, laneH * 0.34)) } }, won ? (tour ? "✓ " : "🏆 ") : "", r.name),
                   E("span", { className: "inline-block", style: { transform: "scaleX(-1)" } }, E("span", { className: "nr-duck inline-block leading-none", style: { fontSize: Math.min(laneH * 0.72, 40), animationDelay: i * 0.07 + "s" } }, "🦆"))));
             }),
-            phase === "count" && E("div", { className: "absolute inset-0 flex items-center justify-center bg-ink/30" }, E("span", { key: count, className: "nr-count text-[9rem] font-black text-white drop-shadow-lg" }, count)),
-            phase === "done" && winner && E("div", { className: "fixed inset-0 z-[92] flex items-center justify-center bg-ink/60 p-4" },
-              E("div", { className: "nr-pop relative w-full max-w-md overflow-hidden rounded-[36px] bg-white p-8 text-center shadow-2xl" },
-                E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-peach/20" }),
-                E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -bottom-12 -right-10 h-44 w-44 rounded-full bg-primary/15" }),
-                E("p", { className: "relative text-6xl" }, "🏆"),
-                E("p", { className: "relative mt-2 text-xs font-extrabold uppercase tracking-[0.25em] text-peach-dark" }, "Người may mắn"),
-                E("p", { className: "relative mt-2 break-words text-5xl font-black tracking-tight text-ink" }, winner),
-                E("p", { className: "relative mt-2 text-sm text-slate-500" }, "Mời bạn trả lời câu hỏi nhé! 🙋"),
-                E("div", { className: "relative mt-6 flex justify-center gap-2" },
-                  E("button", { onClick: start, className: "rounded-full bg-ink px-6 py-3 text-sm font-extrabold text-white transition hover:scale-105" }, "🔁 Đua tiếp"),
-                  E("button", { onClick: () => setPhase("setup"), className: "rounded-full bg-panel px-5 py-3 text-sm font-bold text-slate-600" }, "Danh sách"),
-                  E("button", { onClick: onClose, className: "rounded-full bg-panel px-5 py-3 text-sm font-bold text-slate-600" }, "Đóng"))))));
+            phase === "count" && E("div", { className: "absolute inset-0 flex items-center justify-center bg-ink/30" }, E("span", { key: count, className: "nr-count text-[9rem] font-black text-white drop-shadow-lg" }, count))),
+      phase === "inter" && inter && E("div", { className: "fixed inset-0 z-[92] flex items-center justify-center bg-ink/70 p-4" },
+        E("div", { className: "nr-pop w-full max-w-lg rounded-[36px] bg-white p-8 text-center shadow-2xl" },
+          E("p", { className: "text-xs font-extrabold uppercase tracking-[0.25em] text-primary" }, inter.title),
+          E("p", { className: "mt-2 text-lg font-bold text-slate-600" }, inter.sub),
+          E("div", { className: "mt-4 flex flex-wrap justify-center gap-2" }, inter.names.map((nm, i) => E("span", { key: nm, className: "nr-pop rounded-full px-4 py-2 text-lg font-black text-white", style: { background: RACE_COLORS[i % RACE_COLORS.length], animationDelay: i * 0.12 + "s" } }, nm))))),
+      phase === "done" && winner && E("div", { className: "fixed inset-0 z-[92] flex items-center justify-center bg-ink/60 p-4" },
+        E("div", { className: "nr-pop relative w-full max-w-md overflow-hidden rounded-[36px] bg-white p-8 text-center shadow-2xl" },
+          E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-peach/20" }),
+          E("span", { "aria-hidden": "true", className: "pointer-events-none absolute -bottom-12 -right-10 h-44 w-44 rounded-full bg-primary/15" }),
+          E("p", { className: "relative text-6xl" }, "🏆"),
+          E("p", { className: "relative mt-2 text-xs font-extrabold uppercase tracking-[0.25em] text-peach-dark" }, tour ? "Nhà vô địch giải đấu" : "Người may mắn"),
+          E("p", { className: "relative mt-2 break-words text-5xl font-black tracking-tight text-ink" }, winner),
+          E("p", { className: "relative mt-2 text-sm text-slate-500" }, tour ? "Vượt qua cả 3 vòng — mời bạn trả lời nhé! 🙋" : "Mời bạn trả lời câu hỏi nhé! 🙋"),
+          E("div", { className: "relative mt-6 flex justify-center gap-2" },
+            E("button", { onClick: start, className: "rounded-full bg-ink px-6 py-3 text-sm font-extrabold text-white transition hover:scale-105" }, tour ? "🔁 Giải mới" : "🔁 Đua tiếp"),
+            E("button", { onClick: () => setPhase("setup"), className: "rounded-full bg-panel px-5 py-3 text-sm font-bold text-slate-600" }, "Danh sách"),
+            E("button", { onClick: onClose, className: "rounded-full bg-panel px-5 py-3 text-sm font-bold text-slate-600" }, "Đóng")))));
   }
   function TeachBar({ t, set, present, onPresent, onClearAll, hasMarks }) {
     const btn = (active, onClick, icon, label, key, extra = "") => h("button", { onClick, title: `${label} (phím ${key})`,
