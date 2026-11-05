@@ -4063,6 +4063,57 @@
     let acc = 0; const cum = [0].concat(w.map((x) => (acc += x / sum)));
     return (t) => { if (!(t > 0)) return 0; if (t >= T) return 1; const x = (t / T) * K, k = Math.floor(x); return cum[k] + (cum[k + 1] - cum[k]) * (x - k); };
   }
+  /* ---------- Nhạc nền gây cấn (tự tạo bằng Web Audio, không cần file) ---------- */
+  const raceMusic = (() => {
+    let timer = 0, step = 0, next = 0, level = 0, master = null, on = false, nbuf = null;
+    const ctx = () => { raceAudio = raceAudio || new (window.AudioContext || window.webkitAudioContext)(); if (raceAudio.state === "suspended") raceAudio.resume(); return raceAudio; };
+    const tone = (f, t, d, type, v, f2) => {
+      const a = ctx(), o = a.createOscillator(), g = a.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.03);
+    };
+    const noise = (t, d, v, hp) => {
+      const a = ctx();
+      if (!nbuf) { nbuf = a.createBuffer(1, a.sampleRate * 0.5, a.sampleRate); const ch = nbuf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1; }
+      const s = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+      s.buffer = nbuf; f.type = "highpass"; f.frequency.value = hp;
+      g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t + d + 0.02);
+    };
+    // Am – F – G – E, mỗi hợp âm 1 nhịp (4 phách)
+    const ROOTS = [55, 43.65, 49, 41.2], THIRD = [1.189, 1.26, 1.26, 1.26];
+    const sched = () => {
+      const a = ctx();
+      const bpm = [118, 132, 150, 165][level] || 132, s16 = 60 / bpm / 4;
+      while (next < a.currentTime + 0.12) {
+        const t = next, i = step % 16, bar = Math.floor(step / 16) % 4, r = ROOTS[bar];
+        if (i % 4 === 0) tone(110, t, 0.22, "sine", 0.55, 38); // trống bass
+        if (level >= 1 && (i === 4 || i === 12)) noise(t, 0.14, 0.22, 1500); // trống lẫy
+        noise(t, i % 2 ? 0.03 : 0.05, i % 4 === 2 ? 0.09 : 0.045, 7000); // hi-hat
+        if (i % 2 === 0) tone(i % 4 === 0 ? r : r * 2, t, s16 * 1.7, "sawtooth", 0.09); // bass chạy
+        if (level >= 1) { const arp = [1, THIRD[bar], 1.5, 2][i % 4]; tone(r * 8 * arp, t, s16 * 0.9, "square", 0.022); }
+        if (level >= 2 && i % 4 === 0) tone(r * 16, t, s16 * 3.5, "triangle", 0.035);
+        if (level >= 3) noise(t, s16 * 0.9, 0.06 + (i / 16) * 0.12, 2500); // trống dồn
+        next += s16; step++;
+      }
+    };
+    return {
+      play(lv) {
+        try {
+          const a = ctx(); level = lv;
+          if (!master) { master = a.createGain(); master.connect(a.destination); }
+          master.gain.cancelScheduledValues(a.currentTime); master.gain.setTargetAtTime(0.32, a.currentTime, 0.05);
+          if (!on) { on = true; step = 0; next = a.currentTime + 0.05; timer = setInterval(sched, 40); }
+        } catch (e) {}
+      },
+      stop() {
+        try { if (master && raceAudio) master.gain.setTargetAtTime(0.0001, raceAudio.currentTime, 0.12); } catch (e) {}
+        clearInterval(timer); on = false;
+      }
+    };
+  })();
+
   /* ---------- Vòng 2: BI RƠI (Plinko có vật lý thật — bi va chốt nảy ngẫu nhiên, ai chạm đáy trước đi tiếp) ---------- */
   function PlinkoStage({ names, keep, onDone }) {
     const cv = useRef(null), wrap = useRef(null);
@@ -4072,7 +4123,7 @@
       const W = box.clientWidth, H = box.clientHeight, dpr = window.devicePixelRatio || 1;
       c.width = W * dpr; c.height = H * dpr; c.style.width = W + "px"; c.style.height = H + "px";
       const g = c.getContext("2d"); g.scale(dpr, dpr);
-      const R = Math.max(9, Math.min(15, W / 44)), rows = 13, top = 60, floor = H - 46, gapY = (floor - top - 40) / rows;
+      const R = Math.max(9, Math.min(15, W / 44)), rows = 15, top = 60, floor = H - 46, gapY = (floor - top - 40) / rows;
       const cols = Math.max(7, Math.floor(W / (R * 5.2)));
       const pegs = [];
       for (let r = 0; r < rows; r++) { const off = r % 2 ? 0.5 : 0; for (let k = 0; k <= cols; k++) { const x = ((k + off) / cols) * W; if (x > 8 && x < W - 8) pegs.push({ x, y: top + 30 + r * gapY, hit: 0 }); } }
@@ -4084,7 +4135,7 @@
         const dt = Math.min(2, (now - last) / 16.7); last = now;
         balls.forEach((b) => {
           if (b.done) return;
-          b.vy += 0.16 * dt; b.vx *= 0.99; if (b.vy > 4.2) b.vy = 4.2; if (Math.abs(b.vx) > 3.5) b.vx = Math.sign(b.vx) * 3.5; b.x += b.vx * dt; b.y += b.vy * dt;
+          b.vy += 0.045 * dt; b.vx *= 0.99; if (b.vy > 1.65) b.vy = 1.65; if (Math.abs(b.vx) > 3.5) b.vx = Math.sign(b.vx) * 3.5; b.x += b.vx * dt; b.y += b.vy * dt;
           if (b.x < R) { b.x = R; b.vx = Math.abs(b.vx) * 0.6; } if (b.x > W - R) { b.x = W - R; b.vx = -Math.abs(b.vx) * 0.6; }
           pegs.forEach((p) => {
             const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy), m = R + 4;
@@ -4097,7 +4148,7 @@
           });
           // bi chạm nhau
           balls.forEach((o) => { if (o === b || o.done) return; const dx = b.x - o.x, dy = b.y - o.y, d = Math.hypot(dx, dy); if (d < R * 2 && d > 0) { const k = (R * 2 - d) / 2, nx = dx / d, ny = dy / d; b.x += nx * k; b.y += ny * k; o.x -= nx * k; o.y -= ny * k; } });
-          if (now - t0 > 25000 && Math.abs(b.vy) < 0.3) b.vy += 2; // chống kẹt
+          if (now - t0 > 40000 && Math.abs(b.vy) < 0.3) b.vy += 2; // chống kẹt
           if (b.y > floor - R && !b.done) { b.done = true; b.y = floor - R; fin.push(b.name); raceBeep(fin.length <= keep ? 880 : 300, 0.15, "triangle", 0.06); setOrder(fin.slice()); }
         });
         // vẽ
@@ -4112,7 +4163,7 @@
           g.fillStyle = "#fff"; g.font = "800 " + Math.round(R * 0.62) + "px system-ui"; g.fillText(short(b.name), b.x, b.y + R * 0.22);
         });
         if (!ended && fin.length >= Math.min(keep, names.length)) { ended = true; setTimeout(() => onDone(fin.slice(0, keep)), 1800); }
-        if (balls.some((b) => !b.done) && now - t0 < 45000) raf = requestAnimationFrame(step);
+        if (balls.some((b) => !b.done) && now - t0 < 70000) raf = requestAnimationFrame(step);
         else if (!ended) { ended = true; const rest = balls.filter((b) => !b.done).sort((a, b) => b.y - a.y).map((b) => b.name); onDone(fin.concat(rest).slice(0, keep)); }
       };
       raf = requestAnimationFrame(step);
@@ -4136,10 +4187,10 @@
       if (spinning) return; setSpinning(true);
       const wi = Math.floor(raceRand() * n);
       // kim ở đỉnh (0°): ô wi nằm ở [wi*seg, (wi+1)*seg] → quay sao cho giữa ô về 0°
-      const target = 360 * 8 + (360 - (wi * seg + seg / 2)) + (raceRand() - 0.5) * seg * 0.6;
+      const target = 360 * 10 + (360 - (wi * seg + seg / 2)) + (raceRand() - 0.5) * seg * 0.6;
       setDeg(target);
-      let k = 0; const tick = () => { if (k++ < 34) { raceBeep(700, 0.03, "square", 0.03); setTimeout(tick, 40 + k * k * 0.55); } }; tick();
-      setTimeout(() => onDone(names[wi]), 7500);
+      let k = 0; const tick = () => { if (k++ < 44) { raceBeep(700, 0.03, "square", 0.03); setTimeout(tick, 40 + k * k * 0.55); } }; tick();
+      setTimeout(() => onDone(names[wi]), 10000);
     };
     useEffect(() => { const t = setTimeout(spin, 900); return () => clearTimeout(t); }, []);
     const size = Math.min(window.innerWidth - 60, window.innerHeight - 250, 520);
@@ -4147,7 +4198,7 @@
     return E("div", { className: "flex h-full flex-col items-center justify-center" },
       E("div", { className: "relative", style: { width: size, height: size } },
         E("div", { className: "absolute left-1/2 top-[-6px] z-10 -translate-x-1/2", style: { width: 0, height: 0, borderLeft: "16px solid transparent", borderRight: "16px solid transparent", borderTop: "30px solid #fde047", filter: "drop-shadow(0 3px 3px rgba(0,0,0,.4))" } }),
-        E("div", { className: "h-full w-full rounded-full border-[10px] border-white shadow-2xl", style: { background: `conic-gradient(${grad})`, transform: `rotate(${deg}deg)`, transition: spinning ? "transform 7s cubic-bezier(.1,.6,.08,1)" : "none" } },
+        E("div", { className: "h-full w-full rounded-full border-[10px] border-white shadow-2xl", style: { background: `conic-gradient(${grad})`, transform: `rotate(${deg}deg)`, transition: spinning ? "transform 9.5s cubic-bezier(.1,.6,.06,1)" : "none" } },
           names.map((nm, i) => E("div", { key: i, className: "absolute left-1/2 top-1/2 origin-left whitespace-nowrap pl-[18%] font-black text-white", style: { transform: `rotate(${i * seg + seg / 2 - 90}deg)`, fontSize: Math.max(13, Math.min(26, size / 16)), textShadow: "0 2px 4px rgba(0,0,0,.35)" } }, nm))),
         E("div", { className: "absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white text-3xl shadow-lg" }, "⭐")),
       E("p", { className: "mt-4 text-lg font-extrabold text-white" }, spinning ? "Đang quay…" : "Chuẩn bị quay!"));
@@ -4173,6 +4224,11 @@
     const all = String(cfg.lists[cfg.cur] || "").split(/\n|,/).map((x) => x.trim()).filter(Boolean);
     const pool = cfg.skip ? all.filter((n) => !used.includes(n)) : all;
     const racers = useRef([]);
+    useEffect(() => {
+      if (cfg.mute || ["setup", "done"].includes(phase)) return raceMusic.stop();
+      raceMusic.play({ count: 0, run: 1, inter: 0, plinko: 2, wheel: 3 }[phase] ?? 1);
+    }, [phase, cfg.mute]);
+    useEffect(() => () => raceMusic.stop(), []);
     useEffect(() => () => { cancelAnimationFrame(raf.current); timers.current.forEach(clearTimeout); }, []);
     useEffect(() => { const k = (e) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, []);
     const finish = (name) => { setWinner(name); setUsed((u) => u.concat(name)); raceFanfare(); later(() => setPhase("done"), 700); };
@@ -4184,7 +4240,7 @@
         ? { title: "VÒNG 2 · BI RƠI", sub: names.length + " bạn đi tiếp! Bi của ai chạm đáy trước sẽ vào chung kết", names }
         : { title: "CHUNG KẾT · VÒNG QUAY", sub: names.length + " bạn vào chung kết — vòng quay quyết định!", names });
       setPhase("inter"); raceFanfare();
-      later(() => setPhase(next), 3200);
+      later(() => setPhase(next), 4000);
     };
     const start = () => {
       timers.current.forEach(clearTimeout); timers.current = []; cancelAnimationFrame(raf.current);
@@ -4196,7 +4252,7 @@
       if (tour && list.length <= 3) return goStage(list.slice().sort(() => raceRand() - 0.5), "wheel");
       if (tour && list.length <= 5) return goStage(list.slice().sort(() => raceRand() - 0.5), "plinko");
       const keepDuck = tour ? Math.min(8, Math.max(4, Math.ceil(list.length / 2))) : 1;
-      const base = 4200 + raceRand() * 1200;
+      const base = (tour ? 9000 : 5200) + raceRand() * 1500;
       racers.current = list.map((n) => ({ name: n, T: base * (1 + raceRand() * 0.38) }));
       racers.current.forEach((r) => { r.prog = raceProfile(r.T); });
       const order = racers.current.slice().sort((a, b) => a.T - b.T).map((r) => r.name);
@@ -4216,7 +4272,7 @@
             if (!tour) finish(order[0]);
             else later(() => goStage(order.slice(0, keepDuck).sort(() => raceRand() - 0.5), keepDuck > 3 ? "plinko" : "wheel"), 900);
           }
-          if (p.some((x) => x < 1) && t < 12000) raf.current = requestAnimationFrame(tick);
+          if (p.some((x) => x < 1) && t < 20000) raf.current = requestAnimationFrame(tick);
         };
         raf.current = requestAnimationFrame(tick);
       }, 2400);
@@ -4226,7 +4282,7 @@
     const laneH = Math.max(26, Math.min(64, Math.floor((window.innerHeight - 260) / Math.max(n, 1))));
     const E = h;
     const conf = phase === "done" ? Array.from({ length: 36 }, (_, i) => E("span", { key: i, className: "nr-conf text-2xl", style: { left: (i * 97) % 100 + "vw", animationDuration: 2.2 + (i % 7) * 0.35 + "s", animationDelay: (i % 9) * 0.08 + "s" } }, ["🎉", "⭐", "✨", "🦆", "💛", "🎊"][i % 6])) : null;
-    const title = { plinko: "Vòng 2 · Bi rơi", wheel: "Chung kết · Vòng quay", done: tour ? "Kết quả giải đấu" : "" }[phase] || (tour ? "Vòng 1 · Đua vịt" : "Đua vịt — ai trả lời?");
+    const title = { plinko: "Vòng 2 · Bi rơi", wheel: "Chung kết · Vòng quay", done: tour ? "Kết quả giải đấu" : "", inter: inter && inter.title }[phase] || (tour ? "Vòng 1 · Đua vịt" : "Đua vịt — ai trả lời?");
     const modeBtn = (m, label, sub) => E("button", { onClick: () => save({ ...cfg, mode: m }), className: `flex-1 rounded-2xl px-3 py-2.5 text-left transition ${(cfg.mode === "duck" ? "duck" : "tour") === m ? "bg-ink text-white" : "bg-panel text-slate-600"}` },
       E("span", { className: "block text-sm font-extrabold" }, label), E("span", { className: "block text-[11px] opacity-70" }, sub));
     return E("div", { className: "fixed inset-0 z-[90] flex flex-col bg-ink/90 p-3 backdrop-blur sm:p-6", onMouseDown: (e) => { if (e.target === e.currentTarget && phase === "setup") onClose(); } },
@@ -4236,6 +4292,7 @@
         E("div", { className: "min-w-0 flex-1" }, E("p", { className: "text-xl font-extrabold sm:text-2xl" }, title),
           E("p", { className: "text-xs text-white/50" }, cfg.cur, " · ", all.length, " bạn", cfg.skip && used.length ? ` · đã gọi ${used.length}` : "", tour && phase !== "setup" ? " · Giải đấu 3 vòng" : "")),
         tour && phase !== "setup" && E("div", { className: "hidden items-center gap-1 sm:flex" }, ["🦆", "🔮", "🎡"].map((ic, i) => E("span", { key: i, className: `flex h-9 w-9 items-center justify-center rounded-full text-lg ${(["run", "count"].includes(phase) && i === 0) || (phase === "plinko" && i === 1) || (phase === "wheel" && i === 2) ? "bg-amber-300" : "bg-white/10"}` }, ic))),
+        E("button", { onClick: () => save({ ...cfg, mute: !cfg.mute }), title: cfg.mute ? "Bật nhạc" : "Tắt nhạc", className: "flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-lg hover:bg-white/20" }, cfg.mute ? "🔇" : "🎵"),
         E("button", { onClick: onClose, "aria-label": "Đóng", className: "flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-xl hover:bg-white/20" }, "×")),
       phase === "setup"
         ? E("div", { className: "mx-auto grid w-full max-w-5xl flex-1 gap-4 overflow-y-auto md:grid-cols-[1fr_1.2fr]" },
