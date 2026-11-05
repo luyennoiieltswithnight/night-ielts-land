@@ -211,8 +211,6 @@
   var L = /\/listening\//.test(location.pathname), C = L ? '#0d9488' : '#6d5dfc', C2 = L ? '#e3f6f3' : '#efecff';
   var css = [
     'html body{--nt-lilac:' + C + ';--nt-lilac-l:' + C2 + ';--nt-ink:#1d2140;--nt-panel:#fff;--pp-c:' + C + ';--pp-c2:' + C2 + ';--pp-line:#c9cbe0;--pp-ink2:#5b6080;--text-color:#1d2140;--primary-button:' + C + '}',
-    'html body:not(.exam-mode){background-color:#eceef6!important;background-image:none!important}',
-    'html body.exam-mode{background:#eceef6!important}',
     'html body .header{background:#1d2140!important}',
     'html body .header .submit-btn,html body.exam-mode .header .submit-btn{background:' + C + '!important;box-shadow:0 0 0 3px ' + C2 + '!important}',
     'html body .header .q-circle.answered{background:' + C + '!important}',
@@ -241,6 +239,10 @@
     'html body select.lettered-select,html body select.inline-select{border:1.3px solid var(--pp-line);border-radius:8px}',
     'html body .match-bank{background:' + C2 + '!important;border:1.3px dashed ' + C + '!important}',
     'html body .match-chip{border:1.5px solid ' + C + '!important;color:' + C + '!important}',
+    /* hình Irasutoya giống bản In đề: đầu mỗi Section / Passage */
+    'html body .section-header-row h2::before{content:"";display:inline-block;width:40px;height:40px;margin-right:8px;vertical-align:middle;background:url(https://nightielts.id.vn/khoahoc/img/ira/music_earphone_canal_2571.webp) center/contain no-repeat}',
+    'html body .passage-text .content-wrapper>p:first-child[style*="#666"]::after{content:"";float:right;width:64px;height:64px;margin:-6px 0 0 10px;background:url(https://nightielts.id.vn/khoahoc/img/ira/study_night_boy_0934.webp) center/contain no-repeat}',
+    'html body .question-group:last-child::after{content:"";display:block;width:56px;height:56px;margin:10px 0 0 auto;background:url(https://nightielts.id.vn/khoahoc/img/ira/trophy_school_boy.webp) center/contain no-repeat}',
     'html body .feedback-box{border-radius:10px}'
   ].join('\n');
   try { var st = document.createElement('style'); st.setAttribute('data-nt-paper', '1'); st.textContent = css; (document.head || document.documentElement).appendChild(st); } catch (e) {}
