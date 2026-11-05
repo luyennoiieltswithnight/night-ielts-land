@@ -1,0 +1,3176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Reading - Orange inspired 19 - Test 3</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #729a65;
+            --panel-bg: #f9f5e8;
+            --border-color: #2c3e2d;
+            --text-color: #333;
+            --highlight-color: #ffeb3b;
+            --correct-color: #4caf50;
+            --incorrect-color: #f44336;
+            --primary-button: #e8b93b;
+            --hover-bg: #e0d9c5;
+        }
+
+        /* --- Exam mode ("Thi Thật"): minimal white theme, purple accent only ---
+             Applied by adding class="exam-mode" to <body> in startTest(). Practice
+             mode keeps the original green/parchment look untouched. */
+        body.exam-mode {
+            --bg-color: #ffffff;
+            --panel-bg: #ffffff;
+            --border-color: #6d3fa0;
+            --primary-button: #7c4dab;
+            --hover-bg: #f2ebfa;
+            background-image: none;
+        }
+        body.exam-mode .q-circle.answered { background-color: #e3d2f7; }
+        body.exam-mode .question-group { border-color: #e6dcf2; }
+        body.exam-mode .instruction { background: #faf7fd; }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+            background-size: 20px 20px;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* Header Styles */
+        .header {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header-left, .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            background: none;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .part-indicator {
+            background-color: var(--border-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .question-nav {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .q-circle {
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+            background: white;
+            transition: background-color 0.2s;
+        }
+
+        .q-circle.answered {
+            background-color: #d1cbb8;
+        }
+
+        .timer {
+            border: 2px solid var(--border-color);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 16px;
+            font-weight: bold;
+            background: white;
+        }
+
+        .submit-btn {
+            background-color: var(--primary-button);
+            border: 2px solid var(--border-color);
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+        }
+
+        .submit-btn:hover { filter: brightness(1.1); }
+        .submit-btn:active { transform: scale(0.98); }
+
+        /* Main Content Area */
+        .main-container {
+            display: flex;
+            gap: 0;
+            flex: 1;
+            min-height: 0;
+            position: relative; /* For translation popup */
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            flex: 1;
+            min-width: 220px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        /* Draggable resizer between the two panels */
+        .panel-resizer {
+            width: 18px;
+            flex-shrink: 0;
+            cursor: col-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+        }
+        .panel-resizer::after {
+            content: '';
+            width: 6px;
+            height: 56px;
+            border-radius: 6px;
+            background: rgba(44, 62, 45, 0.25);
+            transition: background 0.15s, height 0.15s;
+        }
+        .panel-resizer:hover::after,
+        .panel-resizer.dragging::after {
+            background: rgba(44, 62, 45, 0.55);
+            height: 80px;
+        }
+
+        .panel-content {
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
+            scroll-behavior: smooth;
+        }
+
+        /* Reading Passage Styles */
+        .passage-text {
+            font-family: 'Source Serif Pro', serif;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+
+        .passage-text h2 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 30px;
+        }
+
+        .passage-text p {
+            margin-bottom: 20px;
+            text-align: justify;
+        }
+
+        .explanation-highlight {
+            background-color: var(--highlight-color);
+            padding: 2px 4px;
+            border-radius: 3px;
+            transition: background-color 0.5s;
+            border-bottom: 2px solid #e65100;
+        }
+
+        /* Questions Styles */
+        .question-group {
+            margin-bottom: 40px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .instruction {
+            font-style: italic;
+            margin-bottom: 20px;
+            color: #555;
+            background: #f5f5f5;
+            padding: 10px;
+            border-left: 4px solid var(--border-color);
+        }
+
+        .question-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: flex-start;
+            position: relative;
+        }
+        /* Điền từ / notes completion: các dòng gần nhau hơn để cả nhóm nhìn liền mạch như 1 khối
+           ghi chú duy nhất, thay vì từng câu tách xa nhau như thẻ riêng biệt. */
+        .question-item.compact-item { margin-bottom: 14px; }
+
+        .q-num {
+            background-color: white;
+            border: 2px solid var(--border-color);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .options-tf, .mcq-options {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .mcq-options { flex-direction: column; gap: 10px; }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .radio-label:hover { background: #f0f0f0; }
+
+        .text-input {
+            border: 1px solid #ccc;
+            border-bottom: 2px solid var(--border-color);
+            background: transparent;
+            padding: 5px;
+            font-family: inherit;
+            font-size: 16px;
+            width: 200px;
+            outline: none;
+            transition: background 0.2s;
+        }
+        .text-input:focus { background-color: rgba(255,255,255,0.8); }
+
+        /* Complete the summary/table — cả nhóm câu 'inline' chảy thành 1 đoạn văn liên tục, số
+           câu hỏi nằm ngay trong placeholder của ô nhập (không có vòng tròn số riêng). */
+        .inline-summary {
+            line-height: 2.6;
+            font-size: 15px;
+            margin-bottom: 10px;
+        }
+        .inline-blank-wrap { display: inline-block; }
+        /* "Complete the notes" dạng khối ghi chú/outline (có tiêu đề, gạch đầu dòng, thụt lề...) —
+           giữ nguyên xuống dòng + khoảng trắng gốc y hệt giáo viên đã gõ (xem genNotesFromTemplate()),
+           KHÔNG gộp thành 1 đoạn văn chảy liên tục như .inline-summary thường (dùng cho câu văn thật). */
+        .inline-summary.notes-template {
+            white-space: pre-wrap;
+            line-height: 2.1;
+            font-family: inherit;
+        }
+        .inline-blank {
+            width: 130px;
+            text-align: center;
+            font-weight: 700;
+        }
+        .inline-blank::placeholder { font-weight: 800; color: var(--border-color); opacity: 0.8; }
+
+        /* Review Mode Features */
+        .feedback-box {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            border-radius: 0 4px 4px 0;
+            font-size: 14px;
+            animation: fadeIn 0.3s;
+        }
+
+        .feedback-box.correct { border-left-color: var(--correct-color); background: #f1f8e9; }
+        .feedback-box.incorrect { border-left-color: var(--incorrect-color); background: #ffebee; }
+
+        .explanation-text {
+            margin-top: 10px;
+            color: #333;
+            font-style: italic;
+            border-top: 1px dashed #ccc;
+            padding-top: 10px;
+        }
+
+        /* Optional diagram/labeling image, attachable to any question group */
+        .group-image-wrap { margin-bottom: 15px; text-align: center; }
+        .group-image { max-width: 100%; border-radius: 8px; border: 1px solid #ddd; }
+
+        /* --- Matching / Drag-and-drop question type --- */
+        .match-bank {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            border: 1px dashed #bbb;
+        }
+        .match-chip {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.08);
+            transition: opacity 0.15s;
+        }
+        .match-chip:active { cursor: grabbing; }
+        .match-chip-ghost {
+            opacity: 0.9;
+            box-shadow: 4px 6px 12px rgba(0,0,0,0.25);
+        }
+        .match-row { flex-wrap: wrap; }
+        .match-prompt-text { flex: 1; min-width: 160px; }
+        .match-slot {
+            min-width: 140px;
+            min-height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 14px;
+            border: 2px dashed #aaa;
+            border-radius: 8px;
+            background: #fafafa;
+            color: #999;
+            font-size: 13px;
+            font-weight: 600;
+            touch-action: none;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .match-slot.filled { border-style: solid; border-color: var(--border-color); background: white; color: var(--text-color); }
+        .match-slot.drag-over { background: var(--hover-bg); border-color: var(--primary-button); }
+
+        /* --- Matching Headings / Matching Names-Claims-Sentence Endings (dropdown-based) --- */
+        .match-legend .match-chip-static { cursor: default; }
+        .lettered-select {
+            border: 1px solid #ccc;
+            border-bottom: 2px solid var(--border-color);
+            background: white;
+            padding: 6px 8px;
+            font-family: inherit;
+            font-size: 14px;
+            border-radius: 4px;
+            min-width: 220px;
+            max-width: 100%;
+        }
+
+        /* --- Matching Information / Names / Features (grid/matrix) --- */
+        .grid-scroll-wrap { overflow-x: auto; margin: 10px 0; }
+        table.match-grid {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 13px;
+        }
+        table.match-grid th, table.match-grid td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        table.match-grid thead th { background: #f5f5f5; font-weight: 800; }
+        table.match-grid td.grid-row-label { text-align: left; font-weight: 600; min-width: 220px; }
+        .grid-q-num {
+            display: inline-flex; width: 22px; height: 22px; font-size: 11px;
+            margin-right: 6px; vertical-align: middle;
+        }
+        table.match-grid input.grid-radio { width: 18px; height: 18px; cursor: pointer; }
+
+        /* --- Table Completion ("Complete the table below") — bảng thật có cột/hàng, khác với
+           "Complete the notes" (khối ghi chú chảy liên tục) vì đề gốc TRÌNH BÀY dạng bảng thật,
+           mất cấu trúc cột/hàng nếu render như 1 đoạn văn — xem genTableGroup() bên dưới. */
+        .data-table-scroll-wrap { overflow-x: auto; margin: 10px 0; }
+        table.data-table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 14px;
+        }
+        table.data-table th, table.data-table td {
+            border: 1px solid #ddd;
+            padding: 10px 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        table.data-table thead th { background: #f5f5f5; font-weight: 800; }
+        table.data-table .inline-blank { width: 110px; }
+
+        /* --- Summary/Sentence completion CÓ danh sách từ cho chọn (word bank) — select gọn nằm
+           giữa dòng chữ, khác .lettered-select thường (dùng cho list_match, rộng 220px cố định) --- */
+        .inline-select {
+            width: auto;
+            min-width: 110px;
+            max-width: 220px;
+            padding: 4px 6px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        /* --- Ghi chú/note giáo viên thêm vào bài đọc (chọn 1 đoạn chữ -> in đậm + note đỏ trong
+           ngoặc [ ] ngay bên phải) — xem cú pháp {{đoạn chữ|nội dung note}} ở công cụ soạn đề. --- */
+        .reading-note { color: var(--incorrect-color); font-weight: 700; font-size: 0.92em; }
+
+        /* --- "Choose N of M" multi-select checkboxes --- */
+        .multi-group .multi-hint {
+            margin: 0 0 10px 0; font-style: italic; font-weight: 600; color: #666;
+            padding: 6px 10px; background: #f5f5f5; border-left: 3px solid var(--border-color); border-radius: 0 4px 4px 0;
+        }
+        .multi-check-label input.multi-check { width: 16px; height: 16px; cursor: pointer; }
+        /* Nhãn "21-22" (gộp nhiều câu vào 1 nhóm) không vừa hình tròn q-num bình thường — đổi
+           sang hình bầu dục/chữ nhật bo góc, rộng vừa đủ chữ, tránh chữ số bị đè/tràn ra ngoài. */
+        .q-num.q-num-range {
+            width: auto; min-width: 40px; height: 24px; border-radius: 12px;
+            padding: 0 10px; font-size: 12px; white-space: nowrap;
+        }
+
+        /* --- Per-part grading bar (Practice mode only) --- */
+        .part-grade-bar { display: none; margin-bottom: 20px; text-align: right; }
+        .part-grade-bar.visible { display: block; }
+        .part-grade-btn {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: 20px;
+            padding: 7px 16px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .part-grade-btn:hover { background: var(--hover-bg); }
+
+        .show-loc-btn {
+            background: var(--border-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .show-loc-btn:hover { opacity: 0.9; }
+
+        /* Annotation & Translation Toolbar */
+        #annot-toolbar {
+            position: absolute;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            border-radius: 30px;
+            padding: 8px 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            z-index: 1000;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid #e5e5e5;
+        }
+
+        .annot-color {
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            border: 1px solid rgba(0,0,0,0.15);
+            cursor: pointer;
+            padding: 0;
+            transition: transform 0.15s;
+        }
+        .annot-color:hover { transform: scale(1.12); }
+
+        .annot-divider {
+            width: 1px;
+            height: 22px;
+            background: #ddd;
+            flex-shrink: 0;
+        }
+
+        .annot-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            color: #333;
+            white-space: nowrap;
+        }
+        .annot-btn:hover { background: #f0f0f0; }
+
+        .annot-translate {
+            font-weight: 700;
+            color: #1a73e8;
+        }
+
+        .annot-note-btn { color: var(--incorrect-color); font-weight: 700; }
+
+        .user-annotation.user-highlight {
+            border-radius: 2px;
+            padding: 1px 0;
+        }
+
+        /* Note input popup — hiện thay chỗ #annot-toolbar khi bấm nút "📝 Note" */
+        #note-input-box {
+            position: absolute;
+            display: none;
+            align-items: center;
+            gap: 4px;
+            background: white;
+            border-radius: 30px;
+            padding: 5px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            z-index: 1000;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid #e5e5e5;
+        }
+        #note-input-field {
+            border: none;
+            outline: none;
+            font-size: 13px;
+            padding: 6px 10px;
+            width: 200px;
+            font-family: 'Inter', sans-serif;
+        }
+        #note-input-ok, #note-input-cancel {
+            border: none;
+            background: transparent;
+            font-size: 15px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        #note-input-ok { color: #2e7d32; font-weight: 700; }
+        #note-input-cancel { color: var(--incorrect-color); font-weight: 700; }
+        #note-input-ok:hover, #note-input-cancel:hover { background: #f0f0f0; }
+
+        /* Highlight tạm thời trong lúc đang gõ note (giữ cho người dùng vẫn thấy rõ đoạn chữ mình vừa
+           chọn, vì mở ô nhập note sẽ làm trình duyệt tự huỷ vùng bôi đen xanh mặc định) */
+        .note-pending-highlight { background: #fff3b0; border-radius: 2px; padding: 1px 0; }
+
+        /* Nút nổi "🗑 Xóa note" khi bấm trực tiếp vào 1 note đã có sẵn */
+        #note-delete-box {
+            position: absolute;
+            display: none;
+            z-index: 1000;
+        }
+        #note-delete-btn {
+            background: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 30px;
+            padding: 8px 14px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--incorrect-color);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        #note-delete-btn:hover { background: #fdecea; }
+
+        /* Translation Popup */
+        #trans-box {
+            position: absolute;
+            display: none;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            z-index: 1001;
+            width: 260px;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid #e5e5e5;
+        }
+
+        .trans-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
+            background: #b4d17e;
+            color: #23331a;
+            padding: 14px 16px;
+        }
+
+        .trans-original-text {
+            font-weight: 700;
+            font-size: 15px;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .close-trans {
+            cursor: pointer;
+            color: #23331a;
+            font-weight: 700;
+            flex-shrink: 0;
+            opacity: 0.7;
+        }
+        .close-trans:hover { opacity: 1; }
+
+        .trans-body { padding: 14px 16px; }
+
+        .trans-label {
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #999;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .trans-result { font-size: 16px; font-weight: 600; color: #222; line-height: 1.4; }
+
+        .trans-actions { display: flex; border-top: 1px solid #eee; }
+
+        .trans-action-btn {
+            flex: 1;
+            padding: 12px 8px;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 13px;
+            color: #333;
+        }
+        .trans-action-btn:first-child { border-right: 1px solid #eee; }
+        .trans-action-btn:hover { background: #f5f5f5; }
+        .trans-save-btn { color: #1a73e8; }
+
+        /* Vocabulary Notebook */
+        #vocab-list .vocab-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+        }
+        #vocab-list .vocab-en { font-weight: 700; }
+        #vocab-list .vocab-vi { color: #555; font-size: 14px; }
+        #vocab-list .vocab-date { color: #aaa; font-size: 11px; }
+        .vocab-del-btn { background: none; border: none; color: #f44336; cursor: pointer; font-size: 15px; }
+
+        /* Setup & Modal Screens */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-box {
+            background: var(--panel-bg);
+            padding: 40px;
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .mode-select { display: flex; gap: 20px; margin: 30px 0; justify-content: center; }
+        .mode-btn {
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            width: 200px;
+            transition: all 0.2s;
+        }
+        .mode-btn:hover { background: #f0f0f0; transform: translateY(-2px); }
+        .mode-btn.selected { background: var(--primary-button); border-width: 3px; }
+
+        .passage-tabs { display: flex; gap: 5px; margin-right: 15px; }
+        .tab-btn {
+            padding: 5px 15px;
+            border: 2px solid var(--border-color);
+            background: #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .tab-btn.active { background: var(--primary-button); }
+
+        .content-wrapper { display: none; }
+        .content-wrapper.active { display: block; animation: fadeIn 0.4s; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .score-display { font-size: 48px; font-weight: bold; color: var(--border-color); margin: 20px 0; }
+        .band-display { font-size: 24px; color: #d32f2f; font-weight: bold; margin-bottom: 20px; }
+            .para-letter{font-weight:800;margin-right:6px;color:#4b3f8f}
+    </style>
+</head>
+<body>
+
+    <!-- Floating Annotation Toolbar -->
+    <div id="annot-toolbar">
+        <button class="annot-color annot-color-practice" data-color="#aecbfa" style="background:#aecbfa" title="Highlight xanh dương"></button>
+        <button class="annot-color annot-color-practice" data-color="#f8bbd0" style="background:#f8bbd0" title="Highlight hồng"></button>
+        <button class="annot-color annot-color-practice" data-color="#b9f6ca" style="background:#b9f6ca" title="Highlight xanh lá"></button>
+        <button class="annot-color annot-color-practice" data-color="#fff59d" style="background:#fff59d" title="Highlight vàng"></button>
+        <button class="annot-color annot-color-exam" data-color="#7a1a35" data-text-color="#ffffff" style="background:#7a1a35; display:none;" title="Highlight rượu vang"></button>
+        <span class="annot-divider"></span>
+        <button class="annot-btn" id="annot-underline" title="Gạch chân"><u>U</u></button>
+        <button class="annot-btn" id="annot-strike" title="Gạch ngang"><s>abc</s></button>
+        <button class="annot-btn" id="annot-erase" title="Xóa định dạng">🧹</button>
+        <button class="annot-btn annot-note-btn" id="annot-note-btn" title="Thêm note">📝 Note</button>
+        <span class="annot-divider"></span>
+        <button class="annot-btn annot-translate" id="annot-translate-btn" title="Dịch">🌐 Dịch</button>
+    </div>
+
+    <!-- Note input popup (bôi đen chữ -> bấm "📝 Note" trên thanh nổi -> gõ note ở đây -> đoạn đã
+         chọn được IN ĐẬM, note hiện chữ ĐỎ trong ngoặc [ ] ngay bên phải. Chỉ là ghi chú cá nhân của
+         người đang làm bài trên máy/trình duyệt này lúc đó — giống hệt highlight/gạch chân/gạch ngang
+         ở trên, không lưu lại qua lần tải trang sau, không đồng bộ giữa các người dùng khác nhau. -->
+    <div id="note-input-box">
+        <input type="text" id="note-input-field" placeholder="Nhập nội dung note…" maxlength="200" />
+        <button type="button" id="note-input-ok" title="Thêm note">✓</button>
+        <button type="button" id="note-input-cancel" title="Huỷ">✕</button>
+    </div>
+
+    <!-- Bấm trực tiếp vào 1 note đã có (chữ in đậm hoặc phần [note] đỏ) -> nút này nổi lên để xoá riêng
+         note đó, không cần bôi đen lại. -->
+    <div id="note-delete-box">
+        <button type="button" id="note-delete-btn">🗑 Xóa note</button>
+    </div>
+
+    <!-- Translation Popup -->
+    <div id="trans-box">
+        <div class="trans-header">
+            <span id="trans-original" class="trans-original-text"></span>
+            <span class="close-trans" onclick="closeTranslation()">✖</span>
+        </div>
+        <div class="trans-body">
+            <div class="trans-label">TIẾNG VIỆT</div>
+            <div id="trans-result" class="trans-result">Đang dịch...</div>
+        </div>
+        <div class="trans-actions">
+            <button class="trans-action-btn" id="tts-play">🔊 Nghe</button>
+            <button class="trans-action-btn trans-save-btn" id="save-vocab-btn">➕ Lưu vào Sổ</button>
+        </div>
+    </div>
+
+    <!-- Vocabulary Notebook Modal -->
+    <div id="vocab-modal" class="overlay" style="display:none;">
+        <div class="modal-box" style="max-width:480px; text-align:left;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0;">📖 Sổ từ vựng của bạn</h2>
+                <span class="close-trans" onclick="closeVocabBook()" style="font-size:18px;">✖</span>
+            </div>
+            <div id="vocab-list" style="max-height:420px; overflow-y:auto; margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <!-- Live "làm chung" Session Modal -->
+    <div id="live-session-modal" class="overlay" style="display:none;">
+        <div class="modal-box" style="max-width:480px; text-align:left;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 style="margin:0;">🔴 Làm chung theo thời gian thực</h2>
+                <span class="close-trans" onclick="closeLiveSessionModal()" style="font-size:18px;">✖</span>
+            </div>
+            <div id="live-session-body" style="margin-top:15px;"></div>
+        </div>
+    </div>
+
+    <!-- Setup Screen -->
+    <div id="setup-screen" class="overlay">
+        <div class="modal-box">
+            <h1>IELTS Reading - Orange inspired 19 - Test 3</h1>
+            <p>Chọn chế độ làm bài:</p>
+            <div class="mode-select">
+                <button class="mode-btn selected" id="btn-practice" onclick="selectMode('practice')">
+                    <h3>Chế độ Luyện Tập</h3>
+                    <p>Làm từng Passage. Xem điểm & Giải thích chi tiết ngay.</p>
+                </button>
+                <button class="mode-btn" id="btn-exam" onclick="selectMode('exam')">
+                    <h3>Chế độ Thi Thật</h3>
+                    <p>60 phút đếm ngược. Làm full 3 Passages. Trả điểm Band IELTS.</p>
+                </button>
+            </div>
+
+            <div id="passage-selector" style="margin: 20px 0;">
+                <label>Chọn Passage (Luyện tập): </label>
+                <select id="passage-dropdown" style="padding: 8px; border-radius: 4px;"></select>
+            </div>
+
+            <button class="submit-btn" style="font-size: 18px; padding: 12px 30px;" onclick="startTest()">Bắt đầu làm bài</button>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="results-modal" class="overlay" style="display: none;">
+        <div class="modal-box">
+            <h2 id="results-modal-title">Kết quả làm bài</h2>
+            <div id="homework-success-banner" style="display:none; margin-bottom:14px; padding:10px 14px; border-radius:10px; background:#e6f4d9; border:2px solid #4b7a2a; color:#2B4214; font-weight:800;">
+                ✅ Đã nộp homework thành công! Giáo viên sẽ thấy kết quả này.
+            </div>
+            <div class="score-display">
+                <span id="score-correct">0</span> / <span id="score-total">40</span>
+            </div>
+            <div class="band-display" id="band-container" style="display:none;">
+                Estimated Band: <span id="band-score">0.0</span>
+            </div>
+            <p style="margin-bottom: 20px; color: #555;">Bạn có thể xem lại chi tiết đáp án, lời giải thích và vị trí thông tin trong bài đọc.</p>
+            <button class="submit-btn" onclick="closeResultsAndReview()">Xem giải thích chi tiết</button>
+        </div>
+    </div>
+
+    <!-- Main Interface -->
+    <div class="header">
+        <div class="header-left">
+            <button class="nav-btn" onclick="exitTest()">← Thoát</button>
+            <div class="passage-tabs" id="passage-tabs">
+                <button class="tab-btn active" onclick="switchPassage(1)">P1</button>
+                <button class="tab-btn" onclick="switchPassage(2)">P2</button>
+                <button class="tab-btn" onclick="switchPassage(3)">P3</button>
+            </div>
+            <span class="part-indicator" id="current-passage-indicator">PASSAGE 1</span>
+
+            <!-- Navigation Circles -->
+            <div class="question-nav" id="q-nav-p1"></div>
+            <div class="question-nav" id="q-nav-p2" style="display:none;"></div>
+            <div class="question-nav" id="q-nav-p3" style="display:none;"></div>
+        </div>
+        <div class="header-right">
+            <button class="nav-btn" onclick="openVocabBook()">📖 Sổ từ vựng (<span id="vocab-count">0</span>)</button>
+            <button class="nav-btn" onclick="toggleLiveSessionBox()">🔴 Làm chung</button>
+            <span class="timer" id="live-participant-badge" style="display:none;">👥 <span id="live-participant-count">1</span></span>
+            <div class="timer" id="timer-display" style="display:none;">60:00</div>
+            <button class="submit-btn" id="main-submit-btn" onclick="submitTest()">Nộp bài</button>
+        </div>
+    </div>
+
+    <div class="main-container" id="main-workspace">
+
+        <!-- LEFT PANEL: Reading Passage -->
+        <div class="panel" id="panel-passage">
+            <div class="panel-content passage-text">
+
+                <!-- PASSAGE 1 -->
+                <div id="passage-1-text" class="content-wrapper active" data-title="Archaeologists discover evidence of prehistoric island settlers">
+                    <p style="color: #666; font-size: 14px;">READING PASSAGE 1</p>
+                    <h2>Archaeologists discover evidence of prehistoric island settlers</h2>
+                    <p>In early April 2019, Dr Ceri Shipton and his colleagues from Australian National University <span id="loc-1">became the first archaeologists to explore Obi, one of many tropical islands in Indonesia’s Maluku Utara province</span>. The research team’s discoveries suggest that the prehistoric people who lived on Obi were adept on both land and sea, hunting in the dense rainforest, foraging on the seashore, and possibly even voyaging between islands.</p>
+<p>The excavations were part of a project to learn more about how people first dispersed from mainland Asia, through the Indonesian archipelago and into the prehistoric continent that once connected Australia and New Guinea. The team’s earlier research suggested that the northernmost islands in the group, known as the Wallacean islands, including Obi, would have offered the easiest migration route. It also seemed likely that these islands were crucial ‘stepping stones’ on humans’ island-hopping voyages through this region millennia ago. But to support this idea, they needed archaeological evidence for humans living in this remote area in the ancient past. So, they travelled to Obi to look for sites that might reveal evidence of early occupation.</p>
+<p>Just inland from the village of Kelo on Obi’s northern coast, <span id="loc-8">Shipton and his colleagues found two caves containing prehistoric rock shelters that were suitable for excavation</span>. With the permission and help of the local people of Kelo, they dug a small test excavation in each shelter. There they found numerous artefacts, including fragments of axes, some dating to about 14,000 years ago. The earliest axes at Kelo were made using clam shells. <span id="loc-2">Axes made from clam shells from roughly the same time had also previously been found elsewhere in this region</span>, including on the nearby island of Gebe to the northeast. As on Gebe, it is highly likely that Obi’s axes were used in the construction of canoes, thus allowing these early peoples to maintain connections between communities on neighbouring islands.</p>
+<p>The oldest cultural layers from the Kelo site provided the team with the earliest record for human occupation on Obi, dating back around 18,000 years. At this time the climate was drier and colder than today, and the island’s dense rainforests would likely have been much less impenetrable than they are now. <span id="loc-3">Sea levels were about 120 metres lower, meaning Obi was a much larger island</span>, encompassing what is today the separate island of Bisa, as well as several other small islands nearby.</p>
+<p><span id="loc-9">Roughly 11,700 years ago, as the most recent ice age ended, the climate became significantly warmer and wetter</span>, no doubt making Obi’s jungle much thicker. According to the researchers, <span id="loc-5">it is no coincidence that around this time the first axes crafted from stone rather than sea shells appear</span>, likely in response to their heavy-duty use for clearing and modification of the increasingly dense rainforest. While stone takes about twice as long to grind into an axe compared to shell, the harder material keeps its sharp edge for longer.</p>
+<p><span id="loc-10">Judging by the bones which the researchers unearthed in the Kelo caves, people living there mainly hunted the Rothschild’s cuscus</span>, a possum-like creature that still lives on Obi today. As the forest grew more dense, people probably used axes to clear patches of forest and make hunting easier.</p>
+<p>Shipton’s team’s excavation of the shelters at the Kelo site unearthed a volcanic glass substance called obsidian, which must have been brought over from another island, as there is no known source on Obi. <span id="loc-11">It also revealed particular types of beads, similar to those previously found on islands in southern Wallacea.</span> These finds again support the idea that Obi islanders routinely travelled to other islands.</p>
+<p>The excavations suggest people successfully lived in the two Kelo shelters for about 10,000 years. But then, about 8,000 years ago, both were abandoned. Did the residents leave Obi completely, or move elsewhere on the island? Perhaps the jungle had grown so thick that axes were no longer a match for the dense undergrowth. Perhaps people simply moved to the coast and turned to fishing rather than hunting as a means of survival.</p>
+<p>Whatever the reason for the departure, <span id="loc-7">there is no evidence for use of the Kelo shelters after this time, until about 1,000 years ago</span>, <span id="loc-12">when they were re-occupied by people who owned pottery as well as items made out of gold and silver</span>. It seems likely, in view of Obi’s location, that this final phase of occupation also saw the Kelo shelters used by people involved in <span id="loc-13">the historic trade in spices between the Maluku islands and the rest of the world</span>.</p>
+                </div>
+
+                <!-- PASSAGE 2 -->
+                <div id="passage-2-text" class="content-wrapper" data-title="The global importance of wetlands">
+                    <p style="color: #666; font-size: 14px;">READING PASSAGE 2</p>
+                    <h2>The global importance of wetlands</h2>
+                    <p><b class="para-letter">A</b> Wetlands are areas where water covers the soil, or is present either at or near the surface of the soil, for all or part of the year. These are complex ecosystems, rich in unique plant and animal life. But according to the World Wide Fund for Nature (WWF), <span id="loc-15">half of the world’s wetlands have disappeared since 1990 – converted or destroyed for commercial development</span>, drainage schemes and the extraction of minerals and peat. Many of those that remain have been damaged by agricultural pesticides and fertilisers, industrial pollutants, and construction works.</p>
+<p><b class="para-letter">B</b> Throughout history, humans have gathered around wetlands, and their fertile ecosystems have played an important part in human development. Consequently, <span id="loc-17">they are of considerable religious, historical and archaeological value to many communities around the world</span>. ‘Wetlands directly support the livelihoods and well-being of millions of people,’ says Dr Matthew McCartney, principal researcher and hydrologist at the International Water Management Institute (IWMI). ‘In many developing countries, large numbers of people are dependent on wetland agriculture for their livelihoods.’</p>
+<p><b class="para-letter">C</b> They also serve a crucial environmental purpose. ‘Wetlands are one of the key tools in mitigating climate change across the planet,’ says Pieter van Eijk, head of Climate Adaptation at Wetlands International (WI), pointing to their use as buffers that protect coastal areas from sea-level rise and extreme weather events such as hurricanes and flooding. Wetland coastal forests provide food and water, as well as shelter from storms, and WI and other agencies are working to restore those forests which have been lost. ‘<span id="loc-26">It can be as simple as planting a few trees per hectare to create shade and substantially change a microclimate</span>,’ he says. ‘Implementing climate change projects isn’t so much about money.’</p>
+<p><b class="para-letter">D</b> The world’s wetlands are, unfortunately, rich sources for in-demand commodities, such as palm oil and pulpwood. Peatlands – wetlands with a waterlogged organic soil layer – are particularly targeted. <span id="loc-18">When peatlands are drained for cultivation, they become net carbon emitters instead of active carbon stores</span>, and, according to Marcel Silvius, head of Climate-smart Land-use at WI, this practice causes six per cent of all global carbon emissions. <span id="loc-19">The clearance of peatlands for planting also increases the risk of forest fires, which release huge amounts of CO2</span>. ‘We’re seeing <span id="loc-20">huge peatland forests with extremely high biodiversity value being lost for a few decades of oil palm revenues</span>,’ says Silvius.</p>
+<p><b class="para-letter">E</b> The damage starts when logging companies arrive to clear the trees. <span id="loc-21">They dig ditches to enter the peat swamps by boat and then float the logs out the same way</span>. These are then used to drain water out of the peatlands to allow for the planting of corn, oil palms or pulpwood trees. Once the water has drained away, bacteria and fungi then break down the carbon in the peat and turn it into CO2 and methane. Meanwhile, <span id="loc-22">the remainder of the solid matter in the peat starts to move downwards, in a process known as subsidence</span>. Peat comprises 90 per cent water, so this is one of the most alarming consequences of peatland clearances. ‘In the tropics, peat subsides at about four centimetres a year, so within half a century, very large landscapes on Sumatra and Borneo will become flooded as the peat drops below water level,’ says Silvius. ‘It’s a huge catastrophe that’s in preparation. Some provinces will lose 40 per cent of their landmass.’</p>
+<p><b class="para-letter">F</b> And while these industries affect wetlands in ways that can easily be documented, Dr Dave Tickner of the WWF believes that more subtle impacts can be even more devastating. ‘Sediment run-off and fertilisers can be pretty invisible,’ says Tickner. ‘Over-extraction of water is equally invisible. You do get shock stories about rivers running red, or even catching fire, but there’s seldom one big impact that really hurts a wetland.’ Tickner does not blame anyone for deliberate damage, however. ‘<span id="loc-25">I’ve worked on wetland issues for 20 years and have never met anybody who wanted to damage a wetland</span>,’ he says. ‘It isn’t something that people generally set out to do. Quite often, the effects simply come from people trying to make a living.’</p>
+<p><b class="para-letter">G</b> Silvius also acknowledges the importance of income generation. ‘It’s not that we just want to restore the biodiversity of wetlands – which we do – but <span id="loc-14">we recognise there’s a need to provide an income for local people</span>.’ This approach is supported by IWMI. ‘The idea is that people in a developing country will only protect wetlands if they value and profit from them,’ says McCartney. ‘For sustainability, <span id="loc-23">it’s essential that local people are involved in wetland planning and decision making and have clear rights to use wetlands</span>.’</p>
+<p><b class="para-letter">H</b> The fortunes of wetlands would be improved, Silvius suggests, if more governments recognised their long-term value. ‘<span id="loc-24">Different governments have different attitudes,’ he says, and goes on to explain that some countries place a high priority</span> on restoring wetlands, while others still deny the issue. McCartney is cautiously optimistic, however. ‘<span id="loc-16">Awareness of the importance of wetlands is growing,’ he says</span>. ‘It’s true that wetland degradation still continues at a rapid pace, but my impression is that things are slowly changing.’</p>
+                </div>
+
+                <!-- PASSAGE 3 -->
+                <div id="passage-3-text" class="content-wrapper" data-title="Is the era of artificial speech translation upon us?">
+                    <p style="color: #666; font-size: 14px;">READING PASSAGE 3</p>
+                    <h2>Is the era of artificial speech translation upon us?</h2>
+                    <p><em>Once the stuff of science fiction, technology that enables people to talk using different languages is now here. But how effective is it?</em></p>
+<p>Noise, Alex Waibel tells me, is one of the major challenges that artificial speech translation has to meet. A device may be able to recognise speech in a laboratory, or a meeting room, but will struggle to cope with the kind of background noise I can hear in my office surrounding Professor Waibel as he speaks to me from Kyoto station in Japan. <span id="loc-27">I’m struggling to follow him in English, on a scratchy line that reminds me we are nearly 10,000 kilometres apart</span> – and that distance is still an obstacle to communication even if you’re speaking the same language, as we are. We haven’t reached the future yet. If we had, Waibel would have been able to speak more comfortably in his native German and I would have been able to hear his words in English.</p>
+<p>At Karlsruhe Institute of Technology, where he is a professor of computer science, Waibel and his colleagues already give lectures in German that their students can follow in English via an electronic translator. The system generates text that students can read on their laptops or phones, so the process is somewhat similar to subtitling. <span id="loc-28">It helps that lecturers speak clearly, don’t have to compete with background chatter, and say much the same thing each year.</span></p>
+<p>The idea of artificial speech translation has been around for a long time. Douglas Adams’ science fiction novel, The Hitchhiker’s Guide to the Galaxy, published in 1979, featured a life form called the ‘Babel fish’ which, when placed in the ear, enabled a listener to understand any language in the universe. <span id="loc-29">It came to represent one of those devices that technology enthusiasts dream of long before they become practically realisable</span>, like TVs flat enough to hang on walls: objects that we once could only dream of having but that are now commonplace. Now devices that look like prototype Babel fish have started to appear, riding a wave of advances in artificial translation and voice recognition.</p>
+<p>At this stage, however, they seem to be regarded as eye-catching novelties rather than steps towards what Waibel calls ‘making a language-transparent society’. They tend to be domestic devices or applications suitable for hotel check-ins, for example, providing a practical alternative to speaking traveller’s English. The efficiency of the translator is less important than the social function. However, ‘Professionals are less inclined to be patient in a conversation,’ founder and CEO at Waverly Labs, Andrew Ochoa, observes. To redress this, Waverly is now preparing a new model for professional applications, which entails performance improvements in speech recognition, translation accuracy and the time it takes to deliver the translated speech.</p>
+<p>For a conversation, both speakers need to have devices called Pilots (translator earpieces) in their ears. ‘<span id="loc-30">We find that there’s a barrier with sharing one of the earphones with a stranger,’ says Ochoa. That can’t have been totally unexpected.</span> The problem would be solved if earpiece translators became sufficiently prevalent that strangers would be likely to already have their own in their ears. Whether that happens, and how quickly, will probably depend not so much on the earpieces themselves, but on the prevalence of voice-controlled devices and artificial translation in general.</p>
+<p>Waibel highlights the significance of certain Asian nations, noting that voice translation has really <span id="loc-31">taken off in countries such as Japan with a range of systems. There is still a long way to go, though.</span> <span id="loc-32">A translation system needs to be simultaneous, like the translator’s voice speaking over the foreign politician being interviewed on the TV</span>, rather than in sections that oblige speakers to pause after every few remarks and wait for the translation to be delivered. It needs to work offline, for situations where internet access isn’t possible, and to address apprehensions about the amount of private speech data accumulating in the cloud, having been sent to servers for processing.</p>
+<p>Systems not only need to cope with physical challenges such as noise, <span id="loc-33">they will also need to be socially aware by addressing people in the right way</span>. Some cultural traditions demand solemn respect for academic status, for example, and it is only polite to respect this. Etiquette-sensitive artificial translators could relieve people of the need to know these differing cultural norms. At the same time, <span id="loc-34">they might help to preserve local customs, slowing the spread of habits associated with international English</span>, such as its readiness to get on first-name terms.</p>
+<p><span id="loc-35">Professors and other professionals will not outsource language awareness to software, though.</span> If the technology matures into seamless, ubiquitous artificial speech translation, it will actually add value to language skills. <span id="loc-36">Whether it will help people conduct their family lives or relationships is open to question</span> – though <span id="loc-37">one noteworthy possibility is that it could overcome the language barriers that often arise between generations after migration</span>, leaving children and their grandparents without a shared language.</p>
+<p>Whatever uses it is put to, though, it will never be as good as the real thing. Even if voice-morphing technology simulates the speaker’s voice, their lip movements won’t match, and they will look like they are in a dubbed movie. The contrast will underline the value of shared languages, and the value of learning them. Sharing a language can promote a sense of belonging and community, as with the international scientists who use English as a lingua franca, where their predecessors used Latin. <span id="loc-40">Though the practical need for a common language will diminish, the social value of sharing one will persist.</span> And software will never be a substitute for the subtle but vital understanding that comes with knowledge of a language.</p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- DRAGGABLE RESIZER -->
+        <div class="panel-resizer" id="panel-resizer"></div>
+
+        <!-- RIGHT PANEL: Questions -->
+        <div class="panel" id="panel-questions">
+            <div class="panel-content" id="questions-container">
+                <!-- JavaScript will inject questions here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data Structure (generated by the Test Builder tool) ---
+        // questionsData[passageIndex] = array of question groups for that passage
+        const questionsData = [[{"instruction":"Do the following statements agree with the information given in Reading Passage 1?<br>In boxes 1-7 on your answer sheet, write<br>TRUE if the statement agrees with the information<br>FALSE if the statement contradicts the information<br>NOT GIVEN if there is no information on this","type":"tfng","reference":"","imageUrl":"","labels":["TRUE","FALSE","NOT GIVEN"],"questions":[{"text":"Archaeological research had taken place on the island of Obi before the arrival of Ceri Shipton and his colleagues.","answer":"FALSE","exp":"Bài nói nhóm Shipton “became the first archaeologists to explore Obi”, tức trước đó chưa có nghiên cứu khảo cổ nào trên đảo. Câu đề nói ngược lại nên FALSE.","loc":"loc-1"},{"text":"At the Kelo sites, the researchers found the first clam shell axes ever to be discovered in the region.","answer":"FALSE","exp":"Bài nói rìu làm từ vỏ trai cùng thời “had also previously been found elsewhere in this region” (như trên đảo Gebe), nên rìu ở Kelo không phải những chiếc đầu tiên. FALSE.","loc":"loc-2"},{"text":"The size of Obi today is less than it was 18,000 years ago.","answer":"TRUE","exp":"Cách đây khoảng 18.000 năm mực nước biển thấp hơn 120 m nên Obi là “a much larger island”, tức ngày nay đảo nhỏ hơn. TRUE.","loc":"loc-3"},{"text":"A change in the climate around 11,700 years ago had a greater impact on Obi than on the surrounding islands.","answer":"NOT GIVEN","exp":"Bài nói khí hậu ấm và ẩm hơn làm rừng Obi dày hơn, nhưng không so sánh mức ảnh hưởng với các đảo xung quanh. NOT GIVEN.","loc":""},{"text":"The researchers believe there is a connection between warmer, wetter weather and a change in the material used to make axes.","answer":"TRUE","exp":"Các nhà nghiên cứu cho rằng “it is no coincidence” rìu đá xuất hiện khi khí hậu trở nên ấm và ẩm hơn, tức có mối liên hệ. TRUE.","loc":"loc-5"},{"text":"Shipton’s team were surprised to find evidence of the Obi islanders’ hunting practices.","answer":"NOT GIVEN","exp":"Bài nói xương tìm được cho thấy người dân chủ yếu săn cuscus, nhưng không nói nhóm nghiên cứu ngạc nhiên. NOT GIVEN.","loc":""},{"text":"It is thought that the Kelo shelters were occupied continuously until about 1,000 years ago.","answer":"FALSE","exp":"Hai hang bị bỏ hoang khoảng 8.000 năm trước và “there is no evidence for use” sau đó cho tới khoảng 1.000 năm trước, nên không có người ở liên tục. FALSE.","loc":"loc-7"}]},{"instruction":"Complete the notes below.<br>Choose ONE WORD ONLY from the passage for each answer.","type":"text","reference":"","imageUrl":"","notesTemplate":"Archaeological findings on Obi\n\nExcavations of rock shelters inside _____ near the village of Kelo revealed:\n• axes from around 14,000 years ago, probably used to make canoes\n• axes made out of _____, dating from around 11,700 years ago\n• _____ of an animal: evidence of what ancient islanders ate\n• evidence of travel between islands:\n  – obsidian: a material that is not found naturally on Obi\n  – _____ which resembled ones found on other islands.\nIt is thought that from 8,000 years ago, Obi islanders:\n• may have switched from hunting to fishing\n• had _____ as well as items made out of metal\n• probably took part in the production and sale of _____.","questions":[{"text":"","answer":"caves","exp":"Nhóm tìm thấy “two caves containing prehistoric rock shelters”, tức các mái đá nằm trong hang (caves).","loc":"loc-8"},{"text":"","answer":"stone","exp":"Khoảng 11.700 năm trước xuất hiện rìu làm từ đá (“axes crafted from stone rather than sea shells”) thay cho vỏ sò.","loc":"loc-9"},{"text":"","answer":"bones","exp":"Dựa vào “the bones” tìm thấy trong hang, người dân chủ yếu săn cuscus, tức xương của con vật là bằng chứng về thức ăn.","loc":"loc-10"},{"text":"","answer":"beads","exp":"Nhóm tìm thấy “particular types of beads, similar to those previously found on islands in southern Wallacea”, tức các hạt cườm giống ở đảo khác.","loc":"loc-11"},{"text":"","answer":"pottery","exp":"Khi hang được dùng lại, người ở đó “owned pottery as well as items made out of gold and silver”, tức có đồ gốm cùng đồ kim loại.","loc":"loc-12"},{"text":"","answer":"spices","exp":"Giai đoạn cuối liên quan đến “the historic trade in spices”, tức việc buôn bán gia vị.","loc":"loc-13"}]}],[{"instruction":"Reading Passage 2 has eight paragraphs, A-H.<br>Which paragraph contains the following information?<br>Write the correct letter, A-H, in boxes 14-17 on your answer sheet.<br>NB You may use any letter more than once.","type":"grid","reference":"","imageUrl":"","options":["A","B","C","D","E","F","G","H"],"questions":[{"text":"reference to the need to ensure that inhabitants of wetland regions continue to benefit from them","answer":"G","exp":"Đoạn G: Silvius nói “there’s a need to provide an income for local people”, tức phải bảo đảm người dân địa phương tiếp tục hưởng lợi từ đất ngập nước.","loc":"loc-14"},{"text":"the proportion of wetlands which have already been lost","answer":"A","exp":"Đoạn A: theo WWF, “half of the world’s wetlands have disappeared since 1990”, tức tỷ lệ đã mất là một nửa.","loc":"loc-15"},{"text":"reference to the idea that people are beginning to appreciate the value of wetlands","answer":"H","exp":"Đoạn H: McCartney nói “Awareness of the importance of wetlands is growing”, tức nhận thức về giá trị đất ngập nước đang tăng.","loc":"loc-16"},{"text":"mention of the cultural significance of wetlands","answer":"B","exp":"Đoạn B: đất ngập nước có “considerable religious, historical and archaeological value”, tức giá trị văn hoá, tôn giáo, lịch sử.","loc":"loc-17"}]},{"instruction":"Complete the sentences below.<br>Choose ONE WORD ONLY from the passage for each answer.<br>Write your answers in boxes 18-22 on your answer sheet.","type":"text","reference":"","imageUrl":"","questions":[{"text":"Peatlands which have been drained begin to release _____ instead of storing it.","answer":"carbon","exp":"Đoạn D: khi bị rút nước, vùng than bùn thành nơi phát thải “net carbon emitters instead of active carbon stores”, tức thải carbon thay vì lưu trữ.","loc":"loc-18"},{"text":"Once peatland areas have been cleared, _____ are more likely to occur.","answer":"fires","exp":"Đoạn D: việc dọn sạch than bùn “increases the risk of forest fires”, tức cháy rừng dễ xảy ra hơn.","loc":"loc-19"},{"text":"Clearing peatland forests to make way for oil palm plantations destroys the _____ of the local environment.","answer":"biodiversity","exp":"Đoạn D: rừng than bùn có “extremely high biodiversity value” bị mất vì doanh thu cọ dầu, tức phá huỷ đa dạng sinh học.","loc":"loc-20"},{"text":"Water is drained out of peatlands through the _____ which are created by logging companies.","answer":"ditches","exp":"Đoạn E: các công ty khai thác gỗ “dig ditches”, và những rãnh này “are then used to drain water out of the peatlands”. Đáp án: ditches.","loc":"loc-21"},{"text":"Draining peatlands leads to _____, a serious problem which can eventually result in coastal flooding and land loss.","answer":"subsidence","exp":"Đoạn E: phần chất rắn trong than bùn chìm xuống “in a process known as subsidence”, dẫn tới ngập và mất đất. Đáp án: subsidence.","loc":"loc-22"}]},{"instruction":"Look at the following statements (Questions 23-26) and the list of experts below.<br>Match each statement with the correct expert, A, B, C or D.<br>Write the correct letter, A, B, C or D, in boxes 23-26 on your answer sheet.<br>NB You may use any letter more than once.","type":"list_match","reference":"","imageUrl":"","options":["A. Matthew McCartney","B. Pieter van Eijk","C. Marcel Silvius","D. Dave Tickner"],"questions":[{"text":"Communities living in wetland regions must be included in discussions about the future of these areas.","answer":"A","exp":"McCartney (đoạn G) nói “it’s essential that local people are involved in wetland planning and decision making”, khớp với việc người dân phải tham gia thảo luận.","loc":"loc-23"},{"text":"Official policies towards wetlands vary from one nation to the next.","answer":"C","exp":"Silvius (đoạn H) nói “Different governments have different attitudes”, một số nước ưu tiên khôi phục, số khác phủ nhận vấn đề.","loc":"loc-24"},{"text":"People cause harm to wetlands without having any intention to do so.","answer":"D","exp":"Tickner (đoạn F) nói chưa từng gặp ai “wanted to damage a wetland”, tức tác hại không phải do cố ý.","loc":"loc-25"},{"text":"Initiatives to reverse environmental damage need not be complex.","answer":"B","exp":"Van Eijk (đoạn C) nói việc khôi phục “can be as simple as planting a few trees per hectare”, tức không cần phức tạp.","loc":"loc-26"}]}],[{"instruction":"Choose the correct letter, A, B, C or D.<br>Write the correct letter in boxes 27-30 on your answer sheet.","type":"mcq","reference":"","imageUrl":"","questions":[{"text":"What does the reader learn about the conversation in the first paragraph?","options":["A. The speakers are communicating in different languages.","B. Neither of the speakers is familiar with their environment.","C. The topic of the conversation is difficult for both speakers.","D. Aspects of the conversation are challenging for both speakers."],"answer":"D","exp":"Người viết khó nghe Waibel qua đường dây “scratchy” và xa 10.000 km, còn Waibel cũng không nói thoải mái bằng tiếng mẹ đẻ. Vậy cả hai đều gặp khó khăn (D).","loc":"loc-27"},{"text":"What assists the electronic translator during lectures at Karlsruhe Institute of Technology?","options":["A. the repeated content of lectures","B. the students’ reading skills","C. the languages used","D. the lecturers’ technical ability"],"answer":"A","exp":"Bài nói “say much the same thing each year”, tức nội dung bài giảng lặp lại giúp máy dịch (A).","loc":"loc-28"},{"text":"When referring to The Hitchhiker’s Guide to the Galaxy, the writer suggests that","options":["A. the Babel fish was considered undesirable at the time.","B. this book was not seriously intending to predict the future.","C. artificial speech translation was not a surprising development.","D. some speech translation techniques are better than others."],"answer":"C","exp":"Babel fish là thiết bị mà người đam mê công nghệ đã mơ ước từ lâu trước khi khả thi, nên việc dịch tự động xuất hiện không gây ngạc nhiên (C).","loc":"loc-29"},{"text":"What does the writer say about sharing earpieces?","options":["A. It is something people will get used to doing.","B. The reluctance to do this is understandable.","C. The equipment will be unnecessary in the future.","D. It is something few people need to worry about."],"answer":"B","exp":"Ochoa nói có rào cản khi chia sẻ tai nghe với người lạ và tác giả nhận xét “That can’t have been totally unexpected”, tức sự ngại ngùng là dễ hiểu (B).","loc":"loc-30"}]},{"instruction":"Complete each sentence with the correct ending, A-F, below.<br>Write the correct letter, A-F, in boxes 31-34 on your answer sheet.","type":"list_match","reference":"","imageUrl":"","options":["A. but there are concerns about this.","B. as systems do not need to conform to standard practices.","C. but they are far from perfect.","D. despite the noise issues.","E. because translation is immediate.","F. and have an awareness of good manners."],"questions":[{"text":"Speech translation methods are developing fast in Japan","answer":"C","exp":"Đoạn 6: dịch giọng nói “has really taken off” ở Nhật nhưng “There is still a long way to go”, tức còn xa mới hoàn hảo (C).","loc":"loc-31"},{"text":"TV interviews that use translation voiceover methods are successful","answer":"E","exp":"Đoạn 6: hệ thống cần dịch đồng thời như giọng dịch viên đè lên chính trị gia trên TV, tức vì dịch ngay lập tức (E).","loc":"loc-32"},{"text":"Future translation systems should address people appropriately","answer":"F","exp":"Đoạn 7: hệ thống cần “socially aware by addressing people in the right way” và tôn trọng phép lịch sự (F).","loc":"loc-33"},{"text":"Users may be able to maintain their local customs","answer":"B","exp":"Đoạn 7: máy dịch “might help to preserve local customs” vì làm chậm sự lan rộng thói quen của tiếng Anh quốc tế, tức hệ thống không cần theo thông lệ chuẩn (B).","loc":"loc-34"}]},{"instruction":"Do the following statements agree with the claims of the writer in Reading Passage 3?<br>In boxes 35-40 on your answer sheet, write<br>YES if the statement agrees with the claims of the writer<br>NO if the statement contradicts the claims of the writer<br>NOT GIVEN if it is impossible to say what the writer thinks about this","type":"tfng","reference":"","imageUrl":"","labels":["YES","NO","NOT GIVEN"],"questions":[{"text":"Language translation systems will be seen as very useful throughout the academic and professional worlds.","answer":"NO","exp":"Đoạn 8: giáo sư và dân chuyên nghiệp “will not outsource language awareness to software”, tức không xem phần mềm là đủ hữu ích toàn diện. Tác giả không đồng ý nên NO.","loc":"loc-35"},{"text":"The overall value of automated translation to family life is yet to be shown.","answer":"YES","exp":"Đoạn 8: việc nó có giúp đời sống gia đình hay không “is open to question”, tức chưa được chứng minh. YES.","loc":"loc-36"},{"text":"Automated translation could make life more difficult for immigrant families.","answer":"NO","exp":"Tác giả cho rằng nó có thể “overcome the language barriers” giữa các thế hệ sau di cư, tức giúp ích chứ không làm khó hơn. NO.","loc":"loc-37"},{"text":"Visual aspects of language translation are being considered by scientists.","answer":"NOT GIVEN","exp":"Bài chỉ nói hình khẩu hình không khớp khi dịch giọng, không nói các nhà khoa học đang xem xét khía cạnh hình ảnh. NOT GIVEN.","loc":""},{"text":"International scientists have found English easier to translate into other languages than Latin.","answer":"NOT GIVEN","exp":"Bài chỉ nói các nhà khoa học quốc tế dùng tiếng Anh thay Latin làm ngôn ngữ chung, không so sánh độ dễ dịch. NOT GIVEN.","loc":""},{"text":"As far as language is concerned, there is a difference between people’s social and practical needs.","answer":"YES","exp":"Đoạn 9: nhu cầu thực tế về ngôn ngữ chung sẽ giảm nhưng giá trị xã hội của việc chia sẻ ngôn ngữ vẫn còn, tức hai loại nhu cầu khác nhau. YES.","loc":"loc-40"}]}]];
+
+        // --- Chế độ "làm bài tập được giao" ---
+        // Khi trang này được mở từ nút "Bài tập" bên trang chủ (index.html), URL sẽ có kèm
+        // assignmentId+uid (và scope = 'all'/'1'/'2'/'3'). Lúc đó đây KHÔNG phải luyện tập tự do
+        // mà là một bài homework cụ thể — giao diện + nút "Nộp bài" cần rõ ràng theo đúng phạm vi
+        // (1 Passage hay cả bài) mà giáo viên đã giao, thay vì luôn mở full 3 Passage mập mờ.
+        const __assignParams = new URLSearchParams(location.search);
+        const ASSIGN_ID = __assignParams.get('assignmentId') || '';
+        const ASSIGN_SCOPE = __assignParams.get('scope') || 'all'; // 'all' | '1' | '2' | '3'
+        const IS_ASSIGNMENT_MODE = !!ASSIGN_ID;
+        function assignmentScopeLabel() {
+            return (ASSIGN_SCOPE === '1' || ASSIGN_SCOPE === '2' || ASSIGN_SCOPE === '3')
+                ? `Passage ${ASSIGN_SCOPE}` : 'Cả bài (3 Passage)';
+        }
+
+        const testData = {};
+        const passageRanges = [];
+        let qCounter = 0;
+        questionsData.forEach(groups => {
+            const start = qCounter + 1;
+            groups.forEach(g => {
+                g.questions.forEach(q => {
+                    qCounter++;
+                    q.qNum = qCounter;
+                    testData[qCounter] = {
+                        type: (g.type === 'mcq' || g.type === 'tfng') ? 'radio' : 'text',
+                        answer: q.answer,
+                        loc: q.loc || "",
+                        exp: q.exp || ""
+                    };
+                });
+            });
+            passageRanges.push([start, qCounter]);
+        });
+        const TOTAL_QUESTIONS = qCounter;
+        // passageRanges/TOTAL_QUESTIONS được khai báo bằng const nên KHÔNG tự gắn lên window
+        // (khác với "var"/function ở top-level của script thường) — gắn tay ở đây để đoạn
+        // <script type="module"> báo kết quả về Firestore ở cuối trang đọc được khoảng câu hỏi
+        // của từng Passage khi cần chấm riêng 1 Passage.
+        window.passageRanges = passageRanges;
+
+        // Populate the practice-mode passage dropdown from passage titles
+        (function initDropdown() {
+            const dd = document.getElementById('passage-dropdown');
+            const opts = [1, 2, 3].map(i => {
+                const el = document.getElementById(`passage-${i}-text`);
+                const title = el ? el.dataset.title : `Passage ${i}`;
+                return `<option value="${i}">Passage ${i}: ${title}</option>`;
+            });
+            dd.innerHTML = opts.join('');
+        })();
+
+        // Khi đang làm 1 bài tập được giao (IS_ASSIGNMENT_MODE): ẩn phần chọn chế độ Luyện
+        // tập/Thi thật (không liên quan tới homework), thay bằng 1 dòng thông báo rõ ràng giáo
+        // viên đã giao đúng phạm vi nào, tự chọn sẵn đúng Passage đó trong dropdown (ẩn), và đổi
+        // chữ trên nút nộp bài chính (header) thành "Nộp homework (...)" để không còn mập mờ.
+        (function initAssignmentMode() {
+            if (!IS_ASSIGNMENT_MODE) return;
+
+            const modeSelectEl = document.querySelector('#setup-screen .mode-select');
+            const passageSelectorEl = document.getElementById('passage-selector');
+            const setupIntro = document.querySelector('#setup-screen .modal-box > p');
+            if (modeSelectEl) modeSelectEl.style.display = 'none';
+            if (passageSelectorEl) passageSelectorEl.style.display = 'none';
+            if (setupIntro) {
+                setupIntro.innerHTML = `📩 Bạn đang làm <strong>BÀI TẬP được giao</strong>: <strong>${assignmentScopeLabel()}</strong>. Làm xong nhớ bấm nút <strong>"Nộp homework"</strong> ở góc trên bên phải để nộp bài nhé!`;
+            }
+
+            const dd = document.getElementById('passage-dropdown');
+            if (dd && (ASSIGN_SCOPE === '1' || ASSIGN_SCOPE === '2' || ASSIGN_SCOPE === '3')) {
+                dd.value = ASSIGN_SCOPE;
+            }
+
+            const mainSubmitBtn = document.getElementById('main-submit-btn');
+            if (mainSubmitBtn) mainSubmitBtn.textContent = `📩 Nộp homework (${assignmentScopeLabel()})`;
+        })();
+
+        // --- HTML Question Templates Generation ---
+        function generateQuestionsHTML() {
+            let html = '';
+            let groupCounter = 0;
+            questionsData.forEach((groups, pIdx) => {
+                html += `<div id="questions-p${pIdx + 1}" class="content-wrapper${pIdx === 0 ? ' active' : ''}">`;
+                html += `<div class="part-grade-bar" id="part-grade-bar-${pIdx + 1}">
+                            <button class="part-grade-btn" type="button" onclick="gradePart(${pIdx + 1})">✅ Chấm riêng Part ${pIdx + 1}</button>
+                          </div>`;
+                groups.forEach(g => {
+                    groupCounter++;
+                    const nums = g.questions.map(q => q.qNum);
+                    const rangeLabel = nums.length > 1 ? `Questions ${nums[0]}-${nums[nums.length - 1]}` : `Question ${nums[0]}`;
+                    html += `<div class="question-group"><h3>${rangeLabel}</h3><p class="instruction">${g.instruction || ''}</p>`;
+                    if (g.imageUrl) {
+                        html += renderGroupImage(g.imageUrl);
+                    }
+                    if (g.reference) {
+                        html += `<div style="border:1px solid #ccc; padding:15px; margin-bottom:15px; background:#fff;">${g.reference}</div>`;
+                    }
+                    if (g.type === 'matching') {
+                        html += genMatching(groupCounter, g.options || [], g.questions);
+                    } else if (g.type === 'heading') {
+                        // Matching Headings: kéo-thả heading (i, ii, iii...) từ ngân hàng ở panel câu
+                        // hỏi thẳng vào "khe" đã đặt sẵn ở ĐẦU mỗi đoạn văn tương ứng bên panel bài đọc
+                        // (xem initHeadingGapsInPassage() + span.heading-gap do test-builder chèn sẵn).
+                        html += genHeadingDrag('hg' + g.questions[0].qNum, g.options || [], g.questions);
+                    } else if (g.type === 'list_match') {
+                        // Matching Names-Claims-Sentence Endings: 1 bảng chú thích (legend) các lựa
+                        // chọn A/B/C... + mỗi câu hỏi có 1 dropdown chọn đáp án đúng (không kéo thả,
+                        // vì các mục ở đây không nằm trong bài đọc để mà "thả vào" như headings).
+                        html += genLettered(groupCounter, g.options || [], g.questions);
+                    } else if (g.type === 'grid') {
+                        // Matching Information / Matching Names / Matching Features dạng bảng: mỗi
+                        // dòng là 1 câu, mỗi cột là 1 chữ cái — click radio ở đúng ô giao nhau.
+                        html += genGrid(groupCounter, g.options || [], g.questions);
+                    } else if (g.type === 'multi') {
+                        // "Choose TWO/THREE correct answers": checkbox dùng chung cho cả nhóm câu.
+                        html += genMulti(groupCounter, g.options || [], g.questions, g.pickCount || g.questions.length);
+                    } else if (g.type === 'inline') {
+                        // Complete the summary/table: gộp CẢ NHÓM câu hỏi thành 1 đoạn văn chảy liên
+                        // tục (giống summary thật), không tách mỗi câu ra 1 dòng riêng có số tròn to.
+                        html += genInlineGroup(g.questions);
+                    } else if (g.type === 'text') {
+                        // Complete the notes: 2 kiểu nội dung khác nhau, KHÔNG dùng chung 1 cách render —
+                        // xem genNotesFromTemplate()/genNotesGroup() bên dưới để biết vì sao phải phân biệt.
+                        // - Có g.notesTemplate (giáo viên dán nguyên khối ghi chú/outline, có tiêu đề, gạch
+                        //   đầu dòng...): giữ NGUYÊN 100% chữ gốc, chỉ thay mỗi dấu "_____" bằng 1 ô nhập.
+                        // - Không có (nhóm chỉ là 1 đoạn văn liền mạch, câu nào cũng có blank riêng): dùng
+                        //   cách cũ — tự ghép pre/post của từng câu lại thành 1 khối chảy liên tục.
+                        html += (g.notesTemplate && g.notesTemplate.trim())
+                            ? genNotesFromTemplate(g.notesTemplate, g.questions)
+                            : genNotesGroup(g.questions);
+                    } else if (g.type === 'table') {
+                        // Complete the table below: đề gốc là 1 BẢNG THẬT có cột/hàng (vd Stepwells |
+                        // Date | Features | Other notes) — khác "Complete the notes" (khối ghi chú chảy
+                        // liên tục), nên render đúng thành <table> giữ nguyên cột/hàng, xem genTableGroup().
+                        html += genTableGroup(g.tableColumns || [], g.tableRows || [], g.questions);
+                    } else if (g.type === 'wordbank') {
+                        // Summary/Sentence completion CÓ SẴN danh sách từ (word list/box) — khác "text"
+                        // (điền từ tự gõ, lấy nguyên văn từ bài đọc): ở đây học sinh CHỌN đúng từ trong
+                        // 1 ngân hàng cho sẵn (thường NHIỀU từ hơn số chỗ trống), không được gõ tự do.
+                        // Vẫn là 1 đoạn văn chảy liên tục (dùng g.notesTemplate y hệt "text" (b)), chỉ
+                        // khác chỗ mỗi blank là 1 <select> thay vì <input> tự gõ — xem genWordBankGroup().
+                        html += genWordBankGroup(g.notesTemplate || '', g.options || [], g.questions);
+                    } else {
+                        g.questions.forEach(q => {
+                            if (g.type === 'tfng') {
+                                html += genRadio(q.qNum, q.text, g.labels || ['TRUE', 'FALSE', 'NOT GIVEN']);
+                            } else if (g.type === 'mcq') {
+                                html += genRadio(q.qNum, q.text, q.options || []);
+                            } else {
+                                html += genText(q.qNum, q.text || '');
+                            }
+                        });
+                    }
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            });
+            document.getElementById('questions-container').innerHTML = html;
+        }
+
+        // Converts a typical Google Drive "share" link into a directly-viewable
+        // image URL; passes any other URL (Imgur, direct image host, etc.) through untouched.
+        function toDirectImageUrl(url) {
+            if (!url) return '';
+            url = url.trim();
+            const m = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/) || (url.includes('drive.google.com') && url.match(/[?&]id=([a-zA-Z0-9_-]+)/));
+            if (m && m[1]) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+            return url;
+        }
+
+        function renderGroupImage(url) {
+            const src = toDirectImageUrl(url);
+            return `<div class="group-image-wrap"><img src="${src}" alt="Sơ đồ minh hoạ" class="group-image" loading="lazy"
+                        onerror="this.parentElement.innerHTML='&lt;p style=&quot;color:#c62828;font-size:13px;&quot;&gt;⚠️ Không tải được ảnh — kiểm tra lại link (cần bật chia sẻ &quot;Anyone with the link&quot;).&lt;/p&gt;'"></div>`;
+        }
+
+        function genRadio(qNum, text, options) {
+            let optsHtml = options.map(opt => `<label class="radio-label"><input type="radio" name="q${qNum}" value="${opt.split('.')[0].trim()}"> ${opt}</label>`).join('');
+            return `<div class="question-item" id="q-container-${qNum}">
+                        <div class="q-num">${qNum}</div>
+                        <div style="flex:1;">
+                            <p style="margin:0 0 10px 0;">${text}</p>
+                            <div class="${options.length > 3 ? 'mcq-options' : 'options-tf'}">${optsHtml}</div>
+                            <div class="feedback-box" id="fb-${qNum}"></div>
+                        </div>
+                    </div>`;
+        }
+        // Fallback đơn lẻ (chỉ dùng khi type không xác định được) — 1 câu/1 dòng, KHÔNG dùng cho
+        // 'text' hay 'inline' nữa (2 loại đó giờ render theo nhóm, xem genNotesGroup/genInlineGroup
+        // + renderFlowingBlanks() bên dưới, để cả nhóm chảy liền mạch thành 1 khối ghi chú/đoạn văn
+        // thay vì mỗi câu là 1 thẻ tách rời có vòng tròn số to).
+        function genText(qNum, text) {
+            return `<div class="question-item compact-item" id="q-container-${qNum}" style="align-items:center;">
+                        <div class="q-num" style="width:24px;height:24px;font-size:12px;">${qNum}</div>
+                        <div style="flex:1; display:flex; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <span>${text}</span>
+                            <input type="text" class="text-input" name="q${qNum}" placeholder="Your answer..." style="width:160px;">
+                            <div class="feedback-box" id="fb-${qNum}" style="width:100%; margin-top:5px;"></div>
+                        </div>
+                    </div>`;
+        }
+
+        // Tìm dấu chỗ trống trong 1 câu văn (___, ....., …) để tách ra phần TRƯỚC/SAU chỗ trống đó
+        // — dùng cho "Complete the notes" (type 'text') khi giáo viên gõ nguyên câu kèm gạch chân
+        // (vd "Trees may be falling down because of _____ from nearby fields") thay vì tách sẵn
+        // pre/post như 'inline'. Không tìm thấy dấu nào thì coi cả câu là phần TRƯỚC, chỗ trống tự
+        // nối ngay sau (ô nhập nằm ở cuối câu).
+        function splitBlankMarker(text) {
+            const t = text || '';
+            const m = t.match(/_{2,}|\.{4,}|…+/);
+            if (!m) return { pre: t.trim(), post: '' };
+            return { pre: t.slice(0, m.index).trim(), post: t.slice(m.index + m[0].length).trim() };
+        }
+
+        // Render CHUNG cho cả 'inline' (Complete the summary/table) lẫn 'text' (Complete the
+        // notes) — nhận vào 1 mảng {qNum, pre, post}, gộp CẢ NHÓM thành 1 khối văn bản chảy liên
+        // tục (pre câu 1 -> ô trống 1 -> post câu 1 -> pre câu 2 -> ...) thay vì tách mỗi câu ra 1
+        // dòng riêng với vòng tròn số to — số câu hỏi nằm NGAY TRONG ô nhập liệu (placeholder), gõ
+        // chữ vào là số tự biến mất, đúng như 1 chỗ trống thật trong bài.
+        function renderFlowingBlanks(items) {
+            const spansHtml = items.map(it => `<span>${it.pre || ''}</span><span class="inline-blank-wrap" id="q-container-${it.qNum}"><input type="text" class="text-input inline-blank" name="q${it.qNum}" placeholder="${it.qNum}"></span><span>${it.post || ''}</span>`).join(' ');
+            const feedbackHtml = items.map(it =>
+                `<div class="feedback-box" id="fb-${it.qNum}" style="margin-top:6px;"></div>`).join('');
+            return `<div class="inline-summary">${spansHtml}</div>${feedbackHtml}`;
+        }
+        function genInlineGroup(questions) {
+            return renderFlowingBlanks(questions.map(q => ({ qNum: q.qNum, pre: q.pre || '', post: q.post || '' })));
+        }
+        function genNotesGroup(questions) {
+            return renderFlowingBlanks(questions.map(q => {
+                const { pre, post } = splitBlankMarker(q.text || '');
+                return { qNum: q.qNum, pre, post };
+            }));
+        }
+
+        // "Complete the notes" khi đề KHÔNG phải 1 đoạn văn liền mạch mà là 1 khối ghi chú/outline có
+        // tiêu đề, gạch đầu dòng, các dòng con thụt lề... (vd lịch sử cuộc đời theo từng mốc thời gian).
+        // Ghép từng câu riêng lẻ như genNotesGroup() sẽ làm MẤT toàn bộ cấu trúc đó (tiêu đề, những dòng
+        // không có chỗ trống...). Ở đây ngược lại: giáo viên dán NGUYÊN VĂN cả khối ghi chú vào 1 ô duy
+        // nhất (template, giữ nguyên xuống dòng), đánh dấu mỗi chỗ trống bằng ___/..../… theo ĐÚNG thứ tự
+        // câu hỏi trong nhóm — hàm này CHỈ thay từng dấu đó bằng 1 ô nhập, còn lại giữ y nguyên 100% (kể
+        // cả tiêu đề, gạch đầu dòng, những dòng không có chỗ trống nào) nhờ escapeHtml() + white-space:
+        // pre-wrap (xem CSS .notes-template) để xuống dòng/khoảng trắng gốc hiển thị đúng như đã gõ.
+        function genNotesFromTemplate(template, questions) {
+            const re = /_{2,}|\.{4,}|…+/g;
+            const segments = [];
+            let lastIndex = 0, qi = 0, m;
+            while (qi < questions.length && (m = re.exec(template)) !== null) {
+                segments.push({ text: template.slice(lastIndex, m.index) });
+                segments.push({ q: questions[qi] });
+                lastIndex = m.index + m[0].length;
+                qi++;
+            }
+            segments.push({ text: template.slice(lastIndex) });
+            // Nếu template có ÍT dấu chỗ trống hơn số câu trong nhóm (giáo viên gõ thiếu ___), vẫn
+            // thêm ô nhập cho các câu còn lại vào cuối cùng để không mất câu hỏi nào.
+            for (; qi < questions.length; qi++) segments.push({ q: questions[qi] });
+
+            const bodyHtml = segments.map(seg => {
+                if (seg.q) {
+                    return `<span class="inline-blank-wrap" id="q-container-${seg.q.qNum}"><input type="text" class="text-input inline-blank" name="q${seg.q.qNum}" placeholder="${seg.q.qNum}"></span>`;
+                }
+                return escapeHtml(seg.text);
+            }).join('');
+            const feedbackHtml = questions.map(q => `<div class="feedback-box" id="fb-${q.qNum}" style="margin-top:6px;"></div>`).join('');
+            return `<div class="inline-summary notes-template">${bodyHtml}</div>${feedbackHtml}`;
+        }
+
+        // Thay lần lượt từng dấu chỗ trống (___/..../…) trong 1 đoạn text bằng 1 ô nhập, bắt đầu từ
+        // questions[startQi] — dùng CHUNG logic với genNotesFromTemplate() nhưng nhận thêm "con trỏ"
+        // startQi vì genTableGroup() cần đánh số blank xuyên suốt NHIỀU Ô của bảng theo đúng thứ tự
+        // đọc trái-qua-phải, trên-xuống-dưới (không reset lại mỗi ô như genNotesFromTemplate làm với
+        // mỗi khối text riêng biệt). Trả về {html, qi} để caller biết đã dùng tới câu hỏi thứ mấy.
+        function fillBlanksInText(text, questions, startQi) {
+            const re = /_{2,}|\.{4,}|…+/g;
+            let qi = startQi, lastIndex = 0, m;
+            let out = '';
+            while (qi < questions.length && (m = re.exec(text)) !== null) {
+                out += escapeHtml(text.slice(lastIndex, m.index));
+                const q = questions[qi];
+                out += `<span class="inline-blank-wrap" id="q-container-${q.qNum}"><input type="text" class="text-input inline-blank" name="q${q.qNum}" placeholder="${q.qNum}"></span>`;
+                lastIndex = m.index + m[0].length;
+                qi++;
+            }
+            out += escapeHtml(text.slice(lastIndex));
+            return { html: out, qi };
+        }
+
+        // "Complete the table below": đề gốc là 1 bảng THẬT có cột/hàng (test-builder đã tách sẵn
+        // thành columns[] + rows[][] khi xuất bản — xem currentTestPaths()/buildTestHTML() phía tool
+        // soạn đề). Ô nào KHÔNG có chỗ trống thì hiện nguyên văn; ô nào có 1+ dấu ___ thì thay bằng ô
+        // nhập, đánh số blank LIÊN TỤC theo thứ tự đọc bảng (trái→phải, trên→dưới) khớp đúng thứ tự
+        // các câu hỏi trong nhóm — giữ được cấu trúc cột/hàng thật thay vì dồn hết thành 1 đoạn văn
+        // chảy liên tục như "Complete the notes" (xem genNotesFromTemplate).
+        function genTableGroup(columns, rows, questions) {
+            let qi = 0;
+            const theadHtml = (columns && columns.length)
+                ? `<thead><tr>${columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>`
+                : '';
+            const tbodyHtml = (rows || []).map(row => {
+                const cellsHtml = (row || []).map(cellText => {
+                    const filled = fillBlanksInText(cellText || '', questions, qi);
+                    qi = filled.qi;
+                    return `<td>${filled.html}</td>`;
+                }).join('');
+                return `<tr>${cellsHtml}</tr>`;
+            }).join('');
+            // Nếu bảng có ÍT chỗ trống hơn số câu trong nhóm, vẫn thêm ô nhập cho các câu còn lại
+            // (không mất câu hỏi nào) — dồn vào cuối dòng cuối bảng dưới dạng 1 hàng phụ.
+            let extraRowHtml = '';
+            if (qi < questions.length) {
+                const remaining = questions.slice(qi);
+                const spans = remaining.map(q => `<span class="inline-blank-wrap" id="q-container-${q.qNum}"><input type="text" class="text-input inline-blank" name="q${q.qNum}" placeholder="${q.qNum}"></span>`).join(' ');
+                extraRowHtml = `<tr><td colspan="${Math.max(1, (columns || []).length)}">${spans}</td></tr>`;
+            }
+            const feedbackHtml = questions.map(q => `<div class="feedback-box" id="fb-${q.qNum}" style="margin-top:6px;"></div>`).join('');
+            return `<div class="data-table-scroll-wrap"><table class="data-table">${theadHtml}<tbody>${tbodyHtml}${extraRowHtml}</tbody></table></div>${feedbackHtml}`;
+        }
+
+        // Summary/Sentence completion CÓ SẴN danh sách từ (word list/box) — khác genNotesFromTemplate
+        // (điền tự gõ): ở đây mỗi chỗ trống là 1 <select> chọn từ ngân hàng chung "options" (thường
+        // NHIỀU lựa chọn hơn số chỗ trống, đúng chuẩn IELTS thật — học sinh phải loại trừ bớt). Ngân
+        // hàng hiện 1 lần dạng "chip" phía trên (giống genLettered), select mặc định hiện SỐ THỨ TỰ
+        // câu hỏi (option value="") để học sinh biết đang ở câu mấy trước khi chọn — cùng quy ước với
+        // mọi loại "điền chỗ trống" khác trong bài (xem fillBlanksInText/genNotesFromTemplate).
+        function genWordBankGroup(template, options, questions) {
+            const legendHtml = `<div class="match-bank match-legend">${options.map(opt =>
+                `<div class="match-chip match-chip-static">${opt}</div>`).join('')}</div>`;
+
+            const re = /_{2,}|\.{4,}|…+/g;
+            const segments = [];
+            let lastIndex = 0, qi = 0, m;
+            while (qi < questions.length && (m = re.exec(template)) !== null) {
+                segments.push({ text: template.slice(lastIndex, m.index) });
+                segments.push({ q: questions[qi] });
+                lastIndex = m.index + m[0].length;
+                qi++;
+            }
+            segments.push({ text: template.slice(lastIndex) });
+            for (; qi < questions.length; qi++) segments.push({ q: questions[qi] });
+
+            const bodyHtml = segments.map(seg => {
+                if (seg.q) {
+                    const optHtml = options.map(opt => {
+                        const letter = (opt.split('.')[0] || '').trim();
+                        return `<option value="${letter}">${opt}</option>`;
+                    }).join('');
+                    return `<span class="inline-blank-wrap" id="q-container-${seg.q.qNum}"><select name="q${seg.q.qNum}" class="lettered-select inline-select"><option value="">${seg.q.qNum}</option>${optHtml}</select></span>`;
+                }
+                return escapeHtml(seg.text);
+            }).join('');
+            const feedbackHtml = questions.map(q => `<div class="feedback-box" id="fb-${q.qNum}" style="margin-top:6px;"></div>`).join('');
+            return `${legendHtml}<div class="inline-summary notes-template">${bodyHtml}</div>${feedbackHtml}`;
+        }
+
+        // Matching / drag-drop question type: a bank of draggable option chips
+        // (A, B, C...) that get dragged into a slot next to each prompt. Answers
+        // are mirrored into a hidden <input name="qN"> so all the existing grading /
+        // "answered" nav-circle logic works unchanged, with no special-casing needed.
+        function genMatching(groupId, options, questions) {
+            const bankHtml = options.map(opt => {
+                const letter = (opt.split('.')[0] || '').trim();
+                return `<div class="match-chip" data-letter="${letter}" data-group="${groupId}" id="chip-${groupId}-${letter}">${opt}</div>`;
+            }).join('');
+
+            const rowsHtml = questions.map(q => `
+                <div class="question-item match-row" id="q-container-${q.qNum}">
+                    <div class="q-num">${q.qNum}</div>
+                    <span class="match-prompt-text">${q.text}</span>
+                    <div class="match-slot" id="slot-${q.qNum}" data-group="${groupId}" data-qnum="${q.qNum}" data-letter="">Kéo đáp án vào đây</div>
+                    <input type="hidden" name="q${q.qNum}" id="input-q${q.qNum}" value="">
+                    <div class="feedback-box" id="fb-${q.qNum}" style="width:100%; margin-top:5px;"></div>
+                </div>
+            `).join('');
+
+            return `<div class="match-bank" id="bank-${groupId}">${bankHtml}</div>${rowsHtml}`;
+        }
+
+        // Matching Headings: kéo-thả trực tiếp vào bài đọc. Panel câu hỏi (bên phải) chỉ hiện
+        // NGÂN HÀNG heading (i, ii, iii...) để kéo, cộng với 1 hộp feedback nhỏ/câu (hiện sau khi
+        // nộp bài) — vị trí thả (slot) thật sự nằm ngay ĐẦU mỗi đoạn văn tương ứng bên panel bài
+        // đọc (trái), do test-builder.html chèn sẵn 1 <span class="heading-gap"> tĩnh vào đúng
+        // đoạn văn khớp thứ tự câu hỏi, rồi initHeadingGapsInPassage() (gọi trong startTest()) sẽ
+        // "nâng cấp" span đó thành 1 match-slot thật để dùng chung bộ máy kéo-thả Pointer Events
+        // đã có sẵn của genMatching() (chip + slot cùng data-group) — không cần viết lại logic kéo
+        // thả riêng, không cần các dropdown cồng kềnh.
+        function genHeadingDrag(groupId, options, questions) {
+            const bankHtml = options.map(opt => {
+                const letter = (opt.split('.')[0] || '').trim();
+                return `<div class="match-chip" data-letter="${letter}" data-group="${groupId}" id="chip-${groupId}-${letter}">${opt}</div>`;
+            }).join('');
+
+            const feedbackHtml = questions.map(q =>
+                `<div class="feedback-box" id="fb-${q.qNum}" style="margin-top:6px;"></div>`).join('');
+
+            return `<div class="match-bank" id="bank-${groupId}">${bankHtml}</div>
+                    <p class="hint" style="margin:0 0 10px 0;">👆 Kéo heading phía trên vào đúng vị trí đầu mỗi đoạn văn bên bài đọc (panel trái).</p>
+                    ${feedbackHtml}`;
+        }
+
+        // Matching Names-Claims-Sentence Endings (nối người/mệnh đề với đáp án đúng, A-G...): một
+        // bảng chú thích tĩnh (legend) liệt kê hết các lựa chọn, và mỗi câu hỏi có 1 dropdown
+        // <select> để chọn đáp án đúng — không kéo-thả vì các mục ở đây (tên người, mệnh đề...)
+        // không nằm sẵn trong bài đọc để "thả vào" như Matching Headings.
+        function genLettered(groupId, options, questions) {
+            const legendHtml = `<div class="match-bank match-legend" id="bank-${groupId}">${options.map(opt =>
+                `<div class="match-chip match-chip-static">${opt}</div>`).join('')}</div>`;
+
+            const rowsHtml = questions.map(q => {
+                const optHtml = options.map(opt => {
+                    const letter = (opt.split('.')[0] || '').trim();
+                    return `<option value="${letter}">${opt}</option>`;
+                }).join('');
+                return `<div class="question-item match-row" id="q-container-${q.qNum}">
+                            <div class="q-num">${q.qNum}</div>
+                            <span class="match-prompt-text">${q.text}</span>
+                            <select name="q${q.qNum}" class="lettered-select">
+                                <option value="">-- Chọn đáp án --</option>${optHtml}
+                            </select>
+                            <div class="feedback-box" id="fb-${q.qNum}" style="width:100%; margin-top:5px;"></div>
+                        </div>`;
+            }).join('');
+
+            return `${legendHtml}${rowsHtml}`;
+        }
+
+        // Matching Information / Matching Names / Matching Features dạng LƯỚI (grid/matrix): mỗi
+        // dòng là 1 câu (đoạn văn/thông tin cần tìm), mỗi cột là 1 chữ cái (A-I, A-F...) — bấm
+        // radio ở đúng ô giao giữa dòng và cột. Cho phép dùng lại cùng 1 chữ cái cho nhiều dòng
+        // (mỗi dòng có input name="qN" RIÊNG nên các radio ở các dòng khác nhau không loại trừ
+        // lẫn nhau — chỉ những ô CÙNG dòng mới loại trừ nhau, đúng chuẩn "may use any letter more
+        // than once").
+        function genGrid(groupId, options, questions) {
+            const letters = options.map(opt => (opt.split('.')[0] || opt).trim());
+            const hasLegend = options.some(opt => opt.includes('.'));
+            const legendHtml = hasLegend
+                ? `<div class="match-bank match-legend" id="bank-${groupId}">${options.map(opt =>
+                    `<div class="match-chip match-chip-static">${opt}</div>`).join('')}</div>`
+                : '';
+
+            const headerCells = letters.map(l => `<th>${l}</th>`).join('');
+            const rowsHtml = questions.map(q => {
+                const cells = letters.map(l =>
+                    `<td><input type="radio" name="q${q.qNum}" value="${l}" class="grid-radio"></td>`).join('');
+                return `<tr id="q-container-${q.qNum}"><td class="grid-row-label"><span class="q-num grid-q-num">${q.qNum}</span> ${q.text}</td>${cells}</tr>`;
+            }).join('');
+            const feedbackHtml = questions.map(q =>
+                `<div class="feedback-box" id="fb-${q.qNum}" style="margin-top:6px;"></div>`).join('');
+
+            return `${legendHtml}
+                <div class="grid-scroll-wrap">
+                    <table class="match-grid"><thead><tr><th></th>${headerCells}</tr></thead><tbody>${rowsHtml}</tbody></table>
+                </div>
+                ${feedbackHtml}`;
+        }
+
+        // "Choose TWO/THREE correct answers" (chọn N trong M đáp án bằng checkbox, dùng chung 1
+        // danh sách lựa chọn cho cả nhóm câu). Mỗi checkbox KHÔNG gắn trực tiếp vào 1 câu — thay
+        // vào đó, mỗi lần tick/bỏ tick sẽ đồng bộ danh sách chữ cái đang được chọn xuống các
+        // <input type="hidden" name="qN"> riêng của từng câu trong nhóm (xem initMultiSelect() bên
+        // dưới): nếu chữ cái đúng của câu N nằm trong tập đang chọn thì input đó = đáp án đúng
+        // (chấm ĐÚNG), ngược lại = danh sách học sinh đã chọn (chấm SAI, vẫn hiển thị rõ học sinh
+        // đã chọn gì) — nhờ vậy gradeQuestionRange() ở dưới chấm điểm y hệt các dạng câu khác mà
+        // không cần thêm logic riêng.
+        function genMulti(groupId, options, questions, pickCount) {
+            const optsHtml = options.map(opt => {
+                const letter = (opt.split('.')[0] || '').trim();
+                return `<label class="radio-label multi-check-label">
+                            <input type="checkbox" class="multi-check" value="${letter}"> ${opt}
+                        </label>`;
+            }).join('');
+
+            const qNums = questions.map(q => q.qNum);
+            const firstQ = qNums[0], lastQ = qNums[qNums.length - 1];
+            const isRange = firstQ !== lastQ;
+            const qLabel = isRange ? `${firstQ}-${lastQ}` : String(firstQ);
+
+            // KHÔNG hiện lại số câu (21, 22...) riêng lẻ ở đây nữa — con số đó đã hiện ở "viên
+            // thuốc" q-num phía trên rồi, lặp lại bên dưới gây rối mắt. Vẫn giữ input ẩn + hộp
+            // feedback riêng cho từng câu (bắt buộc để gradeQuestionRange() chấm đúng từng câu).
+            const perQFeedback = qNums.map(n => `
+                <div id="q-container-${n}" style="margin-top:6px;">
+                    <input type="hidden" name="q${n}" id="input-q${n}" value="">
+                    <div class="feedback-box" id="fb-${n}" style="width:100%; margin-top:0;"></div>
+                </div>`).join('');
+
+            return `<div class="question-item multi-group" data-multi-group="${groupId}" data-pick-count="${pickCount}">
+                        <div class="q-num${isRange ? ' q-num-range' : ''}">${qLabel}</div>
+                        <div style="flex:1;">
+                            <p class="multi-hint">Chọn đúng <strong>${pickCount}</strong> đáp án.</p>
+                            <div class="mcq-options">${optsHtml}</div>
+                            ${perQFeedback}
+                        </div>
+                    </div>`;
+        }
+
+        // Đồng bộ checkbox "Choose N of M" -> các input hidden qN riêng của từng câu trong nhóm
+        // (xem giải thích ở genMulti() phía trên). Giới hạn tối đa đúng pickCount checkbox được
+        // tick cùng lúc để học sinh không "ăn gian" bằng cách tick hết.
+        (function initMultiSelect() {
+            document.addEventListener('change', e => {
+                if (!e.target.classList || !e.target.classList.contains('multi-check')) return;
+                const container = e.target.closest('.multi-group');
+                if (!container) return;
+                const pickCount = parseInt(container.dataset.pickCount, 10) || 1;
+                const allChecks = container.querySelectorAll('.multi-check');
+                const checked = Array.from(allChecks).filter(c => c.checked);
+
+                if (checked.length > pickCount) {
+                    e.target.checked = false;
+                    return;
+                }
+
+                const checkedLetters = checked.map(c => c.value.toUpperCase());
+                container.querySelectorAll('input[type="hidden"]').forEach(hidden => {
+                    const qNum = hidden.name.substring(1);
+                    const info = testData[qNum];
+                    if (!info) return;
+                    const correctLetter = (info.answer || '').toUpperCase();
+                    const isRight = checkedLetters.includes(correctLetter);
+                    hidden.value = isRight ? info.answer : checkedLetters.join(', ');
+                    hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            });
+        })();
+
+        // --- Matching drag-and-drop engine (Pointer Events, so it works the same
+        //     with mouse, touch and pen — unlike the native HTML5 DnD API, which
+        //     iOS Safari does not support at all). Delegated at document level so
+        //     it works for every matching group generated above. ---
+        (function initMatchingDnD() {
+            const DEFAULT_SLOT_TEXT = 'Kéo đáp án vào đây';
+            let dragSource = null; // { letter, label, group, sourceSlot }
+            let dragGhost = null;
+
+            function showBankChip(group, letter) {
+                const chip = document.getElementById(`chip-${group}-${letter}`);
+                if (chip) chip.style.display = '';
+            }
+            function hideBankChip(group, letter) {
+                const chip = document.getElementById(`chip-${group}-${letter}`);
+                if (chip) chip.style.display = 'none';
+            }
+            function setSlotInput(slotEl) {
+                const input = document.getElementById('input-q' + slotEl.dataset.qnum);
+                if (!input) return;
+                input.value = slotEl.dataset.letter || '';
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            function clearSlot(slotEl) {
+                if (!slotEl.dataset.letter) return;
+                showBankChip(slotEl.dataset.group, slotEl.dataset.letter);
+                slotEl.dataset.letter = '';
+                slotEl.textContent = DEFAULT_SLOT_TEXT;
+                slotEl.classList.remove('filled');
+                setSlotInput(slotEl);
+            }
+            function fillSlot(slotEl, letter, label) {
+                if (slotEl.dataset.letter && slotEl.dataset.letter !== letter) {
+                    showBankChip(slotEl.dataset.group, slotEl.dataset.letter);
+                }
+                slotEl.dataset.letter = letter;
+                slotEl.textContent = label;
+                slotEl.classList.add('filled');
+                hideBankChip(slotEl.dataset.group, letter);
+                setSlotInput(slotEl);
+            }
+            function makeGhost(sourceEl, text) {
+                const ghost = document.createElement('div');
+                ghost.className = 'match-chip match-chip-ghost';
+                ghost.textContent = text;
+                ghost.style.position = 'fixed';
+                ghost.style.pointerEvents = 'none';
+                ghost.style.zIndex = 3000;
+                ghost.style.width = sourceEl.offsetWidth + 'px';
+                document.body.appendChild(ghost);
+                return ghost;
+            }
+            function moveGhost(x, y) {
+                if (!dragGhost) return;
+                dragGhost.style.left = (x - dragGhost.offsetWidth / 2) + 'px';
+                dragGhost.style.top = (y - dragGhost.offsetHeight / 2) + 'px';
+            }
+            function clearDragOverStyles() {
+                document.querySelectorAll('.match-slot.drag-over').forEach(s => s.classList.remove('drag-over'));
+            }
+            function cleanup() {
+                if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+                clearDragOverStyles();
+                dragSource = null;
+            }
+
+            document.addEventListener('pointerdown', e => {
+                const chip = e.target.closest('.match-chip');
+                const slot = e.target.closest('.match-slot');
+                if (chip && chip.style.display !== 'none') {
+                    dragSource = { letter: chip.dataset.letter, label: chip.textContent, group: chip.dataset.group, sourceSlot: null };
+                    dragGhost = makeGhost(chip, chip.textContent);
+                    moveGhost(e.clientX, e.clientY);
+                    e.preventDefault();
+                } else if (slot && slot.classList.contains('filled')) {
+                    dragSource = { letter: slot.dataset.letter, label: slot.textContent, group: slot.dataset.group, sourceSlot: slot };
+                    dragGhost = makeGhost(slot, slot.textContent);
+                    moveGhost(e.clientX, e.clientY);
+                    e.preventDefault();
+                }
+            }, { passive: false });
+
+            document.addEventListener('pointermove', e => {
+                if (!dragSource) return;
+                moveGhost(e.clientX, e.clientY);
+                clearDragOverStyles();
+                if (dragGhost) dragGhost.style.display = 'none';
+                const target = document.elementFromPoint(e.clientX, e.clientY);
+                if (dragGhost) dragGhost.style.display = '';
+                const slotUnder = target && target.closest && target.closest('.match-slot');
+                if (slotUnder && slotUnder.dataset.group === dragSource.group) slotUnder.classList.add('drag-over');
+            }, { passive: true });
+
+            document.addEventListener('pointerup', e => {
+                if (!dragSource) return;
+                if (dragGhost) dragGhost.style.display = 'none';
+                const target = document.elementFromPoint(e.clientX, e.clientY);
+                if (dragGhost) dragGhost.style.display = '';
+                const slotUnder = target && target.closest && target.closest('.match-slot');
+
+                if (slotUnder && slotUnder.dataset.group === dragSource.group && slotUnder !== dragSource.sourceSlot) {
+                    if (dragSource.sourceSlot) clearSlot(dragSource.sourceSlot);
+                    fillSlot(slotUnder, dragSource.letter, dragSource.label);
+                } else if (!slotUnder && dragSource.sourceSlot) {
+                    // dropped outside any slot -> send the chip back to the bank
+                    clearSlot(dragSource.sourceSlot);
+                }
+                // dropped back on its own slot, or a bank chip dropped nowhere valid: no-op
+
+                cleanup();
+            });
+
+            document.addEventListener('pointercancel', cleanup);
+
+            // Expose để module đồng bộ "Làm chung" (RTDB, xem cuối file) có thể di chuyển đúng chip
+            // kéo-thả khi áp lại đáp án của người khác — không chỉ set giá trị input ẩn.
+            window.fillSlot = fillSlot;
+            window.clearSlot = clearSlot;
+        })();
+
+        function gradePart(pNum) {
+            const [startQ, endQ] = passageRanges[pNum - 1];
+            const score = gradeQuestionRange(startQ, endQ);
+            const total = endQ - startQ + 1;
+            const btn = document.querySelector(`#part-grade-bar-${pNum} .part-grade-btn`);
+            if (btn) {
+                const original = btn.dataset.original || btn.innerText;
+                btn.dataset.original = original;
+                btn.innerText = `✅ Part ${pNum}: đúng ${score}/${total} câu`;
+                clearTimeout(btn._resetTimer);
+                btn._resetTimer = setTimeout(() => { btn.innerText = original; }, 5000);
+            }
+        }
+
+        // --- Application Logic ---
+        let appMode = 'practice'; // 'practice' or 'exam'
+        let currentPassage = 1;
+        let timerInterval;
+
+        // Nút "← Thoát": đóng hẳn tab/cửa sổ này luôn (giống bấm nút ✕ của trình duyệt) thay vì
+        // reload lại trang như trước. window.close() chỉ được trình duyệt cho phép khi tab này do
+        // 1 script khác mở ra (vd window.open() từ trang chủ khi bấm "Bài tập", hoặc mở từ Test
+        // Builder) — đúng với cách hầu hết học sinh mở trang này. Nếu trình duyệt CHẶN việc đóng
+        // (tab được gõ thẳng URL / mở từ dấu 3 chấm... không phải do script mở), fallback về lại
+        // trang trước đó (hoặc trang chủ nếu không có trang trước) để vẫn "thoát" ra được thay vì
+        // đứng yên không phản hồi gì.
+        function exitTest() {
+            if (timerInterval) clearInterval(timerInterval);
+            window.close();
+            setTimeout(function () {
+                if (!window.closed) {
+                    if (window.history.length > 1) window.history.back();
+                    else window.location.href = 'index.html';
+                }
+            }, 250);
+        }
+
+        function initNavCircles() {
+            for (let p = 1; p <= 3; p++) {
+                const [startQ, endQ] = passageRanges[p - 1];
+                let html = '';
+                for (let i = startQ; i <= endQ; i++) {
+                    html += `<div class="q-circle" id="nav-q${i}" onclick="scrollToQ(${i})">${i}</div>`;
+                }
+                document.getElementById(`q-nav-p${p}`).innerHTML = html;
+            }
+        }
+
+        function selectMode(mode) {
+            appMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`btn-${mode}`).classList.add('selected');
+            document.getElementById('passage-selector').style.display = mode === 'practice' ? 'block' : 'none';
+        }
+
+        // "Nâng cấp" các <span class="heading-gap"> tĩnh (do test-builder.html chèn sẵn ở đầu mỗi
+        // đoạn văn liên quan tới câu hỏi Matching Headings) thành match-slot thật — có thể kéo-thả
+        // được — rồi thêm input ẩn để gradeQuestionRange() chấm điểm y như mọi loại câu khác.
+        function initHeadingGapsInPassage() {
+            document.querySelectorAll('.heading-gap').forEach(gapEl => {
+                const qNum = gapEl.dataset.qnum;
+                const groupId = gapEl.dataset.group;
+                if (!qNum || !groupId) return;
+                gapEl.classList.add('match-slot');
+                gapEl.dataset.qnum = qNum;
+                gapEl.dataset.group = groupId;
+                gapEl.dataset.letter = '';
+                gapEl.id = 'slot-' + qNum;
+                gapEl.textContent = 'Kéo heading vào đây';
+                if (!document.getElementById('input-q' + qNum)) {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'q' + qNum;
+                    hidden.id = 'input-q' + qNum;
+                    hidden.value = '';
+                    gapEl.insertAdjacentElement('afterend', hidden);
+                }
+            });
+        }
+
+        function startTest() {
+            document.getElementById('setup-screen').style.display = 'none';
+            generateQuestionsHTML();
+            initHeadingGapsInPassage();
+            initNavCircles();
+            setupInputListeners();
+
+            // Exam mode: minimal white theme + single purple highlight colour, no
+            // per-part "chấm riêng" buttons (real exam only submits once at the end).
+            // Practice mode: original theme, full 4-colour highlight palette, and a
+            // per-part grade button on top of the shared "Nộp bài" button.
+            const isExam = appMode === 'exam';
+            document.body.classList.toggle('exam-mode', isExam);
+            document.querySelectorAll('.annot-color-practice').forEach(btn => btn.style.display = isExam ? 'none' : '');
+            document.querySelectorAll('.annot-color-exam').forEach(btn => btn.style.display = isExam ? '' : 'none');
+            document.querySelectorAll('.part-grade-bar').forEach(bar => bar.classList.toggle('visible', !isExam));
+
+            if (appMode === 'practice') {
+                let p = parseInt(document.getElementById('passage-dropdown').value);
+                document.getElementById('passage-tabs').style.display = 'flex';
+                switchPassage(p);
+            } else {
+                document.getElementById('passage-tabs').style.display = 'flex'; // allow manual nav in exam
+                switchPassage(1);
+                document.getElementById('timer-display').style.display = 'block';
+                startTimer(60 * 60); // Reading section is 60 minutes in the real IELTS exam
+            }
+        }
+
+        function switchPassage(pNum) {
+            currentPassage = pNum;
+            document.querySelectorAll('.tab-btn').forEach((btn, idx) => btn.classList.toggle('active', idx + 1 === pNum));
+            document.getElementById('current-passage-indicator').innerText = `PASSAGE ${pNum}`;
+
+            for(let i=1; i<=3; i++) {
+                document.getElementById(`q-nav-p${i}`).style.display = (i === pNum) ? 'flex' : 'none';
+                document.getElementById(`passage-${i}-text`).classList.toggle('active', i === pNum);
+                document.getElementById(`questions-p${i}`).classList.toggle('active', i === pNum);
+            }
+            document.querySelectorAll('.panel-content').forEach(p => p.scrollTop = 0);
+        }
+
+        function scrollToQ(qNum) {
+            const qEl = document.getElementById(`q-container-${qNum}`);
+            if(qEl) qEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // --- Draggable resizer between the passage panel and questions panel ---
+        (function initPanelResizer() {
+            const resizer = document.getElementById('panel-resizer');
+            const leftPanel = document.getElementById('panel-passage');
+            const container = document.getElementById('main-workspace');
+            if (!resizer || !leftPanel || !container) return;
+
+            let dragging = false;
+
+            function startDrag() {
+                dragging = true;
+                resizer.classList.add('dragging');
+                document.body.style.userSelect = 'none';
+            }
+            function doDrag(clientX) {
+                if (!dragging) return;
+                const rect = container.getBoundingClientRect();
+                let leftWidth = clientX - rect.left;
+                const min = 220;
+                const max = rect.width - 220 - resizer.offsetWidth;
+                leftWidth = Math.max(min, Math.min(max, leftWidth));
+                leftPanel.style.flex = 'none';
+                leftPanel.style.width = leftWidth + 'px';
+            }
+            function endDrag() {
+                dragging = false;
+                resizer.classList.remove('dragging');
+                document.body.style.userSelect = '';
+            }
+
+            resizer.addEventListener('mousedown', e => { startDrag(); e.preventDefault(); });
+            document.addEventListener('mousemove', e => doDrag(e.clientX));
+            document.addEventListener('mouseup', endDrag);
+
+            resizer.addEventListener('touchstart', () => { startDrag(); }, { passive: true });
+            document.addEventListener('touchmove', e => {
+                if (dragging) { doDrag(e.touches[0].clientX); e.preventDefault(); }
+            }, { passive: false });
+            document.addEventListener('touchend', endDrag);
+        })();
+
+        function setupInputListeners() {
+            document.addEventListener('input', e => {
+                if (e.target.name && e.target.name.startsWith('q')) {
+                    const qNum = e.target.name.substring(1);
+                    const circle = document.getElementById(`nav-q${qNum}`);
+                    if (!circle) return;
+
+                    let isAnswered = false;
+                    if (e.target.type === 'text') isAnswered = e.target.value.trim() !== '';
+                    if (e.target.type === 'radio') isAnswered = e.target.checked;
+                    // 'hidden' = ô đồng bộ của nhóm "Choose N of M" (genMulti); 'select-one' = dropdown
+                    // của Matching Headings / Matching Names-Claims (genLettered).
+                    if (e.target.type === 'hidden' || e.target.type === 'select-one') isAnswered = e.target.value.trim() !== '';
+
+                    circle.classList.toggle('answered', isAnswered);
+                }
+            });
+            // <select> chỉ tự bắn ra sự kiện 'change', không phải 'input' trên mọi trình duyệt —
+            // lắng thêm 'change' và tái dùng lại đúng logic ở trên cho chắc chắn nút tròn số câu
+            // hỏi luôn sáng lên khi học sinh đã chọn xong dropdown.
+            document.addEventListener('change', e => {
+                if (e.target.tagName === 'SELECT' && e.target.name && e.target.name.startsWith('q')) {
+                    const qNum = e.target.name.substring(1);
+                    const circle = document.getElementById(`nav-q${qNum}`);
+                    if (circle) circle.classList.toggle('answered', e.target.value.trim() !== '');
+                }
+            });
+        }
+
+        function startTimer(duration) {
+            let timer = duration;
+            const display = document.getElementById('timer-display');
+            timerInterval = setInterval(() => {
+                let m = parseInt(timer / 60, 10);
+                let s = parseInt(timer % 60, 10);
+                display.textContent = (m < 10 ? "0"+m : m) + ":" + (s < 10 ? "0"+s : s);
+                if (--timer < 0) { clearInterval(timerInterval); submitTest(); }
+            }, 1000);
+        }
+
+        // Grades questions [startQ, endQ] inclusive, writing feedback into each
+        // question's #fb-N box, and returns the number correct. Shared by the
+        // full "Nộp bài" submit and the per-part "Chấm riêng Part N" buttons.
+        // Night pipeline: chấm điền từ chấp nhận đáp án thay thế ("flavour / flavor"), phần trong ngoặc
+        // không bắt buộc ("(food) consumption"), bỏ qua dấu phẩy / khoảng trắng trong số ("1,000 kg" = "1000kg").
+        function nightAnsOk(u, c) {
+            const n = s => String(s || '').toUpperCase().replace(/[’‘]/g, "'").replace(/\s+/g, ' ').replace(/[.;:!?]+$/, '').trim();
+            u = n(u); if (!u) return false;
+            const tight = s => s.replace(/[\s,]/g, '');
+            return String(c || '').split(/\s*\/\s*|\s+OR\s+/i).some(a => {
+                return [a.replace(/\(([^)]*)\)/g, '$1'), a.replace(/\([^)]*\)/g, '')].some(v => { v = n(v); return v === u || tight(v) === tight(u); });
+            });
+        }
+        function gradeQuestionRange(startQ, endQ) {
+            let score = 0;
+            for (let i = startQ; i <= endQ; i++) {
+                let uAns = "";
+                const inputs = document.getElementsByName(`q${i}`);
+                if (inputs.length > 0) {
+                    if (inputs[0].type === 'radio') {
+                        inputs.forEach(r => { if(r.checked) uAns = r.value; });
+                    } else {
+                        uAns = inputs[0].value.trim().toUpperCase();
+                    }
+                }
+
+                const cAns = (testData[i].answer || '').toUpperCase();
+                const fbBox = document.getElementById(`fb-${i}`);
+
+                if (fbBox) {
+                    fbBox.style.display = 'block';
+                    fbBox.className = 'feedback-box'; // reset
+
+                    let isCorrect = nightAnsOk(uAns, cAns);
+
+                    if (isCorrect) {
+                        score++;
+                        fbBox.classList.add('correct');
+                        fbBox.innerHTML = `<strong>Đúng!</strong> Đáp án: ${testData[i].answer}`;
+                    } else {
+                        fbBox.classList.add('incorrect');
+                        fbBox.innerHTML = `<strong>Sai.</strong> Bạn chọn: <s style="color:#aaa">${uAns||'Trống'}</s> | Đáp án đúng: <strong style="color:var(--text-color)">${testData[i].answer}</strong>`;
+                    }
+
+                    // Add explanation and locate button
+                    fbBox.innerHTML += `<div class="explanation-text">${testData[i].exp}</div>`;
+                    if (testData[i].loc !== "") {
+                        fbBox.innerHTML += `<button class="show-loc-btn" onclick="highlightPassage('${testData[i].loc}')">🔍 Xem vị trí trong bài</button>`;
+                    }
+                }
+            }
+            return score;
+        }
+
+        function submitTest() {
+            if(timerInterval) clearInterval(timerInterval);
+
+            // Mặc định: chấm cả 3 passage/part cùng lúc (luyện tập tự do / thi thử), không chỉ
+            // passage tab đang mở. NHƯNG nếu đây là 1 bài tập được giao (IS_ASSIGNMENT_MODE) chỉ
+            // cho ĐÚNG 1 Passage, thì CHỈ chấm đúng Passage đó — để điểm hiển thị khớp với chính
+            // xác phần bài giáo viên đã giao, tránh gây hiểu nhầm "làm 1 đoạn nhưng điểm tính cả bài".
+            let startQ = 1, endQ = TOTAL_QUESTIONS;
+            if (IS_ASSIGNMENT_MODE && (ASSIGN_SCOPE === '1' || ASSIGN_SCOPE === '2' || ASSIGN_SCOPE === '3')) {
+                const range = passageRanges[parseInt(ASSIGN_SCOPE, 10) - 1];
+                if (range) { startQ = range[0]; endQ = range[1]; }
+            }
+            const total = endQ - startQ + 1;
+            const score = gradeQuestionRange(startQ, endQ);
+
+            // Show results
+            document.getElementById('score-correct').innerText = score;
+            document.getElementById('score-total').innerText = total;
+
+            // Show the estimated band score in both modes now that grading always
+            // covers all 3 passages.
+            document.getElementById('band-container').style.display = 'block';
+            const band = calculateBand(score);
+            document.getElementById('band-score').innerText = band;
+
+            saveProgressRecord(score, total, band);
+
+            // Khi đang nộp 1 bài tập được giao: hiện rõ banner "Đã nộp homework thành công" +
+            // đổi tiêu đề modal, để học sinh biết chắc chắn bài đã được ghi nhận (không chỉ là
+            // "xem điểm luyện tập" như bình thường).
+            const successBanner = document.getElementById('homework-success-banner');
+            const resultsTitle = document.getElementById('results-modal-title');
+            if (IS_ASSIGNMENT_MODE) {
+                if (successBanner) successBanner.style.display = 'block';
+                if (resultsTitle) resultsTitle.innerText = `Đã nộp homework thành công! (${assignmentScopeLabel()})`;
+            } else {
+                if (successBanner) successBanner.style.display = 'none';
+                if (resultsTitle) resultsTitle.innerText = 'Kết quả làm bài';
+            }
+
+            document.getElementById('results-modal').style.display = 'flex';
+        }
+
+        function calculateBand(s) {
+            const scaled = TOTAL_QUESTIONS > 0 ? Math.round(s * 40 / TOTAL_QUESTIONS) : s;
+            if (scaled>=39) return "9.0"; if (scaled>=37) return "8.5"; if (scaled>=35) return "8.0";
+            if (scaled>=33) return "7.5"; if (scaled>=30) return "7.0"; if (scaled>=27) return "6.5";
+            if (scaled>=23) return "6.0"; if (scaled>=19) return "5.5"; if (scaled>=15) return "5.0";
+            if (scaled>=13) return "4.5"; if (scaled>=10) return "4.0"; return "< 4.0";
+        }
+
+        // --- Shared progress/history log (read by the site's index page) ---
+        // Kept deliberately tiny per attempt and capped in count so it never
+        // eats meaningful localStorage space.
+        const PROGRESS_HISTORY_KEY = 'bseh_progress_history';
+        const PROGRESS_HISTORY_LIMIT = 40;
+
+        function saveProgressRecord(score, total, band) {
+            try {
+                let history = JSON.parse(localStorage.getItem(PROGRESS_HISTORY_KEY) || '[]');
+                history.unshift({
+                    t: document.title,                // test title
+                    u: location.pathname.split('/').pop(), // filename, so index.html can link back
+                    s: score,
+                    n: total,
+                    b: band,
+                    m: appMode,
+                    d: new Date().toLocaleDateString('vi-VN')
+                });
+                if (history.length > PROGRESS_HISTORY_LIMIT) history = history.slice(0, PROGRESS_HISTORY_LIMIT);
+                localStorage.setItem(PROGRESS_HISTORY_KEY, JSON.stringify(history));
+            } catch (e) { /* localStorage unavailable or full - fail silently, non-critical */ }
+        }
+
+        function closeResultsAndReview() {
+            document.getElementById('results-modal').style.display = 'none';
+            document.getElementById('main-submit-btn').style.display = 'none';
+        }
+
+        let currentHighlight = null;
+        function highlightPassage(locId) {
+            if(currentHighlight) currentHighlight.classList.remove('explanation-highlight');
+
+            const span = document.getElementById(locId);
+            if (span) {
+                span.classList.add('explanation-highlight');
+                currentHighlight = span;
+
+                // Determine which passage this belongs to based on DOM hierarchy
+                let pWrapper = span.closest('.content-wrapper');
+                if (pWrapper) {
+                    let pId = pWrapper.id;
+                    if(pId.includes('1') && currentPassage !== 1) switchPassage(1);
+                    if(pId.includes('2') && currentPassage !== 2) switchPassage(2);
+                    if(pId.includes('3') && currentPassage !== 3) switchPassage(3);
+                }
+
+                span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // --- Annotation Toolbar (highlight / underline / strikethrough / eraser / note) ---
+        const annotToolbar = document.getElementById('annot-toolbar');
+        const transBox = document.getElementById('trans-box');
+        const noteInputBox = document.getElementById('note-input-box');
+        const noteInputField = document.getElementById('note-input-field');
+        let selectedTextStr = "";
+        let savedRange = null;
+        let currentTranslation = null;
+        let noteInputOpen = false;
+
+        // Keep text selection alive while clicking toolbar buttons
+        annotToolbar.addEventListener('mousedown', e => e.preventDefault());
+        noteInputBox.addEventListener('mousedown', e => e.preventDefault());
+
+        const isCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+
+        function positionFloatingBox(boxEl, rect) {
+            // On touch devices (iPad etc.) place the box BELOW the selection so it
+            // doesn't collide/overlap with the OS's own native selection toolbar (which
+            // pops up above the selection).
+            boxEl.style.visibility = 'hidden';
+            boxEl.style.display = 'flex';
+            const tbWidth = boxEl.offsetWidth || 220;
+            const top = isCoarsePointer
+                ? (rect.bottom + window.scrollY + 14)
+                : (rect.top + window.scrollY - 48);
+            let left = rect.left + window.scrollX + (rect.width / 2) - (tbWidth / 2);
+            left = Math.max(10, Math.min(left, window.scrollX + window.innerWidth - tbWidth - 10));
+            boxEl.style.top = top + 'px';
+            boxEl.style.left = left + 'px';
+            boxEl.style.visibility = 'visible';
+        }
+
+        function positionToolbar(rect) { positionFloatingBox(annotToolbar, rect); }
+
+        function handleSelectionUI(e) {
+            // Don't trigger if clicking inside the toolbar, note-input popup, or translation box itself
+            if (e && (transBox.contains(e.target) || annotToolbar.contains(e.target) || noteInputBox.contains(e.target))) return;
+            if (noteInputOpen) return; // đang gõ dở note thì không xử lý lại theo selection nữa
+
+            const selection = window.getSelection();
+            const text = selection.toString().trim();
+
+            if (text.length > 0 && selection.rangeCount > 0 && text.split(/\s+/).length < 50) {
+                const anchorNode = selection.anchorNode;
+                const anchorEl = anchorNode && (anchorNode.nodeType === 3 ? anchorNode.parentNode : anchorNode);
+                const workspace = document.getElementById('main-workspace');
+                if (!anchorEl || !workspace.contains(anchorEl)) return;
+
+                savedRange = selection.getRangeAt(0).cloneRange();
+                selectedTextStr = text;
+
+                const rect = savedRange.getBoundingClientRect();
+                if (rect.width === 0 && rect.height === 0) return; // selection geometry not painted yet
+                positionToolbar(rect);
+                annotToolbar.style.display = 'flex';
+                transBox.style.display = 'none'; // hide translation box if making a new selection
+                noteInputBox.style.display = 'none'; noteInputOpen = false; // hide note popup too
+            } else {
+                annotToolbar.style.display = 'none';
+                if (!(e && transBox.contains(e.target))) transBox.style.display = 'none';
+            }
+        }
+
+        document.getElementById('main-workspace').addEventListener('mouseup', handleSelectionUI);
+
+        // iOS/iPad (and other touch/stylus devices) frequently don't fire a usable
+        // 'mouseup' after a native text-selection gesture, so 'selectionchange'
+        // (debounced) is used as a more reliable, cross-platform fallback.
+        let selectionDebounceTimer = null;
+        document.addEventListener('selectionchange', function() {
+            clearTimeout(selectionDebounceTimer);
+            selectionDebounceTimer = setTimeout(() => handleSelectionUI(null), 220);
+        });
+
+        // Touch: dismiss the toolbar when tapping empty space with no active selection
+        document.addEventListener('touchstart', function(e) {
+            if (!annotToolbar.contains(e.target) && !transBox.contains(e.target) && !noteInputBox.contains(e.target) && !noteDeleteBox.contains(e.target)) {
+                const sel = window.getSelection();
+                if (!sel || sel.toString().trim() === '') {
+                    annotToolbar.style.display = 'none';
+                    if (!noteInputOpen) noteInputBox.style.display = 'none';
+                    if (!findNoteAtClick(e.target)) hideNoteDeleteBox();
+                }
+            }
+        }, { passive: true });
+
+        // --- Robust multi-node wrap/erase so annotations survive selections that
+        //     span multiple paragraphs or existing <span id="loc-..."> markers ---
+        // Trả về mảng các phần tử wrapper vừa tạo (theo đúng thứ tự trong văn bản) — dùng để, vd, chèn
+        // thêm 1 note ngay sau phần tử CUỐI CÙNG khi vùng chọn note trải dài qua nhiều đoạn/node.
+        function wrapRangeNodes(range, makeWrapper) {
+            if (!range || range.collapsed) return [];
+            const root = range.commonAncestorContainer;
+            const walker = document.createTreeWalker(
+                root.nodeType === 3 ? root.parentNode : root,
+                NodeFilter.SHOW_TEXT,
+                null
+            );
+            const nodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                if (range.intersectsNode(node) && node.nodeValue.trim() !== '') nodes.push(node);
+            }
+            const wrappers = [];
+            nodes.forEach(textNode => {
+                const nodeRange = document.createRange();
+                nodeRange.selectNodeContents(textNode);
+                if (textNode === range.startContainer) nodeRange.setStart(textNode, range.startOffset);
+                if (textNode === range.endContainer) nodeRange.setEnd(textNode, range.endOffset);
+                if (nodeRange.collapsed) return;
+                try {
+                    const wrapper = makeWrapper();
+                    nodeRange.surroundContents(wrapper);
+                    wrappers.push(wrapper);
+                } catch (err) { /* skip nodes that can't be safely wrapped */ }
+            });
+            return wrappers;
+        }
+
+        function applyHighlight(range, color, textColor) {
+            return wrapRangeNodes(range, () => {
+                const span = document.createElement('span');
+                span.className = 'user-annotation user-highlight';
+                span.style.backgroundColor = color;
+                // Dark highlight colors (e.g. exam mode's maroon/wine) need white text
+                // on top to stay readable; pastel practice colors leave text untouched.
+                if (textColor) span.style.color = textColor;
+                return span;
+            });
+        }
+
+        function applyUnderline(range) {
+            return wrapRangeNodes(range, () => {
+                const span = document.createElement('span');
+                span.className = 'user-annotation';
+                span.style.textDecoration = 'underline';
+                span.style.textDecorationColor = '#1a73e8';
+                span.style.textDecorationThickness = '2px';
+                return span;
+            });
+        }
+
+        function applyStrike(range) {
+            return wrapRangeNodes(range, () => {
+                const span = document.createElement('span');
+                span.className = 'user-annotation';
+                span.style.textDecoration = 'line-through';
+                span.style.textDecorationColor = '#f44336';
+                return span;
+            });
+        }
+
+        function eraseAnnotations(range) {
+            if (!range) return [];
+            const removedIds = [];
+            document.querySelectorAll('.user-annotation').forEach(el => {
+                if (range.intersectsNode(el)) {
+                    if (el.dataset && el.dataset.annotId) removedIds.push(el.dataset.annotId);
+                    unwrapElement(el);
+                }
+            });
+            return removedIds;
+        }
+
+        function unwrapElement(el) {
+            const parent = el.parentNode;
+            if (!parent) return;
+            while (el.firstChild) parent.insertBefore(el.firstChild, el);
+            parent.removeChild(el);
+            parent.normalize();
+        }
+
+        // --- Character-offset helpers + hooks dùng để đồng bộ highlight/gạch chân/gạch ngang/note
+        //     theo thời gian thực cho tính năng "Làm chung" (xem <script type="module"> ở cuối file).
+        //     Vị trí annotation được lưu dạng offset ký tự trong TOÀN BỘ text của #passage-N-text
+        //     (tính bằng TreeWalker(SHOW_TEXT)) thay vì lưu trực tiếp DOM Range — vì Range không thể
+        //     gửi qua mạng, còn offset ký tự thì ổn định bất kể có bao nhiêu span/wrapper khác đã bọc
+        //     quanh đoạn văn (bọc span không làm thay đổi độ dài text). window.__onAnnotCreate/
+        //     __onAnnotRemove do module đồng bộ gán vào — nếu module đó chưa chạy (vd mất mạng) thì
+        //     các hàm dưới đây chỉ đơn giản không làm gì thêm, tính năng ghi chú/tô màu vẫn hoạt động
+        //     bình thường như cũ. ---
+        let __annotSeq = 0;
+        function __newAnnotId() {
+            return 'a' + Date.now().toString(36) + '_' + (__annotSeq++).toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        }
+        function findPassageContainer(node) {
+            let el = node && node.nodeType === 3 ? node.parentElement : node;
+            while (el && el !== document.body) {
+                if (el.id && /^passage-\d-text$/.test(el.id)) return el;
+                el = el.parentElement;
+            }
+            return null;
+        }
+        function getTextOffsets(container, range) {
+            const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+            let offset = 0, start = -1, end = -1, node;
+            while (node = walker.nextNode()) {
+                const len = node.nodeValue.length;
+                if (start === -1 && node === range.startContainer) start = offset + range.startOffset;
+                if (node === range.endContainer) end = offset + range.endOffset;
+                offset += len;
+            }
+            if (start === -1 || end === -1) return null;
+            return { start, end };
+        }
+        function rangeFromTextOffsets(container, start, end) {
+            const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+            let offset = 0, node, range = document.createRange(), startSet = false, endSet = false;
+            while (node = walker.nextNode()) {
+                const len = node.nodeValue.length;
+                if (!startSet && offset + len >= start) { range.setStart(node, Math.max(0, start - offset)); startSet = true; }
+                if (!endSet && offset + len >= end) { range.setEnd(node, Math.max(0, end - offset)); endSet = true; break; }
+                offset += len;
+            }
+            if (!startSet || !endSet) return null;
+            return range;
+        }
+        function __captureAnnotContext(range) {
+            if (!range) return null;
+            const container = findPassageContainer(range.commonAncestorContainer);
+            if (!container) return null;
+            const offsets = getTextOffsets(container, range);
+            if (!offsets) return null;
+            return { passageId: container.id, start: offsets.start, end: offsets.end };
+        }
+        function __finishAnnotCreate(info, wrappers, type, extra) {
+            if (!info || !wrappers || !wrappers.length) return;
+            const annotId = __newAnnotId();
+            wrappers.forEach(w => { w.dataset.annotId = annotId; });
+            if (typeof window.__onAnnotCreate === 'function') {
+                try { window.__onAnnotCreate(annotId, type, info.passageId, info.start, info.end, extra === undefined ? null : extra); } catch (e) {}
+            }
+        }
+        // Áp lại (từ RTDB) 1 annotation do người khác vừa tạo — dùng lại chính applyHighlight/
+        // applyUnderline/applyStrike ở trên nên style ra y hệt annotation tạo tại chỗ.
+        window.__replayAnnotCreate = function (annotId, type, passageId, start, end, extra) {
+            if (document.querySelector('[data-annot-id="' + annotId + '"]')) return; // đã có (vd chính client này vừa tạo) -> bỏ qua
+            const container = document.getElementById(passageId);
+            if (!container) return;
+            const range = rangeFromTextOffsets(container, start, end);
+            if (!range) return;
+            let wrappers = [];
+            if (type === 'highlight') wrappers = applyHighlight(range, extra && extra.color, extra && extra.textColor) || [];
+            else if (type === 'underline') wrappers = applyUnderline(range) || [];
+            else if (type === 'strike') wrappers = applyStrike(range) || [];
+            else if (type === 'note') {
+                wrappers = wrapRangeNodes(range, () => {
+                    const b = document.createElement('b');
+                    b.className = 'user-annotation user-note-phrase';
+                    return b;
+                });
+                if (wrappers.length) {
+                    const noteSpan = document.createElement('span');
+                    noteSpan.className = 'user-annotation reading-note';
+                    noteSpan.textContent = ' [' + extra + ']';
+                    const last = wrappers[wrappers.length - 1];
+                    last.parentNode.insertBefore(noteSpan, last.nextSibling);
+                    wrappers = wrappers.concat([noteSpan]);
+                }
+            }
+            wrappers.forEach(w => { w.dataset.annotId = annotId; });
+        };
+        window.__replayAnnotRemove = function (annotId) {
+            document.querySelectorAll('[data-annot-id="' + annotId + '"]').forEach(el => unwrapElement(el));
+        };
+
+        function cleanupAfterAnnotate() {
+            annotToolbar.style.display = 'none';
+            window.getSelection().removeAllRanges();
+            savedRange = null;
+        }
+
+        document.querySelectorAll('.annot-color').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const info = __captureAnnotContext(savedRange);
+                const wrappers = applyHighlight(savedRange, btn.dataset.color, btn.dataset.textColor || null);
+                __finishAnnotCreate(info, wrappers, 'highlight', { color: btn.dataset.color, textColor: btn.dataset.textColor || null });
+                cleanupAfterAnnotate();
+            });
+        });
+        document.getElementById('annot-underline').addEventListener('click', () => {
+            const info = __captureAnnotContext(savedRange);
+            const wrappers = applyUnderline(savedRange);
+            __finishAnnotCreate(info, wrappers, 'underline');
+            cleanupAfterAnnotate();
+        });
+        document.getElementById('annot-strike').addEventListener('click', () => {
+            const info = __captureAnnotContext(savedRange);
+            const wrappers = applyStrike(savedRange);
+            __finishAnnotCreate(info, wrappers, 'strike');
+            cleanupAfterAnnotate();
+        });
+        document.getElementById('annot-erase').addEventListener('click', () => {
+            const removedIds = eraseAnnotations(savedRange);
+            if (typeof window.__onAnnotRemove === 'function') {
+                removedIds.forEach(id => { try { window.__onAnnotRemove(id); } catch (e) {} });
+            }
+            cleanupAfterAnnotate();
+        });
+
+        // --- Note popup: bấm "📝 Note" trên thanh nổi -> ẩn thanh nổi, hiện ô nhập note ngay tại
+        //     đúng vị trí đó -> Enter/nút ✓ để xác nhận, Esc/nút ✕ để huỷ.
+        //     QUAN TRỌNG: bấm vào ô nhập (input) sẽ làm trình duyệt tự huỷ vùng bôi đen xanh mặc định,
+        //     nên NGAY khi mở ô nhập, đoạn chữ vừa chọn được bọc tạm trong 1 lớp highlight vàng
+        //     (.note-pending-highlight) để người dùng vẫn thấy rõ mình đang note cho đúng đoạn nào.
+        //     Xác nhận thì lớp tạm này được "chốt" thành in đậm + note đỏ; Huỷ thì gỡ ra, trả nguyên
+        //     trạng đoạn chữ. ---
+        let pendingNoteWrappers = [];
+        let pendingNoteAnnotInfo = null;
+
+        document.getElementById('annot-note-btn').addEventListener('click', () => {
+            if (!savedRange) return;
+            pendingNoteAnnotInfo = __captureAnnotContext(savedRange);
+            const wrappers = wrapRangeNodes(savedRange, () => {
+                const span = document.createElement('span');
+                span.className = 'note-pending-highlight';
+                return span;
+            });
+            if (wrappers.length === 0) {
+                alert('Không thể thêm note vào đúng đoạn đã chọn (có thể vùng chọn đè lên định dạng khác). Vui lòng bôi đen lại 1 đoạn chữ khác rồi thử lại.');
+                cleanupAfterAnnotate();
+                return;
+            }
+            pendingNoteWrappers = wrappers;
+            const rect = wrappers[0].getBoundingClientRect();
+            annotToolbar.style.display = 'none';
+            noteInputOpen = true;
+            noteInputField.value = '';
+            positionFloatingBox(noteInputBox, rect);
+            noteInputField.focus();
+        });
+
+        function closeNoteInput(clearSelection) {
+            noteInputBox.style.display = 'none';
+            noteInputOpen = false;
+            if (clearSelection) {
+                window.getSelection().removeAllRanges();
+                savedRange = null;
+            }
+        }
+
+        function confirmNoteInput() {
+            const noteText = noteInputField.value.trim();
+            if (!noteText) { noteInputField.focus(); return; }
+            // "Chốt" từng đoạn highlight tạm thành <b> thật (giữ nguyên text bên trong, chỉ đổi span -> b).
+            const finalWrappers = pendingNoteWrappers.map(span => {
+                const b = document.createElement('b');
+                b.className = 'user-annotation user-note-phrase';
+                while (span.firstChild) b.appendChild(span.firstChild);
+                span.parentNode.replaceChild(b, span);
+                return b;
+            });
+            pendingNoteWrappers = [];
+            const lastWrapper = finalWrappers[finalWrappers.length - 1];
+            // Dùng lại đúng class .reading-note mà công cụ soạn đề dùng cho note giáo viên soạn sẵn lúc
+            // build, nên style giống hệt nhau. Cả phần in đậm lẫn phần note đều mang "user-annotation"
+            // nên nút "🧹 Xóa định dạng" vẫn xoá được, và bấm trực tiếp vào note cũng xoá được riêng nó
+            // (xem trình xử lý click "Xóa note" bên dưới).
+            const noteSpan = document.createElement('span');
+            noteSpan.className = 'user-annotation reading-note';
+            noteSpan.textContent = ` [${noteText}]`;
+            lastWrapper.parentNode.insertBefore(noteSpan, lastWrapper.nextSibling);
+
+            if (pendingNoteAnnotInfo) {
+                const annotId = __newAnnotId();
+                finalWrappers.forEach(w => { w.dataset.annotId = annotId; });
+                noteSpan.dataset.annotId = annotId;
+                if (typeof window.__onAnnotCreate === 'function') {
+                    try { window.__onAnnotCreate(annotId, 'note', pendingNoteAnnotInfo.passageId, pendingNoteAnnotInfo.start, pendingNoteAnnotInfo.end, noteText); } catch (e) {}
+                }
+            }
+            pendingNoteAnnotInfo = null;
+            closeNoteInput(true);
+        }
+
+        function cancelNoteInput() {
+            // Gỡ lớp highlight tạm, trả đoạn chữ về nguyên trạng ban đầu (chưa note gì cả).
+            pendingNoteWrappers.forEach(span => unwrapElement(span));
+            pendingNoteWrappers = [];
+            pendingNoteAnnotInfo = null;
+            closeNoteInput(true);
+        }
+
+        document.getElementById('note-input-ok').addEventListener('click', confirmNoteInput);
+        document.getElementById('note-input-cancel').addEventListener('click', cancelNoteInput);
+        noteInputField.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); confirmNoteInput(); }
+            else if (e.key === 'Escape') { e.preventDefault(); cancelNoteInput(); }
+        });
+
+        // --- Xoá 1 note đã thêm: bấm trực tiếp vào note đó (chữ in đậm hoặc phần [note] đỏ ngay sau)
+        //     -> hiện 1 nút nhỏ nổi lên "🗑 Xóa note" ngay phía trên -> bấm để xoá riêng note đó, không
+        //     cần bôi đen lại rồi dùng "🧹 Xóa định dạng" như trước. Áp dụng cho MỌI note đang hiển thị,
+        //     kể cả note giáo viên soạn sẵn lúc build đề (cú pháp {{đoạn chữ|note}}) — vì đây chỉ là xoá
+        //     tạm trên máy người đang xem lúc đó, tải lại trang là note gốc hiện lại bình thường. ---
+        const noteDeleteBox = document.getElementById('note-delete-box');
+        const noteDeleteBtn = document.getElementById('note-delete-btn');
+        noteDeleteBox.addEventListener('mousedown', e => e.preventDefault());
+        let noteDeleteTarget = null;
+
+        function hideNoteDeleteBox() {
+            noteDeleteBox.style.display = 'none';
+            noteDeleteTarget = null;
+        }
+
+        function findNoteAtClick(target) {
+            let noteSpan = target.closest ? target.closest('.reading-note') : null;
+            let bold = target.closest ? target.closest('b') : null;
+            if (bold && !noteSpan) {
+                const next = bold.nextElementSibling;
+                if (next && next.classList && next.classList.contains('reading-note')) noteSpan = next;
+                else bold = null; // <b> này không liền kề note nào -> không phải note, bỏ qua
+            }
+            if (noteSpan && !bold) {
+                const prev = noteSpan.previousElementSibling;
+                if (prev && prev.tagName === 'B') bold = prev;
+            }
+            return noteSpan ? { bold, noteSpan } : null;
+        }
+
+        document.getElementById('main-workspace').addEventListener('click', (e) => {
+            if (annotToolbar.contains(e.target) || noteInputBox.contains(e.target) || transBox.contains(e.target) || noteDeleteBox.contains(e.target)) return;
+            // Đang có vùng bôi đen (vừa kéo chọn chữ) thì ưu tiên luồng thêm định dạng/note mới, không
+            // xử lý theo hướng "xoá note" nữa.
+            const sel = window.getSelection();
+            if (sel && sel.toString().trim().length > 0) { hideNoteDeleteBox(); return; }
+
+            const found = findNoteAtClick(e.target);
+            if (!found) { hideNoteDeleteBox(); return; }
+            noteDeleteTarget = found;
+            const rect = found.noteSpan.getBoundingClientRect();
+            positionFloatingBox(noteDeleteBox, rect);
+        });
+
+        noteDeleteBtn.addEventListener('click', () => {
+            if (!noteDeleteTarget) return;
+            const { bold, noteSpan } = noteDeleteTarget;
+            const annotId = (noteSpan && noteSpan.dataset && noteSpan.dataset.annotId) || (bold && bold.dataset && bold.dataset.annotId) || null;
+            if (noteSpan && noteSpan.parentNode) noteSpan.parentNode.removeChild(noteSpan);
+            if (bold) unwrapElement(bold);
+            hideNoteDeleteBox();
+            if (annotId && typeof window.__onAnnotRemove === 'function') {
+                try { window.__onAnnotRemove(annotId); } catch (e) {}
+            }
+        });
+
+        // --- Translation (real free API: Google Translate unofficial endpoint,
+        //     falling back to MyMemory if the first one fails/blocked) ---
+        document.getElementById('annot-translate-btn').addEventListener('click', () => {
+            if (!savedRange) return;
+            const rect = savedRange.getBoundingClientRect();
+            annotToolbar.style.display = 'none';
+            showTranslationBox(selectedTextStr, rect);
+        });
+
+        async function fetchTranslation(text) {
+            try {
+                const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=vi&dt=t&q=${encodeURIComponent(text)}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Google Translate request failed');
+                const data = await res.json();
+                const translated = data[0].map(chunk => chunk[0]).join('');
+                if (translated) return translated;
+                throw new Error('Empty result');
+            } catch (err) {
+                console.warn('Google Translate lỗi, thử MyMemory...', err);
+            }
+            try {
+                const url2 = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|vi`;
+                const res2 = await fetch(url2);
+                const data2 = await res2.json();
+                if (data2 && data2.responseData && data2.responseData.translatedText) {
+                    return data2.responseData.translatedText;
+                }
+                throw new Error('MyMemory trả về rỗng');
+            } catch (err2) {
+                console.error('Tất cả API dịch đều lỗi', err2);
+                return null;
+            }
+        }
+
+        async function showTranslationBox(text, rect) {
+            document.getElementById('trans-original').innerText = text;
+            const resultEl = document.getElementById('trans-result');
+            resultEl.innerText = 'Đang dịch...';
+            resultEl.style.opacity = '0.6';
+            currentTranslation = null;
+
+            transBox.style.top = (rect.bottom + window.scrollY + 10) + 'px';
+            transBox.style.left = (rect.left + window.scrollX) + 'px';
+            transBox.style.display = 'block';
+
+            requestAnimationFrame(() => {
+                const boxRect = transBox.getBoundingClientRect();
+                if (boxRect.right > window.innerWidth) {
+                    transBox.style.left = Math.max(10, window.innerWidth - boxRect.width - 20 + window.scrollX) + 'px';
+                }
+            });
+
+            const translated = await fetchTranslation(text);
+            resultEl.style.opacity = '1';
+            if (translated) {
+                resultEl.innerText = translated;
+                currentTranslation = translated;
+            } else {
+                resultEl.innerHTML = 'Không thể dịch lúc này.<br><span style="font-size:12px;color:#999;">(Kiểm tra kết nối mạng)</span>';
+            }
+        }
+
+        function closeTranslation() {
+            transBox.style.display = 'none';
+            window.getSelection().removeAllRanges();
+            savedRange = null;
+        }
+
+        // Text-to-Speech
+        document.getElementById('tts-play').addEventListener('click', function() {
+            if ('speechSynthesis' in window && selectedTextStr) {
+                window.speechSynthesis.cancel(); // stop current
+                let msg = new SpeechSynthesisUtterance(selectedTextStr);
+                msg.lang = 'en-US';
+                window.speechSynthesis.speak(msg);
+            } else {
+                alert("Trình duyệt không hỗ trợ đọc Text-to-Speech.");
+            }
+        });
+
+        // --- Vocabulary Notebook (saved locally in this browser) ---
+        const VOCAB_LIMIT = 300;
+
+        document.getElementById('save-vocab-btn').addEventListener('click', () => {
+            if (!selectedTextStr || !currentTranslation) return;
+            const result = saveToVocabBook(selectedTextStr, currentTranslation);
+            const btn = document.getElementById('save-vocab-btn');
+            const original = btn.innerText;
+            if (result === 'full') {
+                alert(`Sổ từ vựng đã đầy (tối đa ${VOCAB_LIMIT} từ). Hãy xoá bớt từ cũ trong "My Words" trước khi lưu thêm.`);
+                return;
+            }
+            btn.innerText = result === 'duplicate' ? '✓ Đã có sẵn' : '✅ Đã lưu!';
+            setTimeout(() => { btn.innerText = original; }, 1500);
+            // Đồng bộ thêm 1 bản lên Firestore (collection savedWords) để từ này cũng hiện trong
+            // "My Words" ở trang chủ — xem được trên MỌI thiết bị, không chỉ trình duyệt này, và
+            // tự hết hạn sau 3 tháng. Sổ từ vựng cục bộ (localStorage) ở trên vẫn giữ nguyên như
+            // cũ, không đổi gì — đây chỉ là lưu THÊM, không thay thế.
+            if (result !== 'full') syncWordToMyWords(selectedTextStr, currentTranslation);
+        });
+
+        // Lazy-load Firebase Auth + Firestore (chỉ khi học sinh thực sự bấm lưu từ, đỡ phải tải
+        // Firebase cho MỌI lượt mở đề Reading, kể cả lúc không dùng đến tính năng này). Dùng
+        // CHUNG firebaseConfig với index.html/writing.html (project "night-ielts-land"), và nhờ
+        // Firebase Auth tự lưu phiên đăng nhập theo gốc site (origin) nên nếu học sinh đã đăng
+        // nhập ở trang chủ thì mở đề Reading (kể cả luyện tự do, không qua bài giao) vẫn nhận
+        // diện được đúng học sinh đó — không cần đăng nhập lại lần 2 ở đây.
+        let __myWordsFirebasePromise = null;
+        function loadMyWordsFirebase() {
+            if (!__myWordsFirebasePromise) {
+                __myWordsFirebasePromise = Promise.all([
+                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'),
+                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+                ]).then(function (mods) {
+                    var FB_CONFIG = {
+                        apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                        authDomain: "night-ielts-land.firebaseapp.com",
+                        databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+                        projectId: "night-ielts-land",
+                        storageBucket: "night-ielts-land.firebasestorage.app",
+                        messagingSenderId: "408519436407",
+                        appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+                        measurementId: "G-H3P14NJR76"
+                    };
+                    var appMod = mods[0], authMod = mods[1], fsMod = mods[2];
+                    var app = appMod.initializeApp(FB_CONFIG, 'night-ielts-mywords-' + Date.now());
+                    var auth = authMod.getAuth(app);
+                    var db = fsMod.getFirestore(app);
+                    return { authMod: authMod, fsMod: fsMod, auth: auth, db: db };
+                });
+            }
+            return __myWordsFirebasePromise;
+        }
+
+        var SAVED_WORD_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 3 tháng, giống hệt index.html
+
+        function syncWordToMyWords(word, meaning) {
+            loadMyWordsFirebase().then(function (fb) {
+                // onAuthStateChanged luôn gọi callback ngay lần đầu (dù có hay không có user) nên
+                // dùng 1 lần rồi tự huỷ đăng ký, không cần giữ subscription sống lâu dài.
+                var unsub = fb.authMod.onAuthStateChanged(fb.auth, function (user) {
+                    unsub();
+                    if (!user) return; // chưa đăng nhập ở trang chủ -> chỉ lưu local, bỏ qua Firestore
+                    var now = Date.now();
+                    fb.fsMod.addDoc(fb.fsMod.collection(fb.db, 'savedWords'), {
+                        studentId: user.uid,
+                        word: word,
+                        meaning: meaning,
+                        sourceTitle: document.title || '',
+                        savedAt: now,
+                        expiresAt: now + SAVED_WORD_TTL_MS
+                    }).catch(function (e) { console.warn('Night IELTS: không lưu được từ vào My Words', e); });
+                });
+            }).catch(function (e) { console.warn('Night IELTS: không tải được Firebase cho My Words', e); });
+        }
+
+        function getVocabBook() {
+            try {
+                return JSON.parse(localStorage.getItem('ielts_vocab_book') || '[]');
+            } catch (e) { return []; }
+        }
+
+        // Returns 'saved' | 'duplicate' | 'full'
+        function saveToVocabBook(en, vi) {
+            let book = getVocabBook();
+            if (book.some(item => item.en.toLowerCase() === en.toLowerCase())) return 'duplicate'; // avoid duplicates
+            if (book.length >= VOCAB_LIMIT) return 'full'; // must delete old words before saving new ones
+            book.unshift({ en, vi, date: new Date().toLocaleDateString('vi-VN') });
+            localStorage.setItem('ielts_vocab_book', JSON.stringify(book));
+            updateVocabCount();
+            return 'saved';
+        }
+
+        function removeVocab(idx) {
+            let book = getVocabBook();
+            book.splice(idx, 1);
+            localStorage.setItem('ielts_vocab_book', JSON.stringify(book));
+            updateVocabCount();
+            renderVocabList();
+        }
+
+        function updateVocabCount() {
+            const el = document.getElementById('vocab-count');
+            if (el) {
+                const n = getVocabBook().length;
+                el.innerText = n >= VOCAB_LIMIT ? `${n}/${VOCAB_LIMIT}` : n;
+            }
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function renderVocabList() {
+            const book = getVocabBook();
+            const listEl = document.getElementById('vocab-list');
+            if (book.length === 0) {
+                listEl.innerHTML = '<p style="color:#888;">Chưa có từ nào được lưu. Hãy bôi đen một từ trong bài đọc, bấm 🌐 Dịch rồi Lưu vào Sổ!</p>';
+                return;
+            }
+            listEl.innerHTML = book.map((item, idx) => `
+                <div class="vocab-item">
+                    <div>
+                        <div class="vocab-en">${escapeHtml(item.en)}</div>
+                        <div class="vocab-vi">${escapeHtml(item.vi)}</div>
+                        <div class="vocab-date">${escapeHtml(item.date)}</div>
+                    </div>
+                    <button class="vocab-del-btn" onclick="removeVocab(${idx})" title="Xóa">🗑️</button>
+                </div>
+            `).join('');
+        }
+
+        function openVocabBook() {
+            renderVocabList();
+            document.getElementById('vocab-modal').style.display = 'flex';
+        }
+
+        function closeVocabBook() {
+            document.getElementById('vocab-modal').style.display = 'none';
+        }
+
+        updateVocabCount();
+
+    </script>
+
+    <!-- ============ BÁO CÁO KẾT QUẢ VỀ FIRESTORE (chỉ chạy khi bài test này được mở từ 1 bài
+         tập được giao qua "Bài tập" trên trang chủ — tức URL có ?assignmentId=). Tách riêng thành
+         1 <script type="module"> độc lập, KHÔNG đụng vào script chính ở trên, để không phải gắn
+         lại hàng loạt hàm lên window. Script này chỉ đọc kết quả grading có sẵn (submitTest()) rồi
+         cập nhật THẲNG vào đúng document assignments/{assignmentId} — CÙNG 1 collection mà trang
+         chủ (index.html) dùng để hiện "Bài Tập Được Giao" và mục Tiến Độ Học Sinh cho giáo viên,
+         thay vì 1 collection "submissions" riêng mà trang chủ không biết đọc. -->
+    <script type="module">
+        (function () {
+            var params = new URLSearchParams(location.search);
+            var assignmentId = params.get('assignmentId');
+            var scope = params.get('scope') || 'all';
+            if (!assignmentId) return; // mở bài test bình thường (không phải bài được giao) -> bỏ qua
+
+            // PHẢI giống hệt khối firebaseConfig trong index.html / các công cụ khác của Night
+            // IELTS (project "night-ielts-land") — nếu không kết quả sẽ ghi nhầm project, giáo
+            // viên sẽ không bao giờ thấy được.
+            var FB_CONFIG = {
+                apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                authDomain: "night-ielts-land.firebaseapp.com",
+                databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+                projectId: "night-ielts-land",
+                storageBucket: "night-ielts-land.firebasestorage.app",
+                messagingSenderId: "408519436407",
+                appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+                measurementId: "G-H3P14NJR76"
+            };
+
+            Promise.all([
+                import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+            ]).then(function (mods) {
+                var appMod = mods[0], fsMod = mods[1];
+                var app = appMod.initializeApp(FB_CONFIG, 'night-ielts-reading-report-' + Date.now());
+                var db = fsMod.getFirestore(app);
+                var assignmentRef = fsMod.doc(db, 'assignments', assignmentId);
+
+                // Bọc submitTest() gốc: chấm bài vẫn chạy y như cũ, chỉ thêm bước báo kết quả về
+                // Firestore ngay sau đó. submitTest là function khai báo ở top-level của <script>
+                // thường (không phải module) nên tự gắn lên window — an toàn để bọc lại ở đây vì
+                // module này chạy sau khi script chính đã thực thi xong (defer mặc định của module).
+                var origSubmitTest = window.submitTest;
+                window.submitTest = function () {
+                    if (typeof origSubmitTest === 'function') origSubmitTest();
+                    try { reportAssignmentResult(); } catch (e) { console.warn('Night IELTS: report failed', e); }
+                };
+
+                function reportAssignmentResult() {
+                    // submitTest() ở trên luôn chấm CẢ 3 passage rồi hiện tổng điểm ở #score-correct/#score-total.
+                    var fullCorrectEl = document.getElementById('score-correct');
+                    var fullTotalEl = document.getElementById('score-total');
+                    var reportCorrect = fullCorrectEl ? (parseInt(fullCorrectEl.innerText, 10) || 0) : 0;
+                    var reportTotal = fullTotalEl ? (parseInt(fullTotalEl.innerText, 10) || 0) : 0;
+
+                    // Nếu giáo viên chỉ giao 1 Passage (thường gặp nhất), báo điểm riêng của đúng
+                    // Passage đó thay vì điểm cả đề — chấm lại đúng khoảng câu hỏi của passage này
+                    // (an toàn để gọi lại: gradeQuestionRange ghi đè fbBox chứ không cộng dồn).
+                    if ((scope === '1' || scope === '2' || scope === '3') &&
+                        window.passageRanges && typeof window.gradeQuestionRange === 'function') {
+                        var range = window.passageRanges[parseInt(scope, 10) - 1];
+                        if (range) {
+                            reportCorrect = window.gradeQuestionRange(range[0], range[1]);
+                            reportTotal = range[1] - range[0] + 1;
+                        }
+                    }
+
+                    var percent = reportTotal > 0 ? Math.round(reportCorrect / reportTotal * 100) : 0;
+                    fsMod.updateDoc(assignmentRef, {
+                        percent: percent,
+                        completed: true,
+                        scoreText: reportCorrect + '/' + reportTotal,
+                        lastPlayedAt: Date.now()
+                    }).catch(function (e) { console.warn('Night IELTS: cập nhật assignments thất bại', e); });
+                }
+            }).catch(function (e) { console.warn('Night IELTS: không tải được hệ thống báo cáo', e); });
+        })();
+    </script>
+
+    <!-- ============ "LÀM CHUNG" — phiên làm bài chung theo thời gian thực (Firebase Realtime
+         Database, KHÔNG cần gói Blaze trả phí như Cloud Storage). Giáo viên bấm "🔴 Làm chung" ->
+         tạo 1 session ngắn hạn -> copy link gửi học sinh; ai mở link (?liveSession=ID) sẽ tham gia
+         CHUNG 1 trạng thái làm bài — chọn đáp án, tô màu/gạch chân/note của bất kỳ ai trong phiên
+         đều đồng bộ ngay cho mọi người khác, kèm số người đang tham gia. Tách hoàn toàn thành 1
+         <script type="module"> riêng, KHÔNG đụng script chính ở trên — chỉ dựa vào vài hook nhỏ đã
+         gắn sẵn (window.__onAnnotCreate/__onAnnotRemove, window.fillSlot/clearSlot) + quy ước
+         name="qN" có sẵn cho mọi loại câu hỏi. Lưu ý: bài test PHẢI được xuất bản/host (vd GitHub
+         Pages) thì link mới mở được ở máy khác — mở trực tiếp file trên máy (file://) sẽ không
+         dùng được cho học sinh. -->
+    <script type="module">
+        (function () {
+            var FB_CONFIG = {
+                apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                authDomain: "night-ielts-land.firebaseapp.com",
+                databaseURL: "https://night-ielts-land-default-rtdb.firebaseio.com",
+                projectId: "night-ielts-land",
+                storageBucket: "night-ielts-land.firebasestorage.app",
+                messagingSenderId: "408519436407",
+                appId: "1:408519436407:web:a9f0b9ba23368b54427e72",
+                measurementId: "G-H3P14NJR76"
+            };
+
+            var db = null, dbMod = null;
+            var sessionId = null;
+            var clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            var applyingRemote = false; // đang áp dụng thay đổi từ xa -> không ghi ngược lại RTDB (chặn vòng lặp)
+            var syncStarted = false;
+            var currentParticipantCount = 1;
+
+            function loadFirebase() {
+                return Promise.all([
+                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                    import('https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js')
+                ]).then(function (mods) {
+                    var appMod = mods[0]; dbMod = mods[1];
+                    var app = appMod.initializeApp(FB_CONFIG, 'night-ielts-reading-live-' + Date.now());
+                    db = dbMod.getDatabase(app);
+                });
+            }
+
+            function randomSessionId() {
+                var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                var out = '';
+                for (var i = 0; i < 6; i++) out += chars[Math.floor(Math.random() * chars.length)];
+                return out;
+            }
+
+            function shareUrl(id) {
+                var url = new URL(location.href);
+                url.searchParams.set('liveSession', id);
+                return url.toString();
+            }
+
+            // --- UI: hộp thoại "🔴 Làm chung" (dùng lại đúng .overlay/.modal-box đã có cho
+            //     vocab-modal/setup-screen/results-modal ở trên để đồng bộ style, không cần CSS mới) ---
+            window.toggleLiveSessionBox = function () {
+                var modal = document.getElementById('live-session-modal');
+                if (!modal) return;
+                var opening = modal.style.display !== 'flex';
+                modal.style.display = opening ? 'flex' : 'none';
+                if (opening) renderModalBody();
+            };
+            window.closeLiveSessionModal = function () {
+                var modal = document.getElementById('live-session-modal');
+                if (modal) modal.style.display = 'none';
+            };
+
+            function renderModalBody() {
+                var body = document.getElementById('live-session-body');
+                if (!body) return;
+                if (!sessionId) {
+                    body.innerHTML =
+                        '<p style="margin:0 0 12px 0;">Tạo link để làm bài này cùng lúc với người khác — đáp án, highlight, note sẽ tự đồng bộ theo thời gian thực.</p>' +
+                        '<button class="submit-btn" id="live-session-create-btn">Tạo link làm chung</button>' +
+                        '<p style="margin:12px 0 0 0; font-size:12.5px; color:#888;">⚠️ Cần bài test đã được xuất bản lên 1 trang web (vd GitHub Pages) thì học sinh ở máy khác mới mở link được — mở trực tiếp file trên máy sẽ không dùng được.</p>';
+                    var btn = document.getElementById('live-session-create-btn');
+                    if (btn) btn.addEventListener('click', function () { createSession(); });
+                } else {
+                    var url = shareUrl(sessionId);
+                    body.innerHTML =
+                        '<p style="margin:0 0 10px 0;">👥 Đang tham gia: <strong id="live-participant-count-modal">' + currentParticipantCount + '</strong> người</p>' +
+                        '<div style="display:flex; gap:8px;">' +
+                        '<input type="text" id="live-session-link-input" readonly value="' + url.replace(/"/g, '&quot;') + '" style="flex:1; padding:8px; border-radius:6px; border:2px solid var(--border-color);">' +
+                        '<button class="nav-btn" id="live-session-copy-btn">📋 Copy</button>' +
+                        '</div>' +
+                        '<p style="margin:12px 0 0 0; font-size:12.5px; color:#888;">Gửi link này cho học sinh — ai mở cũng làm chung 1 bài, đáp án/note/highlight của người này người kia đều thấy.</p>';
+                    var copyBtn = document.getElementById('live-session-copy-btn');
+                    if (copyBtn) copyBtn.addEventListener('click', function () {
+                        var input = document.getElementById('live-session-link-input');
+                        if (input) input.select();
+                        if (navigator.clipboard) navigator.clipboard.writeText(url).catch(function () {});
+                        copyBtn.textContent = '✅ Đã copy';
+                        setTimeout(function () { copyBtn.textContent = '📋 Copy'; }, 1500);
+                    });
+                }
+            }
+
+            function updateParticipantBadge(count) {
+                currentParticipantCount = count;
+                var badge = document.getElementById('live-participant-badge');
+                var countEl = document.getElementById('live-participant-count');
+                if (badge) badge.style.display = sessionId ? '' : 'none';
+                if (countEl) countEl.textContent = String(count);
+                var modalCount = document.getElementById('live-participant-count-modal');
+                if (modalCount) modalCount.textContent = String(count);
+            }
+
+            function createSession() {
+                sessionId = randomSessionId();
+                loadFirebase().then(function () {
+                    dbMod.set(dbMod.ref(db, 'liveSessions/' + sessionId + '/meta'), {
+                        createdAt: Date.now(),
+                        title: document.title || ''
+                    });
+                    history.replaceState(null, '', shareUrl(sessionId));
+                    startSyncing();
+                    renderModalBody();
+                }).catch(function (e) {
+                    console.warn('Night IELTS: không tạo được phiên làm chung', e);
+                    alert('Không tạo được phiên làm chung — kiểm tra kết nối mạng rồi thử lại.');
+                });
+            }
+
+            var SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 3 ngày — phiên "Làm chung" mở sau mốc này tự bị xoá sạch
+
+            function checkExpiryThenProceed(done) {
+                var metaRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/meta');
+                dbMod.get(metaRef).then(function (snap) {
+                    var meta = snap.val();
+                    var isExpired = !meta || !meta.createdAt || (Date.now() - meta.createdAt > SESSION_TTL_MS);
+                    if (!isExpired) { done(); return; }
+                    var sessRef = dbMod.ref(db, 'liveSessions/' + sessionId);
+                    dbMod.remove(sessRef).then(function () {
+                        return dbMod.set(dbMod.ref(db, 'liveSessions/' + sessionId + '/meta'), {
+                            createdAt: Date.now(),
+                            title: document.title || ''
+                        });
+                    }).then(done).catch(done);
+                }).catch(function (e) {
+                    console.warn('Night IELTS: không kiểm tra được hạn phiên làm chung', e);
+                    done();
+                });
+            }
+
+            function joinSessionFromUrl() {
+                var params = new URLSearchParams(location.search);
+                var id = params.get('liveSession');
+                if (!id) return;
+                sessionId = id;
+                loadFirebase().then(function () {
+                    checkExpiryThenProceed(function () { startSyncing(); });
+                }).catch(function (e) { console.warn('Night IELTS: không tham gia được phiên làm chung', e); });
+            }
+
+            // Trì hoãn gắn listener đồng bộ tới khi giao diện làm bài đã dựng xong (startTest() đã
+            // chạy) — trước đó các input q1..qN/slot kéo-thả chưa tồn tại trong DOM.
+            function startSyncing() {
+                if (syncStarted || !sessionId || !db) return;
+                var setup = document.getElementById('setup-screen');
+                if (!setup || setup.style.display !== 'none') return; // chưa bấm "Bắt đầu làm bài"
+                syncStarted = true;
+                setupPresence();
+                setupAnswerSync();
+                setupMultiGroupSync();
+                setupAnnotationSync();
+                updateParticipantBadge(currentParticipantCount);
+            }
+
+            function setupPresence() {
+                var myRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/presence/' + clientId);
+                var presenceRoot = dbMod.ref(db, 'liveSessions/' + sessionId + '/presence');
+                dbMod.onValue(dbMod.ref(db, '.info/connected'), function (snap) {
+                    if (snap.val() === true) {
+                        dbMod.onDisconnect(myRef).remove();
+                        dbMod.set(myRef, true);
+                    }
+                });
+                dbMod.onValue(presenceRoot, function (snap) {
+                    var val = snap.val() || {};
+                    updateParticipantBadge(Object.keys(val).length || 1);
+                });
+            }
+
+            // --- Đồng bộ đáp án dùng CHUNG quy ước name="qN" có sẵn cho MỌI loại câu hỏi (xem
+            //     gradeQuestionRange/setupInputListeners ở script chính) — nên chỉ cần nghe
+            //     'input'/'change' là bắt được mọi dạng (trắc nghiệm/TFNG/điền từ/dropdown/kéo-thả)
+            //     mà không cần biết dạng câu cụ thể. Riêng checkbox "Choose N of M" tách đồng bộ
+            //     riêng ở setupMultiGroupSync() vì value của hidden input đó bị lossy khi chọn sai. ---
+            function currentQValue(el) {
+                if (el.type === 'radio') {
+                    var group = document.getElementsByName(el.name);
+                    var val = '';
+                    group.forEach(function (r) { if (r.checked) val = r.value; });
+                    return val;
+                }
+                return el.value;
+            }
+
+            function setupAnswerSync() {
+                var answersRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/answers');
+
+                function maybeSyncAnswer(target) {
+                    if (applyingRemote || !target || !target.name || target.name.charAt(0) !== 'q') return;
+                    if (target.classList && target.classList.contains('multi-check')) return;
+                    var qNum = target.name.substring(1);
+                    if (!/^\d+$/.test(qNum)) return;
+                    dbMod.set(dbMod.child(answersRef, qNum), currentQValue(target));
+                }
+                document.addEventListener('input', function (e) { maybeSyncAnswer(e.target); });
+                document.addEventListener('change', function (e) { maybeSyncAnswer(e.target); });
+
+                dbMod.onValue(answersRef, function (snap) {
+                    var answers = snap.val() || {};
+                    applyingRemote = true;
+                    try {
+                        Object.keys(answers).forEach(function (qNum) { applyRemoteAnswer(qNum, answers[qNum]); });
+                    } finally { applyingRemote = false; }
+                });
+            }
+
+            function applyRemoteAnswer(qNum, value) {
+                var inputs = document.getElementsByName('q' + qNum);
+                if (!inputs || !inputs.length) return;
+                var first = inputs[0];
+                if (first.classList && first.classList.contains('multi-check')) return; // xử lý ở setupMultiGroupSync()
+                if (first.type === 'radio') {
+                    var changed = false;
+                    inputs.forEach(function (r) {
+                        var shouldCheck = (r.value === value);
+                        if (r.checked !== shouldCheck) { r.checked = shouldCheck; changed = true; }
+                    });
+                    if (changed) first.dispatchEvent(new Event('change', { bubbles: true }));
+                    return;
+                }
+                if (first.value === (value || '')) return;
+                // Ô ẩn của câu kéo-thả (Matching/Heading): set thẳng value sẽ chấm đúng nhưng KHÔNG di
+                // chuyển hình chip trực quan -> phải gọi fillSlot/clearSlot (exposed ở initMatchingDnD).
+                var slot = document.getElementById('slot-' + qNum);
+                if (slot && typeof window.fillSlot === 'function' && typeof window.clearSlot === 'function') {
+                    if (!value) { window.clearSlot(slot); return; }
+                    var chip = document.getElementById('chip-' + slot.dataset.group + '-' + value);
+                    window.fillSlot(slot, value, chip ? chip.textContent : value);
+                    return;
+                }
+                first.value = value || '';
+                first.dispatchEvent(new Event(first.tagName === 'SELECT' ? 'change' : 'input', { bubbles: true }));
+            }
+
+            // --- "Choose N of M": đồng bộ THẲNG trạng thái tick/bỏ tick từng checkbox (không dùng
+            //     value của hidden input vì nó lossy khi chọn sai — xem genMulti/initMultiSelect). ---
+            function setupMultiGroupSync() {
+                var groupsRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/multiGroups');
+
+                document.addEventListener('change', function (e) {
+                    if (applyingRemote) return;
+                    if (!e.target.classList || !e.target.classList.contains('multi-check')) return;
+                    var container = e.target.closest('.multi-group');
+                    if (!container) return;
+                    var groupId = container.dataset.multiGroup;
+                    var checked = Array.from(container.querySelectorAll('.multi-check'))
+                        .filter(function (c) { return c.checked; })
+                        .map(function (c) { return c.value; });
+                    dbMod.set(dbMod.child(groupsRef, groupId), checked);
+                });
+
+                dbMod.onValue(groupsRef, function (snap) {
+                    var groups = snap.val() || {};
+                    applyingRemote = true;
+                    try {
+                        Object.keys(groups).forEach(function (groupId) {
+                            var container = document.querySelector('.multi-group[data-multi-group="' + groupId + '"]');
+                            if (!container) return;
+                            var wanted = groups[groupId] || [];
+                            var checks = container.querySelectorAll('.multi-check');
+                            var changedAny = false;
+                            checks.forEach(function (c) {
+                                var should = wanted.indexOf(c.value) !== -1;
+                                if (c.checked !== should) { c.checked = should; changedAny = true; }
+                            });
+                            if (changedAny && checks.length) checks[0].dispatchEvent(new Event('change', { bubbles: true }));
+                        });
+                    } finally { applyingRemote = false; }
+                });
+            }
+
+            // --- Đồng bộ highlight/gạch chân/gạch ngang/note: script chính đã gọi sẵn 2 hook
+            //     window.__onAnnotCreate/__onAnnotRemove ngay khi người dùng tạo/xoá 1 định dạng —
+            //     module này chỉ ghi/đọc RTDB rồi "replay" lại bằng window.__replayAnnotCreate/
+            //     __replayAnnotRemove (cũng đã định nghĩa sẵn ở script chính). ---
+            function setupAnnotationSync() {
+                var annotRef = dbMod.ref(db, 'liveSessions/' + sessionId + '/annotations');
+
+                window.__onAnnotCreate = function (annotId, type, passageId, start, end, extra) {
+                    dbMod.set(dbMod.child(annotRef, annotId), {
+                        type: type, passageId: passageId, start: start, end: end,
+                        extra: extra === undefined ? null : extra, ts: Date.now()
+                    });
+                };
+                window.__onAnnotRemove = function (annotId) {
+                    dbMod.remove(dbMod.child(annotRef, annotId));
+                };
+
+                dbMod.onChildAdded(annotRef, function (snap) {
+                    var data = snap.val();
+                    if (!data) return;
+                    if (typeof window.__replayAnnotCreate === 'function') {
+                        try { window.__replayAnnotCreate(snap.key, data.type, data.passageId, data.start, data.end, data.extra); } catch (e) {}
+                    }
+                });
+                dbMod.onChildRemoved(annotRef, function (snap) {
+                    if (typeof window.__replayAnnotRemove === 'function') {
+                        try { window.__replayAnnotRemove(snap.key); } catch (e) {}
+                    }
+                });
+            }
+
+            joinSessionFromUrl();
+
+            // startTest() được gán lên window bởi script chính (function khai báo top-level ở
+            // <script> thường tự lên window) — bọc thêm để bắt đúng thời điểm giao diện làm bài đã
+            // dựng xong (input q1..qN/slot kéo-thả chỉ tồn tại SAU khi startTest() chạy).
+            var origStartTest = window.startTest;
+            window.startTest = function () {
+                if (typeof origStartTest === 'function') origStartTest();
+                try { startSyncing(); } catch (e) { console.warn('Night IELTS: live-session sync lỗi', e); }
+            };
+        })();
+    </script>
+
+    <!-- NIGHT-PROGRESS-TRACKER v1 — ghi mỗi lần TỰ LUYỆN vào bảng "Hoạt động 3 tháng" ở trang chủ:
+         bấm "Nộp bài" cả đề, HOẶC chấm riêng 1 Part/Section đều được tính. Bài được giao (URL có
+         ?assignmentId=) thì bỏ qua vì trang chủ đã tự ghi rồi. -->
+    <script type="module">
+        (function () {
+            var KIND = 'reading';
+            if (new URLSearchParams(location.search).get('assignmentId')) return;
+            var pageLoadedAt = Date.now();
+            var fullSubmitted = false;
+            var partDocIds = {};
+            var FB_CONFIG = {
+                apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
+                authDomain: "night-ielts-land.firebaseapp.com",
+                projectId: "night-ielts-land",
+                storageBucket: "night-ielts-land.firebasestorage.app",
+                messagingSenderId: "408519436407",
+                appId: "1:408519436407:web:a9f0b9ba23368b54427e72"
+            };
+            var fbPromise = null;
+            function loadFb() {
+                if (!fbPromise) {
+                    fbPromise = Promise.all([
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'),
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'),
+                        import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')
+                    ]).then(function (m) {
+                        // App MẶC ĐỊNH (không đặt tên) để dùng lại đúng phiên đăng nhập của trang chủ
+                        var app = m[0].getApps().find(function (a) { return a.name === '[DEFAULT]'; }) || m[0].initializeApp(FB_CONFIG);
+                        return { authMod: m[1], fsMod: m[2], auth: m[1].getAuth(app), db: m[2].getFirestore(app) };
+                    }).then(function (fb) {
+                        return new Promise(function (res) {
+                            var unsub = fb.authMod.onAuthStateChanged(fb.auth, function (user) { unsub(); fb.user = user; res(fb); });
+                        });
+                    });
+                }
+                return fbPromise;
+            }
+            setTimeout(function () { loadFb().catch(function () {}); }, 1500);
+
+            function writeLog(docId, title, score, total, band) {
+                return loadFb().then(function (fb) {
+                    if (!fb.user) return null; // chưa đăng nhập ở trang chủ -> không ghi được
+                    var now = Date.now();
+                    return fb.fsMod.setDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + docId), {
+                        studentId: fb.user.uid,
+                        title: title,
+                        kind: KIND,
+                        practice: true,
+                        resultText: score + '/' + total + ' câu đúng' + (band ? ' (Band ' + band + ')' : ''),
+                        completedAt: now,
+                        expiresAt: now + 365 * 24 * 60 * 60 * 1000
+                    }).then(function () { return fb; });
+                }).catch(function (e) { console.warn('Night progress: ghi thất bại', e); });
+            }
+
+            // ---- 1) Nộp bài cả đề (cả Reading lẫn Listening đều gọi saveProgressRecord khi nộp) ----
+            var origSave = window.saveProgressRecord;
+            if (typeof origSave === 'function') {
+                window.saveProgressRecord = function (score, total, band) {
+                    try { origSave.apply(this, arguments); } catch (e) { console.warn(e); }
+                    try {
+                        fullSubmitted = true;
+                        try {
+                            var sig = new Date().toLocaleDateString('vi-VN') + '|' + location.pathname.split('/').pop() + '|' + score + '|' + total;
+                            var arr = JSON.parse(localStorage.getItem('nightTrackedSigs') || '[]');
+                            arr.push(sig);
+                            localStorage.setItem('nightTrackedSigs', JSON.stringify(arr.slice(-100)));
+                        } catch (e) {}
+                        // Nộp cả đề thì thay cho các lần chấm lẻ từng phần trước đó (không đếm trùng)
+                        var partIds = Object.keys(partDocIds).map(function (k) { return partDocIds[k]; });
+                        partDocIds = {};
+                        writeLog(KIND + '_' + pageLoadedAt, document.title, score, total, band).then(function (fb) {
+                            if (!fb || !fb.user) return;
+                            partIds.forEach(function (id) { fb.fsMod.deleteDoc(fb.fsMod.doc(fb.db, 'progressLog', fb.user.uid + '_' + id)).catch(function () {}); });
+                        });
+                    } catch (e) { console.warn('Night progress:', e); }
+                };
+            }
+
+            // ---- 2) Chấm riêng 1 Part (Reading) / 1 Section (Listening) ----
+            function getRanges() {
+                try { if (typeof passageRanges !== 'undefined') return passageRanges; } catch (e) {}
+                try { if (typeof sectionRanges !== 'undefined') return sectionRanges; } catch (e) {}
+                return window.passageRanges || window.sectionRanges || null;
+            }
+            function answeredCount(startQ, endQ) {
+                var c = 0;
+                for (var i = startQ; i <= endQ; i++) {
+                    var inputs = document.getElementsByName('q' + i);
+                    for (var j = 0; j < inputs.length; j++) {
+                        var el = inputs[j];
+                        if ((el.type === 'radio' || el.type === 'checkbox') ? el.checked : String(el.value || '').trim()) { c++; break; }
+                    }
+                }
+                return c;
+            }
+            function logPart(n, label) {
+                if (fullSubmitted) return; // đã nộp cả đề rồi -> bấm xem lại từng phần không tính thêm
+                var ranges = getRanges();
+                var r = ranges && ranges[n - 1];
+                if (!r || typeof window.gradeQuestionRange !== 'function') return;
+                if (answeredCount(r[0], r[1]) === 0) return; // chỉ bấm xem đáp án, chưa làm câu nào -> không tính
+                var score = window.gradeQuestionRange(r[0], r[1]);
+                var total = r[1] - r[0] + 1;
+                var id = KIND + '_' + pageLoadedAt + '_p' + n;
+                partDocIds[n] = id;
+                writeLog(id, document.title + ' — ' + label + ' ' + n, score, total, null);
+            }
+            ['gradePart', 'openSectionReview'].forEach(function (fnName) {
+                var orig = window[fnName];
+                if (typeof orig !== 'function') return;
+                window[fnName] = function (n) {
+                    var out = orig.apply(this, arguments);
+                    try { logPart(Number(n), fnName === 'gradePart' ? 'Part' : 'Section'); } catch (e) { console.warn('Night progress:', e); }
+                    return out;
+                };
+            });
+        })();
+    </script>
+    <script src="https://nightielts.id.vn/night-track.js" defer></script>
+
+</body>
+</html>
