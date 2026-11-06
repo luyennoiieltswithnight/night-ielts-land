@@ -1,0 +1,428 @@
+[META]
+source: cambridge
+book: 16
+test: 4
+title:
+
+[SECTION 1]
+title: Booking a holiday cottage
+transcript:
+SHIRLEY: Hello?
+TOM: Oh hello. I was hoping to speak to Jack Fitzgerald about renting a cottage.
+SHIRLEY: I'm his wife, Shirley, and we own the cottages together, so I'm sure I can help you.
+TOM: Great. My name's Tom. Some friends of ours rented Granary Cottage from you last year, and they thought it was great. So my wife and I are hoping to come in May for a week.
+SHIRLEY: What date did you have in mind?
+TOM: The week beginning the 14th, if possible.
+SHIRLEY: I'll just check ... I'm sorry, Tom, it's already booked that week. It's free the week beginning the 28th, though, for seven nights. In fact, that's the only time you could have it in May.
+TOM: Oh. Well, we could manage that, I think. We'd just need to change a couple of things. How much would it cost?
+SHIRLEY: That's the beginning of high season, so it'd be £550 for the week.
+TOM: Ah. That's a bit more than we wanted to pay, I'm afraid. We've budgeted up to £500 for accommodation.
+SHIRLEY: Well, we've just finished converting another building into a cottage, which we're calling Chervil Cottage.
+TOM: Sorry? What was that again?
+SHIRLEY: Chervil. C-H-E-R-V-I-L.
+TOM: Oh, that's a herb, isn't it?
+SHIRLEY: That's right. It grows fairly wild around here. You could have that for the week you want for £480.
+TOM: OK. So could you tell me something about it, please?
+SHIRLEY: Of course. The building was built as a garage. It's a little smaller than Granary Cottage.
+TOM: So that must sleep two people, as well?
+SHIRLEY: That's right. There's a double bedroom.
+TOM: Does it have a garden?
+SHIRLEY: Yes, you get to it from the living room through French doors, and we provide two deckchairs. We hope to build a patio in the near future, but I wouldn't like to guarantee it'll be finished by May.
+TOM: OK.
+SHIRLEY: The front door opens onto the old farmyard, and parking isn't a problem - there's plenty of room at the front for that. There are some trees and potted plants there.
+TOM: What about facilities in the cottage? It has standard things like a cooker and fridge, I presume.
+SHIRLEY: In the kitchen area there's a fridge-freezer and we've just put in an electric cooker.
+TOM: Is there a washing machine?
+SHIRLEY: Yes. There's also a TV in the living room, which plays DVDs too. The bathroom is too small for a bath, so there's a shower instead. I think a lot of people prefer that nowadays, anyway.
+TOM: It's more environmentally friendly, isn't it? Unless you spend half the day in it!
+SHIRLEY: Exactly.
+TOM: What about heating? It sometimes gets quite cool at that time of year.
+SHIRLEY: There's central heating, and if you want to light a fire, there's a stove. We can provide all the wood you need for it. It smells so much nicer than coal, and it makes the room very cosy - we've got one in our own house.
+TOM: That sounds very pleasant. Perhaps we should come in the winter, to make the most of it!
+SHIRLEY: Yes, we find we don't want to go out when we've got the fire burning. There are some attractive views from the cottage, which I haven't mentioned. There's a famous stone bridge - it's one of the oldest in the region, and you can see it from the living room. It isn't far away. The bedroom window looks in the opposite direction, and has a lovely view of the hills and the monument at the top.
+TOM: Well, that all sounds perfect. I'd like to book it, please. Would you want a deposit?
+SHIRLEY: Yes, we ask for thirty percent to secure your booking, so that'll be, um, £144.
+TOM: And when would you like the rest of the money?
+SHIRLEY: You're coming in May, so the last day of March, please.
+TOM: Fine.
+SHIRLEY: Excellent. Could I just take your details?
+
+[GROUP]
+type: text
+instruction: Questions 1-10
+Complete the notes below.
+Write ONE WORD AND/OR A NUMBER for each answer.
+notes:
+Holiday rental
+Owners' names: Jack Fitzgerald and Shirley Fitzgerald
+
+Granary Cottage
+- available for week beginning ___ May
+- cost for the week: £ ___
+
+___ Cottage
+- cost for the week: £480
+- building was originally a ___
+- walk through doors from living room into a ___
+- several ___ spaces at the front
+- bathroom has a shower
+- central heating and stove that burns ___
+- views of old ___ from living room
+- view of hilltop ___ from the bedroom
+
+Payment
+- deposit: £144
+- deadline for final payment: end of ___
+
+[Q]
+answer: 28|twenty-eighth|twenty eighth
+loc: It's free the week beginning the 28th
+exp: Tuần ngày 14 đã có người đặt; Shirley nói tuần bắt đầu từ ngày 28 còn trống.
+[Q]
+answer: 550
+loc: it'd be £550 for the week
+exp: Đầu mùa cao điểm nên Granary Cottage giá 550 bảng một tuần.
+[Q]
+answer: Chervil
+loc: which we're calling Chervil Cottage
+exp: Căn nhà mới chuyển đổi tên là Chervil Cottage (được đánh vần C-H-E-R-V-I-L).
+[Q]
+answer: garage
+loc: The building was built as a garage
+exp: Toà nhà ban đầu được xây làm nhà để xe (garage).
+[Q]
+answer: garden
+loc: Does it have a garden?
+exp: Từ phòng khách đi qua cửa kiểu Pháp ra khu vườn (garden).
+[Q]
+answer: parking
+loc: parking isn't a problem
+exp: Phía trước có nhiều chỗ để đậu xe (parking).
+[Q]
+answer: wood
+loc: We can provide all the wood you need for it
+exp: Lò sưởi đốt củi; chủ nhà cung cấp đủ củi (wood).
+[Q]
+answer: bridge
+loc: a famous stone bridge
+exp: Từ phòng khách nhìn thấy cây cầu đá cổ nổi tiếng (bridge).
+[Q]
+answer: monument
+loc: the monument at the top
+exp: Cửa sổ phòng ngủ nhìn ra những ngọn đồi và tượng đài (monument) trên đỉnh.
+[Q]
+answer: March
+loc: the last day of March
+exp: Hạn thanh toán nốt là ngày cuối cùng của tháng Ba (March).
+
+[SECTION 2]
+title: A council meeting on traffic and the recreation ground
+transcript:
+CHAIRPERSON: Right. Next on the agenda we have traffic and highways. Councillor Thornton.
+COUNCILLOR THORNTON: Thank you. Well, we now have the results of the survey carried out last month about traffic and road transport in the town. People were generally satisfied with the state of the roads. There were one or two complaints about potholes which will be addressed, but a significant number of people complained about the increasing number of heavy vehicles using our local roads to avoid traffic elsewhere. We'd expected more complaints by commuters about the reduction in the train service, but it doesn't seem to have affected people too much. The cycle path that runs alongside the river is very well used by both cyclists and pedestrians since the surface was improved last year, but overtaking can be a problem so we're going to add a bit on the side to make it wider. At some stage, we'd like to extend the path so that it goes all the way through the town, but that won't be happening in the immediate future.
+The plans to have a pedestrian crossing next to the Post Office have unfortunately had to be put on hold for the time being. We'd budgeted for this to be done this financial year, but then there were rumours that the Post Office was going to move, which would have meant there wasn't really a need for a crossing. Now they've confirmed that they're staying where they are, but the Highways Department have told us that it would be dangerous to have a pedestrian crossing where we'd originally planned it as there's a bend in the road there. So that'll need some more thought.
+On Station Road near the station and level crossing, drivers can face quite long waits if the level crossing's closed, and we've now got signs up requesting them not to leave their engines running at that time. This means pedestrians waiting on the pavement to cross the railway line don't have to breathe in car fumes. We've had some problems with cyclists leaving their bikes chained to the railings outside the ticket office, but the station has agreed to provide bike racks there.
+CHAIRPERSON: So next on the agenda is 'Proposals for improvements to the recreation ground'. Councillor Thornton again.
+COUNCILLOR THORNTON: Well, since we managed to extend the recreation ground, we've spent some time talking to local people about how it could be made a more attractive and useful space. If you have a look at the map up on the screen, you can see the river up in the north, and the Community Hall near the entrance from the road. At present, cars can park between the Community Hall and that line of trees to the east, but this is quite dangerous for pedestrians so we're suggesting a new car park on the opposite side of the Community Hall, right next to it.
+We also have a new location for the cricket pitch. As we've now purchased additional space to the east of the recreation ground beyond the trees, we plan to move it away from its current location, which is rather near the road, into this new area beyond the line of trees. This means there's less danger of stray balls hitting cars or pedestrians.
+We've got plans for a children's playground which will be accessible by a footpath from the Community Hall and will be alongside the river. We'd originally thought of having it close to the road, but we think this will be a more attractive location.
+The skateboard ramp is very popular with both younger and older children - we had considered moving this up towards the river, but in the end we decided to have it in the southeast corner near the road.
+The pavilion is very well used at present by both football players and cricketers. It will stay where it is now - to the left of the line of trees and near to the river - handy for both the football and cricket pitches.
+And finally, we'll be getting a new notice board for local information, and that will be directly on people's right as they go from the road into the recreation ground.
+
+[GROUP]
+type: mcq
+instruction: Questions 11-14
+Choose the correct letter, A, B or C.
+Local council report on traffic and highways
+
+[Q]
+text: A survey found people's main concern about traffic in the area was
+A: cuts to public transport.
+B: poor maintenance of roads.
+C: changes in the type of traffic.
+answer: C
+loc: a significant number of people complained about the increasing number of heavy vehicles
+exp: Nhiều người phàn nàn nhất về việc xe tải nặng ngày càng nhiều trên đường địa phương (thay đổi loại phương tiện).
+[Q]
+text: Which change will shortly be made to the cycle path next to the river?
+A: It will be widened.
+B: It will be extended.
+C: It will be resurfaced.
+answer: A
+loc: we're going to add a bit on the side to make it wider
+exp: Họ sắp mở rộng đường (wider); việc kéo dài chưa làm trong tương lai gần, còn mặt đường đã cải thiện năm ngoái.
+[Q]
+text: Plans for a pedestrian crossing have been postponed because
+A: the Post Office has moved.
+B: the proposed location is unsafe.
+C: funding is not available at present.
+answer: B
+loc: it would be dangerous to have a pedestrian crossing where we'd originally planned it
+exp: Sở Đường bộ cho biết vị trí dự định nguy hiểm vì có khúc cua nên phải hoãn.
+[Q]
+text: On Station Road, notices have been erected
+A: telling cyclists not to leave their bikes outside the station ticket office.
+B: asking motorists to switch off engines when waiting at the level crossing.
+C: warning pedestrians to leave enough time when crossing the railway line.
+answer: B
+loc: signs up requesting them not to leave their engines running
+exp: Biển báo yêu cầu tài xế không để máy nổ khi chờ ở chắn tàu.
+
+[GROUP]
+type: planlabel
+instruction: Questions 15-20
+Label the map below.
+Write the correct letter, A-I, next to Questions 15-20.
+image: data:image/jpeg;base64,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
+options:
+Location A
+Location B
+Location C
+Location D
+Location E
+Location F
+Location G
+Location H
+Location I
+
+[Q]
+text: New car park
+answer: C
+loc: a new car park on the opposite side of the Community Hall
+exp: (Ảnh gốc: bản đồ khu vui chơi, có sông ở phía bắc, Community Hall gần cổng; cần thêm đáp án chữ cái theo sách.)
+[Q]
+text: New cricket pitch
+answer: F
+loc: into this new area beyond the line of trees
+exp: Sân cricket chuyển sang khu đất mới mua ở phía đông, bên kia hàng cây.
+[Q]
+text: Children's playground
+answer: A
+loc: will be alongside the river
+exp: Sân chơi trẻ em nối với Community Hall bằng lối đi và nằm dọc bờ sông.
+[Q]
+text: Skateboard ramp
+answer: I
+loc: in the southeast corner near the road
+exp: Dốc trượt ván đặt ở góc đông nam gần đường.
+[Q]
+text: Pavilion
+answer: E
+loc: to the left of the line of trees
+exp: Nhà nghỉ (pavilion) giữ nguyên vị trí, bên trái hàng cây và gần sông.
+[Q]
+text: Notice board
+answer: H
+loc: directly on people's right as they go from the road
+exp: Bảng thông báo ở ngay bên phải người đi từ đường vào khu vui chơi.
+
+[SECTION 3]
+title: Students discussing bike-sharing schemes
+transcript:
+JAKE: Now that we've done all the research into bike-sharing schemes in cities around the world, we need to think about how we're going to organise our report.
+AMY: Right. I think we should start by talking about the benefits. I mean it's great that so many cities have introduced these schemes where anyone can pick up a bike from dozens of different locations and hire it for a few hours. It makes riding a bike very convenient for people.
+JAKE: Yes, but the costs can add up and that puts people on low incomes off in some places.
+AMY: I suppose so, but if it means more people in general are cycling rather than driving, then because they're increasing the amount of physical activity they do, it's good for their health.
+JAKE: OK. But isn't that of less importance? I mean, doesn't the impact of reduced emissions on air pollution have a more significant effect on people's health?
+AMY: Certainly, in some cities bike-sharing has made a big contribution to that. And also helped to cut the number of cars on the road significantly.
+JAKE: Which is the main point.
+AMY: Exactly. But I'd say it's had less of an impact on noise pollution because there are still loads of buses and lorries around.
+JAKE: Right.
+AMY: Shall we quickly discuss the recommendations we're going to make?
+JAKE: In order to ensure bike-sharing schemes are successful?
+AMY: Yes.
+JAKE: OK. Well, while I think it's nice to have really state-of-the art bikes with things like GPS, I wouldn't say they're absolutely necessary.
+AMY: But some technical things are really important - like a fully functional app - so people can make payments and book bikes easily. Places which haven't invested in that have really struggled.
+JAKE: Good point ... Some people say there shouldn't be competing companies offering separate bike-sharing schemes, but in some really big cities, competition's beneficial and anyway one company might not be able to manage the whole thing.
+AMY: Right. Deciding how much to invest is a big question. Cities which have opened loads of new bike lanes at the same time as introducing bike-sharing schemes have generally been more successful - but there are examples of successful schemes where this hasn't happened ... What does matter though - is having a big publicity campaign.
+JAKE: Definitely. If people don't know how to use the scheme or don't understand its benefits, they won't use it. People need a lot of persuasion to stop using their cars.
+AMY: Shall we look at some examples now? And say what we think is good or bad about them.
+JAKE: I suppose we should start with Amsterdam as this was one of the first cities to have a bike-sharing scheme.
+AMY: Yes. There was already a strong culture of cycling here. In a way it's strange that there was such a demand for bike-sharing because you'd have thought most people would have used their own bikes.
+JAKE: And yet it's one of the best-used schemes ... Dublin's an interesting example of a success story.
+AMY: It must be because the public transport system's quite limited.
+JAKE: Not really - there's no underground, but there are trams and a good bus network. I'd say price has a lot to do with it. It's one of the cheapest schemes in Europe to join.
+AMY: But the buses are really slow - anyway the weather certainly can't be a factor!
+JAKE: No - definitely not. The London scheme's been quite successful.
+AMY: Yes - it's been a really good thing for the city. The bikes are popular and the whole system is well maintained but it isn't expanding quickly enough.
+JAKE: Basically, not enough's been spent on increasing the number of cycle lanes. Hopefully that'll change.
+AMY: Yes. Now what about outside Europe?
+JAKE: Well, bike-sharing schemes have taken off in places like Buenos Aires.
+AMY: Mmm. They built a huge network of cycle lanes to support the introduction of the scheme there, didn't they? It attracted huge numbers of cyclists where previously there were hardly any.
+JAKE: An example of good planning.
+AMY: Absolutely. New York is a good example of how not to introduce a scheme. When they launched it, it was more than ten times the price of most other schemes.
+JAKE: More than it costs to take a taxi. Crazy. I think the organisers lacked vision and ambition there.
+AMY: I think so too. Sydney would be a good example to use. I would have expected it to have grown pretty quickly here.
+JAKE: Yes. I can't quite work out why it hasn't been an instant success like some of the others. It's a shame really.
+AMY: I know. OK so now we've thought about ...
+
+[GROUP]
+type: multi
+instruction: Questions 21 and 22
+Choose TWO letters, A-E.
+Which TWO benefits of city bike-sharing schemes do the students agree are the most important?
+pick: 2
+options: reducing noise pollution
+reducing traffic congestion
+improving air quality
+encouraging health and fitness
+making cycling affordable
+
+[Q]
+answer: B
+loc: cut the number of cars on the road significantly
+exp: Hai bạn đồng ý việc giảm số xe trên đường (giảm tắc nghẽn) là điểm chính ("the main point").
+[Q]
+answer: C
+loc: reduced emissions on air pollution
+exp: Jake cho rằng giảm khí thải ảnh hưởng đến sức khoẻ hơn thể dục, và Amy đồng ý (cải thiện chất lượng không khí).
+
+[GROUP]
+type: multi
+instruction: Questions 23 and 24
+Choose TWO letters, A-E.
+Which TWO things do the students think are necessary for successful bike-sharing schemes?
+pick: 2
+options: Bikes should have a GPS system.
+The app should be easy to use.
+Public awareness should be raised.
+Only one scheme should be available.
+There should be a large network of cycle lanes.
+
+[Q]
+answer: B
+loc: a fully functional app
+exp: Amy nói ứng dụng hoạt động tốt để thanh toán và đặt xe là điều rất quan trọng.
+[Q]
+answer: C
+loc: having a big publicity campaign
+exp: Cả hai đồng ý một chiến dịch truyền thông lớn là điều thực sự quan trọng (nâng cao nhận thức công chúng).
+
+[GROUP]
+type: list_match
+instruction: Questions 25-30
+What is the speakers' opinion of the bike-sharing schemes in each of the following cities?
+Choose SIX answers from the box and write the correct letter, A-G, next to Questions 25-30.
+options: They agree it has been disappointing.
+They think it should be cheaper.
+They are surprised it has been so successful.
+They agree that more investment is required.
+They think the system has been well designed.
+They disagree about the reasons for its success.
+They think it has expanded too quickly.
+
+[Q]
+text: Amsterdam
+answer: C
+loc: it's strange that there was such a demand for bike-sharing
+exp: Họ ngạc nhiên vì nhu cầu thuê xe cao dù người dân vốn có xe riêng.
+[Q]
+text: Dublin
+answer: F
+loc: Dublin's an interesting example of a success story
+exp: Amy cho là do giao thông công cộng hạn chế, Jake cho là do giá rẻ: họ không đồng ý về lý do thành công.
+[Q]
+text: London
+answer: D
+loc: not enough's been spent on increasing the number of cycle lanes
+exp: Hệ thống tốt nhưng chưa mở rộng đủ nhanh vì chi chưa đủ cho làn xe đạp, tức cần đầu tư thêm.
+[Q]
+text: Buenos Aires
+answer: E
+loc: An example of good planning
+exp: Họ nhận xét đây là ví dụ về quy hoạch tốt với mạng làn xe đạp lớn (thiết kế tốt).
+[Q]
+text: New York
+answer: B
+loc: it was more than ten times the price of most other schemes
+exp: Giá lúc ra mắt gấp hơn mười lần các hệ thống khác, nên họ cho rằng nên rẻ hơn.
+[Q]
+text: Sydney
+answer: A
+loc: why it hasn't been an instant success
+exp: Cả hai thấy tiếc vì Sydney không thành công ngay như kỳ vọng (đáng thất vọng).
+
+[SECTION 4]
+title: A lecture on the extinction of the dodo
+transcript:
+One of the most famous cases of extinction is that of a bird known as the dodo. In fact there's even a saying in English, 'as dead as the dodo', used to refer to something which no longer exists. But for many centuries the dodo was alive and well, although it could only be found in one place, the island of Mauritius in the Indian Ocean. It was a very large bird, about one metre tall, and over the centuries it had lost the ability to fly, but it survived happily under the trees that covered the island.
+Then in the year 1507 the first Portuguese ships stopped at the island. The sailors were carrying spices back to Europe, and found the island a convenient stopping place where they could stock up with food and water for the rest of the voyage, but they didn't settle on Mauritius. However, in 1638 the Dutch arrived and set up a colony there. These first human inhabitants of the island found the dodo birds a convenient source of meat, although not everyone liked the taste.
+It's hard to get an accurate description of what the dodo actually looked like. We do have some written records from sailors, and a few pictures, but we don't know how reliable these are. The best-known picture is a Dutch painting in which the bird appears to be extremely fat, but this may not be accurate - an Indian painting done at the same time shows a much thinner bird.
+Although attempts were made to preserve the bodies of some of the birds, no complete specimen survives. In the early 17th century four dried parts of a bird were known to exist - of these, three have disappeared, so only one example of soft tissue from the dodo survives, a dodo head. Bones have also been found, but there's only one complete skeleton in existence.
+This single dodo skeleton has recently been the subject of scientific research which suggests that many of the earlier beliefs about dodos may have been incorrect. For example, early accounts of the birds mention how slow and clumsy it was, but scientists now believe the bird's strong knee joints would have made it capable of movement which was not slow, but actually quite fast. In fact, one 17th century sailor wrote that he found the birds hard to catch.
+It's true that the dodo's small wings wouldn't have allowed it to leave the ground, but the scientists suggest that these were probably employed for balance while going over uneven ground. Another group of scientists carried out analysis of the dodo's skull. They found that the reports of the lack of intelligence of the dodo were not borne out by their research, which suggested the bird's brain was not small, but average in size. In fact, in relation to its body size, it was similar to that of the pigeon, which is known to be a highly intelligent bird.
+The researchers also found that the structure of the bird's skull suggested that one sense which was particularly well-developed was that of smell. So the dodo may also have been particularly good at locating ripe fruit and other food in the island's thick vegetation.
+So it looks as if the dodo was better able to survive and defend itself than was originally believed. Yet less than 200 years after Europeans first arrived on the island, they had become extinct. So what was the reason for this? For a long time, it was believed that the dodos were hunted to extinction, but scientists now believe the situation was more complicated than this. Another factor may have been the new species brought to the island by the sailors. These included dogs, which would have been a threat to the dodos, and also monkeys, which ate the fruit that was the main part of the dodos' diet. These were brought to the island deliberately, but the ships also brought another type of creature - rats, which came to land from the ships and rapidly overran the island. These upset the ecology of the island, not just the dodos but other species too. However, they were a particular danger to the dodos because they consumed their eggs, and since each dodo only laid one at a time, this probably had a devastating effect on populations.
+However, we now think that probably the main cause of the birds' extinction was not the introduction of non-native species, but the introduction of agriculture. This meant that the forest that had once covered all the island, and that had provided a perfect home for the dodo, was cut down so that crops such as sugar could be grown. So although the dodo had survived for thousands of years, suddenly it was gone.
+
+[GROUP]
+type: text
+instruction: Questions 31-40
+Complete the notes below.
+Write ONE WORD ONLY for each answer.
+notes:
+THE EXTINCTION OF THE DODO BIRD
+The dodo was a large flightless bird which used to inhabit the island of Mauritius.
+
+History
+- 1507 - Portuguese ships transporting ___ stopped at the island to collect food and water.
+- 1638 - The Dutch established a ___ on the island.
+- They killed the dodo birds for their meat.
+- The last one was killed in 1681.
+
+Description
+- The only record we have is written descriptions and pictures (possibly unreliable).
+- A Dutch painting suggests the dodo was very ___
+- The only remaining soft tissue is a dried ___
+- Recent studies of a dodo skeleton suggest the birds were capable of rapid ___
+- It's thought they were able to use their small wings to maintain ___
+- Its ___ was of average size.
+- Their sense of ___ enabled them to find food.
+
+Reasons for extinction
+- Hunting was probably not the main cause.
+- Sailors brought dogs and monkeys.
+- ___ also escaped onto the island and ate the birds' eggs.
+- The arrival of farming meant the ___ was destroyed.
+
+[Q]
+answer: spices
+loc: The sailors were carrying spices back to Europe
+exp: Các thuỷ thủ Bồ Đào Nha chở gia vị (spices) về châu Âu.
+[Q]
+answer: colony
+loc: set up a colony there
+exp: Năm 1638 người Hà Lan đến và lập thuộc địa (colony) trên đảo.
+[Q]
+answer: fat
+loc: the bird appears to be extremely fat
+exp: Bức tranh Hà Lan vẽ chim dodo cực kỳ béo (fat).
+[Q]
+answer: head
+loc: a dodo head
+exp: Mô mềm duy nhất còn lại là một cái đầu (head) dodo khô.
+[Q]
+answer: movement
+loc: capable of movement which was not slow
+exp: Khớp gối khoẻ giúp chim có khả năng vận động nhanh (movement).
+[Q]
+answer: balance
+loc: employed for balance while going over uneven ground
+exp: Đôi cánh nhỏ có lẽ dùng để giữ thăng bằng (balance) trên địa hình gồ ghề.
+[Q]
+answer: brain
+loc: the bird's brain was not small, but average in size
+exp: Bộ não (brain) của dodo có kích thước trung bình, không nhỏ.
+[Q]
+answer: smell
+loc: one sense which was particularly well-developed was that of smell
+exp: Khứu giác (smell) rất phát triển giúp chúng tìm thức ăn.
+[Q]
+answer: rats
+loc: another type of creature - rats
+exp: Chuột (rats) lên bờ từ tàu và ăn trứng chim dodo.
+[Q]
+answer: forest
+loc: the forest that had once covered all the island
+exp: Nông nghiệp xuất hiện khiến khu rừng (forest) bị chặt phá để trồng mía.
