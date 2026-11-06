@@ -245,7 +245,7 @@
     '@media screen{body{background:#eceef6}.sheet{background:#fff;padding:14mm;margin:8mm auto;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:210mm}section.part,.cover{border-bottom:2px dashed #d9dbe8;padding-bottom:10mm;margin-bottom:10mm}}';
 
   var DUPLEX = false;
-  var DX_CSS = '';
+  var DX_CSS = '@page{size:A4 landscape;margin:9mm}body.dx{font-size:9pt}body.dx .sheet{max-width:279mm}body.dx section.part{column-count:2;column-gap:10mm;column-rule:1px dashed #d9dbe8}body.dx .pz{font-size:9.4pt}body.dx .pz.mg{padding-right:0;background:none}body.dx .pz.mg::before{display:none}body.dx .cover{min-height:172mm}body.dx .kg{grid-template-columns:repeat(2,1fr)}body.dx .gimg img{max-height:70mm}@media screen{body.dx .sheet{max-width:297mm}}';
   function buildDoc(title, body) {
     return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' +
       '<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">' +
@@ -332,7 +332,7 @@
       '<div class="row"><span>Phần:</span><select data-k="part">' + partOpts + '</select></div>' +
       '<div class="bulk" style="display:none"><div class="row" style="margin-top:10px"><b>Chọn bộ đề</b> <label><input type="checkbox" data-k="all"> Chọn tất cả</label></div><div class="sets">Đang tải danh sách…</div></div>' +
       '<div class="row"><label><input type="checkbox" data-k="key" checked> Kèm đáp án (trang cuối)</label><label><input type="checkbox" data-k="exp"> Đáp án kèm giải thích</label>' +
-      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label></div>' +
+      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label><label><input type="checkbox" data-k="duplex"> In 2 trang/tờ (A4 ngang, 2 cột)</label></div>' +
       '<div class="ft"><span class="msg"></span><button class="b" data-k="close">Huỷ</button><button class="b pr" data-k="go">Xem bản in</button></div></div>';
     document.body.appendChild(o);
     var mode = 'part', paths = null;
