@@ -244,10 +244,12 @@
     '.end{text-align:center;margin-top:8mm;color:var(--ink2);font-size:9pt}.end img{width:18mm;display:block;margin:0 auto 1mm}' +
     '@media screen{body{background:#eceef6}.sheet{background:#fff;padding:14mm;margin:8mm auto;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:210mm}section.part,.cover{border-bottom:2px dashed #d9dbe8;padding-bottom:10mm;margin-bottom:10mm}}';
 
+  var DUPLEX = false;
+  var DX_CSS = 'body.dx section.part{break-before:right;page-break-before:right}body.dx .sheet>section.part:first-child{break-before:auto;page-break-before:auto}';
   function buildDoc(title, body) {
     return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' +
       '<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">' +
-      '<style>' + CSS + '</style></head><body><div class="sheet">' + body +
+      '<style>' + CSS + (DUPLEX ? DX_CSS : '') + '</style></head><body' + (DUPLEX ? ' class="dx"' : '') + '><div class="sheet">' + body +
       '<div class="end"><img src="' + IRA + ST.end + '.webp" alt="">Night IELTS · nightielts.id.vn</div></div></body></html>';
   }
 
@@ -330,7 +332,7 @@
       '<div class="row"><span>Phần:</span><select data-k="part">' + partOpts + '</select></div>' +
       '<div class="bulk" style="display:none"><div class="row" style="margin-top:10px"><b>Chọn bộ đề</b> <label><input type="checkbox" data-k="all"> Chọn tất cả</label></div><div class="sets">Đang tải danh sách…</div></div>' +
       '<div class="row"><label><input type="checkbox" data-k="key" checked> Kèm đáp án (trang cuối)</label><label><input type="checkbox" data-k="exp"> Đáp án kèm giải thích</label>' +
-      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label></div>' +
+      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label><label><input type="checkbox" data-k="duplex"> In 2 mặt (mỗi phần bắt đầu ở mặt trước tờ giấy)</label></div>' +
       '<div class="ft"><span class="msg"></span><button class="b" data-k="close">Huỷ</button><button class="b pr" data-k="go">Xem bản in</button></div></div>';
     document.body.appendChild(o);
     var mode = 'part', paths = null;
@@ -352,7 +354,8 @@
       if (k === 'all') { $$('.sets input', o).forEach(function (x) { x.checked = e.target.checked; }); return; }
       if (k === 'close') return o.remove();
       if (k === 'go') {
-        var opt = { part: +$('[data-k="part"]', o).value, key: $('[data-k="key"]', o).checked, exp: $('[data-k="exp"]', o).checked, margin: !!($('[data-k="margin"]', o) || {}).checked, vocab: $('[data-k="vocab"]', o).checked };
+        var opt = { part: +$('[data-k="part"]', o).value, key: $('[data-k="key"]', o).checked, exp: $('[data-k="exp"]', o).checked, margin: !!($('[data-k="margin"]', o) || {}).checked, vocab: $('[data-k="vocab"]', o).checked, duplex: $('[data-k="duplex"]', o).checked };
+        DUPLEX = !!opt.duplex;
         var msg = $('.msg', o); msg.textContent = 'Đang chuẩn bị…';
         var p;
         if (mode === 'part') p = makePart(opt);
