@@ -244,12 +244,14 @@
     '.end{text-align:center;margin-top:8mm;color:var(--ink2);font-size:9pt}.end img{width:18mm;display:block;margin:0 auto 1mm}' +
     '@media screen{body{background:#eceef6}.sheet{background:#fff;padding:14mm;margin:8mm auto;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:210mm}section.part,.cover{border-bottom:2px dashed #d9dbe8;padding-bottom:10mm;margin-bottom:10mm}}';
 
-  var DUPLEX = false;
-  var DX_CSS = '@page{size:A4 landscape;margin:9mm}body.dx{font-size:9pt}body.dx .sheet{max-width:279mm}body.dx section.part{column-count:2;column-gap:10mm;column-rule:1px dashed #d9dbe8}body.dx .pz{font-size:9.4pt}body.dx .pz.mg{padding-right:0;background:none}body.dx .pz.mg::before{display:none}body.dx .cover{min-height:172mm}body.dx .kg{grid-template-columns:repeat(2,1fr)}body.dx .gimg img{max-height:70mm}@media screen{body.dx .sheet{max-width:297mm}}';
+  var DUPLEX = false, FS = 1;
+  function fsCss() { if (FS === 1) return ''; var w = DUPLEX ? 279 : 184; return '.sheet{zoom:' + FS + ';max-width:' + (w / FS).toFixed(1) + 'mm!important}@media screen{.sheet{max-width:' + ((DUPLEX ? 297 : 210) / FS).toFixed(1) + 'mm!important}}'; }
+  var DX_CSS = '@page{size:A4 landscape;margin:9mm}body.dx{font-size:9pt}body.dx .sheet{max-width:279mm}body.dx .cover+.flow{break-before:page;page-break-before:always}body.dx .flow{column-count:2;column-gap:10mm;column-rule:1px dashed #d9dbe8}body.dx .flow section.part{break-before:auto;page-break-before:auto;margin-bottom:7mm}body.dx .flow section.part.key{break-before:column}body.dx .qh{break-before:auto;page-break-before:auto}body.dx .ph{break-after:avoid}body.dx .ph .pt{font-size:11pt}body.dx .pz h2{break-after:avoid}' + (KIND === 'reading' ? 'body.dx section.part{column-count:2;column-gap:10mm;column-rule:1px dashed #d9dbe8}' : '') + 'body.dx .vb{margin-top:3mm}body.dx .pz{font-size:9.4pt}body.dx .pz.mg{padding-right:0;background:none}body.dx .pz.mg::before{display:none}body.dx .cover{min-height:172mm}body.dx .kg{grid-template-columns:repeat(2,1fr)}body.dx .gimg img{max-height:70mm}@media screen{body.dx .sheet{max-width:297mm}}';
   function buildDoc(title, body) {
+    if (DUPLEX && KIND !== 'reading') { var ci = body.indexOf('<section class="part'); if (ci !== -1) body = body.slice(0, ci) + '<div class="flow">' + body.slice(ci) + '</div>'; }
     return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' +
       '<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">' +
-      '<style>' + CSS + (DUPLEX ? DX_CSS : '') + '</style></head><body' + (DUPLEX ? ' class="dx"' : '') + '><div class="sheet">' + body +
+      '<style>' + CSS + (DUPLEX ? DX_CSS : '') + fsCss() + '</style></head><body' + (DUPLEX ? ' class="dx"' : '') + '><div class="sheet">' + body +
       '<div class="end"><img src="' + IRA + ST.end + '.webp" alt="">Night IELTS · nightielts.id.vn</div></div></body></html>';
   }
 
@@ -332,10 +334,11 @@
       '<div class="row"><span>Phần:</span><select data-k="part">' + partOpts + '</select></div>' +
       '<div class="bulk" style="display:none"><div class="row" style="margin-top:10px"><b>Chọn bộ đề</b> <label><input type="checkbox" data-k="all"> Chọn tất cả</label></div><div class="sets">Đang tải danh sách…</div></div>' +
       '<div class="row"><label><input type="checkbox" data-k="key" checked> Kèm đáp án (trang cuối)</label><label><input type="checkbox" data-k="exp"> Đáp án kèm giải thích</label>' +
-      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label><label><input type="checkbox" data-k="duplex"> In 2 trang/tờ (A4 ngang, 2 cột)</label></div>' +
+      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label><label>Cỡ chữ <select data-k="fs"><option value="0.9">Nhỏ</option><option value="1" selected>Vừa</option><option value="1.12">Lớn</option><option value="1.25">Rất lớn</option></select></label><label><input type="checkbox" data-k="duplex"> In 2 trang/tờ (A4 ngang, 2 cột)</label></div>' +
       '<div class="ft"><span class="msg"></span><button class="b" data-k="close">Huỷ</button><button class="b pr" data-k="go">Xem bản in</button></div></div>';
     document.body.appendChild(o);
     var mode = 'part', paths = null;
+    try { var pf = JSON.parse(localStorage.getItem('np-pref') || '{}'); if (pf.fs) $('[data-k="fs"]', o).value = String(pf.fs); if (pf.duplex) $('[data-k="duplex"]', o).checked = true; } catch (e) {}
     o.addEventListener('click', function (e) {
       if (e.target === o) return o.remove();
       var md = e.target.closest('.md');
@@ -355,7 +358,8 @@
       if (k === 'close') return o.remove();
       if (k === 'go') {
         var opt = { part: +$('[data-k="part"]', o).value, key: $('[data-k="key"]', o).checked, exp: $('[data-k="exp"]', o).checked, margin: !!($('[data-k="margin"]', o) || {}).checked, vocab: $('[data-k="vocab"]', o).checked, duplex: $('[data-k="duplex"]', o).checked };
-        DUPLEX = !!opt.duplex;
+        DUPLEX = !!opt.duplex; FS = +$('[data-k="fs"]', o).value || 1;
+        try { localStorage.setItem('np-pref', JSON.stringify({ fs: FS, duplex: DUPLEX })); } catch (e) {}
         var msg = $('.msg', o); msg.textContent = 'Đang chuẩn bị…';
         var p;
         if (mode === 'part') p = makePart(opt);
