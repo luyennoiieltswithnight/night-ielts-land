@@ -308,3 +308,43 @@
     speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', function () {});
   } catch (e) {}
 })();
+
+/* Floating toolbars (chọn chữ): giữ kích cỡ cố định khi zoom + tự căn vào vùng nhìn thấy (giống night-engine) */
+(function () {
+  try {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    var IDS = ['annot-toolbar', 'note-input-box', 'note-delete-box', 'trans-box'];
+    function init(el) {
+      var mine = null, busy = false, mo;
+      function place() {
+        if (busy) return;
+        var cs = getComputedStyle(el);
+        if (cs.display === 'none') return;
+        var l = el.style.left, t = el.style.top;
+        if (!mine || l !== mine.l || t !== mine.t) { mine = { ol: parseFloat(l) || 0, ot: parseFloat(t) || 0 }; }
+        busy = true; mo.disconnect();
+        var s = vv.scale || 1, pad = 8;
+        el.style.transformOrigin = '0 0';
+        el.style.transform = s > 1.01 || s < 0.99 ? 'scale(' + (1 / s) + ')' : '';
+        el.style.maxWidth = Math.max(160, (vv.width - pad * 2) * s) + 'px';
+        el.style.left = (vv.pageLeft + pad) + 'px';
+        var w = el.offsetWidth / s, h = el.offsetHeight / s;
+        var vl = vv.pageLeft, vt = vv.pageTop;
+        var x = mine.ol, y = mine.ot;
+        x = Math.max(vl + pad, Math.min(x, vl + vv.width - pad - w));
+        y = Math.max(vt + pad, Math.min(y, vt + vv.height - pad - h));
+        el.style.left = x + 'px'; el.style.top = y + 'px';
+        mine.l = el.style.left; mine.t = el.style.top;
+        busy = false; mo.observe(el, { attributes: true, attributeFilter: ['style'] });
+      }
+      mo = new MutationObserver(place);
+      mo.observe(el, { attributes: true, attributeFilter: ['style'] });
+      vv.addEventListener('resize', place);
+      vv.addEventListener('scroll', place);
+      place();
+    }
+    function go() { IDS.forEach(function (id) { var e = document.getElementById(id); if (e && !e.__vvf) { e.__vvf = 1; init(e); } }); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+  } catch (e) {}
+})();
