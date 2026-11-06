@@ -245,7 +245,7 @@
     '@media screen{body{background:#eceef6}.sheet{background:#fff;padding:14mm;margin:8mm auto;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:210mm}section.part,.cover{border-bottom:2px dashed #d9dbe8;padding-bottom:10mm;margin-bottom:10mm}}';
 
   var DUPLEX = false;
-  var DX_CSS = '@page{size:A4 landscape;margin:8mm}body.dx{font-size:90%}body.dx .sheet{column-count:2;column-gap:9mm;column-rule:1px solid #d9dbe8}body.dx section.part,body.dx .qh{break-before:auto;page-break-before:auto}body.dx section.key{break-before:column}body.dx .cover{min-height:170mm}body.dx .pz.mg{display:block}';
+  var DX_CSS = '';
   function buildDoc(title, body) {
     return '<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>' + esc(title) + '</title>' +
       '<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">' +
@@ -332,7 +332,7 @@
       '<div class="row"><span>Phần:</span><select data-k="part">' + partOpts + '</select></div>' +
       '<div class="bulk" style="display:none"><div class="row" style="margin-top:10px"><b>Chọn bộ đề</b> <label><input type="checkbox" data-k="all"> Chọn tất cả</label></div><div class="sets">Đang tải danh sách…</div></div>' +
       '<div class="row"><label><input type="checkbox" data-k="key" checked> Kèm đáp án (trang cuối)</label><label><input type="checkbox" data-k="exp"> Đáp án kèm giải thích</label>' +
-      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label><label><input type="checkbox" data-k="duplex"> In 2 trang A4 thu nhỏ trên 1 mặt giấy (A4 ngang, 2 cột)</label></div>' +
+      (KIND === 'reading' ? '<label><input type="checkbox" data-k="margin" checked> Lề ghi chú cạnh bài đọc</label>' : '') + '<label><input type="checkbox" data-k="vocab" checked> Ô từ vựng mới</label></div>' +
       '<div class="ft"><span class="msg"></span><button class="b" data-k="close">Huỷ</button><button class="b pr" data-k="go">Xem bản in</button></div></div>';
     document.body.appendChild(o);
     var mode = 'part', paths = null;
@@ -373,7 +373,7 @@
   function preview(html) {
     ui();
     var pv = document.createElement('div'); pv.id = 'np-pv';
-    pv.innerHTML = '<div class="tb"><span>Bản xem trước — bấm In (chọn khổ A4, bật "Đồ hoạ nền" / Background graphics để in màu và dòng kẻ)</span><button data-k="close">Đóng</button><button class="pr" data-k="print">In / Lưu PDF</button></div><iframe title="Bản in"></iframe>';
+    pv.innerHTML = '<div class="tb"><span>Bản xem trước — bấm In (chọn khổ A4; muốn tiết kiệm giấy thì chọn "Pages per sheet = 2" hoặc "In hai mặt"; bật "Đồ hoạ nền" / Background graphics để in màu và dòng kẻ)</span><button data-k="close">Đóng</button><button class="pr" data-k="print">In / Lưu PDF</button></div><iframe title="Bản in"></iframe>';
     document.body.appendChild(pv);
     var fr = $('iframe', pv);
     fr.srcdoc = html;
