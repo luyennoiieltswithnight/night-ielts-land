@@ -286,7 +286,7 @@
       var tests = res.filter(function (t) { return t && t.qd[opt.part]; });
       tests.forEach(numberTest);
       var name = partName(opt.part);
-      var body = cover(name + ' · ' + tests.length + ' đề', 'Ôn riêng ' + name + ' của nhiều đề', tests.map(function (t) { return t.title; }));
+      var body = cover(name + ' · ' + tests.length + ' đề', 'Ôn riêng ' + name + ' của nhiều đề', null);
       tests.forEach(function (t) { body += sectionBlock(t, opt.part, opt, t.title); });
       if (opt.key) body += keyBlock(tests.map(function (t) { return { label: t.title + ' · ' + name, rows: keyRows(t, opt.part) }; }), opt);
       return buildDoc(name + ' — ' + tests.length + ' đề', body);

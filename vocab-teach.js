@@ -48,6 +48,7 @@
       if (/online/i.test(n)) sc += 60;
       if (/google/i.test(n)) sc += 80;
       if (/premium|enhanced|siri/i.test(n)) sc += 70;
+      if (/daniel|karen|moira|arthur|martha|aaron|nicky|tessa|rishi/i.test(n)) sc += 45;
       if (/libby|sonia|maisie|ryan|thomas|serena|kate|daniel|samantha|ava|allison|jenny|aria|guy|xiaoxiao|tingting|yunxi/i.test(n)) sc += 40;
       if (BAD_VOICE.test(n)) sc -= 500;
       if (v.localService === false) sc += 5;

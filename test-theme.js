@@ -163,7 +163,7 @@
 /* Listening: chế độ "Giải đề cùng thầy" (listening-solver.js tự kiểm tra admin, người khác không thấy gì) */
 (function () {
   if (window.__nightLSolverHook || !/\/listening\//.test(location.pathname)) return; window.__nightLSolverHook = true;
-  var src; try { src = new URL('listening-solver.js?v=20261106b', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/listening-solver.js'; }
+  var src; try { src = new URL('listening-solver.js?v=20261106c', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/listening-solver.js'; }
   var add = function () { var s = document.createElement('script'); s.src = src; document.head.appendChild(s); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
 })();
@@ -270,4 +270,41 @@
     var s = document.createElement('script'); s.src = src; s.defer = true; document.head.appendChild(s);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
+})();
+
+/* Night IELTS: giọng đọc tốt hơn cho mọi nút loa (iPad/iPhone hay chọn giọng nén rất dở) */
+(function () {
+  try {
+    if (window.__nightTTS || !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+    window.__nightTTS = 1;
+    var BAD = /compact|espeak|fred|albert|zarvox|bad news|bells|bubbles|cellos|jester|organ|trinoids|whisper|wobble|boing|good news|superstar|junior|ralph|kathy|bahh|grandma|grandpa|rocko|shelley|sandy|eddy|flo|reed/i;
+    function best(lang) {
+      var vs = speechSynthesis.getVoices() || [], base = String(lang || 'en').slice(0, 2).toLowerCase(), top = -1e9, pick = null;
+      vs.forEach(function (v) {
+        var l = String(v.lang || '').replace('_', '-'), n = v.name || '', sc = 0;
+        if (l.toLowerCase().indexOf(base) !== 0) return;
+        if (l === lang) sc += 15; else if (base === 'en' && /GB|US/.test(l)) sc += 8;
+        if (/natural|neural/i.test(n)) sc += 120;
+        if (/google/i.test(n)) sc += 80;
+        if (/premium|enhanced|siri/i.test(n)) sc += 90;
+        if (/online/i.test(n)) sc += 60;
+        if (/daniel|karen|moira|arthur|martha|aaron|nicky|tessa|rishi|samantha|libby|sonia|ryan|serena|kate|ava|allison|jenny|aria|guy/i.test(n)) sc += 40;
+        if (BAD.test(n)) sc -= 500;
+        if (v.localService === false) sc += 5;
+        if (sc > top) { top = sc; pick = v; }
+      });
+      return pick;
+    }
+    var orig = speechSynthesis.speak.bind(speechSynthesis);
+    speechSynthesis.speak = function (u) {
+      try {
+        var cur = u.voice, lang = u.lang || 'en-GB';
+        if (!cur || BAD.test(cur.name || '')) { var v = best(lang); if (v) u.voice = v; }
+        if (u.rate === 1 && /^en/i.test(lang)) u.rate = 0.92;
+      } catch (e) {}
+      return orig(u);
+    };
+    speechSynthesis.getVoices();
+    speechSynthesis.addEventListener && speechSynthesis.addEventListener('voiceschanged', function () {});
+  } catch (e) {}
 })();
