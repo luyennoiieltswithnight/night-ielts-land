@@ -3013,6 +3013,11 @@
     };
   }
 
+  // Chế độ phụ đề: en = EN→VI, vi = VI→EN, zh = 中文(giản thể)→VI, vz = VI→中文(giản thể)
+  const CC_SRC = { en: "en", vi: "vi", zh: "zh-CN", vz: "vi" };
+  const CC_TGT = { en: "vi", vi: "en", zh: "vi", vz: "zh-CN" };
+  const CC_REC = { en: "en-US", vi: "vi-VN", zh: "zh-CN", vz: "vi-VN" };
+  const ccIsZhPage = () => /tiengtrung/i.test(location.pathname) || /^zh/.test(ACCENT || "");
   function LiveCaptions() {
     const [active, setActive] = useState(false);
     const [paused, setPaused] = useState(false);
@@ -3021,8 +3026,9 @@
     const [needKey, setNeedKey] = useState(false);
     const [keyInput, setKeyInput] = useState("");
     const [mode, setMode] = useState(() => {
-      try { const m = localStorage.getItem(CC_MODE_KEY); if (m === "en" || m === "vi") return m; } catch (e) {} // chế độ "auto" (VI⇄EN) đã bỏ → về EN→VI
-      return "en";
+      const zhp = ccIsZhPage();
+      try { const m = localStorage.getItem(CC_MODE_KEY + (zhp ? "_zh" : "")); if (zhp ? (m === "zh" || m === "vz") : (m === "en" || m === "vi")) return m; } catch (e) {}
+      return zhp ? "zh" : "en";
     });
     const [lines, setLines] = useState([]);
     const [interim, setInterim] = useState("");
@@ -3045,7 +3051,8 @@
     const pushLine = useCallback((text, lang) => {
       const id = Date.now() + Math.random();
       setLines((p) => [...p, { id, text, lang, tr: "" }].slice(-2));
-      ccTranslate(text, lang, lang === "vi" ? "en" : "vi")
+      const md = R.mode || "en";
+      ccTranslate(text, CC_SRC[md] || lang, CC_TGT[md] || (lang === "vi" ? "en" : "vi"))
         .then((tr) => setLines((p) => p.map((l) => l.id === id ? { ...l, tr } : l)))
         .catch(() => setLines((p) => p.map((l) => l.id === id ? { ...l, tr: "(chưa dịch được)" } : l)));
     }, []);
@@ -3053,9 +3060,9 @@
     // Dịch luôn câu đang nói dở sau ~0,5 giây ngừng đổi
     useEffect(() => {
       if (!interim) { setInterimTr(""); return; }
-      const lang = R.mode === "vi" ? "vi" : "en";
+      const md = R.mode || "en";
       let off = false;
-      const t = setTimeout(() => { ccTranslateGoogle(interim, lang, lang === "vi" ? "en" : "vi").then((tr) => { if (!off) setInterimTr(tr); }).catch(() => {}); }, 500);
+      const t = setTimeout(() => { ccTranslateGoogle(interim, CC_SRC[md], CC_TGT[md]).then((tr) => { if (!off) setInterimTr(tr); }).catch(() => {}); }, 500);
       return () => { off = true; clearTimeout(t); };
     }, [interim]);
 
@@ -3066,14 +3073,15 @@
       if (!key) { fail("Cần Groq API key (miễn phí, dùng chung cả web) — dán vào ô bên dưới.", true); return; }
       const ext = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
       const m = R.mode;
-      const models = m === "vi" ? CC_WHISPER_MULTI : CC_WHISPER_EN;
+      const models = m === "en" ? CC_WHISPER_EN : CC_WHISPER_MULTI;
       for (let i = 0; i < models.length; i++) {
         const last = i === models.length - 1;
         try {
           const fd = new FormData();
           fd.append("file", blob, "chunk." + ext);
           fd.append("model", models[i]);
-          fd.append("language", m === "vi" ? "vi" : "en");
+          fd.append("language", m === "zh" ? "zh" : CC_SRC[m] === "vi" ? "vi" : "en");
+          if (m === "zh") fd.append("prompt", "以下是普通话的句子，使用简体中文。");
           fd.append("response_format", "json");
           fd.append("temperature", "0");
           const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { Authorization: "Bearer " + key }, body: fd });
@@ -3083,7 +3091,7 @@
           const text = ((d && d.text) || "").trim();
           if (text) {
             setStatus((s) => (s === "error" ? "listening" : s)); setError("");
-            if (!CC_HALLU_RE.test(text)) pushLine(text, m === "vi" ? "vi" : "en");
+            if (!CC_HALLU_RE.test(text)) pushLine(text, CC_SRC[m] === "vi" ? "vi" : m === "zh" ? "zh" : "en");
           }
           return;
         } catch (e) {
@@ -3123,8 +3131,8 @@
       const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!Ctor) return false;
       const r = new Ctor();
-      const lang = R.mode === "vi" ? "vi" : "en";
-      r.lang = lang === "vi" ? "vi-VN" : "en-US";
+      const lang = CC_SRC[R.mode] === "vi" ? "vi" : R.mode === "zh" ? "zh" : "en";
+      r.lang = CC_REC[R.mode] || "en-US";
       r.continuous = true;
       r.interimResults = true;
       let committed = {}, pIdx = -1, pWords = null, timer = null;
@@ -3240,7 +3248,7 @@
     const switchMode = useCallback((m) => {
       if (m === R.mode) return;
       R.mode = m; setMode(m);
-      try { localStorage.setItem(CC_MODE_KEY, m); } catch (e) {}
+      try { localStorage.setItem(CC_MODE_KEY + (ccIsZhPage() ? "_zh" : ""), m); } catch (e) {}
       if (R.active && !R.paused && !R.yielded) { stopMic(); setStatus("listening"); setError(""); setNeedKey(false); startMic(); }
     }, [stopMic, startMic]);
 
@@ -3294,13 +3302,16 @@
 
     useEffect(() => () => stop(), [stop]); // rời trang → tắt micro
 
-    const MODES = [
+    const MODES = ccIsZhPage() ? [
+      { key: "zh", label: "中文 → VI", hint: "Nghe tiếng Trung (phổ thông), hiện chữ giản thể + dịch sang tiếng Việt" },
+      { key: "vz", label: "VI → 中文", hint: "Nghe tiếng Việt, dịch sang tiếng Trung giản thể" },
+    ] : [
       { key: "en", label: "EN → VI", hint: "Nghe tiếng Anh, dịch sang tiếng Việt — chữ hiện tức thời" },
       { key: "vi", label: "VI → EN", hint: "Nghe tiếng Việt, dịch sang tiếng Anh — chữ hiện tức thời" },
     ];
     const statusText = { error: "Lỗi", paused: "Tạm dừng", yield: "Nhường mic cho ghi chú", listening: "Đang nghe", idle: "" }[status];
     const dot = status === "error" ? "bg-rose-500" : status === "paused" || status === "yield" ? "bg-amber-400" : "bg-emerald-400 animate-pulse";
-    const tag = (lang, cls) => h("span", { className: "relative -top-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-extrabold " + cls }, lang === "vi" ? "VI" : "EN");
+    const tag = (lang, cls) => h("span", { className: "relative -top-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-extrabold " + cls }, lang === "vi" ? "VI" : lang === "zh" ? "中" : "EN");
 
     if (!active) {
       return h("button", {
@@ -3350,13 +3361,13 @@
                   lines.length === 0 && !interim && h("p", { className: "text-center text-sm " + (silenceHint ? "font-semibold text-amber-300" : "italic text-slate-400") },
                     status === "paused" ? "Đã tạm dừng — bấm nút micro để nghe tiếp, phụ đề vẫn giữ nguyên."
                       : status === "yield" ? "Ô ghi chú đang dùng micro — ghi xong phụ đề sẽ tự nghe tiếp."
-                      : silenceHint || (mode === "vi" ? "Đang chờ tiếng Việt…" : "Đang chờ tiếng Anh…")),
+                      : silenceHint || (CC_SRC[mode] === "vi" ? "Đang chờ tiếng Việt…" : mode === "zh" ? "Đang chờ tiếng Trung…" : "Đang chờ tiếng Anh…")),
                   lines.length > 0 && silenceHint && h("p", { className: "text-center text-xs font-semibold text-amber-300" }, silenceHint),
                   lines.map((l) => h("div", { key: l.id },
                     h("p", { className: "flex items-baseline gap-2 text-base font-bold leading-snug sm:text-lg" }, tag(l.lang, "bg-white/15 text-slate-300"), h("span", null, l.text)),
                     h("p", { className: "pl-8 text-sm font-semibold leading-snug text-orange-300 sm:text-base" }, l.tr || h("span", { className: "opacity-60" }, "đang dịch…")))),
                   interim && h("div", null,
-                    h("p", { className: "flex items-baseline gap-2 text-base font-bold leading-snug text-sky-300 sm:text-lg" }, tag(mode === "vi" ? "vi" : "en", "bg-sky-400/20 text-sky-200"), h("span", null, interim)),
+                    h("p", { className: "flex items-baseline gap-2 text-base font-bold leading-snug text-sky-300 sm:text-lg" }, tag(CC_SRC[mode] === "vi" ? "vi" : mode === "zh" ? "zh" : "en", "bg-sky-400/20 text-sky-200"), h("span", null, interim)),
                     interimTr && h("p", { className: "pl-8 text-sm font-semibold leading-snug text-orange-300/80 sm:text-base" }, interimTr)))),
           h("button", {
             onClick: () => (paused ? resume() : pause()),
@@ -4596,6 +4607,7 @@
   html { scroll-behavior: smooth; }
   body.night-cc-on { padding-bottom: var(--night-cc-h, 170px); }
   body.night-cc-on .night-fab { bottom: calc(var(--night-cc-h, 170px) + 12px); }
+  body.night-cc-on .fixed.inset-0 { bottom: var(--night-cc-h, 170px); } /* hộp từ vựng, popup… không bị thanh phụ đề che */
 `;
   /* Màu chủ đạo theo khóa (thư mục của trang): Giao tiếp cam · Speaking tím · Writing vàng · Chuyên đề xanh lá */
   const NV_COURSE_THEME = (() => {
