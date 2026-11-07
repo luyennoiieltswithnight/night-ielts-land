@@ -1359,7 +1359,7 @@
     useNvpRemote(() => { if (pkey) setPicked0(NVP.get(pkey, {})); });
     const answered = Object.keys(picked).length;
     const correct = items.filter((it, i) => picked[i] === it.answer).length;
-    return /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, items.map((it, i) => {
+    return /* @__PURE__ */ React.createElement("div", { className: `grid gap-4 ${items.length >= 4 && !items.some((x) => x.img) ? "lg:grid-cols-2" : ""}` }, items.map((it, i) => {
       const p = picked[i];
       return /* @__PURE__ */ React.createElement("div", { key: i, className: "rounded-3xl border border-slate-200 bg-white p-5 shadow-floating" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-slate-800" }, /* @__PURE__ */ React.createElement("span", { className: "mr-2 text-primary" }, i + 1, "."), rich(it.q)), it.img && React.createElement("img", { src: it.img, alt: "", loading: "lazy", className: "mt-3 w-full max-w-xl rounded-2xl border border-slate-100" }), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex flex-wrap gap-2" }, it.options.map((o, k) => {
         let style = "border-slate-200 bg-slate-50 text-slate-700 hover:border-primary/40";
@@ -1379,7 +1379,7 @@
           o
         );
       })), p !== void 0 && it.explain && /* @__PURE__ */ React.createElement("p", { className: `mt-3 text-xs leading-relaxed ${p === it.answer ? "text-emerald-700" : "text-rose-600"}` }, p === it.answer ? "✓ " : "✗ ", rich(it.explain)), p !== void 0 && p !== it.answer && React.createElement("button", { onClick: () => { const n = { ...picked }; delete n[i]; setPicked(n); }, className: "mt-2 rounded-full bg-rose-50 px-3 py-1 text-xs font-bold text-rose-600 hover:bg-rose-100" }, "↺ Làm lại câu này"));
-    }), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap items-center justify-between gap-2 rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" }, /* @__PURE__ */ React.createElement("span", null, "Đã làm ", answered, "/", items.length, " · Đúng ", correct), answered > 0 && React.createElement("span", { className: "flex flex-wrap gap-2" },
+    }), /* @__PURE__ */ React.createElement("div", { className: "lg:col-span-2 flex flex-wrap items-center justify-between gap-2 rounded-3xl bg-primary-light px-5 py-3 text-sm font-semibold text-primary" }, /* @__PURE__ */ React.createElement("span", null, "Đã làm ", answered, "/", items.length, " · Đúng ", correct), answered > 0 && React.createElement("span", { className: "flex flex-wrap gap-2" },
       answered > correct && React.createElement("button", { onClick: () => { const n = {}; Object.keys(picked).forEach((k) => { if (picked[k] === (items[k] || {}).answer) n[k] = picked[k]; }); setPicked(n); }, className: "rounded-full bg-white px-4 py-2 text-xs font-extrabold text-rose-600 shadow-sm" }, "↺ Làm lại các câu sai"),
       React.createElement("button", { onClick: () => setPicked({}), className: "rounded-full bg-primary px-4 py-2 text-xs font-extrabold text-white shadow-sm" }, "↺ Làm lại cả bài"))));
   }
@@ -2570,6 +2570,64 @@
         h("div", { className: "space-y-2" }, lines.map((l, k) => h("div", { key: k, className: `flex items-start gap-2 rounded-2xl p-2 transition ${k === act ? "bg-white ring-2 ring-primary/40" : ""}` }, h(ZhLine, { zh: l.zh, py: l.py, vi: l.vi, size: "md" }), h(ZhSpeak, { text: l.zh, small: true })))),
         ZH_SR && h("div", { className: "mt-4" }, h(ZhSpeakDrill, { items: lines.map((l) => ({ vi: l.vi, zh: l.zh, py: l.py })), pkey: s.id + "-say" }))));
   }
+
+  /* ---------- Trang trí phong cách Anh–Mỹ (các khoá tiếng Anh) ---------- */
+  const EN_PAT = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='150' viewBox='0 0 220 150'><g fill='none' stroke='#F2C46D' stroke-opacity='.17' stroke-width='2' stroke-linejoin='round'><path d='M22 120V52h18v68M22 52l9-16 9 16M26 66h10M31 72a5 5 0 1 0 .1 0'/><rect x='70' y='92' width='52' height='26' rx='5'/><path d='M74 100h10v8H74zM88 100h10v8H88zM102 100h10v8h-10zM70 112h52'/><circle cx='82' cy='120' r='4'/><circle cx='110' cy='120' r='4'/><path d='M150 34h26v6a13 13 0 0 1-26 0z'/><path d='M176 38c6 0 6 8 0 8'/><path d='M146 54h34'/><path d='M190 98l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z'/><path d='M150 128c6-8 14-8 20 0'/><path d='M60 22h22v14H60zM60 22l11 8 11-8'/></g></svg>`);
+  const EN_CSS = `
+  html.nv-west:not(.night-present) body { background-color: #1B2443; background-image: url("${EN_PAT}"); background-size: 220px 150px; }
+  .nv-bunting { position: absolute; left: 0; right: 0; top: 0; height: 26px; pointer-events: none; z-index: 4; background-image: url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='26' viewBox='0 0 96 26'><path d='M0 2Q48 10 96 2' fill='none' stroke='rgba(255,255,255,.7)' stroke-width='1.5'/><path d='M4 3l14 1-7 18z' fill='#E63946'/><path d='M28 5l14 1-7 18z' fill='#FFFFFF'/><path d='M52 6l14 0-7 18z' fill='#1D4ED8'/><path d='M76 4l14-1-7 18z' fill='#F4B400'/></svg>")}"); background-repeat: repeat-x; background-size: 96px 26px; }
+  @keyframes nvSway { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
+  .nv-bunting { transform-origin: 50% 0; animation: nvSway 5s ease-in-out infinite; }
+  .nv-stamp-en { position: absolute; z-index: 6; width: 86px; padding: 7px; background: #FFF8E7; transform: rotate(8deg); box-shadow: 0 6px 16px rgba(0,0,0,.18);
+    border-radius: 3px; outline: 3px dotted #FFF8E7; outline-offset: 2px; }
+  .nv-stamp-en > div { border: 2px solid #C0392B; border-radius: 4px; padding: 6px 2px; text-align: center; color: #1B2443; font: 800 10px/1.2 'Plus Jakarta Sans', sans-serif; letter-spacing: .06em; }
+  .nv-postcard { background: #FFFBF2; border: 2px solid #F0E2C4; background-image: repeating-linear-gradient(135deg, #E63946 0 10px, #fff 10px 20px, #1D4ED8 20px 30px, #fff 30px 40px); background-size: 100% 8px; background-repeat: no-repeat; }
+  .nv-postcard-in { background: #FFFBF2; }
+  .nv-tape { position: absolute; top: -12px; left: 50%; width: 92px; height: 24px; transform: translateX(-50%) rotate(-3deg); background: rgba(250,204,21,.55); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  @media (prefers-reduced-motion: reduce) { .nv-bunting { animation: none; } }
+  @media print { .nv-bunting, .nv-stamp-en { display: none !important; } }
+  `;
+  /* Góc văn hoá: mỗi buổi 1 tấm "bưu thiếp" — chọn theo chủ đề bài (từ khoá), không khớp thì theo số buổi */
+  const EN_CULTURE = [
+    { k: /queue|line|wait|bus|xếp hàng/i, img: "gyouretsu.webp", flag: "🇬🇧", place: "Anh", title: "Người Anh rất mê xếp hàng", text: "Ở Anh, chen hàng (queue-jumping) bị coi là cực kỳ bất lịch sự. Dù chỉ có 2 người chờ xe buýt, họ vẫn tự xếp thành hàng.", say: "Excuse me, is this the end of the queue?", vi: "Xin lỗi, đây là cuối hàng phải không ạ?" },
+    { k: /weather|rain|season|thời tiết|small talk/i, img: "thumbnail_rain_kasa_6242.webp", flag: "🇬🇧", place: "Anh", title: "Mở lời bằng… thời tiết", text: "Người Anh hay bắt chuyện bằng thời tiết — một chủ đề an toàn, ai cũng nói được. Đây là cách 'làm quen' kinh điển.", say: "Lovely weather today, isn't it?", vi: "Hôm nay trời đẹp nhỉ?" },
+    { k: /tea|drink|coffee|cafe|đồ uống/i, img: "herb_tea_5126.webp", flag: "🇬🇧", place: "Anh", title: "“A cuppa” — tách trà quốc dân", text: "Người Anh uống khoảng 100 triệu tách trà mỗi ngày. Mời ai đó uống trà là cách thân thiện để bắt đầu câu chuyện.", say: "Fancy a cuppa?", vi: "Làm một tách trà không?" },
+    { k: /restaurant|food|eat|order|menu|nhà hàng|ăn/i, img: "food_hamburger_1250.webp", flag: "🇺🇸", place: "Mỹ", title: "Tiền tip ở Mỹ", text: "Ở nhà hàng Mỹ, khách thường để lại tip 15–20% hoá đơn, vì lương phục vụ phần lớn đến từ tip.", say: "Could we get the check, please?", vi: "Cho chúng tôi xin hoá đơn nhé." },
+    { k: /sorry|apolog|xin lỗi|polite|lịch sự/i, img: "syazai_business_woman_3220.webp", flag: "🇬🇧", place: "Anh", title: "Một ngày nói “sorry” cả chục lần", text: "Người Anh nói sorry cả khi người khác va vào mình. Nó giống “xin lỗi / cho qua” hơn là nhận lỗi.", say: "Oh, sorry — after you!", vi: "Ồ xin lỗi — bạn đi trước đi!" },
+    { k: /friend|thank|cheers|bạn bè/i, img: "nomikai_happy_business_1349.webp", flag: "🇬🇧", place: "Anh", title: "“Cheers” không chỉ để cụng ly", text: "Ở Anh, “cheers” còn có nghĩa là “cảm ơn” hoặc “tạm biệt” — nghe rất thân thiện, tự nhiên.", say: "Cheers, mate!", vi: "Cảm ơn nha bạn!" },
+    { k: /christmas|holiday|festival|lễ|tết/i, img: "christmas_family_6361.webp", flag: "🇬🇧", place: "Anh – Mỹ", title: "Giáng sinh là dịp đoàn tụ", text: "Giống Tết của mình, Christmas là lúc cả nhà về đoàn tụ, ăn gà tây nướng và tặng quà cho nhau.", say: "Merry Christmas and a Happy New Year!", vi: "Chúc Giáng sinh vui vẻ và năm mới hạnh phúc!" },
+    { k: /halloween|scary|ghost|ma/i, img: "obakeyashiki_1940.webp", flag: "🇺🇸", place: "Mỹ", title: "Halloween — 31/10", text: "Trẻ em hoá trang rồi gõ cửa từng nhà xin kẹo. Chủ nhà không cho kẹo thì… bị trêu!", say: "Trick or treat!", vi: "Cho kẹo hay bị ghẹo!" },
+    { k: /sport|football|soccer|game|thể thao/i, img: "soccer_stadium_1270.webp", flag: "🇬🇧", place: "Anh – Mỹ", title: "Football hay soccer?", text: "Người Anh gọi bóng đá là football. Người Mỹ gọi là soccer, vì “football” ở Mỹ là bóng bầu dục.", say: "Which team do you support?", vi: "Bạn cổ vũ đội nào?" },
+    { k: /travel|train|transport|city|direction|đường|du lịch/i, img: "train_chikatetsu_6160.webp", flag: "🇬🇧", place: "London", title: "“Mind the gap!”", text: "Câu nhắc nổi tiếng nhất trên tàu điện ngầm London: cẩn thận khe hở giữa tàu và sân ga.", say: "Could you tell me the way to the station?", vi: "Bạn chỉ giúp tôi đường ra ga được không?" },
+    { k: /home|house|family|room|nhà|gia đình/i, img: "homestay_foreign_8369.webp", flag: "🇬🇧", place: "Anh – Mỹ", title: "Ở homestay: hỏi trước khi dùng", text: "Ở nhà người bản xứ, hỏi trước khi dùng bếp, máy giặt… là phép lịch sự cơ bản.", say: "Do you mind if I use the kitchen?", vi: "Tôi dùng bếp một chút được không?" },
+    { k: /shop|buy|price|money|mua|tiền/i, img: "kankou_shopping_western_0950.webp", flag: "🇬🇧", place: "Anh – Mỹ", title: "“Just looking” là được", text: "Vào cửa hàng, nhân viên hỏi “Can I help you?” — chưa muốn mua thì cứ lịch sự trả lời như dưới đây.", say: "I'm just looking, thanks.", vi: "Tôi xem thôi, cảm ơn nhé." },
+    { k: /work|job|business|meet|introduc|công việc|giới thiệu/i, img: "akusyu_man_woman.webp", flag: "🇺🇸", place: "Anh – Mỹ", title: "Bắt tay chắc + nhìn vào mắt", text: "Lần đầu gặp trong công việc: bắt tay chắc, nhìn vào mắt và mỉm cười — thể hiện sự tự tin, đáng tin.", say: "Nice to meet you. I'm…", vi: "Rất vui được gặp bạn. Tôi là…" },
+    { k: /party|invit|celebrat|tiệc/i, img: "party_boygirl_4337.webp", flag: "🇬🇧", place: "Anh – Úc", title: "Thiệp ghi “BYOB”", text: "BYOB = Bring Your Own Bottle: khách tự mang đồ uống đến tiệc. Rất phổ biến ở Anh và Úc.", say: "Thanks for having me!", vi: "Cảm ơn đã mời mình nhé!" },
+    { k: /spell|write|word|chính tả|viết/i, img: "travel_passport2_6991.webp", flag: "🇬🇧", place: "Anh vs Mỹ", title: "colour hay color?", text: "Anh viết colour, centre, travelled — Mỹ viết color, center, traveled. Bài IELTS chọn kiểu nào cũng được, miễn thống nhất.", say: "Is that British or American spelling?", vi: "Đó là cách viết Anh hay Mỹ vậy?" },
+    { k: /lunch|sandwich|meal|bữa/i, img: "obentou_sandwich_1958.webp", flag: "🇬🇧", place: "Anh", title: "“Meal deal” buổi trưa", text: "Dân văn phòng Anh hay mua combo sandwich + snack + nước giá rẻ ở siêu thị, gọi là meal deal.", say: "Lunch is on me today.", vi: "Hôm nay bữa trưa mình bao." }
+  ];
+  function CultureCorner({ lesson }) {
+    const txt = [lesson.title, lesson.subtitle, lesson.unit].join(" ");
+    const n = parseInt(((location.pathname.match(/buoi-(\d+)/) || [])[1]) || "0", 10);
+    const c = EN_CULTURE.find((x) => x.k.test(txt)) || EN_CULTURE[(n * 7 + 3) % EN_CULTURE.length];
+    return h("section", { className: "nv-postcard relative overflow-hidden rounded-[30px] p-[2px] shadow-floating" },
+      h("div", { className: "nv-postcard-in relative grid items-center gap-4 rounded-[28px] p-5 pt-7 sm:grid-cols-[180px_1fr] sm:p-6 sm:pt-8" },
+        h("div", { className: "relative mx-auto w-40 rotate-[-3deg] rounded-xl bg-white p-2 pb-6 shadow-md sm:w-44" },
+          h("span", { className: "nv-tape" }),
+          h("img", { src: IRA_BASE + c.img, alt: "", loading: "lazy", className: "h-32 w-full object-contain sm:h-36" }),
+          h("p", { className: "absolute bottom-1.5 left-0 right-0 text-center text-[11px] font-bold text-slate-500" }, c.flag, " ", c.place)),
+        h("div", { className: "min-w-0" },
+          h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-rose-600" }, "🌍 Culture corner · Did you know?"),
+          h("h3", { className: "mt-1 text-xl font-black leading-tight text-ink sm:text-2xl" }, c.title),
+          h("p", { className: "mt-2 text-sm leading-relaxed text-slate-600 sm:text-[15px]" }, c.text),
+          h("div", { className: "mt-3 flex items-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-3" },
+            h("div", { className: "min-w-0 flex-1" },
+              h("p", { className: "text-[10px] font-extrabold uppercase tracking-widest text-slate-400" }, "Nói như người bản xứ"),
+              h("p", { className: "text-base font-extrabold text-primary" }, c.say),
+              h("p", { className: "text-xs text-slate-500" }, c.vi)),
+            h(SpeakButton, { text: c.say.replace(/…/g, ""), rate: 0.9 })))));
+  }
+  const EN_SEC_STICKER = { grammar: "benkyoukai_kunrenkou.webp", quiz: "teacher_saiten_woman_4997.webp", vocab: "book_2458.webp", dialogue: "cafe_talk_couple.webp", phrases: "communication_hanashiai_0612.webp", reflex: "thumbnail_yaruki_aru_suit_1724.webp", homework: "syukudai_natsuyasumi_girl_0413.webp", speak: "jikosyoukai_woman_3119.webp", write: "book_sakubun_kodomo_girl.webp", aiwrite: "book_sakubun_kodomo_girl.webp", formula: "map_open_0589.webp", models: "speech_woman_1523.webp", fill: "bunbougu_note_7561.webp", odd: "music_ongaku_kansyou_2460.webp", pairs: "music_ongaku_kansyou_2460.webp", sounds: "music_ongaku_kansyou_2460.webp", stress: "music_ongaku_kansyou_2460.webp", vowels: "music_ongaku_kansyou_2460.webp", criteria: "teacher_tensaku_woman.webp", compare: "figure_koukan_1312.webp", checklist: "document_juuyou_5315.webp", cards: "bunbougu_memo_7150.webp" };
   /* ---------- Trang trí phong cách Trung Hoa ---------- */
   const ZH_CSS = `
   html.nv-china:not(.night-present) body { background-color: #7A0E13; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70' viewBox='0 0 120 70'%3E%3Cg fill='none' stroke='%23E8B54A' stroke-opacity='.16' stroke-width='2'%3E%3Cpath d='M10 50c0-11 9-20 20-20 4-9 13-15 23-15 13 0 24 10 25 23 9 0 16 6 16 14'/%3E%3Cpath d='M30 50c0-6 5-10 10-10s10 4 10 10'/%3E%3C/g%3E%3C/svg%3E"), radial-gradient(ellipse at top, #B3121B 0%, #7A0E13 55%, #4A070B 100%); background-size: 120px 70px, 100% 100%; }
@@ -4518,6 +4576,8 @@
     return h("header", { className: "grid gap-4 lg:grid-cols-12" },
       h("div", { className: `relative flex flex-col overflow-hidden rounded-[30px] bg-primary p-6 text-white sm:p-8 ${goals.length ? "lg:col-span-7" : "lg:col-span-12"}` },
         h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-white/10" }),
+        !isZhLesson(lesson) && h("span", { className: "nv-bunting", "aria-hidden": "true" }),
+        !isZhLesson(lesson) && h("div", { className: "nv-stamp-en hidden sm:block", style: { right: "22px", top: "38px" }, "aria-hidden": "true" }, h("div", null, "✈", h("br"), "ENGLISH", h("br"), h("span", { style: { color: "#C0392B" } }, "UK · US"))),
         isZhLesson(lesson) && h(ZhLantern, { ch: "夜", right: "34%", size: 46, cls: "hidden sm:block" }),
         isZhLesson(lesson) && h(ZhLantern, { ch: "夜", right: "5%", size: 34, cls: "sm:hidden" }),
         isZhLesson(lesson) && h(ZhLantern, { ch: "福", right: "8%", size: 58, cls: "b hidden sm:block" }),
@@ -4633,7 +4693,7 @@
 
     const renderItem = (it) => it.k === "gate"
       ? h(Band8Gate, { key: "band8-gate", open: b8open, onToggle: () => setB8(!b8open), info: lesson.band8, count: b8count })
-      : h(Section, { key: it.s.id, id: it.s.id, step: String(it.i + 1).padStart(2, "0"), title: it.s.title, desc: it.s.desc, sticker: it.s.sticker, band8: it.s.band8, video: it.s.video, videoTitle: it.s.videoTitle, videoNote: it.s.videoNote }, h(SectionBody, { s: it.s, lesson }));
+      : h(Section, { key: it.s.id, id: it.s.id, step: String(it.i + 1).padStart(2, "0"), title: it.s.title, desc: it.s.desc, sticker: it.s.sticker || (!isZhLesson(lesson) && EN_SEC_STICKER[it.s.type]) || undefined, band8: it.s.band8, video: it.s.video, videoTitle: it.s.videoTitle, videoNote: it.s.videoNote }, h(SectionBody, { s: it.s, lesson }));
     const showTitle = !present || slides[cur].k === "title";
     const [active, setActive] = useState(null);
     useEffect(() => {
@@ -4652,7 +4712,7 @@
           h("div", { className: present ? "" : "mt-1.5 rounded-[22px] bg-white px-3 pb-10 pt-4 sm:mt-2.5 sm:rounded-[36px] sm:px-8 sm:pt-8" },
             showTitle && h("div", { className: present ? "mx-auto max-w-5xl px-4 pt-12" : "" }, h(NvHero, { lesson, sections, b8count, firstId: firstSec && firstSec.s.id, present })),
             h("main", { ref: readingRef, className: `mx-auto max-w-5xl space-y-12 ${present ? "mt-10 px-4" : "mt-10 sm:mt-14"}` },
-              present ? (slides[cur].k === "title" ? null : renderItem(slides[cur])) : items.map(renderItem)),
+              present ? (slides[cur].k === "title" ? null : renderItem(slides[cur])) : items.flatMap((it, idx) => idx === 1 && !isZhLesson(lesson) && lesson.culture !== false ? [renderItem(it), h(CultureCorner, { key: "nv-culture", lesson })] : [renderItem(it)])),
             !present && h(NvFooter, { lesson }))),
         h(SelectionTranslateTooltip, { containerRef: readingRef }),
         h(NotesLayer, { lessonId: lesson.id }),
@@ -4784,6 +4844,10 @@
         link.dataset.nightFont = "1";
         link.href = "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap";
         document.head.appendChild(link);
+      }
+      if (!isZhLesson(lesson)) {
+        document.documentElement.classList.add("nv-west");
+        const es = document.createElement("style"); es.textContent = EN_CSS; document.head.appendChild(es);
       }
       if (isZhLesson(lesson)) {
         ACCENT = /^zh/.test(lesson.lang || "") ? lesson.lang : "zh-CN";
