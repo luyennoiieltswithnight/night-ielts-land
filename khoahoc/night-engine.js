@@ -1284,35 +1284,62 @@
   }
 
   const NV_FORM = ["bg-emerald-50 text-emerald-700", "bg-pink-50 text-pink-700", "bg-primary-light text-primary"];
-  function GrammarBlock({ index, name, forms = [], uses = [], examples = [], signals, note, tone = 0 }) {
+  /* Ngữ pháp (tiếng Anh): trái = "tờ công thức" (cấu trúc · cách dùng · mẹo), phải = câu mẫu đánh số + dấu hiệu + lỗi hay gặp */
+  function GrammarBlock({ index, name, forms = [], uses = [], examples = [], signals, note, wrong = [], tone = 0 }) {
     const c = NV_STEP[tone % NV_STEP.length];
     const [vi, setVi] = useState(false);
+    const [open, setOpen] = useState({});
     const splitUse = (u) => { const t = String(u); const k = t.indexOf(":"); return k > 0 && k < 60 ? [t.slice(0, k), t.slice(k + 1).trim()] : [null, t]; };
-    const sig = signals ? String(signals).split(/\s*,\s*/).filter(Boolean) : [];
-    return h("div", { className: "overflow-hidden rounded-[28px] bg-white shadow-floating" },
-      h("div", { className: `flex items-center gap-3 px-5 py-3.5 ${c.solid}` },
-        h("span", { className: "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/30 text-sm font-extrabold" }, index),
-        h("h3", { className: "text-lg font-extrabold leading-tight" }, name)),
-      h("div", { className: "space-y-4 p-4 sm:p-5" },
-        forms.length > 0 && h("div", { className: `grid gap-2 ${forms.length >= 3 ? "sm:grid-cols-3" : forms.length === 2 ? "sm:grid-cols-2" : ""}` }, forms.map((f, i) => h("div", { key: i, className: `rounded-2xl p-3.5 ${NV_FORM[i % 3].split(" ")[0]}` },
-          h("p", { className: `text-[10px] font-extrabold uppercase tracking-widest ${NV_FORM[i % 3].split(" ")[1]}` }, f.label),
-          h("p", { className: "mt-1 text-[15px] font-bold leading-snug text-ink" }, rich(f.pattern))))),
-        uses.length > 0 && h("div", { className: `grid gap-2 ${uses.length >= 3 ? "sm:grid-cols-3" : uses.length === 2 ? "sm:grid-cols-2" : ""}` }, uses.map((u, i) => {
-          const [lab, rest] = splitUse(u);
-          return h("div", { key: i, className: "rounded-2xl bg-panel p-3" },
-            lab && h("p", { className: "flex items-center gap-1.5 text-xs font-extrabold text-ink" }, h("span", { className: `h-2 w-2 rounded-full ${c.bar}` }), rich(lab)),
-            h("p", { className: `${lab ? "mt-1 text-[13px]" : "text-sm"} leading-relaxed text-slate-600` }, rich(rest)));
-        })),
-        examples.length > 0 && h("div", null,
-          h("div", { className: "mb-2 flex items-center justify-between" },
-            h("p", { className: "text-[11px] font-extrabold uppercase tracking-widest text-slate-400" }, "Câu mẫu"),
-            examples.some((e) => e.vi) && h("button", { onClick: () => setVi(!vi), className: "rounded-full bg-panel px-3 py-1 text-[11px] font-bold text-slate-500 hover:text-ink" }, vi ? "Ẩn nghĩa" : "Hiện nghĩa")),
-          h("div", { className: "space-y-1.5" }, examples.map((e, i) => h("div", { key: i, className: "flex items-center justify-between gap-3 rounded-2xl border border-slate-100 px-3 py-2.5" },
-            h("div", { className: "min-w-0" }, h("p", { className: "font-semibold leading-snug text-slate-800" }, rich(e.en)), e.vi && vi && h("p", { className: "mt-0.5 text-xs text-slate-500" }, e.vi)),
-            h(SpeakButton, { text: String(e.en).replace(/\*/g, ""), rate: 0.85 }))))),
-        (sig.length > 0 || note) && h("div", { className: "flex flex-col gap-2 sm:flex-row sm:items-start" },
-          sig.length > 0 && h("div", { className: "flex flex-1 flex-wrap items-center gap-1.5" }, h("span", { className: "mr-1 text-[11px] font-extrabold uppercase tracking-widest text-slate-400" }, "Dấu hiệu"), sig.map((t, i) => h("span", { key: i, className: `rounded-full px-2.5 py-1 text-xs font-semibold ${c.tint} ${c.text}` }, rich(t)))),
-          note && h("p", { className: "rounded-2xl bg-amber-50 px-3 py-2 text-[13px] leading-relaxed text-amber-900 sm:max-w-[50%]" }, "💡 ", rich(note)))));
+    const sig = signals ? String(signals).split(/\s*[,·]\s*/).filter(Boolean) : [];
+    const [title, sub] = String(name || "").split(/\s+[—–-]\s+/);
+    const FORM_C = ["bg-emerald-500", "bg-rose-500", "bg-sky-500", "bg-amber-500", "bg-violet-500"];
+    return h("div", { className: "overflow-hidden rounded-[30px] bg-white shadow-floating" },
+      h("div", { className: `relative overflow-hidden px-5 py-4 sm:px-6 ${c.solid}` },
+        h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-white/10" }),
+        h("div", { className: "relative flex items-center gap-3" },
+          h("span", { className: "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/25 text-base font-black" }, index),
+          h("div", { className: "min-w-0" },
+            h("h3", { className: "text-xl font-black leading-tight sm:text-2xl" }, title),
+            sub && h("p", { className: "text-sm font-semibold opacity-80" }, sub)))),
+      h("div", { className: "grid gap-5 p-4 sm:p-6 lg:grid-cols-5" },
+        h("div", { className: "space-y-3 lg:col-span-2" },
+          forms.length > 0 && h("div", { className: `rounded-[24px] border-2 p-4 ${c.tint}`, style: { borderColor: "rgba(0,0,0,.05)" } },
+            h("p", { className: `mb-3 text-[11px] font-extrabold uppercase tracking-[0.2em] ${c.text}` }, "📐 Cấu trúc"),
+            h("div", { className: "space-y-2" }, forms.map((f, i) => h("div", { key: i, className: "rounded-2xl bg-white p-3 shadow-sm" },
+              h("span", { className: `inline-block rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-white ${FORM_C[i % FORM_C.length]}` }, f.label),
+              h("p", { className: "mt-1.5 text-[15px] font-bold leading-snug text-ink sm:text-base" }, rich(f.pattern)))))),
+          note && h("div", { className: "rounded-[20px] border-l-4 border-amber-400 bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-950" }, "💡 ", rich(note))),
+        h("div", { className: "space-y-3 lg:col-span-3" },
+          sig.length > 0 && h("div", { className: "rounded-[20px] bg-panel p-3" },
+            h("p", { className: "mb-2 text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500" }, "🔎 Dấu hiệu nhận biết"),
+            h("div", { className: "flex flex-wrap gap-1.5" }, sig.map((t, i) => h("span", { key: i, className: `rounded-full bg-white px-3 py-1 text-[13px] font-bold shadow-sm ${c.text}` }, rich(t))))),
+          examples.length > 0 && h("div", null,
+            h("div", { className: "mb-2 flex items-center justify-between" },
+              h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500" }, "🗣 Câu mẫu · bấm câu để xem nghĩa"),
+              examples.some((e) => e.vi) && h("button", { onClick: () => { setVi(!vi); setOpen({}); }, className: "rounded-full bg-panel px-3 py-1 text-[11px] font-bold text-slate-500 hover:text-ink" }, vi ? "Ẩn hết nghĩa" : "Hiện hết nghĩa")),
+            h("div", { className: "space-y-2" }, examples.map((e, i) => {
+              const show = vi || open[i];
+              return h("div", { key: i, onClick: () => e.vi && setOpen({ ...open, [i]: !open[i] }), className: `flex cursor-pointer items-start gap-3 rounded-2xl border-2 p-3 transition ${show ? "border-transparent " + c.tint : "border-slate-100 bg-white hover:border-slate-200"}` },
+                h("span", { className: `mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black ${c.solid}` }, i + 1),
+                h("div", { className: "min-w-0 flex-1" },
+                  h("p", { className: "text-[15px] font-semibold leading-snug text-slate-800 sm:text-base" }, rich(e.en)),
+                  e.vi && show && h("p", { className: "mt-1 text-[13px] text-slate-500" }, e.vi)),
+                h("span", { onClick: (ev) => ev.stopPropagation() }, h(SpeakButton, { text: String(e.en).replace(/\*/g, ""), rate: 0.85 })));
+            }))),
+          uses.length > 0 && h("div", { className: "rounded-[24px] bg-panel p-4" },
+            h("p", { className: "mb-2 text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500" }, "🎯 Dùng khi nào"),
+            h("ul", { className: "space-y-2" }, uses.map((u, i) => {
+              const [lab, rest] = splitUse(u);
+              return h("li", { key: i, className: "flex gap-2 text-sm leading-relaxed text-slate-700" },
+                h("span", { className: `mt-2 h-2 w-2 shrink-0 rounded-full ${c.bar}` }),
+                h("span", null, lab && h("b", { className: "text-ink" }, rich(lab), ": "), rich(rest)));
+            }))),
+          wrong.length > 0 && h("div", { className: "space-y-2" },
+            h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-500" }, "⚠️ Lỗi hay gặp"),
+            wrong.map((w, i) => h("div", { key: i, className: "rounded-2xl bg-rose-50 p-3 text-sm" },
+              h("p", null, "❌ ", h("span", { className: "text-rose-600 line-through decoration-rose-300" }, rich(w.bad))),
+              h("p", { className: "mt-0.5" }, "✅ ", h("span", { className: "font-semibold text-emerald-700" }, rich(w.good))),
+              w.why && h("p", { className: "mt-1 text-xs text-slate-600" }, rich(w.why))))))));
   }
   function GrammarTabs({ points = [] }) {
     const [i, setI] = useState(0);
@@ -1568,21 +1595,18 @@
     const rest = src.replace(re, "$1").replace(/^[\s—–:,.;-]+|[\s—–:,;-]+$/g, "").replace(/\s{2,}/g, " ").trim();
     return { phrases, rest };
   }
-  function FormulaStep({ s, i, c }) {
-    const [more, setMore] = useState(false);
+  /* Một bước của công thức — dạng dòng thời gian dọc: số bước to bên trái, nội dung đọc thẳng (không giấu giải thích) */
+  function FormulaStep({ s, i, c, last }) {
     const { phrases, rest } = splitPhrases(s.text);
-    return h("div", { className: "flex flex-col overflow-hidden rounded-3xl bg-white shadow-floating" },
-      h("div", { className: `flex items-center gap-2 px-4 py-2.5 ${c.solid}` },
-        h("span", { className: "flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/30 text-xs font-extrabold" }, i + 1),
-        h("span", { className: "text-sm font-extrabold" }, s.tag)),
-      h("div", { className: "flex flex-1 flex-col p-4" },
-        h("p", { className: "font-extrabold leading-snug text-ink" }, rich(s.label)),
-        phrases.length > 0 && h("div", { className: "mt-2.5 flex flex-wrap gap-1.5" }, phrases.map((t, k) => h("span", { key: k, className: `rounded-full px-2.5 py-1 text-[13px] font-semibold ${c.tint} ${c.text}` }, t))),
-        s.text && (phrases.length === 0
-          ? h("p", { className: "mt-1.5 text-sm leading-relaxed text-slate-500" }, rich(s.text))
-          : rest && h("div", { className: "mt-auto pt-2.5" },
-            more ? h("p", { className: "text-xs leading-relaxed text-slate-500" }, rich(rest), " ", h("button", { onClick: () => setMore(false), className: "font-bold text-slate-400" }, "Ẩn"))
-              : h("button", { onClick: () => setMore(true), className: "rounded-full bg-panel px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-ink" }, "ⓘ Giải thích")))));
+    return h("li", { className: "relative flex gap-3 sm:gap-4" },
+      !last && h("span", { "aria-hidden": "true", className: `absolute left-[19px] top-11 bottom-[-14px] w-1 rounded-full opacity-30 sm:left-[23px] ${c.bar}` }),
+      h("span", { className: `relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg font-black shadow-sm sm:h-12 sm:w-12 sm:text-xl ${c.solid}` }, i + 1),
+      h("div", { className: `min-w-0 flex-1 rounded-[22px] p-3.5 sm:p-4 ${c.tint}` },
+        h("div", { className: "flex flex-wrap items-center gap-2" },
+          s.tag && h("span", { className: `rounded-full px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-widest ${c.solid}` }, s.tag),
+          h("p", { className: "text-base font-extrabold leading-snug text-ink sm:text-lg" }, rich(s.label))),
+        phrases.length > 0 && h("div", { className: "mt-2 flex flex-wrap gap-1.5" }, phrases.map((t, k) => h("span", { key: k, className: `rounded-full bg-white px-2.5 py-1 text-[13px] font-semibold shadow-sm ${c.text}` }, t))),
+        (phrases.length === 0 ? s.text : rest) && h("p", { className: "mt-1.5 text-sm leading-relaxed text-slate-600" }, rich(phrases.length === 0 ? s.text : rest))));
   }
   function FormulaExamples({ examples, colorOf }) {
     const [i, setI] = useState(0);
@@ -1619,19 +1643,15 @@
   function Formula({ formula, steps = [], examples = [], note, img }) {
     const colorOf = (tag) => NV_STEP[Math.max(0, steps.findIndex((s) => s.tag === tag)) % NV_STEP.length];
     return h("div", { className: "space-y-4" },
-      (formula || steps.length > 0) && h("div", { className: "relative overflow-hidden rounded-[28px] bg-ink p-5 text-white sm:p-6" },
-        h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full border-[20px] border-white/5" }),
-        h("p", { className: "relative text-[11px] font-extrabold uppercase tracking-[0.2em] text-peach" }, "Công thức"),
-        steps.length > 0
-          ? h("div", { className: "relative mt-3 flex flex-wrap items-center gap-2" }, steps.map((s, i) => [
-              i > 0 && h("span", { key: "a" + i, className: "text-lg font-bold text-white/35" }, "→"),
-              h("span", { key: "s" + i, className: `inline-flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-extrabold sm:text-base ${NV_STEP[i % NV_STEP.length].solid}` },
-                h("span", { className: "flex h-7 w-7 items-center justify-center rounded-full bg-white/30 text-xs" }, i + 1), s.tag)
-            ]))
-          : h("p", { className: "relative mt-2 text-lg font-extrabold sm:text-xl" }, rich(formula)),
-        steps.length > 0 && formula && h("p", { className: "relative mt-3 text-xs leading-relaxed text-white/50" }, rich(formula))),
+      formula && steps.length === 0 && h("div", { className: "rounded-[28px] bg-ink p-5 text-white sm:p-6" },
+        h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-peach" }, "Công thức"),
+        h("p", { className: "mt-2 text-lg font-extrabold sm:text-xl" }, rich(formula))),
       img && h("figure", { className: "rounded-3xl bg-white p-3 shadow-floating" }, h("a", { href: img, target: "_blank", rel: "noopener", title: "Mở ảnh to" }, h("img", { src: img, alt: "", loading: "lazy", className: "mx-auto w-full max-w-2xl rounded-2xl" }))),
-      steps.length > 0 && h("div", { className: `grid gap-3 sm:grid-cols-2 ${steps.length >= 4 ? "lg:grid-cols-4" : steps.length === 3 ? "lg:grid-cols-3" : ""}` }, steps.map((s, i) => h(FormulaStep, { key: i, s, i, c: NV_STEP[i % NV_STEP.length] }))),
+      steps.length > 0 && h("div", { className: "rounded-[30px] bg-white p-4 shadow-floating sm:p-6" },
+        h("div", { className: "mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1" },
+          h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-slate-400" }, `Làm theo ${steps.length} bước`),
+          formula && h("p", { className: "text-sm font-semibold text-slate-500" }, rich(formula))),
+        h("ol", { className: "relative space-y-3" }, steps.map((st, i) => h(FormulaStep, { key: i, s: st, i, c: NV_STEP[i % NV_STEP.length], last: i === steps.length - 1 })))),
       examples.length > 0 && h(FormulaExamples, { examples, colorOf }),
       note && h("div", { className: "flex gap-3 rounded-3xl bg-amber-50 p-4 text-sm leading-relaxed text-amber-900" }, h("span", { className: "text-lg" }, "💡"), h("div", null, rich(note)))
     );
