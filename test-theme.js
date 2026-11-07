@@ -348,3 +348,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
   } catch (e) {}
 })();
+
+(function(){try{if(window.__nightVoicePref)return;var s=document.createElement('script');s.src='/tts-pref.js?v=1';document.head.appendChild(s);}catch(e){}})();
