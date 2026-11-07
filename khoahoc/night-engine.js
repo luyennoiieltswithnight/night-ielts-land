@@ -3994,12 +3994,27 @@
         const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, hh);
         const sx = window.scrollX, sy = window.scrollY;
         (cur.current ? [...list(), cur.current] : list()).forEach((s) => {
-          g.save(); g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = s.color; g.lineWidth = s.w; g.globalAlpha = s.a;
+          g.save(); g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = s.color; g.globalAlpha = s.a;
           if (s.hl) g.globalCompositeOperation = "multiply";
-          g.beginPath();
-          s.pts.forEach((p, i) => (i ? g.lineTo(p[0] - sx, p[1] - sy) : g.moveTo(p[0] - sx, p[1] - sy)));
-          if (s.pts.length === 1) g.lineTo(s.pts[0][0] - sx + 0.1, s.pts[0][1] - sy);
-          g.stroke(); g.restore();
+          const P = s.pts, n = P.length, X = (q) => q[0] - sx, Y = (q) => q[1] - sy;
+          if (n < 3 || !s.pr) {
+            // nét đều: đường cong mượt qua trung điểm
+            g.lineWidth = s.w; g.beginPath(); g.moveTo(X(P[0]), Y(P[0]));
+            if (n === 1) g.lineTo(X(P[0]) + 0.1, Y(P[0]));
+            for (let i = 1; i < n - 1; i++) g.quadraticCurveTo(X(P[i]), Y(P[i]), (X(P[i]) + X(P[i + 1])) / 2, (Y(P[i]) + Y(P[i + 1])) / 2);
+            if (n > 1) g.lineTo(X(P[n - 1]), Y(P[n - 1]));
+            g.stroke();
+          } else {
+            // bút Apple Pencil: độ dày theo lực nhấn, từng đoạn cong nối trung điểm
+            let mx = X(P[0]), my = Y(P[0]);
+            for (let i = 1; i < n; i++) {
+              const nx = i < n - 1 ? (X(P[i]) + X(P[i + 1])) / 2 : X(P[i]), ny = i < n - 1 ? (Y(P[i]) + Y(P[i + 1])) / 2 : Y(P[i]);
+              g.lineWidth = s.w * (0.55 + 0.9 * (s.pr[i] != null ? s.pr[i] : 0.5));
+              g.beginPath(); g.moveTo(mx, my); g.quadraticCurveTo(X(P[i]), Y(P[i]), nx, ny); g.stroke();
+              mx = nx; my = ny;
+            }
+          }
+          g.restore();
         });
       });
     };
@@ -4017,24 +4032,52 @@
     }, [cmd]);
     const pt = (e) => [e.clientX + window.scrollX, e.clientY + window.scrollY];
     const erase = (p) => { store.current[pageKey] = list().filter((s) => !s.pts.some((q) => Math.abs(q[0] - p[0]) < 16 && Math.abs(q[1] - p[1]) < 16)); redraw(); };
+    /* iPad: đã thấy Apple Pencil → chỉ bút mới vẽ, ngón tay/lòng bàn tay dùng để cuộn (chống tì đè) */
+    const pen = useRef((() => { try { return localStorage.getItem("nv-pencil") === "1"; } catch (e) { return false; } })());
+    const act = useRef(null), fing = useRef(null);
+    const palm = (e) => e.pointerType === "touch" && (e.width > 34 || e.height > 34);
     const down = (e) => {
       if (!on) return; e.preventDefault();
+      if (e.pointerType === "pen" && !pen.current) { pen.current = true; try { localStorage.setItem("nv-pencil", "1"); } catch (err) {} }
+      if (e.pointerType === "touch" && (pen.current || palm(e))) { fing.current = { id: e.pointerId, x: e.clientX, y: e.clientY }; return; }
+      if (act.current != null) return; // đang vẽ bằng 1 điểm chạm khác
+      act.current = e.pointerId;
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
       const p = pt(e);
       if (tool === "erase") { cur.current = { erasing: true }; erase(p); return; }
-      const hl = tool === "hl";
-      cur.current = { pts: [p], color: hl ? "#facc15" : PEN[color] || PEN.red, w: hl ? 22 : 3.5, a: hl ? 0.4 : 1, hl };
+      const hl = tool === "hl", isPen = e.pointerType === "pen";
+      cur.current = { pts: [p], pr: isPen && !hl ? [e.pressure || 0.5] : null, color: hl ? "#facc15" : PEN[color] || PEN.red, w: hl ? 22 : isPen ? 2.8 : 3.5, a: hl ? 0.4 : 1, hl };
       redraw();
     };
     const move = (e) => {
-      if (!on || !cur.current) return;
-      const p = pt(e);
-      if (cur.current.erasing) { erase(p); return; }
-      cur.current.pts.push(p); redraw();
+      if (!on) return;
+      const f = fing.current;
+      if (f && f.id === e.pointerId) { window.scrollBy(f.x - e.clientX, f.y - e.clientY); f.x = e.clientX; f.y = e.clientY; return; }
+      if (!cur.current || e.pointerId !== act.current) return;
+      const evs = (e.nativeEvent && e.nativeEvent.getCoalescedEvents && e.nativeEvent.getCoalescedEvents()) || [];
+      (evs.length ? evs : [e]).forEach((ev) => {
+        const p = pt(ev);
+        if (cur.current.erasing) { erase(p); return; }
+        const P = cur.current.pts, last = P[P.length - 1];
+        if (Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) < 0.8) return; // bỏ rung tay
+        const k = 0.55; // làm mượt nhẹ (ổn định nét)
+        P.push([last[0] + (p[0] - last[0]) * k, last[1] + (p[1] - last[1]) * k]);
+        if (cur.current.pr) { const pv = cur.current.pr[cur.current.pr.length - 1]; cur.current.pr.push(pv + ((ev.pressure || 0.5) - pv) * 0.4); }
+      });
+      redraw();
     };
-    const up = () => { if (cur.current && !cur.current.erasing && cur.current.pts) list().push(cur.current); cur.current = null; redraw(); };
+    const up = (e) => {
+      if (fing.current && (!e || e.pointerId === fing.current.id)) { fing.current = null; return; }
+      if (e && act.current != null && e.pointerId !== act.current) return;
+      act.current = null;
+      if (cur.current && !cur.current.erasing && cur.current.pts) {
+        if (e && e.clientX != null && cur.current.pts.length > 1) { cur.current.pts.push(pt(e)); if (cur.current.pr) cur.current.pr.push(cur.current.pr[cur.current.pr.length - 1] * 0.7); }
+        list().push(cur.current);
+      }
+      cur.current = null; redraw();
+    };
     return h("canvas", { ref: cv, "data-nv-nopin": "1", onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up,
-      style: { position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 45, pointerEvents: on ? "auto" : "none", touchAction: on ? "none" : "auto", cursor: on ? (tool === "erase" ? "cell" : "crosshair") : "default" } });
+      style: { position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 45, pointerEvents: on ? "auto" : "none", touchAction: on ? "none" : "auto", WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none", cursor: on ? (tool === "erase" ? "cell" : "crosshair") : "default" } });
   }
 
   // Thanh công cụ giảng dạy
@@ -4606,6 +4649,7 @@
   .flip-card-front, .flip-card-back { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .flip-card-back { transform: rotateY(180deg); }
   html { scroll-behavior: smooth; }
+  html, body { max-width: 100%; overflow-x: clip; } /* iPad: không để trang rộng hơn màn hình (chia đôi màn hình bị lệch) */
   body.night-cc-on { padding-bottom: var(--night-cc-h, 170px); }
   body.night-cc-on .night-fab { bottom: calc(var(--night-cc-h, 170px) + 12px); }
   body.night-cc-on .fixed.inset-0 { bottom: var(--night-cc-h, 170px); } /* hộp từ vựng, popup… không bị thanh phụ đề che */
@@ -4664,7 +4708,7 @@
     const clear = (el) => { el.style.translate = ""; el.style.scale = ""; el.style.transformOrigin = ""; el.style.willChange = ""; };
     const place = () => {
       const s = vv.scale || 1;
-      const isZoom = Math.abs(s - 1) > 0.01 || Math.abs(vv.offsetLeft) > 0.5 || Math.abs(vv.offsetTop) > 0.5;
+      const isZoom = s > 1.01; // chỉ khi phóng to; thu nhỏ (s<1, vd. iPad chia đôi màn hình) mà phóng nút to ra thì bị tràn mất
       if (!isZoom) { if (zoomed) { els.forEach(clear); zoomed = false; } return; }
       if (!zoomed || Date.now() - lastScan > 1500) scan();
       zoomed = true;
