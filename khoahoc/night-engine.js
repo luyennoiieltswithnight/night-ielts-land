@@ -2574,14 +2574,14 @@
   /* ---------- Trang trí phong cách Anh–Mỹ (các khoá tiếng Anh) ---------- */
   const EN_PAT = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='220' height='150' viewBox='0 0 220 150'><g fill='none' stroke='#F2C46D' stroke-opacity='.17' stroke-width='2' stroke-linejoin='round'><path d='M22 120V52h18v68M22 52l9-16 9 16M26 66h10M31 72a5 5 0 1 0 .1 0'/><rect x='70' y='92' width='52' height='26' rx='5'/><path d='M74 100h10v8H74zM88 100h10v8H88zM102 100h10v8h-10zM70 112h52'/><circle cx='82' cy='120' r='4'/><circle cx='110' cy='120' r='4'/><path d='M150 34h26v6a13 13 0 0 1-26 0z'/><path d='M176 38c6 0 6 8 0 8'/><path d='M146 54h34'/><path d='M190 98l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z'/><path d='M150 128c6-8 14-8 20 0'/><path d='M60 22h22v14H60zM60 22l11 8 11-8'/></g></svg>`);
   const EN_CSS = `
-  html.nv-west:not(.night-present) body { background-color: #1B2443; background-image: url("${EN_PAT}"); background-size: 220px 150px; }
-  .nv-bunting { position: absolute; left: 0; right: 0; top: 0; height: 26px; pointer-events: none; z-index: 4; background-image: url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='26' viewBox='0 0 96 26'><path d='M0 2Q48 10 96 2' fill='none' stroke='rgba(255,255,255,.7)' stroke-width='1.5'/><path d='M4 3l14 1-7 18z' fill='#E63946'/><path d='M28 5l14 1-7 18z' fill='#FFFFFF'/><path d='M52 6l14 0-7 18z' fill='#1D4ED8'/><path d='M76 4l14-1-7 18z' fill='#F4B400'/></svg>")}"); background-repeat: repeat-x; background-size: 96px 26px; }
+  html.nv-west:not(.night-present) body { background-color: var(--nv-west-bg, #1B2443); background-image: url("${EN_PAT}"); background-size: 220px 150px; }
+  .nv-bunting { position: absolute; left: 0; right: 0; top: 0; height: 26px; pointer-events: none; z-index: 4; background-image: url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='26' viewBox='0 0 96 26'><path d='M0 2Q48 10 96 2' fill='none' stroke='rgba(255,255,255,.7)' stroke-width='1.5'/><path d='M4 3l14 1-7 18z' fill='@C1'/><path d='M28 5l14 1-7 18z' fill='#FFFFFF'/><path d='M52 6l14 0-7 18z' fill='@C2'/><path d='M76 4l14-1-7 18z' fill='#FFE08A'/></svg>")}"); background-repeat: repeat-x; background-size: 96px 26px; }
   @keyframes nvSway { 0%,100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } }
   .nv-bunting { transform-origin: 50% 0; animation: nvSway 5s ease-in-out infinite; }
   .nv-stamp-en { position: absolute; z-index: 6; width: 86px; padding: 7px; background: #FFF8E7; transform: rotate(8deg); box-shadow: 0 6px 16px rgba(0,0,0,.18);
     border-radius: 3px; outline: 3px dotted #FFF8E7; outline-offset: 2px; }
-  .nv-stamp-en > div { border: 2px solid #C0392B; border-radius: 4px; padding: 6px 2px; text-align: center; color: #1B2443; font: 800 10px/1.2 'Plus Jakarta Sans', sans-serif; letter-spacing: .06em; }
-  .nv-postcard { background: #FFFBF2; border: 2px solid #F0E2C4; background-image: repeating-linear-gradient(135deg, #E63946 0 10px, #fff 10px 20px, #1D4ED8 20px 30px, #fff 30px 40px); background-size: 100% 8px; background-repeat: no-repeat; }
+  .nv-stamp-en > div { border: 2px solid var(--nv-c1); border-radius: 4px; padding: 6px 2px; text-align: center; color: #1B2443; font: 800 10px/1.2 'Plus Jakarta Sans', sans-serif; letter-spacing: .06em; }
+  .nv-postcard { background: #FFFBF2; border: 2px solid #F0E2C4; background-image: repeating-linear-gradient(135deg, var(--nv-c1) 0 10px, #fff 10px 20px, var(--nv-c2) 20px 30px, #fff 30px 40px); background-size: 100% 8px; background-repeat: no-repeat; }
   .nv-postcard-in { background: #FFFBF2; }
   .nv-tape { position: absolute; top: -12px; left: 50%; width: 92px; height: 24px; transform: translateX(-50%) rotate(-3deg); background: rgba(250,204,21,.55); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
   @media (prefers-reduced-motion: reduce) { .nv-bunting { animation: none; } }
@@ -2617,7 +2617,7 @@
           h("img", { src: IRA_BASE + c.img, alt: "", loading: "lazy", className: "h-32 w-full object-contain sm:h-36" }),
           h("p", { className: "absolute bottom-1.5 left-0 right-0 text-center text-[11px] font-bold text-slate-500" }, c.flag, " ", c.place)),
         h("div", { className: "min-w-0" },
-          h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-rose-600" }, "🌍 Culture corner · Did you know?"),
+          h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-primary" }, "🌍 Culture corner · Did you know?"),
           h("h3", { className: "mt-1 text-xl font-black leading-tight text-ink sm:text-2xl" }, c.title),
           h("p", { className: "mt-2 text-sm leading-relaxed text-slate-600 sm:text-[15px]" }, c.text),
           h("div", { className: "mt-3 flex items-center gap-3 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-3" },
@@ -4577,7 +4577,7 @@
       h("div", { className: `relative flex flex-col overflow-hidden rounded-[30px] bg-primary p-6 text-white sm:p-8 ${goals.length ? "lg:col-span-7" : "lg:col-span-12"}` },
         h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-white/10" }),
         !isZhLesson(lesson) && h("span", { className: "nv-bunting", "aria-hidden": "true" }),
-        !isZhLesson(lesson) && h("div", { className: "nv-stamp-en hidden sm:block", style: { right: "22px", top: "38px" }, "aria-hidden": "true" }, h("div", null, "✈", h("br"), "ENGLISH", h("br"), h("span", { style: { color: "#C0392B" } }, "UK · US"))),
+        !isZhLesson(lesson) && h("div", { className: "nv-stamp-en hidden sm:block", style: { right: "22px", top: "38px" }, "aria-hidden": "true" }, h("div", null, "✈", h("br"), "ENGLISH", h("br"), h("span", { style: { color: "var(--nv-c1)" } }, "UK · US"))),
         isZhLesson(lesson) && h(ZhLantern, { ch: "夜", right: "34%", size: 46, cls: "hidden sm:block" }),
         isZhLesson(lesson) && h(ZhLantern, { ch: "夜", right: "5%", size: 34, cls: "sm:hidden" }),
         isZhLesson(lesson) && h(ZhLantern, { ch: "福", right: "8%", size: 58, cls: "b hidden sm:block" }),
@@ -4847,7 +4847,11 @@
       }
       if (!isZhLesson(lesson)) {
         document.documentElement.classList.add("nv-west");
-        const es = document.createElement("style"); es.textContent = EN_CSS; document.head.appendChild(es);
+        const T = NV_COURSE_THEME, c1 = T.p[0], c2 = (T.peach || ["#24242A"])[0];
+        const dark = (hex, k) => { const n = parseInt(hex.slice(1), 16); return "#" + [16, 8, 0].map((sh) => Math.round(((n >> sh) & 255) * k).toString(16).padStart(2, "0")).join(""); };
+        const rs = document.documentElement.style;
+        rs.setProperty("--nv-west-bg", dark(T.p[2], 0.42)); rs.setProperty("--nv-c1", c1); rs.setProperty("--nv-c2", c2);
+        const es = document.createElement("style"); es.textContent = EN_CSS.replace(/%40C1/g, encodeURIComponent(c1)).replace(/%40C2/g, encodeURIComponent(c2)); document.head.appendChild(es);
       }
       if (isZhLesson(lesson)) {
         ACCENT = /^zh/.test(lesson.lang || "") ? lesson.lang : "zh-CN";
