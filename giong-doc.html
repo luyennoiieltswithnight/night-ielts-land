@@ -25,6 +25,7 @@ textarea{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px
 <button class="reset" id="reset">Bỏ chọn — để web tự chọn giọng</button>
 <div class="note" id="note"></div>
 </main>
+<script src="/tts-pref.js?v=2"></script>
 <script>
 var K='en',SAMPLE={en:'The government should invest more in public transport, because it reduces traffic congestion.',zh:'这些汉字我都不会。我们一起去图书馆吧。',vi:'Xin chào các em, hôm nay chúng ta học bài mới.'};
 var t=document.getElementById('t'),list=document.getElementById('list');
@@ -33,7 +34,12 @@ function render(){
   var vs=(speechSynthesis.getVoices()||[]).filter(function(v){var l=(v.lang||'').toLowerCase();return K==='zh'?/^zh|^cmn/.test(l):l.indexOf(K)===0});
   vs.sort(function(a,b){return good(b.name)-good(a.name)||a.name.localeCompare(b.name)});
   var cur=localStorage.getItem('nightVoice_'+K)||'';list.innerHTML='';
-  if(!vs.length){list.innerHTML='<p class="s">Trình duyệt này chưa có giọng nào cho ngôn ngữ này.</p>'}
+  var g=document.createElement('div');g.className='v'+(cur==='__google'?' sel':'');
+  g.innerHTML='<div class="n"><b>Giọng Google (online)<span class="tag">hay · miễn phí</span></b><small>Cần mạng · giọng giống Google Dịch, máy nào cũng như nhau</small></div><button class="play">▶</button><button class="use">'+(cur==='__google'?'✓ Đang dùng':'Dùng')+'</button>';
+  g.querySelector('.play').onclick=function(){var p=localStorage.getItem('nightVoice_'+K);localStorage.setItem('nightVoice_'+K,'__google');speechSynthesis.cancel();var u=new SpeechSynthesisUtterance(t.value);u.lang=K==='zh'?'zh-CN':K==='vi'?'vi-VN':'en-GB';speechSynthesis.speak(u);if(p)localStorage.setItem('nightVoice_'+K,p);else localStorage.removeItem('nightVoice_'+K)};
+  g.querySelector('.use').onclick=function(){localStorage.setItem('nightVoice_'+K,'__google');render()};
+  list.appendChild(g);
+  if(!vs.length){list.insertAdjacentHTML('beforeend','<p class="s">Trình duyệt này chưa có giọng máy nào cho ngôn ngữ này.</p>')}
   vs.forEach(function(v){var d=document.createElement('div');d.className='v'+((cur===v.voiceURI||cur===v.name)?' sel':'');
     d.innerHTML='<div class="n"><b></b><small></small></div><button class="play">▶</button><button class="use">'+((cur===v.voiceURI||cur===v.name)?'✓ Đang dùng':'Dùng')+'</button>';
     d.querySelector('b').textContent=v.name;if(good(v.name)){var g=document.createElement('span');g.className='tag';g.textContent='hay';d.querySelector('b').appendChild(g)}
@@ -42,7 +48,7 @@ function render(){
     d.querySelector('.use').onclick=function(){localStorage.setItem('nightVoice_'+K,v.voiceURI||v.name);render()};
     list.appendChild(d)});
   var n=document.getElementById('note'),ios=/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document;
-  n.innerHTML=vs.some(function(v){return good(v.name)})?'Có giọng chất lượng cao (gắn nhãn <b>hay</b>) — nên chọn giọng đó.':
+  n.innerHTML=cur==='__google'?'Đang dùng giọng Google (online) — cần có mạng; nếu mất mạng web tự đọc bằng giọng máy.':vs.some(function(v){return good(v.name)})?'Có giọng chất lượng cao (gắn nhãn <b>hay</b>) — nên chọn giọng đó.':
     (ios?'Safari trên iPad/iPhone hiện <b>không cho web dùng</b> giọng Nâng cao/Cao cấp hay giọng Siri, kể cả khi đã tải về — nên danh sách chỉ có giọng thường. Thầy thử từng giọng ở trên và chọn giọng nghe ổn nhất (vd. Daniel, Karen, Moira cho tiếng Anh; Tingting cho tiếng Trung). Muốn giọng hay hơn hẳn thì cần dùng giọng AI tạo sẵn file.':'Máy này chưa có giọng chất lượng cao. Trên Chrome máy tính sẽ có giọng Google; trên Edge có giọng "Natural".');
 }
 document.querySelectorAll('.tabs button').forEach(function(b){b.onclick=function(){document.querySelector('.tabs .on').classList.remove('on');b.classList.add('on');K=b.dataset.k;t.value=SAMPLE[K];render()}});

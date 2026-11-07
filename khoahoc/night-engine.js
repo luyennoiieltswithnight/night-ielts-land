@@ -5,7 +5,7 @@
    Gồm: giọng đọc UK/US, dịch khi bôi đen, ô ghi chú, phụ đề trực tiếp (CC), quiz, từ vựng (ảnh Irasutoya/ảnh/emoji), nút In / PDF, các khối
    Speaking (cards, criteria, formula, models, speak + nút AI). Trước đây là giaotiep-engine.js + speaking-engine.js. */
 (function() {
-  try { if (!window.__nightVoicePref) { const s = document.createElement("script"); s.src = "/tts-pref.js?v=1"; document.head.appendChild(s); } } catch (e) {}
+  try { if (!window.__nightVoicePref) { const s = document.createElement("script"); s.src = "/tts-pref.js?v=2"; document.head.appendChild(s); } } catch (e) {}
   const { useState, useRef, useEffect, useCallback } = React;
   /* Kho tiến độ (night-progress.js gắn vào khi đã đăng nhập). Mặc định: không lưu. */
   let NVP = { get: (k, d) => d, set() {}, track: false, onRemote: () => () => {} };
