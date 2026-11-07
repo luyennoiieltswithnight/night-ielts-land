@@ -2476,7 +2476,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, getDocFromCache, setDoc, updateDoc, collection, query, where, getDocs, getDocsFromCache, addDoc, deleteDoc, onSnapshot, orderBy, limit, writeBatch, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, getDoc, getDocFromCache, getDocFromServer, setDoc, updateDoc, collection, query, where, getDocs, getDocsFromCache, addDoc, deleteDoc, onSnapshot, orderBy, limit, writeBatch, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
@@ -3379,8 +3379,13 @@
                 if (user.photoURL && snap.data().photo !== user.photoURL) updateDoc(userRef, { photo: user.photoURL }).catch(() => {});
             }
             else {
-                await setDoc(userRef, { email: user.email, name: user.displayName, role: "user", createdAt: Date.now(), photo: user.photoURL || '' });
-                role = 'user';
+                /* getDoc có thể trả bản trong bộ nhớ máy (mạng chập chờn) báo "chưa có" → hỏi thẳng máy chủ trước,
+                   chỉ tạo hồ sơ User khi chắc chắn là tài khoản mới — không bao giờ ghi đè hồ sơ đang có (vd. tài khoản thầy). */
+                let fresh = null;
+                try { fresh = await getDocFromServer(userRef); } catch (e) { console.error(e); }
+                if (fresh && fresh.exists()) { role = fresh.data().role || 'student'; docUrl = fresh.data().docUrl || ''; hwDocUrl = fresh.data().hwDocUrl || ''; }
+                else if (fresh) { await setDoc(userRef, { email: user.email, name: user.displayName, role: "user", createdAt: Date.now(), photo: user.photoURL || '' }); role = 'user'; }
+                else { role = (__sess && __sess.uid === user.uid && __sess.role) || 'student'; } // mất mạng: giữ quyền đã biết, không ghi gì
             }
             const sess = { uid: user.uid, role: role, name: user.displayName, photo: user.photoURL, docUrl: docUrl, hwDocUrl: hwDocUrl };
             try { localStorage.setItem(SESS_KEY, JSON.stringify(sess)); } catch (e) {}

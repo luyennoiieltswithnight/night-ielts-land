@@ -38,9 +38,12 @@
  *     allow read: if signedIn();
  *     allow create: if isAdmin() || (signedIn() && request.auth.uid == uid
  *                     && request.resource.data.get('role', 'user') == 'user');
- *     allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
+ *     allow update: if (isAdmin() || (signedIn() && request.auth.uid == uid
  *                     && !request.resource.data.diff(resource.data).affectedKeys()
- *                         .hasAny(['role', 'proUntil', 'courses', 'buys', 'tier']));
+ *                         .hasAny(['role', 'proUntil', 'courses', 'buys', 'tier'])))
+ *                  // tài khoản thầy không bao giờ tự bị hạ quyền (chống ghi đè nhầm thành User)
+ *                  && !(request.auth.uid == uid && resource.data.role == 'admin'
+ *                       && request.resource.data.get('role', '') != 'admin');
  *     allow delete: if isAdmin();
  *   }
  *   match /proRequests/{uid} {

@@ -165,9 +165,15 @@
           }
           var ref = o.fs.doc(o.db, 'users', user.uid), created = false;
           unsubUser = o.fs.onSnapshot(ref, function (snap) {
+            /* Bản từ bộ nhớ máy (mạng chập chờn / mới mở app) có thể báo "chưa có hồ sơ" dù trên máy chủ vẫn có
+               → KHÔNG được tạo hồ sơ mới lúc đó (trước đây ghi đè cả tài khoản thầy thành User). Chờ máy chủ trả lời. */
+            if (!snap.exists() && snap.metadata && snap.metadata.fromCache) return;
             if (!snap.exists() && !created) {
               created = true;
-              o.fs.setDoc(ref, { email: user.email, name: user.displayName, role: 'user', createdAt: Date.now(), photo: user.photoURL || '', courses: [] }).catch(function () {});
+              // Hỏi lại thẳng máy chủ lần nữa; chỉ tạo khi chắc chắn là tài khoản mới tinh
+              o.fs.getDocFromServer(ref).then(function (s2) {
+                if (!s2.exists()) return o.fs.setDoc(ref, { email: user.email, name: user.displayName, role: 'user', createdAt: Date.now(), photo: user.photoURL || '', courses: [] });
+              }).catch(function () {});
             }
             var u = snap.exists() ? snap.data() : { role: 'user' };
             var role = u.role || 'student';
