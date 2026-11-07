@@ -251,7 +251,9 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
         const me = document.getElementById("rm-me");
         if (me) me.innerHTML = `${ctx.user.photoURL ? `<img src="${esc(ctx.user.photoURL)}" alt="">` : ""}<span>${esc((ctx.user.displayName || "").split(" ").pop())}</span>`;
         const key = cfg.theme;
+        root.dataset.key = key;
         if (ctx.access === "free") lockFree(root, ctx, NP);
+        if (ctx.role !== "admin") rmGuide(root, ctx, NP, key);
         if (ctx.role === "admin") document.documentElement.classList.add("nv-admin");
         if (ctx.role !== "admin") {
           return NP.myCourse(ctx, key).then((docs) => { const byN = {}; docs.forEach((d) => { if (d.n) byN[d.n] = d; }); paintCards(root, byN); });
@@ -263,20 +265,32 @@ body{margin:0;font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:var(--i
       });
     });
   }
+  /* Hướng dẫn học khoá + mua khoá: tự hiện lần đầu vào lộ trình, sau đó mở bằng nút */
+  function rmGuide(root, ctx, NP, key) {
+    const open = () => NP.loadPlan().then((P) => P && P.openCourseGuide && P.openCourseGuide(key, NP.COURSE_NAMES && NP.COURSE_NAMES[key], { bought: !!ctx.bought, until: ctx.bought || 0, full: ctx.access === "full" }));
+    const slot = root.querySelector("#rm-teacher");
+    if (slot && !root.querySelector(".rm-guide")) slot.insertAdjacentHTML("beforebegin", `<button type="button" class="rm-guide" style="display:inline-flex;align-items:center;gap:8px;border:1.5px solid #E4E4EC;cursor:pointer;background:#fff;color:#24242A;font:800 14px inherit;font-family:inherit;padding:10px 16px;border-radius:999px;margin:0 0 14px">📘 Hướng dẫn học khoá${ctx.access === "full" ? "" : " · Mua khoá 39k"}</button>`);
+    const b = root.querySelector(".rm-guide"); if (b) b.onclick = open;
+    let seen = true; try { seen = !!localStorage.getItem("nv-guide-" + key); localStorage.setItem("nv-guide-" + key, "1"); } catch (e) {}
+    if (!seen) setTimeout(open, 900);
+  }
   /* Tài khoản thường: chỉ học thử NP.FREE_N buổi đầu, các buổi sau hiện ổ khoá → mở trang nâng cấp Pro */
   function lockFree(root, ctx, NP) {
     const freeN = ctx.freeN || NP.FREE_N || 3, stu = ctx.plan === "student";
     const slot = root.querySelector("#rm-teacher");
-    if (slot && !root.querySelector(".rm-free")) slot.insertAdjacentHTML("beforebegin", `<div class="rm-free" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:22px;padding:14px 16px;margin:0 0 16px;color:#9A3412;font-size:14px;line-height:1.5"><span style="flex:1;min-width:220px">🎁 ${stu ? "Bạn chưa được thêm vào khoá này, đang" : "Bạn đang"} <b>học thử ${freeN} buổi đầu</b>. Nâng cấp gói <b>🌟 Astra</b> để mở toàn bộ buổi của mọi khoá.</span><button type="button" class="rm-pro" style="border:0;cursor:pointer;background:linear-gradient(135deg,#F59E0B,#EA580C);color:#fff;font:800 13px inherit;font-family:inherit;padding:10px 16px;border-radius:999px">🌟 Xem gói Astra</button></div>`);
+    if (slot && !root.querySelector(".rm-free")) slot.insertAdjacentHTML("beforebegin", `<div class="rm-free" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:22px;padding:14px 16px;margin:0 0 16px;color:#9A3412;font-size:14px;line-height:1.5"><span style="flex:1;min-width:220px">🎁 ${stu ? "Bạn chưa được thêm vào khoá này, đang" : "Bạn đang"} <b>học thử ${freeN} buổi đầu</b>. Mua riêng khoá này <b>39.000đ / 30 ngày</b> (tiền vào là mở ngay) hoặc gói <b>🌟 Astra</b> để mở mọi khoá.</span><button type="button" class="rm-buy" style="border:0;cursor:pointer;background:linear-gradient(135deg,#16A34A,#0D9488);color:#fff;font:800 13px inherit;font-family:inherit;padding:10px 16px;border-radius:999px">🔓 Mua khoá · 39k</button><button type="button" class="rm-pro" style="border:0;cursor:pointer;background:linear-gradient(135deg,#F59E0B,#EA580C);color:#fff;font:800 13px inherit;font-family:inherit;padding:10px 16px;border-radius:999px">🌟 Xem gói Astra</button></div>`);
     const paint = () => root.querySelectorAll(".rm-s").forEach((el) => {
       if (+el.dataset.n <= freeN) return;
       const a = el.querySelector(".rm-go"); if (!a) return;
-      a.outerHTML = `<button type="button" class="rm-go rm-pro" style="border:0;cursor:pointer;font-family:inherit;background:#24242A;color:#fff">🔒 Astra</button>`;
+      a.outerHTML = `<button type="button" class="rm-go rm-buy" style="border:0;cursor:pointer;font-family:inherit;background:#24242A;color:#fff">🔒 Mở khoá</button>`;
     });
     paint(); setTimeout(paint, 1500);
     if (!root.__proWired) {
       root.__proWired = true;
-      root.addEventListener("click", (e) => { if (e.target.closest(".rm-pro")) NP.loadPlan().then((P) => P && P.openUpgrade('', 'astra')); });
+      root.addEventListener("click", (e) => {
+        if (e.target.closest(".rm-pro")) NP.loadPlan().then((P) => P && P.openUpgrade('', 'astra'));
+        if (e.target.closest(".rm-buy")) NP.loadPlan().then((P) => P && P.openCourseBuy(ctx.courseKey || root.dataset.key, NP.COURSE_NAMES && NP.COURSE_NAMES[root.dataset.key]));
+      });
     }
   }
   function teacherPanel(cfg, root, docs, students, ctx, NP) {

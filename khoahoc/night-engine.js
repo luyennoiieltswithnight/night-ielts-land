@@ -4788,11 +4788,6 @@
           NV_ADMIN = ctx.role === "admin" || ctx.role === "local";
           document.documentElement.classList.toggle("nv-admin", NV_ADMIN);
           NV_CTX = ctx;
-          if (!NV_ADMIN && ctx.user) { // lần đầu vào khoá → tự hiện hướng dẫn
-            const gk = "nv-guide-" + courseKeyOf(lesson);
-            let seen = true; try { seen = !!localStorage.getItem(gk); localStorage.setItem(gk, "1"); } catch (e) {}
-            if (!seen) setTimeout(() => nvOpenGuide(lesson), 1800);
-          }
           if ((ctx.offline || !ctx.user) && !NP.LOCAL) return mount();
           return NP.lessonStore(ctx, { courseKey: courseKeyOf(lesson), lessonId: lesson.id, n: parseInt(((location.pathname.match(/buoi-(\d+)/) || [])[1]) || "0", 10), session: lesson.session, title: lesson.title }).then((store) => {
             NVP = store;
