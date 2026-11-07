@@ -611,7 +611,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 #studentHomeView .ni-panel-label:before{content:"";width:12px;height:12px;border-radius:999px;background:var(--peach);flex:none}
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
-<script src="night-plan.js?v=20261102b"></script>
+<script src="night-plan.js?v=20261108a"></script>
 <script src="night-fame.js?v=20261102a"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -2392,7 +2392,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   function getGroqConfig() {
     try { return JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || '{}'); } catch (e) { return {}; }
   }
-  function hasGroqAI() { return !!(getGroqConfig().apiKey || (window.NightPlan && NightPlan.freeOK())); }
+  function hasGroqAI() { return !!(getGroqConfig().apiKey || (window.NightPlan && (NightPlan.freeOK() || NightPlan.proxyOK()))); }
   window.hasGroqAI = hasGroqAI;
   function saveGroqConfig(cfg) {
     try { localStorage.setItem('nightIeltsGroqCfg', JSON.stringify(cfg)); } catch (e) {}
@@ -2455,7 +2455,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const cfg = getGroqConfig();
     // Tài khoản miễn phí: AI chỉ dùng trong lúc chấm điểm Speaking; các tính năng AI khác dành cho Pro / Astra
     if (!cfg.apiKey && window.NightPlan && NightPlan.freeOK() && !window.__aiScoring) { const e = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra. Tài khoản miễn phí được 2 lượt chấm Speaking mỗi ngày.'); e.code = 'PRO_ONLY'; throw e; }
-    if (!cfg.apiKey && !(window.NightPlan && NightPlan.freeOK())) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
+    if (!cfg.apiKey && !(window.NightPlan && (NightPlan.freeOK() || NightPlan.proxyOK()))) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     let res;
     // Mỗi model của Groq có hạn mức riêng: model này bận lâu (429 phải chờ > 8 giây) hoặc bị khai tử (404/400 model)
     // thì chuyển ngay sang model kế tiếp thay vì bắt học sinh chờ; model bận được nhớ trong phiên để lần sau bỏ qua.
@@ -2528,7 +2528,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   // karaoke, đo ngập ngừng và nhận ra đoạn ASR nghe không chắc. Trả {text, words:[{w,s,e}], segments}.
   async function callGroqTranscribe(blob, model, prompt) {
     const cfg = getGroqConfig();
-    if (!cfg.apiKey && !(window.NightPlan && NightPlan.freeOK())) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
+    if (!cfg.apiKey && !(window.NightPlan && (NightPlan.freeOK() || NightPlan.proxyOK()))) { const e = new Error('Chưa cấu hình Groq API Key.'); e.code = 'NO_KEY'; throw e; }
     const type = (blob.type || '').toLowerCase();
     const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : /wav/.test(type) ? 'wav' : /mpeg|mp3/.test(type) ? 'mp3' : 'webm';
     const send = async (verbose) => {

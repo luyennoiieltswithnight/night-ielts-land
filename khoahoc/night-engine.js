@@ -3728,9 +3728,27 @@
     return t.innerHTML;
   }
   // input = 1 bài (nút In trong bài) hoặc mảng nhiều bài (in cả khoá — trang khoahoc/in.html)
-  let NV_ADMIN = false;
+  let NV_ADMIN = false, NV_CTX = null, NV_PRINT_OK = false;
+  const nvLessonN = () => parseInt(((location.pathname.match(/buoi-(\d+)/) || [])[1]) || "0", 10);
+  function nvPlan() { return (window.NightProgress && window.NightProgress.loadPlan ? window.NightProgress.loadPlan() : Promise.resolve(window.NightPlan || null)); }
+  function nvGuideState() { const c = NV_CTX || {}; return { bought: !!c.bought, until: c.bought || 0, full: c.access === "full" }; }
+  function nvOpenGuide(lesson) {
+    const key = courseKeyOf(lesson), NP = window.NightProgress;
+    nvPlan().then((P) => { if (P && P.openCourseGuide) P.openCourseGuide(key, (NP && NP.COURSE_NAMES && NP.COURSE_NAMES[key]) || lesson.course, nvGuideState()); });
+  }
+  /* Học sinh tải PDF: đã mở khoá (mua lẻ / Astra / học sinh được thêm) + đã học buổi trước */
+  function nvTryPrint(lesson) {
+    if (NV_ADMIN) return openPrintStudio(lesson);
+    const c = NV_CTX || {}, key = courseKeyOf(lesson), n = nvLessonN();
+    if (c.access !== "full") { nvOpenGuide(lesson); return; }
+    const go = () => { NV_PRINT_OK = true; document.documentElement.classList.add("nv-print"); openPrintStudio(lesson); };
+    if (n <= 1 || !window.NightProgress || !window.NightProgress.seenLesson) return go();
+    window.NightProgress.seenLesson(c, key, n - 1).then((seen) => {
+      if (seen) go(); else alert(`Học buổi ${n - 1} trước rồi mới tải được PDF buổi ${n} nhé 📚`);
+    });
+  }
   function openPrintStudio(input, meta = {}) {
-    if (!NV_ADMIN) { alert("Chỉ thầy mới in / lưu PDF được bài học này."); return; }
+    if (!NV_ADMIN && !NV_PRINT_OK) { alert("Chỉ thầy mới in / lưu PDF được bài học này."); return; }
     if (document.getElementById("np-root")) return;
     if (!document.getElementById("np-style")) { const st = document.createElement("style"); st.id = "np-style"; st.textContent = PRINT_CSS; document.head.appendChild(st); }
     const multi = Array.isArray(input);
@@ -4460,7 +4478,8 @@
               className: `flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold transition ${on ? (s.band8 ? "bg-amber-400 text-ink" : "bg-white text-ink shadow") : s.band8 ? "text-amber-300/80 hover:text-amber-200" : "text-white/55 hover:text-white"}` },
               on && h("span", { className: `h-2 w-2 rounded-full ${s.band8 ? "bg-ink" : "bg-primary"}` }), s.band8 ? "★ " : "", s.nav || s.title);
           })),
-        NV_ADMIN && h("button", { onClick: () => openPrintStudio(lesson), title: "In phiếu học tập / Lưu PDF", className: "flex h-10 shrink-0 items-center gap-1 rounded-full bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/20" }, "🖨", h("span", { className: "hidden sm:inline" }, " In / PDF")),
+        !NV_ADMIN && NV_CTX && NV_CTX.user && h("button", { onClick: () => nvOpenGuide(lesson), title: "Hướng dẫn học khoá · mua khoá", className: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-bold text-white hover:bg-white/20" }, "❓"),
+        (NV_ADMIN || (NV_CTX && NV_CTX.user)) && h("button", { onClick: () => nvTryPrint(lesson), title: "In phiếu học tập / Lưu PDF", className: "flex h-10 shrink-0 items-center gap-1 rounded-full bg-white/10 px-3 text-xs font-bold text-white hover:bg-white/20" }, "🖨", h("span", { className: "hidden sm:inline" }, " In / PDF")),
         h("div", { className: "flex shrink-0 items-center rounded-full bg-white/10 p-1" }, (isZhLesson(lesson) ? [["zh-CN", "普通话"], ["zh-TW", "台灣"]] : [["en-GB", "UK"], ["en-US", "US"]]).map(([k, l]) => h("button", { key: k, onClick: () => changeAccent(k), className: `rounded-full px-2.5 py-1.5 text-[11px] font-extrabold transition ${accent === k ? "bg-primary text-white" : "text-white/50 hover:text-white"}` }, l)))));
   }
   function NvStat({ label, value, icon, tone }) {
@@ -4761,13 +4780,19 @@
         document.body.appendChild(root);
       }
       document.body.classList.add("text-slate-800", "antialiased");
-      { const ps = document.createElement("style"); ps.textContent = '@media print{html:not(.nv-admin) body>*{display:none!important}html:not(.nv-admin) body:before{content:"Bài học thuộc bản quyền Night IELTS — chỉ thầy được in.";display:block;padding:40px;font:700 18px system-ui}}'; document.head.appendChild(ps); }
+      { const ps = document.createElement("style"); ps.textContent = '@media print{html:not(.nv-admin):not(.nv-print) body>*{display:none!important}html:not(.nv-admin):not(.nv-print) body:before{content:"Bài học thuộc bản quyền Night IELTS — chỉ thầy được in.";display:block;padding:40px;font:700 18px system-ui}}'; document.head.appendChild(ps); }
       const mount = () => ReactDOM.createRoot(root).render(/* @__PURE__ */ React.createElement(LessonApp, { lesson }));
       nvLoadProgress().then((NP) => {
         if (!NP) return mount();
         return NP.gate().then((ctx) => {
           NV_ADMIN = ctx.role === "admin" || ctx.role === "local";
           document.documentElement.classList.toggle("nv-admin", NV_ADMIN);
+          NV_CTX = ctx;
+          if (!NV_ADMIN && ctx.user) { // lần đầu vào khoá → tự hiện hướng dẫn
+            const gk = "nv-guide-" + courseKeyOf(lesson);
+            let seen = true; try { seen = !!localStorage.getItem(gk); localStorage.setItem(gk, "1"); } catch (e) {}
+            if (!seen) setTimeout(() => nvOpenGuide(lesson), 1800);
+          }
           if ((ctx.offline || !ctx.user) && !NP.LOCAL) return mount();
           return NP.lessonStore(ctx, { courseKey: courseKeyOf(lesson), lessonId: lesson.id, n: parseInt(((location.pathname.match(/buoi-(\d+)/) || [])[1]) || "0", 10), session: lesson.session, title: lesson.title }).then((store) => {
             NVP = store;

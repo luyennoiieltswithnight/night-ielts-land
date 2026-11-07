@@ -40,7 +40,7 @@
  *                     && request.resource.data.get('role', 'user') == 'user');
  *     allow update: if isAdmin() || (signedIn() && request.auth.uid == uid
  *                     && !request.resource.data.diff(resource.data).affectedKeys()
- *                         .hasAny(['role', 'proUntil', 'courses']));
+ *                         .hasAny(['role', 'proUntil', 'courses', 'buys', 'tier']));
  *     allow delete: if isAdmin();
  *   }
  *   match /proRequests/{uid} {
@@ -110,10 +110,13 @@ function doPost(e) {
     if (!user) return out_({ error: 'Phiên đăng nhập hết hạn. Tải lại trang rồi thử lại nhé.' });
     if (!groqKey_()) return out_({ error: 'AI đang bảo trì, bạn chờ một lát hoặc nhắn Night IELTS nhé.' });
     const skill = req.skill === 'writing' ? 'writing' : 'speaking';
-    if (skill !== 'speaking') return out_({ error: 'PRO_ONLY' });
-    if (req.charge) { if (!chargeTurn_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) }); }
-    else if (!useTicket_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) });
-    if (!daily_(false)) return out_({ error: 'AI miễn phí hôm nay đã đủ số lần dùng. Bạn quay lại vào ngày mai, hoặc nâng cấp Pro để dùng không giới hạn nhé.' });
+    const paid = isPaid_(user.uid, req.idToken);   // Pro / Astra còn hạn, chưa được cấp key riêng → dùng key của thầy, không giới hạn lượt
+    if (!paid) {
+      if (skill !== 'speaking') return out_({ error: 'PRO_ONLY' });
+      if (req.charge) { if (!chargeTurn_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) }); }
+      else if (!useTicket_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) });
+    }
+    if (!paid && !daily_(false)) return out_({ error: 'AI miễn phí hôm nay đã đủ số lần dùng. Bạn quay lại vào ngày mai, hoặc nâng cấp Pro để dùng không giới hạn nhé.' });
 
     let resp;
     if (req.kind === 'stt') {
@@ -136,8 +139,8 @@ function doPost(e) {
       });
     }
     daily_(true);
-    if (req.charge && resp.getResponseCode() !== 200) refundTurn_(user.uid);   // lỗi ngay bước đầu -> trả lại lượt
-    return out_({ status: resp.getResponseCode(), body: resp.getContentText(), quota: req.charge ? dailyQuota_(user.uid) : null });
+    if (!paid && req.charge && resp.getResponseCode() !== 200) refundTurn_(user.uid);   // lỗi ngay bước đầu -> trả lại lượt
+    return out_({ status: resp.getResponseCode(), body: resp.getContentText(), quota: !paid && req.charge ? dailyQuota_(user.uid) : null });
   } catch (err) {
     return out_({ error: 'AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.', detail: String(err && err.message || err) });
   }
@@ -173,6 +176,23 @@ function withKeys_(call) {
 }
 
 /* Kiểm tra token đăng nhập Firebase (Google xác thực giúp), nhớ 50 phút cho đỡ chậm. */
+/* Tài khoản Pro / Astra còn hạn? Đọc users/<uid> bằng chính idToken của học sinh (rules cho phép đọc). Nhớ 10 phút. */
+function isPaid_(uid, tok) {
+  const c = CacheService.getScriptCache(), k = 'paid_' + uid, hit = c.get(k);
+  if (hit) return hit === '1';
+  let ok = false;
+  try {
+    const r = UrlFetchApp.fetch('https://firestore.googleapis.com/v1/projects/night-ielts-land/databases/(default)/documents/users/' + uid + '?mask.fieldPaths=role&mask.fieldPaths=proUntil',
+      { headers: { Authorization: 'Bearer ' + tok }, muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) {
+      const f = JSON.parse(r.getContentText()).fields || {};
+      const role = f.role && f.role.stringValue, until = Number(f.proUntil && (f.proUntil.integerValue || f.proUntil.doubleValue) || 0);
+      ok = role === 'admin' || (role === 'pro' && until > Date.now());
+    }
+  } catch (e) {}
+  c.put(k, ok ? '1' : '0', 600);
+  return ok;
+}
 function verify_(tok) {
   if (!tok || typeof tok !== 'string') return null;
   const cache = CacheService.getScriptCache();

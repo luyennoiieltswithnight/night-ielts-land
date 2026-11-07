@@ -87,6 +87,7 @@
     var m = last.match(/^([a-z0-9]+)\.html$/i);
     return m && COURSE_NAMES[m[1]] ? m[1] : '';
   }
+  function boughtUntil(u, key) { var b = u && u.buys; return b && Number(b[key]) > Date.now() ? Number(b[key]) : 0; }
   function enrolledIn(u, key) { var c = (u && u.courses) || []; return Array.isArray(c) ? c.indexOf(key) >= 0 : !!c[key]; }
   /* Gói tài khoản (xem ../night-plan.js): admin / pro còn hạn → mọi khoá; học sinh → khoá thầy thêm;
      còn lại (user, pro hết hạn, học sinh chưa được thêm) → học thử FREE_N buổi đầu. */
@@ -97,6 +98,7 @@
     if (r === 'admin' || !key) return 'full';
     if (r === 'pro' && u.tier !== 'pro') return 'full';   // Astra (hoặc Pro mua trước khi chia gói); gói Pro chỉ có AI
     if (r === 'student' && enrolledIn(u, key)) return 'full';
+    if (boughtUntil(u, key)) return 'full';   // mua lẻ khoá này (39k / 30 ngày, tự mở qua SePay)
     return 'free';
   }
   function pageLessonN() { var m = (location.pathname || '').match(/buoi-(\d+)\.html$/i); return m ? parseInt(m[1], 10) : 0; }
@@ -104,7 +106,7 @@
     if (window.NightPlan) return Promise.resolve(window.NightPlan);
     return new Promise(function (res) {
       var sc = document.createElement('script');
-      try { sc.src = new URL('../night-plan.js', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-plan.js'; }
+      try { sc.src = new URL('../night-plan.js?v=20261108a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-plan.js'; }
       sc.onload = function () { res(window.NightPlan || null); }; sc.onerror = function () { res(null); };
       document.head.appendChild(sc);
     });
@@ -117,9 +119,11 @@
       '<p>' + (stu ? 'Khoá <b>' + (COURSE_NAMES[key] || key) + '</b>: bạn được học thử ' + FREE_N + ' buổi đầu. Muốn học tiếp, nhắn Night IELTS kèm Gmail <b style="color:#24242A">' + (user.email || '') + '</b> để được thêm vào khoá, hoặc nâng cấp Pro.'
         : 'Tài khoản thường được học thử <b>' + FREE_N + ' buổi đầu</b> của mỗi khoá. Nâng cấp gói <b>Astra</b> (AI chấm Speaking, Writing + mở toàn bộ khoá học) để học tiếp' + (r === 'user' && u && u.role === 'pro' ? ' (gói của bạn đã hết hạn)' : r === 'pro' && u && u.tier === 'pro' ? ' (gói Pro hiện tại chỉ gồm AI chấm bài)' : '') + '.') +
       '<br><small>Duyệt xong, trang này tự mở.</small></p>' +
-      '<button type="button" id="np-pro" style="background:linear-gradient(135deg,#F59E0B,#EA580C)">🌟 Xem gói Astra</button>' +
+      '<button type="button" id="np-buy" style="background:linear-gradient(135deg,#16A34A,#0D9488);margin-bottom:10px">🔓 Mua riêng khoá này · 39.000đ / 30 ngày</button><br>' +
+      '<button type="button" id="np-pro" style="background:linear-gradient(135deg,#F59E0B,#EA580C)">🌟 Xem gói Astra (mọi khoá + AI)</button>' +
       '<div style="margin-top:12px"><a href="' + back + '" style="display:inline-block;background:#F1F1F6;color:#24242A;font-weight:800;font-size:14px;padding:11px 18px;border-radius:999px;text-decoration:none">← Về lộ trình khoá</a></div>' +
       '<div style="margin-top:8px"><button type="button" id="np-out" style="background:none;color:#6B6B78;font-size:13px;padding:6px 10px;text-decoration:underline">Đăng nhập tài khoản khác</button></div></div></div>';
+    document.getElementById('np-buy').onclick = function () { loadPlan().then(function (P) { if (P) P.openCourseBuy(key, COURSE_NAMES[key]); else alert('Không tải được trang mua khoá, thử lại nhé.'); }); };
     document.getElementById('np-pro').onclick = function () { loadPlan().then(function (P) { if (P) P.openUpgrade('', 'astra'); else alert('Không tải được trang nâng cấp, thử lại nhé.'); }); };
     document.getElementById('np-out').onclick = function () { o.authM.signOut(o.auth); };
   }
@@ -157,7 +161,7 @@
           if (unsubUser) { unsubUser(); unsubUser = null; }
           if (!user) { clearAcc(key); if (done) { location.reload(); return; } showLogin(o, resolve); return; }
           if (fast && cached.uid === user.uid) {
-            finish({ user: user, role: cached.role, plan: cached.plan, access: cached.access, freeN: FREE_N, o: o, courses: cached.courses || [] });
+            finish({ user: user, role: cached.role, plan: cached.plan, access: cached.access, freeN: FREE_N, o: o, courses: cached.courses || [], bought: cached.bought && cached.bought > Date.now() ? cached.bought : 0, tier: cached.tier || '' });
           }
           var ref = o.fs.doc(o.db, 'users', user.uid), created = false;
           unsubUser = o.fs.onSnapshot(ref, function (snap) {
@@ -169,9 +173,9 @@
             var role = u.role || 'student';
             var access = accessOf(u, key);
             if (access === 'free' && n > FREE_N) { clearAcc(key); showPaywall(o, user, key, u); return; }
-            writeAcc(key, { uid: user.uid, role: role, plan: effRole(u), access: access, courses: u.courses || [] });
+            writeAcc(key, { uid: user.uid, role: role, plan: effRole(u), access: access, courses: u.courses || [], bought: boughtUntil(u, key), tier: u.tier || '' });
             if (unsubUser) { unsubUser(); unsubUser = null; }
-            finish({ user: user, role: role, plan: effRole(u), access: access, freeN: FREE_N, o: o, courses: u.courses || [] });
+            finish({ user: user, role: role, plan: effRole(u), access: access, freeN: FREE_N, o: o, courses: u.courses || [], bought: boughtUntil(u, key), tier: u.tier || '' });
           }, function (e) {
             /* Không đọc được hồ sơ → không chặn, coi như học sinh */
             console.warn('[NightProgress] users:', e);
@@ -340,5 +344,10 @@
     return fs.updateDoc(fs.doc(ctx.o.db, 'users', uid), { courses: on ? fs.arrayUnion(courseKey) : fs.arrayRemove(courseKey) });
   }
 
-  window.NightProgress = { gate: gate, loadPlan: loadPlan, FREE_N: FREE_N, lessonStore: lessonStore, myCourse: myCourse, classCourse: classCourse, setEnroll: setEnroll, enrolledIn: enrolledIn, LOCAL: LOCAL };
+  /* Đã học (mở & lưu tiến độ) buổi n của khoá chưa — để mở PDF buổi kế tiếp */
+  function seenLesson(ctx, courseKey, n) {
+    if (!ctx || !ctx.user || !ctx.o) return Promise.resolve(false);
+    return myCourse(ctx, courseKey).then(function (rs) { return rs.some(function (r) { return Number(r.n) === Number(n); }); });
+  }
+  window.NightProgress = { gate: gate, seenLesson: seenLesson, COURSE_NAMES: COURSE_NAMES, loadPlan: loadPlan, FREE_N: FREE_N, lessonStore: lessonStore, myCourse: myCourse, classCourse: classCourse, setEnroll: setEnroll, enrolledIn: enrolledIn, LOCAL: LOCAL };
 })();

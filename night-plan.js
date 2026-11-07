@@ -246,10 +246,16 @@
       o.fs.getDoc(reqRef).catch(function () { return null; }).then(function (rs) {
         var rq = rs && rs.exists() ? rs.data() : null;
         if (r === 'pro' && !wantPlan) plan = tierOf(me) || 'astra';
+        var stopW = function () {}, startU = Number(me && me.proUntil) || 0;
+        new MutationObserver(function () { if (!ov.isConnected) stopW(); }).observe(document.body, { childList: true });
         function paint() {
+          var price0 = planPrice(plan, months), p0 = plan, m0 = months;
+          getOrder(o, user, { kind: 'plan', plan: plan, months: months }, price0).then(function (code) { if (p0 === plan && m0 === months) paintWith(code); })
+            .catch(function () { paintWith(payCode(user.uid, plan, months)); });
+        }
+        function paintWith(code) {
           var price = planPrice(plan, months), per = Math.round(price / months / 1000) * 1000, base = planPrice(plan, 1) * months;
           var save = base > price ? Math.round((1 - price / base) * 100) : 0;
-          var code = payCode(user.uid, plan, months);
           var status = '';
           if (r === 'pro') status = '<div class="npl-ok">✅ Bạn đang dùng gói <b>' + planName(me) + '</b> đến hết ngày <b>' + dmy(me.proUntil) + '</b>. Chuyển khoản thêm để gia hạn' + (tierOf(me) === 'pro' ? ' hoặc lên <b>Astra</b>' : '') + '.</div>';
           if (rq && rq.status === 'pending') status += '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF">⏳ Đã gửi yêu cầu' + (rq.plan ? ' gói <b>' + PLAN_DEF[rq.plan].name + ' ' + rq.months + ' tháng</b>' : '') + ' lúc ' + hm(rq.createdAt) + ' ' + dmy(rq.createdAt) + '. Night IELTS kiểm tra chuyển khoản rồi duyệt, trang sẽ tự mở khi bạn tải lại.</div>';
@@ -274,8 +280,12 @@
               '<div><span>Nội dung CK</span><b>' + esc(code) + copyBtn(code) + '</b></div></div></div>'
               : '<p class="npl-note">Night IELTS chưa cập nhật thông tin chuyển khoản. Nhắn Night IELTS để đăng ký nhé.</p>') +
             (dq ? '<p class="npl-note" style="margin:0 0 8px">📱 Quét mã QR bằng app ngân hàng: <b>số tiền và nội dung đã điền sẵn</b>, chỉ cần bấm chuyển.</p>' : '') +
-            '<p class="npl-note" style="margin:0 0 12px">Ghi đúng <b>nội dung chuyển khoản</b> để Night IELTS biết bạn mua gói nào. Chuyển xong bấm nút dưới, Night IELTS duyệt trong ngày.</p>' +
-            '<button type="button" class="npl-btn gold" id="npl-sent"' + (rq && rq.status === 'pending' ? ' disabled' : '') + '>💸 Tôi đã chuyển khoản ' + money(price) + '</button>';
+            '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF" data-wait>⏳ Ghi đúng <b>nội dung ' + esc(code) + '</b>. Tiền vào là <b>gói tự kích hoạt sau vài giây</b>, không cần chờ duyệt.</div>' +
+            '<button type="button" class="npl-btn ghost" id="npl-sent" style="font-size:12px"' + (rq && rq.status === 'pending' ? ' disabled' : '') + '>Đã chuyển hơn 10 phút mà chưa mở? Báo Night IELTS</button>';
+          stopW(); stopW = watchMe(o, user.uid, function (u) { return Number(u.proUntil) > Math.max(startU, Date.now()) + 1000; }, function (u) {
+            var w = box.querySelector('[data-wait]');
+            if (w) { w.style.background = '#ECFDF5'; w.style.color = '#065F46'; w.innerHTML = '🎉 Đã nhận tiền! Gói <b>' + esc(planName(u) || '') + '</b> dùng đến hết ngày <b>' + dmy(u.proUntil) + '</b>. Tải lại trang để dùng ngay.'; }
+          });
           wireCopy(box);
           box.querySelectorAll('[data-plan]').forEach(function (x) { x.onclick = function () { plan = x.dataset.plan; paint(); }; });
           box.querySelectorAll('[data-m]').forEach(function (x) { x.onclick = function () { months = +x.dataset.m; paint(); }; });
@@ -459,12 +469,22 @@
     if (hasRealKey(init)) return fetch(url, init);
     skill = skill === 'writing' ? 'writing' : 'speaking';
     return ensure().then(function () {
-      if (!freeOK()) { var e0 = new Error(role() === 'pro' ? 'AI của tài khoản bạn đang được kích hoạt, bạn chờ một lát hoặc nhắn Night IELTS nhé.' : 'Chưa có API key AI. Bấm nút bánh răng ⚙️ để nhập key.'); e0.code = 'NO_KEY'; throw e0; }
+      var paidNoKey = role() === 'pro';   // Pro / Astra chưa được cấp key riêng → dùng máy chủ AI (key của thầy), không giới hạn
+      if (!freeOK() && !paidNoKey) { var e0 = new Error(role() === 'pro' ? 'AI của tài khoản bạn đang được kích hoạt, bạn chờ một lát hoặc nhắn Night IELTS nhé.' : 'Chưa có API key AI. Bấm nút bánh răng ⚙️ để nhập key.'); e0.code = 'NO_KEY'; throw e0; }
       if (!settings.aiProxy) throw new Error('AI miễn phí đang tạm tắt. Nhắn admin Night IELTS, hoặc nâng cấp ⭐ Pro và nhập API key riêng.');
       return fb();
     }).then(function (o) {
       var user = o.auth.currentUser;
       if (!user) throw new Error('Đăng nhập bằng Gmail để dùng AI.');
+      if (paidNoKey) return user.getIdToken().then(function (tok) { return { idToken: tok, skill: skill, charge: false, kind: /audio\/transcriptions/.test(url) ? 'stt' : 'chat' }; }).then(function (req) {
+        if (req.kind === 'chat') { req.body = init.body; return req; }
+        var fields = [], file = null, jobs = [];
+        init.body.forEach(function (v, k) {
+          if (typeof v === 'object' && v && typeof v.size === 'number') jobs.push(blobToB64(v).then(function (b64) { file = { name: v.name || 'answer.webm', type: v.type || 'audio/webm', b64: b64 }; }));
+          else fields.push([k, String(v)]);
+        });
+        return Promise.all(jobs).then(function () { req.fields = fields; req.file = file; return req; });
+      });
       if (skill !== 'speaking') { var e1 = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra.'); e1.code = 'PRO_ONLY'; throw e1; }
       var charge = !!window.__aiChargeNext; window.__aiChargeNext = false;
       if (!charge && !window.__aiScoring) { var e2 = new Error('Tài khoản miễn phí chỉ dùng AI để chấm điểm Speaking (2 lượt/ngày). Tính năng này dành cho ⭐ Pro.'); e2.code = 'PRO_ONLY'; throw e2; }
@@ -497,11 +517,97 @@
       '<button type="button" class="ni-nav-btn" style="padding:4px 10px;font-size:11px;" onclick="NightPlan.openUpgrade(\'\', \'pro\')">⭐ Nâng cấp Pro</button></div>';
   }
 
+  /* ---------- Thanh toán tự động (SePay → apps-script/thanh-toan) ----------
+     Mỗi lần mua tạo 1 đơn payOrders/<MÃ>  { uid, kind:'course'|'plan', course, plan, months, amount, status:'pending' }.
+     Học sinh chuyển khoản với nội dung = MÃ → máy chủ đọc biến động số dư, đủ tiền thì tự mở khoá / gia hạn gói. */
+  var COURSE_PRICE = 39000;
+  var COURSE_LABEL = { giaotiep: 'Giao tiếp Thực chiến', speaking6: 'IELTS Speaking 6.0', writing: 'IELTS Writing 6.0 → 8.0', chuyende: '25 Chuyên đề Tiếng Anh THPT', tiengtrung: 'Tiếng Trung Quyển 1' };
+  function coursePrice() { var v = settings && Number(settings.coursePrice); return v > 0 ? v : COURSE_PRICE; }
+  function courseUntil(u, key) { var b = u && u.buys; return b && Number(b[key]) > Date.now() ? Number(b[key]) : 0; }
+  function newCode() { var A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', c = 'NI'; for (var i = 0; i < 8; i++) c += A[Math.floor(Math.random() * A.length)]; return c; }
+  /* dùng lại đơn còn chờ (cùng món, < 3 ngày) để học sinh quét lại không bị lệch mã */
+  function getOrder(o, user, item, amount) {
+    var k = 'npl-order:' + user.uid + ':' + item.kind + ':' + (item.course || item.plan + item.months) + ':' + amount, old = lsGet(k);
+    if (old && old.code && Date.now() - old.t < 3 * DAY) return Promise.resolve(old.code);
+    var code = newCode();
+    var data = { uid: user.uid, email: user.email || '', name: user.displayName || '', kind: item.kind, amount: amount, status: 'pending', createdAt: Date.now() };
+    if (item.course) data.course = item.course;
+    if (item.plan) { data.plan = item.plan; data.months = item.months; }
+    return o.fs.setDoc(o.fs.doc(o.db, 'payOrders', code), data).then(function () { lsSet(k, { code: code, t: Date.now() }); return code; });
+  }
+  function payBlock(price, code) {
+    var dq = vietQR(settings, price, code);
+    return '<div class="npl-pay">' + (dq ? '<img src="' + esc(dq) + '" alt="QR chuyển khoản">' : (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : '')) +
+      '<div class="npl-kv"><div><span>Ngân hàng</span><b>' + esc(settings.bank || '') + '</b></div>' +
+      '<div><span>Số tài khoản</span><b>' + esc(settings.acc || '') + (settings.acc ? copyBtn(settings.acc) : '') + '</b></div>' +
+      '<div><span>Chủ tài khoản</span><b>' + esc(settings.holder || '') + '</b></div>' +
+      '<div><span>Số tiền</span><b>' + money(price) + '</b></div>' +
+      '<div><span>Nội dung CK</span><b>' + esc(code) + copyBtn(code) + '</b></div></div></div>' +
+      '<p class="npl-note" style="margin:0 0 8px">📱 Quét mã QR bằng app ngân hàng (hoặc MoMo, ZaloPay): <b>số tiền và nội dung đã điền sẵn</b>. Nếu chuyển tay, ghi <b>đúng nội dung ' + esc(code) + '</b>.</p>' +
+      '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF" data-wait>⏳ Đang chờ tiền về… Chuyển xong <b>trang tự mở khoá sau vài giây</b>, không cần bấm gì.</div>';
+  }
+  /* theo dõi tài khoản: điều kiện done(u) đúng → gọi ok() */
+  function watchMe(o, uid, done, ok) {
+    var un = o.fs.onSnapshot(o.fs.doc(o.db, 'users', uid), function (sn) {
+      var u = sn.exists() ? sn.data() : null;
+      if (u && done(u)) { me = u; try { un(); } catch (e) {} ok(u); }
+    }, function () {});
+    return function () { try { un(); } catch (e) {} };
+  }
+  function openCourseBuy(key, name) {
+    css(); name = name || COURSE_LABEL[key] || key;
+    var hd = '<div class="npl-hd"><h2>🔓 Mua khoá học</h2><button class="npl-x" aria-label="Đóng">×</button></div>';
+    var ov = modal(hd + '<p class="npl-note">Đang tải…</p>'), box = ov.querySelector('.npl-in'), stop = function () {};
+    new MutationObserver(function () { if (!ov.isConnected) stop(); }).observe(document.body, { childList: true });
+    ensure().then(function () { return fb(); }).then(function (o) {
+      var user = o.auth.currentUser;
+      if (!user) { box.innerHTML = hd + '<p class="npl-note">Đăng nhập trước rồi bấm mua lại nhé.</p>'; return; }
+      var price = coursePrice(), cur = courseUntil(me, key);
+      if (!(settings.acc || settings.qr)) { box.innerHTML = hd + '<p class="npl-note">Night IELTS chưa cập nhật thông tin chuyển khoản. Nhắn Night IELTS nhé.</p>'; return; }
+      return getOrder(o, user, { kind: 'course', course: key }, price).then(function (code) {
+        box.innerHTML = hd +
+          '<p style="margin:0 0 4px;font-weight:800;font-size:16px">' + esc(name) + '</p>' +
+          '<div class="npl-price"><b>' + money(price) + '</b><span>học trọn khoá trong 30 ngày</span></div>' +
+          (cur ? '<div class="npl-ok">✅ Bạn đang có khoá này đến hết ngày <b>' + dmy(cur) + '</b>. Mua thêm để cộng thêm 30 ngày.</div>' : '') +
+          '<ul class="npl-ul"><li>Mở <b>tất cả buổi học</b> của khoá</li><li>Tải <b>PDF từng buổi</b> để in, take notes</li><li>Lưu tiến độ, ghi chú trên mọi máy</li></ul>' +
+          payBlock(price, code);
+        wireCopy(box);
+        stop = watchMe(o, user.uid, function (u) { return courseUntil(u, key) > (cur || Date.now()) + 1000; }, function (u) {
+          var w = box.querySelector('[data-wait]');
+          if (w) { w.style.background = '#ECFDF5'; w.style.color = '#065F46'; w.innerHTML = '🎉 Đã nhận tiền! Khoá <b>' + esc(name) + '</b> mở đến hết ngày <b>' + dmy(courseUntil(u, key)) + '</b>.'; }
+          var b = document.createElement('button'); b.className = 'npl-btn green'; b.style.width = '100%'; b.textContent = 'Vào học ngay →';
+          b.onclick = function () { location.reload(); }; box.appendChild(b);
+        });
+      });
+    }).catch(function (e) { box.innerHTML = hd + '<p class="npl-note">Không tạo được đơn (' + esc(e && (e.code || e.message)) + '). Thử lại hoặc nhắn Night IELTS nhé.</p>'; });
+  }
+  /* Hộp hướng dẫn sử dụng khoá (tự hiện lần đầu, sau đó mở bằng nút ❓) — st: { bought, until, canPrint, why } */
+  function openCourseGuide(key, name, st) {
+    css(); st = st || {}; name = name || COURSE_LABEL[key] || key;
+    var price = coursePrice();
+    var ov = modal('<div class="npl-hd"><h2>📘 Hướng dẫn học khoá</h2><button class="npl-x" aria-label="Đóng">×</button></div>' +
+      '<p style="margin:0 0 10px;font-weight:800;font-size:16px">' + esc(name) + '</p>' +
+      '<ul class="npl-ul">' +
+      '<li><b>Học lần lượt từng buổi.</b> Mỗi buổi: từ vựng → bài học → bài tập. Tiến độ tự lưu, học máy nào cũng được.</li>' +
+      '<li><b>In PDF để take notes:</b> mỗi buổi có nút <b>🖨 In / PDF</b> trên thanh trên cùng. Tải về in ra giấy hoặc ghi chú trên iPad. PDF buổi sau mở khi bạn <b>đã học buổi trước</b>.</li>' +
+      '<li><b>Bấm vào chữ / loa để nghe</b>, bôi đen để tra nghĩa, ghi chú ngay trên bài.</li>' +
+      '</ul>' +
+      (st.bought ? '<div class="npl-ok">✅ Bạn đã mua khoá này — dùng đến hết ngày <b>' + dmy(st.until) + '</b>.</div>'
+        : st.full ? '<div class="npl-ok">✅ Tài khoản của bạn đã mở khoá này.</div>'
+        : '<div class="npl-pay" style="display:block"><b style="font-size:15px">🔓 Mua riêng khoá này</b><div class="npl-price" style="margin:6px 0 4px"><b>' + money(price) + '</b><span>/ 30 ngày · mở toàn bộ buổi + tải PDF</span></div>' +
+          '<p class="npl-note" style="margin:0 0 10px">Chuyển khoản quét QR — tiền vào là khoá tự mở, không cần chờ duyệt.</p>' +
+          '<button type="button" class="npl-btn gold" data-buy style="width:100%">Mua khoá · ' + money(price) + '</button></div>') +
+      '<button type="button" class="npl-btn ghost npl-x" style="width:100%;margin-top:10px">Đã hiểu, vào học</button>');
+    var b = ov.querySelector('[data-buy]');
+    if (b) b.onclick = function () { ov.remove(); openCourseBuy(key, name); };
+    return ov;
+  }
+
   window.NightPlan = {
     FREE_LESSONS: FREE_LESSONS, init: boot, role: role, effRole: effRole, me: function () { return me; }, settings: function () { return settings; },
-    freeOK: freeOK, courseAccess: courseAccess, lessonFree: lessonFree,
+    freeOK: freeOK, proxyOK: function () { return role() === 'pro'; }, courseAccess: courseAccess, lessonFree: lessonFree,
     openUpgrade: openUpgrade, openAdmin: openAdmin, pendingCount: pendingCount,
-    groqFetch: groqFetch, freeHint: freeHint, payCode: payCode, siteRoot: siteRoot, tierOf: tierOf, planName: planName, planPrice: planPrice
+    groqFetch: groqFetch, freeHint: freeHint, openCourseBuy: openCourseBuy, openCourseGuide: openCourseGuide, courseUntil: courseUntil, coursePrice: coursePrice, payCode: payCode, siteRoot: siteRoot, tierOf: tierOf, planName: planName, planPrice: planPrice
   };
   /* Nút "Góp ý · Khiếu nại" -> mở Zalo của thầy (số nhập trong 👑 Tài khoản → Cài đặt) */
   function zaloNum() { var z = String((settings && settings.zalo) || '').replace(/[^0-9]/g, ''); return z.length >= 9 ? z : ''; }
