@@ -350,3 +350,47 @@
 })();
 
 (function(){try{if(window.__nightVoicePref)return;var s=document.createElement('script');s.src='/tts-pref.js?v=3';document.head.appendChild(s);}catch(e){}})();
+
+/* Bắt buộc đăng nhập mới được làm đề Reading / Listening */
+(function () {
+  try {
+    if (window.__nightTestGate || location.protocol === 'file:' || /^(localhost|127\.)/.test(location.hostname)) return;
+    window.__nightTestGate = 1;
+    var V = '10.8.1', CFG = { apiKey: 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8', authDomain: 'night-ielts-land.firebaseapp.com', projectId: 'night-ielts-land',
+      storageBucket: 'night-ielts-land.firebasestorage.app', messagingSenderId: '408519436407', appId: '1:408519436407:web:a9f0b9ba23368b54427e72' };
+    var css = '#nt-gate{position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:16px;background:linear-gradient(160deg,#ECEBFB,#F7F3FF 45%,#FFF4EC);font-family:"Plus Jakarta Sans",system-ui,sans-serif;color:#24242A}' +
+      '#nt-gate .bx{width:100%;max-width:400px;background:#24242A;border-radius:30px;padding:10px;box-shadow:0 30px 60px -30px rgba(36,36,42,.5)}#nt-gate .in{background:#fff;border-radius:22px;padding:28px 24px;text-align:center}' +
+      '#nt-gate img{width:64px;height:64px;border-radius:18px}#nt-gate h1{font-size:22px;font-weight:800;margin:14px 0 6px}#nt-gate p{font-size:14px;line-height:1.55;color:#6B6B78;margin:0 0 20px}' +
+      '#nt-gate button{display:inline-flex;align-items:center;gap:10px;border:0;cursor:pointer;background:#24242A;color:#fff;font:800 15px inherit;font-family:inherit;padding:13px 22px;border-radius:999px}#nt-gate a{color:#6B6B78;font-size:13px}';
+    function gate(o) {
+      if (document.getElementById('nt-gate')) return;
+      var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+      var el = document.createElement('div'); el.id = 'nt-gate';
+      el.innerHTML = '<div class="bx"><div class="in"><img src="/icons/icon-192.png" alt="" onerror="this.remove()">' +
+        '<h1>Đăng nhập để làm đề</h1><p>Đề Reading &amp; Listening chỉ dành cho tài khoản Night IELTS. Đăng nhập miễn phí bằng Google hoặc email — bài làm và từ vựng sẽ được lưu lại.</p>' +
+        '<button type="button" id="nt-login">Đăng nhập</button><p style="margin:16px 0 0"><a href="/index.html">← Về trang chủ</a></p></div></div>';
+      document.body.appendChild(el);
+      try { document.documentElement.style.overflow = 'hidden'; } catch (e) {}
+      document.getElementById('nt-login').onclick = function () {
+        var go = function () { NightLogin.open({ auth: o.auth, authM: o.A, title: 'Đăng nhập để làm đề', note: 'Chọn Google hoặc nhận link đăng nhập qua email bất kỳ.' }); };
+        if (window.NightLogin) return go();
+        var s = document.createElement('script'); s.src = '/night-login.js?v=20261031a'; s.onload = go; document.head.appendChild(s);
+      };
+    }
+    function ungate() { var el = document.getElementById('nt-gate'); if (el) { el.remove(); try { document.documentElement.style.overflow = ''; } catch (e) {} } }
+    Promise.all([import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app.js'), import('https://www.gstatic.com/firebasejs/' + V + '/firebase-auth.js')]).then(function (m) {
+      var app; try { app = m[0].getApp(); } catch (e) { app = m[0].initializeApp(CFG); }
+      var o = { auth: m[1].getAuth(app), A: m[1] };
+      var run = function () {
+        o.A.onAuthStateChanged(o.auth, function (u) {
+          if (u) ungate();
+          else if (document.body) gate(o); else document.addEventListener('DOMContentLoaded', function () { gate(o); });
+        });
+      };
+      if (/[?&]oobCode=/.test(location.search)) {
+        var s = document.createElement('script'); s.src = '/night-login.js?v=20261031a';
+        s.onload = function () { NightLogin.complete(o.auth, o.A).then(run, run); }; document.head.appendChild(s);
+      } else run();
+    }).catch(function () {});
+  } catch (e) {}
+})();
