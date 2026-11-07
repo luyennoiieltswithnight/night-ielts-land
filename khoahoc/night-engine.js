@@ -4078,7 +4078,7 @@
   // Bút vẽ đè: nét lưu theo toạ độ trang nên cuộn trang thì nét đi theo nội dung.
   // Lớp vẽ KHÔNG bị nvInstallPinchFix giữ cỡ màn hình (data-nv-nopin) → zoom bằng 2 ngón thì nét vẽ phóng to theo nội dung.
   const PEN = { red: "#e11d48", blue: "#2563eb", green: "#16a34a", black: "#0f172a" };
-  function DrawLayer({ on, tool, color, pageKey, cmd }) {
+  function DrawLayer({ on, tool, color, pageKey, cmd, finger }) {
     const cv = useRef(null), store = useRef({}), cur = useRef(null), raf = useRef(0);
     const list = () => (store.current[pageKey] = store.current[pageKey] || []);
     const redraw = () => {
@@ -4128,29 +4128,18 @@
     }, [cmd]);
     const pt = (e) => [e.clientX + window.scrollX, e.clientY + window.scrollY];
     const erase = (p) => { store.current[pageKey] = list().filter((s) => !s.pts.some((q) => Math.abs(q[0] - p[0]) < 16 && Math.abs(q[1] - p[1]) < 16)); redraw(); };
-    /* iPad: đã thấy Apple Pencil → chỉ bút mới vẽ, ngón tay/lòng bàn tay dùng để cuộn (chống tì đè) */
-    const pen = useRef((() => { try { return localStorage.getItem("nv-pencil") === "1"; } catch (e) { return false; } })());
-    const act = useRef(null), fing = useRef(null);
-    const palm = (e) => e.pointerType === "touch" && (e.width > 34 || e.height > 34);
-    const down = (e) => {
-      if (!on) return; e.preventDefault();
-      if (e.pointerType === "pen" && !pen.current) { pen.current = true; try { localStorage.setItem("nv-pencil", "1"); } catch (err) {} }
-      if (e.pointerType === "touch" && (pen.current || palm(e))) { fing.current = { id: e.pointerId, x: e.clientX, y: e.clientY }; return; }
-      if (act.current != null) return; // đang vẽ bằng 1 điểm chạm khác
-      act.current = e.pointerId;
-      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+    /* ---- Nét vẽ dùng chung cho chuột / bút / ngón tay ---- */
+    const startStroke = (e) => {
       const p = pt(e);
       if (tool === "erase") { cur.current = { erasing: true }; erase(p); return; }
       const hl = tool === "hl", isPen = e.pointerType === "pen";
       cur.current = { pts: [p], pr: isPen && !hl ? [e.pressure || 0.5] : null, color: hl ? "#facc15" : PEN[color] || PEN.red, w: hl ? 22 : isPen ? 2.8 : 3.5, a: hl ? 0.4 : 1, hl };
       redraw();
     };
-    const move = (e) => {
-      if (!on) return;
-      const f = fing.current;
-      if (f && f.id === e.pointerId) { window.scrollBy(f.x - e.clientX, f.y - e.clientY); f.x = e.clientX; f.y = e.clientY; return; }
-      if (!cur.current || e.pointerId !== act.current) return;
-      const evs = (e.nativeEvent && e.nativeEvent.getCoalescedEvents && e.nativeEvent.getCoalescedEvents()) || [];
+    const extendStroke = (e) => {
+      if (!cur.current) return;
+      const ne = e.nativeEvent || e;
+      const evs = (ne.getCoalescedEvents && ne.getCoalescedEvents()) || [];
       (evs.length ? evs : [e]).forEach((ev) => {
         const p = pt(ev);
         if (cur.current.erasing) { erase(p); return; }
@@ -4162,18 +4151,121 @@
       });
       redraw();
     };
-    const up = (e) => {
-      if (fing.current && (!e || e.pointerId === fing.current.id)) { fing.current = null; return; }
-      if (e && act.current != null && e.pointerId !== act.current) return;
-      act.current = null;
+    const endStroke = (e) => {
       if (cur.current && !cur.current.erasing && cur.current.pts) {
         if (e && e.clientX != null && cur.current.pts.length > 1) { cur.current.pts.push(pt(e)); if (cur.current.pr) cur.current.pr.push(cur.current.pr[cur.current.pr.length - 1] * 0.7); }
         list().push(cur.current);
       }
       cur.current = null; redraw();
     };
+
+    /* ===== Chế độ "chỉ Apple Pencil" (máy cảm ứng: iPad…) — giống GoodNotes =====
+       Lớp vẽ KHÔNG chặn chạm: ngón tay cuộn, zoom 2 ngón, bấm nút như bình thường.
+       Chỉ bút (và chuột) mới vẽ. Chống tì tay: trong lúc bút đang chạm / vừa nhấc bút,
+       mọi chạm của lòng bàn tay (chạm to, hoặc nằm phía dưới chỗ vừa viết) bị bỏ qua — không bấm nhầm nút. */
+    const touchDev = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+    const pencilMode = on && touchDev && !finger;
+    const toolRef = useRef(); toolRef.current = { startStroke, extendStroke, endStroke };
+    useEffect(() => {
+      if (!pencilMode) return;
+      const st = { id: null, lastUp: -1e9, last: null, palms: new Set(), palmTouches: new Set(), palmPts: [], swallow: 0 };
+      const isUI = (el) => {
+        for (let n = el; n && n.nodeType === 1 && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+          if (n === cv.current) return false;
+          const ps = getComputedStyle(n).position;
+          if (ps === "fixed" || ps === "sticky") return true;
+        }
+        return false;
+      };
+      const palmish = (x, y, w, hh) => {
+        if (st.id != null) return true; // bút đang chạm màn hình → mọi chạm khác là tay tì
+        if (w > 40 || hh > 40) return true; // vùng chạm to = lòng bàn tay
+        const dt = performance.now() - st.lastUp;
+        if (dt < 400) return true; // vừa nhấc bút
+        if (dt < 1000 && st.last && y > st.last[1] - 80 && Math.abs(x - st.last[0]) < 360) return true; // tay đặt ngay dưới chỗ vừa viết
+        return false;
+      };
+      const stop = (e) => { e.stopPropagation(); if (e.cancelable) e.preventDefault(); };
+      const drawsWith = (e) => e.pointerType === "pen" || e.pointerType === "mouse";
+      const pdown = (e) => {
+        if (drawsWith(e)) {
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          if (isUI(e.target)) return; // bút chạm thanh công cụ / nút nổi → bấm như thường
+          if (st.id != null) return;
+          stop(e); st.id = e.pointerId; st.swallow = performance.now() + 900;
+          try { if (!pen.current && e.pointerType === "pen") { pen.current = true; localStorage.setItem("nv-pencil", "1"); } } catch (err) {}
+          toolRef.current.startStroke(e);
+          return;
+        }
+        if (e.pointerType === "touch" && palmish(e.clientX, e.clientY, e.width || 0, e.height || 0)) {
+          st.palms.add(e.pointerId); st.palmPts.push({ x: e.clientX, y: e.clientY, t: performance.now() }); if (st.palmPts.length > 12) st.palmPts.shift();
+          stop(e);
+        }
+      };
+      const pmove = (e) => {
+        if (e.pointerId === st.id) { stop(e); toolRef.current.extendStroke(e); return; }
+        if (st.palms.has(e.pointerId)) stop(e);
+      };
+      const pup = (e) => {
+        if (e.pointerId === st.id) {
+          stop(e); st.id = null; st.lastUp = performance.now(); st.last = [e.clientX, e.clientY];
+          toolRef.current.endStroke(e.type === "pointercancel" ? null : e);
+          return;
+        }
+        if (st.palms.has(e.pointerId)) { st.palms.delete(e.pointerId); stop(e); }
+      };
+      const nearPalm = (x, y) => { const now = performance.now(); return st.palmPts.some((q) => now - q.t < 300 && Math.abs(q.x - x) < 4 && Math.abs(q.y - y) < 4); };
+      const tstart = (e) => {
+        let block = false;
+        for (const t of e.changedTouches) {
+          if (t.touchType === "stylus") { if (!isUI(t.target)) block = true; continue; }
+          if (nearPalm(t.clientX, t.clientY) || palmish(t.clientX, t.clientY, (t.radiusX || 0) * 2, (t.radiusY || 0) * 2)) { st.palmTouches.add(t.identifier); block = true; }
+        }
+        if (block && e.cancelable) e.preventDefault(); // chặn cuộn, bôi đen chữ, kính lúp và cú bấm nhầm
+      };
+      const tmove = (e) => {
+        for (const t of e.changedTouches) if ((t.touchType === "stylus" && st.id != null) || st.palmTouches.has(t.identifier)) { if (e.cancelable) e.preventDefault(); return; }
+      };
+      const tend = (e) => { for (const t of e.changedTouches) st.palmTouches.delete(t.identifier); };
+      const click = (e) => {
+        if (st.swallow && performance.now() < st.swallow && !isUI(e.target)) { st.swallow = 0; e.stopPropagation(); e.preventDefault(); }
+      };
+      const sel = (e) => { if (st.id != null) e.preventDefault(); };
+      const opt = { capture: true, passive: false };
+      const L = [["pointerdown", pdown], ["pointermove", pmove], ["pointerup", pup], ["pointercancel", pup], ["touchstart", tstart], ["touchmove", tmove], ["touchend", tend], ["touchcancel", tend], ["click", click], ["selectstart", sel]];
+      L.forEach(([n, f]) => window.addEventListener(n, f, opt));
+      return () => { L.forEach(([n, f]) => window.removeEventListener(n, f, opt)); if (st.id != null) toolRef.current.endStroke(null); };
+    }, [pencilMode]);
+
+    /* ===== Chế độ cũ (máy tính có chuột, hoặc bật "vẽ bằng ngón tay"): lớp vẽ nhận mọi chạm ===== */
+    const pen = useRef((() => { try { return localStorage.getItem("nv-pencil") === "1"; } catch (e) { return false; } })());
+    const act = useRef(null), fing = useRef(null);
+    const palm = (e) => e.pointerType === "touch" && (e.width > 34 || e.height > 34);
+    const down = (e) => {
+      if (!on || pencilMode) return; e.preventDefault();
+      if (e.pointerType === "touch" && palm(e)) { fing.current = { id: e.pointerId, x: e.clientX, y: e.clientY }; return; }
+      if (act.current != null) return; // đang vẽ bằng 1 điểm chạm khác
+      act.current = e.pointerId;
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+      startStroke(e);
+    };
+    const move = (e) => {
+      if (!on || pencilMode) return;
+      const f = fing.current;
+      if (f && f.id === e.pointerId) { window.scrollBy(f.x - e.clientX, f.y - e.clientY); f.x = e.clientX; f.y = e.clientY; return; }
+      if (!cur.current || e.pointerId !== act.current) return;
+      extendStroke(e);
+    };
+    const up = (e) => {
+      if (pencilMode) return;
+      if (fing.current && (!e || e.pointerId === fing.current.id)) { fing.current = null; return; }
+      if (e && act.current != null && e.pointerId !== act.current) return;
+      act.current = null;
+      endStroke(e);
+    };
+    const grab = on && !pencilMode;
     return h("canvas", { ref: cv, "data-nv-nopin": "1", onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up,
-      style: { position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 45, pointerEvents: on ? "auto" : "none", touchAction: on ? "none" : "auto", WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none", cursor: on ? (tool === "erase" ? "cell" : "crosshair") : "default" } });
+      style: { position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 45, pointerEvents: grab ? "auto" : "none", touchAction: grab ? "none" : "auto", WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none", cursor: grab ? (tool === "erase" ? "cell" : "crosshair") : "default" } });
   }
 
   // Thanh công cụ giảng dạy
@@ -4515,13 +4607,6 @@
       t.open && h("div", { className: "w-60 space-y-1.5 rounded-3xl border border-slate-200 bg-slate-50/95 p-2.5 shadow-floating backdrop-blur" },
         h("p", { className: "px-2 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400" }, "Công cụ giảng dạy"),
         btn(t.draw, () => set({ draw: !t.draw }), "✏️", "Bút vẽ", "D"),
-        t.draw && h("div", { className: "flex flex-wrap items-center gap-1.5 rounded-2xl bg-white p-2" },
-          Object.entries(PEN).map(([k, c]) => h("button", { key: k, onClick: () => set({ tool: "pen", color: k }), "aria-label": "Bút " + k,
-            className: `h-7 w-7 rounded-full ring-offset-2 ${t.tool === "pen" && t.color === k ? "ring-2 ring-slate-500" : ""}`, style: { background: c } })),
-          h("button", { onClick: () => set({ tool: "hl" }), title: "Bút dạ quang", className: `h-7 rounded-full px-2 text-xs font-bold ${t.tool === "hl" ? "bg-yellow-300 ring-2 ring-slate-500 ring-offset-2" : "bg-yellow-200"}` }, "🖍"),
-          h("button", { onClick: () => set({ tool: "erase" }), title: "Tẩy (quẹt lên nét)", className: `h-7 rounded-full px-2 text-xs font-bold ${t.tool === "erase" ? "bg-slate-700 text-white" : "bg-slate-100"}` }, "🧽"),
-          h("button", { onClick: () => set({ cmd: { t: "undo", n: Date.now() } }), title: "Hoàn tác (Z)", className: "h-7 rounded-full bg-slate-100 px-2 text-xs font-bold" }, "↶"),
-          h("button", { onClick: () => set({ cmd: { t: "clear", n: Date.now() } }), title: "Xoá nét vẽ ở trang này", className: "h-7 rounded-full bg-slate-100 px-2 text-xs font-bold text-rose-600" }, "Xoá")),
         btn(present, onPresent, "📽", present ? "Thoát trình chiếu" : "Trình chiếu", "P"),
         btn(t.cover, () => set(t.cover ? { cover: false } : { cover: true, gen: t.gen + 1, all: false }), "🙈", "Che đáp án", "C"),
         t.cover && h("div", { className: "flex gap-1.5 px-1" },
@@ -4532,8 +4617,21 @@
         btn(t.race, () => set({ race: !t.race, open: false }), "🦆", "Đua vịt gọi tên", "R"),
         h("button", { onClick: onClearAll, className: "w-full rounded-2xl px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50" }, "🧹 Xoá hết đánh dấu & nét vẽ"),
         h("p", { className: "px-2 pb-1 text-[10px] leading-relaxed text-slate-400" }, HL_OK ? "Bôi đen chữ để in đậm, gạch chân, tô màu. " : "", "Không lưu gì: đóng trang là sạch.")),
-      h("button", { onClick: () => set({ open: !t.open }), title: "Công cụ giảng dạy", "aria-label": "Công cụ giảng dạy",
-        className: `flex h-12 w-12 items-center justify-center rounded-full text-xl shadow-premium transition ${t.open || t.draw || t.cover || present ? "bg-primary text-white" : "bg-white text-primary hover:bg-primary-light"}` }, "🎓"));
+      h("div", { className: "flex max-w-[calc(100vw-24px)] items-center gap-2" },
+        h("button", { onClick: () => set({ open: !t.open }), title: "Công cụ giảng dạy", "aria-label": "Công cụ giảng dạy",
+          className: `flex h-12 w-12 flex-none items-center justify-center rounded-full text-xl shadow-premium transition ${t.open || t.cover || present ? "bg-primary text-white" : "bg-white text-primary hover:bg-primary-light"}` }, "🎓"),
+        /* Nút bút nhanh: iPad không có bàn phím nên bấm 1 lần là bật/tắt bút */
+        h("button", { onClick: () => set({ draw: !t.draw }), title: t.draw ? "Tắt bút vẽ (D)" : "Bật bút vẽ (D)", "aria-label": t.draw ? "Tắt bút vẽ" : "Bật bút vẽ", "aria-pressed": t.draw,
+          className: `flex h-12 w-12 flex-none items-center justify-center rounded-full text-xl shadow-premium transition ${t.draw ? "bg-rose-500 text-white ring-4 ring-rose-200" : "bg-white text-primary hover:bg-primary-light"}` }, "✏️"),
+        t.draw && h("div", { className: "nv-noscroll flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 px-2 py-1.5 shadow-floating backdrop-blur" },
+          Object.entries(PEN).map(([k, c]) => h("button", { key: k, onClick: () => set({ tool: "pen", color: k }), "aria-label": "Bút " + k,
+            className: `h-8 w-8 flex-none rounded-full ring-offset-2 ${t.tool === "pen" && t.color === k ? "ring-2 ring-slate-500" : ""}`, style: { background: c } })),
+          h("button", { onClick: () => set({ tool: "hl" }), title: "Bút dạ quang", className: `h-8 flex-none rounded-full px-2.5 text-sm font-bold ${t.tool === "hl" ? "bg-yellow-300 ring-2 ring-slate-500 ring-offset-2" : "bg-yellow-200"}` }, "🖍"),
+          h("button", { onClick: () => set({ tool: "erase" }), title: "Tẩy (quẹt lên nét)", className: `h-8 flex-none rounded-full px-2.5 text-sm font-bold ${t.tool === "erase" ? "bg-slate-700 text-white" : "bg-slate-100"}` }, "🧽"),
+          h("button", { onClick: () => set({ cmd: { t: "undo", n: Date.now() } }), title: "Hoàn tác (Z)", className: "h-8 flex-none rounded-full bg-slate-100 px-2.5 text-sm font-bold" }, "↶"),
+          h("button", { onClick: () => set({ cmd: { t: "clear", n: Date.now() } }), title: "Xoá nét vẽ ở trang này", className: "h-8 flex-none rounded-full bg-slate-100 px-2.5 text-xs font-bold text-rose-600" }, "Xoá"),
+          (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) && h("button", { onClick: () => set({ finger: !t.finger }), title: t.finger ? "Đang vẽ bằng ngón tay — bấm để chỉ Apple Pencil vẽ" : "Chỉ Apple Pencil vẽ, ngón tay để cuộn/zoom — bấm để vẽ bằng ngón tay",
+            className: `h-8 flex-none whitespace-nowrap rounded-full px-2.5 text-xs font-bold ${t.finger ? "bg-amber-100 text-amber-700" : "bg-primary-light text-primary"}` }, t.finger ? "☝️ Vẽ bằng tay" : "✒️ Chỉ bút"))));
   }
   /* ===================== KHUNG TRANG (phong cách bento: viền tối, thẻ tím / cam) ===================== */
   function NvTopBar({ lesson, sections, navClick, accent, changeAccent, active }) {
@@ -4629,7 +4727,7 @@
     const navClick = (s) => (e) => { if (s.band8 && !b8open) { e.preventDefault(); setB8(true); setTimeout(() => { const el = document.getElementById(s.id); if (el) el.scrollIntoView({ behavior: "smooth" }); }, 60); } };
 
     // Công cụ giảng dạy — chỉ giữ trong bộ nhớ, không lưu
-    const [t, setT] = useState({ open: false, draw: false, tool: "pen", color: "red", cover: false, gen: 0, all: false, timer: false, cmd: null });
+    const [t, setT] = useState({ open: false, draw: false, finger: false, tool: "pen", color: "red", cover: false, gen: 0, all: false, timer: false, cmd: null });
     const set = (patch) => setT((o) => ({ ...o, ...patch }));
     const [present, setPresent] = useState(false);
     const [slide, setSlide] = useState(0);
@@ -4724,7 +4822,7 @@
             h("button", { onClick: () => go(1), disabled: cur === slides.length - 1, "aria-label": "Phần sau", className: "rounded-full bg-primary px-4 py-2 text-lg font-bold text-white disabled:opacity-30" }, "→"),
             h("button", { onClick: fullscreen, title: "Toàn màn hình", className: "hidden rounded-full px-3 py-2 text-sm text-slate-500 hover:bg-slate-100 sm:block" }, "⛶"),
             h("button", { onClick: () => setPresent(false), title: "Thoát trình chiếu (Esc)", className: "rounded-full px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100" }, "✕"))),
-        h(DrawLayer, { on: t.draw, tool: t.tool, color: t.color, pageKey: present ? "slide-" + cur : "page", cmd: t.cmd }),
+        h(DrawLayer, { on: t.draw, tool: t.tool, color: t.color, pageKey: present ? "slide-" + cur : "page", cmd: t.cmd, finger: t.finger }),
         t.timer && h(TeachTimer, { onClose: () => set({ timer: false }) }),
         t.race && h(DuckRace, { onClose: () => set({ race: false }) }),
         h(TeachBar, { t, set, present, onPresent: togglePresent, onClearAll: clearAll })));

@@ -381,10 +381,29 @@
     };
     document.addEventListener('keydown', onKey);
     document.addEventListener('paste', onPaste);
-    root._cleanup = function () { document.removeEventListener('keydown', onKey); document.removeEventListener('paste', onPaste); };
+    /* Đang zoom 2 ngón (iPad) hay zoom touchpad: thẻ luôn nằm giữa vùng đang nhìn thấy, đúng cỡ màn hình — không bị phóng to theo trang */
+    var vv = window.visualViewport;
+    var fit = function () {
+      if (!vv) return;
+      var sc = vv.scale || 1;
+      if (sc <= 1.01) { root.style.cssText = ''; return; }
+      root.style.inset = 'auto'; root.style.left = '0px'; root.style.top = '0px';
+      root.style.width = (vv.width * sc) + 'px'; root.style.height = (vv.height * sc) + 'px';
+      root.style.transformOrigin = '0 0';
+      root.style.transform = 'translate(' + vv.offsetLeft + 'px,' + vv.offsetTop + 'px) scale(' + (1 / sc) + ')';
+    };
+    if (vv) { vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit); }
+    window.addEventListener('scroll', fit, { passive: true });
+    root._cleanup = function () {
+      document.removeEventListener('keydown', onKey); document.removeEventListener('paste', onPaste);
+      if (vv) { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); }
+      window.removeEventListener('scroll', fit);
+    };
 
+    root.setAttribute('data-nv-nopin', '1'); // tự căn theo vùng nhìn, không để lớp zoom chung xử lý lần nữa
     document.body.appendChild(root);
     openRoot = root;
+    fit();
     renderText(); renderImg();
     if (!d.img) loadPics(tab);
     if (!d.ipa && !isCJK(word)) dict(word).then(function (x) { if (x && openRoot === root) { d.ipa = d.ipa || x.ipa; d.pos = d.pos || x.pos; renderText(); } });
