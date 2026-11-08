@@ -1,0 +1,667 @@
+/* Night IELTS — máy luyện nghe-gõ (ZH). Tách nguyên văn từ homework/listening_type_generator_chinese.html, dùng cho luyengo.html.
+   Sửa giao diện bài luyện thì sửa ở đây. */
+(function(){
+var PALETTES = {
+  red:    {50:'#fef2f2',100:'#fee2e2',200:'#fecaca',300:'#fca5a5',400:'#f87171',500:'#ef4444',600:'#dc2626',700:'#b91c1c',800:'#991b1b',900:'#7f1d1d'},
+  orange: {50:'#fff7ed',100:'#ffedd5',200:'#fed7aa',300:'#fdba74',400:'#fb923c',500:'#f97316',600:'#ea580c',700:'#c2410c',800:'#9a3412',900:'#7c2d12'},
+  yellow: {50:'#fffbeb',100:'#fef3c7',200:'#fde68a',300:'#fcd34d',400:'#fbbf24',500:'#f59e0b',600:'#d97706',700:'#b45309',800:'#92400e',900:'#78350f'},
+  green:  {50:'#f0fdf4',100:'#dcfce7',200:'#bbf7d0',300:'#86efac',400:'#4ade80',500:'#22c55e',600:'#16a34a',700:'#15803d',800:'#166534',900:'#14532d'},
+  blue:   {50:'#f0f9ff',100:'#e0f2fe',200:'#99f6e4',300:'#7dd3fc',400:'#38bdf8',500:'#0ea5e9',600:'#0d9488',700:'#0369a1',800:'#075985',900:'#134e4a'},
+  indigo: {50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81'},
+  violet: {50:'#faf5ff',100:'#f3e8ff',200:'#e9d5ff',300:'#d8b4fe',400:'#c084fc',500:'#a855f7',600:'#9333ea',700:'#7e22ce',800:'#6b21a8',900:'#581c87'}
+};
+var LESSON_TEMPLATE = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>中文听写打字 Practice</title>
+<script src="https://cdn.tailwindcss.com"><\/script>
+<script>
+tailwind.config={theme:{extend:{colors:{primary:%%PRIMARY_PALETTE_JSON%%},boxShadow:{card:'0 10px 30px rgba(153,27,27,.08)'}}}};
+<\/script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;600;700;900&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#fdf8f0;color:#292018;font-family:'Plus Jakarta Sans',sans-serif;overscroll-behavior-y:none;}
+button,input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;outline:none;}
+.hanzi-font{font-family:'Noto Serif SC',serif;}
+.brush-font{font-family:'Ma Shan Zheng',cursive;}
+.fade{animation:fade .3s ease both}@keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.glass{background:rgba(255,255,255,.88);backdrop-filter:blur(16px)}
+.paper-texture{background-image:radial-gradient(circle at 1px 1px, rgba(153,27,27,0.05) 1px, transparent 0);background-size:16px 16px;}
+#fireworks{position:fixed;inset:0;pointer-events:none;z-index:90;overflow:hidden}.spark{position:absolute;width:7px;height:7px;border-radius:50%;animation:burst 1.05s ease-out forwards}@keyframes burst{0%{transform:translate(0,0) scale(.5);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(1);opacity:0}}
+.seal{background:linear-gradient(155deg,#dc2626,#991b1b);color:#fff;display:flex;align-items:center;justify-content:center;border-radius:8px;transform:rotate(-6deg);font-weight:800;box-shadow:0 3px 10px rgba(153,27,27,.4);flex:none;}
+.char-box{display:inline-block;min-width:0.8em;border-bottom:3px solid transparent;text-align:center;margin:0 2px;transition:all .15s ease-in-out;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-size:1.1em;}
+.char-untyped{color:#cbd5e1;border-bottom:3px solid %%CHAR_UNTYPED_BORDER%%;}
+.char-masked{color:#cbd5e1;}
+.char-typed{color:%%CHAR_TYPED_COLOR%%;border-bottom:3px solid %%CHAR_TYPED_BORDER%%;transform:translateY(-2px);}
+.char-error{color:#fff;background-color:#ef4444;border-radius:6px;border-bottom:3px solid #b91c1c;transform:translateY(-2px);box-shadow:0 4px 10px rgba(239,68,68,.3);animation:shake .3s ease-in-out;}
+.char-hint{color:#d97706;background-color:#fef3c7;border-radius:6px;font-weight:800;border-bottom:3px solid transparent;transform:translateY(-2px);box-shadow:0 4px 10px rgba(251,191,36,.15);opacity:.8;}
+@keyframes shake{0%,100%{transform:translateX(0) translateY(-2px);}25%{transform:translateX(-4px) translateY(-2px);}75%{transform:translateX(4px) translateY(-2px);}}
+.hanzi-slot{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;margin:5px;border-radius:16px;font-size:2.6em;vertical-align:middle;line-height:1;}
+.hanzi-slot.idle{background:#fff;border:2px dashed %%CHAR_UNTYPED_BORDER%%;color:transparent;}
+.hanzi-slot.revealed{background:%%CHAR_UNTYPED_BORDER%%22;color:%%CHAR_TYPED_COLOR%%;border:2px solid %%CHAR_TYPED_BORDER%%;font-weight:900;}
+.hanzi-slot.revealed.pop{animation:hanziPop .38s cubic-bezier(.34,1.56,.64,1) both;}
+@keyframes hanziPop{0%{transform:scale(.4) rotate(-8deg);opacity:0;}60%{transform:scale(1.15) rotate(3deg);opacity:1;}100%{transform:scale(1) rotate(0);}}
+.hanzi-lit{display:inline-flex;align-items:center;justify-content:center;min-width:1em;height:1.5em;margin:0 2px;font-size:2em;color:#94a3b8;vertical-align:middle;}
+.leaf-idle{width:.5em;height:.5em;opacity:.35;}
+.pinyin-tone-row{letter-spacing:.02em;transition:opacity .25s ease;}
+</style>
+</head>
+<body class="bg-primary-50 text-slate-800 antialiased paper-texture">
+<div id="app"></div><div id="fireworks"></div>
+<script type="application/json" id="lesson-data">%%LESSON_DATA_JSON%%<\/script>
+<script>
+var DATA = JSON.parse(document.getElementById('lesson-data').textContent);
+var TITLE = DATA.title || 'Chinese Listening Type Practice';
+var ITEMS = DATA.items || [];
+
+var voices = [];
+var audioCtx = null;
+var selectedVoiceName = null;
+var VOICE_KEY = 'nightChinesePinyinVoice_v1';
+
+var state = {
+  viewMode: 'cards',
+  practiceType: 'phrase',
+  practiceIndex: 0,
+  input: '',
+  revealed: false,
+  completed: false,
+  hintActive: false,
+  hintEndIndex: -1,
+  errorIndex: -1,
+  justRevealedIdx: -1
+};
+
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function attrJson(v){ return esc(JSON.stringify(v)); }
+
+var ICON_VOLUME = '<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10v4h4l5 4V6l-5 4z"/><path d="M17 9.5a4 4 0 0 1 0 5M19.5 7a7.5 7.5 0 0 1 0 10"/></svg>';
+var ICON_KEYBOARD = '<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6 9h1M10 9h1M14 9h1M18 9h1M6 13h1M10 13h1M14 13h4M7 16h10"/></svg>';
+var ICON_PLAY = '<svg class="w-full h-full" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+var ICON_ROTATE = '<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 11a8 8 0 0 0-13.7-4L4 9"/><path d="M4 5v4h4"/><path d="M4 13a8 8 0 0 0 13.7 4L20 15"/><path d="M20 19v-4h-4"/></svg>';
+var ICON_TURTLE = '<svg class="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 14.5c0-3 2.2-5.5 5.2-5.5h1.3c2.4 0 4.3 1.8 4.3 4.1 0 2.5-2.1 4.4-4.7 4.4H10c-2 0-3.5-1.2-3.5-3z"/><path d="M8 13H5.5c-1.1 0-2-.9-2-2s.9-2 2-2h1.2M8 18.5l-1 2M12 18.5v2M17 17.8l1.2 1.8M18.3 11.3c.8-.8 1.8-1.2 2.7-.9"/></svg>';
+var ICON_BAMBOO = '<svg class="w-full h-full" viewBox="0 0 64 160" xmlns="http://www.w3.org/2000/svg"><rect x="26" y="0" width="12" height="160" rx="6" fill="currentColor"/><path d="M38 40 C55 35,60 20,52 8 C50 22,44 32,38 40Z" fill="currentColor"/><path d="M38 85 C58 82,66 65,58 50 C54 66,46 78,38 85Z" fill="currentColor"/><path d="M26 120 C8 116,2 100,10 86 C13 102,20 113,26 120Z" fill="currentColor"/></svg>';
+var ICON_LEAF = '<svg class="w-full h-full" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C7 6 5 12 8 18c3-1 6-4 7-9 1-4-1-6-3-7z"/></svg>';
+
+// ---------------- PINYIN / HANZI SEGMENTATION ----------------
+var CJK_RE = /[一-鿿㐀-䶿]/;
+function stripTone(syl){
+  var s = String(syl||'');
+  s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  s = s.replace(/[0-9]/g, '');
+  s = s.toLowerCase().replace(/[^a-z]/g, '');
+  s = s.replace(/v/g, 'v');
+  return s;
+}
+function buildSegments(hanziStr, pinyinRawStr){
+  var chars = Array.from(String(hanziStr||''));
+  var syll = String(pinyinRawStr||'').trim().split(/\\s+/).filter(function(x){ return x; });
+  var si = 0;
+  var segments = [];
+  var target = '';
+  chars.forEach(function(ch){
+    if(CJK_RE.test(ch)){
+      var raw = syll[si]; si++;
+      var clean = stripTone(raw || '');
+      var start = target.length;
+      target += clean;
+      segments.push({ type:'han', char: ch, pinyinRaw: raw || '', pinyin: clean, start: start, end: target.length });
+    } else {
+      segments.push({ type:'lit', char: ch });
+    }
+  });
+  return { segments: segments, target: target };
+}
+function sanitizeTyped(str){ return String(str||'').toLowerCase().replace(/[^a-z]/g, ''); }
+
+// ---------------- AUDIO (TTS) ----------------
+var audioUnlocked = false;
+function unlockAudio(){
+  if(audioUnlocked) return;
+  audioUnlocked = true;
+  if('speechSynthesis' in window){
+    var dummy = new SpeechSynthesisUtterance(' ');
+    dummy.volume = 0;
+    window.speechSynthesis.speak(dummy);
+  }
+  if(!audioCtx && (window.AudioContext || window.webkitAudioContext)) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+document.addEventListener('touchstart', unlockAudio, {once:true});
+document.addEventListener('click', unlockAudio, {once:true});
+
+function chineseVoices(){ return voices.filter(function(v){ return /^zh|cmn/i.test(v.lang); }); }
+
+function loadSavedVoiceName(){ try{ return localStorage.getItem(VOICE_KEY) || null; }catch(e){ return null; } }
+function saveVoiceName(name){ try{ localStorage.setItem(VOICE_KEY, name); }catch(e){} }
+
+function loadVoices(){
+  voices = speechSynthesis.getVoices() || [];
+  var s = document.getElementById('voiceSelect');
+  if(!s) return;
+  var vs = chineseVoices();
+  s.innerHTML = vs.length ? vs.map(function(v){ return '<option value="' + esc(v.name) + '">' + esc(v.name) + ' (' + esc(v.lang) + ')</option>'; }).join('') : '<option>System Voice</option>';
+  var saved = selectedVoiceName || loadSavedVoiceName();
+  var best = vs.find(function(v){ return v.name === saved; }) ||
+             vs.find(function(v){ return /google/i.test(v.name) && /zh-CN|cmn-Hans/i.test(v.lang); }) ||
+             vs.find(function(v){ return v.lang === 'zh-CN'; }) || vs[0];
+  if(best){
+    s.value = best.name;
+    if(!selectedVoiceName) selectedVoiceName = best.name;
+    if(!saved) saveVoiceName(best.name);
+  }
+}
+if('speechSynthesis' in window){
+  speechSynthesis.onvoiceschanged = loadVoices;
+  setTimeout(loadVoices, 250);
+}
+
+function updateVoice(name){ selectedVoiceName = name; saveVoiceName(name); previewVoice(); }
+function previewVoice(){ speak('早上好，我们开始学习吧。', 1); }
+
+function speak(text, rate){
+  rate = rate || 1;
+  if(!('speechSynthesis' in window) || !text) return;
+  var synth = window.speechSynthesis;
+  synth.cancel();
+  setTimeout(function(){
+    try{
+      var u = new SpeechSynthesisUtterance(String(text));
+      u.lang = 'zh-CN'; u.rate = rate; u.pitch = 1; u.volume = 1;
+      var selEl = document.getElementById('voiceSelect');
+      var selected = selEl ? selEl.value : null;
+      var v = voices.find(function(x){ return x.name === selectedVoiceName; }) ||
+              voices.find(function(x){ return x.name === selected; }) ||
+              chineseVoices().find(function(x){ return /^zh-CN|cmn-Hans/i.test(x.lang); }) ||
+              chineseVoices()[0] || voices[0];
+      if(v) u.voice = v;
+      u.onerror = function(){};
+      synth.speak(u);
+    }catch(e){}
+  }, 80);
+}
+
+// ---------------- AUDIO (GUZHENG SFX) ----------------
+var PENTA = [293.66,329.63,369.99,440.00,493.88,587.33,659.25,739.99,880.00,987.77,1174.66,1318.51,1479.98];
+var noiseBuf = null;
+function ac(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function getNoiseBuffer(c){
+  if(noiseBuf) return noiseBuf;
+  var len = Math.floor(c.sampleRate * 0.03);
+  noiseBuf = c.createBuffer(1, len, c.sampleRate);
+  var d = noiseBuf.getChannelData(0);
+  for(var i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+  return noiseBuf;
+}
+function pluckNote(freq, opts){
+  opts = opts || {};
+  var dur = opts.dur || 0.28;
+  var vol = opts.vol == null ? 0.06 : opts.vol;
+  var muted = !!opts.muted;
+  try{
+    var c = ac();
+    var t0 = c.currentTime;
+
+    var filt = c.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = muted ? 1100 : 4200;
+    filt.connect(c.destination);
+
+    var g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    g.connect(filt);
+
+    var o = c.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = freq;
+    o.connect(g);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+
+    if(!muted){
+      var g2 = c.createGain();
+      g2.gain.setValueAtTime(0.0001, t0);
+      g2.gain.linearRampToValueAtTime(vol*0.35, t0 + 0.005);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur*0.55);
+      g2.connect(filt);
+      var o2 = c.createOscillator();
+      o2.type = 'sine';
+      o2.frequency.value = freq*2.005;
+      o2.connect(g2);
+      o2.start(t0); o2.stop(t0 + dur*0.6);
+    }
+
+    var ng = c.createGain();
+    ng.gain.setValueAtTime(muted ? 0.03 : 0.05, t0);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
+    ng.connect(filt);
+    var ns = c.createBufferSource();
+    ns.buffer = getNoiseBuffer(c);
+    ns.connect(ng);
+    ns.start(t0);
+  }catch(e){}
+}
+function keystrokeSound(idx){
+  var i = Math.max(0, Math.min(idx, PENTA.length-1));
+  pluckNote(PENTA[i], { dur: 0.22, vol: 0.05 });
+}
+function completeSound(){
+  var notes = PENTA;
+  for(var i=0;i<notes.length;i++){
+    (function(i){
+      setTimeout(function(){
+        var last = i === notes.length-1;
+        pluckNote(notes[i], { dur: last ? 0.7 : 0.14, vol: last ? 0.09 : 0.045 });
+      }, i*32);
+    })(i);
+  }
+}
+function errorSound(){
+  pluckNote(293.66, { dur: 0.14, vol: 0.05 });
+  pluckNote(311.13, { dur: 0.22, vol: 0.06, muted: true });
+}
+function fireworks(){
+  var r = document.getElementById('practiceBurst') || document.getElementById('fireworks');
+  if(!r) return;
+  r.innerHTML = '';
+  for(var i=0;i<44;i++){
+    var s = document.createElement('span');
+    var a = Math.random()*Math.PI*2, rad = 80+Math.random()*180;
+    s.className = 'spark';
+    s.style.left = (42+Math.random()*16)+'%';
+    s.style.top = (32+Math.random()*24)+'%';
+    s.style.background = (%%SPARK_COLORS_JSON%%)[i%5];
+    s.style.setProperty('--dx', Math.cos(a)*rad+'px');
+    s.style.setProperty('--dy', Math.sin(a)*rad+'px');
+    r.appendChild(s);
+  }
+  setTimeout(function(){ r.innerHTML=''; }, 1200);
+}
+
+// ---------------- TYPING ENGINE ----------------
+function current(){
+  var item = ITEMS[state.practiceIndex] || ITEMS[0] || {hanzi:'',pinyinRaw:'',meaningVi:'',sentenceHanzi:'',sentencePinyinRaw:'',sentenceVi:''};
+  var isPhrase = state.practiceType === 'phrase';
+  var hanzi = isPhrase ? item.hanzi : item.sentenceHanzi;
+  var pinyinRaw = isPhrase ? item.pinyinRaw : item.sentencePinyinRaw;
+  return {
+    hanzi: hanzi,
+    pinyinRaw: pinyinRaw,
+    promptVi: isPhrase ? item.meaningVi : (item.sentenceVi || item.meaningVi),
+    audioText: hanzi,
+    kind: isPhrase ? 'PHRASE' : 'SENTENCE'
+  };
+}
+
+function handleKeyInput(e){
+  if(state.completed || state.revealed) return;
+  var c = current();
+  var seg = buildSegments(c.hanzi, c.pinyinRaw);
+  var targetStr = seg.target;
+  var typedStr = sanitizeTyped(e.target.value);
+  var prevLen = state.input.length;
+
+  var isValid = true, errIdx = -1;
+  for(var i=0;i<typedStr.length;i++){
+    if(typedStr[i] !== (targetStr[i]||'')){ isValid=false; errIdx=i; break; }
+  }
+  if(!isValid){
+    errorSound();
+    typedStr = typedStr.substring(0, errIdx);
+    e.target.value = typedStr;
+    state.input = typedStr;
+    state.errorIndex = errIdx;
+    updateTyping();
+    clearTimeout(window.errorTimer);
+    window.errorTimer = setTimeout(function(){ state.errorIndex = -1; updateTyping(); }, 350);
+    return;
+  }
+  state.errorIndex = -1;
+  state.input = typedStr;
+  e.target.value = typedStr;
+  if(state.hintActive && typedStr.length >= state.hintEndIndex) state.hintActive = false;
+
+  if(typedStr.length > prevLen){
+    keystrokeSound(typedStr.length-1);
+    var justIdx = -1;
+    seg.segments.forEach(function(sgm, idx){
+      if(sgm.type === 'han' && prevLen < sgm.end && typedStr.length >= sgm.end) justIdx = idx;
+    });
+    if(justIdx !== -1){
+      state.justRevealedIdx = justIdx;
+      clearTimeout(window.revealTimer);
+      window.revealTimer = setTimeout(function(){ state.justRevealedIdx = -1; updateTyping(); }, 420);
+    }
+  }
+
+  if(targetStr.length > 0 && typedStr === targetStr){
+    state.completed = true; state.revealed = true; state.input = targetStr; e.target.value = targetStr;
+    completeSound();
+    setTimeout(fireworks, 60);
+  }
+  updateTyping();
+}
+
+function giveHint(){
+  if(state.completed || state.revealed) return;
+  var c = current();
+  var seg = buildSegments(c.hanzi, c.pinyinRaw);
+  var targetStr = seg.target;
+  if(state.input.length < targetStr.length){
+    var typedLen = state.input.length;
+    var endIdx = targetStr.length;
+    for(var i=0;i<seg.segments.length;i++){
+      var sgm = seg.segments[i];
+      if(sgm.type === 'han' && sgm.end > typedLen){ endIdx = sgm.end; break; }
+    }
+    state.hintActive = true; state.hintEndIndex = endIdx;
+    updateTyping();
+    setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); }, 50);
+  }
+}
+
+function updateTyping(){
+  var c = current();
+  var seg = buildSegments(c.hanzi, c.pinyinRaw);
+  var targetStr = seg.target;
+  var typedStr = state.input;
+  var totalLetters = targetStr.length;
+  var doneAll = state.revealed || state.completed;
+
+  var hanziRow = document.getElementById('hanziRevealRow');
+  if(hanziRow){
+    var hhtml = '';
+    seg.segments.forEach(function(sgm, idx){
+      if(sgm.type === 'lit'){
+        hhtml += '<span class="hanzi-lit hanzi-font">' + esc(sgm.char) + '</span>';
+        return;
+      }
+      var isRevealed = doneAll || typedStr.length >= sgm.end;
+      if(isRevealed){
+        var popCls = (state.justRevealedIdx === idx) ? ' pop' : '';
+        hhtml += '<span class="hanzi-slot revealed hanzi-font' + popCls + '">' + esc(sgm.char) + '</span>';
+      }else{
+        hhtml += '<span class="hanzi-slot idle"><span class="leaf-idle inline-block">' + ICON_LEAF + '</span></span>';
+      }
+    });
+    hanziRow.innerHTML = hhtml;
+  }
+
+  var toneRow = document.getElementById('pinyinToneRow');
+  if(toneRow){
+    if(doneAll){
+      var toneLine = seg.segments.map(function(sgm){ return sgm.type==='han' ? sgm.pinyinRaw : sgm.char; }).join(' ');
+      toneRow.innerText = toneLine;
+      toneRow.classList.remove('hidden');
+    }else{
+      toneRow.innerText = '';
+      toneRow.classList.add('hidden');
+    }
+  }
+
+  var visualBox = document.getElementById('visualInputBox');
+  if(visualBox){
+    var html = '';
+    for(var i=0;i<targetStr.length;i++){
+      var actualChar = targetStr[i];
+      var displayChar = '*';
+      if(i < typedStr.length){
+        html += '<span class="char-box char-typed">' + esc(typedStr[i]) + '</span>';
+      }else if(i === state.errorIndex){
+        html += '<span class="char-box char-error">' + esc(actualChar) + '</span>';
+      }else if(state.hintActive && i >= typedStr.length && i < state.hintEndIndex){
+        html += '<span class="char-box char-hint">' + esc(actualChar) + '</span>';
+      }else{
+        if(doneAll){
+          html += '<span class="char-box char-untyped" style="border-bottom-color: transparent;">' + esc(actualChar) + '</span>';
+        }else{
+          html += '<span class="char-box char-untyped"><span class="char-masked">' + displayChar + '</span></span>';
+        }
+      }
+    }
+    visualBox.innerHTML = html;
+  }
+
+  var progressBar = document.getElementById('purpleProgressBar');
+  if(progressBar){
+    var percentage = totalLetters ? (typedStr.length/totalLetters)*100 : 0;
+    progressBar.style.width = percentage + '%';
+    if(state.completed){ progressBar.classList.remove('bg-primary-500'); progressBar.classList.add('bg-emerald-500'); }
+    else{ progressBar.classList.remove('bg-emerald-500'); progressBar.classList.add('bg-primary-500'); }
+  }
+
+  var wrapper = document.getElementById('inputWrapper');
+  if(wrapper){
+    if(state.completed) wrapper.className = 'relative w-full max-w-3xl mx-auto mt-5 bg-emerald-50 border-2 border-emerald-200 rounded-2xl shadow-[0_10px_30px_rgba(16,185,129,0.1)] text-emerald-800 cursor-text overflow-hidden transition-all duration-300';
+    else if(state.revealed) wrapper.className = 'relative w-full max-w-3xl mx-auto mt-5 bg-white border-2 border-slate-200 rounded-2xl shadow-card cursor-text overflow-hidden transition-all duration-300';
+    else wrapper.className = 'relative w-full max-w-3xl mx-auto mt-5 bg-white border-2 border-primary-100 rounded-2xl shadow-card cursor-text focus-within:border-primary-400 focus-within:shadow-[0_10px_30px_rgba(153,27,27,0.15)] transition-all duration-300 overflow-hidden group';
+  }
+
+  var hiddenInp = document.getElementById('hiddenInput');
+  if(hiddenInp){ hiddenInp.value = state.input; hiddenInp.disabled = state.completed || state.revealed; }
+
+  var fb = document.getElementById('typingFeedback');
+  if(fb){
+    if(state.completed) fb.innerHTML = '<span class="text-emerald-600 font-extrabold">&#10003; 太好了! Xuất sắc!</span>';
+    else if(state.revealed) fb.innerHTML = '<span class="text-slate-500 font-bold">Đáp án đã hiện. Nghe lại và ôn tập.</span>';
+    else fb.innerHTML = '<span class="text-primary-600/80 font-bold tracking-widest text-[10px] uppercase">Nghe rồi gõ pinyin (không dấu, gõ liền)</span>';
+  }
+}
+
+// ---------------- NAVIGATION ----------------
+function mainScroll(){ var m = document.querySelector('main'); return m ? m.scrollTop : 0; }
+function setViewMode(m){
+  var y = mainScroll();
+  state.viewMode = m;
+  if(m === 'type'){
+    state.practiceIndex = 0; state.practiceType = 'phrase'; state.input=''; state.revealed=false; state.completed=false; state.hintActive=false; state.hintEndIndex=-1; state.errorIndex=-1; state.justRevealedIdx=-1;
+  }
+  render(y);
+  if(m === 'type'){ speak(current().audioText, 1); setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); }, 120); }
+}
+function goCards(){ setViewMode('cards'); }
+function goType(){ setViewMode('type'); }
+
+function changeType(t){
+  var y = mainScroll();
+  state.practiceType = t; state.practiceIndex = 0; state.input=''; state.revealed=false; state.completed=false; state.hintActive=false; state.hintEndIndex=-1; state.errorIndex=-1; state.justRevealedIdx=-1;
+  render(y);
+  speak(current().audioText, 1);
+  setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); }, 120);
+}
+function setPhraseMode(){ changeType('phrase'); }
+function setSentenceMode(){ changeType('sentence'); }
+
+function next(){
+  var y = mainScroll();
+  state.practiceIndex = (state.practiceIndex+1) % ITEMS.length;
+  state.input=''; state.revealed=false; state.completed=false; state.hintActive=false; state.hintEndIndex=-1; state.errorIndex=-1; state.justRevealedIdx=-1;
+  render(y); speak(current().audioText,1);
+  setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); }, 120);
+}
+function prev(){
+  var y = mainScroll();
+  state.practiceIndex = (state.practiceIndex-1+ITEMS.length) % ITEMS.length;
+  state.input=''; state.revealed=false; state.completed=false; state.hintActive=false; state.hintEndIndex=-1; state.errorIndex=-1; state.justRevealedIdx=-1;
+  render(y); speak(current().audioText,1);
+  setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); }, 120);
+}
+function retryItem(){
+  state.input=''; state.revealed=false; state.completed=false; state.hintActive=false; state.hintEndIndex=-1; state.errorIndex=-1; state.justRevealedIdx=-1;
+  updateTyping();
+  setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); }, 50);
+}
+function reveal(){
+  var c = current();
+  var seg = buildSegments(c.hanzi, c.pinyinRaw);
+  state.revealed = true; state.completed = false; state.input = seg.target; state.hintActive=false; state.errorIndex=-1; state.justRevealedIdx=-1;
+  updateTyping();
+}
+
+// ---------------- RENDER ----------------
+function header(){
+  return '<header class="sticky top-0 z-30 glass border-b-2 border-primary-100 px-5 md:px-8 py-4 flex flex-wrap items-center justify-between gap-3">' +
+    '<div class="flex items-center gap-3">' +
+      '<div class="seal w-9 h-9 text-[13px] hidden sm:flex">听</div>' +
+      '<div>' +
+        '<div class="text-[9px] font-extrabold tracking-widest text-primary-600 uppercase">NIGHT IELTS &middot; 中文 LISTENING TYPE</div>' +
+        '<h1 class="text-lg md:text-xl font-extrabold text-slate-800 mt-0.5">' + esc(TITLE) + '</h1>' +
+      '</div>' +
+    '</div>' +
+    '<div class="flex items-center gap-2 flex-wrap">' +
+      '<span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider hidden sm:inline">Voice</span>' +
+      '<select id="voiceSelect" onchange="updateVoice(this.value)" class="max-w-[170px] md:max-w-[220px] text-xs font-bold text-primary-700 border border-primary-200 rounded-xl px-3 py-2 bg-primary-50/50 hover:bg-primary-50 transition outline-none cursor-pointer"></select>' +
+      '<button onclick="previewVoice()" class="text-[10px] font-extrabold uppercase tracking-wider bg-primary-100 text-primary-700 px-3 py-2 rounded-xl hover:bg-primary-200 transition">Nghe thử</button>' +
+    '</div>' +
+  '</header>';
+}
+
+function cardsView(){
+  var cards = ITEMS.map(function(item){
+    var pSeg = buildSegments(item.hanzi, item.pinyinRaw);
+    var pinyinLine = pSeg.segments.map(function(s){ return s.type==='han' ? s.pinyinRaw : s.char; }).join(' ');
+    var sSeg = buildSegments(item.sentenceHanzi, item.sentencePinyinRaw);
+    var sPinyinLine = sSeg.segments.map(function(s){ return s.type==='han' ? s.pinyinRaw : s.char; }).join(' ');
+    return '<article class="bg-white border-2 border-primary-100/60 rounded-[26px] p-6 hover:-translate-y-1 hover:shadow-card transition-all relative overflow-hidden">' +
+      '<svg class="absolute -right-3 -bottom-4 w-10 h-24 bamboo-wrap opacity-[0.06] pointer-events-none" viewBox="0 0 64 160" xmlns="http://www.w3.org/2000/svg"><rect x="26" y="0" width="12" height="160" rx="6" fill="currentColor"/></svg>' +
+      '<div class="flex justify-between items-center mb-4">' +
+        '<span class="text-[9px] font-extrabold px-3 py-1.5 rounded-xl uppercase tracking-widest border bg-gold-100 text-gold-700 border-gold-300">词 CÍ</span>' +
+        '<button onclick="speak(' + attrJson(item.hanzi) + ',1)" class="w-10 h-10 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center">' + ICON_VOLUME + '</button>' +
+      '</div>' +
+      '<div class="text-[28px] font-extrabold text-slate-800 leading-tight hanzi-font">' + esc(item.hanzi) + '</div>' +
+      '<div class="text-[12px] font-bold text-primary-500 mt-1 mono">' + esc(pinyinLine) + '</div>' +
+      '<div class="text-[13px] font-bold text-slate-500 mt-2">' + esc(item.meaningVi) + '</div>' +
+      '<div class="mt-6 p-4 rounded-2xl bg-slate-50 border border-slate-100">' +
+        '<div class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">CÂU VÍ DỤ</div>' +
+        '<div class="text-lg font-semibold text-slate-700 leading-relaxed hanzi-font">' + esc(item.sentenceHanzi) + '</div>' +
+        '<div class="text-[11px] font-bold text-primary-500 mt-1 mono">' + esc(sPinyinLine) + '</div>' +
+        '<div class="text-xs text-slate-400 mt-1">' + esc(item.sentenceVi) + '</div>' +
+        '<button onclick="speak(' + attrJson(item.sentenceHanzi) + ',1)" class="mt-3 text-xs font-extrabold text-primary-600">🔊 Nghe</button>' +
+      '</div>' +
+    '</article>';
+  }).join('');
+
+  return '<div class="space-y-7 fade">' +
+    '<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">' +
+      '<div>' +
+        '<div class="text-[10px] font-extrabold tracking-widest text-primary-600 uppercase">词汇 &amp; 句子 &middot; TỪ VỰNG &amp; CÂU</div>' +
+        '<h2 class="text-3xl font-extrabold text-slate-800 mt-1.5">Danh sách học</h2>' +
+        '<p class="text-sm font-medium text-slate-500 mt-2">' + ITEMS.length + ' mục &middot; Nghe trước, rồi bấm bắt đầu để luyện gõ pinyin.</p>' +
+      '</div>' +
+      '<button onclick="goType()" class="px-8 py-4 rounded-2xl bg-gradient-to-br from-[#3a2418] to-[#1a0f0a] hover:from-[#4a2e1e] hover:to-[#241309] text-white font-extrabold shadow-[0_8px_20px_rgba(26,15,10,0.35)] transition-all flex items-center gap-3"><span class="w-5 h-5">' + ICON_KEYBOARD + '</span> BẮT ĐẦU LISTENING TYPE</button>' +
+    '</div>' +
+    '<div class="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">' + cards + '</div>' +
+  '</div>';
+}
+
+function typeView(){
+  if(!ITEMS.length) return '<div class="p-12 text-center text-slate-400">Chưa có dữ liệu.</div>';
+  var c = current();
+  var list = ITEMS;
+  var kindLabel = c.kind === 'PHRASE' ? '词 &middot; CỤM TỪ' : '句 &middot; CÂU';
+
+  return '<div class="space-y-6 fade max-w-[1100px] mx-auto">' +
+    '<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">' +
+      '<div>' +
+        '<button onclick="goCards()" class="text-xs font-extrabold text-primary-500 flex items-center gap-1.5 mb-3 hover:text-primary-600 transition"><span class="text-lg leading-none">&larr;</span> Quay lại danh sách</button>' +
+        '<div class="text-[10px] font-extrabold tracking-widest text-emerald-500 uppercase">LISTEN &rarr; TYPE PINYIN</div>' +
+        '<h2 class="text-3xl font-extrabold text-slate-800 mt-1.5">' + esc(TITLE) + '</h2>' +
+      '</div>' +
+      '<div class="flex flex-wrap gap-2 p-1.5 bg-white border border-primary-100 rounded-[20px] shadow-sm">' +
+        '<button onclick="setPhraseMode()" class="px-6 py-3 rounded-2xl text-[13px] font-extrabold transition-all duration-200 ' + (state.practiceType==='phrase' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50') + '">01. 词 Cụm từ</button>' +
+        '<button onclick="setSentenceMode()" class="px-6 py-3 rounded-2xl text-[13px] font-extrabold transition-all duration-200 ' + (state.practiceType==='sentence' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50') + '">02. 句 Câu</button>' +
+      '</div>' +
+    '</div>' +
+    '<section class="bg-white border-2 border-primary-100/60 rounded-[36px] overflow-hidden relative shadow-card">' +
+      '<div id="practiceBurst" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>' +
+      '<div class="px-8 py-5 border-b border-primary-50 flex justify-between items-center bg-white">' +
+        '<span class="text-[11px] font-extrabold tracking-widest text-slate-400">MỤC ' + (state.practiceIndex+1) + ' / ' + list.length + '</span>' +
+        '<span class="px-4 py-1.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-500 text-[10px] font-extrabold tracking-widest uppercase hanzi-font">' + kindLabel + '</span>' +
+      '</div>' +
+      '<div class="p-8 md:p-12">' +
+        '<div class="text-center relative">' +
+          '<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 bg-primary-100/50 rounded-full animate-ping pointer-events-none"></div>' +
+          '<button aria-label="Nghe" onclick="speak(' + attrJson(c.audioText) + ',1); setTimeout(function(){var el=document.getElementById(\\'hiddenInput\\');if(el)el.focus();},50);" class="relative w-24 h-24 rounded-full bg-gradient-to-br from-[#3a2418] to-[#1a0f0a] text-white flex items-center justify-center shadow-[0_12px_30px_rgba(26,15,10,0.4)] mx-auto hover:scale-105 transition-all duration-300 z-10">' +
+            '<span class="w-10 h-10 inline-block pl-1">' + ICON_PLAY + '</span>' +
+          '</button>' +
+        '</div>' +
+        '<div class="mt-8 text-center">' +
+          '<div class="text-[10px] font-extrabold tracking-widest uppercase text-primary-400/80 mb-2">' + (c.kind==='PHRASE' ? 'Nghĩa cụm từ' : 'Nghĩa câu') + '</div>' +
+          '<div class="text-xl md:text-2xl font-extrabold text-slate-800">' + esc(c.promptVi) + '</div>' +
+        '</div>' +
+        '<div class="mt-8 text-center">' +
+          '<div class="text-[9px] font-extrabold tracking-widest uppercase text-slate-400 mb-2">汉字 &middot; chữ Hán sẽ hiện dần khi gõ đúng</div>' +
+          '<div id="hanziRevealRow" class="flex flex-wrap justify-center items-center"></div>' +
+          '<div id="pinyinToneRow" class="hidden pinyin-tone-row mt-2 text-center text-sm md:text-base font-bold text-primary-600 mono"></div>' +
+        '</div>' +
+        '<div id="inputWrapper" class="relative w-full max-w-3xl mx-auto mt-5 bg-white border-2 border-primary-100 rounded-2xl shadow-sm cursor-text focus-within:border-primary-400 transition-all duration-300 overflow-hidden group" onclick="var el=document.getElementById(\\'hiddenInput\\');if(el)el.focus();">' +
+          '<div class="text-[9px] font-extrabold tracking-widest uppercase text-slate-300 text-center pt-3">PINYIN (không dấu)</div>' +
+          '<div id="visualInputBox" class="w-full text-center text-[24px] md:text-[28px] font-bold px-6 py-6 flex justify-center flex-wrap leading-[2]"></div>' +
+          '<input id="hiddenInput" value="' + esc(state.input) + '" oninput="handleKeyInput(event)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="text" class="absolute opacity-0 pointer-events-none w-full h-full top-0 left-0"' + (state.completed||state.revealed ? ' disabled' : '') + '>' +
+          '<div id="purpleProgressBar" class="absolute bottom-0 left-0 h-2 bg-primary-500 transition-all duration-300 ease-out" style="width: 0%"></div>' +
+        '</div>' +
+        '<div id="typingFeedback" class="mt-6 text-center text-sm font-bold text-slate-400 h-6">Nghe rồi gõ pinyin (không dấu, gõ liền)</div>' +
+      '</div>' +
+      '<div class="border-t border-primary-50 bg-white p-6 md:p-8 flex flex-wrap justify-between gap-4 items-center">' +
+        '<button onclick="prev()" class="px-6 py-3.5 rounded-2xl bg-white border-2 border-slate-100 text-[13px] font-extrabold text-slate-500 hover:border-slate-200 hover:bg-slate-50 transition">&larr; Trước</button>' +
+        '<div class="flex flex-wrap gap-2.5 justify-center">' +
+          '<button onclick="speak(' + attrJson(c.audioText) + ',1); setTimeout(function(){var el=document.getElementById(\\'hiddenInput\\');if(el)el.focus();},50);" class="px-6 py-3.5 rounded-2xl bg-slate-50 text-[13px] font-extrabold text-slate-700 flex items-center gap-2 hover:bg-slate-100 transition"><span class="w-4 h-4 text-slate-500">' + ICON_VOLUME + '</span> Nghe lại</button>' +
+          '<button onclick="retryItem()" class="px-6 py-3.5 rounded-2xl bg-slate-50 text-[13px] font-extrabold text-slate-700 flex items-center gap-2 hover:bg-slate-100 transition"><span class="w-4 h-4 text-slate-500">' + ICON_ROTATE + '</span> Làm lại</button>' +
+          '<button onclick="speak(' + attrJson(c.audioText) + ',.7); setTimeout(function(){var el=document.getElementById(\\'hiddenInput\\');if(el)el.focus();},50);" class="px-6 py-3.5 rounded-2xl bg-slate-50 text-[13px] font-extrabold text-slate-700 flex items-center gap-2 hover:bg-slate-100 transition"><span class="w-4 h-4 text-slate-500">' + ICON_TURTLE + '</span> Chậm</button>' +
+          (!state.revealed ? '<button onclick="giveHint()" class="px-6 py-3.5 rounded-2xl bg-primary-50 text-primary-700 text-[13px] font-extrabold hover:bg-primary-100 transition">Gợi ý</button>' : '') +
+          (!state.revealed ? '<button onclick="reveal()" class="px-6 py-3.5 rounded-2xl bg-slate-100 text-slate-600 text-[13px] font-extrabold hover:bg-slate-200 transition">Xem đáp án</button>' : '') +
+        '</div>' +
+        '<button onclick="next()" class="px-10 py-3.5 rounded-2xl bg-gradient-to-br from-[#3a2418] to-[#1a0f0a] text-white text-[14px] font-extrabold shadow-lg hover:-translate-y-0.5 transition transform">Tiếp &rarr;</button>' +
+      '</div>' +
+    '</section>' +
+  '</div>';
+}
+
+function render(scrollTop){
+  var old = (scrollTop===null||scrollTop===undefined) ? mainScroll() : scrollTop;
+  var content = state.viewMode === 'type' ? typeView() : cardsView();
+  document.getElementById('app').innerHTML =
+    '<div class="min-h-screen flex flex-col">' +
+      header() +
+      '<main class="flex-1 min-w-0 overflow-y-auto relative">' +
+        '<div class="max-w-[1300px] mx-auto p-5 md:p-8 lg:p-10 pb-24">' + content + '</div>' +
+      '</main>' +
+    '</div>';
+  loadVoices();
+  requestAnimationFrame(function(){
+    var m = document.querySelector('main');
+    if(m) m.scrollTop = old;
+    if(state.viewMode === 'type') updateTyping();
+  });
+}
+render(0);
+<\/script>
+<script src="/night-app.js" defer><\/script>
+</body>
+</html>`;
+function buildLessonHTML(title, items, colorKey){
+  var palette = PALETTES[colorKey] || PALETTES.red;
+  var paletteJson = JSON.stringify(palette);
+  var sparkColorsJson = JSON.stringify([palette[500], palette[400], '#d4af37', palette[700], '#fde68a']);
+  var dataJson = JSON.stringify({ title: title, items: items });
+  dataJson = dataJson.split('</').join('<\\/');
+
+  var html = LESSON_TEMPLATE;
+  html = html.replace('%%PRIMARY_PALETTE_JSON%%', function(){ return paletteJson; });
+  html = html.replace('%%CHAR_UNTYPED_BORDER%%', function(){ return palette[200]; });
+  html = html.replace('%%CHAR_TYPED_COLOR%%', function(){ return palette[900]; });
+  html = html.replace('%%CHAR_TYPED_BORDER%%', function(){ return palette[600]; });
+  html = html.replace('%%SPARK_COLORS_JSON%%', function(){ return sparkColorsJson; });
+  html = html.replace('%%LESSON_DATA_JSON%%', function(){ return dataJson; });
+  return html;
+}
+
+window.LTG_ZH = { PALETTES: PALETTES, build: function(title, items, color){ return buildLessonHTML(title, items, color || 'red'); } };
+})();
