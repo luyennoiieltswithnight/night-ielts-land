@@ -5683,29 +5683,40 @@
                 q.oninput = renderList;
                 if (!C.studs) { try { C.studs = await ensureStudentsCache(); } catch (e) { C.studs = []; } }
                 renderList();
+                // Thành viên (tài khoản User): thầy nhắn trước được, họ chỉ trả lời được sau khi thầy đã nhắn
+                if (!C.users) {
+                    try {
+                        const us = await getDocs(query(collection(db, 'users'), where('role', '==', 'user')));
+                        C.users = []; us.forEach(d => C.users.push(Object.assign({ id: d.id }, d.data())));
+                    } catch (e) { C.users = []; }
+                    renderList();
+                }
             }
             function renderList() {
                 const box = panel.querySelector('#ch-list'); if (!box || C.view !== 'list') return;
                 const kw = (panel.querySelector('#ch-q').value || '').trim().toLowerCase();
                 const byId = {};
                 (C.studs || []).forEach(s => { byId[s.id] = { id: s.id, name: s.name || s.email || s.id, email: s.email || '' }; });
+                (C.users || []).forEach(s => { if (!byId[s.id]) byId[s.id] = { id: s.id, name: s.name || s.email || s.id, email: s.email || '', mem: true }; });
                 Object.values(C.chats).forEach(c => { if (!byId[c.sid]) byId[c.sid] = { id: c.sid, name: c.name || '(Học viên)', email: '' }; });
                 let all = Object.values(byId).filter(s => !kw || (s.name + ' ' + s.email).toLowerCase().includes(kw));
                 const withChat = all.filter(s => C.chats[s.id] && C.chats[s.id].lastText)
                     .sort((a, b) => ms(C.chats[b.id].lastAt) - ms(C.chats[a.id].lastAt));
-                const rest = all.filter(s => !(C.chats[s.id] && C.chats[s.id].lastText)).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+                const rest = all.filter(s => !s.mem && !(C.chats[s.id] && C.chats[s.id].lastText)).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+                const mems = all.filter(s => s.mem && !(C.chats[s.id] && C.chats[s.id].lastText)).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
                 const item = s => {
                     const c = C.chats[s.id], un = c ? (c.tUnread || 0) : 0;
                     const sub = c && c.lastText ? (c.lastBy === 't' ? 'Thầy: ' : '') + c.lastText : (s.email || 'Chưa nhắn tin');
-                    return `<button class="ch-item${un ? ' unread' : ''}" data-sid="${esc(s.id)}" data-n="${esc(s.name)}">
+                    return `<button class="ch-item${un ? ' unread' : ''}" data-sid="${esc(s.id)}" data-n="${esc(s.name)}" data-mem="${s.mem ? 1 : ''}">
                         ${av(studPhoto(s.id), s.name, 'ch-iav')}
                         <span class="ch-im"><b>${esc(s.name)}</b><span>${esc(sub)}</span></span>
                         <span class="ch-ir">${c && c.lastText ? `<i>${shortTime(ms(c.lastAt))}</i>` : ''}${un ? `<em>${un}</em>` : ''}</span></button>`;
                 };
                 box.innerHTML = (withChat.length ? '<p class="ch-sec">Gần đây</p>' + withChat.map(item).join('') : '')
                     + (rest.length ? '<p class="ch-sec">Tất cả học viên</p>' + rest.map(item).join('') : '')
+                    + (mems.length ? '<p class="ch-sec">Thành viên (User) · thầy nhắn trước thì họ mới trả lời được</p>' + mems.map(item).join('') : '')
                     || '<p class="ch-empty">Không tìm thấy học viên.</p>';
-                box.querySelectorAll('.ch-item').forEach(b => b.onclick = () => { C.sid = b.dataset.sid; C.sname = b.dataset.n; showThread(); });
+                box.querySelectorAll('.ch-item').forEach(b => b.onclick = () => { C.sid = b.dataset.sid; C.sname = b.dataset.n; C.smem = !!b.dataset.mem; showThread(); });
             }
 
             // ---------- Khung trò chuyện ----------
@@ -5716,7 +5727,7 @@
                     <div class="ch-head">
                         ${C.isT ? '<button title="Quay lại" data-back><i class="fa-solid fa-arrow-left"></i></button>' : ''}
                         ${C.isT ? av(studPhoto(C.sid), title, 'ch-av') : av(tPhoto(), '', 'ch-av', '👨‍🏫')}
-                        <div class="ch-t"><b>${esc(title)}</b><span>${C.isT ? 'Học viên' : 'Hỏi Night IELTS bất cứ lúc nào nhé'}</span></div>
+                        <div class="ch-t"><b>${esc(title)}</b><span>${C.isT ? (C.smem ? 'Thành viên (User)' : 'Học viên') : 'Hỏi Night IELTS bất cứ lúc nào nhé'}</span></div>
                         <button title="Đóng" data-x><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     <div class="ch-body" id="ch-body"><p class="ch-empty">Đang tải...</p></div>
@@ -5752,7 +5763,7 @@
                 const body = panel.querySelector('#ch-body'); if (!body) return;
                 const me = C.isT ? 't' : 's';
                 if (!C.msgs.length) {
-                    body.innerHTML = `<p class="ch-empty">${C.isT ? 'Chưa có tin nhắn nào.<br>Gõ tin đầu tiên cho ' + esc(C.sname) + ' nhé.' : 'Chưa có tin nhắn nào.<br>Có thắc mắc gì cứ nhắn Night IELTS nhé 👋'}</p>`;
+                    body.innerHTML = `<p class="ch-empty">${C.isT ? 'Chưa có tin nhắn nào.<br>Gõ tin đầu tiên cho ' + esc(C.sname) + ' nhé.' + (C.smem ? '<br><small>Đây là tài khoản User: họ chỉ thấy nút chat và trả lời được sau khi thầy nhắn trước.</small>' : '') : 'Chưa có tin nhắn nào.<br>Có thắc mắc gì cứ nhắn Night IELTS nhé 👋'}</p>`;
                     return;
                 }
                 let html = '', lastDay = '';
@@ -5795,6 +5806,7 @@
                 const ta = panel.querySelector('#ch-in'); const btn = panel.querySelector('#ch-send');
                 const text = (ta.value || '').trim();
                 if (!text || C.sending || !C.sid) return;
+                if (!C.isT && C.u.role === 'user' && !(C.chats[C.sid] && C.chats[C.sid].tStarted)) return;
                 C.sending = true; btn.disabled = true;
                 const me = C.isT ? 't' : 's';
                 try {
@@ -5802,6 +5814,7 @@
                     b.set(doc(collection(db, 'chats', C.sid, 'msgs')), { by: me, text: text, at: serverTimestamp(), readAt: null });
                     const top = { sid: C.sid, lastText: text.slice(0, 90), lastAt: serverTimestamp(), lastBy: me };
                     top[C.isT ? 'sUnread' : 'tUnread'] = increment(1);
+                    if (C.isT) top.tStarted = true; // thầy đã mở lời → tài khoản User được trả lời
                     const nm = C.isT ? C.sname : (C.u.name || '');
                     if (nm) top.name = nm;
                     const pic = (auth.currentUser && auth.currentUser.photoURL) || C.u.photo || '';
@@ -5836,7 +5849,8 @@
             async function start(u) {
                 stop();
                 C.u = u; C.isT = u.role === 'admin';
-                fab.classList.add('show');
+                const gated = u.role === 'user'; // tài khoản User: chỉ hiện chat khi thầy đã nhắn trước
+                if (!gated) fab.classList.add('show');
                 await authReady;
                 if (!auth.currentUser || auth.currentUser.uid !== u.uid || C.u !== u) return;
                 if (C.isT) {
@@ -5859,6 +5873,12 @@
                     C.unsubTop = onSnapshot(doc(db, 'chats', u.uid), d => {
                         const x = d.exists() ? d.data() : {};
                         C.chats[u.uid] = x;
+                        if (gated) {
+                            const ok = !!(x.tStarted || (x.lastText && x.lastBy === 't'));
+                            if (ok) x.tStarted = true;
+                            fab.classList.toggle('show', ok);
+                            if (!ok) { panel.classList.remove('show'); first = false; return; }
+                        }
                         const n = x.sUnread || 0;
                         setBadge(n);
                         if (n > 0 && !panel.classList.contains('show')) {
@@ -5873,7 +5893,7 @@
             function stop() {
                 if (C.unsubTop) { C.unsubTop(); C.unsubTop = null; }
                 stopMsgs();
-                C.u = null; C.sid = null; C.chats = {}; C.studs = null;
+                C.u = null; C.sid = null; C.chats = {}; C.studs = null; C.users = null;
                 panel.classList.remove('show'); panel.innerHTML = '';
                 fab.classList.remove('show'); setBadge(0);
             }
