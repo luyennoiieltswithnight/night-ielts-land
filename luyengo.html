@@ -155,6 +155,7 @@ textarea{min-height:170px;resize:vertical}
 
 <script src="luyengo/engine-en.js"></script>
 <script src="luyengo/engine-zh.js"></script>
+<script src="luyengo/from-course.js"></script>
 <script src="night-login.js"></script>
 <script src="night-plan.js?v=20261108a"></script>
 <script type="module">
@@ -184,9 +185,9 @@ const T = {
 const lvInfo = (lang, code) => LEVELS[lang].find(l => l[0] === code) || LEVELS[lang][0];
 
 /* ---------- Trạng thái ---------- */
-const S = { lang: 'en', tab: 'courses', course: null, user: null, role: 'guest', courses: {}, mine: null,
+const S = { lang: 'en', tab: 'courses', course: null, nv: null, nvList: {}, udoc: null, user: null, role: 'guest', courses: {}, mine: null,
   mode: 'ai', text: '', imgs: [], levels: [], result: null, title: '', busy: false, status: '', statusCls: '', target: '' };
-try { const q = new URLSearchParams(location.search); if (q.get('lang') === 'zh') S.lang = 'zh'; if (['courses', 'create', 'mine'].includes(q.get('tab'))) S.tab = q.get('tab'); } catch (e) {}
+try { const q = new URLSearchParams(location.search); if (q.get('lang') === 'zh' || q.get('course') === 'tiengtrung') S.lang = 'zh'; if (['courses', 'create', 'mine'].includes(q.get('tab'))) S.tab = q.get('tab'); } catch (e) {}
 try { if (!new URLSearchParams(location.search).get('lang')) S.lang = localStorage.getItem('luyengo-lang') === 'zh' ? 'zh' : S.lang; } catch (e) {}
 
 const $ = s => document.querySelector(s);
@@ -224,9 +225,15 @@ async function loadCourses(force) {
   } catch (e) { console.warn('typeCourses', e); }
   if (S.lang === lang && S.tab === 'courses') render();
 }
+function nvCoursesBlock() {
+  return `<div class="h"><span class="dot" style="background:var(--peach)"></span>Từ vựng các khoá học Night IELTS</div><div class="grid" style="margin-bottom:26px">` +
+    NVCourse.COURSES[S.lang].map(c => `<button class="lv" data-nv="${c.key}"><span class="badge" style="background:${c.col}"><i class="fa-solid fa-book-open"></i></span>
+      <b>${esc(c.name)}</b><small>${esc(c.sub)}</small><small style="font-weight:800;color:${c.col}">Luyện gõ theo từng buổi</small>${ira(c.pic, 'pic')}</button>`).join('') + '</div>';
+}
 function coursesView() {
+  if (S.nv) return nvCourseView();
   const m = S.courses[S.lang] || {};
-  return `<div class="h"><span class="dot"></span>Khoá ${T[S.lang].name} theo trình độ</div><div class="grid">` +
+  return nvCoursesBlock() + `<div class="h"><span class="dot"></span>Khoá ${T[S.lang].name} theo trình độ</div><div class="grid">` +
     LEVELS[S.lang].map(([code, col, , desc]) => {
       const n = ((m[code] && m[code].lessons) || []).length;
       return `<button class="lv" data-course="${code}">${n ? '' : '<span class="soon">Sắp ra mắt</span>'}
@@ -237,6 +244,63 @@ function coursesView() {
     }).join('') + '</div>' +
     (isAdmin() ? '<p class="hint" style="margin-top:14px"><i class="fa-solid fa-crown" style="color:#F59E0B"></i> Thầy: mở một khoá rồi bấm "Thêm bài" để soạn bài cho khoá đó (bài trong khoá ai cũng thấy).</p>' : '');
 }
+/* ---------- Khoá học Night IELTS → từng buổi ---------- */
+const COURSE_FREE = 3;
+function nvAccess(key, n) {
+  if (n <= COURSE_FREE) return true;
+  const u = S.udoc; if (!u) return false;
+  let r = u.role || 'student'; if (r === 'pro' && !(Number(u.proUntil) > Date.now())) r = 'user';
+  if (r === 'admin') return true;
+  if (r === 'pro' && u.tier !== 'pro') return true;
+  const c = u.courses || []; if (r === 'student' && (Array.isArray(c) ? c.includes(key) : c[key])) return true;
+  return !!(u.buys && Number(u.buys[key]) > Date.now());
+}
+async function loadNv(key) {
+  if (S.nvList[key]) return;
+  try {
+    const ss = await NVCourse.roadmap(key);
+    await Promise.all(ss.map(x => fetch(`khoahoc/${key}/buoi-${String(x.n).padStart(2, '0')}.html`, { method: 'HEAD', cache: 'no-store' }).then(r => x.ok = r.ok).catch(() => x.ok = false)));
+    S.nvList[key] = ss;
+  } catch (e) { S.nvList[key] = []; toast('Chưa tải được danh sách buổi'); }
+  if (S.nv === key) render();
+}
+function nvCourseView() {
+  const c = NVCourse.COURSES[S.lang].find(x => x.key === S.nv) || NVCourse.COURSES.en.concat(NVCourse.COURSES.zh).find(x => x.key === S.nv);
+  const ls = S.nvList[S.nv];
+  let html = `<button class="back" data-act="back"><i class="fa-solid fa-arrow-left"></i>Tất cả khoá</button>
+    <div class="card" style="display:flex;align-items:center;gap:16px;margin-bottom:14px;background:${c.col};color:#fff;border:0;position:relative;overflow:hidden;min-height:120px">
+      <div style="flex:1;min-width:0;position:relative"><div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.85">Luyện gõ theo khoá</div><div style="font-size:22px;font-weight:800;margin-top:4px">${esc(c.name)}</div><div style="font-size:13px;opacity:.9;margin-top:4px">Chọn buổi → nghe và gõ lại toàn bộ từ vựng + mẫu câu của buổi đó.</div></div>
+      ${ira(c.pic, '')}</div>`.replace('<img class=""', '<img class="" style="height:110px;width:auto;flex:none;position:relative"');
+  if (!ls) return html + `<div class="card empty"><i class="fa-solid fa-spinner fa-spin"></i>Đang tải các buổi…</div>`;
+  let ph = '';
+  ls.forEach(x => {
+    if (x.phase && x.phase !== ph) { ph = x.phase; html += `<div class="lbl" style="margin:14px 2px 8px">${esc(ph)}</div>`; }
+    const open = nvAccess(S.nv, x.n);
+    html += `<div class="lesson" ${x.ok ? `data-nvl="${x.n}"` : ''} role="button" tabindex="0" style="${x.ok ? '' : 'opacity:.55;cursor:default'}">
+      <span class="n" style="background:${c.col}22;color:${c.col}">${x.n}</span>
+      <span class="t"><b>${esc(x.title)}</b><small>${x.ok ? (open ? (x.tag ? esc(x.tag) + ' · ' : '') + 'từ vựng + mẫu câu' : 'Cần mở khoá học để luyện buổi này') : 'Sắp ra mắt'}</small></span>
+      <span class="go">${!x.ok ? '<i class="fa-solid fa-hourglass-half"></i>' : open ? '<i class="fa-solid fa-keyboard"></i>' : '<i class="fa-solid fa-lock"></i>'}</span></div>`;
+  });
+  return html;
+}
+async function openNv(key, n) {
+  if (!nvAccess(key, n)) {
+    if (!S.user) return needLogin('Đăng nhập để luyện gõ các buổi của khoá học.');
+    toast('Buổi này cần mở khoá học trước nhé');
+    if (window.NightPlan && NightPlan.openCourseBuy) { const c = NVCourse.COURSES.en.concat(NVCourse.COURSES.zh).find(x => x.key === key); NightPlan.openCourseBuy(key, c ? c.name : key); }
+    return;
+  }
+  toast('Đang lấy từ vựng của buổi ' + n + '…');
+  try {
+    const r = await NVCourse.lesson(key, n);
+    if (!r.items.length) return toast('Buổi này chưa có phần từ vựng để luyện gõ');
+    const c = NVCourse.COURSES.en.concat(NVCourse.COURSES.zh).find(x => x.key === key);
+    const pal = { '#FF9E5E': 'orange', '#6C70DC': 'indigo', '#F59E0B': 'yellow', '#10B981': 'green', '#C8102E': 'red' }[c && c.col] || 'indigo';
+    S.lang = r.lang; document.body.classList.toggle('zh', S.lang === 'zh');
+    play(r.title, r.items.map(({ kind, ...x }) => x), pal, c && c.col);
+  } catch (e) { toast('Chưa mở được buổi này: ' + e.message); }
+}
+
 function courseView() {
   const code = S.course, [, col] = lvInfo(S.lang, code);
   const c = (S.courses[S.lang] || {})[code] || {}, ls = c.lessons || [];
@@ -317,12 +381,12 @@ function mineView() {
 }
 
 /* ---------- Mở bài luyện ---------- */
-function play(title, items, colorKey) {
+function play(title, items, colorKey, accent) {
   const eng = S.lang === 'zh' ? window.LTG_ZH : window.LTG_EN;
   let html = eng.build(title, items, colorKey);
   html = html.replace(/<script src="\/night-app\.js"[^>]*><\/script>/, '');
   const base = new URL('./', location.href).href, col = colorKey && Object.values(LEVELS[S.lang]).find(l => l[2] === colorKey);
-  const skin = `<script>window.NV_SKIN=${JSON.stringify({ lang: S.lang, ac: col ? col[1] : (S.lang === 'zh' ? '#C8102E' : '#6C70DC'), img: base + IRA })}<\/script><script src="${base}luyengo/skin.js"><\/script>`;
+  const skin = `<script>window.NV_SKIN=${JSON.stringify({ lang: S.lang, ac: accent || (col ? col[1] : (S.lang === 'zh' ? '#C8102E' : '#6C70DC')), img: base + IRA })}<\/script><script src="${base}luyengo/skin.js"><\/script>`;
   html = html.replace(/<\/body>\s*<\/html>\s*$/, skin + '</body></html>');
   $('#pTitle').textContent = title;
   $('#pFrame').srcdoc = html;
@@ -515,6 +579,8 @@ function confirmDel(name) { return window.confirm('Xoá bài "' + name + '"?'); 
 function bind() {
   const v = $('#view');
   v.querySelectorAll('[data-course]').forEach(b => b.onclick = () => { S.course = b.dataset.course; render(); });
+  v.querySelectorAll('[data-nv]').forEach(b => b.onclick = () => { S.nv = b.dataset.nv; render(); loadNv(S.nv); });
+  v.querySelectorAll('[data-nvl]').forEach(b => b.onclick = () => openNv(S.nv, +b.dataset.nvl));
   v.querySelectorAll('[data-open-course]').forEach(b => b.onclick = e => {
     if (e.target.closest('[data-del-course],[data-ren-course]')) return;
     const l = S.courses[S.lang][S.course].lessons[+b.dataset.openCourse];
@@ -557,7 +623,7 @@ function bind() {
   }
   v.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
     const a = b.dataset.act;
-    if (a === 'back') { S.course = null; render(); }
+    if (a === 'back') { S.course = null; S.nv = null; render(); }
     else if (a === 'addLesson') { S.target = S.course; S.tab = 'create'; S.result = null; S.status = ''; S.levels = [S.course]; renderShell(); }
     else if (a === 'gen') generate();
     else if (a === 'manual') manual();
@@ -571,28 +637,40 @@ function bind() {
 }
 document.querySelectorAll('.seg button').forEach(b => b.onclick = () => {
   if (S.lang === b.dataset.lang) return;
-  S.lang = b.dataset.lang; S.course = null; S.result = null; S.status = ''; S.levels = []; S.text = ''; S.imgs = []; S.target = ''; S.title = '';
+  S.lang = b.dataset.lang; S.course = null; S.nv = null; S.result = null; S.status = ''; S.levels = []; S.text = ''; S.imgs = []; S.target = ''; S.title = '';
   try { localStorage.setItem('luyengo-lang', S.lang); } catch (e) {}
   renderShell(); loadCourses();
 });
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; if (S.tab !== 'courses') S.course = null; renderShell(); if (S.tab === 'mine') loadMine(); });
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; if (S.tab !== 'courses') { S.course = null; S.nv = null; } renderShell(); if (S.tab === 'mine') loadMine(); });
 $('#meBtn').onclick = () => { if (!S.user) needLogin(); else location.href = 'index.html'; };
 
 A.onAuthStateChanged(auth, async user => {
-  S.user = user || null; S.role = 'guest'; S.mine = null;
+  S.user = user || null; S.role = 'guest'; S.mine = null; S.udoc = null;
   const mb = $('#meBtn');
   mb.innerHTML = user ? (user.photoURL ? `<img src="${esc(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : esc((user.displayName || user.email || '?')[0].toUpperCase())) : '<i class="fa-solid fa-user"></i>';
   mb.title = user ? (user.email || 'Tài khoản') : 'Đăng nhập';
   if (user) {
     NightLogin.close && NightLogin.close();
+    try { const ud = await getDoc(doc(db, 'users', user.uid)); S.udoc = ud.exists() ? ud.data() : null; } catch (e) {}
     try { if (window.NightPlan) { await NightPlan.init(); S.role = NightPlan.role(); } else { const s = await getDoc(doc(db, 'users', user.uid)); S.role = (s.exists() && s.data().role) || 'user'; } } catch (e) {}
     loadMine();
   }
+  S.authDone = true;
   render();
 });
 if (/[?&]oobCode=/.test(location.search)) NightLogin.complete(auth, A);
 renderShell();
 loadCourses();
+(() => {
+  const q = new URLSearchParams(location.search), key = q.get('course'), n = +q.get('n');
+  if (!key) return;
+  S.tab = 'courses'; S.nv = key; renderShell(); loadNv(key);
+  if (n) {
+    let tries = 0;
+    const go = () => { if (S.authDone || ++tries > 40) openNv(key, n); else setTimeout(go, 250); };
+    setTimeout(go, n <= COURSE_FREE ? 0 : 400);
+  }
+})();
 </script>
 <script src="vocab-teach.js" defer></script>
 <script src="night-app.js" defer></script>

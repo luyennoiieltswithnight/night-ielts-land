@@ -6,7 +6,7 @@
   var P = {
     hero: ZH ? 'norimono_panda_girl_5774' : 'study_night_girl_5647',
     left: ZH ? 'zh_panda' : 'study_english_ondoku_6827',
-    right: ZH ? 'kanji_woman_8688' : 'book_sakubun_kodomo_girl'
+    right: ZH ? 'zh_teacher' : 'book_sakubun_kodomo_girl'
   };
   var pic = function (n, cls) { return '<img class="' + cls + '" src="' + IMG + n + '.webp" alt="" loading="lazy">'; };
   var css = document.createElement('style');

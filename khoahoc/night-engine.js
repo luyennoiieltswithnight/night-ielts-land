@@ -3931,6 +3931,13 @@
   }
 
   // Mã khóa = tên thư mục chứa trang (khoahoc/giaotiep/buoi-01.html → "giaotiep"); có thể ghi đè bằng lesson.courseKey
+  /* Nút "Luyện gõ từ vựng buổi này" → trang Nghe – Gõ (luyengo.html) tự lấy từ vựng + mẫu câu của buổi */
+  function typingLink(lesson, sections) {
+    const m = (location.pathname || "").match(/buoi-(\d+)\.html$/i), key = courseKeyOf(lesson);
+    if (!m || !key) return "";
+    const has = JSON.stringify(sections || []).match(/"(word|zh)":/);
+    return has ? `../../luyengo.html?course=${encodeURIComponent(key)}&n=${parseInt(m[1], 10)}` : "";
+  }
   function courseKeyOf(lesson) {
     if (lesson && lesson.courseKey) return lesson.courseKey;
     const parts = (location.pathname || "").split("/").filter(Boolean);
@@ -4691,6 +4698,7 @@
           lesson.unit && h("p", { className: "mt-3 text-xs font-semibold text-amber-200" }, "📖 ", lesson.unit)),
         h("div", { className: "relative z-10 mt-auto flex items-end justify-between gap-4 pt-6" },
           !present && firstId ? h("a", { href: "#" + firstId, "aria-label": "Vào bài", className: "nv-go relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-ink text-2xl text-white transition hover:scale-105" }, "→") : h("span"),
+          typingLink(lesson, sections) && h("a", { href: typingLink(lesson, sections), className: "nv-typing relative z-10 mr-auto inline-flex items-center gap-2 self-end rounded-full bg-white px-4 py-3 text-sm font-extrabold text-ink shadow-lg transition hover:-translate-y-0.5", title: "Nghe rồi gõ lại toàn bộ từ vựng và mẫu câu của buổi này" }, h("span", { "aria-hidden": "true" }, "⌨"), " Luyện gõ từ vựng buổi này"),
           sticker && h(Sticker, { ira: sticker, className: "nv-float -mb-3 -mr-2 h-32 w-32 sm:absolute sm:-bottom-4 sm:right-0 sm:mb-0 sm:h-44 sm:w-44" }))),
       goals.length > 0 && h("div", { className: "flex flex-col gap-4 lg:col-span-5" },
         h("div", { className: "grid grid-cols-2 gap-3 sm:gap-4" },
