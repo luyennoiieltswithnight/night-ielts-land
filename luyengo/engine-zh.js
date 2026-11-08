@@ -409,9 +409,12 @@ function updateTyping(){
   var visualBox = document.getElementById('visualInputBox');
   if(visualBox){
     var html = '';
+    /* khoảng cách nhỏ sau mỗi âm tiết (giống khoảng cách giữa các từ tiếng Anh) */
+    var sylEnd = {}; seg.segments.forEach(function(sgm){ if(sgm.type==='han' && sgm.end < targetStr.length) sylEnd[sgm.end-1] = 1; });
     for(var i=0;i<targetStr.length;i++){
       var actualChar = targetStr[i];
       var displayChar = '*';
+      if(sylEnd[i-1]) html += '<span class="syl-gap" aria-hidden="true" style="display:inline-block;width:.6em"></span>';
       if(i < typedStr.length){
         html += '<span class="char-box char-typed">' + esc(typedStr[i]) + '</span>';
       }else if(i === state.errorIndex){

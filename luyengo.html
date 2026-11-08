@@ -185,7 +185,7 @@ const T = {
 const lvInfo = (lang, code) => LEVELS[lang].find(l => l[0] === code) || LEVELS[lang][0];
 
 /* ---------- Trạng thái ---------- */
-const S = { lang: 'en', tab: 'courses', course: null, nv: null, nvList: {}, udoc: null, user: null, role: 'guest', courses: {}, mine: null,
+const S = { prog: {}, lang: 'en', tab: 'courses', course: null, nv: null, nvList: {}, udoc: null, user: null, role: 'guest', courses: {}, mine: null,
   mode: 'ai', text: '', imgs: [], levels: [], result: null, title: '', busy: false, status: '', statusCls: '', target: '' };
 try { const q = new URLSearchParams(location.search); if (q.get('lang') === 'zh' || q.get('course') === 'tiengtrung') S.lang = 'zh'; if (['courses', 'create', 'mine'].includes(q.get('tab'))) S.tab = q.get('tab'); } catch (e) {}
 try { if (!new URLSearchParams(location.search).get('lang')) S.lang = localStorage.getItem('luyengo-lang') === 'zh' ? 'zh' : S.lang; } catch (e) {}
@@ -278,7 +278,7 @@ function nvCourseView() {
     const open = nvAccess(S.nv, x.n);
     html += `<div class="lesson" ${x.ok ? `data-nvl="${x.n}"` : ''} role="button" tabindex="0" style="${x.ok ? '' : 'opacity:.55;cursor:default'}">
       <span class="n" style="background:${c.col}22;color:${c.col}">${x.n}</span>
-      <span class="t"><b>${esc(x.title)}</b><small>${x.ok ? (open ? (x.tag ? esc(x.tag) + ' · ' : '') + 'từ vựng + mẫu câu' : 'Cần mở khoá học để luyện buổi này') : 'Sắp ra mắt'}</small></span>
+      <span class="t"><b>${esc(x.title)}</b><small>${x.ok ? (open ? (x.tag ? esc(x.tag) + ' · ' : '') + 'từ vựng + mẫu câu' + progBadge(`nv-${S.nv}-${x.n}`) : 'Cần mở khoá học để luyện buổi này') : 'Sắp ra mắt'}</small></span>
       <span class="go">${!x.ok ? '<i class="fa-solid fa-hourglass-half"></i>' : open ? '<i class="fa-solid fa-keyboard"></i>' : '<i class="fa-solid fa-lock"></i>'}</span></div>`;
   });
   return html;
@@ -297,7 +297,7 @@ async function openNv(key, n) {
     const c = NVCourse.COURSES.en.concat(NVCourse.COURSES.zh).find(x => x.key === key);
     const pal = { '#FF9E5E': 'orange', '#6C70DC': 'indigo', '#F59E0B': 'yellow', '#10B981': 'green', '#C8102E': 'red' }[c && c.col] || 'indigo';
     S.lang = r.lang; document.body.classList.toggle('zh', S.lang === 'zh');
-    play(r.title, r.items.map(({ kind, ...x }) => x), pal, c && c.col);
+    play(r.title, r.items.map(({ kind, ...x }) => x), pal, c && c.col, `nv-${key}-${n}`);
   } catch (e) { toast('Chưa mở được buổi này: ' + e.message); }
 }
 
@@ -308,7 +308,7 @@ function courseView() {
     <div class="h"><span class="dot" style="background:${col}"></span>${S.lang === 'zh' ? code.replace('HSK', 'HSK ') : 'Khoá ' + code} · ${ls.length}/${LESSONS_PER_COURSE} bài
     ${isAdmin() ? '<button class="btn sm ac" data-act="addLesson" style="margin-left:auto"><i class="fa-solid fa-plus"></i>Thêm bài</button>' : ''}</div>` +
     (ls.length ? ls.map((l, i) => `<div class="lesson" data-open-course="${i}" role="button" tabindex="0"><span class="n" style="background:${col}1f;color:${col}">${i + 1}</span>
-      <span class="t"><b>${esc(l.title)}</b><small>${(l.items || []).length} từ / cụm · nghe và gõ cả từ lẫn câu</small></span>
+      <span class="t"><b>${esc(l.title)}</b><small>${(l.items || []).length} từ / cụm · nghe và gõ cả từ lẫn câu${progBadge(`lv-${S.lang}-${code}-${l.at || i}`)}</small></span>
       ${isAdmin() ? `<button class="del" data-ren-course="${i}" title="Đổi tên" style="color:var(--mut)"><i class="fa-solid fa-pen"></i></button><button class="del" data-del-course="${i}" title="Xoá bài khỏi khoá"><i class="fa-solid fa-trash"></i></button>` : ''}<span class="go"><i class="fa-solid fa-play"></i></span></div>`).join('')
       : `<div class="card empty">${ira(LV_PIC[code])}Khoá này <b>sắp ra mắt</b>.<br>Trong lúc chờ, bạn thử <b>Tự tạo bằng AI</b> từ một đoạn văn bất kỳ nhé.</div>`);
 }
@@ -375,18 +375,54 @@ function mineView() {
   const ls = S.mine.filter(m => m.lang === S.lang);
   return `<div class="h"><span class="dot"></span>Bài ${T[S.lang].name} của tôi · chỉ mình bạn thấy</div>` +
     (ls.length ? ls.map(l => `<div class="lesson" data-open-mine="${l.id}" role="button" tabindex="0"><span class="n"><i class="fa-solid fa-bookmark"></i></span>
-      <span class="t"><b>${esc(l.title)}</b><small>${(l.items || []).length} mục · ${(l.levels || []).join(', ') || 'tự nhập'} · ${new Date(l.at || 0).toLocaleDateString('vi-VN')}</small></span>
+      <span class="t"><b>${esc(l.title)}</b><small>${(l.items || []).length} mục · ${(l.levels || []).join(', ') || 'tự nhập'} · ${new Date(l.at || 0).toLocaleDateString('vi-VN')}${progBadge('mine-' + l.id)}</small></span>
       <button class="del" data-ren-mine="${l.id}" title="Đổi tên" style="color:var(--mut)"><i class="fa-solid fa-pen"></i></button><button class="del" data-del-mine="${l.id}" title="Xoá"><i class="fa-solid fa-trash"></i></button><span class="go"><i class="fa-solid fa-play"></i></span></div>`).join('')
       : `<div class="card empty">${ira('bunbougu_note_7561')}Chưa có bài nào.<br>Vào <b>Tự tạo bằng AI</b>, tạo xong bấm "Lưu vào Bài của tôi".</div>`);
 }
 
+/* ---------- Tiến độ: lưu trên máy + tài khoản, mở lại là làm tiếp ---------- */
+const lsGet = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+function progOf(key) {
+  if (!key) return null;
+  const a = S.prog[key], b = lsGet('nvgo:' + key);
+  if (a && b) return (a.at || 0) >= (b.at || 0) ? a : b;
+  return a || b || null;
+}
+function pctOf(p) { if (!p || !p.n) return 0; return Math.round(((p.done && p.done.phrase || []).length + (p.done && p.done.sentence || []).length) / (p.n * 2) * 100); }
+function progBadge(key) {
+  const p = progOf(key); if (!p) return '';
+  const pc = pctOf(p);
+  return ` · <b style="color:${pc >= 100 ? '#047857' : 'var(--ac)'}">${pc >= 100 ? '✓ Hoàn thành' : 'Đã gõ ' + pc + '% · làm tiếp'}</b>`;
+}
+async function loadProg() {
+  if (!S.user) return;
+  try {
+    const snap = await getDocs(query(collection(db, 'typeProgress'), where('uid', '==', S.user.uid)));
+    snap.forEach(d => { const x = d.data(); if (x.key) S.prog[x.key] = x; });
+    render();
+  } catch (e) { console.warn('typeProgress', e); }
+}
+const progT = {};
+window.addEventListener('message', e => {
+  const m = e.data; if (!m || !m.nvProgress || !m.key || m.key !== S.pkey) return;
+  const p = Object.assign({}, m.nvProgress, { at: Date.now(), title: $('#pTitle').textContent || '' });
+  lsSet('nvgo:' + m.key, p); S.prog[m.key] = p;
+  if (!S.user) return;
+  clearTimeout(progT[m.key]);
+  progT[m.key] = setTimeout(() => {
+    setDoc(doc(db, 'typeProgress', S.user.uid + '__' + m.key.replace(/[\/#?]/g, '_')), Object.assign({ uid: S.user.uid, key: m.key, pct: pctOf(p) }, p)).catch(err => console.warn('save prog', err));
+  }, 1500);
+});
+
 /* ---------- Mở bài luyện ---------- */
-function play(title, items, colorKey, accent) {
+function play(title, items, colorKey, accent, pkey) {
+  S.pkey = pkey || '';
   const eng = S.lang === 'zh' ? window.LTG_ZH : window.LTG_EN;
   let html = eng.build(title, items, colorKey);
   html = html.replace(/<script src="\/night-app\.js"[^>]*><\/script>/, '');
   const base = new URL('./', location.href).href, col = colorKey && Object.values(LEVELS[S.lang]).find(l => l[2] === colorKey);
-  const skin = `<script>window.NV_SKIN=${JSON.stringify({ lang: S.lang, ac: accent || (col ? col[1] : (S.lang === 'zh' ? '#C8102E' : '#6C70DC')), img: base + IRA })}<\/script><script src="${base}luyengo/skin.js"><\/script>`;
+  const skin = `<script>window.NV_SKIN=${JSON.stringify({ lang: S.lang, ac: accent || (col ? col[1] : (S.lang === 'zh' ? '#C8102E' : '#6C70DC')), img: base + IRA, pkey: S.pkey, resume: progOf(S.pkey) })}<\/script><script src="${base}luyengo/skin.js"><\/script>`;
   html = html.replace(/<\/body>\s*<\/html>\s*$/, skin + '</body></html>');
   $('#pTitle').textContent = title;
   $('#pFrame').srcdoc = html;
@@ -394,7 +430,7 @@ function play(title, items, colorKey, accent) {
   document.body.style.overflow = 'hidden';
 }
 window.addEventListener('message', e => { if (e.data === 'nv-close') $('#pClose').click(); });
-$('#pClose').onclick = () => { $('#player').classList.remove('show'); $('#pFrame').srcdoc = ''; document.body.style.overflow = ''; };
+$('#pClose').onclick = () => { $('#player').classList.remove('show'); $('#pFrame').srcdoc = ''; document.body.style.overflow = ''; S.pkey = ''; render(); };
 
 /* ---------- AI ---------- */
 function groqCfg() { try { return JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || '{}'); } catch (e) { return {}; } }
@@ -584,7 +620,7 @@ function bind() {
   v.querySelectorAll('[data-open-course]').forEach(b => b.onclick = e => {
     if (e.target.closest('[data-del-course],[data-ren-course]')) return;
     const l = S.courses[S.lang][S.course].lessons[+b.dataset.openCourse];
-    play(l.title, clean(l.items), lvInfo(S.lang, S.course)[2]);
+    play(l.title, clean(l.items), lvInfo(S.lang, S.course)[2], undefined, `lv-${S.lang}-${S.course}-${l.at || b.dataset.openCourse}`);
   });
   v.querySelectorAll('[data-del-course]').forEach(b => b.onclick = () => delCourseLesson(+b.dataset.delCourse));
   v.querySelectorAll('[data-ren-course]').forEach(b => b.onclick = async () => {
@@ -597,7 +633,7 @@ function bind() {
   v.querySelectorAll('[data-open-mine]').forEach(b => b.onclick = e => {
     if (e.target.closest('[data-del-mine],[data-ren-mine]')) return;
     const l = S.mine.find(m => m.id === b.dataset.openMine);
-    play(l.title, clean(l.items), l.levels && l.levels[0] ? lvInfo(S.lang, l.levels[0])[2] : undefined);
+    play(l.title, clean(l.items), l.levels && l.levels[0] ? lvInfo(S.lang, l.levels[0])[2] : undefined, undefined, 'mine-' + l.id);
   });
   v.querySelectorAll('[data-ren-mine]').forEach(b => b.onclick = async () => {
     const l = S.mine.find(m => m.id === b.dataset.renMine), t = (window.prompt('Tên mới cho bài:', l.title) || '').trim();
@@ -653,7 +689,7 @@ A.onAuthStateChanged(auth, async user => {
     NightLogin.close && NightLogin.close();
     try { const ud = await getDoc(doc(db, 'users', user.uid)); S.udoc = ud.exists() ? ud.data() : null; } catch (e) {}
     try { if (window.NightPlan) { await NightPlan.init(); S.role = NightPlan.role(); } else { const s = await getDoc(doc(db, 'users', user.uid)); S.role = (s.exists() && s.data().role) || 'user'; } } catch (e) {}
-    loadMine();
+    loadMine(); loadProg();
   }
   S.authDone = true;
   render();

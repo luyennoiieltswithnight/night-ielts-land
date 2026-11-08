@@ -125,10 +125,52 @@
       (top || grid).insertAdjacentHTML('beforebegin', '<div class="nv-banner"><div class="tx"><b>' + (ZH ? 'Nghe – gõ pinyin' : 'Nghe – gõ lại từng chữ') + '</b><small>' + n + ' mục · nghe thử từng thẻ, rồi bấm <b style="display:inline;font-size:inherit">Bắt đầu</b> để luyện gõ cụm từ rồi tới câu.</small></div>' + pic(P.hero, '') + '</div>');
     }
   }
+  /* ---------- Bàn phím: luôn gõ chữ Latin (không bị Telex / bộ gõ tiếng Trung chen vào) ----------
+     Ô nhập ẩn là kiểu "password": trình duyệt tự tắt bộ gõ (IME) và gợi ý chữ cho loại ô này. */
+  function lockKeyboard() {
+    var el = document.getElementById('hiddenInput');
+    if (!el || el.dataset.nvKb) return;
+    el.dataset.nvKb = '1';
+    try { el.type = 'password'; } catch (e) {}
+    el.setAttribute('autocomplete', 'off'); el.setAttribute('lang', 'en'); el.setAttribute('data-lpignore', 'true'); el.setAttribute('data-1p-ignore', 'true'); el.setAttribute('data-form-type', 'other');
+    el.setAttribute('enterkeyhint', 'next');
+  }
+  var warnT = 0;
+  document.addEventListener('input', function (e) {
+    if (!e.target || e.target.id !== 'hiddenInput') return;
+    if (/[^\x00-\x7F]/.test(e.target.value)) {
+      var w = document.getElementById('nv-kbwarn');
+      if (!w) { w = document.createElement('div'); w.id = 'nv-kbwarn'; w.style.cssText = 'position:fixed;left:50%;top:84px;transform:translateX(-50%);z-index:99;background:#24242A;color:#fff;padding:10px 16px;border-radius:999px;font:700 13px "Plus Jakarta Sans",sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.25);max-width:calc(100vw - 24px);text-align:center'; document.body.appendChild(w); }
+      w.textContent = 'Chuyển bàn phím sang tiếng Anh (EN) để gõ nhé — tắt bộ gõ Telex / pinyin';
+      clearTimeout(warnT); warnT = setTimeout(function () { w.remove(); }, 4000);
+    }
+  }, true);
+
+  /* ---------- Lưu tiến độ: gửi ra trang ngoài (luyengo.html) để lưu, lần sau mở là làm tiếp ---------- */
+  var done = { phrase: {}, sentence: {} }, lastSent = '', sendT = 0;
+  function track() {
+    if (typeof state === 'undefined' || typeof ITEMS === 'undefined' || !K.pkey) return;
+    if (state.completed && state.viewMode === 'type') done[state.practiceType][state.practiceIndex] = 1;
+    var msg = { t: state.practiceType, i: state.practiceIndex, v: state.viewMode, n: ITEMS.length,
+      done: { phrase: Object.keys(done.phrase).map(Number), sentence: Object.keys(done.sentence).map(Number) } };
+    var j = JSON.stringify(msg); if (j === lastSent) return; lastSent = j;
+    clearTimeout(sendT); sendT = setTimeout(function () { try { parent.postMessage({ nvProgress: msg, key: K.pkey }, '*'); } catch (e) {} }, 300);
+  }
+  function resume() {
+    var r = K.resume; if (!r || typeof state === 'undefined' || !ITEMS.length) return;
+    (r.done && r.done.phrase || []).forEach(function (i) { done.phrase[i] = 1; });
+    (r.done && r.done.sentence || []).forEach(function (i) { done.sentence[i] = 1; });
+    if (r.v !== 'type') return;
+    state.viewMode = 'type'; state.practiceType = r.t === 'sentence' ? 'sentence' : 'phrase';
+    state.practiceIndex = Math.max(0, Math.min(ITEMS.length - 1, r.i | 0));
+    state.input = ''; state.revealed = false; state.completed = false; state.hintActive = false; state.hintEndIndex = -1; state.errorIndex = -1;
+    render(0);
+  }
   function boot() {
-    var app = document.getElementById('app'); if (!app) return setTimeout(boot, 50);
-    decorate();
-    new MutationObserver(function () { decorate(); }).observe(app, { childList: true, subtree: true });
+    var app = document.getElementById('app'); if (!app || !app.firstChild) return setTimeout(boot, 50);
+    resume();
+    decorate(); lockKeyboard(); track();
+    new MutationObserver(function () { decorate(); lockKeyboard(); track(); }).observe(app, { childList: true, subtree: true });
   }
   boot();
 })();
