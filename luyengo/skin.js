@@ -13,7 +13,7 @@
   css.textContent = [
     ':root{--ink:#24242A;--ink2:#34343C;--panel:#F4F4F7;--line:#EEEEF3;--mut:#6B6B78;--ac:' + AC + '}',
     'html{background:#E9E9EF}',
-    '#app>div.min-h-screen{background:var(--ink);border-radius:28px;margin:8px;padding:6px;min-height:calc(100vh - 16px)!important}',
+    '#app>div.min-h-screen{background:var(--ink);border-radius:28px;margin:10px auto;padding:6px;max-width:72rem;width:calc(100% - 20px);min-height:calc(100vh - 20px)!important;box-shadow:0 30px 70px -20px rgba(36,36,42,.55)}',
     '#app main{background:var(--panel);border-radius:22px}',
     '.nv-exit{background:var(--ink2)!important;color:#fff!important;border:0;border-radius:999px;padding:9px 14px;font-weight:800;font-size:13px;cursor:pointer;margin-right:12px;display:inline-flex;align-items:center;gap:6px}',
     'header.sticky>div:first-child{display:flex;align-items:center}',
@@ -51,7 +51,42 @@
     '.nv-banner img{position:relative;height:130px;width:auto;flex:none;filter:drop-shadow(0 8px 14px rgba(0,0,0,.18))}',
     '.nv-side{position:absolute;top:28px;width:118px;height:auto;pointer-events:none}',
     '.nv-side.l{left:26px}.nv-side.r{right:26px}',
-    '@media(max-width:860px){.nv-side{display:none}.nv-banner img{height:96px}.nv-banner b{font-size:18px}}'
+    '@media(max-width:860px){.nv-side{display:none}.nv-banner img{height:96px}.nv-banner b{font-size:18px}}',
+    /* ===== Màn gõ — thiết kế lại ===== */
+    '#app .nv-type>div:first-child h2,#app .nv-type>div:first-child div[class*="tracking-widest"]{display:none}',
+    '#app .nv-type>div:first-child{align-items:center!important}',
+    '#app .nv-type>div:first-child button[onclick="goCards()"]{background:#fff;border:1.5px solid var(--line);color:var(--ink)!important;padding:9px 16px;border-radius:999px;margin:0!important}',
+    '#app .nv-type>div:first-child>div:last-child{background:var(--ink)!important;border:0!important;border-radius:999px!important;padding:4px!important;box-shadow:none!important}',
+    '#app .nv-type>div:first-child>div:last-child button{border-radius:999px!important;color:#C9C9D6!important;background:none!important;padding:9px 18px!important;box-shadow:none!important}',
+    '#app .nv-type>div:first-child>div:last-child button[class*="bg-primary-50"]{background:#fff!important;color:var(--ink)!important}',
+    '#app .nv-type{max-width:880px!important}',
+    '#app .nv-type section.bg-white{border:0!important;border-radius:32px!important;box-shadow:0 30px 60px -34px rgba(36,36,42,.45)!important}',
+    '#app .nv-type section>div.border-b{padding:18px 26px!important;gap:16px}',
+    '#app .nv-type section>div.border-b>span.nv-old{display:none}',
+    '.nv-count{font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap}.nv-count small{color:var(--mut);font-weight:700}',
+    '.nv-prog{flex:1;height:10px;border-radius:99px;background:#E4E4EC;overflow:hidden}.nv-prog i{display:block;height:100%;border-radius:99px;background:var(--ac);transition:width .35s ease}',
+    '#app .nv-type section>div.border-b>span:last-child{background:color-mix(in srgb,var(--ac) 14%,#fff)!important;color:var(--ac)!important;border:0!important;border-radius:999px!important}',
+    '.nv-stage{background:radial-gradient(120% 70% at 50% 0%,color-mix(in srgb,var(--ac) 13%,#fff) 0%,#fff 62%)!important;padding:34px 28px 30px!important}',
+    '#app .nv-type button[aria-label="Nghe"]{width:112px!important;height:112px!important}',
+    '#app .nv-type button[aria-label="Nghe"]:before,#app .nv-type button[aria-label="Nghe"]:after{content:"";position:absolute;inset:-14px;border-radius:999px;border:2px solid var(--ac);opacity:0;animation:nvRing 2.4s ease-out infinite}',
+    '#app .nv-type button[aria-label="Nghe"]:after{animation-delay:1.2s}',
+    '@keyframes nvRing{0%{transform:scale(.85);opacity:.55}100%{transform:scale(1.35);opacity:0}}',
+    '.nv-stage>div:nth-child(2)>div:first-child,.nv-stage>div:nth-child(3)>div:first-child{color:var(--mut)!important}',
+    '.nv-stage>div:nth-child(2)>div:last-child{display:inline-block;margin-top:4px;background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:10px 20px;font-size:22px!important;box-shadow:0 10px 24px -18px rgba(36,36,42,.5)}',
+    '#app .nv-type #inputWrapper{border:0!important;background:var(--panel)!important;border-radius:24px!important;box-shadow:inset 0 2px 0 rgba(36,36,42,.04)!important;max-width:700px!important}',
+    '#app .nv-type #inputWrapper:focus-within{background:#fff!important;box-shadow:0 0 0 3px var(--ac),0 16px 34px -20px var(--ac)!important}',
+    '#app .nv-type #typingFeedback span{letter-spacing:.06em}',
+    '#app .nv-type section>div.border-t{padding:16px 20px!important;background:var(--panel)!important;border:0!important}',
+    '#app .nv-type section>div.border-t>div{background:var(--ink);border-radius:999px;padding:5px;gap:4px!important}',
+    '#app .nv-type section>div.border-t>div button{background:none!important;color:#E4E4EC!important;padding:10px 14px!important}',
+    '#app .nv-type section>div.border-t>div button:hover{background:var(--ink2)!important}',
+    '#app .nv-type section>div.border-t>div button span{color:#A9A9B8!important}',
+    '#app .nv-type section>div.border-t>div button[onclick^="giveHint"]{color:#FBBF24!important}',
+    '#app .nv-type section>div.border-t>button:first-child{background:#fff!important;border:1.5px solid var(--line)!important;color:var(--ink)!important}',
+    '#app .nv-type section>div.border-t>button:last-child{background:var(--ac)!important;background-image:none!important;padding:13px 28px!important;box-shadow:0 14px 28px -14px var(--ac)!important}',
+    '.nv-side{animation:nvFloat 4s ease-in-out infinite}.nv-side.r{animation-delay:-2s}',
+    '@keyframes nvFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}',
+    '@media(max-width:640px){.nv-type section>div.border-t{justify-content:center!important}.nv-type section>div.border-t>div{order:-1;width:100%;justify-content:center}.nv-stage{padding:26px 14px!important}}'
   ].join('\n');
   document.head.appendChild(css);
   var f = document.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap'; document.head.appendChild(f);
@@ -66,6 +101,16 @@
       wrap.querySelector('.nv-exit').onclick = function () { try { parent.postMessage('nv-close', '*'); } catch (e) {} };
     }
     var sec = app.querySelector('section.bg-white');
+    if (sec) {
+      var wrapT = sec.parentElement; if (wrapT && !wrapT.classList.contains('nv-type')) wrapT.classList.add('nv-type');
+      var stage = sec.children[2]; if (stage && !stage.classList.contains('nv-stage')) stage.classList.add('nv-stage');
+      var bar = sec.children[1];
+      if (bar && !bar.querySelector('.nv-prog') && typeof state !== 'undefined' && typeof ITEMS !== 'undefined') {
+        var i = state.practiceIndex + 1, n = ITEMS.length;
+        if (bar.firstElementChild) bar.firstElementChild.classList.add('nv-old');
+        bar.insertAdjacentHTML('afterbegin', '<span class="nv-count">' + i + ' <small>/ ' + n + '</small></span><span class="nv-prog"><i style="width:' + Math.round(i / n * 100) + '%"></i></span>');
+      }
+    }
     if (sec && !sec.querySelector('.nv-side')) {
       /* màn gõ: 2 hình hai bên nút nghe */
       var body = sec.children[2] || sec;
