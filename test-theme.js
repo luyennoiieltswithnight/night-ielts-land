@@ -395,57 +395,158 @@
   } catch (e) {}
 })();
 
-/* ===== Listening: sóng âm dày & rõ ở mọi mức zoom (vẽ đè hàm của trang đề) =====
-   Bản gốc vẽ 3000 vạch cho cả bài → bài 30 phút mỗi vạch cách ~25px, nhìn thưa, khó tua.
-   Bản này: mỗi 3px màn hình 1 vạch, lấy đỉnh trong khoảng đó (hoặc nội suy khi phóng to), canvas nét theo màn hình Retina. */
+/* ===== Listening: sóng âm kiểu phần mềm dựng âm thanh (vẽ đè hàm của trang đề) =====
+   - Vạch đỏ ĐỨNG YÊN ở giữa; sóng âm chạy qua nó khi phát.
+   - Kéo sóng âm sang trái/phải để tua; bấm/chạm vào 1 đoạn -> đoạn đó nhảy vào giữa (vạch đỏ) và phát từ đó.
+   - Lướt 2 ngón ngang trên touchpad cũng tua; Ctrl/⌘ + cuộn (pinch) vẫn là zoom như cũ; nút − + giữ nguyên.
+   - Nút ⤢ "Phóng dài": thanh sóng âm dài ra bằng thanh đen phía trên (cao giữ nguyên) để nhìn được đoạn dài hơn.
+   - Mỗi 3px 1 vạch, nét theo màn hình Retina, đánh dấu S2–S4 vẽ thẳng lên sóng. */
 (function () {
+  var WIDE_KEY = 'nt-wave-wide';
   function install() {
-    if (typeof window.redrawVisibleWaveSlice !== 'function' || window.__nvWave) return false;
-    window.__nvWave = true;
-    var H = 34, PLAYED = '#6C70DC', REST = '#C3C5E8';
+    if (typeof window.redrawVisibleWaveSlice !== 'function' || typeof window.updatePlayhead !== 'function' || window.__nvWave2) return false;
+    var wrap = document.getElementById('wave-scroll'), canvas = document.getElementById('wave-canvas');
+    if (!wrap || !canvas) return false;
+    window.__nvWave2 = true;
+    var H = 40, PLAYED = '#6C70DC', REST = '#C3C5E8', MARK = '#FF9E5E';
     var st = document.createElement('style');
-    st.textContent = 'html body .wave-scroll canvas,html body .global-audio-bar .wave-scroll canvas{height:' + H + 'px!important}html body .wave-scroll{background:#F4F4F7!important;border:0!important;border-radius:12px!important}';
+    st.textContent = [
+      'html body .wave-scroll{overflow:hidden!important;background:#F4F4F7!important;border:0!important;border-radius:12px!important;padding:3px 0!important;cursor:grab!important;touch-action:pan-y!important;user-select:none;-webkit-user-select:none;position:relative}',
+      'html body .wave-scroll.nv-drag{cursor:grabbing!important}',
+      'html body .wave-scroll canvas,html body .global-audio-bar .wave-scroll canvas{position:static!important;height:' + H + 'px!important;width:100%!important}',
+      'html body .wave-scroll #wave-spacer,html body .wave-scroll .wave-marker-line,html body .wave-scroll .wave-marker-label{display:none!important}',
+      'html body .wave-scroll .playhead{left:50%!important;top:0!important;bottom:0!important;height:auto!important;width:2px!important;margin-left:-1px;background:#E11D48!important;box-shadow:0 0 0 3px rgba(225,29,72,.15)}',
+      'html body .wave-scroll .playhead:before{content:"";position:absolute;left:50%;top:-1px;transform:translateX(-50%);border:5px solid transparent;border-top-color:#E11D48}',
+      'html body .nv-wide-btn{margin-left:4px}',
+      /* Phóng dài: thanh sóng âm rộng bằng thanh đen trên cùng */
+      'html body .wave-scroll.nv-wide{width:var(--nv-wide-w)!important;max-width:none!important;margin-left:var(--nv-wide-ml)!important}'
+    ].join('\n');
     document.head.appendChild(st);
-    window.drawWaveform = function () {
-      if (typeof waveData === 'undefined' || !waveData) return;
-      var canvas = document.getElementById('wave-canvas'), wrap = document.getElementById('wave-scroll');
-      if (!canvas || !wrap) return;
-      waveTotalVirtualWidth = Math.max(320, Math.min(5000000, Math.floor(waveData.duration * wavePxPerSec)));
-      var sp = document.getElementById('wave-spacer'); if (sp) sp.style.width = waveTotalVirtualWidth + 'px';
-      var vw = Math.max(320, wrap.clientWidth || 800), dpr = Math.min(3, window.devicePixelRatio || 1);
-      canvas.width = Math.round(vw * dpr); canvas.height = Math.round(H * dpr);
-      canvas.style.width = vw + 'px'; canvas.style.height = H + 'px';
-      if (!waveData._max) { var m = 0; for (var i = 0; i < waveData.peaks.length; i++) if (waveData.peaks[i] > m) m = waveData.peaks[i]; waveData._max = m || 1; }
-      window.redrawVisibleWaveSlice();
-      if (typeof drawWaveMarkerLines === 'function') drawWaveMarkerLines();
+
+    var curT = function () { return (typeof audio !== 'undefined' && audio) ? (audio.currentTime || 0) : 0; };
+    var dur = function () { return (typeof waveData !== 'undefined' && waveData && waveData.duration) || (audio && audio.duration) || 0; };
+    var pps = function () { return (typeof wavePxPerSec !== 'undefined' && wavePxPerSec) || 45; };
+    var fitCanvas = function () {
+      var vw = Math.max(120, wrap.clientWidth || 600), dpr = Math.min(3, window.devicePixelRatio || 1);
+      if (canvas.width !== Math.round(vw * dpr) || canvas.height !== Math.round(H * dpr)) { canvas.width = Math.round(vw * dpr); canvas.height = Math.round(H * dpr); }
+      return { W: vw, dpr: dpr };
     };
-    window.redrawVisibleWaveSlice = function () {
+    var dragT = null; /* thời điểm đang kéo tới (chưa thả) */
+    function draw() {
       if (typeof waveData === 'undefined' || !waveData) return;
-      var canvas = document.getElementById('wave-canvas'), wrap = document.getElementById('wave-scroll');
-      if (!canvas || !wrap) return;
-      var ctx = canvas.getContext('2d'), dpr = canvas.width / (parseFloat(canvas.style.width) || canvas.width);
-      var W = canvas.width / dpr, P = waveData.peaks, N = P.length, max = waveData._max || 1;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
-      var left = wrap.scrollLeft, perPx = N / waveTotalVirtualWidth;
-      var head = (typeof audio !== 'undefined' && audio && audio.duration) ? audio.currentTime / audio.duration * waveTotalVirtualWidth : 0;
-      var pitch = 3, bw = 2;
+      var f = fitCanvas(), W = f.W, ctx = canvas.getContext('2d');
+      ctx.setTransform(f.dpr, 0, 0, f.dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+      var P = waveData.peaks, N = P.length, D = dur() || 1, px = pps();
+      if (!waveData._max) { var m = 0; for (var i = 0; i < N; i++) if (P[i] > m) m = P[i]; waveData._max = m || 1; }
+      var max = waveData._max, t = dragT != null ? dragT : curT();
+      var t0 = t - (W / 2) / px; /* thời điểm ở mép trái */
+      var pitch = 3, bw = 2, perSec = N / D;
       for (var x = 0; x < W; x += pitch) {
-        var g0 = (left + x) * perPx, g1 = (left + x + pitch) * perPx, v = 0;
+        var a0 = t0 + x / px, a1 = t0 + (x + pitch) / px;
+        if (a1 < 0 || a0 > D) continue;
+        var g0 = Math.max(0, a0) * perSec, g1 = Math.min(D, a1) * perSec, v = 0;
         if (g1 - g0 >= 1) { for (var k = Math.floor(g0); k < Math.ceil(g1) && k < N; k++) if (P[k] > v) v = P[k]; }
-        else { var a = Math.floor(g0), f = g0 - a; v = (P[a] || 0) * (1 - f) + (P[a + 1] || 0) * f; }
-        var h = Math.max(2, Math.pow(v / max, 0.75) * (H - 4));
-        ctx.fillStyle = (left + x) < head ? PLAYED : REST;
-        var y = (H - h) / 2, r = bw / 2;
+        else { var b = Math.floor(g0), fr = g0 - b; v = (P[b] || 0) * (1 - fr) + (P[b + 1] || 0) * fr; }
+        var hgt = Math.max(2, Math.pow(v / max, 0.75) * (H - 6));
+        ctx.fillStyle = a0 < t ? PLAYED : REST;
         ctx.beginPath();
-        if (ctx.roundRect) ctx.roundRect(x, y, bw, h, r); else ctx.rect(x, y, bw, h);
+        if (ctx.roundRect) ctx.roundRect(x, (H - hgt) / 2, bw, hgt, 1); else ctx.rect(x, (H - hgt) / 2, bw, hgt);
         ctx.fill();
       }
+      /* đánh dấu Section 2–4 */
+      if (typeof markStart === 'function') {
+        ctx.font = '700 10px "Plus Jakarta Sans",system-ui,sans-serif';
+        for (var n = 2; n <= 4; n++) {
+          var ms = markStart(n); if (!(ms > 0)) continue;
+          var mx = (ms - t0) * px; if (mx < -20 || mx > W + 20) continue;
+          ctx.fillStyle = MARK; ctx.fillRect(mx - 1, 0, 2, H);
+          ctx.fillText('S' + n, mx + 4, 10);
+        }
+      }
+    }
+    window.drawWaveform = function () { draw(); };
+    window.redrawVisibleWaveSlice = function () { draw(); };
+    window.drawWaveMarkerLines = function () { wrap.querySelectorAll('.wave-marker-line,.wave-marker-label').forEach(function (e) { e.remove(); }); draw(); };
+    window.updatePlayhead = function () { draw(); };
+    /* chạy mượt khi đang phát (timeupdate chỉ ~4 lần/giây) */
+    (function loop() { if (typeof audio !== 'undefined' && audio && !audio.paused) draw(); requestAnimationFrame(loop); })();
+
+    var seek = function (sec) {
+      if (typeof appMode !== 'undefined' && appMode !== 'practice') return;
+      var D = dur(); if (!D) return;
+      audio.currentTime = Math.max(0, Math.min(D - 0.05, sec));
+      audio._boundEnd = null; /* tự tua -> bỏ giới hạn "nghe 1 section" như bản gốc */
+      draw();
     };
-    window.drawWaveform();
-    window.addEventListener('resize', function () { window.drawWaveform(); });
+    /* Kéo / bấm: chặn handler click cũ của trang (nó tính theo kiểu cuộn cũ) */
+    wrap.parentElement.addEventListener('click', function (e) { if (wrap.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } }, true);
+    var dn = null;
+    wrap.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      dn = { x: e.clientX, y: e.clientY, t: curT(), moved: false, id: e.pointerId, type: e.pointerType };
+    });
+    window.addEventListener('pointermove', function (e) {
+      if (!dn || e.pointerId !== dn.id) return;
+      var dx = e.clientX - dn.x, dy = e.clientY - dn.y;
+      if (!dn.moved) {
+        if (Math.abs(dx) < 6) return;
+        if (dn.type === 'touch' && Math.abs(dy) > Math.abs(dx)) { dn = null; return; } /* vuốt dọc = cuộn trang */
+        dn.moved = true; wrap.classList.add('nv-drag'); try { wrap.setPointerCapture(e.pointerId); } catch (er) {}
+      }
+      dragT = Math.max(0, Math.min(dur(), dn.t - dx / pps()));
+      draw();
+    });
+    var up = function (e) {
+      if (!dn || e.pointerId !== dn.id) return;
+      var d = dn; dn = null; wrap.classList.remove('nv-drag');
+      if (d.moved) { var tt = dragT; dragT = null; seek(tt); return; }
+      if (e.type === 'pointercancel') return;
+      var r = wrap.getBoundingClientRect(), x = e.clientX - r.left;
+      seek(curT() + (x - r.width / 2) / pps()); /* đoạn được bấm nhảy vào giữa */
+    };
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    /* lướt ngang 2 ngón (touchpad) = tua; Ctrl/⌘ + cuộn để handler cũ zoom */
+    var wheelAcc = 0, wheelT = 0;
+    wrap.addEventListener('wheel', function (e) {
+      if (e.ctrlKey || e.metaKey) return;
+      var d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : (e.shiftKey ? e.deltaY : 0);
+      if (!d) return;
+      e.preventDefault();
+      if (dragT == null) dragT = curT();
+      dragT = Math.max(0, Math.min(dur(), dragT + d / pps()));
+      draw();
+      clearTimeout(wheelT); wheelT = setTimeout(function () { var tt = dragT; dragT = null; seek(tt); }, 160);
+    }, { passive: false });
+
+    /* Nút Phóng dài / Thu gọn */
+    var zoomPlus = document.querySelector('button[onclick="zoomWave(1)"]');
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'nv-wide-btn';
+    if (zoomPlus) { btn.className += ' ' + zoomPlus.className; zoomPlus.insertAdjacentElement('afterend', btn); }
+    else wrap.insertAdjacentElement('beforebegin', btn);
+    var setWide = function (on) {
+      wrap.classList.toggle('nv-wide', on);
+      btn.textContent = on ? '⤡' : '⤢';
+      btn.title = on ? 'Thu gọn thanh sóng âm' : 'Phóng dài thanh sóng âm (bằng thanh trên cùng)';
+      if (on) {
+        var top = document.querySelector('.header, header, .top-nav, nav') , tr = top ? top.getBoundingClientRect() : { left: 16, width: innerWidth - 32 };
+        wrap.style.removeProperty('--nv-wide-ml');
+        var wr = wrap.getBoundingClientRect();
+        wrap.style.setProperty('--nv-wide-w', Math.round(tr.width) + 'px');
+        wrap.style.setProperty('--nv-wide-ml', Math.round(tr.left - (wr.left - (parseFloat(getComputedStyle(wrap).marginLeft) || 0))) + 'px');
+      }
+      try { localStorage.setItem(WIDE_KEY, on ? '1' : ''); } catch (e) {}
+      setTimeout(draw, 0);
+    };
+    btn.onclick = function () { setWide(!wrap.classList.contains('nv-wide')); };
+    var wideOn = false; try { wideOn = localStorage.getItem(WIDE_KEY) === '1'; } catch (e) {}
+    setWide(wideOn);
+    window.addEventListener('resize', function () { if (wrap.classList.contains('nv-wide')) { wrap.classList.remove('nv-wide'); setWide(true); } else draw(); });
+    if (window.ResizeObserver) new ResizeObserver(function () { draw(); }).observe(wrap);
+    draw();
     return true;
   }
-  if (!install()) { var n = 0, t = setInterval(function () { if (install() || ++n > 40) clearInterval(t); }, 250); }
+  if (!install()) { var n = 0, t = setInterval(function () { if (install() || ++n > 80) clearInterval(t); }, 250); }
 })();
 
 /* ===== Bút vẽ giống bài học (nút ✏️ + thanh màu, chỉ Apple Pencil vẽ, chống tì tay) trên trang đề Reading / Listening =====
