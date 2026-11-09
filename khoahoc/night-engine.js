@@ -4640,6 +4640,37 @@
           (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0) && h("button", { onClick: () => set({ finger: !t.finger }), title: t.finger ? "Đang vẽ bằng ngón tay — bấm để chỉ Apple Pencil vẽ" : "Chỉ Apple Pencil vẽ, ngón tay để cuộn/zoom — bấm để vẽ bằng ngón tay",
             className: `h-8 flex-none whitespace-nowrap rounded-full px-2.5 text-xs font-bold ${t.finger ? "bg-amber-100 text-amber-700" : "bg-primary-light text-primary"}` }, t.finger ? "☝️ Vẽ bằng tay" : "✒️ Chỉ bút"))));
   }
+  /* Bút vẽ đứng riêng (giống nút ✏️ + thanh màu trong bài học) để gắn vào trang KHÁC — vd. trang đề Reading/Listening.
+     Chỉ Apple Pencil vẽ, ngón tay vẫn cuộn/zoom, chống tì tay; không lưu gì. */
+  function PenKit() {
+    const [t, setT] = useState({ draw: false, finger: false, tool: "pen", color: "red", cmd: null });
+    const set = (p) => setT((o) => Object.assign({}, o, p));
+    useEffect(() => {
+      const k = (e) => {
+        const el = document.activeElement, typing = el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
+        if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+        if (e.key === "d" || e.key === "D") { e.preventDefault(); setT((o) => Object.assign({}, o, { draw: !o.draw })); }
+        else if ((e.key === "z" || e.key === "Z") ) setT((o) => o.draw ? Object.assign({}, o, { cmd: { t: "undo", n: Date.now() } }) : o);
+      };
+      window.addEventListener("keydown", k);
+      return () => window.removeEventListener("keydown", k);
+    }, []);
+    const touch = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+    return h(React.Fragment, null,
+      h(DrawLayer, { on: t.draw, tool: t.tool, color: t.color, pageKey: "page", cmd: t.cmd, finger: t.finger }),
+      h("div", { className: "fixed bottom-4 right-4 z-[60] flex max-w-[calc(100vw-24px)] flex-row-reverse items-center gap-2", style: { bottom: "calc(16px + env(safe-area-inset-bottom))" } },
+        h("button", { onClick: () => set({ draw: !t.draw }), title: t.draw ? "Tắt bút vẽ (D)" : "Bật bút vẽ (D)", "aria-label": t.draw ? "Tắt bút vẽ" : "Bật bút vẽ", "aria-pressed": t.draw,
+          className: `flex h-12 w-12 flex-none items-center justify-center rounded-full text-xl shadow-premium transition ${t.draw ? "bg-rose-500 text-white ring-4 ring-rose-200" : "bg-white text-primary hover:bg-primary-light"}` }, "✏️"),
+        t.draw && h("div", { className: "nv-noscroll flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 px-2 py-1.5 shadow-floating backdrop-blur" },
+          Object.entries(PEN).map(([k, c]) => h("button", { key: k, onClick: () => set({ tool: "pen", color: k }), "aria-label": "Bút " + k,
+            className: `h-8 w-8 flex-none rounded-full ring-offset-2 ${t.tool === "pen" && t.color === k ? "ring-2 ring-slate-500" : ""}`, style: { background: c } })),
+          h("button", { onClick: () => set({ tool: "hl" }), title: "Bút dạ quang", className: `h-8 flex-none rounded-full px-2.5 text-sm font-bold ${t.tool === "hl" ? "bg-yellow-300 ring-2 ring-slate-500 ring-offset-2" : "bg-yellow-200"}` }, "🖍"),
+          h("button", { onClick: () => set({ tool: "erase" }), title: "Tẩy (quẹt lên nét)", className: `h-8 flex-none rounded-full px-2.5 text-sm font-bold ${t.tool === "erase" ? "bg-slate-700 text-white" : "bg-slate-100"}` }, "🧽"),
+          h("button", { onClick: () => set({ cmd: { t: "undo", n: Date.now() } }), title: "Hoàn tác (Z)", className: "h-8 flex-none rounded-full bg-slate-100 px-2.5 text-sm font-bold" }, "↶"),
+          h("button", { onClick: () => set({ cmd: { t: "clear", n: Date.now() } }), title: "Xoá hết nét vẽ", className: "h-8 flex-none rounded-full bg-slate-100 px-2.5 text-xs font-bold text-rose-600" }, "Xoá"),
+          touch && h("button", { onClick: () => set({ finger: !t.finger }), title: t.finger ? "Đang vẽ bằng ngón tay — bấm để chỉ Apple Pencil vẽ" : "Chỉ Apple Pencil vẽ, ngón tay để cuộn/zoom — bấm để vẽ bằng ngón tay",
+            className: `h-8 flex-none whitespace-nowrap rounded-full px-2.5 text-xs font-bold ${t.finger ? "bg-amber-100 text-amber-700" : "bg-primary-light text-primary"}` }, t.finger ? "☝️ Vẽ bằng tay" : "✒️ Chỉ bút"))));
+  }
   /* ===================== KHUNG TRANG (phong cách bento: viền tối, thẻ tím / cam) ===================== */
   function NvTopBar({ lesson, sections, navClick, accent, changeAccent, active }) {
     const ref = useRef(null);
@@ -4934,7 +4965,8 @@
   window.NightLesson = {
     /* Ô ghi chú (giống trong bài học) gắn vào trang KHÁC bài học — vd. trang đề Reading/Listening.
        Không cần Tailwind của trang: dùng CSS riêng khoahoc/notes-tw.css (chỉ áp trong #nv-notes-root). */
-    mountNotes(id) {
+    mountPen() { return this.mountNotes(null, "pen"); },
+    mountNotes(id, kind) {
       if (document.getElementById("nv-notes-root")) return;
       const root = document.createElement("div");
       root.id = "nv-notes-root";
@@ -4949,9 +4981,10 @@
         ".night-note-ed img{max-width:100%;height:auto;display:inline-block;vertical-align:bottom;border-radius:6px;cursor:pointer}";
       document.head.appendChild(st);
       const link = document.createElement("link");
-      link.rel = "stylesheet"; link.href = new URL("notes-tw.css?v=20261109a", NV_SCRIPT_SRC).href;
+      link.rel = "stylesheet"; link.href = new URL("notes-tw.css?v=20261109b", NV_SCRIPT_SRC).href;
       document.head.appendChild(link);
-      ReactDOM.createRoot(root).render(React.createElement(NotesLayer, { lessonId: id || location.pathname }));
+      if (!document.getElementById("nv-pen-css")) { const pc = document.createElement("style"); pc.id = "nv-pen-css"; pc.textContent = ".nv-noscroll{scrollbar-width:none}.nv-noscroll::-webkit-scrollbar{display:none}"; document.head.appendChild(pc); }
+      ReactDOM.createRoot(root).render(kind === "pen" ? React.createElement(PenKit) : React.createElement(NotesLayer, { lessonId: id || location.pathname }));
     },
     printCourse(lessons, meta) {
       nvLoadProgress().then((NP) => (NP ? NP.gate() : { role: "" })).then((ctx) => {

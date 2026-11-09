@@ -448,36 +448,44 @@
   if (!install()) { var n = 0, t = setInterval(function () { if (install() || ++n > 40) clearInterval(t); }, 250); }
 })();
 
-/* ===== Ô ghi chú giống bài học (night-engine.js) trên trang đề Reading / Listening =====
-   Nút ✏️ góc phải dưới; bấm lần đầu mới tải React + engine (không làm trang đề nặng thêm khi không dùng). */
+/* ===== Bút vẽ giống bài học (nút ✏️ + thanh màu, chỉ Apple Pencil vẽ, chống tì tay) trên trang đề Reading / Listening =====
+   Bấm ✏️ lần đầu mới tải React + engine, rồi bật bút luôn (không làm trang đề nặng thêm khi không dùng). Phím D bật/tắt, Z hoàn tác. */
 (function () {
-  if (!/\/(reading|listening)\//.test(location.pathname) || window.__nvNotes) return;
-  window.__nvNotes = true;
+  if (!/\/(reading|listening)\//.test(location.pathname) || window.__nvPen) return;
+  window.__nvPen = true;
   var base; try { base = new URL('./', document.currentScript ? document.currentScript.src : 'https://nightielts.id.vn/test-theme.js').href; } catch (e) { base = '/'; }
   function load(src) { return new Promise(function (ok, bad) { var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); }); }
+  var busy = false;
+  function start(b) {
+    if (busy) return; busy = true;
+    if (b) { b.textContent = '⏳'; b.disabled = true; }
+    var chain = Promise.resolve();
+    if (!window.React) chain = chain.then(function () { return load('https://unpkg.com/react@18.3.1/umd/react.production.min.js'); });
+    if (!window.ReactDOM) chain = chain.then(function () { return load('https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js'); });
+    chain.then(function () { return window.NightLesson && window.NightLesson.mountPen ? null : load(base + 'khoahoc/night-engine.js?v=20261109b'); })
+      .then(function () {
+        window.NightLesson.mountPen();
+        if (b) b.remove();
+        var tries = 0, t = setInterval(function () { /* bật bút ngay */
+          var pen = document.querySelector('#nv-notes-root [aria-label="Bật bút vẽ"]');
+          if (pen) { clearInterval(t); pen.click(); } else if (++tries > 40) clearInterval(t);
+        }, 100);
+      })
+      .catch(function () { busy = false; if (b) { b.textContent = '✏️'; b.disabled = false; } alert('Chưa tải được bút vẽ, kiểm tra mạng rồi thử lại nhé.'); });
+  }
   function boot() {
     var b = document.createElement('button');
-    b.type = 'button'; b.id = 'nv-notes-boot'; b.title = 'Ghi chú khi giảng'; b.setAttribute('aria-label', 'Ghi chú');
+    b.type = 'button'; b.id = 'nv-pen-boot'; b.title = 'Bút vẽ (D)'; b.setAttribute('aria-label', 'Bật bút vẽ');
     b.textContent = '✏️';
-    b.style.cssText = 'position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:2147482001;width:48px;height:48px;border-radius:999px;border:0;background:#6C70DC;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 10px 28px -8px rgba(108,112,220,.6);display:flex;align-items:center;justify-content:center';
-    b.onclick = function () {
-      b.textContent = '⏳'; b.disabled = true;
-      var go = function () {
-        window.NightLesson.mountNotes('test:' + location.pathname);
-        b.remove();
-        /* mở sẵn menu ghi chú cho thầy */
-        var tries = 0, t = setInterval(function () {
-          var fab = document.querySelector('#nv-notes-root .night-fab > button:last-child');
-          if (fab) { clearInterval(t); fab.click(); } else if (++tries > 40) clearInterval(t);
-        }, 100);
-      };
-      var chain = Promise.resolve();
-      if (!window.React) chain = chain.then(function () { return load('https://unpkg.com/react@18.3.1/umd/react.production.min.js'); });
-      if (!window.ReactDOM) chain = chain.then(function () { return load('https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js'); });
-      chain.then(function () { return window.NightLesson && window.NightLesson.mountNotes ? null : load(base + 'khoahoc/night-engine.js?v=20261109a'); })
-        .then(go).catch(function () { b.textContent = '✏️'; b.disabled = false; alert('Chưa tải được ô ghi chú, kiểm tra mạng rồi thử lại nhé.'); });
-    };
+    b.style.cssText = 'position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:2147482001;width:48px;height:48px;border-radius:999px;border:0;background:#fff;color:#6C70DC;font-size:20px;cursor:pointer;box-shadow:0 10px 28px -8px rgba(108,112,220,.6);display:flex;align-items:center;justify-content:center';
+    b.onclick = function () { start(b); };
     document.body.appendChild(b);
+    window.addEventListener('keydown', function k(e) {
+      var el = document.activeElement;
+      if ((e.key === 'd' || e.key === 'D') && !e.metaKey && !e.ctrlKey && !(el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) && document.getElementById('nv-pen-boot')) {
+        e.preventDefault(); window.removeEventListener('keydown', k); start(document.getElementById('nv-pen-boot'));
+      }
+    });
   }
   if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();
