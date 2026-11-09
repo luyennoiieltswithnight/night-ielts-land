@@ -631,9 +631,9 @@
   }
   var KIND = /\/listening\//.test(location.pathname) ? 'listening' : 'reading';
   var total = function () { try { return TOTAL_QUESTIONS; } catch (e) { return 40; } };
-  function capture() {
+  function capture(a, b) {
     var out = [];
-    for (var n = 1; n <= total(); n++) {
+    for (var n = a || 1; n <= (b || total()); n++) {
       var els = document.getElementsByName('q' + n), v = '';
       if (els.length) {
         if (els[0].type === 'radio' || els[0].type === 'checkbox') { var c = []; Array.prototype.forEach.call(els, function (r) { if (r.checked) c.push(r.value); }); v = c.join('|'); }
@@ -643,9 +643,9 @@
     }
     return out;
   }
-  function restore(ans) {
+  function restore(ans, from) {
     (ans || []).forEach(function (v, i) {
-      var els = document.getElementsByName('q' + (i + 1)); if (!els.length || !v) return;
+      var els = document.getElementsByName('q' + (i + (from || 1))); if (!els.length || !v) return;
       if (els[0].type === 'radio' || els[0].type === 'checkbox') {
         var set = String(v).split('|');
         Array.prototype.forEach.call(els, function (r) { r.checked = set.indexOf(r.value) >= 0; if (r.checked) r.dispatchEvent(new Event('change', { bubbles: true })); });
@@ -653,33 +653,62 @@
     });
   }
   var REVIEW = (location.search.match(/[?&]review=([A-Za-z0-9_-]+)/) || [])[1];
-  var t0 = Date.now();
+  var t0 = Date.now(), loadId = Date.now().toString(36), partIds = {}, fullDone = false;
+  /* ghi 1 bản; id cố định theo (lần mở trang + phần) để chấm lại cùng phần chỉ cập nhật, không nhân bản */
+  function write(id, extra) {
+    return fb().then(function (f) {
+      if (!f.user) return null;
+      return f.fs.getDoc(f.fs.doc(f.db, 'users', f.user.uid)).then(function (s) {
+        var u = s.exists() ? s.data() : {}, role = u.role || 'user';
+        var keep = role === 'admin' || role === 'student' || (role === 'pro' && Number(u.proUntil) > Date.now());
+        var now = Date.now(), data = Object.assign({
+          uid: f.user.uid, kind: KIND, path: location.pathname, title: (document.title || '').replace(/^Night IELTS\s*[-–·]\s*/i, '').slice(0, 80),
+          mode: (typeof appMode !== 'undefined' ? appMode : '') || '', secs: Math.round((now - t0) / 1000), at: now, keep: keep
+        }, extra);
+        if (!keep) data.expiresAt = new Date(now + 30 * 864e5);
+        return f.fs.setDoc(f.fs.doc(f.db, 'testAttempts', f.user.uid + '_' + loadId + '_' + id), data).then(function () { return f; });
+      });
+    }).catch(function (e) { console.warn('Night history: chưa lưu được', e); return null; });
+  }
   function hook() {
     if (typeof window.saveProgressRecord !== 'function' || window.saveProgressRecord.__nvHist) return false;
     var orig = window.saveProgressRecord;
     var wrapped = function (score, total2, band) {
       var r = orig.apply(this, arguments);
       if (!REVIEW) {
-        var ans = capture(), mode = (typeof appMode !== 'undefined' ? appMode : '') || '';
-        fb().then(function (f) {
-          if (!f.user) return;
-          return f.fs.getDoc(f.fs.doc(f.db, 'users', f.user.uid)).then(function (s) {
-            var u = s.exists() ? s.data() : {}, role = u.role || 'user';
-            var keep = role === 'admin' || role === 'student' || (role === 'pro' && Number(u.proUntil) > Date.now());
-            var now = Date.now(), data = {
-              uid: f.user.uid, kind: KIND, path: location.pathname, title: (document.title || '').replace(/^Night IELTS\s*[-–·]\s*/i, '').slice(0, 80),
-              score: Number(score) || 0, total: Number(total2) || total(), band: String(band || ''), mode: mode, secs: Math.round((now - t0) / 1000),
-              ans: ans, at: now, keep: keep
-            };
-            if (!keep) data.expiresAt = new Date(now + 30 * 864e5);
-            return f.fs.addDoc(f.fs.collection(f.db, 'testAttempts'), data);
-          });
-        }).catch(function (e) { console.warn('Night history: chưa lưu được', e); });
+        fullDone = true;
+        var old = Object.keys(partIds); partIds = {};
+        write('full', { score: Number(score) || 0, total: Number(total2) || total(), band: String(band || ''), ans: capture() }).then(function (f) {
+          /* nộp cả đề thì thay cho các lần chấm lẻ từng phần trước đó (không đếm trùng) */
+          if (f) old.forEach(function (n) { f.fs.deleteDoc(f.fs.doc(f.db, 'testAttempts', f.user.uid + '_' + loadId + '_p' + n)).catch(function () {}); });
+        });
       }
       return r;
     };
     wrapped.__nvHist = true;
     window.saveProgressRecord = wrapped;
+    /* chấm lẻ: Passage (Reading: gradePart) / Section (Listening: openSectionReview) */
+    ['gradePart', 'openSectionReview'].forEach(function (fn) {
+      var o = window[fn]; if (typeof o !== 'function' || o.__nvHist) return;
+      var w = function (n) {
+        var out = o.apply(this, arguments);
+        try {
+          n = Number(n);
+          var R = null; try { R = typeof passageRanges !== 'undefined' ? passageRanges : sectionRanges; } catch (e) { try { R = sectionRanges; } catch (e2) {} }
+          var rg = R && R[n - 1];
+          if (!REVIEW && !fullDone && rg) {
+            var ans = capture(rg[0], rg[1]);
+            if (ans.some(function (v) { return v; })) {
+              var sc = 0; try { sc = gradeQuestionRange(rg[0], rg[1]); } catch (e) {}
+              partIds[n] = 1;
+              write('p' + n, { part: n, partLabel: KIND === 'reading' ? 'Passage' : 'Section', from: rg[0], score: sc, total: rg[1] - rg[0] + 1, band: '', ans: ans });
+            }
+          }
+        } catch (e) { console.warn('Night history part', e); }
+        return out;
+      };
+      w.__nvHist = true; window[fn] = w;
+    });
     return true;
   }
   if (!hook()) { var hn = 0, ht = setInterval(function () { if (hook() || ++hn > 80) clearInterval(ht); }, 250); }
@@ -706,10 +735,12 @@
         try { if (typeof selectMode === 'function') selectMode('practice'); } catch (e) {}
         try { window.startTest(); } catch (e) {}
         setTimeout(function () {
-          restore(a.ans);
-          try { gradeQuestionRange(1, total()); } catch (e) {}
+          restore(a.ans, a.from || 1);
+          var from = a.from || 1, to = a.part ? from + a.total - 1 : total();
+          try { gradeQuestionRange(from, to); } catch (e) {}
+          if (a.part) { try { if (KIND === 'listening' && typeof switchSection === 'function') switchSection(a.part); else if (typeof switchPassage === 'function') switchPassage(a.part); } catch (e) {} }
           var d = new Date(a.at);
-          banner('Xem lại bài làm ' + d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
+          banner('Xem lại ' + (a.part ? a.partLabel + ' ' + a.part + ' · ' : 'bài làm ') + d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
             ' · <span style="color:#FFB680">' + a.score + '/' + a.total + (a.band ? ' · Band ' + a.band : '') + '</span>' +
             '<a href="' + location.pathname + '" style="background:#fff;color:#24242A;border-radius:999px;padding:6px 12px;text-decoration:none;font-weight:800;white-space:nowrap">Làm lại</a>');
         }, 600);

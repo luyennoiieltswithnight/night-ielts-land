@@ -26,6 +26,7 @@
   window.speak = function (t, r) {
     if (auto && mfNow()) return;
     if (!auto && cur && mfNow()) cur.heard = true;
+    try { parent.postMessage('nv-speak', '*'); } catch (e) {} /* nhạc nền nhỏ lại khi đọc */
     return origSpeak.apply(this, arguments);
   };
   var wrapAuto = function (name) {
