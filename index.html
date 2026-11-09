@@ -3254,6 +3254,18 @@
                 }
                 words.push(Object.assign({ id: d.id }, data));
             });
+            // Từ đã lưu trong Sổ từ vựng của máy này nhưng chưa lên mây (do lỗi đồng bộ cũ) -> đẩy lên luôn
+            try {
+                const have = new Set(words.map(w => String(w.word || '').toLowerCase().trim()));
+                const local = JSON.parse(localStorage.getItem('ielts_vocab_book') || '[]');
+                for (const x of local) {
+                    const k = String(x.en || '').toLowerCase().trim();
+                    if (!k || have.has(k)) continue;
+                    have.add(k);
+                    const w = { studentId: uid, word: x.en, meaning: x.vi || '', sourceTitle: 'Sổ từ vựng', savedAt: now, expiresAt: now + 90 * 24 * 60 * 60 * 1000 };
+                    try { const r = await addDoc(collection(db, 'savedWords'), w); words.push(Object.assign({ id: r.id }, w)); } catch (e) { break; }
+                }
+            } catch (e) {}
             words.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
             return words;
         }
@@ -3279,6 +3291,12 @@
         }
 
         window.deleteSavedWord = async function(id) {
+            // xoá luôn ở Sổ từ vựng trong máy, để lần sau không bị đẩy ngược lên lại
+            try {
+                const el = document.querySelector(`#mywords-list button[onclick*="${id}"]`);
+                const word = el ? el.parentElement.querySelector('p').textContent.toLowerCase().trim() : '';
+                if (word) localStorage.setItem('ielts_vocab_book', JSON.stringify(JSON.parse(localStorage.getItem('ielts_vocab_book') || '[]').filter(x => String(x.en || '').toLowerCase().trim() !== word)));
+            } catch (e) {}
             await deleteDoc(doc(db, 'savedWords', id)).catch(() => {});
             const uid = window.__currentUid;
             if (uid) renderMyWordsList(await loadSavedWords(uid));
