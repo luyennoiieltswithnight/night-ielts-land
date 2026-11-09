@@ -2,7 +2,7 @@
    Hộp nhạc + đệm hợp âm êm, vòng 8 ô nhịp, lặp vô hạn. Tự nhỏ lại khi có giọng đọc (NVMusic.duck()).
    NVMusic.start() / stop() / toggle() / on() — nhớ lựa chọn bật/tắt trong máy (localStorage 'nv-music'). */
 (function () {
-  var ctx = null, master = null, timer = 0, step = 0, nextT = 0, playing = false, duckT = 0;
+  var silent = null, ctx = null, master = null, timer = 0, step = 0, nextT = 0, playing = false, duckT = 0;
   var BPM = 84, SPB = 60 / BPM / 2; /* 1 bước = nốt móc đơn */
   /* vòng hợp âm (giọng F trưởng): F – C/E – Dm – Bb – F – C – Bb – C */
   var CH = [[53, 57, 60], [52, 55, 60], [50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55], [46, 50, 53], [48, 52, 55]];
@@ -70,11 +70,13 @@
   var api = {
     start: function () {
       init(); if (!ctx || playing) return;
+      /* iPhone/iPad: phát 1 file im lặng lặp lại để nhạc vẫn kêu khi gạt nút im lặng (âm thanh web chuyển sang kênh "media") */
+      try { if (!silent) { silent = new Audio('data:audio/wav;base64,UklGRvQHAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YdAHAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA=='); silent.loop = true; silent.setAttribute('playsinline', ''); silent.volume = 0.01; } silent.play().catch(function () {}); } catch (e) {}
       if (ctx.state === 'suspended') ctx.resume();
       playing = true; nextT = ctx.currentTime + 0.1;
       timer = setInterval(tick, 60); tick(); fade(VOL, 1.5);
     },
-    stop: function () { if (!playing) return; playing = false; fade(0, 0.6); setTimeout(function () { if (!playing) clearInterval(timer); }, 700); },
+    stop: function () { if (!playing) return; playing = false; try { silent && silent.pause(); } catch (e) {} fade(0, 0.6); setTimeout(function () { if (!playing) clearInterval(timer); }, 700); },
     on: function () { try { return localStorage.getItem('nv-music') !== '0'; } catch (e) { return true; } },
     toggle: function () { var v = !api.on(); try { localStorage.setItem('nv-music', v ? '1' : '0'); } catch (e) {} if (v) api.start(); else api.stop(); return v; },
     /* nhỏ nhạc lại khi giọng đọc phát (~2,5 giây) */

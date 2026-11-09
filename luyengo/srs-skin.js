@@ -11,7 +11,8 @@
   var css = document.createElement('style');
   css.textContent = [
     '#app .nv-type>div:first-child{display:none!important}', /* ẩn Quay lại danh sách + tab Cụm từ/Câu */
-    '#app button[onclick^="prev("]{visibility:hidden}',
+    '#app button[onclick^="prev("]{display:none!important}',
+    '#app .nv-type section>div.border-t>button:last-child{margin-left:auto}',
     '#app header.sticky select,#app header.sticky button:not(.nv-exit){display:none!important}',
     '.nv-mf{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 auto 6px;width:max-content;max-width:100%;background:#FFF1E7;color:#C2410C;border-radius:999px;padding:6px 14px;font:800 12px "Plus Jakarta Sans",sans-serif}',
     '.nv-srs-done{position:fixed;inset:0;z-index:999;background:rgba(27,31,75,.82);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px)}',
@@ -56,10 +57,13 @@
   function done() {
     var p = results.filter(function (g) { return g === 'perfect'; }).length, o = results.filter(function (g) { return g === 'ok'; }).length;
     var d = document.createElement('div'); d.className = 'nv-srs-done';
-    d.innerHTML = '<div><img src="' + (window.NV_SKIN.img || '') + 'garden/flower_seichou8.webp" style="height:120px" alt=""><h2 style="margin:10px 0 4px;font-size:22px">Tưới xong lượt này!</h2>' +
+    var more = K.last && K.left > 0, btn = 'border:0;border-radius:999px;font:800 14px "Plus Jakarta Sans",sans-serif;padding:13px 22px;cursor:pointer;margin:6px 4px 0';
+    d.innerHTML = '<div><img src="' + (window.NV_SKIN.img || '') + 'garden/flower_seichou8.webp" style="height:120px" alt=""><h2 style="margin:10px 0 4px;font-size:22px">' + (K.last ? 'Tưới xong đợt này!' : 'Xong phần gõ từ!') + '</h2>' +
       '<p style="margin:0;color:#6B6B78;font-size:14px;line-height:1.6"><b style="color:#0F7A6B">' + p + '</b> cây lên bậc · <b style="color:#4B4FC0">' + o + '</b> giữ bậc · <b style="color:#BE123C">' + (results.length - p - o) + '</b> cần trồng lại</p>' +
-      '<button style="margin-top:16px;border:0;border-radius:999px;background:#24242A;color:#fff;font:800 14px inherit;padding:13px 24px;cursor:pointer">Về khu vườn</button></div>';
-    d.querySelector('button').onclick = function () { try { parent.postMessage({ nvSrsDone: true }, '*'); } catch (e) {} };
+      (K.last ? (more ? '<p style="margin:8px 0 0;color:#6B6B78;font-size:13px">Còn <b>' + K.left + '</b> cây chờ tưới hôm nay.</p>' : '<p style="margin:8px 0 0;color:#0F7A6B;font-size:13px;font-weight:800">Vườn hôm nay đã tưới xong.</p>') : '<p style="margin:8px 0 0;color:#6B6B78;font-size:13px">Tiếp theo: nghe và <b>chép lại cả câu</b> cho những cây đã ra hoa.</p>') +
+      '<div style="margin-top:10px">' + (more ? '<button data-k="more" style="' + btn + ';background:linear-gradient(135deg,#FFD66B,#FF9E5E);color:#3A2410">Tưới tiếp ' + Math.min(20, K.left) + ' cây</button>' : '') +
+      '<button data-k="done" style="' + btn + ';background:#24242A;color:#fff">' + (K.last ? 'Về khu vườn' : 'Chép cả câu') + '</button></div></div>';
+    d.querySelectorAll('button').forEach(function (bt) { bt.onclick = function () { try { parent.postMessage(bt.dataset.k === 'more' ? { nvSrsMore: true } : { nvSrsDone: true }, '*'); } catch (e) {} }; });
     document.body.appendChild(d);
     try { parent.postMessage({ nvSrsRoundEnd: true }, '*'); } catch (e) {}
   }

@@ -87,7 +87,8 @@
     '#app .nv-type section>div.border-t>button:last-child{background:var(--ac)!important;background-image:none!important;padding:13px 28px!important;box-shadow:0 14px 28px -14px var(--ac)!important}',
     '.nv-side{animation:nvFloat 4s ease-in-out infinite}.nv-side.r{animation-delay:-2s}',
     '@keyframes nvFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}',
-    '@media(max-width:640px){.nv-type section>div.border-t{justify-content:center!important}.nv-type section>div.border-t>div{order:-1;width:100%;justify-content:center}.nv-stage{padding:26px 14px!important}}'
+    '@media(max-width:900px){#app .nv-type section>div.border-t{flex-wrap:wrap!important;justify-content:space-between!important;row-gap:12px}#app .nv-type section>div.border-t>div{order:-1;width:100%;justify-content:center;flex-wrap:wrap}}',
+    '@media(max-width:640px){#app .nv-stage{padding:26px 14px!important}#app .nv-type section>div.border-t>div button{padding:9px 10px!important}}'
   ].join('\n');
   document.head.appendChild(css);
   /* ===== Giao diện ĐÊM (Khu vườn từ vựng): nền xanh đêm, kính mờ, chữ trắng, nhấn vàng cam ===== */

@@ -39,7 +39,7 @@ button,input,textarea,select{font-family:inherit}
 /* ===== bảng điều khiển ===== */
 .hud{display:grid;gap:14px;margin:16px 0 8px}
 @media(min-width:880px){.hud{grid-template-columns:1.35fr 1fr}}
-.glass{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:28px;backdrop-filter:blur(8px)}
+.glass{position:relative;z-index:1;background:rgba(36,40,96,.82);border:1px solid rgba(255,255,255,.1);border-radius:28px;backdrop-filter:blur(8px)}
 .water{position:relative;overflow:hidden;padding:22px;min-height:190px}
 .water .k{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#B9BCF4}
 .water h2{margin:6px 0 2px;font-size:30px;line-height:1.1;font-weight:800;max-width:70%}
@@ -142,6 +142,8 @@ button,input,textarea,select{font-family:inherit}
 .isle .land>svg{position:absolute;left:0;right:0;bottom:0;width:100%;height:110px;filter:drop-shadow(0 18px 18px rgba(0,0,0,.35))}
 .isle .row{position:absolute;left:5%;right:5%;top:0;bottom:74px;display:flex;align-items:flex-end;gap:2px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding-top:24px}
 .isle .row::-webkit-scrollbar{display:none}
+.isle .row{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent);scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.isle .row .pl{scroll-snap-align:start}
 .isle .lamp{position:absolute;bottom:84px;width:10px;height:10px;border-radius:99px;background:#FFE08A;box-shadow:0 0 14px 6px rgba(255,214,107,.55);animation:tw 2.6s ease-in-out infinite}
 .pl{width:66px}
 .pl .pot{background:linear-gradient(180deg,#E08A55,#B85A31);height:20px;width:46px}
@@ -158,6 +160,13 @@ button,input,textarea,select{font-family:inherit}
 .music.on{background:var(--gold);color:#3A2410;box-shadow:0 0 0 4px rgba(255,214,107,.25)}
 .music.on i{animation:beat 1.4s ease-in-out infinite}
 @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+@media(max-width:1100px){.moon2{display:none}}
+@media(max-width:640px){.top{gap:6px}.top h1{display:none}.top .sp{flex:1}.top #bankBtn .lbl{display:none}.top #bankBtn{padding:10px 12px}.seg button{padding:7px 10px}
+  .water .jouro,.water .drop{display:none!important}.water h2{max-width:100%}
+  .moon2{display:none}.stats{grid-template-columns:repeat(3,1fr);gap:8px;padding:12px}.stat{padding:10px}.stat b{font-size:20px}.stat small{font-size:9.5px;letter-spacing:.06em}
+  .go{width:100%;justify-content:center}.cd{max-width:100%;font-size:12px}
+  .isle .sign{flex-wrap:wrap;row-gap:2px}.isle .sign small{display:none}
+}
 @media(max-width:640px){.moon2{width:64px;height:64px;top:52vh}.isle .land{height:160px}.isle .sign{margin-left:10px}.pl{width:58px}.pl img{height:64px}}
 </style>
 </head>
@@ -222,6 +231,7 @@ const STAGE = [
 ];
 const WILT = 'flower_seichou9';
 const NPD = [10, 20, 30, 50];
+const BATCH = 20;
 const today = () => { const d = new Date(Date.now() - 3 * 36e5); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }; /* ngày mới tính từ 3h sáng */
 const dueAt = gapDays => { const d = new Date(Date.now() + gapDays * DAY); d.setHours(3, 0, 0, 0); return d.getTime(); };
 
@@ -303,6 +313,8 @@ function render() {
       <div class="stat"><small>Chuỗi ngày</small><b style="color:var(--gold)">${S.data.streak.n || 0}</b></div>
       <div class="stat"><small>Trong vườn</small><b>${W.length}</b></div>
       <div class="stat"><small>Đã thuộc</small><b style="color:#9BE7A1">${mastered}</b></div>
+      <div class="npd" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800"><span>Vườn đã nở hoa</span><span style="color:#9BE7A1">${W.length ? Math.round((W.filter(x => x.b >= 4).length) / W.length * 100) : 0}%</span></div>
+        <div style="height:10px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:7px;display:flex">${[1, 2, 3, 4, 5].map(k => { const n = W.filter(x => x.b === k).length; return n ? `<i title="${STAGE[k].n}: ${n}" style="width:${n / Math.max(1, W.length) * 100}%;background:${['', '#7CCBFF', '#8EE07E', '#FFD66B', '#FF9EC4', '#B79CFF'][k]}"></i>` : ''; }).join('')}</div></div>
       <div class="npd"><b style="font-size:13.5px">Hạt mới mỗi ngày</b>
         <div class="row">${NPD.map(n => `<button data-npd="${n}" class="${npd === n ? 'on' : ''}">${n} từ</button>`).join('')}</div>
         <p>${npd < 30 ? 'Mẹo: học sinh chăm thường chọn <b>30–50 từ/ngày</b> — chọn nhiều lên để vườn lớn nhanh hơn! ' : ''}Số hạt mới chỉ lấy từ kho của bạn${seeds.length < npd ? ` (kho đang còn <b>${seeds.length}</b> hạt — thêm từ để đủ ${npd})` : ''}.</p>
@@ -332,7 +344,7 @@ const ISLE = (b) => `<svg viewBox="0 0 1000 110" preserveAspectRatio="none" aria
   <path d="M10 34 Q60 12 120 26 Q180 8 250 24 Q330 6 400 22 Q480 4 560 22 Q640 6 720 22 Q800 6 870 24 Q940 10 990 34 Q960 46 900 44 Q500 54 100 44 Q40 46 10 34Z" fill="url(#g${b})"/>
   <path d="M10 34 Q500 50 990 34" stroke="#2F7A3A" stroke-width="3" fill="none" opacity=".5"/></svg>`;
 function tier(b, W) {
-  const L = W.filter(x => x.b === b).sort((a, c) => (isDry(c) - isDry(a)) || (a.d - c.d)), dueN = L.filter(isDue).length, MAX = 12;
+  const L = W.filter(x => x.b === b).sort((a, c) => (isDue(c) - isDue(a)) || (isDry(c) - isDry(a)) || (a.d - c.d)), dueN = L.filter(isDue).length, MAX = 60;
   const plants = L.slice(0, MAX).map((x, i) => `<div class="pl s${b}${isDry(x) ? ' dry' : ''}${isDue(x) ? ' thirsty' : ''}${b === 5 ? ' gold' : ''}" title="${esc(x.t)} — ${esc(x.m)}"><img src="${IMG}${isDry(x) ? WILT : STAGE[b].img}.webp" alt="" style="animation-delay:${(i * .23 % 3).toFixed(2)}s"><div class="pot"></div><span class="${x.l === 'zh' ? 'zhf' : ''}">${esc(x.t)}</span></div>`).join('');
   return `<div class="isle" data-tier="${b}" style="animation-delay:${(-b * 1.1).toFixed(1)}s">
     <div class="sign"><img src="${IMG}${STAGE[b].img}.webp" alt="">${STAGE[b].n}<small>${STAGE[b].d}</small><span class="cnt${dueN ? ' due' : ''}">${dueN ? dueN + ' cần tưới · ' : ''}${L.length}</span></div>
@@ -358,7 +370,7 @@ function openBank(b) {
     ${b == null ? `<div style="background:var(--panel);border-radius:18px;padding:12px;margin-bottom:12px">
       <input class="field ${zh ? 'zhf' : ''}" id="nt" placeholder="${zh ? 'Từ (chữ Hán), VD: 起床' : 'Từ / cụm từ, VD: take part in'}">
       ${zh ? '<input class="field" id="npy" placeholder="Pinyin có dấu, mỗi chữ 1 âm tiết: qǐ chuáng">' : ''}
-      <input class="field" id="nm" placeholder="Nghĩa tiếng Việt">
+      <div style="display:flex;gap:6px"><input class="field" id="nm" placeholder="Nghĩa tiếng Việt (bấm Dịch hoặc tự gõ, ghi chú thêm thoải mái)" style="flex:1"><button class="btn" type="button" id="trBtn" style="background:var(--peach-l);color:#C2410C;height:46px;flex:none"><i class="fa-solid fa-language"></i> Dịch</button></div>
       <input class="field ${zh ? 'zhf' : ''}" id="ns" placeholder="Câu ví dụ (không bắt buộc)">
       ${zh ? '<input class="field" id="nspy" placeholder="Pinyin của câu (nếu có câu)">' : ''}
       <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn" style="background:var(--ink);color:#fff" id="addW"><i class="fa-solid fa-seedling"></i> Gieo hạt</button><button class="btn" style="background:var(--lilac-l);color:#4B4FC0" id="imp"><i class="fa-solid fa-book"></i> Lấy từ Sổ từ vựng</button></div></div>` : ''}
@@ -374,6 +386,20 @@ function openBank(b) {
     if (addWord(o)) { save(); toast('Đã gieo hạt "' + t + '"'); openBank(null); render(); } else toast('Từ này đã có trong vườn');
   };
   const imp = $('#imp'); if (imp) imp.onclick = async () => { await importNotebook(false); openBank(null); };
+  const tr = $('#trBtn');
+  if (tr) tr.onclick = async () => {
+    const t = $('#nt').value.trim(); if (!t) return toast('Nhập từ trước rồi bấm Dịch nhé');
+    tr.disabled = true; tr.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang dịch';
+    try {
+      const r = await translate(t, $('#ns').value.trim(), zh);
+      const nm = $('#nm'), old = nm.value.trim();
+      nm.value = old && old.indexOf(r.m) < 0 ? r.m + ' · ' + old : (old || r.m); /* giữ ghi chú học sinh đã gõ */
+      if (zh && r.py && !$('#npy').value.trim()) $('#npy').value = r.py;
+      if (!$('#ns').value.trim() && r.ex) { $('#ns').value = r.ex; if (zh && r.expy) $('#nspy').value = r.expy; }
+      nm.focus(); nm.setSelectionRange(nm.value.length, nm.value.length);
+    } catch (e) { toast(e.code === 'PRO_ONLY' ? 'Dịch bằng AI dành cho Pro / Astra / Học sinh' : 'AI đang bận, chờ khoảng 1 phút rồi thử lại nhé'); }
+    tr.disabled = false; tr.innerHTML = '<i class="fa-solid fa-language"></i> Dịch';
+  };
   $('#sheetBody').querySelectorAll('[data-del]').forEach(x => x.onclick = () => { if (!confirm('Nhổ cây này khỏi vườn?')) return; delete S.data.w[x.dataset.del]; save(); openBank(b); render(); });
 }
 $('#sheet').onclick = e => { if (e.target.id === 'sheet') $('#sheet').classList.remove('show'); };
@@ -383,6 +409,24 @@ mBtn.onclick = e => { e.stopPropagation(); if (window.NVMusic) NVMusic.toggle();
 setTimeout(mSync, 0);
 document.querySelectorAll('#langSeg button').forEach(b => b.onclick = () => { S.lang = b.dataset.l; try { localStorage.setItem('vuon-lang', S.lang); } catch (e) {} render(); });
 
+/* ---------- Dịch nghĩa bằng AI (đi qua NightPlan như các tính năng AI khác của web) ---------- */
+async function translate(t, ctx, zh) {
+  const cfg = (() => { try { return JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || '{}'); } catch (e) { return {}; } })();
+  const key = cfg.apiKey || (() => { try { return localStorage.getItem('nightIeltsGroqApiKey') || ''; } catch (e) { return ''; } })();
+  const sys = zh
+    ? 'You help Vietnamese learners of Chinese. Reply ONLY JSON {"m":"short natural Vietnamese meaning(s), max 8 words","py":"pinyin with tone marks, one syllable per character separated by spaces","ex":"a short simple example sentence in simplified Chinese using the word (<= 14 characters)","expy":"pinyin of ex, one syllable per Chinese character, spaces between"}'
+    : 'You help Vietnamese learners of English. Reply ONLY JSON {"m":"short natural Vietnamese meaning(s) for the sense used in the context if given, max 8 words","ex":"a short natural English example sentence using it (<= 14 words)"}';
+  const body = { model: 'openai/gpt-oss-120b', temperature: 0.2, max_completion_tokens: 600, reasoning_effort: 'low', response_format: { type: 'json_object' },
+    messages: [{ role: 'system', content: sys }, { role: 'user', content: 'Word: ' + t + (ctx ? '\nContext: ' + ctx : '') }] };
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  const init = { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: 'Bearer ' + key } : {}), body: JSON.stringify(body) };
+  const r = window.NightPlan && NightPlan.groqFetch ? await NightPlan.groqFetch(url, init, 'writing') : await fetch(url, init);
+  if (!r.ok) throw new Error('busy');
+  const j = await r.json(), o = JSON.parse(((j.choices || [])[0] || {}).message.content.match(/\{[\s\S]*\}/)[0]);
+  if (zh) { o.py = NVCourse.segPinyin(t, o.py) || ''; o.expy = o.ex ? NVCourse.segPinyin(o.ex, o.expy) || '' : ''; if (!o.expy) o.ex = ''; }
+  return o;
+}
+
 /* ---------- 1 buổi tưới vườn ---------- */
 function toItem(x) {
   if (x.l === 'zh') { const s = x.s && x.spy ? x.s : x.t; return { hanzi: x.t, pinyinRaw: x.py, meaningVi: x.m, sentenceHanzi: s, sentencePinyinRaw: x.s && x.spy ? x.spy : x.py, sentenceVi: x.sv || x.m }; }
@@ -390,16 +434,19 @@ function toItem(x) {
 }
 function startSession() {
   if (window.NVMusic && NVMusic.on()) NVMusic.start();
+  /* iPhone/iPad chỉ cho đọc giọng sau khi người dùng chạm: "mồi" giọng đọc ngay trong lần bấm này */
+  try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
   const W = words(), due = W.filter(isDue).sort((a, b) => a.d - b.d).slice(0, 80);
   const d = S.data.day.d === today() ? S.data.day : (S.data.day = { d: today(), nw: 0, rv: 0 });
   const npd = S.data.set.npd || 20, seeds = W.filter(x => x.b === 0).sort((a, b) => a.a - b.a).slice(0, Math.max(0, npd - d.nw));
   if (S.lang === 'zh') { const bad = seeds.concat(due).filter(x => !x.py); if (bad.length) { bad.forEach(x => { const r = NVCourse.segPinyin(x.t, x.py); if (!r) delete S.data.w[x.id]; }); } }
-  const list = due.concat(seeds).filter(x => S.data.w[x.id]);
+  const list = due.concat(seeds).filter(x => S.data.w[x.id]).slice(0, BATCH); /* mỗi đợt 20 cây — tưới xong chọn nghỉ hay tưới tiếp */
   if (!list.length) return toast('Hôm nay không còn cây nào cần tưới');
   /* vòng 1: gõ từ (bậc 0–3, và cây bậc 4–5 chưa có câu) · vòng 2: chép cả câu (bậc 4–5 có câu) */
   const sentence = x => x.b >= 4 && x.s && x.s !== x.t && (x.l !== 'zh' || x.spy);
   const r1 = list.filter(x => !sentence(x)), r2 = list.filter(sentence);
-  S.session = { rounds: [{ type: 'phrase', items: r1 }, { type: 'sentence', items: r2 }].filter(r => r.items.length), k: 0, moved: { up: 0, keep: 0, down: 0 } };
+  const carry = S.session && S.session.moved || { up: 0, keep: 0, down: 0 };
+  S.session = { rounds: [{ type: 'phrase', items: r1 }, { type: 'sentence', items: r2 }].filter(r => r.items.length), k: 0, moved: carry, n: 0 };
   playRound();
 }
 function playRound() {
@@ -409,7 +456,8 @@ function playRound() {
   let html = eng.build('Khu vườn · ' + (type === 'sentence' ? 'Chép cả câu' : 'Gõ từ'), R.map(toItem), S.lang === 'zh' ? 'red' : 'green');
   html = html.replace(/<script src="\/night-app\.js"[^>]*><\/script>/, '');
   const base = new URL('./', location.href).href;
-  const cfg = { theme: 'night', lang: S.lang, ac: '#FFB55E', img: base + 'khoahoc/img/ira/', srs: { type, mf: R.map(x => type === 'phrase' && (x.b === 2 || x.b === 3)) } };
+  const lastRound = se.k === se.rounds.length - 1, left = Math.max(0, remaining() - R.length - (lastRound ? 0 : se.rounds.slice(se.k + 1).reduce((a, r) => a + r.items.length, 0)));
+  const cfg = { theme: 'night', lang: S.lang, ac: '#FFB55E', img: base + 'khoahoc/img/ira/', srs: { type, mf: R.map(x => type === 'phrase' && (x.b === 2 || x.b === 3)), last: lastRound, left } };
   html = html.replace(/<\/body>\s*<\/html>\s*$/, `<script>window.NV_SKIN=${JSON.stringify(cfg)}<\/script><script src="${base}luyengo/skin.js"><\/script><script src="${base}luyengo/srs-skin.js?v=1"><\/script></body></html>`);
   $('#pFrame').srcdoc = html;
   $('#player').classList.add('show'); document.body.style.overflow = 'hidden';
@@ -430,14 +478,21 @@ window.addEventListener('message', e => {
     w.d = dueAt(g === 'fail' ? 1 : GAP[w.b]); w.r = (w.r || 0) + 1;
     const d = S.data.day.d === today() ? S.data.day : (S.data.day = { d: today(), nw: 0, rv: 0 });
     if (wasNew) d.nw++; else d.rv++;
+    se.n++; S.dirty = true;
     const st = S.data.streak; if (st.last !== today()) { const y = new Date(Date.now() - 3 * 36e5 - DAY); const yd = y.getFullYear() + '-' + (y.getMonth() + 1) + '-' + y.getDate(); st.n = st.last === yd ? (st.n || 0) + 1 : 1; st.last = today(); }
-    save();
+    if (se.n % 10 === 0) save(true); /* 10 từ lưu 1 lần (đỡ tốn 4G); thoát / xong đợt cũng lưu */
   }
-  if (m.nvSrsDone) {
+  if (m.nvSrsDone || m.nvSrsMore) {
     se.k++;
-    if (se.k < se.rounds.length) playRound(); else { closePlayer(); finishSession(); }
+    if (se.k < se.rounds.length) { playRound(); return; }
+    if (m.nvSrsMore && remaining() > 0) { save(true); startSession(); return; }
+    closePlayer(); finishSession();
   }
 });
+function remaining() {
+  const W = words(), d = S.data.day.d === today() ? S.data.day : { nw: 0 };
+  return W.filter(isDue).length + Math.max(0, Math.min((S.data.set.npd || 20) - d.nw, W.filter(x => x.b === 0).length));
+}
 function finishSession() {
   const se = S.session; if (!se) return;
   S.session = null; save(true); render();
