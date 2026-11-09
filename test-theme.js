@@ -606,3 +606,141 @@
   }
   if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
 })();
+
+/* ===== Lịch sử bài làm: mỗi lần NỘP BÀI lưu 1 bản gọn lên Firestore (testAttempts) =====
+   Chỉ lưu câu trả lời + điểm (~0,5–1 KB/lần). Đề + đáp án đúng đã nằm sẵn trong file đề.
+   - User thường: tự hết hạn sau 30 ngày (expiresAt — bật TTL trong Firebase để tự xoá).
+   - Học sinh / Pro / Astra / thầy: giữ mãi (lần làm lúc đang có gói vẫn giữ kể cả khi gói hết).
+   Xem lại: mở <đề>?review=<mã> -> tự điền lại câu trả lời và chấm, KHÔNG lưu thêm. */
+(function () {
+  if (!/\/(reading|listening)\//.test(location.pathname) || window.__nvHist) return;
+  window.__nvHist = true;
+  var V = '10.8.1', CFG = { apiKey: 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8', authDomain: 'night-ielts-land.firebaseapp.com', projectId: 'night-ielts-land', storageBucket: 'night-ielts-land.firebasestorage.app', messagingSenderId: '408519436407', appId: '1:408519436407:web:a9f0b9ba23368b54427e72' };
+  var fbP = null;
+  function fb() {
+    if (fbP) return fbP;
+    fbP = Promise.all([
+      import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/' + V + '/firebase-auth.js'),
+      import('https://www.gstatic.com/firebasejs/' + V + '/firebase-firestore.js')
+    ]).then(function (m) {
+      var app = m[0].getApps().length ? m[0].getApp() : m[0].initializeApp(CFG), auth = m[1].getAuth(app), db = m[2].getFirestore(app);
+      return new Promise(function (ok) { var un = m[1].onAuthStateChanged(auth, function (u) { un(); ok({ fs: m[2], db: db, user: u }); }); });
+    });
+    return fbP;
+  }
+  var KIND = /\/listening\//.test(location.pathname) ? 'listening' : 'reading';
+  var total = function () { try { return TOTAL_QUESTIONS; } catch (e) { return 40; } };
+  function capture() {
+    var out = [];
+    for (var n = 1; n <= total(); n++) {
+      var els = document.getElementsByName('q' + n), v = '';
+      if (els.length) {
+        if (els[0].type === 'radio' || els[0].type === 'checkbox') { var c = []; Array.prototype.forEach.call(els, function (r) { if (r.checked) c.push(r.value); }); v = c.join('|'); }
+        else v = String(els[0].value || '').trim().slice(0, 60);
+      }
+      out.push(v);
+    }
+    return out;
+  }
+  function restore(ans) {
+    (ans || []).forEach(function (v, i) {
+      var els = document.getElementsByName('q' + (i + 1)); if (!els.length || !v) return;
+      if (els[0].type === 'radio' || els[0].type === 'checkbox') {
+        var set = String(v).split('|');
+        Array.prototype.forEach.call(els, function (r) { r.checked = set.indexOf(r.value) >= 0; if (r.checked) r.dispatchEvent(new Event('change', { bubbles: true })); });
+      } else { els[0].value = v; els[0].dispatchEvent(new Event('input', { bubbles: true })); els[0].dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+  }
+  var REVIEW = (location.search.match(/[?&]review=([A-Za-z0-9_-]+)/) || [])[1];
+  var t0 = Date.now();
+  function hook() {
+    if (typeof window.saveProgressRecord !== 'function' || window.saveProgressRecord.__nvHist) return false;
+    var orig = window.saveProgressRecord;
+    var wrapped = function (score, total2, band) {
+      var r = orig.apply(this, arguments);
+      if (!REVIEW) {
+        var ans = capture(), mode = (typeof appMode !== 'undefined' ? appMode : '') || '';
+        fb().then(function (f) {
+          if (!f.user) return;
+          return f.fs.getDoc(f.fs.doc(f.db, 'users', f.user.uid)).then(function (s) {
+            var u = s.exists() ? s.data() : {}, role = u.role || 'user';
+            var keep = role === 'admin' || role === 'student' || (role === 'pro' && Number(u.proUntil) > Date.now());
+            var now = Date.now(), data = {
+              uid: f.user.uid, kind: KIND, path: location.pathname, title: (document.title || '').replace(/^Night IELTS\s*[-–·]\s*/i, '').slice(0, 80),
+              score: Number(score) || 0, total: Number(total2) || total(), band: String(band || ''), mode: mode, secs: Math.round((now - t0) / 1000),
+              ans: ans, at: now, keep: keep
+            };
+            if (!keep) data.expiresAt = new Date(now + 30 * 864e5);
+            return f.fs.addDoc(f.fs.collection(f.db, 'testAttempts'), data);
+          });
+        }).catch(function (e) { console.warn('Night history: chưa lưu được', e); });
+      }
+      return r;
+    };
+    wrapped.__nvHist = true;
+    window.saveProgressRecord = wrapped;
+    return true;
+  }
+  if (!hook()) { var hn = 0, ht = setInterval(function () { if (hook() || ++hn > 80) clearInterval(ht); }, 250); }
+
+  /* ---- Chế độ xem lại ---- */
+  if (!REVIEW) return;
+  function banner(html) {
+    var b = document.getElementById('nv-review-banner');
+    if (!b) {
+      b = document.createElement('div'); b.id = 'nv-review-banner';
+      b.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 74px);transform:translateX(-50%);z-index:2147482100;background:#24242A;color:#fff;border-radius:999px;padding:10px 12px 10px 18px;font:700 13.5px "Plus Jakarta Sans",system-ui,sans-serif;display:flex;align-items:center;gap:12px;box-shadow:0 16px 36px -14px rgba(36,36,42,.6);max-width:calc(100vw - 24px)';
+      document.body.appendChild(b);
+    }
+    b.innerHTML = html;
+  }
+  function go() {
+    if (typeof window.startTest !== 'function' || !document.body) return setTimeout(go, 200);
+    banner('Đang mở bài làm cũ…');
+    fb().then(function (f) {
+      if (!f.user) { banner('Đăng nhập để xem lại bài làm'); return; }
+      return f.fs.getDoc(f.fs.doc(f.db, 'testAttempts', REVIEW)).then(function (s) {
+        if (!s.exists()) { banner('Không tìm thấy bài làm này (có thể đã hết hạn 30 ngày)'); return; }
+        var a = s.data();
+        try { if (typeof selectMode === 'function') selectMode('practice'); } catch (e) {}
+        try { window.startTest(); } catch (e) {}
+        setTimeout(function () {
+          restore(a.ans);
+          try { gradeQuestionRange(1, total()); } catch (e) {}
+          var d = new Date(a.at);
+          banner('Xem lại bài làm ' + d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) +
+            ' · <span style="color:#FFB680">' + a.score + '/' + a.total + (a.band ? ' · Band ' + a.band : '') + '</span>' +
+            '<a href="' + location.pathname + '" style="background:#fff;color:#24242A;border-radius:999px;padding:6px 12px;text-decoration:none;font-weight:800;white-space:nowrap">Làm lại</a>');
+        }, 600);
+      });
+    }).catch(function () { banner('Chưa mở được bài làm cũ'); });
+  }
+  go();
+})();
+
+/* ===== Ghi lại CÂU chứa từ học sinh bôi đen trong đề, để Khu vườn từ vựng có câu ví dụ thật cho phần "chép cả câu" ===== */
+(function () {
+  if (!/\/(reading|listening)\//.test(location.pathname) || window.__nvCtx) return;
+  window.__nvCtx = true;
+  var t = 0;
+  document.addEventListener('selectionchange', function () {
+    clearTimeout(t);
+    t = setTimeout(function () {
+      var sel = window.getSelection && window.getSelection(); if (!sel || sel.isCollapsed) return;
+      var w = String(sel).trim(); if (!w || w.length > 60 || w.split(/\s+/).length > 6) return;
+      var n = sel.anchorNode; while (n && n.nodeType !== 1) n = n.parentNode;
+      while (n && n !== document.body && !/^(P|LI|TD|DIV|SPAN|BLOCKQUOTE)$/.test(n.tagName)) n = n.parentNode;
+      if (!n || n === document.body) return;
+      var text = (n.innerText || n.textContent || '').replace(/\s+/g, ' ').trim(); if (text.length < w.length + 5) return;
+      var sents = text.match(/[^.!?]+[.!?]?/g) || [text], low = w.toLowerCase(), hit = '';
+      for (var i = 0; i < sents.length; i++) if (sents[i].toLowerCase().indexOf(low) >= 0) { hit = sents[i].trim(); break; }
+      if (!hit || hit.length > 220) return;
+      try {
+        var m = JSON.parse(localStorage.getItem('nv-word-ctx') || '{}'); m[low] = hit;
+        var k = Object.keys(m); if (k.length > 600) k.slice(0, k.length - 600).forEach(function (x) { delete m[x]; });
+        localStorage.setItem('nv-word-ctx', JSON.stringify(m));
+      } catch (e) {}
+    }, 400);
+  });
+})();

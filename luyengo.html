@@ -279,7 +279,7 @@ function nvCourseView() {
     html += `<div class="lesson" ${x.ok ? `data-nvl="${x.n}"` : ''} role="button" tabindex="0" style="${x.ok ? '' : 'opacity:.55;cursor:default'}">
       <span class="n" style="background:${c.col}22;color:${c.col}">${x.n}</span>
       <span class="t"><b>${esc(x.title)}</b><small>${x.ok ? (open ? (x.tag ? esc(x.tag) + ' · ' : '') + 'từ vựng + mẫu câu' + progBadge(`nv-${S.nv}-${x.n}`) : 'Cần mở khoá học để luyện buổi này') : 'Sắp ra mắt'}</small></span>
-      <span class="go">${!x.ok ? '<i class="fa-solid fa-hourglass-half"></i>' : open ? '<i class="fa-solid fa-keyboard"></i>' : '<i class="fa-solid fa-lock"></i>'}</span></div>`;
+      ${x.ok && open ? `<button class="del" data-nvplant="${x.n}" title="Trồng từ vựng buổi này vào Khu vườn" style="color:#2E7D32"><i class="fa-solid fa-seedling"></i></button>` : ''}<span class="go">${!x.ok ? '<i class="fa-solid fa-hourglass-half"></i>' : open ? '<i class="fa-solid fa-keyboard"></i>' : '<i class="fa-solid fa-lock"></i>'}</span></div>`;
   });
   return html;
 }
@@ -344,6 +344,7 @@ function createView() {
     <div class="row" style="margin:12px 0 6px">
       <button class="btn ac" data-act="play"><i class="fa-solid fa-play"></i> Luyện ngay</button>
       <button class="btn ghost" data-act="save"><i class="fa-solid fa-bookmark"></i> Lưu vào Bài của tôi</button>
+      <button class="btn ghost" data-act="plant" style="color:#2E7D32"><i class="fa-solid fa-seedling"></i> Trồng vào vườn</button>
       ${isAdmin() ? `<select id="toCourse" style="width:auto;padding:10px 12px">${LEVELS[S.lang].map(([c]) => `<option ${c === S.target ? 'selected' : ''}>${c}</option>`).join('')}</select><button class="btn" data-act="toCourse"><i class="fa-solid fa-crown"></i> Đưa vào khoá</button>` : ''}
     </div>
     <div class="items">${r.items.map((it, i) => itemRow(it, i)).join('')}</div>`
@@ -376,8 +377,16 @@ function mineView() {
   return `<div class="h"><span class="dot"></span>Bài ${T[S.lang].name} của tôi · chỉ mình bạn thấy</div>` +
     (ls.length ? ls.map(l => `<div class="lesson" data-open-mine="${l.id}" role="button" tabindex="0"><span class="n"><i class="fa-solid fa-bookmark"></i></span>
       <span class="t"><b>${esc(l.title)}</b><small>${(l.items || []).length} mục · ${(l.levels || []).join(', ') || 'tự nhập'} · ${new Date(l.at || 0).toLocaleDateString('vi-VN')}${progBadge('mine-' + l.id)}</small></span>
-      <button class="del" data-ren-mine="${l.id}" title="Đổi tên" style="color:var(--mut)"><i class="fa-solid fa-pen"></i></button><button class="del" data-del-mine="${l.id}" title="Xoá"><i class="fa-solid fa-trash"></i></button><span class="go"><i class="fa-solid fa-play"></i></span></div>`).join('')
+      <button class="del" data-plant-mine="${l.id}" title="Trồng vào Khu vườn từ vựng" style="color:#2E7D32"><i class="fa-solid fa-seedling"></i></button><button class="del" data-ren-mine="${l.id}" title="Đổi tên" style="color:var(--mut)"><i class="fa-solid fa-pen"></i></button><button class="del" data-del-mine="${l.id}" title="Xoá"><i class="fa-solid fa-trash"></i></button><span class="go"><i class="fa-solid fa-play"></i></span></div>`).join('')
       : `<div class="card empty">${ira('bunbougu_note_7561')}Chưa có bài nào.<br>Vào <b>Tự tạo bằng AI</b>, tạo xong bấm "Lưu vào Bài của tôi".</div>`);
+}
+
+/* ---------- Trồng vào Khu vườn từ vựng (vuon.html): gửi qua hộp thư trong máy, vườn tự gieo khi mở ---------- */
+function plant(items, src) {
+  const zh = S.lang === 'zh';
+  const out = items.map(x => zh ? { t: x.hanzi, py: x.pinyinRaw, m: x.meaningVi, s: x.sentenceHanzi, spy: x.sentencePinyinRaw, sv: x.sentenceVi, l: 'zh', src } : { t: x.phrase, m: x.meaningVi, s: x.sentence, sv: x.sentenceVi, l: 'en', src });
+  try { const q = JSON.parse(localStorage.getItem('vuon-inbox') || '[]'); localStorage.setItem('vuon-inbox', JSON.stringify(q.concat(out).slice(-3000))); } catch (e) {}
+  toast(`Đã gửi ${out.length} từ vào Khu vườn — mở vườn để gieo hạt`);
 }
 
 /* ---------- Tiến độ: lưu trên máy + tài khoản, mở lại là làm tiếp ---------- */
@@ -616,7 +625,11 @@ function bind() {
   const v = $('#view');
   v.querySelectorAll('[data-course]').forEach(b => b.onclick = () => { S.course = b.dataset.course; render(); });
   v.querySelectorAll('[data-nv]').forEach(b => b.onclick = () => { S.nv = b.dataset.nv; render(); loadNv(S.nv); });
-  v.querySelectorAll('[data-nvl]').forEach(b => b.onclick = () => openNv(S.nv, +b.dataset.nvl));
+  v.querySelectorAll('[data-nvl]').forEach(b => b.onclick = e => { if (!e.target.closest('[data-nvplant]')) openNv(S.nv, +b.dataset.nvl); });
+  v.querySelectorAll('[data-nvplant]').forEach(b => b.onclick = async () => {
+    try { const r = await NVCourse.lesson(S.nv, +b.dataset.nvplant); if (!r.items.length) return toast('Buổi này chưa có từ vựng'); const keep = S.lang; S.lang = r.lang; plant(r.items, r.title); S.lang = keep; }
+    catch (e) { toast('Chưa lấy được từ vựng buổi này'); }
+  });
   v.querySelectorAll('[data-open-course]').forEach(b => b.onclick = e => {
     if (e.target.closest('[data-del-course],[data-ren-course]')) return;
     const l = S.courses[S.lang][S.course].lessons[+b.dataset.openCourse];
@@ -631,10 +644,11 @@ function bind() {
     c.lessons = lessons; render();
   });
   v.querySelectorAll('[data-open-mine]').forEach(b => b.onclick = e => {
-    if (e.target.closest('[data-del-mine],[data-ren-mine]')) return;
+    if (e.target.closest('[data-del-mine],[data-ren-mine],[data-plant-mine]')) return;
     const l = S.mine.find(m => m.id === b.dataset.openMine);
     play(l.title, clean(l.items), l.levels && l.levels[0] ? lvInfo(S.lang, l.levels[0])[2] : undefined, undefined, 'mine-' + l.id);
   });
+  v.querySelectorAll('[data-plant-mine]').forEach(b => b.onclick = () => { const l = S.mine.find(m => m.id === b.dataset.plantMine); plant(l.items, l.title); });
   v.querySelectorAll('[data-ren-mine]').forEach(b => b.onclick = async () => {
     const l = S.mine.find(m => m.id === b.dataset.renMine), t = (window.prompt('Tên mới cho bài:', l.title) || '').trim();
     if (!t || t === l.title) return;
@@ -665,6 +679,7 @@ function bind() {
     else if (a === 'manual') manual();
     else if (a === 'play') { const t = needName(); if (t) play(t, clean(S.result.items), resColor()); }
     else if (a === 'save') saveMine();
+    else if (a === 'plant') plant(S.result.items, (S.title || 'Nghe – Gõ').slice(0, 60));
     else if (a === 'toCourse') toCourse();
     else if (a === 'login') needLogin();
     else if (a === 'upgrade' && window.NightPlan) NightPlan.openUpgrade('', 'pro');
