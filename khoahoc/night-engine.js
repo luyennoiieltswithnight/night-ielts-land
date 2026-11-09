@@ -4642,6 +4642,21 @@
   }
   /* Bút vẽ đứng riêng (giống nút ✏️ + thanh màu trong bài học) để gắn vào trang KHÁC — vd. trang đề Reading/Listening.
      Chỉ Apple Pencil vẽ, ngón tay vẫn cuộn/zoom, chống tì tay; không lưu gì. */
+  /* Giữ 1 phần tử nổi ở góc trái dưới VÙNG ĐANG NHÌN khi zoom, không phóng to theo trang. Trả về hàm gỡ. */
+  function nvPinPin(el) {
+    const vv = window.visualViewport; if (!el || !vv) return undefined;
+    const place = () => {
+      const sc = vv.scale || 1;
+      if (sc <= 1.01 && sc >= 0.99) { el.style.transform = ""; el.style.top = ""; el.style.transformOrigin = ""; el.style.bottom = "calc(16px + env(safe-area-inset-bottom))"; el.style.left = "16px"; return; }
+      const hgt = el.offsetHeight || 48;
+      el.style.bottom = "auto"; el.style.top = "0px"; el.style.left = "0px"; el.style.transformOrigin = "0 0";
+      el.style.transform = `translate(${vv.offsetLeft + 16 / sc}px, ${vv.offsetTop + vv.height - (hgt + 16) / sc}px) scale(${1 / sc})`;
+    };
+    vv.addEventListener("resize", place); vv.addEventListener("scroll", place); window.addEventListener("scroll", place, { passive: true });
+    const mo = new MutationObserver(place); mo.observe(el, { childList: true, subtree: true });
+    place();
+    return () => { vv.removeEventListener("resize", place); vv.removeEventListener("scroll", place); window.removeEventListener("scroll", place); mo.disconnect(); };
+  }
   function PenKit() {
     const [t, setT] = useState({ draw: false, finger: false, tool: "pen", color: "red", cmd: null });
     const set = (p) => setT((o) => Object.assign({}, o, p));
@@ -4656,9 +4671,12 @@
       return () => window.removeEventListener("keydown", k);
     }, []);
     const touch = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
+    /* Zoom 2 ngón / touchpad: thanh bút luôn ở góc trái dưới phần đang nhìn thấy, giữ đúng cỡ */
+    const bar = useRef(null);
+    useEffect(() => nvPinPin(bar.current), []);
     return h(React.Fragment, null,
       h(DrawLayer, { on: t.draw, tool: t.tool, color: t.color, pageKey: "page", cmd: t.cmd, finger: t.finger }),
-      h("div", { className: "fixed bottom-4 right-4 z-[60] flex max-w-[calc(100vw-24px)] flex-row-reverse items-center gap-2", style: { bottom: "calc(16px + env(safe-area-inset-bottom))" } },
+      h("div", { ref: bar, "data-nv-nopin": "1", className: "fixed bottom-4 left-4 z-[60] flex max-w-[calc(100vw-24px)] items-center gap-2", style: { bottom: "calc(16px + env(safe-area-inset-bottom))" } },
         h("button", { onClick: () => set({ draw: !t.draw }), title: t.draw ? "Tắt bút vẽ (D)" : "Bật bút vẽ (D)", "aria-label": t.draw ? "Tắt bút vẽ" : "Bật bút vẽ", "aria-pressed": t.draw,
           className: `flex h-12 w-12 flex-none items-center justify-center rounded-full text-xl shadow-premium transition ${t.draw ? "bg-rose-500 text-white ring-4 ring-rose-200" : "bg-white text-primary hover:bg-primary-light"}` }, "✏️"),
         t.draw && h("div", { className: "nv-noscroll flex min-w-0 items-center gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 px-2 py-1.5 shadow-floating backdrop-blur" },
@@ -4981,7 +4999,7 @@
         ".night-note-ed img{max-width:100%;height:auto;display:inline-block;vertical-align:bottom;border-radius:6px;cursor:pointer}";
       document.head.appendChild(st);
       const link = document.createElement("link");
-      link.rel = "stylesheet"; link.href = new URL("notes-tw.css?v=20261109b", NV_SCRIPT_SRC).href;
+      link.rel = "stylesheet"; link.href = new URL("notes-tw.css?v=20261109c", NV_SCRIPT_SRC).href;
       document.head.appendChild(link);
       if (!document.getElementById("nv-pen-css")) { const pc = document.createElement("style"); pc.id = "nv-pen-css"; pc.textContent = ".nv-noscroll{scrollbar-width:none}.nv-noscroll::-webkit-scrollbar{display:none}"; document.head.appendChild(pc); }
       ReactDOM.createRoot(root).render(kind === "pen" ? React.createElement(PenKit) : React.createElement(NotesLayer, { lessonId: id || location.pathname }));

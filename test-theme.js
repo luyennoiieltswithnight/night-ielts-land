@@ -462,7 +462,7 @@
     var chain = Promise.resolve();
     if (!window.React) chain = chain.then(function () { return load('https://unpkg.com/react@18.3.1/umd/react.production.min.js'); });
     if (!window.ReactDOM) chain = chain.then(function () { return load('https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js'); });
-    chain.then(function () { return window.NightLesson && window.NightLesson.mountPen ? null : load(base + 'khoahoc/night-engine.js?v=20261109b'); })
+    chain.then(function () { return window.NightLesson && window.NightLesson.mountPen ? null : load(base + 'khoahoc/night-engine.js?v=20261109c'); })
       .then(function () {
         window.NightLesson.mountPen();
         if (b) b.remove();
@@ -477,9 +477,22 @@
     var b = document.createElement('button');
     b.type = 'button'; b.id = 'nv-pen-boot'; b.title = 'Bút vẽ (D)'; b.setAttribute('aria-label', 'Bật bút vẽ');
     b.textContent = '✏️';
-    b.style.cssText = 'position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:2147482001;width:48px;height:48px;border-radius:999px;border:0;background:#fff;color:#6C70DC;font-size:20px;cursor:pointer;box-shadow:0 10px 28px -8px rgba(108,112,220,.6);display:flex;align-items:center;justify-content:center';
+    b.style.cssText = 'position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:2147482001;width:48px;height:48px;border-radius:999px;border:0;background:#fff;color:#6C70DC;font-size:20px;cursor:pointer;box-shadow:0 10px 28px -8px rgba(108,112,220,.6);display:flex;align-items:center;justify-content:center';
     b.onclick = function () { start(b); };
+    b.setAttribute('data-nv-nopin', '1');
     document.body.appendChild(b);
+    /* zoom: nút vẫn ở góc trái dưới phần đang nhìn, đúng cỡ */
+    var vv = window.visualViewport;
+    if (vv) {
+      var place = function () {
+        if (!b.isConnected) return;
+        var sc = vv.scale || 1;
+        if (Math.abs(sc - 1) < 0.01) { b.style.transform = ''; b.style.top = ''; b.style.bottom = 'calc(16px + env(safe-area-inset-bottom))'; b.style.left = '16px'; return; }
+        b.style.bottom = 'auto'; b.style.top = '0px'; b.style.left = '0px'; b.style.transformOrigin = '0 0';
+        b.style.transform = 'translate(' + (vv.offsetLeft + 16 / sc) + 'px,' + (vv.offsetTop + vv.height - 64 / sc) + 'px) scale(' + (1 / sc) + ')';
+      };
+      vv.addEventListener('resize', place); vv.addEventListener('scroll', place); window.addEventListener('scroll', place, { passive: true });
+    }
     window.addEventListener('keydown', function k(e) {
       var el = document.activeElement;
       if ((e.key === 'd' || e.key === 'D') && !e.metaKey && !e.ctrlKey && !(el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable)) && document.getElementById('nv-pen-boot')) {
