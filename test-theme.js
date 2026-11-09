@@ -419,7 +419,7 @@
       'html body .wave-scroll .playhead:before{content:"";position:absolute;left:50%;top:-1px;transform:translateX(-50%);border:5px solid transparent;border-top-color:#E11D48}',
       'html body .nv-wide-btn{margin-left:4px}',
       /* Phóng dài: thanh sóng âm rộng bằng thanh đen trên cùng */
-      'html body .wave-scroll.nv-wide{width:var(--nv-wide-w)!important;max-width:none!important;margin-left:var(--nv-wide-ml)!important}'
+      'html body .nv-wide{width:var(--nv-wide-w)!important;max-width:none!important;margin-left:var(--nv-wide-ml)!important;margin-right:0!important;box-sizing:border-box!important}'
     ].join('\n');
     document.head.appendChild(st);
 
@@ -524,24 +524,27 @@
     btn.type = 'button'; btn.className = 'nv-wide-btn';
     if (zoomPlus) { btn.className += ' ' + zoomPlus.className; zoomPlus.insertAdjacentElement('afterend', btn); }
     else wrap.insertAdjacentElement('beforebegin', btn);
+    /* phóng dài CẢ thanh audio (tiêu đề, nút, sóng âm, Section…), cỡ các nút giữ nguyên */
+    var box = wrap.closest('.global-audio-bar') || wrap.closest('.audio-player') || wrap.parentElement;
     var setWide = function (on) {
-      wrap.classList.toggle('nv-wide', on);
+      box.classList.toggle('nv-wide', on);
       btn.textContent = on ? '⤡' : '⤢';
       btn.title = on ? 'Thu gọn thanh sóng âm' : 'Phóng dài thanh sóng âm (bằng thanh trên cùng)';
       if (on) {
         var top = document.querySelector('.header, header, .top-nav, nav') , tr = top ? top.getBoundingClientRect() : { left: 16, width: innerWidth - 32 };
-        wrap.style.removeProperty('--nv-wide-ml');
-        var wr = wrap.getBoundingClientRect();
-        wrap.style.setProperty('--nv-wide-w', Math.round(tr.width) + 'px');
-        wrap.style.setProperty('--nv-wide-ml', Math.round(tr.left - (wr.left - (parseFloat(getComputedStyle(wrap).marginLeft) || 0))) + 'px');
+        box.classList.remove('nv-wide');
+        var wr = box.getBoundingClientRect(), ml = parseFloat(getComputedStyle(box).marginLeft) || 0;
+        box.style.setProperty('--nv-wide-w', Math.round(tr.width) + 'px');
+        box.style.setProperty('--nv-wide-ml', Math.round(tr.left - (wr.left - ml)) + 'px');
+        box.classList.add('nv-wide');
       }
       try { localStorage.setItem(WIDE_KEY, on ? '1' : ''); } catch (e) {}
       setTimeout(draw, 0);
     };
-    btn.onclick = function () { setWide(!wrap.classList.contains('nv-wide')); };
+    btn.onclick = function () { setWide(!box.classList.contains('nv-wide')); };
     var wideOn = false; try { wideOn = localStorage.getItem(WIDE_KEY) === '1'; } catch (e) {}
     setWide(wideOn);
-    window.addEventListener('resize', function () { if (wrap.classList.contains('nv-wide')) { wrap.classList.remove('nv-wide'); setWide(true); } else draw(); });
+    window.addEventListener('resize', function () { if (box.classList.contains('nv-wide')) setWide(true); else draw(); });
     if (window.ResizeObserver) new ResizeObserver(function () { draw(); }).observe(wrap);
     draw();
     return true;
