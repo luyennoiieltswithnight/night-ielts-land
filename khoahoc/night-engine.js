@@ -4932,6 +4932,27 @@
     new MutationObserver(() => { if (zoomed) { scan(); place(); } }).observe(document.body, { childList: true, subtree: true });
   }
   window.NightLesson = {
+    /* Ô ghi chú (giống trong bài học) gắn vào trang KHÁC bài học — vd. trang đề Reading/Listening.
+       Không cần Tailwind của trang: dùng CSS riêng khoahoc/notes-tw.css (chỉ áp trong #nv-notes-root). */
+    mountNotes(id) {
+      if (document.getElementById("nv-notes-root")) return;
+      const root = document.createElement("div");
+      root.id = "nv-notes-root";
+      root.style.cssText = "position:absolute;left:0;top:0;width:0;height:0;z-index:2147482000";
+      document.body.appendChild(root);
+      const st = document.createElement("style");
+      st.textContent = "#nv-notes-root{font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:16px;line-height:1.5;color:#0f172a;text-align:left}" +
+        "#nv-notes-root *,#nv-notes-root ::before,#nv-notes-root ::after{box-sizing:border-box;border:0 solid #e5e7eb}" +
+        "#nv-notes-root button{background:transparent;font:inherit;color:inherit;cursor:pointer;padding:0;margin:0;line-height:inherit;text-transform:none;box-shadow:none;min-height:0;min-width:0}" +
+        "#nv-notes-root input,#nv-notes-root select,#nv-notes-root textarea{font:inherit;color:inherit;margin:0}" +
+        "#nv-notes-root p,#nv-notes-root h3,#nv-notes-root h4{margin:0}#nv-notes-root svg,#nv-notes-root img{display:block;vertical-align:middle}" +
+        ".night-note-ed img{max-width:100%;height:auto;display:inline-block;vertical-align:bottom;border-radius:6px;cursor:pointer}";
+      document.head.appendChild(st);
+      const link = document.createElement("link");
+      link.rel = "stylesheet"; link.href = new URL("notes-tw.css?v=20261109a", NV_SCRIPT_SRC).href;
+      document.head.appendChild(link);
+      ReactDOM.createRoot(root).render(React.createElement(NotesLayer, { lessonId: id || location.pathname }));
+    },
     printCourse(lessons, meta) {
       nvLoadProgress().then((NP) => (NP ? NP.gate() : { role: "" })).then((ctx) => {
         NV_ADMIN = ctx.role === "admin" || ctx.role === "local";

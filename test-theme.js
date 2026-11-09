@@ -394,3 +394,90 @@
     }).catch(function () {});
   } catch (e) {}
 })();
+
+/* ===== Listening: sóng âm dày & rõ ở mọi mức zoom (vẽ đè hàm của trang đề) =====
+   Bản gốc vẽ 3000 vạch cho cả bài → bài 30 phút mỗi vạch cách ~25px, nhìn thưa, khó tua.
+   Bản này: mỗi 3px màn hình 1 vạch, lấy đỉnh trong khoảng đó (hoặc nội suy khi phóng to), canvas nét theo màn hình Retina. */
+(function () {
+  function install() {
+    if (typeof window.redrawVisibleWaveSlice !== 'function' || window.__nvWave) return false;
+    window.__nvWave = true;
+    var H = 34, PLAYED = '#6C70DC', REST = '#C3C5E8';
+    var st = document.createElement('style');
+    st.textContent = 'html body .wave-scroll canvas,html body .global-audio-bar .wave-scroll canvas{height:' + H + 'px!important}html body .wave-scroll{background:#F4F4F7!important;border:0!important;border-radius:12px!important}';
+    document.head.appendChild(st);
+    window.drawWaveform = function () {
+      if (typeof waveData === 'undefined' || !waveData) return;
+      var canvas = document.getElementById('wave-canvas'), wrap = document.getElementById('wave-scroll');
+      if (!canvas || !wrap) return;
+      waveTotalVirtualWidth = Math.max(320, Math.min(5000000, Math.floor(waveData.duration * wavePxPerSec)));
+      var sp = document.getElementById('wave-spacer'); if (sp) sp.style.width = waveTotalVirtualWidth + 'px';
+      var vw = Math.max(320, wrap.clientWidth || 800), dpr = Math.min(3, window.devicePixelRatio || 1);
+      canvas.width = Math.round(vw * dpr); canvas.height = Math.round(H * dpr);
+      canvas.style.width = vw + 'px'; canvas.style.height = H + 'px';
+      if (!waveData._max) { var m = 0; for (var i = 0; i < waveData.peaks.length; i++) if (waveData.peaks[i] > m) m = waveData.peaks[i]; waveData._max = m || 1; }
+      window.redrawVisibleWaveSlice();
+      if (typeof drawWaveMarkerLines === 'function') drawWaveMarkerLines();
+    };
+    window.redrawVisibleWaveSlice = function () {
+      if (typeof waveData === 'undefined' || !waveData) return;
+      var canvas = document.getElementById('wave-canvas'), wrap = document.getElementById('wave-scroll');
+      if (!canvas || !wrap) return;
+      var ctx = canvas.getContext('2d'), dpr = canvas.width / (parseFloat(canvas.style.width) || canvas.width);
+      var W = canvas.width / dpr, P = waveData.peaks, N = P.length, max = waveData._max || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+      var left = wrap.scrollLeft, perPx = N / waveTotalVirtualWidth;
+      var head = (typeof audio !== 'undefined' && audio && audio.duration) ? audio.currentTime / audio.duration * waveTotalVirtualWidth : 0;
+      var pitch = 3, bw = 2;
+      for (var x = 0; x < W; x += pitch) {
+        var g0 = (left + x) * perPx, g1 = (left + x + pitch) * perPx, v = 0;
+        if (g1 - g0 >= 1) { for (var k = Math.floor(g0); k < Math.ceil(g1) && k < N; k++) if (P[k] > v) v = P[k]; }
+        else { var a = Math.floor(g0), f = g0 - a; v = (P[a] || 0) * (1 - f) + (P[a + 1] || 0) * f; }
+        var h = Math.max(2, Math.pow(v / max, 0.75) * (H - 4));
+        ctx.fillStyle = (left + x) < head ? PLAYED : REST;
+        var y = (H - h) / 2, r = bw / 2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, bw, h, r); else ctx.rect(x, y, bw, h);
+        ctx.fill();
+      }
+    };
+    window.drawWaveform();
+    window.addEventListener('resize', function () { window.drawWaveform(); });
+    return true;
+  }
+  if (!install()) { var n = 0, t = setInterval(function () { if (install() || ++n > 40) clearInterval(t); }, 250); }
+})();
+
+/* ===== Ô ghi chú giống bài học (night-engine.js) trên trang đề Reading / Listening =====
+   Nút ✏️ góc phải dưới; bấm lần đầu mới tải React + engine (không làm trang đề nặng thêm khi không dùng). */
+(function () {
+  if (!/\/(reading|listening)\//.test(location.pathname) || window.__nvNotes) return;
+  window.__nvNotes = true;
+  var base; try { base = new URL('./', document.currentScript ? document.currentScript.src : 'https://nightielts.id.vn/test-theme.js').href; } catch (e) { base = '/'; }
+  function load(src) { return new Promise(function (ok, bad) { var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); }); }
+  function boot() {
+    var b = document.createElement('button');
+    b.type = 'button'; b.id = 'nv-notes-boot'; b.title = 'Ghi chú khi giảng'; b.setAttribute('aria-label', 'Ghi chú');
+    b.textContent = '✏️';
+    b.style.cssText = 'position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:2147482001;width:48px;height:48px;border-radius:999px;border:0;background:#6C70DC;color:#fff;font-size:20px;cursor:pointer;box-shadow:0 10px 28px -8px rgba(108,112,220,.6);display:flex;align-items:center;justify-content:center';
+    b.onclick = function () {
+      b.textContent = '⏳'; b.disabled = true;
+      var go = function () {
+        window.NightLesson.mountNotes('test:' + location.pathname);
+        b.remove();
+        /* mở sẵn menu ghi chú cho thầy */
+        var tries = 0, t = setInterval(function () {
+          var fab = document.querySelector('#nv-notes-root .night-fab > button:last-child');
+          if (fab) { clearInterval(t); fab.click(); } else if (++tries > 40) clearInterval(t);
+        }, 100);
+      };
+      var chain = Promise.resolve();
+      if (!window.React) chain = chain.then(function () { return load('https://unpkg.com/react@18.3.1/umd/react.production.min.js'); });
+      if (!window.ReactDOM) chain = chain.then(function () { return load('https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js'); });
+      chain.then(function () { return window.NightLesson && window.NightLesson.mountNotes ? null : load(base + 'khoahoc/night-engine.js?v=20261109a'); })
+        .then(go).catch(function () { b.textContent = '✏️'; b.disabled = false; alert('Chưa tải được ô ghi chú, kiểm tra mạng rồi thử lại nhé.'); });
+    };
+    document.body.appendChild(b);
+  }
+  if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
+})();
