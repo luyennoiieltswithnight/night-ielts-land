@@ -16,10 +16,7 @@ var LESSON_TEMPLATE = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Listening Type Practice</title>
-<script src="https://cdn.tailwindcss.com"><\/script>
-<script>
-tailwind.config={theme:{extend:{colors:{primary:%%PRIMARY_PALETTE_JSON%%},boxShadow:{card:'0 10px 30px rgba(20,184,166,.08)'}}}};
-<\/script>
+<link rel="stylesheet" href="/luyengo/tw.css?v=20261110" onerror="var s=document.createElement('script');s.src='https://cdn.tailwindcss.com';document.head.appendChild(s)"><style>:root{%%PRIMARY_VARS%%}</style>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box}html,body{margin:0;background:#f7fffc;color:#1e293b;font-family:'Plus Jakarta Sans',sans-serif;overscroll-behavior-y:none;}
@@ -544,7 +541,7 @@ function buildLessonHTML(title, items, colorKey){
   dataJson = dataJson.split('</').join('<\\/');
 
   var html = LESSON_TEMPLATE;
-  html = html.replace('%%PRIMARY_PALETTE_JSON%%', function(){ return paletteJson; });
+  html = html.replace('%%PRIMARY_VARS%%', function(){ return Object.keys(palette).map(function(k){ var h=palette[k]; return '--p'+k+':'+parseInt(h.substr(1,2),16)+' '+parseInt(h.substr(3,2),16)+' '+parseInt(h.substr(5,2),16); }).join(';'); });
   html = html.replace('%%CHAR_UNTYPED_BORDER%%', function(){ return palette[200]; });
   html = html.replace('%%CHAR_TYPED_COLOR%%', function(){ return palette[900]; });
   html = html.replace('%%CHAR_TYPED_BORDER%%', function(){ return palette[600]; });
