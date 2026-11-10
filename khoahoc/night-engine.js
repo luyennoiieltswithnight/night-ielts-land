@@ -4085,6 +4085,12 @@
   // Bút vẽ đè: nét lưu theo toạ độ trang nên cuộn trang thì nét đi theo nội dung.
   // Lớp vẽ KHÔNG bị nvInstallPinchFix giữ cỡ màn hình (data-nv-nopin) → zoom bằng 2 ngón thì nét vẽ phóng to theo nội dung.
   const PEN = { red: "#e11d48", blue: "#2563eb", green: "#16a34a", black: "#0f172a" };
+  /* Trang có nhiều khung cuộn riêng (vd. đề Reading: bài đọc | câu hỏi): đặt window.NV_PEN_PANES = ".panel-content".
+     Khi đó chỉ vẽ được trong các khung đó, nét gắn vào nội dung khung → cuộn khung nào thì nét khung đó đi theo,
+     ra ngoài mép khung thì nét bị cắt. window.NV_PEN_PART() (nếu có) = phần đang mở (Passage 1/2/3…) để mỗi phần giữ nét riêng. */
+  const penPanes = () => { const sel = window.NV_PEN_PANES; return sel ? Array.from(document.querySelectorAll(sel)) : null; };
+  const paneKey = (p, all) => (p.id || "pane" + all.indexOf(p)) + "|" + (window.NV_PEN_PART ? window.NV_PEN_PART() : "");
+  const paneAt = (x, y) => { const all = penPanes(); if (!all) return null; const p = all.find((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; }); return p ? { el: p, key: paneKey(p, all) } : null; };
   function DrawLayer({ on, tool, color, pageKey, cmd, finger }) {
     const cv = useRef(null), store = useRef({}), cur = useRef(null), raf = useRef(0);
     const list = () => (store.current[pageKey] = store.current[pageKey] || []);
@@ -4095,9 +4101,14 @@
         const dpr = window.devicePixelRatio || 1, w = window.innerWidth, hh = window.innerHeight;
         if (c.width !== Math.round(w * dpr) || c.height !== Math.round(hh * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(hh * dpr); }
         const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, hh);
-        const sx = window.scrollX, sy = window.scrollY;
-        (cur.current ? [...list(), cur.current] : list()).forEach((s) => {
+        const all = penPanes(), vis = {};
+        if (all) all.forEach((p) => { const r = p.getBoundingClientRect(); if (r.width > 0 && r.height > 0) vis[paneKey(p, all)] = { x: r.left - p.scrollLeft, y: r.top - p.scrollTop, r }; });
+        (cur.current && cur.current.pts ? [...list(), cur.current] : list()).forEach((s) => {
+          let sx = window.scrollX, sy = window.scrollY, clip = null;
+          if (s.pk) { const v = vis[s.pk]; if (!all || !v) return; sx = -v.x; sy = -v.y; clip = v.r; }
+          else if (all) return;
           g.save(); g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = s.color; g.globalAlpha = s.a;
+          if (clip) { g.beginPath(); g.rect(clip.left, clip.top, clip.width, clip.height); g.clip(); }
           if (s.hl) g.globalCompositeOperation = "multiply";
           const P = s.pts, n = P.length, X = (q) => q[0] - sx, Y = (q) => q[1] - sy;
           if (n < 3 || !s.pr) {
@@ -4122,9 +4133,13 @@
       });
     };
     useEffect(() => {
-      window.addEventListener("scroll", redraw, { passive: true }); window.addEventListener("resize", redraw);
+      /* capture: bắt cả cuộn của từng khung (bài đọc / câu hỏi), không chỉ cuộn trang */
+      const later = () => setTimeout(redraw, 60);
+      window.addEventListener("scroll", redraw, { passive: true, capture: true }); window.addEventListener("resize", redraw); window.addEventListener("click", later, true);
+      const ro = window.ResizeObserver && window.NV_PEN_PANES ? new ResizeObserver(redraw) : null;
+      if (ro) (penPanes() || []).forEach((p) => ro.observe(p));
       redraw();
-      return () => { window.removeEventListener("scroll", redraw); window.removeEventListener("resize", redraw); };
+      return () => { window.removeEventListener("scroll", redraw, { capture: true }); window.removeEventListener("resize", redraw); window.removeEventListener("click", later, true); if (ro) ro.disconnect(); };
     }, [pageKey]);
     useEffect(() => {
       if (!cmd) return;
@@ -4133,14 +4148,19 @@
       if (cmd.t === "clearAll") store.current = {};
       redraw();
     }, [cmd]);
-    const pt = (e) => [e.clientX + window.scrollX, e.clientY + window.scrollY];
-    const erase = (p) => { store.current[pageKey] = list().filter((s) => !s.pts.some((q) => Math.abs(q[0] - p[0]) < 16 && Math.abs(q[1] - p[1]) < 16)); redraw(); };
+    /* toạ độ lưu: theo trang, hoặc theo nội dung của khung cuộn (chế độ nhiều khung) */
+    const ptIn = (e, pane) => { if (!pane) return [e.clientX + window.scrollX, e.clientY + window.scrollY]; const r = pane.el.getBoundingClientRect(); return [e.clientX - r.left + pane.el.scrollLeft, e.clientY - r.top + pane.el.scrollTop]; };
+    const pt = (e) => ptIn(e, cur.current && cur.current.pane);
+    const erase = (p, pk) => { store.current[pageKey] = list().filter((s) => (s.pk || null) !== (pk || null) || !s.pts.some((q) => Math.abs(q[0] - p[0]) < 16 && Math.abs(q[1] - p[1]) < 16)); redraw(); };
+    const canDraw = (x, y) => !window.NV_PEN_PANES || !!paneAt(x, y);
     /* ---- Nét vẽ dùng chung cho chuột / bút / ngón tay ---- */
     const startStroke = (e) => {
-      const p = pt(e);
-      if (tool === "erase") { cur.current = { erasing: true }; erase(p); return; }
+      const pane = window.NV_PEN_PANES ? paneAt(e.clientX, e.clientY) : null;
+      if (window.NV_PEN_PANES && !pane) { cur.current = null; return; } /* ngoài vùng trắng: không vẽ */
+      const p = ptIn(e, pane);
+      if (tool === "erase") { cur.current = { erasing: true, pane, pk: pane && pane.key }; erase(p, pane && pane.key); return; }
       const hl = tool === "hl", isPen = e.pointerType === "pen";
-      cur.current = { pts: [p], pr: isPen && !hl ? [e.pressure || 0.5] : null, color: hl ? "#facc15" : PEN[color] || PEN.red, w: hl ? 22 : isPen ? 2.8 : 3.5, a: hl ? 0.4 : 1, hl };
+      cur.current = { pane, pk: pane ? pane.key : undefined, pts: [p], pr: isPen && !hl ? [e.pressure || 0.5] : null, color: hl ? "#facc15" : PEN[color] || PEN.red, w: hl ? 22 : isPen ? 2.8 : 3.5, a: hl ? 0.4 : 1, hl };
       redraw();
     };
     const extendStroke = (e) => {
@@ -4149,7 +4169,7 @@
       const evs = (ne.getCoalescedEvents && ne.getCoalescedEvents()) || [];
       (evs.length ? evs : [e]).forEach((ev) => {
         const p = pt(ev);
-        if (cur.current.erasing) { erase(p); return; }
+        if (cur.current.erasing) { erase(p, cur.current.pk); return; }
         const P = cur.current.pts, last = P[P.length - 1];
         if (Math.abs(p[0] - last[0]) + Math.abs(p[1] - last[1]) < 0.8) return; // bỏ rung tay
         const k = 0.55; // làm mượt nhẹ (ổn định nét)
@@ -4161,7 +4181,7 @@
     const endStroke = (e) => {
       if (cur.current && !cur.current.erasing && cur.current.pts) {
         if (e && e.clientX != null && cur.current.pts.length > 1) { cur.current.pts.push(pt(e)); if (cur.current.pr) cur.current.pr.push(cur.current.pr[cur.current.pr.length - 1] * 0.7); }
-        list().push(cur.current);
+        const s = cur.current; delete s.pane; if (!s.pk) delete s.pk; list().push(s);
       }
       cur.current = null; redraw();
     };
@@ -4198,6 +4218,7 @@
         if (drawsWith(e)) {
           if (e.pointerType === "mouse" && e.button !== 0) return;
           if (isUI(e.target)) return; // bút chạm thanh công cụ / nút nổi → bấm như thường
+          if (!canDraw(e.clientX, e.clientY)) return; // ngoài khung trắng (đề Reading/Listening) → bấm như thường
           if (st.id != null) return;
           stop(e); st.id = e.pointerId; st.swallow = performance.now() + 900;
           try { if (!pen.current && e.pointerType === "pen") { pen.current = true; localStorage.setItem("nv-pencil", "1"); } } catch (err) {}
@@ -4225,7 +4246,7 @@
       const tstart = (e) => {
         let block = false;
         for (const t of e.changedTouches) {
-          if (t.touchType === "stylus") { if (!isUI(t.target)) block = true; continue; }
+          if (t.touchType === "stylus") { if (!isUI(t.target) && canDraw(t.clientX, t.clientY)) block = true; continue; }
           if (nearPalm(t.clientX, t.clientY) || palmish(t.clientX, t.clientY, (t.radiusX || 0) * 2, (t.radiusY || 0) * 2)) { st.palmTouches.add(t.identifier); block = true; }
         }
         if (block && e.cancelable) e.preventDefault(); // chặn cuộn, bôi đen chữ, kính lúp và cú bấm nhầm
@@ -4259,7 +4280,7 @@
     const move = (e) => {
       if (!on || pencilMode) return;
       const f = fing.current;
-      if (f && f.id === e.pointerId) { window.scrollBy(f.x - e.clientX, f.y - e.clientY); f.x = e.clientX; f.y = e.clientY; return; }
+      if (f && f.id === e.pointerId) { const pn = paneAt(e.clientX, e.clientY); (pn ? pn.el : window).scrollBy(f.x - e.clientX, f.y - e.clientY); f.x = e.clientX; f.y = e.clientY; return; }
       if (!cur.current || e.pointerId !== act.current) return;
       extendStroke(e);
     };
@@ -4271,7 +4292,9 @@
       endStroke(e);
     };
     const grab = on && !pencilMode;
-    return h("canvas", { ref: cv, "data-nv-nopin": "1", onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up,
+    /* lăn chuột khi đang bật bút: cuộn đúng khung dưới con trỏ */
+    const wheel = (e) => { const pn = paneAt(e.clientX, e.clientY); if (pn) pn.el.scrollBy(e.deltaX, e.deltaY); else window.scrollBy(e.deltaX, e.deltaY); };
+    return h("canvas", { ref: cv, "data-nv-nopin": "1", onWheel: wheel, onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up,
       style: { position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 45, pointerEvents: grab ? "auto" : "none", touchAction: grab ? "none" : "auto", WebkitUserSelect: "none", userSelect: "none", WebkitTouchCallout: "none", cursor: grab ? (tool === "erase" ? "cell" : "crosshair") : "default" } });
   }
 

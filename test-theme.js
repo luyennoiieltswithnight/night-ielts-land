@@ -566,8 +566,13 @@
     var chain = Promise.resolve();
     if (!window.React) chain = chain.then(function () { return load('https://unpkg.com/react@18.3.1/umd/react.production.min.js'); });
     if (!window.ReactDOM) chain = chain.then(function () { return load('https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js'); });
-    chain.then(function () { return window.NightLesson && window.NightLesson.mountPen ? null : load(base + 'khoahoc/night-engine.js?v=20261109c'); })
+    chain.then(function () { return window.NightLesson && window.NightLesson.mountPen ? null : load(base + 'khoahoc/night-engine.js?v=20261110p'); })
       .then(function () {
+        /* đề có 2 khung cuộn riêng (bài đọc | câu hỏi): chỉ vẽ trong vùng trắng, nét đi theo cuộn của từng khung, mỗi Passage/Part giữ nét riêng */
+        if (document.querySelector('.panel-content')) {
+          window.NV_PEN_PANES = '.panel-content';
+          window.NV_PEN_PART = function () { try { return typeof currentPassage !== 'undefined' ? 'p' + currentPassage : typeof currentSection !== 'undefined' ? 's' + currentSection : ''; } catch (e) { return ''; } };
+        }
         window.NightLesson.mountPen();
         if (b) b.remove();
         var tries = 0, t = setInterval(function () { /* bật bút ngay */
