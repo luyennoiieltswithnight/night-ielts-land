@@ -8,7 +8,7 @@
     left: ZH ? 'zh_panda' : 'study_english_ondoku_6827',
     right: ZH ? 'zh_teacher' : 'book_sakubun_kodomo_girl'
   };
-  if (K.theme === 'night') { P.left = 'garden/tsukimi_jugoya_usagi'; P.right = 'garden/gardening_jouro'; P.hero = 'garden/flower_seichou8'; }
+  if (K.theme === 'night' || K.theme === 'garden') { P.left = 'garden/tsukimi_jugoya_usagi'; P.right = 'garden/gardening_jouro'; P.hero = 'garden/flower_seichou8'; }
   var pic = function (n, cls) { return '<img class="' + cls + '" src="' + IMG + n + '.webp" alt="" loading="lazy">'; };
   var css = document.createElement('style');
   css.textContent = [
@@ -92,7 +92,36 @@
   ].join('\n');
   document.head.appendChild(css);
   /* ===== Giao diện ĐÊM (Khu vườn từ vựng): nền xanh đêm, kính mờ, chữ trắng, nhấn vàng cam ===== */
-  if (K.theme === 'night') {
+  if (K.theme === 'garden') {
+    /* Khu vườn trên mây: nền trời theo giờ giống trang vườn, thẻ gõ là "đảo kính" viền mây, có chậu cây của từ đang tưới */
+    var SKY = { day: 'linear-gradient(180deg,#3E9BEA 0%,#76C1FA 40%,#B7E2FF 100%)', dawn: 'linear-gradient(180deg,#3B3F8E 0%,#9B7BC4 40%,#F7A58A 100%)', dusk: 'linear-gradient(180deg,#22265E 0%,#6A4C9C 40%,#E0779A 100%)', night: 'radial-gradient(120% 80% at 80% 0%,#3B3A78 0%,#1B1F4B 50%,#141838 100%)' };
+    var gc = document.createElement('style');
+    gc.textContent = [
+      'html{background:#1B1F4B!important}',
+      'body,body.paper-texture{background:' + (SKY[K.ph] || SKY.night) + '!important;background-attachment:fixed!important}',
+      K.ph === 'night' ? '' : 'body:before{display:none}',
+      '.nv-cl{position:fixed;z-index:0;pointer-events:none;height:56px;border-radius:99px;background:#fff;opacity:' + (K.ph === 'night' ? '.12' : '.75') + ';animation:nvDrift linear infinite}',
+      '.nv-cl:before,.nv-cl:after{content:"";position:absolute;background:inherit;border-radius:999px}.nv-cl:before{width:55%;height:150%;left:14%;top:-60%}.nv-cl:after{width:38%;height:120%;right:12%;top:-40%}',
+      '@keyframes nvDrift{from{transform:translateX(-30vw)}to{transform:translateX(130vw)}}',
+      '#app>div.min-h-screen{background:' + (K.ph === 'night' ? 'rgba(20,24,64,.55)' : 'rgba(30,46,110,.32)') + '!important;backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.22)!important;z-index:1}',
+      '#app .nv-type section.bg-white{border:3px solid rgba(220,224,255,.55)!important;border-radius:34px!important;box-shadow:0 0 0 6px rgba(255,255,255,.08),0 30px 60px -30px rgba(0,0,0,.7)!important}',
+      '.nv-side.l{display:none!important}',
+      '.nv-gp{position:absolute;left:18px;top:18px;width:132px;z-index:2;pointer-events:none;text-align:center}',
+      '.nv-gp .pot svg.ga{width:92px;height:134px;overflow:visible;display:block;margin:0 auto -34px;position:relative;z-index:1}',
+      '.nv-gp .cl{height:46px}.nv-gp .cl svg{width:100%;height:46px;display:block;overflow:visible}',
+      '.nv-gp .tag{display:inline-block;margin-top:4px;font:800 11px "Plus Jakarta Sans",sans-serif;color:#FFE7A3;background:rgba(0,0,0,.25);border-radius:99px;padding:3px 9px}',
+      '.ga-sway{transform-box:view-box;transform-origin:50px 104px;animation:nvSway 3.4s ease-in-out infinite}@keyframes nvSway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}',
+      '.nv-gp.grow .pot{animation:nvGrow .9s cubic-bezier(.2,1.6,.4,1)}@keyframes nvGrow{0%{transform:scale(.7)}60%{transform:scale(1.15)}100%{transform:scale(1)}}',
+      '.nv-gp.shake .pot{animation:nvShake .5s}@keyframes nvShake{25%{transform:rotate(-6deg)}75%{transform:rotate(6deg)}}',
+      '.nv-gp .sp{position:absolute;width:10px;height:10px;border-radius:50%;background:#FFE066;box-shadow:0 0 10px #FFE066;animation:nvSp .9s ease-out forwards}@keyframes nvSp{to{transform:translate(var(--x),var(--y)) scale(.2);opacity:0}}',
+      '.nv-gp .msg{position:absolute;left:50%;top:-6px;transform:translateX(-50%);white-space:nowrap;font:800 12px "Plus Jakarta Sans",sans-serif;color:#3A2410;background:#FFD66B;border-radius:99px;padding:4px 10px;animation:nvMsg 1.6s forwards}@keyframes nvMsg{0%{opacity:0;transform:translate(-50%,8px)}15%,75%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-10px)}}',
+      '@media(max-width:860px){.nv-gp{width:84px;left:4px;top:122px}.nv-gp .pot svg.ga{width:58px;height:84px;margin-bottom:-22px}.nv-gp .cl,.nv-gp .cl svg{height:30px}.nv-gp .tag{display:none}}'
+    ].join('\n');
+    setTimeout(function () { document.head.appendChild(gc); }, 0); /* đặt sau lớp CSS đêm để nền trời theo giờ thắng */
+    var clh = ''; for (var ci = 0; ci < 5; ci++) { var cw = 120 + Math.random() * 150; clh += '<span class="nv-cl" style="width:' + cw.toFixed(0) + 'px;height:' + (cw * .3).toFixed(0) + 'px;top:' + (6 + Math.random() * 70).toFixed(0) + 'vh;animation-duration:' + (60 + Math.random() * 60).toFixed(0) + 's;animation-delay:-' + (Math.random() * 100).toFixed(0) + 's"></span>'; }
+    var addCl = function () { if (document.body) document.body.insertAdjacentHTML('afterbegin', clh); else setTimeout(addCl, 30); }; addCl();
+  }
+  if (K.theme === 'night' || K.theme === 'garden') {
     var nc = document.createElement('style');
     nc.textContent = [
       'html{background:#141838!important}body,body.paper-texture{background:radial-gradient(120% 80% at 80% 0%,#3B3A78 0%,#1B1F4B 50%,#141838 100%)!important;color:#fff}',

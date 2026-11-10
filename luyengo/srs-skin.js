@@ -54,6 +54,29 @@
     auto = true; try { origNext.apply(this, arguments); } finally { auto = false; }
     fresh(state.practiceIndex);
   };
+  /* ---- chậu cây của từ đang tưới (khu vườn trên mây) ---- */
+  var TN = ['Hạt giống', 'Mầm', 'Cây non', 'Nụ', 'Hoa', 'Vườn hoa'], gpI = -1;
+  function gpBox() {
+    if (!K.pl || !window.GardenArt) return null;
+    var sec = document.querySelector('#app .nv-type section.bg-white'); if (!sec) return null;
+    var el = sec.querySelector('.nv-gp');
+    if (!el) { el = document.createElement('div'); el.className = 'nv-gp'; el.innerHTML = '<div class="pot"></div><div class="cl">' + GardenArt.cloud(7).replace('class="ga-cloud"', 'class="ga-cloud" style="--clo:#9EA3E6"') + '</div><span class="tag"></span>'; sec.appendChild(el); gpI = -1; }
+    return el;
+  }
+  function showPlant(i, stage, tag) {
+    var el = gpBox(); if (!el) return; var p = K.pl[i] || {};
+    el.querySelector('.pot').innerHTML = GardenArt.plant(p.f, stage, { special: !!p.fx });
+    el.querySelector('.tag').textContent = tag || TN[stage] || '';
+  }
+  function syncPlant() { if (!K.pl || state.completed) return; var i = state.practiceIndex; if (i !== gpI || !document.querySelector('.nv-gp')) { gpI = i; var p = K.pl[i] || {}; showPlant(i, p.b || 0); } }
+  function growFx(i, g) {
+    var p = K.pl && K.pl[i]; if (!p) return; var el = gpBox(); if (!el) return;
+    var nb = g === 'perfect' ? Math.min(5, (p.b || 0) + 1) : g === 'fail' ? 1 : p.b || 0;
+    showPlant(i, g === 'fail' ? 'wilt' : nb, g === 'perfect' ? 'Lên ' + TN[nb] + '!' : g === 'ok' ? 'Giữ bậc' : 'Trồng lại');
+    el.classList.remove('grow', 'shake'); void el.offsetWidth; el.classList.add(g === 'perfect' ? 'grow' : 'shake');
+    if (g === 'perfect') for (var k = 0; k < 10; k++) { var s = document.createElement('i'); s.className = 'sp'; s.style.left = '50%'; s.style.top = '40%'; s.style.setProperty('--x', (Math.cos(k * .63) * 60).toFixed(0) + 'px'); s.style.setProperty('--y', (Math.sin(k * .63) * 50 - 20).toFixed(0) + 'px'); el.appendChild(s); setTimeout(function (x) { x.remove(); }.bind(null, s), 950); }
+    var m = document.createElement('span'); m.className = 'msg'; m.textContent = g === 'perfect' ? 'Cây lớn thêm!' : g === 'ok' ? 'Giữ bậc' : 'Trồng lại nhé'; el.appendChild(m); setTimeout(function () { m.remove(); }, 1650);
+  }
   function done() {
     var p = results.filter(function (g) { return g === 'perfect'; }).length, o = results.filter(function (g) { return g === 'ok'; }).length;
     var d = document.createElement('div'); d.className = 'nv-srs-done';
@@ -69,8 +92,10 @@
   }
   function watch() {
     if (!cur || typeof state === 'undefined') return;
+    syncPlant();
     if (state.errorIndex >= 0) cur.err = true;
     if (state.hintActive) cur.hint = true;
+    if (state.completed && !cur.fx && K.pl) { cur.fx = 1; growFx(cur.i, cur.rev ? 'fail' : (cur.hint || cur.err || cur.heard || state.hintActive) ? 'ok' : 'perfect'); }
     var lab = document.querySelector('.nv-mf'), show = mfNow() && !state.completed;
     var stage = document.querySelector('.nv-stage');
     if (show && !lab && stage) stage.insertAdjacentHTML('afterbegin', '<div class="nv-mf">Nhìn nghĩa, tự nhớ ra từ — bấm loa là dùng gợi ý</div>');

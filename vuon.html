@@ -128,7 +128,7 @@ button,input,textarea,select{font-family:inherit}
 @keyframes shoot{0%,86%{opacity:0;transform:translate(0,0) rotate(-24deg)}88%{opacity:1}100%{opacity:0;transform:translate(-520px,230px) rotate(-24deg)}}
 .garden{position:relative;margin-top:30px;padding-left:0}
 .vine{display:none}
-.stalk{position:absolute;left:50%;top:0;bottom:120px;width:70px;transform:translateX(-50%);z-index:0;pointer-events:none}
+.stalk{position:absolute;left:50%;top:0;bottom:120px;width:240px;transform:translateX(-50%);z-index:0;pointer-events:none}.stalk>svg{display:block}
 .stalk svg{width:100%;height:100%}
 .isle{position:relative;z-index:1;width:min(100%,820px);margin:0 auto 34px;cursor:pointer;animation:bob 6s ease-in-out infinite}
 .isle:nth-child(odd){margin-left:0}.isle:nth-child(even){margin-right:0}
@@ -267,6 +267,27 @@ body.intro .wrap{visibility:hidden}
 .gate .half b{position:absolute;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--cl1),var(--cl2) 60%,var(--cl3));box-shadow:inset -10px -14px 30px rgba(120,130,200,.25)}
 .gate .core{position:absolute;inset:0;background:linear-gradient(180deg,var(--cl1),var(--cl2))}
 .gate .L .core{right:12vw}.gate .R .core{left:12vw}
+.gstar{position:absolute;left:50%;top:-6px;transform:translateX(-50%);border:0;background:none;padding:6px;cursor:pointer;z-index:4;animation:starb 1.6s ease-in-out infinite;filter:drop-shadow(0 0 8px rgba(255,214,80,.95))}
+@keyframes starb{0%,100%{transform:translate(-50%,0) rotate(-8deg)}50%{transform:translate(-50%,-7px) rotate(8deg)}}
+.starfly{position:fixed;z-index:4000;pointer-events:none;transition:transform .75s cubic-bezier(.5,-.3,.6,1),opacity .75s}
+.magic.pop{animation:mpop .5s}@keyframes mpop{50%{transform:scale(1.04)}}
+.an{position:absolute;bottom:92px;left:4%;z-index:3;pointer-events:none;animation:walk linear infinite}
+.an-f{animation:flip linear infinite}
+.an-b{animation:hop .42s ease-in-out infinite alternate;transform-origin:50% 100%}
+.an-b svg{width:100%;height:auto;display:block;filter:drop-shadow(0 4px 3px rgba(20,24,60,.25))}
+.an-b.ga,.an-b.ech{animation-duration:.3s}.an-b.cu{animation:none}
+@keyframes walk{0%{left:3%}48%{left:calc(96% - 60px)}52%{left:calc(96% - 60px)}100%{left:3%}}
+@keyframes flip{0%,49.9%{transform:scaleX(1)}50%,100%{transform:scaleX(-1)}}
+@keyframes hop{from{transform:translateY(0) rotate(-2deg)}to{transform:translateY(-3px) rotate(2deg)}}
+.owl{position:absolute;left:calc(50% + 6px);top:150px;width:56px;z-index:1;animation:hop 2.4s ease-in-out infinite alternate}.owl svg{width:100%}
+.shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.shop .sc{background:var(--panel);border-radius:20px;padding:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.shop .sc.own{background:#ECFDF5}
+.shop .pic{width:84px;height:72px;display:grid;place-items:center}.shop .pic svg{width:76px}
+.shop .btn{padding:7px 12px;font-size:12.5px;display:inline-flex;align-items:center;gap:5px}
+.shop .buy{background:var(--ink);color:#fff}.shop .buy:disabled{opacity:.4}.shop .mv{background:#fff;color:#0F7A6B}
+.ga-mini{animation:mini 6s ease-in-out infinite alternate}@keyframes mini{to{transform:translate(8px,-5px)}}
+@media(max-width:640px){.an{bottom:80px}.stalk{width:130px}.stalk>svg{transform:scaleX(.55);transform-origin:50% 0;margin-left:-55px}}
 </style>
 </head>
 <body class="intro">
@@ -302,7 +323,7 @@ body.intro .wrap{visibility:hidden}
 <div class="sheet" id="sheet"><div id="sheetBody"></div></div>
 <div id="player"><iframe id="pFrame" title="Ôn từ vựng" allow="autoplay"></iframe></div>
 
-<script src="luyengo/garden-art.js?v=1"></script>
+<script src="luyengo/garden-art.js?v=3"></script>
 <script src="luyengo/engine-en.js?v=20261110"></script>
 <script src="luyengo/engine-zh.js?v=20261110"></script>
 <script src="night-login.js"></script>
@@ -407,6 +428,7 @@ function render() {
   if (!S.user) { m.innerHTML = `<div class="glass lock"><img src="${IMG}gardening_man.webp" alt=""><h2>Khu vườn từ vựng</h2><p style="color:#D6D8F5">Đăng nhập để mở khu vườn của bạn.</p><button class="go" id="login">Đăng nhập</button></div>`; $('#login').onclick = () => NightLogin.open({ auth, authM: A }); return; }
   if (!S.ok) { m.innerHTML = `<div class="glass lock"><img src="${IMG}tsukimi_jugoya_usagi.webp" alt=""><h2>Khu vườn dành cho Pro · Astra · Học sinh</h2><p style="color:#D6D8F5;line-height:1.6">Mỗi từ bạn lưu sẽ thành một hạt giống. Ôn đúng "thời điểm vàng" bằng cách nghe – gõ, cây sẽ lớn dần thành hoa — và từ đó nằm lại trong trí nhớ rất lâu.</p><button class="go" id="up">Nâng cấp để mở vườn</button></div>`; $('#up').onclick = () => window.NightPlan && NightPlan.openUpgrade('', 'pro'); return; }
   if (!S.data) { m.innerHTML = '<div class="glass lock">Đang mở khu vườn…</div>'; return; }
+  spawnStars();
   const W = words(), due = W.filter(isDue).sort((a, b) => a.d - b.d), seeds = W.filter(x => x.b === 0);
   const d = S.data.day.d === today() ? S.data.day : { nw: 0, rv: 0 }, npd = S.data.set.npd || 20;
   const newLeft = Math.max(0, Math.min(npd - d.nw, seeds.length));
@@ -431,6 +453,7 @@ function render() {
       <div class="npd" style="padding:10px 12px"><div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:800"><span>Vườn đã nở hoa</span><span style="color:#9BE7A1">${W.length ? Math.round((W.filter(x => x.b >= 4).length) / W.length * 100) : 0}%</span></div>
         <div style="height:10px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:7px;display:flex">${[1, 2, 3, 4, 5].map(k => { const n = W.filter(x => x.b === k).length; return n ? `<i title="${STAGE[k].n}: ${n}" style="width:${n / Math.max(1, W.length) * 100}%;background:${['', '#7CCBFF', '#8EE07E', '#FFD66B', '#FF9EC4', '#B79CFF'][k]}"></i>` : ''; }).join('')}</div></div>
       ${magicRow()}
+      ${starRow()}
       <div class="npd"><b style="font-size:13.5px">Hạt mới mỗi ngày</b>
         <div class="row">${NPD.map(n => `<button data-npd="${n}" class="${npd === n ? 'on' : ''}">${n} từ</button>`).join('')}</div>
         <p>${npd < 30 ? 'Mẹo: học sinh chăm thường chọn <b>30–50 từ/ngày</b> — chọn nhiều lên để vườn lớn nhanh hơn! ' : ''}Số hạt mới chỉ lấy từ kho của bạn${seeds.length < npd ? ` (kho đang còn <b>${seeds.length}</b> hạt — thêm từ để đủ ${npd})` : ''}.</p>
@@ -438,10 +461,7 @@ function render() {
     </div>
   </div>
   <div class="garden">
-    <div class="stalk"><svg viewBox="0 0 70 1000" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="st" x1="0" x2="1"><stop offset="0" stop-color="#2E7D32"/><stop offset=".5" stop-color="#7CD67F"/><stop offset="1" stop-color="#2E7D32"/></linearGradient></defs>
-      <path d="M35 1000 C5 900 65 820 35 720 C5 620 65 540 35 440 C5 340 65 260 35 160 C15 90 45 40 35 0" fill="none" stroke="url(#st)" stroke-width="16" stroke-linecap="round"/>
-      ${Array.from({ length: 12 }, (_, i) => { const y = 60 + i * 80, l = i % 2; return `<path d="M35 ${y} q${l ? -30 : 30} -18 ${l ? -34 : 34} 4 q${l ? 14 : -14} 10 ${l ? 34 : -34} -4z" fill="#66BB6A" opacity=".95"/>`; }).join('')}
-    </svg></div>
+    <div class="stalk" id="stalk"></div>${(S.data.an || []).some(a => a.k === 'cu') ? `<div class="owl">${GardenArt.animal('cu')}</div>` : ''}
     ${[5, 4, 3, 2, 1, 0].map(b => tier(b, W)).join('')}
     <div class="ground"><img class="man" src="${IMG}gardening_man.webp" alt=""><div class="txt"><b>Bí quyết của khu vườn</b><p>Não quên rất nhanh sau khi học. Mỗi lần bạn <b>tự nhớ lại</b> đúng lúc sắp quên, trí nhớ được "tưới" và lần sau quên chậm hơn — nên khoảng nghỉ giãn dần 1 → 3 → 7 → 14 → 30 ngày.</p></div><img class="rabbit" src="${IMG}tsukimi_jugoya_usagi.webp" alt=""></div>
   </div>`;
@@ -450,12 +470,15 @@ function render() {
   m.querySelectorAll('[data-tier] .sign').forEach(b => b.onclick = () => openBank(+b.closest('[data-tier]').dataset.tier));
   m.querySelectorAll('[data-w]').forEach(b => b.onclick = e => { e.stopPropagation(); openPlant(b.dataset.w); });
   const mgb = $('#mgBtn'); if (mgb) mgb.onclick = openMagic;
+  const shb = $('#shopBtn'); if (shb) shb.onclick = openShop;
+  m.querySelectorAll('[data-star]').forEach(b => b.onclick = e => { e.stopPropagation(); pickStar(b); });
+  requestAnimationFrame(drawStalk);
   clearInterval(cdT); tick(); cdT = setInterval(tick, 1000);
 }
 /* Đảo mây mềm (vẽ tay) + cây trong chậu theo loài hoa */
 function plantHTML(x, b, i, sample) {
   const dry = !sample && isDry(x), due = !sample && isDue(x), sp = !!x.fx;
-  return `<div class="pl s${b}${dry ? ' dry' : ''}${due ? ' thirsty' : ''}${b === 5 ? ' gold' : ''}${sp ? ' sp' : ''}" ${sample ? '' : `data-w="${x.id}"`} title="${esc(x.t || '')}${x.m ? ' — ' + esc(x.m) : ''}">${GardenArt.plant(flowerOf(x), dry ? 'wilt' : b, { delay: -(i * .37 % 3.4).toFixed(2), special: sp })}${sample ? '' : `<span class="${x.l === 'zh' ? 'zhf' : ''}">${esc(x.t)}</span>`}</div>`;
+  return `<div class="pl s${b}${dry ? ' dry' : ''}${due ? ' thirsty' : ''}${b === 5 ? ' gold' : ''}${sp ? ' sp' : ''}" ${sample ? '' : `data-w="${x.id}"`} title="${esc(x.t || '')}${x.m ? ' — ' + esc(x.m) : ''}">${GardenArt.plant(flowerOf(x), dry ? 'wilt' : b, { delay: -(i * .37 % 3.4).toFixed(2), special: sp })}${!sample && S.data && S.data.ss && S.data.ss.ids.includes(x.id) ? `<button class="gstar" data-star="${x.id}" aria-label="Nhặt sao">${GardenArt.star(30)}</button>` : ''}${sample ? '' : `<span class="${x.l === 'zh' ? 'zhf' : ''}">${esc(x.t)}</span>`}</div>`;
 }
 function tier(b, W) {
   const L = W.filter(x => x.b === b).sort((a, c) => (isDue(c) - isDue(a)) || (isDry(c) - isDry(a)) || (a.d - c.d)), dueN = L.filter(isDue).length, MAX = 60;
@@ -463,6 +486,7 @@ function tier(b, W) {
   return `<div class="isle" data-tier="${b}" style="animation-delay:${(-b * 1.1).toFixed(1)}s">
     <div class="sign">${GardenArt.plant('sun', b, {}).replace('class="ga"', 'class="ga" style="width:20px;height:28px"')}${STAGE[b].n}<small>${STAGE[b].d}</small><span class="cnt${dueN ? ' due' : ''}">${dueN ? dueN + ' cần tưới · ' : ''}${L.length}</span></div>
     <div class="land">${GardenArt.cloud(b + 1)}<span class="lamp" style="left:4%"></span><span class="lamp" style="right:4%;animation-delay:1.2s"></span>
+      ${animalsOn((S.data.an || []).filter(a => a.t === b && a.k !== 'cu').map(a => a.k))}
       ${plants ? `<div class="row">${plants}${L.length > MAX ? `<span class="more">+${L.length - MAX} cây</span>` : ''}</div>` : `<div class="emptycl" style="bottom:120px">${b === 0 ? 'Chưa có hạt giống — bấm Kho hạt giống để gieo' : 'Chưa có cây nào ở bậc này'}</div>`}
     </div></div>`;
 }
@@ -532,9 +556,60 @@ setTimeout(mSync, 0);
 document.querySelectorAll('#langSeg button').forEach(b => b.onclick = () => { S.lang = b.dataset.l; try { localStorage.setItem('vuon-lang', S.lang); } catch (e) {} render(); });
 
 
+
+/* ================== CÂY ĐẬU THẦN · SAO · THÚ GIỮ VƯỜN ================== */
+function drawStalk() { const el = $('#stalk'); if (!el) return; const H = el.clientHeight; if (H && Math.abs((+el.dataset.h || 0) - H) > 4) { el.dataset.h = H; el.innerHTML = GardenArt.stalk(H); } }
+window.addEventListener('resize', () => { clearTimeout(drawStalk.t); drawStalk.t = setTimeout(drawStalk, 200); });
+function animalsOn(keys) {
+  return keys.map((k, i) => { const d = 34 + (hashN(k) % 22), sc = { ga: .78, ech: .8, vit: .9, nhim: .9, panda: 1.15, cao: 1.05 }[k] || 1; return `<div class="an" style="animation-duration:${d}s;animation-delay:${-(i * 11 + hashN(k) % 9)}s"><div class="an-f" style="animation-duration:${d}s;animation-delay:${-(i * 11 + hashN(k) % 9)}s"><div class="an-b ${k}" style="width:${Math.round(56 * sc)}px">${GardenArt.animal(k)}</div></div></div>`; }).join('');
+}
+/* Sao: cứ 4 tiếng vườn rụng một đợt sao lên các cây — phải vào vườn nhặt, qua đợt sau sao cũ biến mất */
+const slotNow = () => today() + ':' + Math.floor(new Date().getHours() / 4);
+function spawnStars() {
+  const D = S.data; if (!D) return;
+  D.sc = D.sc || 0; D.an = D.an || [];
+  const slot = slotNow(); if (D.ss && D.ss.slot === slot) return;
+  const shown = []; [0, 1, 2, 3, 4, 5].forEach(b => words().filter(x => x.b === b).sort((a, c) => (isDue(c) - isDue(a)) || (isDry(c) - isDry(a)) || (a.d - c.d)).slice(0, 60).forEach(x => shown.push(x)));
+  const pool = shown.filter(x => x.b >= 1).length ? shown.filter(x => x.b >= 1) : shown;
+  const n = pool.length ? Math.min(6, Math.max(1, Math.round(pool.length / 8))) : 0, ids = [];
+  while (ids.length < n) { const x = pool[Math.floor(Math.random() * pool.length)]; if (!ids.includes(x.id)) ids.push(x.id); }
+  D.ss = { slot, ids }; save();
+}
+function pickStar(btn) {
+  const id = btn.dataset.star, D = S.data; if (!D.ss.ids.includes(id)) return;
+  D.ss.ids = D.ss.ids.filter(x => x !== id); D.sc = (D.sc || 0) + 1; save();
+  const r = btn.getBoundingClientRect(), to = $('#starCnt'), t = to ? to.getBoundingClientRect() : { left: innerWidth - 60, top: 20 };
+  const f = document.createElement('div'); f.className = 'starfly'; f.innerHTML = GardenArt.star(34); f.style.left = r.left + 'px'; f.style.top = r.top + 'px'; document.body.appendChild(f);
+  requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transform = `translate(${t.left - r.left}px,${t.top - r.top}px) scale(.6) rotate(220deg)`; f.style.opacity = '.2'; }));
+  try { const a = new (window.AudioContext || window.webkitAudioContext)(); [988, 1319, 1760].forEach((fr, i) => { const o = a.createOscillator(), g = a.createGain(); o.type = 'triangle'; o.frequency.value = fr; g.gain.setValueAtTime(.0001, a.currentTime + i * .07); g.gain.exponentialRampToValueAtTime(.12, a.currentTime + i * .07 + .01); g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + i * .07 + .25); o.connect(g); g.connect(a.destination); o.start(a.currentTime + i * .07); o.stop(a.currentTime + i * .07 + .3); }); setTimeout(() => a.close(), 900); } catch (e) {}
+  btn.remove();
+  setTimeout(() => { f.remove(); const c = $('#starCnt'); if (c) { c.textContent = D.sc; c.parentElement.classList.remove('pop'); void c.offsetWidth; c.parentElement.classList.add('pop'); } }, 750);
+}
+function starRow() {
+  const D = S.data, left = (D.ss && D.ss.ids.length) || 0, h = new Date().getHours(), nxt = (Math.floor(h / 4) + 1) * 4;
+  return `<div class="magic" style="background:linear-gradient(135deg,rgba(255,212,59,.24),rgba(155,231,161,.18))"><span class="ic" style="display:grid;place-items:center">${GardenArt.star(38)}</span><div><b>Sao: <span id="starCnt">${D.sc || 0}</span></b><small>${left ? `Còn <b>${left}</b> ngôi sao trên cây — chạm để nhặt trước ${String(nxt % 24).padStart(2, '0')}:00 kẻo bay mất!` : `Đợt sao mới rụng lúc ${String(nxt % 24).padStart(2, '0')}:00 · tưới 5 cây cũng được 1 sao`}</small></div><button id="shopBtn"><i class="fa-solid fa-paw"></i> Thú giữ vườn</button></div>`;
+}
+function openShop() {
+  const D = S.data, own = k => (D.an || []).find(a => a.k === k), TN = ['Hạt giống', 'Mầm', 'Cây non', 'Nụ', 'Hoa', 'Vườn hoa'];
+  $('#sheetBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1">Thú giữ vườn</h3><span style="display:inline-flex;align-items:center;gap:6px;font-weight:800">${GardenArt.star(22)} ${D.sc || 0}</span><button class="btn" style="background:var(--panel)" id="closeS"><i class="fa-solid fa-xmark"></i></button></div>
+    <p class="sub">Đổi sao lấy bạn thú — các bạn sẽ đi dạo trên đảo mây của vườn. Sao có được khi nhặt trên cây (mỗi 4 tiếng một đợt) và khi tưới vườn.</p>
+    <div class="shop">${GardenArt.ANIMALS.map(a => { const o = own(a.k); return `<div class="sc${o ? ' own' : ''}"><div class="pic">${GardenArt.animal(a.k)}</div><b>${a.n}</b>
+      ${o ? (a.k === 'cu' ? '<small>Đậu trên cây đậu thần</small>' : `<button class="btn mv" data-mv="${a.k}">Ở tầng ${TN[o.t]} <i class="fa-solid fa-arrows-rotate"></i></button>`) : `<button class="btn buy" data-buy="${a.k}" ${(D.sc || 0) >= a.p ? '' : 'disabled'}>${GardenArt.star(16)} ${a.p}</button>`}</div>`; }).join('')}</div>`;
+  $('#sheet').classList.add('show');
+  $('#closeS').onclick = () => $('#sheet').classList.remove('show');
+  $('#sheetBody').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+    const a = GardenArt.ANIMALS.find(x => x.k === b.dataset.buy); if ((D.sc || 0) < a.p) return;
+    const tiers = [0, 1, 2, 3, 4, 5].map(t => [t, words().filter(x => x.b === t).length]).filter(x => x[1]).sort((p, q) => q[1] - p[1]).map(x => x[0]);
+    D.sc -= a.p; D.an.push({ k: a.k, t: tiers.length ? tiers[D.an.length % tiers.length] : 0 }); save(); render(); openShop(); toast(`${a.n} đã về khu vườn của bạn!`);
+  });
+  $('#sheetBody').querySelectorAll('[data-mv]').forEach(b => b.onclick = () => { const o = own(b.dataset.mv); o.t = (o.t + 1) % 6; save(); render(); openShop(); });
+}
+
 /* ---------- chọn loài hoa ---------- */
 function flPicker(cur, withMix) {
-  return `<div class="flw" id="flPick">${withMix ? `<button data-fl="mix" class="${cur === 'mix' ? 'on' : ''}"><svg viewBox="-22 -26 44 44" class="ga-chip">${GardenArt.bloom('sakura')}</svg>Nhiều loài</button>` : ''}${FL().map(f => `<button data-fl="${f.k}" class="${cur === f.k ? 'on' : ''}">${GardenArt.chip(f.k)}${f.n}</button>`).join('')}</div>`;
+  const grp = (g, t) => `<div class="lbl2" style="margin-top:2px">${t}</div><div class="flw">${FL().filter(f => f.g === g).map(f => `<button data-fl="${f.k}" class="${cur === f.k ? 'on' : ''}">${GardenArt.chip(f.k)}${f.n}</button>`).join('')}</div>`;
+  return `<div id="flPick">${withMix ? `<div class="flw"><button data-fl="mix" class="${cur === 'mix' ? 'on' : ''}"><svg viewBox="-22 -26 44 44" class="ga-chip">${GardenArt.bloom('sakura')}</svg>Trộn nhiều loài</button></div>` : ''}${grp('flower', 'Hoa')}${grp('tree', 'Cây ăn trái')}${grp('veg', 'Rau quả')}</div>`;
 }
 /* ---------- 1 cây: xem từ, đổi loài hoa, dùng phép màu ---------- */
 function openPlant(id) {
@@ -700,8 +775,8 @@ function playRound() {
   html = html.replace(/<script src="\/night-app\.js"[^>]*><\/script>/, '');
   const base = new URL('./', location.href).href;
   const lastRound = se.k === se.rounds.length - 1, left = Math.max(0, remaining() - R.length - (lastRound ? 0 : se.rounds.slice(se.k + 1).reduce((a, r) => a + r.items.length, 0)));
-  const cfg = { theme: 'night', lang: S.lang, ac: '#FFB55E', img: base + 'khoahoc/img/ira/', srs: { type, mf: R.map(x => type === 'phrase' && (x.b === 2 || x.b === 3)), last: lastRound, left } };
-  html = html.replace(/<\/body>\s*<\/html>\s*$/, `<script>window.NV_SKIN=${JSON.stringify(cfg)}<\/script><script src="${base}luyengo/skin.js"><\/script><script src="${base}luyengo/srs-skin.js?v=1"><\/script></body></html>`);
+  const cfg = { theme: 'garden', ph: phaseNow(), lang: S.lang, ac: '#FFB55E', img: base + 'khoahoc/img/ira/', srs: { type, mf: R.map(x => type === 'phrase' && (x.b === 2 || x.b === 3)), last: lastRound, left, pl: R.map(x => ({ f: flowerOf(x), b: x.b, fx: x.fx || '' })) } };
+  html = html.replace(/<\/body>\s*<\/html>\s*$/, `<script>window.NV_SKIN=${JSON.stringify(cfg)}<\/script><script src="${base}luyengo/garden-art.js?v=3"><\/script><script src="${base}luyengo/skin.js?v=2"><\/script><script src="${base}luyengo/srs-skin.js?v=2"><\/script></body></html>`);
   $('#pFrame').srcdoc = html;
   $('#player').classList.add('show'); document.body.style.overflow = 'hidden';
 }
@@ -739,7 +814,10 @@ function remaining() {
 }
 function finishSession() {
   const se = S.session; if (!se) return;
+  const tot = se.moved.up + se.moved.keep + se.moved.down, earn = Math.floor(tot / 5);
+  if (earn && S.data) S.data.sc = (S.data.sc || 0) + earn;
   S.session = null; save(true); render();
+  if (earn) setTimeout(() => toast(`+${earn} sao vì đã tưới ${tot} cây`), 3400);
   if (S.mgNew) { const n = S.mgNew; S.mgNew = 0; setTimeout(() => celebrate(n), 400); }
   else if (se.moved.up + se.moved.keep + se.moved.down) toast(`Đã tưới: ${se.moved.up} cây lớn thêm · ${se.moved.keep} giữ nguyên · ${se.moved.down} trồng lại`);
 }
@@ -842,7 +920,7 @@ function intro() {
   const ks = FL().map(f => f.k), sp = SPX().map(f => f.k);
   const isle = (b, n) => {
     const P = Array.from({ length: n }, (_, i) => { const k = (i * 3 + b) % 9 === 4 ? sp[(i + b) % 3] : ks[(i * 5 + b * 3) % ks.length]; return plantHTML({ id: 's' + b + i, t: '', f: k, fx: sp.includes(k) ? k : '' }, b >= 4 ? b : (i % 3 ? 5 : 4), i, true); }).join('');
-    return `<div class="isle" style="animation-delay:${(-b * 1.1).toFixed(1)}s"><div class="land">${GardenArt.cloud(b + 11)}<span class="lamp" style="left:4%"></span><span class="lamp" style="right:4%;animation-delay:1.2s"></span><div class="row" style="justify-content:center;-webkit-mask-image:none;mask-image:none">${P}</div></div></div>`;
+    return `<div class="isle" style="animation-delay:${(-b * 1.1).toFixed(1)}s"><div class="land">${GardenArt.cloud(b + 11)}<span class="lamp" style="left:4%"></span><span class="lamp" style="right:4%;animation-delay:1.2s"></span>${animalsOn([['cho', 'ga'], ['meo'], ['tho', 'vit'], ['panda'], ['cao', 'ech'], ['nhim']][5 - b])}<div class="row" style="justify-content:center;-webkit-mask-image:none;mask-image:none">${P}</div></div></div>`;
   };
   const d = document.createElement('div'); d.id = 'intro';
   d.innerHTML = `<div class="ttl"><span class="k">Khu vườn mẫu</span><h2>Một khu vườn đã nở rộ</h2><p>Mỗi bông hoa là một từ đã thuộc. Chăm tưới mỗi ngày — vườn của bạn cũng sẽ nở kín các tầng như thế này.</p></div>
