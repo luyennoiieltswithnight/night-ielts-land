@@ -288,6 +288,7 @@ body.intro .wrap{visibility:hidden}
 .shop .buy{background:var(--ink);color:#fff}.shop .buy:disabled{opacity:.4}.shop .mv{background:#fff;color:#0F7A6B}
 .ga-mini{animation:mini 6s ease-in-out infinite alternate}@keyframes mini{to{transform:translate(8px,-5px)}}
 @media(max-width:640px){.an{bottom:80px}.stalk{width:130px}.stalk>svg{transform:scaleX(.55);transform-origin:50% 0;margin-left:-55px}}
+.more-seed{margin-top:14px}.more-seed b{display:block;font-size:13.5px;margin-bottom:8px;color:#F1F2FF}.more-seed div{display:flex;flex-wrap:wrap;gap:8px}
 </style>
 </head>
 <body class="intro">
@@ -431,7 +432,7 @@ function render() {
   spawnStars();
   const W = words(), due = W.filter(isDue).sort((a, b) => a.d - b.d), seeds = W.filter(x => x.b === 0);
   const d = S.data.day.d === today() ? S.data.day : { nw: 0, rv: 0 }, npd = S.data.set.npd || 20;
-  const newLeft = Math.max(0, Math.min(npd - d.nw, seeds.length));
+  const newLeft = Math.max(0, Math.min(npd + (d.bonus || 0) - d.nw, seeds.length));
   const total = due.length + newLeft;
   const next = W.filter(x => x.b >= 1 && x.d > Date.now()).sort((a, b) => a.d - b.d)[0];
   const mastered = W.filter(x => x.b === 5).length;
@@ -439,9 +440,10 @@ function render() {
   <div class="hud">
     <div class="glass water">
       <div class="k">Hôm nay · ${new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric' })}</div>
-      <h2>${total ? `<b>${due.length}</b> cây cần tưới${newLeft ? ` · <b>${newLeft}</b> hạt mới` : ''}` : W.length ? 'Vườn đã tưới xong!' : 'Vườn còn trống'}</h2>
-      <p>${total ? 'Mỗi cây là một từ — nghe rồi gõ lại đúng là cây được tưới và lớn thêm một bậc. Đúng "thời điểm vàng" nên nhớ rất lâu.' : W.length ? 'Cây đang nghỉ để lớn. Quay lại đúng giờ vàng bên dưới nhé — ôn sớm quá cũng không giúp nhớ lâu hơn.' : 'Lưu từ khi làm đề Reading/Listening, hoặc bấm "Kho hạt giống" để thêm từ, rồi quay lại tưới vườn.'}</p>
+      <h2>${total ? `<b>${due.length}</b> cây cần tưới${newLeft ? ` · <b>${newLeft}</b> hạt mới` : ''}` : W.length ? (seeds.length ? 'Xong phần hôm nay!' : 'Vườn đã tưới xong!') : 'Vườn còn trống'}</h2>
+      <p>${total ? 'Mỗi cây là một từ — nghe rồi gõ lại đúng là cây được tưới và lớn thêm một bậc. Đúng "thời điểm vàng" nên nhớ rất lâu.' : W.length ? (seeds.length ? 'Cây cũ đang nghỉ để lớn (ôn sớm quá cũng không giúp nhớ lâu hơn). Còn sức thì gieo thêm hạt mới — học bao nhiêu tuỳ bạn.' : 'Cây đang nghỉ để lớn. Quay lại đúng giờ vàng bên dưới nhé — ôn sớm quá cũng không giúp nhớ lâu hơn.') : 'Lưu từ khi làm đề Reading/Listening, hoặc bấm "Kho hạt giống" để thêm từ, rồi quay lại tưới vườn.'}</p>
       ${total ? `<button class="go" id="start"><img src="${IMG}gardening_jouro.webp" alt="" style="height:24px"> Tưới vườn ngay · ${total} từ</button>` : ''}
+      ${!total && seeds.length ? `<div class="more-seed"><b>Còn ${seeds.length} hạt chưa gieo — muốn học thêm thì cứ gieo tiếp:</b><div>${[10, 20, 50].filter((n, i) => i === 0 || n <= seeds.length + 9).map(n => `<button class="go" data-more="${n}" style="margin-top:0;padding:11px 18px;font-size:14px"><i class="fa-solid fa-seedling"></i> Học thêm ${Math.min(n, seeds.length)} từ mới</button>`).join('')}</div></div>` : ''}
       ${next ? `<div class="cd"><i class="fa-regular fa-hourglass-half"></i><span id="cd" data-t="${next.d}"></span></div>` : ''}
       <img class="jouro" src="${IMG}gardening_jouro.webp" alt="">
       <span class="drop" style="right:112px;top:96px"></span><span class="drop" style="right:104px;top:90px;animation-delay:.3s"></span><span class="drop" style="right:120px;top:102px;animation-delay:.6s"></span>
@@ -466,6 +468,7 @@ function render() {
     <div class="ground"><img class="man" src="${IMG}gardening_man.webp" alt=""><div class="txt"><b>Bí quyết của khu vườn</b><p>Não quên rất nhanh sau khi học. Mỗi lần bạn <b>tự nhớ lại</b> đúng lúc sắp quên, trí nhớ được "tưới" và lần sau quên chậm hơn — nên khoảng nghỉ giãn dần 1 → 3 → 7 → 14 → 30 ngày.</p></div><img class="rabbit" src="${IMG}tsukimi_jugoya_usagi.webp" alt=""></div>
   </div>`;
   const st = $('#start'); if (st) st.onclick = startSession;
+  m.querySelectorAll('[data-more]').forEach(b => b.onclick = () => { const d = S.data.day.d === today() ? S.data.day : (S.data.day = { d: today(), nw: 0, rv: 0 }); d.bonus = (d.bonus || 0) + (+b.dataset.more); save(); render(); startSession(); });
   m.querySelectorAll('[data-npd]').forEach(b => b.onclick = () => { S.data.set.npd = +b.dataset.npd; save(); render(); });
   m.querySelectorAll('[data-tier] .sign').forEach(b => b.onclick = () => openBank(+b.closest('[data-tier]').dataset.tier));
   m.querySelectorAll('[data-w]').forEach(b => b.onclick = e => { e.stopPropagation(); openPlant(b.dataset.w); });
@@ -756,7 +759,7 @@ function startSession() {
   try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
   const W = words(), due = W.filter(isDue).sort((a, b) => a.d - b.d).slice(0, 80);
   const d = S.data.day.d === today() ? S.data.day : (S.data.day = { d: today(), nw: 0, rv: 0 });
-  const npd = S.data.set.npd || 20, seeds = W.filter(x => x.b === 0).sort((a, b) => a.a - b.a).slice(0, Math.max(0, npd - d.nw));
+  const npd = (S.data.set.npd || 20) + (d.bonus || 0), seeds = W.filter(x => x.b === 0).sort((a, b) => a.a - b.a).slice(0, Math.max(0, npd - d.nw));
   if (S.lang === 'zh') { const bad = seeds.concat(due).filter(x => !x.py); if (bad.length) { bad.forEach(x => { const r = NVCourse.segPinyin(x.t, x.py); if (!r) delete S.data.w[x.id]; }); } }
   const list = due.concat(seeds).filter(x => S.data.w[x.id]).slice(0, BATCH); /* mỗi đợt 20 cây — tưới xong chọn nghỉ hay tưới tiếp */
   if (!list.length) return toast('Hôm nay không còn cây nào cần tưới');
@@ -810,7 +813,7 @@ window.addEventListener('message', e => {
 });
 function remaining() {
   const W = words(), d = S.data.day.d === today() ? S.data.day : { nw: 0 };
-  return W.filter(isDue).length + Math.max(0, Math.min((S.data.set.npd || 20) - d.nw, W.filter(x => x.b === 0).length));
+  return W.filter(isDue).length + Math.max(0, Math.min((S.data.set.npd || 20) + (d.bonus || 0) - d.nw, W.filter(x => x.b === 0).length));
 }
 function finishSession() {
   const se = S.session; if (!se) return;
