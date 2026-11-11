@@ -2670,6 +2670,7 @@ function next(){
     reset();
 }
 window.addEventListener('keyup',function(e){ /* gõ đúng (hoặc đã xem đáp án) rồi bấm Enter -> qua câu tiếp */ if(e.key!=='Enter'&&e.keyCode!==13)return; if(e.isComposing)return; var t=e.target; if(t&&t.id!=='hiddenInput'&&/^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(t.tagName))return; if(typeof state==='undefined'||!(state.completed||state.revealed))return; if(!document.getElementById('hiddenInput'))return; if(window.__nvEnterAt&&Date.now()-window.__nvEnterAt<300)return; window.__nvEnterAt=Date.now(); next(); });
+(function(){ /* giữ Cmd + Shift (Mac) hoặc Ctrl + Shift (Windows) rồi thả ra -> nghe lại câu đang làm */ var on=false,other=false; window.addEventListener('keydown',function(e){ var mod=e.key==='Meta'||e.key==='Control'||e.key==='Shift'; if(!mod){ other=true; on=false; return; } if((e.metaKey||e.ctrlKey)&&e.shiftKey){ if(!on){ on=Date.now(); other=false; } } },true); window.addEventListener('keyup',function(e){ if(!on)return; if(e.key!=='Meta'&&e.key!=='Control'&&e.key!=='Shift')return; var held=Date.now()-on; on=false; if(other||held>700)return; if(typeof current!=='function'||typeof speak!=='function'||!document.getElementById('hiddenInput'))return; var c=current(); if(!c||!c.audioText)return; speak(c.audioText,1); setTimeout(function(){ var el=document.getElementById('hiddenInput'); if(el) el.focus(); },50); },true); window.addEventListener('blur',function(){ on=false; }); })();
 function prev(){
     const l=getActiveList();
     state.practiceIndex=(state.practiceIndex-1+l.length)%l.length;

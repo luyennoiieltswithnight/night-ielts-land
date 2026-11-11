@@ -335,6 +335,7 @@ function setTab(t){state.tab=t;render()}
 
 function changeType(t){state.practiceType=t;state.practiceIndex=0;reset()}
 function next(){const l=state.practiceType==='vocab'?practiceList():sentenceList();state.practiceIndex=(state.practiceIndex+1)%l.length;reset()}
+(function(){ /* giữ Cmd + Shift (Mac) hoặc Ctrl + Shift (Windows) rồi thả ra -> nghe lại câu đang làm */ var on=false,other=false; window.addEventListener('keydown',function(e){ var mod=e.key==='Meta'||e.key==='Control'||e.key==='Shift'; if(!mod){ other=true; on=false; return; } if((e.metaKey||e.ctrlKey)&&e.shiftKey){ if(!on){ on=Date.now(); other=false; } } },true); window.addEventListener('keyup',function(e){ if(!on)return; if(e.key!=='Meta'&&e.key!=='Control'&&e.key!=='Shift')return; var held=Date.now()-on; on=false; if(other||held>700)return; if(typeof current!=='function'||typeof speak!=='function'||state.tab!=='practice')return; var c=current(); if(!c||!c.audioText)return; speak(c.audioText,1); setTimeout(function(){ var el=document.getElementById('typingInput'); if(el) el.focus(); },50); },true); window.addEventListener('blur',function(){ on=false; }); })();
 function prev(){const l=state.practiceType==='vocab'?practiceList():sentenceList();state.practiceIndex=(state.practiceIndex-1+l.length)%l.length;reset()}
 function reveal(){state.revealed=true;state.completed=false;state.input=current().chinese;updateTyping()}
 function reset(){
