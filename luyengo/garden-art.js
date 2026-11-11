@@ -157,7 +157,7 @@
   function trunk(top, w) { var d = 'M' + (50 - w) + ' 104 Q' + (50 - w * .6) + ' ' + ((104 + top) / 2) + ' ' + (50 - w * .4) + ' ' + top + ' L' + (50 + w * .4) + ' ' + top + ' Q' + (50 + w * .6) + ' ' + ((104 + top) / 2) + ' ' + (50 + w) + ' 104Z'; return '<path d="' + d + '" fill="#8D5A3B" stroke="' + OL + '" stroke-width="1.8" stroke-linejoin="round"/><path d="M' + (50 - w * .2) + ' 100 Q' + (50 - w * .3) + ' ' + ((104 + top) / 2) + ' ' + (50 - w * .1) + ' ' + (top + 6) + '" stroke="#B07A54" stroke-width="1.6" fill="none"/>'; }
   function treeBody(k, st) {
     var R = st === 3 ? 22 : st === 4 ? 27 : 31, cy = st === 3 ? 58 : st === 4 ? 52 : 47, h = trunk(cy + 6, st === 5 ? 7 : 5.5);
-    h += '<path d="M50 ' + (cy + 18) + ' L' + (50 - R * .6) + ' ' + (cy + 4) + ' M50 ' + (cy + 14) + ' L' + (50 + R * .6) + ' ' + (cy + 2) + '" stroke="' + OL + '" stroke-width="4" stroke-linecap="round"/><path d="M50 ' + (cy + 18) + ' L' + (50 - R * .6) + ' ' + (cy + 4) + ' M50 ' + (cy + 14) + ' L' + (50 + R * .6) + ' ' + (cy + 2) + '" stroke="#8D5A3B" stroke-width="2.2" stroke-linecap="round"/>';
+    h += '<path d="M50 ' + (cy + 18) + ' L' + (50 - R * .6) + ' ' + (cy + 4) + ' M50 ' + (cy + 14) + ' L' + (50 + R * .6) + ' ' + (cy + 2) + '" stroke="#5E3B24" stroke-width="4" stroke-linecap="round"/><path d="M50 ' + (cy + 18) + ' L' + (50 - R * .6) + ' ' + (cy + 4) + ' M50 ' + (cy + 14) + ' L' + (50 + R * .6) + ' ' + (cy + 2) + '" stroke="#8D5A3B" stroke-width="2.2" stroke-linecap="round"/>';
     h += crown(50, cy, R);
     if (st === 3) [[-12, -6], [8, -12], [14, 4], [-4, 6], [0, -18]].forEach(function (p) { h += '<g transform="translate(' + (50 + p[0]) + ',' + (cy + p[1]) + ') scale(.32)">' + bloom('sakura') + '</g>'; });
     var F = st === 4 ? [[-12, 2], [10, -8], [4, 10]] : st === 5 ? [[-18, 4], [-8, -12], [8, -16], [18, 0], [-2, 10], [12, 12], [-14, -4], [2, -2]] : [];
@@ -197,10 +197,9 @@
     if (k === 'lav') return '<g transform="translate(' + x + ',' + y + ')"><ellipse cx="0" cy="0" rx="3" ry="7" fill="' + c + '" stroke="' + OL + '" stroke-width="1.2"/></g>';
     return '<g transform="translate(' + x + ',' + y + ')"><path d="M0 -12 C6 -8 7 0 0 4 C-7 0 -6 -8 0 -12Z" fill="' + c + '" stroke="' + OL + '" stroke-width="1.4"/><path d="M-6 0 Q-3 6 0 4 Q3 6 6 0 Q2 3 0 1 Q-2 3 -6 0Z" fill="#5DB65B" stroke="' + OL + '" stroke-width="1.1"/></g>';
   }
-  var POT = '<defs><linearGradient id="gaPot" x1="0" x2="1"><stop offset="0" stop-color="#E9955F"/><stop offset=".55" stop-color="#D47544"/><stop offset="1" stop-color="#B35A2E"/></linearGradient></defs>' +
-    '<path d="M29 112 L71 112 L66 138 Q65 141 62 141 L38 141 Q35 141 34 138Z" fill="url(#gaPot)" stroke="' + OL + '" stroke-width="2" stroke-linejoin="round"/>' +
-    '<rect x="24" y="103" width="52" height="11" rx="5" fill="#E68A55" stroke="' + OL + '" stroke-width="2"/>' +
-    '<ellipse cx="50" cy="105.5" rx="21" ry="3" fill="#5B3A26"/><path d="M36 118 L34 134" stroke="#F7B98F" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>';
+  var POT = '<path d="M29 112 L71 112 L66 138 Q65 141 62 141 L38 141 Q35 141 34 138Z" fill="#D9814F" stroke="' + OL + '" stroke-width="1.8" stroke-linejoin="round"/>' +
+    '<rect x="24" y="103" width="52" height="11" rx="5" fill="#E8935F" stroke="' + OL + '" stroke-width="1.8"/>' +
+    '<ellipse cx="50" cy="105.5" rx="21" ry="3" fill="#7A4B30"/><path d="M37 118 L35.5 133" stroke="#F2AE82" stroke-width="3" stroke-linecap="round"/><path d="M28 106 L36 106" stroke="#F6B88E" stroke-width="2" stroke-linecap="round"/>';
 
   function body(k, st) {
     var h = '';
@@ -224,38 +223,52 @@
     return h + '<g transform="translate(50,' + top + ') scale(' + (st === 5 ? 1.12 : 1) + ')">' + bloom(k) + '</g>';
   }
 
-  /* ---------- sprite: dựng symbol khi cần ---------- */
-  var made = {}, sprite = null;
-  function ensure(id, k, st) {
-    if (made[id]) return; made[id] = 1;
-    if (!sprite) {
-      sprite = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      sprite.setAttribute('aria-hidden', 'true'); sprite.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
-      sprite.innerHTML = '<defs></defs>';
-      document.body.insertBefore(sprite, document.body.firstChild);
-      var p = document.createElementNS('http://www.w3.org/2000/svg', 'symbol'); p.id = 'ga-pot'; p.setAttribute('viewBox', '0 0 100 145'); p.innerHTML = POT; sprite.firstChild.appendChild(p);
-    }
-    var s = document.createElementNS('http://www.w3.org/2000/svg', 'symbol');
-    s.id = id; s.setAttribute('viewBox', '0 0 100 145'); s.setAttribute('overflow', 'visible');
-    s.innerHTML = body(k, st);
-    sprite.firstChild.appendChild(s);
+  /* ---------- NÉT IRASUTOYA: viền = màu nền đậm hơn (không dùng 1 màu nâu chung), nét hơi rung như vẽ tay,
+     thêm hạt li ti như giấy. Mỗi hình được đóng thành 1 ảnh (data URI) và trình duyệt chỉ vẽ 1 lần rồi dùng lại → vườn vẫn nhẹ. ---------- */
+  function dk(hex) {
+    if (hex.length === 4) hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+    var n = parseInt(hex.slice(1), 16), R = n >> 16, G = n >> 8 & 255, B = n & 255, L = (R * .3 + G * .59 + B * .11) / 255, f = L > .88 ? .74 : L > .6 ? .66 : .62;
+    return '#' + [R, G, B].map(function (c) { return ('0' + Math.round(c * f).toString(16)).slice(-2); }).join('');
   }
+  function ira(svg) {
+    return svg.replace(/<(path|ellipse|circle|rect|polygon)\b([^>]*)>/g, function (m, tag, at) {
+      if (at.indexOf('stroke="' + OL + '"') < 0) return m;
+      var f = /fill="(#[0-9a-fA-F]{3,6})"/.exec(at), c = f ? dk(f[1]) : /fill="url/.test(at) ? '#A65A32' : '#3F7F35';
+      return m.replace('stroke="' + OL + '"', 'stroke="' + c + '"');
+    });
+  }
+  var URI = {};
+  function uri(key, vb, inner, o) {
+    if (URI[key]) return URI[key]; o = o || {};
+    var flt = '<filter id="ira" x="-6%" y="-6%" width="112%" height="112%" color-interpolation-filters="sRGB">' +
+      '<feTurbulence type="fractalNoise" baseFrequency="' + (o.wf || .07) + '" numOctaves="2" seed="4" result="w"/>' +
+      '<feDisplacementMap in="SourceGraphic" in2="w" scale="' + (o.ws || 1.6) + '" xChannelSelector="R" yChannelSelector="G" result="d"/>' +
+      '<feTurbulence type="fractalNoise" baseFrequency="' + (o.gf || .9) + '" numOctaves="1" seed="9" result="n"/>' +
+      '<feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  -14 0 0 0 6.3" result="sp"/>' +
+      '<feComponentTransfer in="sp" result="sp1"><feFuncA type="linear" slope="' + (o.ga || .12) + '"/></feComponentTransfer>' +
+      '<feComposite in="sp1" in2="d" operator="in" result="sp2"/><feMerge><feMergeNode in="d"/><feMergeNode in="sp2"/></feMerge></filter>';
+    var doc = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + vb + '"' + (o.none ? ' preserveAspectRatio="none"' : '') + '><defs>' + flt + '</defs><g filter="url(#ira)">' + ira(inner) + '</g></svg>';
+    return (URI[key] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(doc));
+  }
+  function img(u, x, y, w, h, none) { return '<image href="' + u + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '"' + (none ? ' preserveAspectRatio="none"' : '') + '/>'; }
+  var PV = '-12 -14 124 172';
   /* 1 cây trong chậu. stage 0..5 hoặc 'wilt'. Thân (không gồm chậu) đung đưa nhờ class .ga-sway */
   function plant(k, stage, o) {
     o = o || {};
     if (!ALL[k]) k = 'sun';
-    var id = 'ga-' + k + '-' + stage; ensure(id, k, stage);
-    return '<svg class="ga" viewBox="0 0 100 145" aria-hidden="true"><use href="#ga-pot"/><g class="ga-sway"' + (o.delay ? ' style="animation-delay:' + o.delay + 's"' : '') + '><use href="#' + id + '"/></g>' +
+    return '<svg class="ga" viewBox="0 0 100 145" aria-hidden="true" style="overflow:visible">' + img(uri('pot', PV, POT), -12, -14, 124, 172) +
+      '<g class="ga-sway"' + (o.delay ? ' style="animation-delay:' + o.delay + 's"' : '') + '>' + img(uri('p' + k + stage, PV, body(k, stage)), -12, -14, 124, 172) + '</g>' +
       (o.special ? '<g class="ga-spark"><path d="M18 40 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z" fill="#FFF6B0"/><path d="M82 28 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6z" fill="#E6F6FF"/><circle cx="74" cy="86" r="2" fill="#FFF"/></g>' : '') + '</svg>';
   }
-  /* bông hoa nhỏ để làm nút chọn loài */
-  function chip(k) { return '<svg viewBox="-22 -26 44 44" class="ga-chip" aria-hidden="true">' + bloom(k) + '</svg>'; }
+  /* bông hoa / quả nhỏ (nút chọn loài): đặt trong <svg viewBox="-22 -26 44 44"> */
+  function bloomImg(k) { return img(uri('c' + k, '-25 -29 50 50', bloom(k), { wf: .1, ws: .9, gf: 1.3 }), -25, -29, 50, 50); }
+  function chip(k) { return '<svg viewBox="-22 -26 44 44" class="ga-chip" aria-hidden="true" style="overflow:visible">' + bloomImg(k) + '</svg>'; }
 
   /* ---------- đảo mây: viền nhấp nhô mềm + dây leo treo ---------- */
   function rng(seed) { var s = seed * 9301 + 49297; return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
   /* Đảo mây có chiều sâu: lớp mây sau (đậm) · thân mây · các cục bông phía trên tô sáng dần
      · bụng mây bo tròn phía dưới · viền mềm (filter) · dây leo treo · mây nhỏ trôi bên cạnh */
-  function cloud(seed) {
+  function cloudRaw(seed) {
     var R = rng(seed + 3), id = 'gc' + seed, i, x, h = '';
     var puff = function (cx, cy, rx, ry, fill, extra) { return '<ellipse cx="' + r(cx) + '" cy="' + r(cy) + '" rx="' + r(rx) + '" ry="' + r(ry) + '" fill="' + fill + '"' + (extra || '') + '/>'; };
     /* dây leo (vẽ trước để chui ra từ bụng mây) */
@@ -289,6 +302,18 @@
       '</defs>' + vines + '<g>' + back + '</g><g filter="url(#' + id + 'o)">' + body + '</g>' + mini + '</svg>';
   }
 
+  function pal() {
+    var d = { cl1: '#F6F6FF', cl2: '#DCDFFF', cl3: '#A9AEE8', clo: '#6E73B8' };
+    try { var cs = getComputedStyle(document.documentElement); Object.keys(d).forEach(function (k) { var v = cs.getPropertyValue('--' + k).trim(); if (/^#[0-9a-fA-F]{6}$/.test(v)) d[k] = v; }); } catch (e) {}
+    return d;
+  }
+  function cloud(seed) {
+    var P = pal(), raw = cloudRaw(seed), inner = raw.slice(raw.indexOf('>') + 1, raw.lastIndexOf('</svg>'));
+    inner = inner.replace(/var\(--(cl1|cl2|cl3|clo)(,[^)]*)?\)/g, function (m, k) { return P[k]; });
+    var u = uri('cl' + seed + P.cl1 + P.cl3 + P.clo, '-60 -20 1120 280', inner, { none: 1, wf: .018, ws: 5, gf: .32, ga: .1 });
+    return '<svg class="ga-cloud" viewBox="0 0 1000 200" preserveAspectRatio="none" aria-hidden="true" style="overflow:visible">' + img(u, -60, -20, 1120, 280, 1) + '</svg>';
+  }
+
   /* ---------- Cây đậu thần ở giữa vườn: 3 dây xoắn vào nhau, gốc to → ngọn nhỏ dần, cuộn tròn ở đỉnh;
      lá to hình tim, tua cuốn nhỏ dọc thân ---------- */
   function stalk(H) {
@@ -318,11 +343,13 @@
     out += curl(cx + Math.sin(top / 120) * 40 * .45, top + 4, 26, 1) + curl(cx + Math.sin(top / 120 + 2.2) * 46 * .45 - 4, top + 28, 14, -1);
     /* rễ to bám vào mây dưới cùng */
     out += '<path d="M' + (cx - 16) + ' ' + H + ' q-18 -6 -30 2 M' + (cx + 16) + ' ' + H + ' q18 -6 30 2" stroke="' + OL + '" stroke-width="9" fill="none" stroke-linecap="round"/><path d="M' + (cx - 16) + ' ' + H + ' q-18 -6 -30 2 M' + (cx + 16) + ' ' + H + ' q18 -6 30 2" stroke="#5DB65B" stroke-width="5.5" fill="none" stroke-linecap="round"/>';
-    return '<svg viewBox="0 0 ' + W + ' ' + (H + 6) + '" width="' + W + '" height="' + (H + 6) + '" aria-hidden="true" style="overflow:visible">' + out + '</svg>';
+    var u = uri('st' + H, '0 0 ' + W + ' ' + (H + 6), out, { wf: .035, ws: 3.2, gf: .55, ga: .1 });
+    return '<svg viewBox="0 0 ' + W + ' ' + (H + 6) + '" width="' + W + '" height="' + (H + 6) + '" aria-hidden="true" style="overflow:visible">' + img(u, 0, 0, W, H + 6) + '</svg>';
   }
 
   /* ---------- Ngôi sao (nhặt trong vườn) ---------- */
-  function star(sz) { return '<svg viewBox="-13 -13 26 26" width="' + (sz || 26) + '" height="' + (sz || 26) + '" aria-hidden="true"><path d="M0 -11 L3.2 -3.6 L11 -3.4 L4.9 1.6 L7 9.4 L0 5 L-7 9.4 L-4.9 1.6 L-11 -3.4 L-3.2 -3.6Z" fill="#FFD43B" stroke="' + OL + '" stroke-width="1.6" stroke-linejoin="round"/><path d="M-1 -6 L1 -1.4 L-3 -1.4Z" fill="#FFF3B0"/><circle cx="-3" cy="2" r="1" fill="#E8590C" opacity=".6"/><circle cx="3" cy="2" r="1" fill="#E8590C" opacity=".6"/></svg>'; }
+  function star(sz) { return '<svg viewBox="-13 -13 26 26" width="' + (sz || 26) + '" height="' + (sz || 26) + '" aria-hidden="true">' + img(uri('star', '-14 -14 28 28', starRaw(), { wf: .15, ws: .6, gf: 2 }), -14, -14, 28, 28) + '</svg>'; }
+  function starRaw() { return '<path d="M0 -11 L3.2 -3.6 L11 -3.4 L4.9 1.6 L7 9.4 L0 5 L-7 9.4 L-4.9 1.6 L-11 -3.4 L-3.2 -3.6Z" fill="#FFD43B" stroke="' + OL + '" stroke-width="1.6" stroke-linejoin="round"/><path d="M-1 -6 L1 -1.4 L-3 -1.4Z" fill="#FFF3B0"/><circle cx="-3" cy="2" r="1" fill="#E8590C" opacity=".6"/><circle cx="3" cy="2" r="1" fill="#E8590C" opacity=".6"/>'; }
 
   /* ---------- Thú giữ vườn (vẽ tay, quay mặt sang phải) ---------- */
   var ANIMALS = [
@@ -330,25 +357,68 @@
     { k: 'nhim', n: 'Nhím', p: 25 }, { k: 'meo', n: 'Mèo', p: 30 }, { k: 'cho', n: 'Cún', p: 35 }, { k: 'cao', n: 'Cáo', p: 45 },
     { k: 'cu', n: 'Cú đêm', p: 50 }, { k: 'panda', n: 'Gấu trúc', p: 60 }
   ];
+  /* Vẽ lại kiểu Irasutoya: thân tròn mũm mĩm, mắt chấm đen, má hồng, viền cùng tông màu lông */
   function animal(k) {
-    var o = ' stroke="' + OL + '" stroke-width="1.8" stroke-linejoin="round"', eye = function (x, y) { return '<circle cx="' + x + '" cy="' + y + '" r="2.1" fill="' + OL + '"/><circle cx="' + (x + .7) + '" cy="' + (y - .7) + '" r=".7" fill="#fff"/>'; };
-    var blush = function (x, y) { return '<ellipse cx="' + x + '" cy="' + y + '" rx="2.6" ry="1.5" fill="#FF8FA3" opacity=".7"/>'; };
-    var legs = function (c, xs) { return '<g class="ga-legs">' + xs.map(function (x, j) { return '<rect x="' + x + '" y="40" width="4.4" height="8" rx="2.2" fill="' + c + '"' + o + ' class="' + (j % 2 ? 'lb' : 'la') + '"/>'; }).join('') + '</g>'; };
+    var S = ' stroke="' + OL + '" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"';
+    var E = function (x, y) { return '<ellipse cx="' + x + '" cy="' + y + '" rx="1.5" ry="2" fill="#3B2A20"/>'; };
+    var B = function (x, y) { return '<ellipse cx="' + x + '" cy="' + y + '" rx="2.6" ry="1.6" fill="#FF9EAA" opacity=".75"/>'; };
+    var LEG = function (c, xs) { return xs.map(function (x) { return '<rect x="' + x + '" y="41" width="4.6" height="7" rx="2.2" fill="' + c + '"' + S + '/>'; }).join(''); };
+    var TAIL = function (d, c1, c2) { return '<path d="' + d + '" stroke="' + c1 + '" stroke-width="6.2" fill="none" stroke-linecap="round"/><path d="' + d + '" stroke="' + c2 + '" stroke-width="3.4" fill="none" stroke-linecap="round"/>'; };
     var b = '';
     switch (k) {
-      case 'ga': b = '<path d="M30 46 L28 50 M34 46 L36 50" stroke="#F08C00" stroke-width="2"/><ellipse cx="30" cy="34" rx="13" ry="12" fill="#FFE066"' + o + '/><circle cx="38" cy="24" r="9" fill="#FFE066"' + o + '/><path d="M46 23 L52 25 L46 27Z" fill="#F08C00"' + o + '/><path d="M36 15 q2 -5 4 0" fill="#FF6B6B"' + o + '/>' + eye(41, 22) + blush(42, 27) + '<path d="M22 32 q6 6 12 0" stroke="#F4B400" stroke-width="2" fill="none"/>'; break;
-      case 'vit': b = '<path d="M28 46 L26 50 L31 50 M36 46 L34 50 L39 50" stroke="#F08C00" stroke-width="2" fill="none"/><path d="M14 30 C14 22 26 24 30 28 C40 26 48 30 46 40 C44 46 20 48 14 40 C10 36 10 32 14 30Z" fill="#FFFFFF"' + o + '/><circle cx="40" cy="20" r="9" fill="#FFFFFF"' + o + '/><path d="M47 20 C54 19 55 24 47 25Z" fill="#FFA94D"' + o + '/>' + eye(42, 18) + blush(43, 24) + '<path d="M24 34 q8 5 14 -1" stroke="#CED4DA" stroke-width="2" fill="none"/>'; break;
-      case 'ech': b = '<ellipse cx="30" cy="38" rx="17" ry="10" fill="#69DB7C"' + o + '/><circle cx="22" cy="26" r="6" fill="#69DB7C"' + o + '/><circle cx="38" cy="26" r="6" fill="#69DB7C"' + o + '/>' + eye(22, 26) + eye(38, 26) + '<path d="M24 38 Q30 43 36 38" stroke="' + OL + '" stroke-width="1.6" fill="none"/>' + blush(20, 36) + blush(40, 36) + '<path d="M13 44 q-4 4 2 4 M47 44 q4 4 -2 4" stroke="' + OL + '" stroke-width="1.6" fill="#69DB7C"/>'; break;
-      case 'tho': b = legs('#FFFFFF', [20, 36]) + '<ellipse cx="28" cy="36" rx="15" ry="10" fill="#FFFFFF"' + o + '/><circle cx="13" cy="33" r="4" fill="#FFFFFF"' + o + '/><circle cx="41" cy="26" r="9" fill="#FFFFFF"' + o + '/><path d="M37 19 C34 6 39 4 41 18 M42 18 C44 4 49 6 45 19" fill="#FFFFFF"' + o + '/><path d="M38.5 16 C37 9 38.5 8 40 16 M43.5 16 C45 9 46.5 9 44.5 16" stroke="#FFB3C1" stroke-width="1.6"/>' + eye(44, 25) + blush(45, 30) + '<circle cx="49" cy="27" r="1.2" fill="#FF8FA3"/>'; break;
-      case 'nhim': b = legs('#C68B59', [20, 34]) + '<path d="M10 40 L8 30 L13 32 L12 22 L18 26 L20 16 L25 23 L29 14 L32 22 L37 16 L38 25 L44 22 L42 32 L36 40Z" fill="#8D6E63"' + o + '/><path d="M36 40 C34 30 44 26 50 34 L54 36 C52 40 46 42 36 40Z" fill="#E8C39E"' + o + '/>' + eye(46, 33) + '<circle cx="54" cy="36" r="1.6" fill="' + OL + '"/>' + blush(46, 38); break;
-      case 'meo': b = legs('#FFA94D', [20, 34]) + '<path d="M10 32 C2 28 4 18 10 20" stroke="' + OL + '" stroke-width="5.4" fill="none" stroke-linecap="round"/><path d="M10 32 C2 28 4 18 10 20" stroke="#FFA94D" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="27" cy="36" rx="15" ry="9" fill="#FFA94D"' + o + '/><circle cx="41" cy="26" r="10" fill="#FFA94D"' + o + '/><path d="M33 20 L34 11 L40 17Z M42 17 L48 11 L49 20Z" fill="#FFA94D"' + o + '/><path d="M24 30 l2 6 M29 29 l1 6" stroke="#E8590C" stroke-width="2"/>' + eye(39, 25) + eye(46, 25) + blush(37, 30) + blush(48, 30) + '<path d="M41 29 q1.5 2 3 0" stroke="' + OL + '" stroke-width="1.2" fill="none"/>'; break;
-      case 'cho': b = legs('#E9A76A', [19, 35]) + '<path d="M10 30 C4 24 8 18 12 22" stroke="' + OL + '" stroke-width="5.4" fill="none" stroke-linecap="round"/><path d="M10 30 C4 24 8 18 12 22" stroke="#E9A76A" stroke-width="3" fill="none" stroke-linecap="round"/><ellipse cx="27" cy="35" rx="16" ry="10" fill="#E9A76A"' + o + '/><path d="M20 38 Q27 44 34 38 L34 44 L20 44Z" fill="#FFF3E0"/><circle cx="42" cy="25" r="10" fill="#E9A76A"' + o + '/><path d="M44 28 C46 34 54 34 54 28 C54 25 48 24 44 28Z" fill="#FFF3E0"' + o + '/><circle cx="53.5" cy="27" r="1.8" fill="' + OL + '"/><path d="M34 18 L35 9 L41 16Z M44 15 L49 9 L51 18Z" fill="#E9A76A"' + o + '/>' + eye(43, 23) + blush(39, 29) + '<path d="M16 30 l22 -2" stroke="#E03131" stroke-width="2.4"/><circle cx="33" cy="31" r="2" fill="#FFD43B"' + o + '/>'; break;
-      case 'cao': b = legs('#E8590C', [20, 34]) + '<path d="M12 34 C0 34 -2 22 6 18 C10 24 12 28 18 30Z" fill="#F76707"' + o + '/><path d="M3 20 C1 22 2 26 5 26 C6 24 6 21 3 20Z" fill="#fff"/><ellipse cx="27" cy="35" rx="15" ry="9" fill="#F76707"' + o + '/><path d="M33 22 C38 14 48 16 52 26 L58 30 C52 33 44 34 38 32Z" fill="#F76707"' + o + '/><path d="M44 30 L58 30 C52 34 46 34 44 30Z" fill="#fff"/><circle cx="58" cy="30" r="1.6" fill="' + OL + '"/><path d="M36 20 L36 10 L42 17Z M43 17 L47 9 L49 19Z" fill="#F76707"' + o + '/>' + eye(45, 23) + blush(45, 28); break;
-      case 'cu': b = '<ellipse cx="30" cy="30" rx="14" ry="17" fill="#8D6E63"' + o + '/><ellipse cx="30" cy="35" rx="9" ry="10" fill="#EAD7C3"/><path d="M27 32 l3 2 l3 -2 M26 37 l4 2 l4 -2" stroke="#B08968" stroke-width="1.2" fill="none"/><circle cx="24" cy="22" r="6" fill="#FFF"' + o + '/><circle cx="36" cy="22" r="6" fill="#FFF"' + o + '/>' + eye(24, 22) + eye(36, 22) + '<path d="M28 26 L30 30 L32 26Z" fill="#F59F00"' + o + '/><path d="M17 14 L20 18 L24 15 M43 14 L40 18 L36 15" fill="#8D6E63"' + o + '/><path d="M24 46 l-1 3 M28 47 l0 3 M32 47 l0 3 M36 46 l1 3" stroke="#F59F00" stroke-width="2"/>'; break;
-      case 'panda': b = legs('#343A40', [19, 35]) + '<ellipse cx="28" cy="34" rx="16" ry="11" fill="#FFFFFF"' + o + '/><path d="M18 26 C24 30 30 30 36 26 L36 40 L18 40Z" fill="#343A40"/><circle cx="42" cy="24" r="11" fill="#FFFFFF"' + o + '/><circle cx="35" cy="14" r="4" fill="#343A40"' + o + '/><circle cx="49" cy="14" r="4" fill="#343A40"' + o + '/><ellipse cx="38.5" cy="23" rx="3.2" ry="4" fill="#343A40" transform="rotate(-20 38.5 23)"/><ellipse cx="46.5" cy="23" rx="3.2" ry="4" fill="#343A40" transform="rotate(20 46.5 23)"/><circle cx="39" cy="22.5" r="1" fill="#fff"/><circle cx="47" cy="22.5" r="1" fill="#fff"/><ellipse cx="42.5" cy="28" rx="2" ry="1.3" fill="#343A40"/>' + blush(36, 29) + blush(49, 29) + '<path d="M50 34 l5 -8" stroke="#69DB7C" stroke-width="2.6" stroke-linecap="round"/><path d="M53 29 l4 -1" stroke="#69DB7C" stroke-width="1.6"/>'; break;
+      case 'ga': b = '<path d="M27 46 l-2 4 M27 46 l1 4 M34 46 l-1 4 M34 46 l2 4" stroke="#F59F00" stroke-width="1.6" stroke-linecap="round"/>' +
+        '<path d="M16 34 C16 22 24 15 33 15 C42 15 47 22 47 30 C47 40 40 47 31 47 C22 47 16 42 16 34Z" fill="#FFE45C"' + S + '/>' +
+        '<path d="M31 15 C30 11 32 9 34 10 C33 12 34 13 35 12" fill="none" stroke="#E0B400" stroke-width="1.4" stroke-linecap="round"/>' +
+        '<path d="M20 33 C22 28 29 29 30 34 C28 38 22 38 20 33Z" fill="#FFD43B"' + S + '/><path d="M46 27 L52 29 L46 31Z" fill="#FF922B"' + S + '/>' + E(40, 25) + B(41, 31); break;
+      case 'vit': b = '<path d="M24 45 l-2 4 h4 M33 45 l-2 4 h4" stroke="#FF922B" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+        '<path d="M14 33 L7 27 L16 29Z" fill="#FFFFFF"' + S + '/><ellipse cx="28" cy="36" rx="17" ry="10" fill="#FFFFFF"' + S + '/>' +
+        '<circle cx="40" cy="21" r="9" fill="#FFFFFF"' + S + '/><path d="M47 19 C53 18 55 21 54 23 C52 25 48 24 47 23Z" fill="#FFA94D"' + S + '/>' +
+        '<path d="M19 34 C23 29 31 30 33 35 C29 39 23 39 19 34Z" fill="#F1F3F5"' + S + '/>' + E(42, 19) + B(43, 24); break;
+      case 'ech': b = '<ellipse cx="16" cy="47" rx="5" ry="2.4" fill="#8CE99A"' + S + '/><ellipse cx="44" cy="47" rx="5" ry="2.4" fill="#8CE99A"' + S + '/>' +
+        '<path d="M12 42 C10 32 18 26 30 26 C42 26 50 32 48 42 C46 47 14 47 12 42Z" fill="#8CE99A"' + S + '/>' +
+        '<circle cx="22" cy="25" r="6" fill="#8CE99A"' + S + '/><circle cx="38" cy="25" r="6" fill="#8CE99A"' + S + '/><ellipse cx="30" cy="42" rx="10" ry="3.4" fill="#D3F9D8"/>' +
+        '<ellipse cx="22" cy="25" rx="1.9" ry="2.3" fill="#3B2A20"/><ellipse cx="38" cy="25" rx="1.9" ry="2.3" fill="#3B2A20"/>' +
+        '<path d="M24 35 Q30 39.5 36 35" stroke="#2F9E44" stroke-width="1.5" fill="none" stroke-linecap="round"/>' + B(18, 36) + B(42, 36); break;
+      case 'tho': b = '<circle cx="12" cy="36" r="4.4" fill="#FFFFFF"' + S + '/><path d="M35 20 C32 8 36 3 38.5 8 C39.5 12 39 17 38.5 20Z" fill="#FFFFFF"' + S + '/><path d="M41.5 19 C42 7 47.5 4 47.5 10 C47.5 14 44.5 18 43.5 20Z" fill="#FFFFFF"' + S + '/>' +
+        '<ellipse cx="36.6" cy="12.5" rx="1.2" ry="4" fill="#FFC9D2" transform="rotate(-8 36.6 12.5)"/><ellipse cx="45" cy="12" rx="1.2" ry="4" fill="#FFC9D2" transform="rotate(18 45 12)"/>' +
+        '<ellipse cx="18" cy="45.5" rx="5.4" ry="2.6" fill="#FFFFFF"' + S + '/><ellipse cx="26" cy="38" rx="14" ry="9" fill="#FFFFFF"' + S + '/><ellipse cx="36" cy="46" rx="4" ry="2.3" fill="#FFFFFF"' + S + '/>' +
+        '<circle cx="41" cy="28" r="10" fill="#FFFFFF"' + S + '/>' + E(44, 27) + '<ellipse cx="50" cy="29.5" rx="1.3" ry="1" fill="#FF8FA3"/>' + B(44, 32); break;
+      case 'nhim': b = '<ellipse cx="20" cy="45.5" rx="3.6" ry="2.2" fill="#F3D9B1"' + S + '/><ellipse cx="36" cy="45.5" rx="3.6" ry="2.2" fill="#F3D9B1"' + S + '/>' +
+        '<path d="M10 42 C8 34 10 26 16 22 Q15 17 20 18 Q21 13 26 15 Q29 11 32 15 Q37 13 37 18 Q42 18 41 23 C44 28 44 36 40 42Z" fill="#A9805E"' + S + '/>' +
+        '<path d="M18 28 l4 -3 M24 24 l4 -3 M30 23 l4 -2 M20 35 l4 -3 M28 31 l4 -3 M15 33 l3 -2" stroke="#7A5638" stroke-width="1.2" stroke-linecap="round"/>' +
+        '<path d="M38 42 C36 34 40 28 46 30 C50 31 53 34 55 37 C53 41 46 43 38 42Z" fill="#F3D9B1"' + S + '/><circle cx="55" cy="37" r="1.6" fill="#3B2A20"/>' + E(46, 34) + B(46.5, 39); break;
+      case 'meo': b = TAIL('M12 34 C4 32 4 22 9 19', '#C9702A', '#FFB067') + LEG('#FFB067', [16, 21.5, 30, 35.5]) +
+        '<ellipse cx="26" cy="37" rx="15" ry="9" fill="#FFB067"' + S + '/><path d="M21 30 q1.4 3 0 6 M26.5 29 q1.4 3 0 6" stroke="#E8590C" stroke-width="1.4" fill="none" stroke-linecap="round"/>' +
+        '<path d="M33 22 L33 12 L40.5 17Z" fill="#FFB067"' + S + '/><path d="M44.5 16 L51.5 11 L51.5 21Z" fill="#FFB067"' + S + '/>' +
+        '<path d="M30 28 C30 20 36 16 42 16 C49 16 53 21 53 27 C53 33 48 36 42 36 C35 36 30 33 30 28Z" fill="#FFB067"' + S + '/>' +
+        '<path d="M41 17 l.6 3.4 M44 17 l-.4 3.2" stroke="#E8590C" stroke-width="1.3" stroke-linecap="round"/>' + E(37.5, 26) + E(46.5, 26) +
+        '<path d="M39.6 30 q1.4 1.6 2.6 0 q1.2 1.6 2.6 0" stroke="#8B4513" stroke-width="1.1" fill="none" stroke-linecap="round"/>' + B(35, 30.5) + B(49.5, 30.5); break;
+      case 'cho': b = TAIL('M12 30 C6 28 6 20 12 20 C16 20 16 25 13 26', '#B86B2E', '#F2B272') + LEG('#F2B272', [16, 21.5, 31, 36.5]) +
+        '<ellipse cx="27" cy="36" rx="16" ry="9.5" fill="#F2B272"' + S + '/><path d="M18 40 Q27 46 37 40 Q35 44.5 27 44.5 Q19 44.5 18 40Z" fill="#FFF4E6"/>' +
+        '<path d="M34 19 L35 9 L41 15Z" fill="#F2B272"' + S + '/><path d="M44 15 L50 9 L51 19Z" fill="#F2B272"' + S + '/><circle cx="42" cy="26" r="10.5" fill="#F2B272"' + S + '/>' +
+        '<path d="M44 29 C46 34 54 34 54 29 C54 26 48 25 44 29Z" fill="#FFF4E6"' + S + '/><ellipse cx="53" cy="28.4" rx="1.7" ry="1.3" fill="#3B2A20"/>' + E(43, 23.5) + B(39.5, 30) +
+        '<path d="M32.5 30 Q36 33 34.5 36.5" stroke="#E03131" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="34.6" cy="37.4" r="1.8" fill="#FFD43B"' + S + '/>'; break;
+      case 'cao': b = LEG('#8C4A22', [17, 22.5, 30, 35.5]) + '<path d="M14 36 C2 38 -2 26 6 20 C10 26 12 30 18 32Z" fill="#FF8A3D"' + S + '/><path d="M6 20 C3 22 2 26 4 28.5 C6.5 26.5 7.4 23 6 20Z" fill="#FFFFFF"/>' +
+        '<ellipse cx="27" cy="37" rx="14" ry="8.5" fill="#FF8A3D"' + S + '/>' +
+        '<path d="M37 21 L37 11 L43 17Z" fill="#FF8A3D"' + S + '/><path d="M44 17 L48 9 L50 19Z" fill="#FF8A3D"' + S + '/>' +
+        '<path d="M34 30 C33 21 40 16 46 18 C50 19 52 23 54 27 L59 30 C55 33 48 34 42 33 C38 33 35 32 34 30Z" fill="#FF8A3D"' + S + '/>' +
+        '<path d="M44 30 L58.5 30 C55 33.5 48 34 44 30Z" fill="#FFFFFF"/><circle cx="59" cy="30" r="1.5" fill="#3B2A20"/>' + E(46, 24) + B(45, 28.6); break;
+      case 'cu': b = '<path d="M25 47.5 l0 3 M28 48 l0 3 M32 48 l0 3 M35 47.5 l0 3" stroke="#F59F00" stroke-width="1.8" stroke-linecap="round"/>' +
+        '<path d="M19 16 L18 8.5 L24.5 13.5Z" fill="#A47551"' + S + '/><path d="M41 16 L42 8.5 L35.5 13.5Z" fill="#A47551"' + S + '/>' +
+        '<path d="M16 32 C16 18 22 12 30 12 C38 12 44 18 44 32 C44 42 38 48 30 48 C22 48 16 42 16 32Z" fill="#A47551"' + S + '/>' +
+        '<ellipse cx="30" cy="37" rx="9" ry="9.6" fill="#F1E3D3"/><path d="M25.5 34 q2 1.6 4 0 M30.5 34 q2 1.6 4 0 M28 39 q2 1.6 4 0" stroke="#C9A27E" stroke-width="1.1" fill="none" stroke-linecap="round"/>' +
+        '<path d="M17 28 C12 32 13 40 19 42 C18 36 18 32 17 28Z" fill="#8C6239"' + S + '/><path d="M43 28 C48 32 47 40 41 42 C42 36 42 32 43 28Z" fill="#8C6239"' + S + '/>' +
+        '<circle cx="24" cy="24" r="6" fill="#FFF8EC"' + S + '/><circle cx="36" cy="24" r="6" fill="#FFF8EC"' + S + '/>' +
+        '<ellipse cx="24.6" cy="24.2" rx="2.2" ry="2.6" fill="#3B2A20"/><ellipse cx="35.4" cy="24.2" rx="2.2" ry="2.6" fill="#3B2A20"/><path d="M28.4 27.6 L30 31 L31.6 27.6Z" fill="#FAB005"' + S + '/>'; break;
+      case 'panda': b = LEG('#3B3B3B', [16, 21.5, 31, 36.5]) + '<ellipse cx="28" cy="35" rx="16" ry="10.5" fill="#FFFFFF"' + S + '/><path d="M20 27.5 C24 31 32 31 36 27.5 L37 38 C33 41 23 41 19 38Z" fill="#3B3B3B"/>' +
+        '<circle cx="34.5" cy="14.5" r="4" fill="#3B3B3B"' + S + '/><circle cx="49.5" cy="14.5" r="4" fill="#3B3B3B"' + S + '/><circle cx="42" cy="24" r="11" fill="#FFFFFF"' + S + '/>' +
+        '<ellipse cx="38.4" cy="23" rx="3.2" ry="4" fill="#3B3B3B" transform="rotate(-20 38.4 23)"/><ellipse cx="46.6" cy="23" rx="3.2" ry="4" fill="#3B3B3B" transform="rotate(20 46.6 23)"/>' +
+        '<circle cx="39" cy="22.6" r="1" fill="#FFFFFF"/><circle cx="46" cy="22.6" r="1" fill="#FFFFFF"/><ellipse cx="42.5" cy="27.6" rx="1.9" ry="1.3" fill="#3B3B3B"/>' +
+        '<path d="M41 29.5 q1.5 1.4 3 0" stroke="#3B3B3B" stroke-width="1" fill="none" stroke-linecap="round"/>' + B(35.6, 28.6) + B(49.4, 28.6) +
+        '<path d="M50 40 L56 24" stroke="#5FB86A" stroke-width="2.8" stroke-linecap="round"/><path d="M52.4 33.6 l3 -.6 M54 29 l3 -.4" stroke="#3F8A4A" stroke-width="1"/><path d="M55.6 25 C59 23 60 20 58.4 19 C57 21 56 22.4 55.6 25Z" fill="#8CE99A"/>'; break;
     }
-    return '<svg viewBox="0 0 60 52" class="ga-an" aria-hidden="true" style="overflow:visible">' + b + '</svg>';
+    return '<svg viewBox="0 0 60 52" class="ga-an" aria-hidden="true" style="overflow:visible">' + img(uri('a' + k, '-6 -6 72 64', b, { wf: .09, ws: 1.1, gf: 1.1 }), -6, -6, 72, 64) + '</svg>';
   }
 
-  window.GardenArt = { FLOWERS: FLOWERS, SPECIALS: SPECIALS, ALL: ALL, ANIMALS: ANIMALS, plant: plant, chip: chip, cloud: cloud, bloom: bloom, stalk: stalk, star: star, animal: animal };
+  window.GardenArt = { FLOWERS: FLOWERS, SPECIALS: SPECIALS, ALL: ALL, ANIMALS: ANIMALS, plant: plant, chip: chip, cloud: cloud, bloom: bloomImg, stalk: stalk, star: star, animal: animal };
 })();
