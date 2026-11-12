@@ -161,7 +161,7 @@ button,input,textarea,select{font-family:inherit}
 .music.on i{animation:beat 1.4s ease-in-out infinite}
 @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
 @media(max-width:1100px){.moon2{display:none}}
-@media(max-width:640px){.top{gap:6px}.top h1{display:none}.top .sp{flex:1}.top #bankBtn .lbl{display:none}.top #bankBtn{padding:10px 12px}.seg button{padding:7px 10px}
+@media(max-width:640px){.top{gap:6px}.top h1{display:none}.top .sp{flex:1}.top #bankBtn .lbl,.top #visitBtn .lbl{display:none}.top #visitBtn{padding:10px 12px}.top #bankBtn{padding:10px 12px}.seg button{padding:7px 10px}
   .water .jouro,.water .drop{display:none!important}.water h2{max-width:100%}
   .moon2{display:none}.stats{grid-template-columns:repeat(3,1fr);gap:8px;padding:12px}.stat{padding:10px}.stat b{font-size:20px}.stat small{font-size:9.5px;letter-spacing:.06em}
   .go{width:100%;justify-content:center}.cd{max-width:100%;font-size:12px}
@@ -317,6 +317,7 @@ body.intro .wrap{visibility:hidden}
     <div class="seg" id="langSeg"><button data-l="en">English</button><button data-l="zh"><span class="zhf">中文</span></button></div>
     <button class="wxchip" id="wxBtn" title="Thời tiết khu vườn"><i class="fa-solid fa-cloud-sun"></i><span class="lbl">…</span></button>
     <button class="music" id="musicBtn" title="Nhạc nền"><i class="fa-solid fa-music"></i></button>
+    <button class="pill" id="visitBtn" style="background:rgba(255,255,255,.14);color:#fff"><i class="fa-solid fa-person-walking"></i><span class="lbl">Thăm vườn bạn</span></button>
     <button class="pill" id="bankBtn"><i class="fa-solid fa-seedling"></i><span class="lbl">Kho hạt giống</span></button>
   </div>
   <div id="main"></div>
@@ -332,7 +333,7 @@ body.intro .wrap{visibility:hidden}
 <script type="module">
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import * as A from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, query, where, getDocs, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 const app = getApps().length ? getApp() : initializeApp({ apiKey: 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8', authDomain: 'night-ielts-land.firebaseapp.com', projectId: 'night-ielts-land', storageBucket: 'night-ielts-land.firebasestorage.app', messagingSenderId: '408519436407', appId: '1:408519436407:web:a9f0b9ba23368b54427e72' });
 const auth = A.getAuth(app), db = getFirestore(app);
 const $ = s => document.querySelector(s);
@@ -393,6 +394,7 @@ function save(now) {
   clearTimeout(saveT);
   const go = () => { S.dirty = false; setDoc(doc(db, 'srs', S.user.uid), Object.assign({ uid: S.user.uid, at: Date.now() }, S.data)).catch(e => toast('Chưa lưu được vườn: ' + e.message)); };
   if (now) go(); else saveT = setTimeout(go, 1200);
+  pubGarden();
 }
 window.addEventListener('pagehide', () => { if (S.dirty) save(true); });
 
@@ -426,6 +428,7 @@ let cdT = 0;
 function render() {
   const m = $('#main');
   document.querySelectorAll('#langSeg button').forEach(b => b.classList.toggle('on', b.dataset.l === S.lang));
+  if (S.visit && S.user) return renderVisit(m);
   if (!S.user) { m.innerHTML = `<div class="glass lock"><img src="${IMG}gardening_man.webp" alt=""><h2>Khu vườn từ vựng</h2><p style="color:#D6D8F5">Đăng nhập để mở khu vườn của bạn.</p><button class="go" id="login">Đăng nhập</button></div>`; $('#login').onclick = () => NightLogin.open({ auth, authM: A }); return; }
   if (!S.ok) { m.innerHTML = `<div class="glass lock"><img src="${IMG}tsukimi_jugoya_usagi.webp" alt=""><h2>Khu vườn dành cho Pro · Astra · Học sinh</h2><p style="color:#D6D8F5;line-height:1.6">Mỗi từ bạn lưu sẽ thành một hạt giống. Ôn đúng "thời điểm vàng" bằng cách nghe – gõ, cây sẽ lớn dần thành hoa — và từ đó nằm lại trong trí nhớ rất lâu.</p><button class="go" id="up">Nâng cấp để mở vườn</button></div>`; $('#up').onclick = () => window.NightPlan && NightPlan.openUpgrade('', 'pro'); return; }
   if (!S.data) { m.innerHTML = '<div class="glass lock">Đang mở khu vườn…</div>'; return; }
@@ -553,12 +556,80 @@ function openBank(b) {
 }
 $('#sheet').onclick = e => { if (e.target.id === 'sheet') $('#sheet').classList.remove('show'); };
 $('#bankBtn').onclick = () => S.ok && S.data ? openBank(null) : null;
+$('#visitBtn').onclick = openVisit;
 const mBtn = $('#musicBtn'), mSync = () => { const on = window.NVMusic && NVMusic.on(); mBtn.classList.toggle('on', !!on); mBtn.title = on ? 'Tắt nhạc nền' : 'Bật nhạc nền'; };
 mBtn.onclick = e => { e.stopPropagation(); if (window.NVMusic) NVMusic.toggle(); mSync(); };
 setTimeout(mSync, 0);
 document.querySelectorAll('#langSeg button').forEach(b => b.onclick = () => { S.lang = b.dataset.l; try { localStorage.setItem('vuon-lang', S.lang); } catch (e) {} render(); });
 
 
+
+
+/* ================== THĂM VƯỜN BẠN ==================
+   Mỗi vườn đăng 1 bản tóm tắt công khai ở gardens/{uid} (không có từ vựng, chỉ loài cây · bậc · thú) để bạn bè vào xem, thả tim.
+   (Sắp có: trộm sao / hái trộm quả ở vườn bạn.) */
+let pubT = 0;
+function pubGarden() {
+  if (!S.user || !S.data || !S.me) return;
+  clearTimeout(pubT);
+  pubT = setTimeout(() => {
+    const W = words(), pl = [0, 1, 2, 3, 4, 5].map(b => W.filter(x => x.b === b).sort((a, c) => (c.r || 0) - (a.r || 0)).slice(0, 24).map(x => flowerOf(x) + (x.fx ? '*' : '')).join(','));
+    const g = { uid: S.user.uid, name: S.me.name, photo: S.me.photo, st: S.data.streak.n || 0, an: (S.data.an || []).map(a => a.k + ':' + a.t), up: Date.now() };
+    g[S.lang] = { n: W.length, m: W.filter(x => x.b === 5).length, pl };
+    setDoc(doc(db, 'gardens', S.user.uid), g, { merge: true }).catch(() => {});
+  }, 4000);
+}
+async function visitGarden(uid) {
+  try {
+    const s = await getDoc(doc(db, 'gardens', uid));
+    if (!s.exists()) return toast('Bạn này chưa mở khu vườn');
+    S.visit = s.data(); S.visit.uid = uid; $('#sheet').classList.remove('show'); window.scrollTo(0, 0); render();
+  } catch (e) { toast('Chưa xem được vườn bạn — thử lại sau nhé'); }
+}
+function avatar(g, sz) { return g.photo ? `<img src="${esc(g.photo)}" alt="" referrerpolicy="no-referrer" style="width:${sz}px;height:${sz}px;border-radius:50%;object-fit:cover;flex:none;background:#fff">` : `<span style="width:${sz}px;height:${sz}px;border-radius:50%;flex:none;display:grid;place-items:center;background:linear-gradient(135deg,#FFD66B,#FF9E5E);color:#3A2410;font-weight:800;font-size:${Math.round(sz * .42)}px">${esc((g.name || '?').trim().charAt(0).toUpperCase())}</span>`; }
+async function openVisit() {
+  if (!S.user) return toast('Đăng nhập để đi thăm vườn bạn nhé');
+  $('#sheetBody').innerHTML = `<div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1">Thăm vườn bạn</h3><button class="btn" style="background:var(--panel)" id="closeS"><i class="fa-solid fa-xmark"></i></button></div>
+    <p class="sub">Ghé xem các khu vườn đang được chăm mỗi ngày — thả tim cho vườn đẹp. Vườn chỉ hiện cây, hoa và thú, không hiện từ vựng của bạn ấy.</p><div id="vlist"><p class="sub" style="text-align:center;padding:18px"><i class="fa-solid fa-spinner fa-spin"></i> Đang tìm các khu vườn…</p></div>`;
+  $('#sheet').classList.add('show'); $('#closeS').onclick = () => $('#sheet').classList.remove('show');
+  let L = [];
+  try { const snap = await getDocs(query(collection(db, 'gardens'), orderBy('up', 'desc'), limit(60))); snap.forEach(d => { const x = d.data(); x.uid = d.id; if (d.id !== S.user.uid) L.push(x); }); }
+  catch (e) { $('#vlist').innerHTML = '<p class="sub" style="text-align:center;padding:18px">Chưa mở được danh sách vườn. Nếu bạn là thầy/cô: cần cập nhật Firestore rules cho mục <b>gardens</b>.</p>'; return; }
+  const sum = x => { const a = x.en || {}, b = x.zh || {}; return { n: (a.n || 0) + (b.n || 0), m: (a.m || 0) + (b.m || 0) }; };
+  $('#vlist').innerHTML = L.length ? L.map(x => { const t = sum(x); return `<div class="srcl" data-v="${x.uid}" style="cursor:pointer">${avatar(x, 42)}<div class="t"><b>${esc(x.name || 'Khu vườn')}</b><small>${t.n} cây · ${t.m} đã nở rộ · chuỗi ${x.st || 0} ngày${x.likes ? ` · ${x.likes} tim` : ''}</small></div><button class="btn" style="background:var(--ink);color:#fff;flex:none"><i class="fa-solid fa-door-open"></i> Thăm</button></div>`; }).join('') : '<p class="sub" style="text-align:center;padding:18px">Chưa có khu vườn nào khác — rủ bạn cùng trồng nhé!</p>';
+  $('#vlist').querySelectorAll('[data-v]').forEach(r => r.onclick = () => visitGarden(r.dataset.v));
+}
+function renderVisit(m) {
+  const g = S.visit, lang = g[S.lang] ? S.lang : g.en ? 'en' : 'zh', G = g[lang] || { n: 0, m: 0, pl: [] }, an = (g.an || []).map(x => { const [k, t] = x.split(':'); return { k, t: +t }; });
+  const liked = (() => { try { return localStorage.getItem('vuon-like:' + g.uid) === today(); } catch (e) { return false; } })();
+  const vt = b => {
+    const P = String((G.pl || [])[b] || '').split(',').filter(Boolean).map((c, i) => plantHTML({ id: 'v' + b + i, t: '', f: c.replace('*', ''), fx: c.endsWith('*') ? c.replace('*', '') : '' }, b, i, true)).join('');
+    const sp = GardenArt.SPECIALS.map(x => x.k);
+    return `<div class="isle" style="animation-delay:${(-b * 1.1).toFixed(1)}s"><div class="sign" style="cursor:default">${STAGE[b].n}</div>
+      <div class="land">${GardenArt.cloud(b + 1)}<span class="lamp" style="left:4%"></span><span class="lamp" style="right:4%;animation-delay:1.2s"></span>${animalsOn(an.filter(a => a.t === b && a.k !== 'cu').map(a => a.k))}
+      ${P ? `<div class="row">${P}</div>` : `<div class="emptycl" style="bottom:120px">Tầng này chưa có cây</div>`}</div></div>`;
+  };
+  m.innerHTML = `
+  <div class="hud"><div class="glass water" style="display:flex;flex-direction:column;gap:10px">
+    <div class="k">Đang thăm vườn</div>
+    <div style="display:flex;align-items:center;gap:12px">${avatar(g, 58)}<h2 style="margin:0">Vườn của ${esc(g.name || 'bạn')}</h2></div>
+    <p style="margin:0">${G.n} cây · <b>${G.m}</b> cây đã nở rộ · chuỗi <b>${g.st || 0}</b> ngày${an.length ? ` · ${an.length} bạn thú` : ''}. Khu vườn này lớn lên từ từng từ bạn ấy tự nhớ lại mỗi ngày.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="go" id="likeB" style="margin-top:0" ${liked ? 'disabled' : ''}><i class="fa-solid fa-heart"></i> ${liked ? 'Đã thả tim hôm nay' : 'Thả tim'} · <span id="likeN">${g.likes || 0}</span></button>
+      <button class="go" id="homeB" style="margin-top:0;background:#fff;color:#24242A"><i class="fa-solid fa-house"></i> Về vườn của tôi</button>
+      <button class="go" id="moreB" style="margin-top:0;background:rgba(255,255,255,.14);color:#fff"><i class="fa-solid fa-person-walking"></i> Thăm vườn khác</button></div>
+    <p style="margin:0;font-size:12.5px;color:#C9CCF2"><i class="fa-solid fa-lock"></i> Sắp có: lẻn vào hái trộm quả, nhặt trộm sao ở vườn bạn — nhớ thả thú giữ vườn nhà mình!</p>
+  </div>
+  <div class="glass stats"><div class="stat"><small>Trong vườn</small><b>${G.n}</b></div><div class="stat"><small>Đã nở rộ</small><b style="color:#9BE7A1">${G.m}</b></div><div class="stat"><small>Chuỗi ngày</small><b style="color:var(--gold)">${g.st || 0}</b></div></div></div>
+  <div class="garden"><div class="stalk" id="stalk"></div>${an.some(a => a.k === 'cu') ? `<div class="owl">${GardenArt.animal('cu')}</div>` : ''}
+    ${[5, 4, 3, 2, 1, 0].map(vt).join('')}</div>`;
+  $('#homeB').onclick = () => { S.visit = null; history.replaceState(null, '', location.pathname); window.scrollTo(0, 0); render(); };
+  $('#moreB').onclick = openVisit;
+  $('#likeB').onclick = async () => {
+    try { await updateDoc(doc(db, 'gardens', g.uid), { likes: increment(1) }); g.likes = (g.likes || 0) + 1; try { localStorage.setItem('vuon-like:' + g.uid, today()); } catch (e) {} render(); toast('Đã thả tim cho vườn của ' + (g.name || 'bạn')); }
+    catch (e) { toast('Chưa thả tim được — thử lại sau nhé'); }
+  };
+  requestAnimationFrame(drawStalk);
+}
 
 /* ================== CÂY ĐẬU THẦN · SAO · THÚ GIỮ VƯỜN ================== */
 function drawStalk() { const el = $('#stalk'); if (!el) return; const H = el.clientHeight; if (H && Math.abs((+el.dataset.h || 0) - H) > 4) { el.dataset.h = H; el.innerHTML = GardenArt.stalk(H); } }
@@ -831,13 +902,14 @@ A.onAuthStateChanged(auth, async u => {
   S.user = u || null; S.ok = false; S.data = null;
   if (u) {
     try {
-      const s = await getDoc(doc(db, 'users', u.uid)), x = s.exists() ? s.data() : {}, r = x.role || 'user'; IMP.udoc = x;
+      const s = await getDoc(doc(db, 'users', u.uid)), x = s.exists() ? s.data() : {}, r = x.role || 'user'; IMP.udoc = x; S.me = { name: x.name || u.displayName || 'Bạn', photo: x.photo || u.photoURL || '' };
       S.role = r; S.ok = r === 'admin' || r === 'student' || (r === 'pro' && Number(x.proUntil) > Date.now());
     } catch (e) {}
     if (S.ok) {
       try { const s = await getDoc(doc(db, 'srs', u.uid)); S.data = s.exists() ? Object.assign(blank(), s.data()) : blank(); } catch (e) { S.data = blank(); }
-      render(); importNotebook(true);
+      render(); importNotebook(true); pubGarden();
     }
+    if (QS.get('visit') && QS.get('visit') !== u.uid) visitGarden(QS.get('visit'));
   }
   render();
 });
