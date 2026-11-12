@@ -273,6 +273,15 @@ function daily_(add) {
 
 /* Gửi file ghi âm sang Groq Whisper (dựng multipart bằng tay để giữ được các trường lặp lại). */
 function stt_(req) {
+  // Lần nghe thứ 2 (whisper-large-v3-turbo) phải là một máy nghe KHÁC để so sánh độc lập → giữ ở Groq; Groq lỗi mới dùng OpenAI.
+  const second = (req.fields || []).some(function (f) { return f[0] === 'model' && /turbo/.test(f[1]); });
+  if (second && groqKey_()) {
+    const g2 = multipart_(req.fields || [], req.file);
+    const r2 = withKeys_(function (k) {
+      return UrlFetchApp.fetch(GROQ + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + g2.boundary, payload: g2.bytes, headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true });
+    });
+    if (r2 && r2.getResponseCode() === 200) return r2;
+  }
   if (openaiKey_()) {
     const fields = (req.fields || []).map(function (f) { return f[0] === 'model' ? ['model', oaModel_('stt')] : f; });
     const mp = multipart_(fields, req.file);
