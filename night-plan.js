@@ -9,7 +9,8 @@
                cho mỗi kỹ năng qua máy chủ trung gian (apps-script/ai-proxy), dùng key của thầy.
 
    Firestore:
-     publicSettings/main  { bank, acc, holder, qr, price, aiProxy }   (thầy sửa trong "👑 Tài khoản")
+     publicSettings/main  { bank, acc, holder, qr, price, aiProxy, payServer }   (thầy sửa trong "👑 Tài khoản")
+     Kho key AI: nằm ở máy chủ thanh toán (apps-script/thanh-toan, Thuộc tính KEY_POOL), không ở Firestore.
      proRequests/<uid>    { uid, email, name, photo, code, amount, status:'pending'|'approved'|'rejected', createdAt } */
 (function () {
   if (window.NightPlan) return;
@@ -91,9 +92,32 @@
           }).catch(function () { res(); });
         });
       });
-      return Promise.all([setP, meP]).then(function () { return me; });
+      return Promise.all([setP, meP]).then(function () { maybeClaimKey(); return me; });
     }).catch(function () { return me; });
     return initP;
+  }
+  /* ---------- Kho key AI (máy chủ thanh toán) ---------- */
+  function payApi(action, extra) {
+    if (!settings.payServer) return Promise.reject(new Error('Chưa có link máy chủ thanh toán (👑 Tài khoản → Cài đặt).'));
+    return fb().then(function (o) {
+      var u = o.auth.currentUser; if (!u) throw new Error('Chưa đăng nhập');
+      return u.getIdToken();
+    }).then(function (tok) {
+      return fetch(settings.payServer, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action: action, idToken: tok }, extra || {})) });
+    }).then(function (r) { if (!r.ok) throw new Error('Máy chủ bận (' + r.status + ')'); return r.json(); })
+      .then(function (j) { if (j && j.error) throw new Error(j.error === 'forbidden' ? 'Không có quyền' : j.error); return j; });
+  }
+  /* Pro / Astra còn hạn mà chưa có key riêng → tự xin 1 key trong kho (tối đa 1 lần / 10 phút mỗi máy) */
+  function maybeClaimKey() {
+    try {
+      if (!me || effRole(me) !== 'pro' || me.groqKey || !settings.payServer) return;
+      var k = 'nightKeyClaimAt', last = Number(sessionStorage.getItem(k) || 0);
+      if (Date.now() - last < 10 * 60000) return;
+      sessionStorage.setItem(k, String(Date.now()));
+      payApi('claim').then(function (j) {
+        if (j && j.key) { me.groqKey = j.key; lsSet(LS_ME, me); syncManagedKey(); pill('🔑 Tài khoản của bạn đã được cấp AI riêng — dùng thoải mái nhé!', 4000); }
+      }).catch(function () {});
+    } catch (e) {}
   }
   /* Tài khoản Pro: key Groq do admin cấp riêng (users/<uid>.groqKey) → tự điền vào máy, khoá ô nhập key.
      Học sinh: tự nhập key như cũ. Hết Pro → gỡ key được cấp khỏi máy. */
@@ -334,7 +358,15 @@
         if (addMonths) data.proUntil = base + addMonths * MONTH;
         else if (!(Number(u.proUntil) > Date.now())) data.proUntil = base + MONTH;
       }
-      return o.fs.setDoc(o.fs.doc(o.db, 'users', uid), data, { merge: true }).then(function () { Object.assign(u, data); changed(); });
+      return o.fs.setDoc(o.fs.doc(o.db, 'users', uid), data, { merge: true }).then(function () {
+        Object.assign(u, data); changed();
+        if (paid && !u.groqKey && settings.payServer) {
+          payApi('assign', { uid: uid }).then(function (j) {
+            if (j.key) { u.groqKey = j.key; pill('🔑 Đã tự cấp key AI từ kho cho ' + esc(u.email || u.name || 'tài khoản') + (j.had ? ' (key cũ)' : ''), 3500); if (tab === 'all') paintList(); }
+            else if (j.empty) pill('⚠️ Kho key AI đã hết — tài khoản này tạm dùng AI qua máy chủ chung. Nạp thêm key trong 👑 Tài khoản → Cài đặt.', 6000);
+          }).catch(function (er) { pill('Không tự cấp được key: ' + esc(er.message), 5000); });
+        }
+      });
     }
     function decide(uid, how) {
       var rq = reqs.filter(function (x) { return x.uid === uid; })[0] || {};
@@ -392,6 +424,11 @@
           '</table><p class="npl-note" style="margin:4px 0 0">Pro = AI chấm Speaking + Writing. Astra = Pro + mở toàn bộ khoá học. Tài khoản Pro mua trước khi chia gói được tính là Astra đến hết hạn.</p></div>' +
           '<label class="npl-f"><span>Link máy chủ AI miễn phí (Apps Script ai-proxy, dạng https://script.google.com/macros/s/…/exec)</span><input class="npl-inp" id="npl-proxy" value="' + esc(s.aiProxy || '') + '" placeholder="Để trống = tắt AI miễn phí cho User"></label>' +
           '<p class="npl-note" style="margin:-4px 0 12px">Tài khoản User được AI miễn phí <b>5 phút mỗi 5 tiếng</b> cho mỗi kỹ năng (Speaking tính thời lượng ghi âm, Writing ≈ 1–2 bài chấm). Key Groq của thầy nằm trong Apps Script, không lộ ra web. Hướng dẫn cài ở đầu file <b>apps-script/ai-proxy/Code.gs</b>.</p>' +
+          '<label class="npl-f"><span>Link máy chủ thanh toán (Apps Script thanh-toan, dạng https://script.google.com/macros/s/…/exec) — dùng cho kho key AI</span><input class="npl-inp" id="npl-pay" value="' + esc(s.payServer || '') + '" placeholder="https://script.google.com/macros/s/…/exec"></label>' +
+          '<div class="npl-f" id="npl-pool"><span>🔑 Kho key AI — tự cấp cho tài khoản Pro / Astra chưa có key</span><div id="npl-pool-box" class="npl-note">' + (s.payServer ? 'Đang tải kho key…' : 'Dán link máy chủ thanh toán ở trên rồi bấm Lưu cài đặt để dùng kho key.') + '</div>' +
+          '<textarea class="npl-inp" id="npl-pool-add" rows="3" placeholder="Dán key Groq mới (gsk_…), mỗi key một dòng" style="width:100%;margin-top:6px;font-family:monospace;font-size:12px;-webkit-text-security:disc"></textarea>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="npl-btn sm gold" id="npl-pool-addbtn" type="button">➕ Thêm vào kho</button><button class="npl-btn sm ghost" id="npl-pool-reclaim" type="button">♻️ Thu hồi key của tài khoản hết hạn &gt; 30 ngày</button></div>' +
+          '<p class="npl-note" style="margin:6px 0 0">Ai trả tiền qua SePay, được thầy duyệt / đổi sang Pro · Astra, hoặc tài khoản Pro chưa có key mở web → máy chủ tự lấy 1 key trống ghi vào tài khoản. Kho hết key thì tài khoản vẫn dùng AI qua máy chủ chung như trước.</p></div>' +
           '<label class="npl-f"><span>Số Zalo nhận góp ý / khiếu nại (hiện nút 💬 ở góc trái dưới mọi trang)</span><input class="npl-inp" id="npl-zalo" value="' + esc(s.zalo || '') + '" placeholder="vd: 0912345678 — để trống = ẩn nút"></label>' +
           '<div class="npl-f"><span>Thông tin chuyển khoản hiện cho người mua Pro</span><div class="npl-ok" style="background:#F8F8FB;color:#24242A">' +
           (s.acc ? esc(s.bank || '') + ' · <b>' + esc(s.acc) + '</b> · ' + esc(s.holder || '') + (s.qr ? ' · có ảnh QR' : '') + (s.acc ? (bankBin(s.bank) ? '<br><span style="color:#047857;font-size:12px">✅ QR tự điền số tiền + nội dung: đang bật</span>' : '<br><span style="color:#E11D48;font-size:12px">⚠️ Không nhận ra tên ngân hàng "' + esc(s.bank || '') + '" để tạo QR tự điền — sửa tên ngân hàng trong Học Phí (vd: Vietcombank, MB Bank, Techcombank)</span>') : '') : 'Chưa có') +
@@ -402,13 +439,39 @@
           o.fs.getDoc(o.fs.doc(o.db, 'tuitionSettings', 'main')).catch(function () { return null; }).then(function (ts) {
             var t = ts && ts.exists() ? ts.data() : {};
             var plans = {}; ['pro', 'astra'].forEach(function (k) { plans[k] = {}; MONTHS.forEach(function (m) { plans[k][m] = Number(body.querySelector('[data-pp="' + k + m + '"]').value) || PLAN_DEF[k].prices[m]; }); });
-            var rec = { plans: plans, price: plans.astra[1], aiProxy: body.querySelector('#npl-proxy').value.trim(), zalo: body.querySelector('#npl-zalo').value.replace(/[^0-9]/g, ''), bank: t.bank || s.bank || '', acc: t.acc || s.acc || '', holder: t.holder || s.holder || '', qr: t.qr || s.qr || '', updatedAt: Date.now() };
+            var rec = { plans: plans, price: plans.astra[1], aiProxy: body.querySelector('#npl-proxy').value.trim(), payServer: body.querySelector('#npl-pay').value.trim(), zalo: body.querySelector('#npl-zalo').value.replace(/[^0-9]/g, ''), bank: t.bank || s.bank || '', acc: t.acc || s.acc || '', holder: t.holder || s.holder || '', qr: t.qr || s.qr || '', updatedAt: Date.now() };
             return o.fs.setDoc(o.fs.doc(o.db, 'publicSettings', 'main'), rec, { merge: true }).then(function () { settings = Object.assign({}, settings, rec); lsSet(LS_SET, rec); showSupportBtn(); paint(); body.querySelector('#npl-msg').textContent = '✅ Đã lưu'; });
           }).catch(function (e) { btn.disabled = false; body.querySelector('#npl-msg').textContent = 'Lỗi: ' + (e.code || e.message); });
         };
+        poolPaint();
       }
     }
+    function poolHtml(j) {
+      var by = {}; users.forEach(function (u) { by[u.uid] = u; });
+      return '<b>' + j.free + '</b> key trống / ' + j.total + ' key trong kho' + (j.added != null ? ' · vừa thêm ' + j.added : '') + (j.reclaimed != null ? ' · vừa thu hồi ' + j.reclaimed : '') +
+        (j.free === 0 ? ' <span style="color:#E11D48">— hết key trống, nạp thêm nhé</span>' : '') +
+        '<div style="margin-top:6px;max-height:220px;overflow:auto">' + j.pool.map(function (x) {
+          var u = x.uid ? by[x.uid] : null;
+          return '<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-top:1px solid #eee;font-size:12px"><code>' + esc(x.key) + '</code>' +
+            (x.uid ? '<span>→ ' + esc((u && (u.email || u.name)) || x.email || x.uid) + (u ? ' ' + tag(u) : '') + ' <span style="color:#6B6B78">' + (x.at ? dmy(x.at) : '') + '</span></span>'
+              : '<span style="color:#047857">trống</span><button class="npl-btn sm ghost" data-pooldel="' + x.i + '" type="button" style="margin-left:auto">Xoá</button>') + '</div>';
+        }).join('') + '</div>';
+    }
+    function poolPaint(p) {
+      var box = body.querySelector('#npl-pool-box'); if (!box || !settings.payServer) return;
+      (p || payApi('poolList')).then(function (j) { box.innerHTML = poolHtml(j); }).catch(function (e) { box.textContent = 'Không tải được kho key: ' + e.message + ' (kiểm tra đã triển khai bản Code.gs mới của thanh-toan chưa).'; });
+    }
     body.addEventListener('click', function (e) {
+      if (e.target.closest('#npl-pool-addbtn')) {
+        var ta = body.querySelector('#npl-pool-add'), btnA = e.target.closest('#npl-pool-addbtn');
+        if (!/gsk_/.test(ta.value)) { alert('Dán key Groq (bắt đầu bằng gsk_), mỗi key một dòng.'); return; }
+        btnA.disabled = true;
+        poolPaint(payApi('poolAdd', { keys: ta.value }).then(function (j) { ta.value = ''; btnA.disabled = false; return j; }, function (er) { btnA.disabled = false; throw er; }));
+        return;
+      }
+      if (e.target.closest('#npl-pool-reclaim')) { if (confirm('Thu hồi key của các tài khoản Pro / Astra đã hết hạn quá 30 ngày, trả về kho?')) poolPaint(payApi('reclaim')); return; }
+      var pd = e.target.closest('[data-pooldel]');
+      if (pd) { if (confirm('Xoá key trống này khỏi kho?')) poolPaint(payApi('poolDelete', { i: Number(pd.dataset.pooldel) })); return; }
       var sg = e.target.closest('[data-seg]');
       if (sg) { seg = sg.dataset.seg; shown = PAGE; q = ''; paint(); return; }
       if (e.target.closest('[data-clearq]')) { q = ''; shown = PAGE; paint(); return; }

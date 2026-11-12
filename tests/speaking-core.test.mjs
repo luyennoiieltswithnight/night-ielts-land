@@ -32,9 +32,21 @@ t('band kế tiếp 40% nhưng có 2 ô ✗ -> KHÔNG cộng nửa band (V11)', 
   const r = SP.checklistBand('grammar', tk);
   assert.equal(r.band, 6);
 });
-t('band kế tiếp 40%, 1 ô ✗ -> cộng nửa band', () => {
+t('V12: band 7 có 1 ✓ + 2 ½ + 1 ✗ (63%) -> đạt 7 (nới từ 70% xuống 60%, ½ = ¾ ô)', () => {
   const tk = ticks('grammar', (b, id) => b <= 6 ? 'yes' : b === 7 ? ({ G7a: 'yes', G7b: 'partly', G7c: 'partly', G7d: 'no', G7e: 'na' })[id] : 'na');
+  assert.equal(SP.checklistBand('grammar', tk).band, 7);
+});
+t('band kế tiếp ~1/3, 1 ô ✗ -> cộng nửa band', () => {
+  const tk = ticks('grammar', (b, id) => b <= 6 ? 'yes' : b === 7 ? ({ G7a: 'yes', G7b: 'no', G7c: 'partly', G7d: 'na', G7e: 'na' })[id] : 'na');
   assert.equal(SP.checklistBand('grammar', tk).band, 6.5);
+});
+t('V12: 1 band trượt lẻ (band 6 trượt nhưng band 7 đạt) không chặn -> 7', () => {
+  const tk = ticks('lexical', (b, id) => b === 6 ? 'no' : b <= 7 ? 'yes' : 'na');
+  assert.equal(SP.checklistBand('lexical', tk).band, 7);
+});
+t('V12: 2 band trượt liền nhau vẫn chặn', () => {
+  const tk = ticks('lexical', (b, id) => b === 6 || b === 7 ? 'no' : 'yes');
+  assert.equal(SP.checklistBand('lexical', tk).band, 5);
 });
 t('band 8 cần ≥ 2 ô ✓: 1 ✓ + 3 ½ (62%) -> không đạt 8', () => {
   const tk = ticks('fluency', (b, id) => b <= 7 ? 'yes' : b === 8 ? (id === 'F8a' ? 'yes' : 'partly') : 'na');
@@ -53,8 +65,9 @@ t('band 4 trượt rõ -> 3 / 3.5 (không lấy band AI cao hơn)', () => {
   const tk = ticks('grammar', (b, id) => b === 4 ? ({ G4a: 'yes', G4b: 'partly', G4c: 'no' })[id] : 'no');
   assert.equal(SP.checklistBand('grammar', tk, 6).band, 3.5);
 });
-t('điểm tổng làm tròn xuống 0.5', () => {
-  assert.equal(SP.overallBand({ fluency: 7, lexical: 7, grammar: 6.5, pronunciation: 6.5 }), 6.5);
+t('V12: điểm tổng làm tròn kiểu IELTS (.25 -> .5, .75 -> lên)', () => {
+  assert.equal(SP.overallBand({ fluency: 7, lexical: 7, grammar: 6.5, pronunciation: 6.5 }), 7);
+  assert.equal(SP.overallBand({ fluency: 6, lexical: 6.5, grammar: 6.5, pronunciation: 6 }), 6.5);
   assert.equal(SP.overallBand({ fluency: 6, lexical: 6.5, grammar: 6, pronunciation: 6 }), 6);
   assert.equal(SP.overallBand({ fluency: 6, lexical: 6, grammar: 6, pronunciation: null }), null);
 });
@@ -67,7 +80,8 @@ t('JSON rỗng không làm hỏng, không bịa điểm', () => {
 t('định dạng gọn {"F4a":"y"} được đọc đúng', () => {
   const checks = {}; ids('fluency').forEach(x => { checks[x.id] = x.band <= 6 ? 'y' : 'n'; });
   const n = SP.normalizeScoring({ criteria: { fluency: { checks, band: 7 } } }, true, 'low', null);
-  assert.equal(n.criteria.fluency.band, 6); assert.equal(n.criteria.fluency.llmBand, 7);
+  // V12: ô tích cho 6, AI ấn tượng 7 -> không thấp hơn 7 - 0.5
+  assert.equal(n.criteria.fluency.band, 6.5); assert.equal(n.criteria.fluency.llmBand, 7);
 });
 t('chỗ sửa vô nghĩa bị lọc (chỉ khác dấu câu / lặp từ)', () => {
   const n = SP.normalizeScoring({ edits: [{ find: 'go shopping', replace: 'Go shopping.', criterion: 'grammar' }, { find: 'blend food when I eat', replace: 'eat food when I eat', criterion: 'lexical' }, { find: 'he go', replace: 'he goes', criterion: 'grammar', status: 'likely' }] }, true, 'low', null);
@@ -82,13 +96,25 @@ t('nói rõ, trôi chảy: tự tích không vượt band 7 (P8a ≤ một phầ
   assert.equal(a.P8b.status, 'partly'); assert.equal(a.P7c.status, 'partly');
   assert.ok(a.P7a.evidence.startsWith('🎧')); assert.ok(a.P6b.evidence.startsWith('📏'));
 });
-t('giọng Việt rõ nhưng dễ hiểu (8% từ bị nghe nhầm) -> P6a một phần, P7a không', () => {
+t('V12: giọng Việt dễ hiểu (8% từ bị nghe nhầm) -> P6a, P7a đạt', () => {
   const a = SP.pronAutoTicks(pe({ pct_words_affected: 8 }));
-  assert.equal(a.P6a.status, 'partly'); assert.equal(a.P7a.status, 'no'); assert.equal(a.P4a.status, 'yes');
+  assert.equal(a.P6a.status, 'yes'); assert.equal(a.P7a.status, 'yes'); assert.equal(a.P4a.status, 'yes');
 });
-t('2 máy nghe khớp hoàn toàn: dễ nghe nhưng P7a chỉ "một phần", không tích P8a', () => {
+t('V12: 2 máy nghe khớp hoàn toàn -> P7a đạt, P8a một phần', () => {
   const a = SP.pronAutoTicks(pe({ evidence_strength: 'asr_agree', pct_words_affected: 0 }));
-  assert.equal(a.P6a.status, 'yes'); assert.equal(a.P7a.status, 'partly'); assert.equal(a.P8a, undefined);
+  assert.equal(a.P6a.status, 'yes'); assert.equal(a.P7a.status, 'yes'); assert.equal(a.P8a.status, 'partly');
+});
+t('V12: Phát âm nghe hiểu được -> không thấp hơn tiêu chí cao nhất, ≥ trung bình + 0.5', () => {
+  const c = (b) => { const o = {}; ids('fluency').forEach(x => { o[x.id] = x.band <= b ? 'y' : 'n'; }); return o; };
+  const mk = (crit, b) => { const o = {}; ids(crit).forEach(x => { o[x.id] = x.band <= b ? 'y' : 'n'; }); return o; };
+  const n = SP.normalizeScoring({ criteria: { fluency: { checks: mk('fluency', 6) }, lexical: { checks: mk('lexical', 6) }, grammar: { checks: mk('grammar', 5) }, pronunciation: { checks: mk('pronunciation', 5) } } }, true, 'low', pe({ pct_words_affected: 6 }));
+  assert.equal(n.criteria.pronunciation.band, 6.5);
+  assert.ok(n.scores.pronunciation >= n.scores.fluency);
+});
+t('V12: Phát âm nghe nhầm nhiều (30%) -> chỉ nâng tới trung bình', () => {
+  const mk = (crit, b) => { const o = {}; ids(crit).forEach(x => { o[x.id] = x.band <= b ? 'y' : 'n'; }); return o; };
+  const n = SP.normalizeScoring({ criteria: { fluency: { checks: mk('fluency', 6) }, lexical: { checks: mk('lexical', 6) }, grammar: { checks: mk('grammar', 6) }, pronunciation: { checks: mk('pronunciation', 4) } } }, true, 'low', pe({ pct_words_affected: 30 }));
+  assert.equal(n.criteria.pronunciation.band, 6);
 });
 t('ồn nền: số đo không tin cậy (null) -> không tự tích ô ngữ điệu / nối âm', () => {
   const a = SP.pronAutoTicks(pe({ sentence_stress: { contentLouderDb: null }, linking: null, intonation: null, weak_forms: { functionVsContentDurRatio: null } }));

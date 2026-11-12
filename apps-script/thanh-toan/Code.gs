@@ -6,6 +6,17 @@
  *   - đơn gói Pro/Astra: users/<uid>.role='pro', tier, proUntil + số tháng
  * Mọi giao dịch tiền vào đều ghi ở payments/<id SePay> (matched=true/false) để thầy đối soát.
  *
+ * KHO KEY AI (từ 11/2026): thầy nạp sẵn nhiều key Groq vào kho (trang chủ → 👑 Tài khoản → Cài đặt → Kho key AI).
+ * Ai lên Pro / Astra mà chưa có key riêng → máy chủ tự lấy 1 key trống trong kho ghi vào users/<uid>.groqKey:
+ *   - ngay khi SePay báo đã nhận tiền (webhook bên dưới);
+ *   - khi thầy duyệt tay / đổi vai trò sang Pro, Astra trong bảng Tài khoản;
+ *   - khi tài khoản Pro / Astra chưa có key mở web (trang tự xin key, action "claim").
+ * Kho key lưu trong Thuộc tính tập lệnh KEY_POOL của chính project này — không nằm trong Firestore,
+ * nên học sinh không đọc được. Trang web nói chuyện với máy chủ bằng idToken đăng nhập; thao tác kho
+ * chỉ tài khoản role = 'admin' làm được.
+ * Sau khi dán bản Code.gs mới: Triển khai → Quản lý triển khai → ✏️ → Phiên bản mới (giữ nguyên URL),
+ * rồi dán URL …/exec vào trang chủ → 👑 Tài khoản → Cài đặt → "Link máy chủ thanh toán" → Lưu.
+ *
  * CÀI ĐẶT (1 lần):
  *  1. script.google.com → Dự án mới → dán Code.gs này + appsscript.json (Cài đặt dự án → hiện tệp kê khai).
  *  2. Đổi SECRET bên dưới thành chuỗi bí mật bất kỳ (vd. 20 ký tự ngẫu nhiên).
@@ -27,15 +38,17 @@
  *   }
  */
 const PROJECT_ID = 'night-ielts-land';
+const FIREBASE_WEB_KEY = 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8';   // khoá web công khai của Firebase (không phải bí mật)
 const SECRET = 'DOI-THANH-CHUOI-BI-MAT';
 const DAY = 86400000, MONTH = 30 * DAY;
 const FS = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
 function doPost(e) {
   try {
-    if (!e || !e.parameter || e.parameter.key !== SECRET) return out({ success: false, error: 'forbidden' });
-    const tx = JSON.parse((e.postData && e.postData.contents) || '{}');
-    return out(handle(tx));
+    const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (e && e.parameter && e.parameter.key === SECRET) return out(handle(body));   // SePay webhook
+    if (body && body.action) return out(api(body));                                  // trang web (kho key AI)
+    return out({ success: false, error: 'forbidden' });
   } catch (err) {
     console.error(err);
     return out({ success: false, error: String(err && err.message || err) });
@@ -80,12 +93,93 @@ function handle(tx) {
         const tier = order.plan === 'pro' && user.tier === 'astra' && Number(user.proUntil) > now ? 'astra' : order.plan;
         patchDoc('users/' + order.uid, { role: 'pro', tier: tier, proUntil: until }, ['role', 'tier', 'proUntil']);
         log.result = 'gói ' + tier + ' đến ' + new Date(until).toISOString().slice(0, 10);
+        if (!user.groqKey) {
+          try { const k = assignKey_(order.uid, user.email || ''); log.key = k ? 'đã cấp key AI từ kho' : 'KHO KEY TRỐNG — chưa cấp key'; }
+          catch (x) { log.key = 'lỗi cấp key: ' + String(x && x.message || x).slice(0, 120); }
+        }
       }
     }
     patchDoc('payOrders/' + code, { status: 'paid', paidAt: now, paidAmount: amount, txId: id }, ['status', 'paidAt', 'paidAmount', 'txId']);
     log.matched = true;
     setDoc('payments/' + id, log);
     return { success: true, matched: true };
+  } finally { lock.releaseLock(); }
+}
+
+// ===================== KHO KEY AI =====================
+/* KEY_POOL = [{ k: 'gsk_…', uid: '' | '<uid được cấp>', email, at }] */
+function loadPool_() { try { return JSON.parse(PropertiesService.getScriptProperties().getProperty('KEY_POOL') || '[]'); } catch (x) { return []; } }
+function savePool_(p) { PropertiesService.getScriptProperties().setProperty('KEY_POOL', JSON.stringify(p)); }
+function mask_(k) { k = String(k || ''); return k.slice(0, 8) + '…' + k.slice(-4); }
+function paidActive_(u) { return !!u && (u.role === 'pro' && Number(u.proUntil) > Date.now()); }
+/* Cấp key cho uid (gọi khi đã giữ khoá LockService). Đã từng được cấp thì trả lại đúng key cũ. */
+function assignKey_(uid, email) {
+  const pool = loadPool_();
+  let e = pool.filter(x => x.uid === uid)[0];
+  if (!e) { e = pool.filter(x => !x.uid)[0]; if (!e) return null; e.uid = uid; e.email = email || ''; e.at = Date.now(); savePool_(pool); }
+  patchDoc('users/' + uid, { groqKey: e.k }, ['groqKey']);
+  return e.k;
+}
+function verifyTok_(tok) {
+  if (!tok || typeof tok !== 'string') return null;
+  const r = UrlFetchApp.fetch('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + FIREBASE_WEB_KEY, {
+    method: 'post', contentType: 'application/json', payload: JSON.stringify({ idToken: tok }), muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return null;
+  const u = (JSON.parse(r.getContentText()).users || [])[0];
+  return u && u.localId ? { uid: u.localId, email: u.email || '' } : null;
+}
+function poolView_() {
+  const pool = loadPool_();
+  return { ok: true, free: pool.filter(x => !x.uid).length, total: pool.length,
+    pool: pool.map((x, i) => ({ i: i, key: mask_(x.k), uid: x.uid || '', email: x.email || '', at: x.at || 0 })) };
+}
+function api(req) {
+  const who = verifyTok_(req.idToken);
+  if (!who) return { error: 'Phiên đăng nhập hết hạn, tải lại trang rồi thử lại.' };
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const me = getDoc('users/' + who.uid) || {};
+    if (req.action === 'claim') {               // Pro / Astra tự xin key khi mở web
+      if (!paidActive_(me)) return { ok: false, error: 'not_paid' };
+      if (me.groqKey) return { ok: true, key: me.groqKey };
+      const k = assignKey_(who.uid, me.email || who.email);
+      return k ? { ok: true, key: k } : { ok: false, empty: true };
+    }
+    if (me.role !== 'admin') return { error: 'forbidden' };
+    if (req.action === 'poolList') return poolView_();
+    if (req.action === 'poolAdd') {
+      const pool = loadPool_(), have = {}; pool.forEach(x => have[x.k] = 1);
+      let added = 0;
+      String(req.keys || '').split(/[\s,;]+/).forEach(k => { if (/^gsk_[A-Za-z0-9]{20,}$/.test(k) && !have[k]) { pool.push({ k: k, uid: '', email: '', at: 0 }); have[k] = 1; added++; } });
+      savePool_(pool);
+      const v = poolView_(); v.added = added; return v;
+    }
+    if (req.action === 'poolDelete') {          // chỉ xoá được key chưa cấp cho ai
+      const pool = loadPool_(), i = Number(req.i);
+      if (pool[i] && !pool[i].uid) { pool.splice(i, 1); savePool_(pool); }
+      return poolView_();
+    }
+    if (req.action === 'assign') {              // thầy vừa cho 1 tài khoản lên Pro / Astra
+      const u = getDoc('users/' + req.uid);
+      if (!u) return { error: 'Không thấy tài khoản.' };
+      if (u.groqKey) return { ok: true, key: u.groqKey, had: true };
+      const k = assignKey_(req.uid, u.email || '');
+      return k ? { ok: true, key: k } : { ok: false, empty: true };
+    }
+    if (req.action === 'reclaim') {             // thu hồi key của tài khoản hết hạn quá 30 ngày → trả về kho
+      const pool = loadPool_(); let n = 0;
+      pool.forEach(x => {
+        if (!x.uid) return;
+        const u = getDoc('users/' + x.uid) || {};
+        const expired = !(u.role === 'pro') || Number(u.proUntil || 0) < Date.now() - 30 * DAY;
+        if (u.role === 'admin' || u.role === 'student' || !expired) return;
+        if (u.groqKey === x.k) patchDoc('users/' + x.uid, { groqKey: '' }, ['groqKey']);
+        x.uid = ''; x.email = ''; x.at = 0; n++;
+      });
+      savePool_(pool);
+      const v = poolView_(); v.reclaimed = n; return v;
+    }
+    return { error: 'unknown action' };
   } finally { lock.releaseLock(); }
 }
 
