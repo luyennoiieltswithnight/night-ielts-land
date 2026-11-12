@@ -14,6 +14,7 @@
      proRequests/<uid>    { uid, email, name, photo, code, amount, status:'pending'|'approved'|'rejected', createdAt } */
 (function () {
   if (window.NightPlan) return;
+  var LITE = !!(document.currentScript && document.currentScript.hasAttribute('data-lite'));   // trang bài học: chỉ nối AI, không hiện nút/thông báo
   var FB_CONFIG = {
     apiKey: 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8',
     authDomain: 'night-ielts-land.firebaseapp.com',
@@ -701,6 +702,7 @@
   /* Nút "Góp ý · Khiếu nại" -> mở Zalo của thầy (số nhập trong 👑 Tài khoản → Cài đặt) */
   function zaloNum() { var z = String((settings && settings.zalo) || '').replace(/[^0-9]/g, ''); return z.length >= 9 ? z : ''; }
   function showSupportBtn() {
+    if (LITE) return;
     if (!document.body) return;
     var z = zaloNum(), b = document.getElementById('ni-support-btn');
     if (!z) { if (b) b.remove(); return; }
@@ -742,6 +744,7 @@
   /* Thông báo đang cập nhật — tắt: đổi UPDATE_NOTICE thành '' */
   var UPDATE_NOTICE = '🛠️ <b>Thông báo:</b> Tất cả các kỹ năng và bài test đang trong quá trình cập nhật. Nếu gặp lỗi, các bạn <a data-zalo style="color:#fff;font-weight:800;text-decoration:underline;cursor:pointer">nhắn Zalo</a> cho Night IELTS nhé!';
   function showUpdateNotice() {
+    if (LITE) return;
     if (!UPDATE_NOTICE || document.getElementById('ni-update-notice')) return;
     try { if (sessionStorage.getItem('niUpdHide') === '1') return; } catch (e) {}
     var d = document.createElement('div');
