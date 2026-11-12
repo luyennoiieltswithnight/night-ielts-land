@@ -27,6 +27,10 @@
   var DAY = 86400000, MONTH = 30 * DAY;
   var LS_ME = 'nightPlanMe', LS_SET = 'nightPlanSettings';
   var SKILL_NAME = { speaking: 'Speaking', writing: 'Writing' };
+  /* MỘT KEY AI CHO CẢ WEB (11/2026): mọi lời gọi tới api.groq.com trên trang có night-plan.js đều được chuyển
+     qua máy chủ AI của thầy (apps-script/ai-proxy — 1 key OpenAI). Không ai phải nhập key nữa. */
+  var ONE_KEY = true, AI_PLACEHOLDER = 'night-ai';
+  var _fetch = window.fetch.bind(window);
   // Máy chủ thanh toán (apps-script/thanh-toan) — mặc định, thầy có thể đổi trong 👑 Tài khoản → Cài đặt
   var PAY_SERVER_DEFAULT = 'https://script.google.com/macros/s/AKfycbx8EyDjs7WFXlfK2VhDT_Dpdi3XMvADi_AbDpzJIBDA-NWWrMtKR-nys0C-x_3k9tC78A/exec';
   function payServer() { return (settings && settings.payServer) || PAY_SERVER_DEFAULT; }
@@ -113,7 +117,7 @@
   /* Pro / Astra còn hạn mà chưa có key riêng → tự xin 1 key trong kho (tối đa 1 lần / 10 phút mỗi máy) */
   function maybeClaimKey() {
     try {
-      if (!me || effRole(me) !== 'pro' || me.groqKey || !payServer()) return;
+      if (ONE_KEY || !me || effRole(me) !== 'pro' || me.groqKey || !payServer()) return;
       var k = 'nightKeyClaimAt', last = Number(sessionStorage.getItem(k) || 0);
       if (Date.now() - last < 10 * 60000) return;
       sessionStorage.setItem(k, String(Date.now()));
@@ -128,7 +132,14 @@
   function syncManagedKey() {
     var cfg = {}; try { cfg = JSON.parse(localStorage.getItem(GK) || '{}') || {}; } catch (e) {}
     var pro = effRole(me) === 'pro', k = me && me.groqKey;
-    if (pro && k) { if (cfg.apiKey !== k || !cfg.managed) { cfg.apiKey = k; cfg.managed = true; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} } }
+    if (ONE_KEY) {
+      // Tài khoản không phải admin: ghi "key giả" để các trang thấy AI đã sẵn sàng; lời gọi thật đi qua máy chủ.
+      if (me && effRole(me) !== 'admin') {
+        if (cfg.apiKey !== AI_PLACEHOLDER || !cfg.managed) { cfg.apiKey = AI_PLACEHOLDER; cfg.managed = true; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} }
+        try { if (!localStorage.getItem('nightIeltsGroqApiKey')) localStorage.setItem('nightIeltsGroqApiKey', AI_PLACEHOLDER); } catch (e) {}
+      } else if (cfg.managed && cfg.apiKey === AI_PLACEHOLDER && !me) { delete cfg.apiKey; delete cfg.managed; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} }
+    }
+    else if (pro && k) { if (cfg.apiKey !== k || !cfg.managed) { cfg.apiKey = k; cfg.managed = true; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} } }
     else if (cfg.managed) { delete cfg.apiKey; delete cfg.managed; try { localStorage.setItem(GK, JSON.stringify(cfg)); } catch (e) {} }
     lockKeyInputs();
   }
@@ -136,12 +147,13 @@
      Bấm vào chỗ nào gọi tới cửa sổ nhập key thì User được mời nâng cấp, Pro được báo key do Night IELTS cấp. */
   function hideKeyUI() {
     var r = effRole(me), raw = me && me.role;
-    if (!me || !(r === 'user' || r === 'pro' || raw === 'pro')) return;
+    if (!me || !(r === 'user' || r === 'pro' || raw === 'pro' || (ONE_KEY && r === 'student'))) return;
     var run = function () {
       if (!document.getElementById('npl-nokey-css')) { var st = document.createElement('style'); st.id = 'npl-nokey-css'; st.textContent = '#groqSettingsBtn,.btn.gear,#groqGearDot{display:none!important}'; document.head.appendChild(st); }
       var orig = window.openGroqSettingsModal;
       if (orig && !orig.__npl) {
         var f = function () {
+          if (ONE_KEY && effRole(me) !== 'user') { pill('AI đã được Night IELTS kết nối sẵn cho tài khoản của bạn — không cần nhập key.', 4000); return; }
           if (effRole(me) === 'pro') { if (me && me.groqKey) return orig.apply(this, arguments); pill('Key AI của tài khoản bạn đang được Night IELTS cấp, chờ một lát nhé.', 4000); return; }
           openUpgrade('AI không giới hạn dành cho tài khoản ⭐ Pro / 🌟 Astra.', 'pro');
         };
@@ -153,7 +165,7 @@
   }
   function lockKeyInputs() {
     hideKeyUI();
-    if (effRole(me) !== 'pro') return;
+    if (ONE_KEY || effRole(me) !== 'pro') return;
     var run = function () {
       ['groqModalKeyInput', 'groqKeyInput'].forEach(function (id) {
         var el = document.getElementById(id); if (!el || el.dataset.nplLocked) return;
@@ -363,7 +375,7 @@
       }
       return o.fs.setDoc(o.fs.doc(o.db, 'users', uid), data, { merge: true }).then(function () {
         Object.assign(u, data); changed();
-        if (paid && !u.groqKey && payServer()) {
+        if (!ONE_KEY && paid && !u.groqKey && payServer()) {
           payApi('assign', { uid: uid }).then(function (j) {
             if (j.key) { u.groqKey = j.key; pill('🔑 Đã tự cấp key AI từ kho cho ' + esc(u.email || u.name || 'tài khoản') + (j.had ? ' (key cũ)' : ''), 3500); if (tab === 'all') paintList(); }
             else if (j.empty) pill('⚠️ Kho key AI đã hết — tài khoản này tạm dùng AI qua máy chủ chung. Nạp thêm key trong 👑 Tài khoản → Cài đặt.', 6000);
@@ -532,10 +544,12 @@
   /* Thay cho fetch() tới api.groq.com. Có key riêng → gọi thẳng Groq như cũ.
      Không có key + tài khoản User → đi qua máy chủ AI của thầy (có giới hạn). */
   function groqFetch(url, init, skill) {
-    if (hasRealKey(init)) return fetch(url, init);
+    if (!ONE_KEY && hasRealKey(init)) return _fetch(url, init);
     skill = skill === 'writing' ? 'writing' : 'speaking';
+    var paidNoKey = false;
     return ensure().then(function () {
-      var paidNoKey = role() === 'pro';   // Pro / Astra chưa được cấp key riêng → dùng máy chủ AI (key của thầy), không giới hạn
+      var r0 = role();
+      paidNoKey = r0 === 'pro' || (ONE_KEY && (r0 === 'admin' || r0 === 'student'));   // không giới hạn: Pro / Astra / Học sinh / admin
       if (!freeOK() && !paidNoKey) { var e0 = new Error(role() === 'pro' ? 'AI của tài khoản bạn đang được kích hoạt, bạn chờ một lát hoặc nhắn Night IELTS nhé.' : 'Chưa có API key AI. Bấm nút bánh răng ⚙️ để nhập key.'); e0.code = 'NO_KEY'; throw e0; }
       if (!settings.aiProxy) throw new Error('AI miễn phí đang tạm tắt. Nhắn admin Night IELTS, hoặc nâng cấp ⭐ Pro và nhập API key riêng.');
       return fb();
@@ -565,7 +579,7 @@
         return Promise.all(jobs).then(function () { req.fields = fields; req.file = file; return req; });
       });
     }).then(function (req) {
-      return fetch(settings.aiProxy, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(req) });
+      return _fetch(settings.aiProxy, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(req) });
     }).then(function (r) {
       if (!r.ok) throw new Error('AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.');
       return r.json();
@@ -669,9 +683,18 @@
     return ov;
   }
 
+  /* Bắt mọi fetch() tới api.groq.com trên trang → chuyển qua máy chủ AI (1 key của thầy). */
+  if (ONE_KEY && !window.__nplFetchHook) {
+    window.__nplFetchHook = true;
+    window.fetch = function (input, init) {
+      var u = typeof input === 'string' ? input : (input && input.url) || '';
+      if (/^https:\/\/api\.groq\.com\//.test(u)) return groqFetch(u, init || {}, /writing/i.test(location.pathname) ? 'writing' : 'speaking');
+      return _fetch(input, init);
+    };
+  }
   window.NightPlan = {
     FREE_LESSONS: FREE_LESSONS, init: boot, role: role, effRole: effRole, me: function () { return me; }, settings: function () { return settings; },
-    freeOK: freeOK, proxyOK: function () { return role() === 'pro'; }, courseAccess: courseAccess, lessonFree: lessonFree,
+    freeOK: freeOK, proxyOK: function () { var r = role(); return r === 'pro' || (ONE_KEY && (r === 'admin' || r === 'student')); }, courseAccess: courseAccess, lessonFree: lessonFree,
     openUpgrade: openUpgrade, openAdmin: openAdmin, pendingCount: pendingCount,
     groqFetch: groqFetch, freeHint: freeHint, openCourseBuy: openCourseBuy, openCourseGuide: openCourseGuide, courseUntil: courseUntil, coursePrice: coursePrice, payCode: payCode, siteRoot: siteRoot, tierOf: tierOf, planName: planName, planPrice: planPrice
   };

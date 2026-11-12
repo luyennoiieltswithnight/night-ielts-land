@@ -1,4 +1,13 @@
 /**
+ * NIGHT IELTS — Máy chủ AI DUY NHẤT của cả web (từ 11/2026: 1 key OpenAI của thầy; Groq chỉ còn dự phòng)
+ *
+ * MỘT KEY CHO TẤT CẢ: mọi trang (Speaking, Writing, từ vựng, khu vườn, khoá học…) gọi AI đều đi qua máy chủ này.
+ *   - Thuộc tính tập lệnh OPENAI_API_KEY = sk-… (key OpenAI đã nạp tiền trước) → dùng OpenAI.
+ *     Tuỳ chọn: OPENAI_CHAT_MODEL (mặc định gpt-4.1-mini), OPENAI_STT_MODEL (mặc định whisper-1 — có mốc thời gian từng từ).
+ *   - Nếu OpenAI lỗi quá tải (429 / 5xx) mà vẫn còn GROQ_API_KEY → tự thử lại bằng Groq (học viên không thấy lỗi).
+ *   - Admin / Pro / Astra / Học sinh: không giới hạn. User miễn phí: chỉ chấm Speaking, FREE_PER_DAY lượt/ngày.
+ *
+ * (Ghi chú cũ, vẫn đúng với phần dự phòng Groq:)
  * NIGHT IELTS — Máy chủ AI miễn phí cho tài khoản User (Groq, key của thầy)
  * Project Apps Script RIÊNG (không đụng project thông báo / gửi mail).
  *
@@ -70,10 +79,38 @@ const CHAT_COST = { speaking: 10, writing: 75 };
 const DAILY_CAP = 600;                          // tổng số lần gọi Groq / ngày cho mọi User
 const MAX_BODY = 3000000;                       // ký tự, chặn gửi bài quá lớn
 const GROQ = 'https://api.groq.com/openai/v1/';
+const OPENAI = 'https://api.openai.com/v1/';
 
 function doGet() {
-  const n = groqKeys_().length;
-  return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (n ? ' · ' + n + ' key Groq' : ' — CHƯA có GROQ_API_KEY trong Thuộc tính tập lệnh!'));
+  const n = groqKeys_().length, oa = !!openaiKey_();
+  return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (oa ? ' · OpenAI (' + oaModel_('chat') + ' + ' + oaModel_('stt') + ')' : ' · CHƯA có OPENAI_API_KEY') + (n ? ' · dự phòng ' + n + ' key Groq' : ''));
+}
+function openaiKey_() { return String(PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY') || '').trim(); }
+function oaModel_(kind) {
+  const P = PropertiesService.getScriptProperties();
+  return kind === 'stt' ? (P.getProperty('OPENAI_STT_MODEL') || 'whisper-1') : (P.getProperty('OPENAI_CHAT_MODEL') || 'gpt-4.1-mini');
+}
+function busy_(r) { const c = r ? r.getResponseCode() : 0; return !r || c === 429 || c >= 500; }
+/* Gói chat kiểu Groq → OpenAI: đổi model, bỏ tham số riêng của Groq. */
+function toOpenAI_(payload) {
+  const p = JSON.parse(JSON.stringify(payload));
+  p.model = oaModel_('chat');
+  ['reasoning_format', 'include_reasoning', 'reasoning_effort', 'service_tier', 'compound_custom', 'documents', 'search_settings', 'citation_options', 'disable_tool_validation'].forEach(function (k) { delete p[k]; });
+  if (p.max_tokens && !p.max_completion_tokens) { p.max_completion_tokens = p.max_tokens; }
+  delete p.max_tokens;
+  return p;
+}
+function chat_(payload) {
+  let r = null;
+  if (openaiKey_()) {
+    const pl = JSON.stringify(toOpenAI_(payload));
+    r = UrlFetchApp.fetch(OPENAI + 'chat/completions', { method: 'post', contentType: 'application/json', payload: pl, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
+    if (!busy_(r) || !groqKey_()) return r;
+  }
+  const gl = JSON.stringify(payload);
+  return withKeys_(function (k) {
+    return UrlFetchApp.fetch(GROQ + 'chat/completions', { method: 'post', contentType: 'application/json', payload: gl, headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true });
+  });
 }
 
 const FREE_PER_DAY = 2, TICKET_CALLS = 20, TICKET_MIN = 30;
@@ -111,7 +148,7 @@ function doPost(e) {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const user = verify_(req.idToken);
     if (!user) return out_({ error: 'Phiên đăng nhập hết hạn. Tải lại trang rồi thử lại nhé.' });
-    if (!groqKey_()) return out_({ error: 'AI đang bảo trì, bạn chờ một lát hoặc nhắn Night IELTS nhé.' });
+    if (!openaiKey_() && !groqKey_()) return out_({ error: 'AI đang bảo trì, bạn chờ một lát hoặc nhắn Night IELTS nhé.' });
     const skill = req.skill === 'writing' ? 'writing' : 'speaking';
     const paid = isPaid_(user.uid, req.idToken);   // Pro / Astra còn hạn, chưa được cấp key riêng → dùng key của thầy, không giới hạn lượt
     if (!paid) {
@@ -133,13 +170,7 @@ function doPost(e) {
       if (payload.max_completion_tokens > 6000) payload.max_completion_tokens = 6000;
       if (payload.max_tokens > 6000) payload.max_tokens = 6000;
       delete payload.stream;
-      const pl = JSON.stringify(payload);
-      resp = withKeys_(function (k) {
-        return UrlFetchApp.fetch(GROQ + 'chat/completions', {
-          method: 'post', contentType: 'application/json', payload: pl,
-          headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true
-        });
-      });
+      resp = chat_(payload);
     }
     daily_(true);
     if (!paid && req.charge && resp.getResponseCode() !== 200) refundTurn_(user.uid);   // lỗi ngay bước đầu -> trả lại lượt
@@ -190,7 +221,7 @@ function isPaid_(uid, tok) {
     if (r.getResponseCode() === 200) {
       const f = JSON.parse(r.getContentText()).fields || {};
       const role = f.role && f.role.stringValue, until = Number(f.proUntil && (f.proUntil.integerValue || f.proUntil.doubleValue) || 0);
-      ok = role === 'admin' || (role === 'pro' && until > Date.now());
+      ok = role === 'admin' || role === 'student' || (role === 'pro' && until > Date.now());   // Học sinh của thầy: không giới hạn
     }
   } catch (e) {}
   c.put(k, ok ? '1' : '0', 600);
@@ -237,25 +268,36 @@ function daily_(add) {
   const c = CacheService.getScriptCache();
   const n = Number(c.get(key) || 0);
   if (add) c.put(key, String(n + 1), 21600);
-  return n < DAILY_CAP * Math.max(1, groqKeys_().length);   // thêm key thì thêm hạn mức ngày
+  return n < DAILY_CAP * Math.max(openaiKey_() ? 3 : 1, groqKeys_().length);   // thêm key thì thêm hạn mức ngày
 }
 
 /* Gửi file ghi âm sang Groq Whisper (dựng multipart bằng tay để giữ được các trường lặp lại). */
 function stt_(req) {
-  const boundary = '----NightIelts' + Utilities.getUuid().replace(/-/g, '');
-  const enc = function (s) { return Utilities.newBlob(s).getBytes(); };
-  let bytes = [];
-  (req.fields || []).forEach(function (f) {
-    bytes = bytes.concat(enc('--' + boundary + '\r\nContent-Disposition: form-data; name="' + String(f[0]).replace(/"/g, '') + '"\r\n\r\n' + String(f[1]) + '\r\n'));
-  });
-  const name = String(req.file.name || 'answer.webm').replace(/[^\w.\-]/g, '');
-  bytes = bytes.concat(enc('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + name + '"\r\nContent-Type: ' + String(req.file.type || 'audio/webm').replace(/[\r\n]/g, '') + '\r\n\r\n'));
-  bytes = bytes.concat(Utilities.base64Decode(req.file.b64));
-  bytes = bytes.concat(enc('\r\n--' + boundary + '--\r\n'));
+  if (openaiKey_()) {
+    const fields = (req.fields || []).map(function (f) { return f[0] === 'model' ? ['model', oaModel_('stt')] : f; });
+    const mp = multipart_(fields, req.file);
+    const r = UrlFetchApp.fetch(OPENAI + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + mp.boundary, payload: mp.bytes, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
+    if (!busy_(r) || !groqKey_()) return r;
+  }
+  const g = multipart_(req.fields || [], req.file);
   return withKeys_(function (k) {
     return UrlFetchApp.fetch(GROQ + 'audio/transcriptions', {
-      method: 'post', contentType: 'multipart/form-data; boundary=' + boundary, payload: bytes,
+      method: 'post', contentType: 'multipart/form-data; boundary=' + g.boundary, payload: g.bytes,
       headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true
     });
   });
+}
+/* Dựng multipart bằng tay để giữ được các trường lặp lại (timestamp_granularities[]). */
+function multipart_(fieldList, file) {
+  const boundary = '----NightIelts' + Utilities.getUuid().replace(/-/g, '');
+  const enc = function (s) { return Utilities.newBlob(s).getBytes(); };
+  let bytes = [];
+  fieldList.forEach(function (f) {
+    bytes = bytes.concat(enc('--' + boundary + '\r\nContent-Disposition: form-data; name="' + String(f[0]).replace(/"/g, '') + '"\r\n\r\n' + String(f[1]) + '\r\n'));
+  });
+  const name = String(file.name || 'answer.webm').replace(/[^\w.\-]/g, '');
+  bytes = bytes.concat(enc('--' + boundary + '\r\nContent-Disposition: form-data; name="file"; filename="' + name + '"\r\nContent-Type: ' + String(file.type || 'audio/webm').replace(/[\r\n]/g, '') + '\r\n\r\n'));
+  bytes = bytes.concat(Utilities.base64Decode(file.b64));
+  bytes = bytes.concat(enc('\r\n--' + boundary + '--\r\n'));
+  return { boundary: boundary, bytes: bytes };
 }
