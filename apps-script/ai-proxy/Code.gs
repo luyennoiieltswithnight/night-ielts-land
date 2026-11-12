@@ -83,27 +83,31 @@ const OPENAI = 'https://api.openai.com/v1/';
 
 function doGet() {
   const n = groqKeys_().length, oa = !!openaiKey_();
-  return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (oa ? ' · OpenAI (' + oaModel_('chat') + ' + ' + oaModel_('stt') + ')' : ' · CHƯA có OPENAI_API_KEY') + (n ? ' · dự phòng ' + n + ' key Groq' : ''));
+  return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (oa ? ' · OpenAI (Speaking ' + oaModel_('chat', 'speaking') + ', Writing ' + oaModel_('chat', 'writing') + ') · nghe giọng: Groq trước, OpenAI ' + oaModel_('stt') + ' dự phòng' : ' · CHƯA có OPENAI_API_KEY') + (n ? ' · dự phòng ' + n + ' key Groq' : ''));
 }
 function openaiKey_() { return String(PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY') || '').trim(); }
-function oaModel_(kind) {
+/* Speaking chấm bằng gpt-4.1-nano (rẻ ~4 lần), Writing giữ gpt-4.1-mini. Đổi model: thêm Thuộc tính tập lệnh
+   OPENAI_SPEAKING_MODEL / OPENAI_CHAT_MODEL / OPENAI_STT_MODEL — không cần sửa code. */
+function oaModel_(kind, skill) {
   const P = PropertiesService.getScriptProperties();
-  return kind === 'stt' ? (P.getProperty('OPENAI_STT_MODEL') || 'whisper-1') : (P.getProperty('OPENAI_CHAT_MODEL') || 'gpt-4.1-mini');
+  if (kind === 'stt') return P.getProperty('OPENAI_STT_MODEL') || 'whisper-1';
+  if (skill === 'speaking') return P.getProperty('OPENAI_SPEAKING_MODEL') || 'gpt-4.1-nano';
+  return P.getProperty('OPENAI_CHAT_MODEL') || 'gpt-4.1-mini';
 }
 function busy_(r) { const c = r ? r.getResponseCode() : 0; return !r || c === 429 || c >= 500; }
 /* Gói chat kiểu Groq → OpenAI: đổi model, bỏ tham số riêng của Groq. */
-function toOpenAI_(payload) {
+function toOpenAI_(payload, skill) {
   const p = JSON.parse(JSON.stringify(payload));
-  p.model = oaModel_('chat');
+  p.model = oaModel_('chat', skill);
   ['reasoning_format', 'include_reasoning', 'reasoning_effort', 'service_tier', 'compound_custom', 'documents', 'search_settings', 'citation_options', 'disable_tool_validation'].forEach(function (k) { delete p[k]; });
   if (p.max_tokens && !p.max_completion_tokens) { p.max_completion_tokens = p.max_tokens; }
   delete p.max_tokens;
   return p;
 }
-function chat_(payload) {
+function chat_(payload, skill) {
   let r = null;
   if (openaiKey_()) {
-    const pl = JSON.stringify(toOpenAI_(payload));
+    const pl = JSON.stringify(toOpenAI_(payload, skill));
     r = UrlFetchApp.fetch(OPENAI + 'chat/completions', { method: 'post', contentType: 'application/json', payload: pl, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
     if (!busy_(r) || !groqKey_()) return r;
   }
@@ -170,7 +174,7 @@ function doPost(e) {
       if (payload.max_completion_tokens > 6000) payload.max_completion_tokens = 6000;
       if (payload.max_tokens > 6000) payload.max_tokens = 6000;
       delete payload.stream;
-      resp = chat_(payload);
+      resp = chat_(payload, skill);
     }
     daily_(true);
     if (!paid && req.charge && resp.getResponseCode() !== 200) refundTurn_(user.uid);   // lỗi ngay bước đầu -> trả lại lượt
@@ -273,28 +277,21 @@ function daily_(add) {
 
 /* Gửi file ghi âm sang Groq Whisper (dựng multipart bằng tay để giữ được các trường lặp lại). */
 function stt_(req) {
-  // Lần nghe thứ 2 (whisper-large-v3-turbo) phải là một máy nghe KHÁC để so sánh độc lập → giữ ở Groq; Groq lỗi mới dùng OpenAI.
-  const second = (req.fields || []).some(function (f) { return f[0] === 'model' && /turbo/.test(f[1]); });
-  if (second && groqKey_()) {
-    const g2 = multipart_(req.fields || [], req.file);
-    const r2 = withKeys_(function (k) {
-      return UrlFetchApp.fetch(GROQ + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + g2.boundary, payload: g2.bytes, headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true });
+  // Nghe giọng: Groq (key miễn phí, rẻ nhất) trước; Groq lỗi/hết lượt mới dùng OpenAI whisper-1 (~160đ/phút).
+  let g = null;
+  if (groqKey_()) {
+    const mg = multipart_(req.fields || [], req.file);
+    g = withKeys_(function (k) {
+      return UrlFetchApp.fetch(GROQ + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + mg.boundary, payload: mg.bytes, headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true });
     });
-    if (r2 && r2.getResponseCode() === 200) return r2;
+    if (g && g.getResponseCode() === 200) return g;
   }
   if (openaiKey_()) {
     const fields = (req.fields || []).map(function (f) { return f[0] === 'model' ? ['model', oaModel_('stt')] : f; });
     const mp = multipart_(fields, req.file);
-    const r = UrlFetchApp.fetch(OPENAI + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + mp.boundary, payload: mp.bytes, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
-    if (!busy_(r) || !groqKey_()) return r;
+    return UrlFetchApp.fetch(OPENAI + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + mp.boundary, payload: mp.bytes, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
   }
-  const g = multipart_(req.fields || [], req.file);
-  return withKeys_(function (k) {
-    return UrlFetchApp.fetch(GROQ + 'audio/transcriptions', {
-      method: 'post', contentType: 'multipart/form-data; boundary=' + g.boundary, payload: g.bytes,
-      headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true
-    });
-  });
+  return g;
 }
 /* Dựng multipart bằng tay để giữ được các trường lặp lại (timestamp_granularities[]). */
 function multipart_(fieldList, file) {
