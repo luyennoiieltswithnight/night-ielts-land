@@ -27,6 +27,9 @@
   var DAY = 86400000, MONTH = 30 * DAY;
   var LS_ME = 'nightPlanMe', LS_SET = 'nightPlanSettings';
   var SKILL_NAME = { speaking: 'Speaking', writing: 'Writing' };
+  // Máy chủ thanh toán (apps-script/thanh-toan) — mặc định, thầy có thể đổi trong 👑 Tài khoản → Cài đặt
+  var PAY_SERVER_DEFAULT = 'https://script.google.com/macros/s/AKfycbx8EyDjs7WFXlfK2VhDT_Dpdi3XMvADi_AbDpzJIBDA-NWWrMtKR-nys0C-x_3k9tC78A/exec';
+  function payServer() { return (settings && settings.payServer) || PAY_SERVER_DEFAULT; }
 
   function lsGet(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -98,19 +101,19 @@
   }
   /* ---------- Kho key AI (máy chủ thanh toán) ---------- */
   function payApi(action, extra) {
-    if (!settings.payServer) return Promise.reject(new Error('Chưa có link máy chủ thanh toán (👑 Tài khoản → Cài đặt).'));
+    if (!payServer()) return Promise.reject(new Error('Chưa có link máy chủ thanh toán (👑 Tài khoản → Cài đặt).'));
     return fb().then(function (o) {
       var u = o.auth.currentUser; if (!u) throw new Error('Chưa đăng nhập');
       return u.getIdToken();
     }).then(function (tok) {
-      return fetch(settings.payServer, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action: action, idToken: tok }, extra || {})) });
+      return fetch(payServer(), { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ action: action, idToken: tok }, extra || {})) });
     }).then(function (r) { if (!r.ok) throw new Error('Máy chủ bận (' + r.status + ')'); return r.json(); })
       .then(function (j) { if (j && j.error) throw new Error(j.error === 'forbidden' ? 'Không có quyền' : j.error); return j; });
   }
   /* Pro / Astra còn hạn mà chưa có key riêng → tự xin 1 key trong kho (tối đa 1 lần / 10 phút mỗi máy) */
   function maybeClaimKey() {
     try {
-      if (!me || effRole(me) !== 'pro' || me.groqKey || !settings.payServer) return;
+      if (!me || effRole(me) !== 'pro' || me.groqKey || !payServer()) return;
       var k = 'nightKeyClaimAt', last = Number(sessionStorage.getItem(k) || 0);
       if (Date.now() - last < 10 * 60000) return;
       sessionStorage.setItem(k, String(Date.now()));
@@ -360,7 +363,7 @@
       }
       return o.fs.setDoc(o.fs.doc(o.db, 'users', uid), data, { merge: true }).then(function () {
         Object.assign(u, data); changed();
-        if (paid && !u.groqKey && settings.payServer) {
+        if (paid && !u.groqKey && payServer()) {
           payApi('assign', { uid: uid }).then(function (j) {
             if (j.key) { u.groqKey = j.key; pill('🔑 Đã tự cấp key AI từ kho cho ' + esc(u.email || u.name || 'tài khoản') + (j.had ? ' (key cũ)' : ''), 3500); if (tab === 'all') paintList(); }
             else if (j.empty) pill('⚠️ Kho key AI đã hết — tài khoản này tạm dùng AI qua máy chủ chung. Nạp thêm key trong 👑 Tài khoản → Cài đặt.', 6000);
@@ -424,8 +427,8 @@
           '</table><p class="npl-note" style="margin:4px 0 0">Pro = AI chấm Speaking + Writing. Astra = Pro + mở toàn bộ khoá học. Tài khoản Pro mua trước khi chia gói được tính là Astra đến hết hạn.</p></div>' +
           '<label class="npl-f"><span>Link máy chủ AI miễn phí (Apps Script ai-proxy, dạng https://script.google.com/macros/s/…/exec)</span><input class="npl-inp" id="npl-proxy" value="' + esc(s.aiProxy || '') + '" placeholder="Để trống = tắt AI miễn phí cho User"></label>' +
           '<p class="npl-note" style="margin:-4px 0 12px">Tài khoản User được AI miễn phí <b>5 phút mỗi 5 tiếng</b> cho mỗi kỹ năng (Speaking tính thời lượng ghi âm, Writing ≈ 1–2 bài chấm). Key Groq của thầy nằm trong Apps Script, không lộ ra web. Hướng dẫn cài ở đầu file <b>apps-script/ai-proxy/Code.gs</b>.</p>' +
-          '<label class="npl-f"><span>Link máy chủ thanh toán (Apps Script thanh-toan, dạng https://script.google.com/macros/s/…/exec) — dùng cho kho key AI</span><input class="npl-inp" id="npl-pay" value="' + esc(s.payServer || '') + '" placeholder="https://script.google.com/macros/s/…/exec"></label>' +
-          '<div class="npl-f" id="npl-pool"><span>🔑 Kho key AI — tự cấp cho tài khoản Pro / Astra chưa có key</span><div id="npl-pool-box" class="npl-note">' + (s.payServer ? 'Đang tải kho key…' : 'Dán link máy chủ thanh toán ở trên rồi bấm Lưu cài đặt để dùng kho key.') + '</div>' +
+          '<label class="npl-f"><span>Link máy chủ thanh toán (Apps Script thanh-toan, dạng https://script.google.com/macros/s/…/exec) — dùng cho kho key AI</span><input class="npl-inp" id="npl-pay" value="' + esc(s.payServer || PAY_SERVER_DEFAULT) + '" placeholder="https://script.google.com/macros/s/…/exec"></label>' +
+          '<div class="npl-f" id="npl-pool"><span>🔑 Kho key AI — tự cấp cho tài khoản Pro / Astra chưa có key</span><div id="npl-pool-box" class="npl-note">' + (payServer() ? 'Đang tải kho key…' : 'Dán link máy chủ thanh toán ở trên rồi bấm Lưu cài đặt để dùng kho key.') + '</div>' +
           '<textarea class="npl-inp" id="npl-pool-add" rows="3" placeholder="Dán key Groq mới (gsk_…), mỗi key một dòng" style="width:100%;margin-top:6px;font-family:monospace;font-size:12px;-webkit-text-security:disc"></textarea>' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="npl-btn sm gold" id="npl-pool-addbtn" type="button">➕ Thêm vào kho</button><button class="npl-btn sm ghost" id="npl-pool-reclaim" type="button">♻️ Thu hồi key của tài khoản hết hạn &gt; 30 ngày</button></div>' +
           '<p class="npl-note" style="margin:6px 0 0">Ai trả tiền qua SePay, được thầy duyệt / đổi sang Pro · Astra, hoặc tài khoản Pro chưa có key mở web → máy chủ tự lấy 1 key trống ghi vào tài khoản. Kho hết key thì tài khoản vẫn dùng AI qua máy chủ chung như trước.</p></div>' +
@@ -458,7 +461,7 @@
         }).join('') + '</div>';
     }
     function poolPaint(p) {
-      var box = body.querySelector('#npl-pool-box'); if (!box || !settings.payServer) return;
+      var box = body.querySelector('#npl-pool-box'); if (!box || !payServer()) return;
       (p || payApi('poolList')).then(function (j) { box.innerHTML = poolHtml(j); }).catch(function (e) { box.textContent = 'Không tải được kho key: ' + e.message + ' (kiểm tra đã triển khai bản Code.gs mới của thanh-toan chưa).'; });
     }
     body.addEventListener('click', function (e) {
