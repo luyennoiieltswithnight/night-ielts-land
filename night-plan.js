@@ -200,6 +200,7 @@
     '.npl-in{background:#fff;border-radius:22px;padding:22px 20px;overflow:auto}' +
     '.npl-hd{display:flex;align-items:center;gap:10px;margin-bottom:12px}.npl-hd h2{flex:1;margin:0;font-size:20px;font-weight:800}' +
     '.npl-x{border:0;background:#F1F1F6;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;color:#555}' +
+    '.npl-old{color:#9CA3AF;font-weight:600;font-size:.72em;margin-right:4px;text-decoration:line-through}.npl-price .npl-old{font-size:16px}.npl-m .npl-old{display:block;font-size:11px;margin:2px 0 0}.npl-off{background:#DC2626;color:#fff;font-weight:800;font-size:12px;border-radius:999px;padding:2px 8px;align-self:center}' +
     '.npl-price{display:flex;align-items:baseline;gap:6px;margin:4px 0 12px}.npl-price b{font-size:30px;font-weight:800;color:#C2410C}.npl-price span{color:#6B6B78;font-size:14px}' +
     '.npl-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 10px}@media(max-width:520px){.npl-plans{grid-template-columns:1fr}}.npl-plan{position:relative;text-align:left;padding:14px;border:2px solid #E4E4EC;border-radius:18px;background:#fff;font:inherit;cursor:pointer}.npl-plan.on{border-color:#F59E0B;background:#FFFBEB;box-shadow:0 10px 24px -14px rgba(245,158,11,.6)}.npl-plan.astra.on{border-color:#7C3AED;background:#F5F3FF;box-shadow:0 10px 24px -14px rgba(124,58,237,.6)}.npl-plan>b{display:block;font-size:17px}.npl-pp{display:block;font-size:20px;font-weight:800;color:#C2410C;margin:2px 0 6px}.npl-plan.astra .npl-pp{color:#6D28D9}.npl-pp small{font-size:12px;color:#6B6B78;font-weight:600}.npl-plan ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.45;color:#3F3F46}.npl-hot{position:absolute;top:-9px;right:10px;white-space:nowrap;line-height:1.4;background:#7C3AED;color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px}' +
     '.npl-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}.npl-m{position:relative;padding:10px 6px;border:2px solid #E4E4EC;border-radius:14px;background:#fff;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}.npl-m b{font-size:14px}.npl-m span{font-size:13px;font-weight:700;color:#3F3F46}.npl-m small{font-size:11px;color:#059669;font-weight:700}.npl-m.on{border-color:#24242A;background:#24242A}.npl-m.on b,.npl-m.on span{color:#fff}.npl-m.on small{color:#6EE7B7}.npl-m .npl-hot{right:50%;transform:translateX(50%);background:#F59E0B}' +
@@ -259,6 +260,11 @@
     astra: { name: 'Astra', icon: '🌟', prices: { 1: 79000, 3: 199000, 6: 359000 }, perks: ['<b>Tất cả quyền lợi gói Pro</b>', 'Mở <b>toàn bộ buổi học</b> của mọi khoá: Giao tiếp, Speaking, Writing, Chuyên đề…', 'Học theo lộ trình, lưu tiến độ từng buổi'] }
   };
   var MONTHS = [1, 3, 6];
+  /* Giá gốc hiển thị (gạch ngang): giá bán đang là giá đã giảm 20% → giá gốc = giá bán / 0,8, làm tròn nghìn */
+  var LIST_OFF = 20;
+  function listPrice(p) { return Math.round(p / (1 - LIST_OFF / 100) / 1000) * 1000; }
+  function oldP(p) { return '<s class="npl-old">' + money(listPrice(p)) + '</s>'; }
+  function offTag() { return '<span class="npl-off">−' + LIST_OFF + '%</span>'; }
   function planPrice(plan, m) {
     var sp = settings && settings.plans && settings.plans[plan];
     var v = sp && Number(sp[m]); return v > 0 ? v : PLAN_DEF[plan].prices[m];
@@ -303,15 +309,15 @@
           var cards = ['pro', 'astra'].map(function (k) {
             var d = PLAN_DEF[k];
             return '<button type="button" class="npl-plan' + (plan === k ? ' on' : '') + (k === 'astra' ? ' astra' : '') + '" data-plan="' + k + '">' + (k === 'astra' ? '<span class="npl-hot">Đầy đủ nhất</span>' : '') +
-              '<b>' + d.icon + ' ' + d.name + '</b><span class="npl-pp">' + money(planPrice(k, 1)) + '<small>/tháng</small></span><ul>' + d.perks.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul></button>';
+              '<b>' + d.icon + ' ' + d.name + '</b><span class="npl-pp">' + oldP(planPrice(k, 1)) + money(planPrice(k, 1)) + '<small>/tháng</small></span><ul>' + d.perks.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul></button>';
           }).join('');
           var chips = MONTHS.map(function (m) {
             var pr = planPrice(plan, m), bs = planPrice(plan, 1) * m, sv = bs > pr ? Math.round((1 - pr / bs) * 100) : 0;
-            return '<button type="button" class="npl-m' + (months === m ? ' on' : '') + '" data-m="' + m + '">' + (m === 3 ? '<span class="npl-hot">Phổ biến</span>' : '') + '<b>' + m + ' tháng</b><span>' + money(pr) + '</span>' + (sv ? '<small>tiết kiệm ' + sv + '%</small>' : '<small>&nbsp;</small>') + '</button>';
+            return '<button type="button" class="npl-m' + (months === m ? ' on' : '') + '" data-m="' + m + '">' + (m === 3 ? '<span class="npl-hot">Phổ biến</span>' : '') + '<b>' + m + ' tháng</b>' + oldP(pr) + '<span>' + money(pr) + '</span>' + (sv ? '<small>tiết kiệm ' + sv + '%</small>' : '<small>&nbsp;</small>') + '</button>';
           }).join('');
           var hasBank = settings.acc || settings.qr, dq = vietQR(settings, price, code);
           box.innerHTML = hd + status + '<div class="npl-plans">' + cards + '</div><div class="npl-ms">' + chips + '</div>' +
-            '<div class="npl-price"><b>' + money(price) + '</b><span>' + months + ' tháng' + (months > 1 ? ' · ≈ ' + money(per) + '/tháng' + (save ? ' · tiết kiệm ' + save + '%' : '') : '') + '</span></div>' +
+            '<div class="npl-price">' + oldP(price) + '<b>' + money(price) + '</b>' + offTag() + '<span>' + months + ' tháng' + (months > 1 ? ' · ≈ ' + money(per) + '/tháng' + (save ? ' · tiết kiệm ' + save + '%' : '') : '') + '</span></div>' +
             (hasBank ? '<div class="npl-pay">' + (dq ? '<img src="' + esc(dq) + '" alt="QR chuyển khoản"' + (settings.qr ? ' onerror="this.onerror=null;this.src=\'' + esc(settings.qr) + '\'"' : '') + '>' : (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : '')) +
               '<div class="npl-kv"><div><span>Ngân hàng</span><b>' + esc(settings.bank || '') + '</b></div>' +
               '<div><span>Số tài khoản</span><b>' + esc(settings.acc || '') + (settings.acc ? copyBtn(settings.acc) : '') + '</b></div>' +
@@ -530,12 +536,14 @@
   }
   function quotaMsg(qt) {
     var nm = SKILL_NAME[qt.skill] || qt.skill;
+    if (qt.skill === 'writing') return 'Bạn đã dùng hết ' + qt.limit + ' bài Writing được AI chấm thử miễn phí. Nâng cấp ⭐ Pro để AI chấm Writing không giới hạn nhé.';
     if (qt.kind === 'daily') return 'Bạn đã dùng hết ' + qt.limit + ' lượt chấm Speaking miễn phí hôm nay. Ngày mai bạn có lượt mới, hoặc nâng cấp ⭐ Pro để chấm không giới hạn nhé.';
     return 'Bạn đã dùng hết lượt AI miễn phí cho ' + nm + '. Nâng cấp ⭐ Pro để dùng không giới hạn nhé.';
   }
   function showQuota(qt) {
     if (!qt) return;
     var left = Math.max(0, qt.limit - qt.used);
+    if (qt.skill === 'writing') return pill('🎁 Chấm thử Writing miễn phí · còn <b>' + left + '/' + qt.limit + '</b> bài<a>Nâng cấp Pro</a>', 9000);
     pill('🎁 Chấm Speaking miễn phí · còn <b>' + left + '/' + qt.limit + '</b> lượt hôm nay<a>Nâng cấp Pro</a>', left <= 0 ? 9000 : 5000);
   }
   function hasRealKey(init) {
@@ -566,8 +574,9 @@
         });
         return Promise.all(jobs).then(function () { req.fields = fields; req.file = file; return req; });
       });
-      if (skill !== 'speaking') { var e1 = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra.'); e1.code = 'PRO_ONLY'; throw e1; }
       var charge = !!window.__aiChargeNext; window.__aiChargeNext = false;
+      // Writing miễn phí: chỉ phần CHẤM BÀI (chấm thử 2 bài), các tính năng AI khác của Writing vẫn dành cho Pro
+      if (skill !== 'speaking' && !charge && !window.__aiScoring) { var e1 = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra.'); e1.code = 'PRO_ONLY'; throw e1; }
       if (!charge && !window.__aiScoring) { var e2 = new Error('Tài khoản miễn phí chỉ dùng AI để chấm điểm Speaking (2 lượt/ngày). Tính năng này dành cho ⭐ Pro.'); e2.code = 'PRO_ONLY'; throw e2; }
       return user.getIdToken().then(function (tok) {
         var req = { idToken: tok, skill: skill, charge: charge, kind: /audio\/transcriptions/.test(url) ? 'stt' : 'chat' };
@@ -648,7 +657,7 @@
       return getOrder(o, user, { kind: 'course', course: key }, price).then(function (code) {
         box.innerHTML = hd +
           '<p style="margin:0 0 4px;font-weight:800;font-size:16px">' + esc(name) + '</p>' +
-          '<div class="npl-price"><b>' + money(price) + '</b><span>học trọn khoá trong 30 ngày</span></div>' +
+          '<div class="npl-price">' + oldP(price) + '<b>' + money(price) + '</b>' + offTag() + '<span>học trọn khoá trong 30 ngày</span></div>' +
           (cur ? '<div class="npl-ok">✅ Bạn đang có khoá này đến hết ngày <b>' + dmy(cur) + '</b>. Mua thêm để cộng thêm 30 ngày.</div>' : '') +
           '<ul class="npl-ul"><li>Mở <b>tất cả buổi học</b> của khoá</li><li>Tải <b>PDF từng buổi</b> để in, take notes</li><li>Lưu tiến độ, ghi chú trên mọi máy</li></ul>' +
           payBlock(price, code);
@@ -675,7 +684,7 @@
       '</ul>' +
       (st.bought ? '<div class="npl-ok">✅ Bạn đã mua khoá này — dùng đến hết ngày <b>' + dmy(st.until) + '</b>.</div>'
         : st.full ? '<div class="npl-ok">✅ Tài khoản của bạn đã mở khoá này.</div>'
-        : '<div class="npl-pay" style="display:block"><b style="font-size:15px">🔓 Mua riêng khoá này</b><div class="npl-price" style="margin:6px 0 4px"><b>' + money(price) + '</b><span>/ 30 ngày · mở toàn bộ buổi + tải PDF</span></div>' +
+        : '<div class="npl-pay" style="display:block"><b style="font-size:15px">🔓 Mua riêng khoá này</b><div class="npl-price" style="margin:6px 0 4px">' + oldP(price) + '<b>' + money(price) + '</b>' + offTag() + '<span>/ 30 ngày · mở toàn bộ buổi + tải PDF</span></div>' +
           '<p class="npl-note" style="margin:0 0 10px">Chuyển khoản quét QR — tiền vào là khoá tự mở, không cần chờ duyệt.</p>' +
           '<button type="button" class="npl-btn gold" data-buy style="width:100%">Mua khoá · ' + money(price) + '</button></div>') +
       '<button type="button" class="npl-btn ghost npl-x" style="width:100%;margin-top:10px">Đã hiểu, vào học</button>');

@@ -374,7 +374,7 @@
       document.getElementById('nt-login').onclick = function () {
         var go = function () { NightLogin.open({ auth: o.auth, authM: o.A, title: 'Đăng nhập để làm đề', note: 'Chọn Google hoặc nhận link đăng nhập qua email bất kỳ.' }); };
         if (window.NightLogin) return go();
-        var s = document.createElement('script'); s.src = '/night-login.js?v=20261031a'; s.onload = go; document.head.appendChild(s);
+        var s = document.createElement('script'); s.src = '/night-login.js?v=20261113a'; s.onload = go; document.head.appendChild(s);
       };
     }
     function ungate() { var el = document.getElementById('nt-gate'); if (el) { el.remove(); try { document.documentElement.style.overflow = ''; } catch (e) {} } }
@@ -388,7 +388,7 @@
         });
       };
       if (/[?&]oobCode=/.test(location.search)) {
-        var s = document.createElement('script'); s.src = '/night-login.js?v=20261031a';
+        var s = document.createElement('script'); s.src = '/night-login.js?v=20261113a';
         s.onload = function () { NightLogin.complete(o.auth, o.A).then(run, run); }; document.head.appendChild(s);
       } else run();
     }).catch(function () {});

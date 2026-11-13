@@ -1,5 +1,5 @@
 /* Một key AI cho cả web: nạp night-plan.js (chế độ gọn) để mọi lời gọi AI đi qua máy chủ của Night IELTS */
-(function () { if (window.NightPlan || document.querySelector('script[src*="night-plan.js"]')) return; var s = document.createElement('script'); s.src = '/night-plan.js?v=20261112b'; s.setAttribute('data-lite', ''); (document.head || document.documentElement).appendChild(s); })();
+(function () { if (window.NightPlan || document.querySelector('script[src*="night-plan.js"]')) return; var s = document.createElement('script'); s.src = '/night-plan.js?v=20261113a'; s.setAttribute('data-lite', ''); (document.head || document.documentElement).appendChild(s); })();
 /* Night IELTS — "Giải đề cùng thầy" cho Listening (chỉ tài khoản admin/thầy thấy nút).
    Quy trình của thầy, mỗi Section:
      1) Từ cần nhớ: cặp từ trong đề ↔ cách nói trong transcript (phiên âm, loa, ảnh Irasutoya) → học sinh chép.

@@ -5,7 +5,7 @@
  *   - Thuộc tính tập lệnh OPENAI_API_KEY = sk-… (key OpenAI đã nạp tiền trước) → dùng OpenAI.
  *     Tuỳ chọn: OPENAI_CHAT_MODEL (mặc định gpt-4.1-mini), OPENAI_STT_MODEL (mặc định whisper-1 — có mốc thời gian từng từ).
  *   - Nếu OpenAI lỗi quá tải (429 / 5xx) mà vẫn còn GROQ_API_KEY → tự thử lại bằng Groq (học viên không thấy lỗi).
- *   - Admin / Pro / Astra / Học sinh: không giới hạn. User miễn phí: chỉ chấm Speaking, FREE_PER_DAY lượt/ngày.
+ *   - Admin / Pro / Astra / Học sinh: không giới hạn. User miễn phí: chấm Speaking FREE_PER_DAY lượt/ngày + chấm thử FREE_WRITING bài Writing (trọn đời).
  *
  * (Ghi chú cũ, vẫn đúng với phần dự phòng Groq:)
  * NIGHT IELTS — Máy chủ AI miễn phí cho tài khoản User (Groq, key của thầy)
@@ -137,6 +137,25 @@ function oaChat_(p) {
 }
 
 const FREE_PER_DAY = 2, TICKET_CALLS = 20, TICKET_MIN = 30;
+const FREE_WRITING = 2;   // tài khoản miễn phí: AI chấm thử 2 bài Writing (tính trọn đời, không reset)
+function writingQuota_(uid) {
+  const n = Number(PropertiesService.getScriptProperties().getProperty('w_' + uid) || 0);
+  return { skill: 'writing', kind: 'total', used: Math.min(n, FREE_WRITING), limit: FREE_WRITING };
+}
+function chargeWriting_(uid) {
+  const lock = LockService.getScriptLock(); lock.waitLock(8000);
+  try {
+    const P = PropertiesService.getScriptProperties(), key = 'w_' + uid, n = Number(P.getProperty(key) || 0);
+    if (n >= FREE_WRITING) return false;
+    P.setProperty(key, String(n + 1));
+    CacheService.getScriptCache().put('tk_' + uid, String(TICKET_CALLS), TICKET_MIN * 60);
+    return true;
+  } finally { lock.releaseLock(); }
+}
+function refundWriting_(uid) {
+  const P = PropertiesService.getScriptProperties(), key = 'w_' + uid, n = Number(P.getProperty(key) || 0);
+  if (n > 0) P.setProperty(key, String(n - 1));
+}
 function today_() { return Utilities.formatDate(new Date(), 'Asia/Ho_Chi_Minh', 'yyyyMMdd'); }
 function dailyQuota_(uid) {
   const n = Number(PropertiesService.getScriptProperties().getProperty('f_' + today_() + '_' + uid) || 0);
@@ -175,9 +194,9 @@ function doPost(e) {
     const skill = req.skill === 'writing' ? 'writing' : 'speaking';
     const paid = isPaid_(user.uid, req.idToken);   // Pro / Astra còn hạn, chưa được cấp key riêng → dùng key của thầy, không giới hạn lượt
     if (!paid) {
-      if (skill !== 'speaking') return out_({ error: 'PRO_ONLY' });
-      if (req.charge) { if (!chargeTurn_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) }); }
-      else if (!useTicket_(user.uid)) return out_({ error: 'QUOTA', quota: dailyQuota_(user.uid) });
+      const wr = skill === 'writing', quota = function () { return wr ? writingQuota_(user.uid) : dailyQuota_(user.uid); };
+      if (req.charge) { if (!(wr ? chargeWriting_(user.uid) : chargeTurn_(user.uid))) return out_({ error: 'QUOTA', quota: quota() }); }
+      else if (!useTicket_(user.uid)) return out_({ error: wr ? 'PRO_ONLY' : 'QUOTA', quota: quota() });
     }
     if (!paid && !daily_(false)) return out_({ error: 'AI miễn phí hôm nay đã đủ số lần dùng. Bạn quay lại vào ngày mai, hoặc nâng cấp Pro để dùng không giới hạn nhé.' });
 
@@ -196,8 +215,8 @@ function doPost(e) {
       resp = chat_(payload, skill);
     }
     daily_(true);
-    if (!paid && req.charge && resp.getResponseCode() !== 200) refundTurn_(user.uid);   // lỗi ngay bước đầu -> trả lại lượt
-    return out_({ status: resp.getResponseCode(), body: resp.getContentText(), quota: !paid && req.charge ? dailyQuota_(user.uid) : null });
+    if (!paid && req.charge && resp.getResponseCode() !== 200) { if (skill === 'writing') refundWriting_(user.uid); else refundTurn_(user.uid); }   // lỗi ngay bước đầu -> trả lại lượt
+    return out_({ status: resp.getResponseCode(), body: resp.getContentText(), quota: !paid && req.charge ? (skill === 'writing' ? writingQuota_(user.uid) : dailyQuota_(user.uid)) : null });
   } catch (err) {
     return out_({ error: 'AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.', detail: String(err && err.message || err) });
   }

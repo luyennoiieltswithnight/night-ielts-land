@@ -524,7 +524,7 @@ body.full-work .shell>main{padding:10px}
 .modal-bg{background:rgba(36,36,42,.55)!important;backdrop-filter:blur(6px)}
 .view-center .sheet{background:#fff!important;box-shadow:0 20px 50px -24px rgba(36,36,42,.45)}
 </style>
-<script src="night-plan.js?v=20261112b"></script>
+<script src="night-plan.js?v=20261113a"></script>
 <script src="night-fame.js?v=20261102a"></script>
 </head>
 <body>
@@ -2407,6 +2407,16 @@ body.full-work .shell>main{padding:10px}
 
   async function runAiGrading(ref, data, onStep) {
     onStep = onStep || function () {};
+    // Tài khoản miễn phí: mỗi bài chấm = 1 lượt chấm thử (tổng 2 bài). Lần gọi AI đầu tiên trừ lượt, các lần sau trong cùng bài dùng chung lượt.
+    const freeTry = !!(window.NightPlan && NightPlan.freeOK());
+    if (freeTry) { window.__aiChargeNext = true; window.__aiScoring = true; }
+    try { return await runAiGrading2(ref, data, onStep); }
+    catch (e) {
+      if (freeTry && e && (e.code === 'QUOTA' || e.code === 'PRO_ONLY') && window.NightPlan) NightPlan.openUpgrade('Bạn đã dùng hết 2 bài Writing được AI chấm thử miễn phí. Nâng cấp ⭐ Pro để AI chấm, sửa lỗi và nâng band Writing không giới hạn.', 'pro');
+      throw e;
+    } finally { if (freeTry) { window.__aiScoring = false; window.__aiChargeNext = false; } }
+  }
+  async function runAiGrading2(ref, data, onStep) {
     const task = data.task || guessTask(data.promptHtml);
     let visual = data.promptVisualText || '';
     if (!visual && task === 'task1' && extractImages(data.promptHtml).length) {

@@ -1,5 +1,5 @@
 /* Một key AI cho cả web: nạp night-plan.js (chế độ gọn) để mọi lời gọi AI đi qua máy chủ của Night IELTS */
-(function () { if (window.NightPlan || document.querySelector('script[src*="night-plan.js"]')) return; var s = document.createElement('script'); s.src = '/night-plan.js?v=20261112b'; s.setAttribute('data-lite', ''); (document.head || document.documentElement).appendChild(s); })();
+(function () { if (window.NightPlan || document.querySelector('script[src*="night-plan.js"]')) return; var s = document.createElement('script'); s.src = '/night-plan.js?v=20261113a'; s.setAttribute('data-lite', ''); (document.head || document.documentElement).appendChild(s); })();
 /* Night IELTS — khung bài học dùng chung cho MỌI khóa (khoahoc/night-engine.js).
    Mỗi trang bài học nằm trong thư mục khóa (khoahoc/<khóa>/buoi-XX.html), nạp <script src="../night-engine.js"></script>
    rồi gọi NightLesson.render({...}). Tên thư mục = mã khóa (giaotiep, speaking6, …) → dùng cho link "Lộ trình"

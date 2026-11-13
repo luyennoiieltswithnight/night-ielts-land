@@ -72,7 +72,7 @@
   function withLogin(fn) {
     if (window.NightLogin) return fn();
     var sc = document.createElement('script');
-    try { sc.src = new URL('../night-login.js?v=20261031a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-login.js'; }
+    try { sc.src = new URL('../night-login.js?v=20261113a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-login.js'; }
     sc.onload = fn; document.head.appendChild(sc);
   }
   function hideGate() { var el = document.getElementById('np-gate'); if (el) el.remove(); }

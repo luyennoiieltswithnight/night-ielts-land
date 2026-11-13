@@ -6,7 +6,7 @@
   if (window.NightLogin) return;
   var KEY = 'nightLoginEmail';
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  var CSS = '#nl-ov{position:fixed;inset:0;z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(36,36,42,.45);backdrop-filter:blur(3px);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif}' +
+  var CSS = '#nl-ov{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(36,36,42,.45);backdrop-filter:blur(3px);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif}' +
     '#nl-ov .bx{width:100%;max-width:400px;background:#fff;border-radius:26px;padding:26px 22px 20px;box-shadow:0 30px 60px -20px rgba(36,36,42,.45);color:#24242A;text-align:center;position:relative}' +
     '#nl-ov h2{margin:0 0 6px;font-size:21px;font-weight:800}#nl-ov p{margin:0 0 16px;font-size:13.5px;line-height:1.55;color:#6B6B78}' +
     '#nl-ov .x{position:absolute;right:12px;top:10px;border:0;background:none;font-size:20px;color:#9A9AA8;cursor:pointer}' +
