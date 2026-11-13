@@ -221,7 +221,7 @@
     '.nf-lk-ic{width:46px;height:46px;border-radius:50%;border:0;background:#262626;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}.nf-lk-ic.big{width:56px;height:56px;background:transparent}' +
     '.nf-lk-pill{display:inline-flex;align-items:center;gap:8px;background:#262626;color:#fff;border:0;border-radius:999px;padding:10px 16px;font:700 14px inherit;font-family:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}.nf-lk-pill img{width:22px;height:22px;object-fit:contain}.nf-lk-pill.red{background:#B91C1C;padding:8px 14px;font-size:13px;cursor:pointer}' +
     '.nf-lk-me{width:46px;height:46px;border-radius:50%;border:2.5px solid #F5B301;padding:0;background:#FFF7ED;overflow:hidden;cursor:pointer;flex:none}.nf-lk-me img{width:100%;height:100%;object-fit:cover}' +
-    '.nf-lk-feed{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none}.nf-lk-feed::-webkit-scrollbar{display:none}' +
+    '.nf-lk-feed{flex:1 1 0;min-height:0;overscroll-behavior:contain;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none}.nf-lk-feed::-webkit-scrollbar{display:none}.nf-lk-ud{position:absolute;right:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:10px;z-index:2}.nf-lk-ud button{width:40px;height:40px;border-radius:50%;border:0;background:#262626;color:#fff;font-size:18px;cursor:pointer}.nf-lk-ud button:disabled{opacity:.3}@media(hover:none){.nf-lk-ud{display:none}}.nf-lk-del{border:0;background:#3a1d1d;color:#FCA5A5;font-weight:800;font-size:13px;border-radius:999px;padding:8px 14px;cursor:pointer;flex:none}.nf-lk-more{grid-column:1/-1;border:0;background:#262626;color:#fff;font-weight:800;border-radius:16px;padding:14px;cursor:pointer}.nf-lk-tabs{display:flex;gap:8px;justify-content:center;margin:0 0 10px}.nf-lk-tabs button{border:0;background:#262626;color:#bbb;font-weight:800;border-radius:999px;padding:8px 14px;cursor:pointer}.nf-lk-tabs button.on{background:#F5B301;color:#1a1a1a}' +
     '.nf-lk-s{height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 10px;box-sizing:border-box}' +
     '.nf-lk-ph{position:relative;width:min(100%,calc(100% - 0px),56vh);aspect-ratio:1;border-radius:46px;overflow:hidden;background:#1F1F1F}.nf-lk-ph>img{width:100%;height:100%;object-fit:cover;display:block}' +
     '.nf-lk-ph.compose{background:#1C1C1C;border:1.5px dashed #3a3a3a}.nf-lk-ph.compose.has{border:0}' +
@@ -469,8 +469,9 @@
         function barHtml() {
           var x = slides[idx] || {};
           if (x.compose) return '<div class="nf-lk-msg">' + (shot ? '<span>Nhấn nút gửi để đăng lên Tường lớp</span>' : '<span>' + fl.today + ' bạn đã check-in hôm nay</span>') + '</div>';
-          if (isT) return '<div class="nf-lk-msg"><span>' + esc(x.name || '') + '</span><button class="nf-lk-pill red" data-a="stamp">' + (x.stamp ? 'Đã đóng mộc' : 'Đóng mộc khen') + '</button></div>';
-          if (x.uid === u.uid) { var n = Object.keys(x.reacts || {}).length; return '<div class="nf-lk-msg"><span>' + (n ? n + ' bạn đã thả cảm xúc' : 'Chưa ai thả cảm xúc') + '</span></div>'; }
+          var del = (x.uid === u.uid || isT) && x.id ? '<button class="nf-lk-del" data-a="del">Xoá</button>' : '';
+          if (isT && x.uid !== u.uid) return '<div class="nf-lk-msg"><span>' + esc(x.name || '') + '</span><button class="nf-lk-pill red" data-a="stamp">' + (x.stamp ? 'Đã đóng mộc' : 'Đóng mộc khen') + '</button>' + del + '</div>';
+          if (x.uid === u.uid) { var n = Object.keys(x.reacts || {}).length; return '<div class="nf-lk-msg"><span>' + (n ? n + ' bạn đã thả cảm xúc' : 'Chưa ai thả cảm xúc') + '</span>' + del + '</div>'; }
           var my = (x.reacts || {})[u.uid]; my = RX[my] ? my : RX_OLD[my];
           return '<div class="nf-lk-msg"><span>Thả cảm xúc…</span>' + Object.keys(RX).map(function (k) { return '<button class="nf-lk-rx' + (my === k ? ' on' : '') + '" data-rx="' + k + '"><img src="' + avUrl(RX[k]) + '" alt="' + k + '"></button>'; }).join('') + '</div>';
         }
@@ -479,7 +480,7 @@
           ov.innerHTML = '<div class="nf-lk-top"><button class="nf-lk-ic" data-a="close" aria-label="Đóng">' + SVG.back + '</button>' +
             '<div class="nf-lk-pill"><img src="' + IRA + 'yaruki_moeru_woman_8815.webp" alt="">Cả lớp · lửa ' + fl.streak + ' ngày · ' + fl.today + '/' + fl.need + '</div>' +
             '<button class="nf-lk-me" data-a="avatar" aria-label="Ảnh đại diện"><img src="' + avOf({ av: f.av, photo: u.photo }) + '" alt=""></button></div>' +
-            '<div class="nf-lk-feed">' + (slides.length ? slides.map(slideHtml).join('') : '<section class="nf-lk-s"><div class="nf-lk-ph compose"><div class="nf-lk-empty"><img src="' + IRA + 'camera_film_2730.webp"><b>Chưa ai check-in</b><span>Hôm nay lớp còn im ắng lắm.</span></div></div></section>') + '</div>' +
+            '<div style="position:relative;flex:1 1 0;min-height:0;display:flex;flex-direction:column"><div class="nf-lk-ud"><button data-a="up" aria-label="Ảnh trước">▲</button><button data-a="down" aria-label="Ảnh sau">▼</button></div><div class="nf-lk-feed">' + (slides.length ? slides.map(slideHtml).join('') : '<section class="nf-lk-s"><div class="nf-lk-ph compose"><div class="nf-lk-empty"><img src="' + IRA + 'camera_film_2730.webp"><b>Chưa ai check-in</b><span>Hôm nay lớp còn im ắng lắm.</span></div></div></section>') + '</div></div>' +
             '<div class="nf-lk-bot"><div class="nf-lk-bar">' + barHtml() + '</div><div class="nf-lk-nav">' +
             '<button class="nf-lk-ic big" data-a="grid" aria-label="Xem tất cả">' + SVG.grid + '</button>' +
             (isT ? '<button class="nf-lk-shut" data-a="sotw" title="Chọn Học sinh của tuần"><i><img src="' + IRA + 'trophy_school_boy.webp" alt=""></i></button>'
@@ -490,6 +491,37 @@
           if (keep) feed.scrollTop = top;
           feed.addEventListener('scroll', function () { var i = Math.round(feed.scrollTop / Math.max(1, feed.clientHeight)); if (i !== idx) { idx = i; ov.querySelector('.nf-lk-bar').innerHTML = barHtml(); } }, { passive: true });
           ov.querySelector('#nf-cam').onchange = onShot;
+        }
+        function goTo(i) { var feed = ov.querySelector('.nf-lk-feed'); if (!feed) return; i = Math.max(0, Math.min(slides.length - 1, i)); feed.scrollTo({ top: i * feed.clientHeight, behavior: 'smooth' }); }
+        function onKey(e) { if (!ov.isConnected) return document.removeEventListener('keydown', onKey); if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return; if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); goTo(idx + 1); } if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); goTo(idx - 1); } }
+        document.addEventListener('keydown', onKey);
+        function addPosts(arr) {
+          var have = {}; posts.forEach(function (p) { have[p.id] = 1; });
+          arr.forEach(function (p) { if (!have[p.id]) { posts.push(p); have[p.id] = 1; } });
+          posts.sort(function (a, b) { return b.ts - a.ts; });
+          slides = (slides[0] && slides[0].compose ? [slides[0]] : []).concat(posts);
+        }
+        var oldest = since;   // đã tải từ ngày này trở đi
+        function loadOlder() {   // tải thêm 3 ngày cũ hơn
+          var to = oldest, from = dayKey(Date.now() - (dayNum(dayKey()) - dayNum(oldest) + 3) * 864e5);
+          return o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'checkins'), o.fs.where('day', '>=', from), o.fs.where('day', '<', to))).then(function (s) {
+            var a = []; s.forEach(function (d) { var x = d.data(); x.id = d.id; a.push(x); }); oldest = from; addPosts(a); return a.length;
+          });
+        }
+        function loadMine() {   // toàn bộ ảnh của chính mình (để xem lại / xoá)
+          return o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'checkins'), o.fs.where('uid', '==', u.uid))).then(function (s) {
+            var a = []; s.forEach(function (d) { var x = d.data(); x.id = d.id; a.push(x); }); addPosts(a); return a;
+          });
+        }
+        function delPost(x) {
+          if (!confirm(x.uid === u.uid ? 'Xoá ảnh check-in này của bạn? Xoá rồi không khôi phục được.' : 'Xoá ảnh check-in của ' + (x.name || 'bạn này') + '? Xoá rồi không khôi phục được.')) return;
+          o.fs.deleteDoc(o.fs.doc(o.db, 'checkins', x.id)).then(function () {
+            if (x.day) { var pp = {}; pp['uids.' + x.uid] = o.fs.deleteField(); o.fs.updateDoc(o.fs.doc(o.db, 'checkinDays', x.day), pp).catch(function () {}); }
+            posts = posts.filter(function (p) { return p.id !== x.id; });
+            if (x.uid === u.uid && x.day === today) mine = null;
+            slides = (!isT && !mine ? [{ compose: true }] : []).concat(posts);
+            idx = Math.min(idx, Math.max(0, slides.length - 1)); paint(); goTo(idx); toast('Đã xoá ảnh.');
+          }).catch(function (e) { toast('Chưa xoá được (' + (e.code || e.message) + ')'); });
         }
         function onShot(e) {
           var file = e.target.files && e.target.files[0]; if (!file) return;
@@ -514,14 +546,22 @@
             event({ kind: 'checkin', id: 'ci_' + today + (mine ? '_' + now : ''), title: cap || 'Góc học hôm nay', img: shot, ontime: ontime });
           }).catch(function (e) { btn.disabled = false; toast('Chưa đăng được (' + (e.code || e.message) + ')'); });
         }
-        function grid() {
-          var g = document.createElement('div'); g.className = 'nf-lk-grid';
-          g.innerHTML = '<div class="nf-lk-top"><button class="nf-lk-ic" data-a="gclose">' + SVG.back + '</button><div class="nf-lk-pill">Hôm nay và hôm qua · ' + posts.length + ' ảnh</div><span style="width:44px"></span></div><div class="nf-lk-gg">' +
-            slides.map(function (x, i) { return x.compose ? '' : '<button data-go="' + i + '"><img src="' + esc(x.img) + '" alt="" loading="lazy"></button>'; }).join('') + '</div>';
+        function grid(tab) {
+          var g = ov.querySelector('.nf-lk-grid'); if (g) g.remove();
+          g = document.createElement('div'); g.className = 'nf-lk-grid'; tab = tab || 'all';
+          var list = slides.map(function (x, i) { return { x: x, i: i }; }).filter(function (t) { return !t.x.compose && (tab === 'all' || t.x.uid === u.uid); });
+          g.innerHTML = '<div class="nf-lk-top"><button class="nf-lk-ic" data-a="gclose">' + SVG.back + '</button><div class="nf-lk-pill">' + (tab === 'all' ? 'Từ ' + oldest.slice(6) + '/' + oldest.slice(4, 6) + ' · ' + list.length + ' ảnh' : 'Ảnh của bạn · ' + list.length) + '</div><span style="width:44px"></span></div>' +
+            '<div class="nf-lk-tabs"><button data-tab="all" class="' + (tab === 'all' ? 'on' : '') + '">Cả lớp</button><button data-tab="mine" class="' + (tab === 'mine' ? 'on' : '') + '">Của tôi</button></div><div class="nf-lk-gg">' +
+            list.map(function (t) { return '<button data-go="' + t.i + '"><img src="' + esc(t.x.img) + '" alt="" loading="lazy"></button>'; }).join('') +
+            (tab === 'all' ? '<button class="nf-lk-more" data-more>Xem ảnh cũ hơn (3 ngày trước nữa)</button>' : (list.length ? '' : '<p style="grid-column:1/-1;text-align:center;color:#aaa">Bạn chưa có ảnh check-in nào.</p>')) + '</div>';
           g.onclick = function (e) {
             if (e.target.closest('[data-a="gclose"]')) return g.remove();
+            var tb = e.target.closest('[data-tab]');
+            if (tb) { if (tb.dataset.tab === 'mine') { tb.textContent = 'Đang tải…'; loadMine().then(function () { paint(true); grid('mine'); }); } else grid('all'); return; }
+            var mb = e.target.closest('[data-more]');
+            if (mb) { mb.disabled = true; mb.textContent = 'Đang tải…'; loadOlder().then(function () { paint(true); grid('all'); }).catch(function (er) { mb.disabled = false; mb.textContent = 'Lỗi tải (' + (er.code || er.message) + '), thử lại'; }); return; }
             var b = e.target.closest('[data-go]'); if (!b) return;
-            g.remove(); var feed = ov.querySelector('.nf-lk-feed'); feed.scrollTop = +b.dataset.go * feed.clientHeight;
+            g.remove(); var feed = ov.querySelector('.nf-lk-feed'); idx = +b.dataset.go; feed.scrollTop = idx * feed.clientHeight; ov.querySelector('.nf-lk-bar').innerHTML = barHtml();
           };
           ov.appendChild(g);
         }
@@ -541,6 +581,9 @@
           if (k === 'cam') ov.querySelector('#nf-cam').click();
           if (k === 'post') post(a);
           if (k === 'grid') grid();
+          if (k === 'up') goTo(idx - 1);
+          if (k === 'down') goTo(idx + 1);
+          if (k === 'del' && x.id) delPost(x);
           if (k === 'avatar') openAvatar(function (id) { f.av = id; paint(true); });
           if (k === 'sotw') pickSotw(o);
           if (k === 'share' && (x.img || shot)) story({ label: 'Night Check-in', big: '', title: '', cap: x.caption || (x.compose ? '' : '') || 'Góc học hôm nay', sticker: 'camera_film_2730', streak: x.streak || 0, name: x.compose ? u.name : x.name, photo: x.compose ? avOf({ av: f.av, photo: u.photo }) : avOf(x), img: x.img || shot, news: [] });
