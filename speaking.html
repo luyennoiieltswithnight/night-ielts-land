@@ -826,6 +826,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         <img class="sp-ira" src="/khoahoc/img/ira/interview_1103.webp" alt="">
         <span class="sp-spark s1">✦</span><span class="sp-spark s2">★</span>
       </div>
+      <div id="fcHub"></div>
       <p class="ni-instruction mb-4">Chọn 1 bộ câu hỏi bất kỳ để luyện tự do, hoặc làm đúng bộ đã được giao cho bạn.</p>
       <div class="home-row">
         <button type="button" class="mock-cta" onclick="openMockTest()"><span class="mk-ic">🎤</span><span><b>Thi thử Speaking full test</b><small>Part 1 → Part 2 → Part 3 như phòng thi, 11–14 phút, chấm đủ 4 tiêu chí</small></span><i class="fa-solid fa-chevron-right"></i></button>
@@ -2457,6 +2458,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   };
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
+<script src="speaking-forecast.js?v=1"></script>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
@@ -3078,7 +3080,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       return;
     }
     const { part1, part23 } = splitPackagesByPart(__spAllPackages);
-    el.innerHTML = renderPkgGroup('🗣️ Part 1', part1, { practiceOnly: true }) + renderPkgGroup('🗣️ Part 2 + 3', part23, { practiceOnly: true });
+    el.innerHTML = '<div id="fcHubT"></div>' + renderPkgGroup('🗣️ Part 1', part1, { practiceOnly: true }) + renderPkgGroup('🗣️ Part 2 + 3', part23, { practiceOnly: true });
+    paintFcHub('fcHubT');
   }
 
   // ==========================================
@@ -3451,7 +3454,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     // Tiến độ: mỗi bộ đã làm bao nhiêu câu (đếm theo câu khác nhau đã có ít nhất 1 lần làm)
     __spDoneByPkg = {};
     const pC = (async () => {
-      const take = (snap) => { setTimeout(() => { syncDayFromAttempts(); paintGoals(); }, 0); const m = {}; __spMyAttempts = []; snap.forEach(d => { const a = d.data(); if (a.kind && a.kind !== 'attempt') return; if (!a.packageId || !a.questionId) return; (m[a.packageId] = m[a.packageId] || {})[a.questionId] = 1; if (a.scores) __spMyAttempts.push({ q: a.questionId, t: Number(a.createdAt) || 0, s: a.scores }); }); __spDoneByPkg = m; paint(); };
+      const take = (snap) => { setTimeout(() => { syncDayFromAttempts(); paintGoals(); }, 0); const m = {}; __spMyAttempts = []; snap.forEach(d => { const a = d.data(); if (a.kind && a.kind !== 'attempt') return; if (!a.packageId || !a.questionId) return; (m[a.packageId] = m[a.packageId] || {})[a.questionId] = 1; if (a.scores) __spMyAttempts.push({ q: a.questionId, p: a.packageId, t: Number(a.createdAt) || 0, s: a.scores }); }); __spDoneByPkg = m; paint(); };
       try { take(await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid), where('kind', '==', 'attempt')))); }
       catch (e) { try { take(await getDocs(query(collection(db, 'speakingAttempts'), where('studentId', '==', uid)))); } catch (e2) {} }
     })();
@@ -3499,7 +3502,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   let __mk = null;
   const shuffle = a => a.map(x => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map(p => p[1]);
   function buildMockQuestions() {
-    const all = (__spAllPackages || []).filter(p => p.questions && p.questions.length);
+    const all = (window.__mkSrc || __spAllPackages || []).filter(p => p.questions && p.questions.length);
     const partOf = (p, q) => { const x = String(q.part || ''); if (x === '1' || x === '2' || x === '3') return x; if (p.part === '1' || p.part === '2' || p.part === '3') return p.part; return /you should say|^\s*describe/i.test(q.text) ? '2' : '3'; };
     const tag = (p, q, part) => Object.assign({}, q, { id: p.id + '__' + q.id, part: part, srcPkg: p.id, topic: p.title });
     const pool = pt => all.map(p => ({ p: p, qs: p.questions.filter(q => partOf(p, q) === pt) })).filter(x => x.qs.length);
@@ -3533,7 +3536,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       try { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(String(text).replace(/\s+/g, ' ')); const v = pickEnVoice(); if (v) u.voice = v; u.lang = (v && v.lang) || 'en-US'; u.rate = 0.92; u.onend = fin; u.onerror = fin; window.speechSynthesis.speak(u); setTimeout(fin, 2500 + String(text).split(/\s+/).length * 450); } catch (e) { fin(); }
     });
   }
-  window.openMockTest = function () {
+  window.openMockTest = function (fc) {
+    window.__mkSrc = fc === true ? fcPackages() : null;
     if (!getGroqConfig().apiKey && window.NightPlan && NightPlan.freeOK()) { NightPlan.openUpgrade('Thi thử full test (15 câu, chấm đủ 4 tiêu chí) dành cho tài khoản ⭐ Pro / 🌟 Astra.', 'pro'); return; }
     if (!hasGroqAI()) { alert('Cần có AI chấm trước khi thi thử (biểu tượng ⚙️ góc trên).'); return; }
     const qs = buildMockQuestions();
@@ -3942,8 +3946,120 @@ Is it better to read a physical book or an e-book?"></textarea>
           return spStudentTabs(part1, part23, tile);
         })();
 
+    paintFcHub('fcHub');
     showOnly('studentHomeView');
   }
+
+  // ==========================================
+  // ĐỀ DỰ ĐOÁN (FORECAST): bộ đề theo quý, dựng sẵn từ speaking-forecast.js — không cần lưu lên máy chủ.
+  // Mỗi chủ đề Part 1 / mỗi đề Part 2 + 3 là 1 "bộ" (id fc…_p1_01 / fc…_p23_01) nên dùng chung mọi thứ của trang:
+  // luyện, chấm AI, lịch sử, tiến độ, thi thử.
+  // ==========================================
+  let __fcList = null;
+  function fcPackages() {
+    const F = window.SP_FORECAST; if (!F) return [];
+    if (__fcList) return __fcList;
+    const pad = n => String(n).padStart(2, '0');
+    __fcList = F.p1.map((x, i) => ({ id: F.id + '_p1_' + pad(i + 1), title: x.t, part: '1', fc: true, ownerId: 'forecast', createdAt: 0, questions: x.q.map((t, j) => ({ id: 'q' + j, part: '1', text: t, tipHtml: '' })) }))
+      .concat(F.p2.map((x, i) => ({ id: F.id + '_p23_' + pad(i + 1), title: x.t, part: '2-3', fc: true, ownerId: 'forecast', createdAt: 0, cue: x.cue, ex: x.ex, questions: [{ id: 'q0', part: '2', text: x.card, tipHtml: '' }].concat(x.q.map((t, j) => ({ id: 'q' + (j + 1), part: '3', text: t, tipHtml: '' }))) })));
+    return __fcList;
+  }
+  function fcPkg(id) { return id && window.SP_FORECAST && id.indexOf(window.SP_FORECAST.id + '_') === 0 ? (fcPackages().find(p => p.id === id) || null) : null; }
+  const fcLS = (k, v) => { try { if (v === undefined) return localStorage.getItem('nightFc_' + k); localStorage.setItem('nightFc_' + k, v); } catch (e) { return null; } };
+  function fcStats() {
+    const L = fcPackages(), best = {}, last = {};
+    (__spMyAttempts || []).forEach(a => { if (!a.p || !fcPkg(a.p)) return; const o = a.s && Number(a.s.overall); if (o) best[a.p] = Math.max(best[a.p] || 0, o); if (!last.t || a.t > last.t) { last.t = a.t; last.p = a.p; last.q = a.q; } });
+    let qAll = 0, qDone = 0; const by = { '1': [0, 0, 0], '23': [0, 0, 0] };
+    L.forEach(p => { const d = spDoneCount(p), n = p.questions.length, k = p.part === '1' ? '1' : '23'; qAll += n; qDone += d; by[k][0]++; if (d >= n) by[k][2]++; else if (d) by[k][1]++; });
+    return { L, best, last, qAll, qDone, by };
+  }
+  window.fcGo = function (mode) {
+    const S = fcStats(), part = mode === 'cue' ? '23' : (fcLS('part') || '1');
+    const pool = S.L.filter(p => (p.part === '1') === (part === '1'));
+    const open = (p, i) => { location.href = 'speaking.html?packageId=' + p.id + (i ? '&q=' + i : ''); };
+    if (mode === 'cue') { const fresh = pool.filter(p => !spDoneCount(p)); const p = (fresh.length ? fresh : pool)[Math.floor(Math.random() * (fresh.length || pool.length))]; return open(p, 0); }
+    const qs = []; pool.forEach(p => { const m = __spDoneByPkg[p.id] || {}; p.questions.forEach((q, i) => { if (!m[q.id]) qs.push([p, i]); }); });
+    const pick = qs.length ? qs[Math.floor(Math.random() * qs.length)] : [pool[Math.floor(Math.random() * pool.length)], 0];
+    open(pick[0], pick[1]);
+  };
+  window.fcSet = function (k, v) { fcLS(k, v); paintFcHub(window.__fcTarget); };
+  function paintFcHub(target) {
+    const el = document.getElementById(target); if (!el || !window.SP_FORECAST) return;
+    window.__fcTarget = target;
+    if (!document.getElementById('fc-css')) { const st = document.createElement('style'); st.id = 'fc-css'; st.textContent = FC_CSS; document.head.appendChild(st); }
+    const F = window.SP_FORECAST, S = fcStats(), part = fcLS('part') || '1', flt = fcLS('flt') || 'all', qtxt = (fcLS('q') || '').toLowerCase();
+    const pct = S.qAll ? Math.round(S.qDone / S.qAll * 100) : 0, R = 54, C = 2 * Math.PI * R;
+    const ring = '<svg viewBox="0 0 140 140" class="fc-ring"><defs><linearGradient id="fcg" x1="0" x2="1"><stop offset="0" stop-color="#FFB86B"/><stop offset="1" stop-color="#FF6B9A"/></linearGradient></defs><circle cx="70" cy="70" r="' + R + '" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="13"/><circle cx="70" cy="70" r="' + R + '" fill="none" stroke="url(#fcg)" stroke-width="13" stroke-linecap="round" stroke-dasharray="' + (C * Math.max(pct, S.qDone ? 1.5 : 0) / 100).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 70 70)"/><text x="70" y="68" text-anchor="middle" class="fc-pct">' + pct + '%</text><text x="70" y="90" text-anchor="middle" class="fc-pl">' + S.qDone + '/' + S.qAll + ' câu</text></svg>';
+    const nP1 = F.p1.length, nP2 = F.p2.length, lastP = S.last.p ? fcPkg(S.last.p) : null;
+    const bar = (k, label) => { const b = S.by[k], n = b[0]; return '<div class="fc-mini"><div><b>' + label + '</b><span>' + b[2] + ' xong · ' + b[1] + ' đang luyện / ' + n + '</span></div><i><em style="width:' + (b[2] / n * 100) + '%"></em><em class="h" style="width:' + (b[1] / n * 100) + '%"></em></i></div>'; };
+    const L = S.L.filter(p => (p.part === '1') === (part === '1')).map(p => { const d = spDoneCount(p), n = p.questions.length; return { p, d, n, st: d >= n ? 'done' : d ? 'doing' : 'new' }; })
+      .filter(x => (flt === 'all' || x.st === flt) && (!qtxt || x.p.title.toLowerCase().indexOf(qtxt) >= 0 || x.p.questions.some(q => q.text.toLowerCase().indexOf(qtxt) >= 0)));
+    const cnt = st => S.L.filter(p => (p.part === '1') === (part === '1')).filter(p => { const d = spDoneCount(p); return st === 'all' || (st === 'done' ? d >= p.questions.length : st === 'doing' ? d && d < p.questions.length : !d); }).length;
+    const tile = x => {
+      const p = x.p, m = __spDoneByPkg[p.id] || {}, b = S.best[p.id];
+      const dots = p.questions.map((q, i) => '<i class="' + (m[q.id] ? 'on' : '') + (q.part === '2' ? ' cue' : '') + '"></i>').join('');
+      const nextI = Math.max(0, p.questions.findIndex(q => !m[q.id]));
+      return '<a class="fc-t ' + x.st + '" href="speaking.html?packageId=' + p.id + (nextI ? '&q=' + nextI : '') + '">' +
+        '<div class="fc-tt">' + escapeHtml(p.part === '1' ? p.title : p.title.replace(/^Describe\s+/i, '')) + '</div>' +
+        (p.part !== '1' ? '<div class="fc-cue">Cue card + ' + (p.questions.length - 1) + ' câu Part 3</div>' : '') +
+        '<div class="fc-dots">' + dots + '</div>' +
+        '<div class="fc-bot"><span>' + (x.st === 'done' ? '<i class="fa-solid fa-circle-check"></i> Đã luyện hết' : x.st === 'doing' ? x.d + '/' + x.n + ' câu' : x.n + ' câu · chưa luyện') + '</span>' + (b ? '<b class="fc-band">' + b.toFixed(1) + '</b>' : '<span class="fc-arr"><i class="fa-solid fa-arrow-right"></i></span>') + '</div></a>';
+    };
+    el.innerHTML = '<section class="fc">' +
+      '<div class="fc-hero"><div class="fc-l">' +
+        '<span class="fc-badge"><i class="fa-solid fa-fire"></i> Đề dự đoán · ' + escapeHtml(F.range) + '</span>' +
+        '<h3>Bộ đề Speaking ' + escapeHtml(F.name.replace(/^Dự đoán\s*/i, '')) + '</h3>' +
+        '<p>' + nP1 + ' chủ đề Part 1 · ' + nP2 + ' đề Part 2 + 3 · ' + S.qAll.toLocaleString('vi-VN') + ' câu hỏi có khả năng ra thi. Luyện trước — vào phòng thi gặp đề quen.</p>' +
+        '<div class="fc-cta"><button type="button" class="fc-go" onclick="fcGo(\'q\')"><i class="fa-solid fa-bolt"></i> Luyện ngay 1 câu</button>' +
+        '<button type="button" onclick="fcGo(\'cue\')"><i class="fa-solid fa-ticket"></i> Bốc thăm cue card</button>' +
+        '<button type="button" onclick="openMockTest(true)"><i class="fa-solid fa-microphone-lines"></i> Thi thử bằng đề dự đoán</button></div>' +
+        (lastP ? '<a class="fc-cont" href="speaking.html?packageId=' + lastP.id + '"><i class="fa-solid fa-clock-rotate-left"></i><span>Luyện tiếp: <b>' + escapeHtml(lastP.title) + '</b></span><i class="fa-solid fa-chevron-right"></i></a>' : '') +
+      '</div><div class="fc-r">' + ring + bar('1', 'Part 1') + bar('23', 'Part 2 + 3') + '</div></div>' +
+      '<div class="fc-bar"><div class="fc-tabs"><button type="button" class="' + (part === '1' ? 'on p1' : '') + '" onclick="fcSet(\'part\',\'1\')">Part 1 <span>' + nP1 + '</span></button><button type="button" class="' + (part !== '1' ? 'on p23' : '') + '" onclick="fcSet(\'part\',\'23\')">Part 2 + 3 <span>' + nP2 + '</span></button></div>' +
+        '<div class="fc-flt">' + [['all', 'Tất cả'], ['new', 'Chưa luyện'], ['doing', 'Đang luyện'], ['done', 'Đã xong']].map(f => '<button type="button" class="' + (flt === f[0] ? 'on' : '') + '" onclick="fcSet(\'flt\',\'' + f[0] + '\')">' + f[1] + ' <span>' + cnt(f[0]) + '</span></button>').join('') + '</div>' +
+        '<label class="fc-search"><i class="fa-solid fa-magnifying-glass"></i><input id="fcQ" type="search" placeholder="Tìm chủ đề hoặc câu hỏi…" value="' + escapeHtml(fcLS('q') || '') + '"></label></div>' +
+      '<div class="fc-grid ' + (part === '1' ? 'k1' : 'k23') + '">' + (L.length ? L.map(tile).join('') : '<p class="fc-empty">Không có đề nào khớp bộ lọc.</p>') + '</div></section>';
+    const qi = document.getElementById('fcQ');
+    if (qi) qi.oninput = () => { clearTimeout(qi.t); qi.t = setTimeout(() => { fcLS('q', qi.value); const pos = qi.selectionStart; paintFcHub(target); const n = document.getElementById('fcQ'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } }, 220); };
+  }
+  const FC_CSS = [
+    '.fc{margin:4px 0 22px}',
+    '.fc-hero{position:relative;overflow:hidden;display:grid;grid-template-columns:1.5fr 1fr;gap:18px;padding:22px;border-radius:28px;color:#fff;background:radial-gradient(120% 90% at 100% 0%,#4C3FA8 0%,#26215F 45%,#191641 100%);box-shadow:0 22px 50px -26px rgba(25,22,65,.8)}',
+    '.fc-hero:before{content:"";position:absolute;width:320px;height:320px;right:-80px;bottom:-140px;border-radius:50%;background:radial-gradient(closest-side,rgba(255,140,90,.45),transparent);pointer-events:none}',
+    '.fc-badge{display:inline-flex;align-items:center;gap:7px;background:rgba(255,184,107,.18);color:#FFC98F;font-weight:800;font-size:12px;letter-spacing:.04em;padding:6px 12px;border-radius:999px}',
+    '.fc-hero h3{margin:10px 0 6px;font-size:clamp(22px,3vw,30px);font-weight:900;line-height:1.15}',
+    '.fc-hero p{margin:0;color:#D9D6FF;font-size:14px;line-height:1.55;max-width:560px}',
+    '.fc-cta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}',
+    '.fc-cta button{display:inline-flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:11px 16px;font-weight:800;font-size:13.5px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff;transition:transform .15s,background .15s}',
+    '.fc-cta button:hover{transform:translateY(-2px);background:rgba(255,255,255,.2)}',
+    '.fc-cta .fc-go{background:linear-gradient(135deg,#FFB86B,#FF6B9A);color:#2B1236;box-shadow:0 10px 24px -10px rgba(255,107,154,.9);animation:fcPulse 2.6s ease-in-out infinite}',
+    '@keyframes fcPulse{0%,100%{box-shadow:0 10px 24px -10px rgba(255,107,154,.9)}50%{box-shadow:0 10px 34px -6px rgba(255,140,120,1)}}',
+    '.fc-cont{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 14px;border-radius:16px;background:rgba(255,255,255,.08);color:#fff;font-size:13px;text-decoration:none;max-width:520px}.fc-cont span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.fc-cont:hover{background:rgba(255,255,255,.14)}',
+    '.fc-r{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}',
+    '.fc-ring{width:150px;height:150px}.fc-pct{fill:#fff;font-weight:900;font-size:30px;font-family:inherit}.fc-pl{fill:#C9C4FF;font-weight:700;font-size:11px;font-family:inherit}',
+    '.fc-mini{width:100%;max-width:260px}.fc-mini>div{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#D9D6FF;margin-bottom:4px}.fc-mini b{color:#fff}',
+    '.fc-mini i{display:flex;height:8px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}.fc-mini em{display:block;background:#7EE2B8}.fc-mini em.h{background:#FFB86B}',
+    '.fc-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 12px}',
+    '.fc-tabs{display:flex;gap:6px;padding:5px;background:rgba(255,255,255,.75);border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}',
+    '.fc-tabs button,.fc-flt button{border:0;border-radius:12px;padding:9px 14px;font-weight:800;font-size:13.5px;cursor:pointer;background:transparent;color:#475569}',
+    '.fc-tabs span,.fc-flt span{font-size:11px;opacity:.75;margin-left:3px}',
+    '.fc-tabs .on.p1{background:#4F46E5;color:#fff}.fc-tabs .on.p23{background:#EA580C;color:#fff}',
+    '.fc-flt{display:flex;flex-wrap:wrap;gap:4px}.fc-flt button{background:rgba(255,255,255,.7);padding:7px 12px;font-size:12.5px}.fc-flt .on{background:#1E1B4B;color:#fff}',
+    '.fc-search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;background:#fff;border-radius:14px;padding:9px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);color:#94A3B8}.fc-search input{border:0;outline:0;flex:1;font:inherit;font-size:14px;color:#1E293B;background:transparent;min-width:0}',
+    '.fc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}',
+    '.fc-t{position:relative;display:flex;flex-direction:column;gap:8px;min-height:132px;padding:14px;border-radius:20px;background:#fff;border:2px solid #E0E7FF;text-decoration:none;color:#1E1B4B;transition:transform .15s,box-shadow .15s}',
+    '.fc-t:hover{transform:translateY(-3px);box-shadow:0 14px 28px -16px rgba(30,27,75,.45)}',
+    '.k23 .fc-t{border-color:#FFEDD5}.fc-t.doing{border-color:#FDBA74;background:linear-gradient(180deg,#FFFBF5,#fff)}.k1 .fc-t.doing{border-color:#A5B4FC;background:linear-gradient(180deg,#F5F7FF,#fff)}',
+    '.fc-t.done{border-color:#86EFAC;background:linear-gradient(180deg,#F0FDF4,#fff)}',
+    '.fc-tt{font-weight:800;font-size:15px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.k23 .fc-tt:first-letter{text-transform:uppercase}',
+    '.fc-cue{font-size:11.5px;font-weight:800;color:#C2410C}',
+    '.fc-dots{display:flex;flex-wrap:wrap;gap:3px}.fc-dots i{width:9px;height:9px;border-radius:3px;background:#E2E8F0}.fc-dots i.cue{width:16px}.k1 .fc-dots i.on{background:#6366F1}.k23 .fc-dots i.on{background:#F97316}.fc-t.done .fc-dots i.on{background:#22C55E}',
+    '.fc-bot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;color:#64748B}.fc-t.done .fc-bot span{color:#15803D}',
+    '.fc-band{background:#1E1B4B;color:#FFD66B;border-radius:10px;padding:3px 8px;font-size:13px}',
+    '.fc-arr{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#EEF2FF;color:#4F46E5}.k23 .fc-arr{background:#FFF7ED;color:#EA580C}',
+    '.fc-empty{grid-column:1/-1;text-align:center;padding:24px;color:#94A3B8;font-weight:700}',
+    '@media(max-width:760px){.fc-hero{grid-template-columns:1fr;padding:18px}.fc-r{flex-direction:row;flex-wrap:wrap}.fc-ring{width:120px;height:120px}.fc-mini{max-width:none;flex:1;min-width:180px}.fc-grid{grid-template-columns:1fr 1fr}.fc-t{min-height:120px;padding:12px}.fc-tt{font-size:14px}}'
+  ].join('');
 
   // ==========================================
   // LUYỆN TẬP 1 BỘ CÂU HỎI
@@ -4070,9 +4186,11 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   async function enterPracticeView(uid, role) {
     let snap = null, connErr = false;
-    try { snap = await cacheFirstDoc(doc(db, 'speakingPackages', packageId)); }
-    catch (e) { connErr = true; }
-    if (snap && snap.exists()) {
+    const fcP = fcPkg(packageId);
+    if (!fcP) { try { snap = await cacheFirstDoc(doc(db, 'speakingPackages', packageId)); } catch (e) { connErr = true; } }
+    if (fcP) {
+      __pkg = fcP;
+    } else if (snap && snap.exists()) {
       __pkg = Object.assign({ id: snap.id }, snap.data());
     } else {
       const seeded = lessonSeedPackage();
@@ -4085,6 +4203,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     document.getElementById('pkgPartLabel').textContent = PART_LABELS[__pkg.part] || __pkg.part;
 
     __qIdx = 0;
+    { const qp = parseInt(params.get('q'), 10); if (qp > 0 && qp < __pkg.questions.length) __qIdx = qp; }
     let shown = false;
     const wantAttempt = params.get('attempt');
     let jumped = false;
@@ -4116,7 +4235,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     }
     if (!shown) show();
     // cập nhật bộ câu hỏi mới nhất ở nền (nếu thầy vừa sửa)
-    authReady.then(() => getDoc(doc(db, 'speakingPackages', packageId))).then(sn => {
+    if (!fcP) authReady.then(() => getDoc(doc(db, 'speakingPackages', packageId))).then(sn => {
       if (!sn.exists()) return;
       const fresh = Object.assign({ id: sn.id }, sn.data());
       if (JSON.stringify(fresh.questions) !== JSON.stringify(__pkg.questions) && !practiceBusy()) { __pkg = fresh; if (__qIdx >= __pkg.questions.length) __qIdx = 0; renderQNav(); renderQuestion(); }
