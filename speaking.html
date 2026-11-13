@@ -290,6 +290,24 @@ audio{width:100%;height:40px;}
 .rv-tipbox{font-size:12.5px;color:var(--ink-2);background:var(--accent-wash);border-radius:12px;padding:10px 12px;line-height:1.5}
 @media (max-width:900px){.rv-body{grid-template-columns:1fr;overflow-y:auto}.rv-main{overflow:visible}.rv-side{border-left:0;border-top:1px solid var(--rule)}}
 @media (max-width:640px){.rv-overlay{padding:0}.rv-sheet{border-radius:0;height:100%}}
+
+/* Ô ghi chú ý tưởng */
+.sp-note{padding:14px 16px}
+.sp-note-head{display:flex;align-items:center;gap:8px}
+.sp-note-title{font-weight:800;font-size:14.5px;color:var(--ink)}
+.sp-note-saved{font-size:11.5px;color:var(--ink-3)}
+.sp-note-fold{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent-ink,var(--accent));background:var(--accent-wash,#eef);border-radius:99px;padding:3px 10px}
+.sp-note-bar{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:10px 0 8px}
+.sp-note-bar button{min-width:30px;height:30px;padding:0 7px;border-radius:8px;border:1px solid var(--rule,#e6e7f0);background:#fff;font-size:13px;color:var(--ink);line-height:1}
+.sp-note-bar button:hover{background:var(--accent-wash,#eef)}
+.sp-note-bar button.sw{min-width:22px;width:22px;height:22px;padding:0;border-radius:99px;border:2px solid #fff;box-shadow:0 0 0 1px var(--rule,#e6e7f0)}
+.sp-note-bar button.on{background:#fee2e2;border-color:#fca5a5;color:#b91c1c}
+.sp-note-sep{width:1px;height:20px;background:var(--rule,#e6e7f0);margin:0 3px}
+.sp-note-ed{min-height:110px;max-height:420px;overflow:auto;resize:vertical;border:1px solid var(--rule,#e6e7f0);border-radius:12px;padding:10px 12px;background:#fffef7;font-size:15px;line-height:1.6;color:var(--ink);outline:none}
+.sp-note-ed:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash,#eef)}
+.sp-note-ed:empty:before{content:attr(data-ph);color:var(--ink-3)}
+.sp-note-ed ul{list-style:disc;padding-left:22px}
+.sp-note-ed .live{color:#94a3b8}
 </style>
 <style id="pv-theme">
 /* ============================================================
@@ -847,6 +865,121 @@ Is it better to read a physical book or an e-book?"></textarea>
               <div id="spGroqBoxPractice"></div>
             </div>
           </div>
+
+          <!-- Ô ghi chú ý tưởng (giống ô ghi chú bài học khoá học): lưu riêng từng câu hỏi trên máy -->
+          <div id="spNoteCard" class="pv-card sp-note">
+            <div class="sp-note-head">
+              <span class="sp-note-title">📝 Ghi chú ý tưởng</span>
+              <span id="spNoteSaved" class="sp-note-saved"></span>
+              <button type="button" class="sp-note-fold" onclick="spNote.fold()" id="spNoteFoldBtn" title="Thu gọn / mở ô ghi chú">Thu gọn</button>
+            </div>
+            <div id="spNoteBody">
+              <div class="sp-note-bar" onmousedown="if(event.target.closest('button'))event.preventDefault()">
+                <button type="button" onclick="spNote.cmd('bold')" title="In đậm (Cmd+B)"><b>B</b></button>
+                <button type="button" onclick="spNote.cmd('italic')" title="In nghiêng (Cmd+I)"><i>I</i></button>
+                <button type="button" onclick="spNote.cmd('underline')" title="Gạch chân (Cmd+U)"><u>U</u></button>
+                <button type="button" onclick="spNote.cmd('insertUnorderedList')" title="Gạch đầu dòng">• –</button>
+                <span class="sp-note-sep"></span>
+                <button type="button" class="sw" style="background:#0f172a" onclick="spNote.color('#0f172a')" title="Chữ đen"></button>
+                <button type="button" class="sw" style="background:#e11d48" onclick="spNote.color('#e11d48')" title="Chữ đỏ"></button>
+                <button type="button" class="sw" style="background:#4338ca" onclick="spNote.color('#4338ca')" title="Chữ xanh dương"></button>
+                <button type="button" class="sw" style="background:#059669" onclick="spNote.color('#059669')" title="Chữ xanh lá"></button>
+                <button type="button" onclick="spNote.mark()" title="Tô nền chữ (highlight)"><span style="background:#fef08a;padding:0 3px;border-radius:3px">ab</span></button>
+                <button type="button" onclick="spNote.cmd('removeFormat')" title="Bỏ định dạng">⌫</button>
+                <span class="sp-note-sep"></span>
+                <button type="button" id="spNoteMic" onclick="spNote.mic()" title="Nói để ghi chú (giọng nói → chữ)">🎤</button>
+                <button type="button" id="spNoteLang" onclick="spNote.lang()" title="Đổi ngôn ngữ nhận diện giọng nói">EN</button>
+                <button type="button" onclick="spNote.clear()" title="Xoá ghi chú của câu này" style="margin-left:auto">🗑️</button>
+              </div>
+              <div id="spNoteEditor" class="sp-note-ed" contenteditable="true" spellcheck="false" data-ph="Ghi ý tưởng, từ vựng, dàn ý cho câu này… (tự lưu trên máy này)"></div>
+            </div>
+          </div>
+          <script>
+  /* ===== Ô ghi chú ý tưởng: lưu theo từng câu hỏi (localStorage), có giọng nói → chữ ===== */
+  window.spNote = (function () {
+    var ed = function () { return document.getElementById('spNoteEditor'); };
+    var key = null, t = null, lang = 'en', rec = null;
+    try { lang = localStorage.getItem('night-notes-voice-lang') || 'en'; } catch (e) {}
+    function h(str) { var x = 5381; for (var i = 0; i < str.length; i++) x = ((x << 5) + x + str.charCodeAt(i)) | 0; return (x >>> 0).toString(36); }
+    function flash(m) { var el = document.getElementById('spNoteSaved'); if (el) el.textContent = m; }
+    function save() {
+      if (!key || !ed()) return;
+      var v = ed().innerHTML.trim();
+      if (v === '<br>') { v = ''; ed().innerHTML = ''; }
+      try { if (v) localStorage.setItem(key, v); else localStorage.removeItem(key); flash(v ? 'Đã lưu ✓' : ''); }
+      catch (e) { flash('⚠️ Bộ nhớ đầy, chưa lưu được'); }
+    }
+    function later() { clearTimeout(t); flash('Đang lưu…'); t = setTimeout(save, 500); }
+    function load(qText) {
+      stopMic(); save();
+      key = 'spNote:' + h(String(qText || ''));
+      var v = ''; try { v = localStorage.getItem(key) || ''; } catch (e) {}
+      if (ed()) ed().innerHTML = v;
+      flash(v ? 'Có ghi chú đã lưu' : '');
+    }
+    function cmd(c, v) { ed().focus(); try { document.execCommand('styleWithCSS', false, true); } catch (e) {} document.execCommand(c, false, v); later(); }
+    function stopMic() { if (rec) { rec.stopping = true; try { rec.stop(); } catch (e) {} } }
+    function setLangBtn() { var b = document.getElementById('spNoteLang'); if (b) b.textContent = lang === 'vi' ? 'VI' : 'EN'; }
+    function mic() {
+      if (rec) { stopMic(); return; }
+      var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { flash('Trình duyệt này chưa hỗ trợ nói thành chữ — dùng Chrome/Edge/Safari nhé.'); return; }
+      var e = ed(); e.focus();
+      var sel = window.getSelection(), r;
+      if (sel.rangeCount && e.contains(sel.getRangeAt(0).commonAncestorContainer)) r = sel.getRangeAt(0);
+      else { r = document.createRange(); r.selectNodeContents(e); r.collapse(false); }
+      var live = document.createElement('span'); live.className = 'live';
+      r.deleteContents(); r.insertNode(live);
+      var fin = '', x = new SR();
+      x.lang = lang === 'vi' ? 'vi-VN' : 'en-US'; x.continuous = true; x.interimResults = true;
+      x.onresult = function (ev) {
+        var interim = '';
+        for (var i = ev.resultIndex; i < ev.results.length; i++) {
+          var tx = ev.results[i][0].transcript;
+          if (ev.results[i].isFinal) fin += (fin && !/\s$/.test(fin) ? ' ' : '') + tx.trim(); else interim += tx;
+        }
+        live.textContent = ' ' + fin + (interim ? ' ' + interim : '');
+      };
+      x.onerror = function (ev) { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') { x.stopping = true; flash('Chưa cho phép micro.'); } else if (ev.error === 'network') { x.stopping = true; flash('Cần mạng để nói thành chữ.'); } };
+      x.onend = function () {
+        if (!x.stopping) { try { x.start(); return; } catch (er) {} }
+        rec = null; var b = document.getElementById('spNoteMic'); if (b) b.classList.remove('on');
+        if (live.parentNode) { if (fin) live.replaceWith(document.createTextNode(' ' + fin + ' ')); else live.remove(); }
+        later();
+      };
+      rec = x;
+      try { x.start(); document.getElementById('spNoteMic').classList.add('on'); flash('🎤 Đang nghe… bấm 🎤 lần nữa để dừng'); }
+      catch (er) { live.remove(); rec = null; flash('Không bật được micro.'); }
+    }
+    function init() {
+      var e = ed(); if (!e || e.dataset.ready) return; e.dataset.ready = '1';
+      e.addEventListener('input', later);
+      e.addEventListener('blur', save);
+      e.addEventListener('paste', function (ev) {   // dán chữ thường, bỏ định dạng lạ
+        var tx = (ev.clipboardData || window.clipboardData).getData('text/plain');
+        if (tx) { ev.preventDefault(); document.execCommand('insertText', false, tx); }
+      });
+      setLangBtn();
+      try { if (localStorage.getItem('spNoteFold') === '1') fold(true); } catch (er) {}
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    function fold(force) {
+      var b = document.getElementById('spNoteBody'), btn = document.getElementById('spNoteFoldBtn');
+      var hide = force === true ? true : !b.classList.contains('hidden');
+      b.classList.toggle('hidden', hide); btn.textContent = hide ? 'Mở' : 'Thu gọn';
+      try { localStorage.setItem('spNoteFold', hide ? '1' : '0'); } catch (er) {}
+    }
+    window.addEventListener('beforeunload', save);
+    return {
+      load: load, cmd: cmd, fold: fold, mic: mic,
+      color: function (c) { cmd('foreColor', c); },
+      mark: function () { cmd('hiliteColor', '#fef08a'); },
+      lang: function () { lang = lang === 'en' ? 'vi' : 'en'; try { localStorage.setItem('night-notes-voice-lang', lang); } catch (e) {} setLangBtn(); flash(lang === 'vi' ? 'Nói tiếng Việt' : 'Nói tiếng Anh'); },
+      clear: function () { if (!ed().innerHTML.trim()) return; if (!confirm('Xoá ghi chú của câu này?')) return; ed().innerHTML = ''; save(); }
+    };
+  })();
+
+          </script>
 
           <!-- Làm lại: hiện bản nâng cấp lần trước để nói theo -->
           <div id="retryRefBox" class="hidden pv-card">
@@ -4046,6 +4179,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const cueHtml = q.part === '2' ? renderCueCardHtml(q.text) : null;
     qTextEl.classList.toggle('is-cue', !!cueHtml);
     if (cueHtml) qTextEl.innerHTML = cueHtml; else qTextEl.textContent = q.text;
+    try { spNote.load(q.text); } catch (e) {}
     const partChip = document.getElementById('qPartChip');
     if (__pkg.part === '2-3' && q.part && !isMixedPkg()) {
       partChip.textContent = PART_LABELS[q.part] || q.part;
