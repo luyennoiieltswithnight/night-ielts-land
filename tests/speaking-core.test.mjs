@@ -27,17 +27,21 @@ t('band 8 chỉ có 2 ô chấm được, cả 2 ✓ -> đạt 8', () => {
   // L8: 2 ✓ / 2 chấm được = 100% -> đạt 8 thật -> 8 (không phải 7.5)
   assert.equal(SP.checklistBand('lexical', tk).band, 8);
 });
-t('band kế tiếp 40% nhưng có 2 ô ✗ -> KHÔNG cộng nửa band (V11)', () => {
+t('V13: band 7 có 1 ✓ + 2 ½ + 2 ✗ (52%) -> đạt 7 (ngưỡng 50%)', () => {
   const tk = ticks('grammar', (b, id) => b <= 6 ? 'yes' : b === 7 ? ({ G7a: 'yes', G7b: 'partly', G7c: 'partly', G7d: 'no', G7e: 'no' })[id] : 'na');
   const r = SP.checklistBand('grammar', tk);
-  assert.equal(r.band, 6);
+  assert.equal(r.band, 7);
+});
+t('band kế tiếp có 3 ô ✗ -> KHÔNG cộng nửa band', () => {
+  const tk = ticks('grammar', (b, id) => b <= 6 ? 'yes' : b === 7 ? ({ G7a: 'yes', G7b: 'no', G7c: 'no', G7d: 'no', G7e: 'na' })[id] : 'na');
+  assert.equal(SP.checklistBand('grammar', tk).band, 6);
 });
 t('V12: band 7 có 1 ✓ + 2 ½ + 1 ✗ (63%) -> đạt 7 (nới từ 70% xuống 60%, ½ = ¾ ô)', () => {
   const tk = ticks('grammar', (b, id) => b <= 6 ? 'yes' : b === 7 ? ({ G7a: 'yes', G7b: 'partly', G7c: 'partly', G7d: 'no', G7e: 'na' })[id] : 'na');
   assert.equal(SP.checklistBand('grammar', tk).band, 7);
 });
-t('band kế tiếp ~1/3, 1 ô ✗ -> cộng nửa band', () => {
-  const tk = ticks('grammar', (b, id) => b <= 6 ? 'yes' : b === 7 ? ({ G7a: 'yes', G7b: 'no', G7c: 'partly', G7d: 'na', G7e: 'na' })[id] : 'na');
+t('V13: band kế tiếp ~1/3 (1 ✓, 2 ✗) -> cộng nửa band', () => {
+  const tk = ticks('grammar', (b, id) => b <= 6 ? 'yes' : b === 7 ? ({ G7a: 'yes', G7b: 'no', G7c: 'no', G7d: 'na', G7e: 'na' })[id] : 'na');
   assert.equal(SP.checklistBand('grammar', tk).band, 6.5);
 });
 t('V12: 1 band trượt lẻ (band 6 trượt nhưng band 7 đạt) không chặn -> 7', () => {
@@ -62,7 +66,7 @@ t('toàn ô "–" nhưng AI có band tự cho -> dùng band AI, đánh dấu ins
 });
 t('band 4 trượt rõ -> 3 / 3.5 (không lấy band AI cao hơn)', () => {
   assert.equal(SP.checklistBand('grammar', ticks('grammar', () => 'no'), 6).band, 3);
-  const tk = ticks('grammar', (b, id) => b === 4 ? ({ G4a: 'yes', G4b: 'partly', G4c: 'no' })[id] : 'no');
+  const tk = ticks('grammar', (b, id) => b === 4 ? ({ G4a: 'yes', G4b: 'no', G4c: 'no' })[id] : 'no');
   assert.equal(SP.checklistBand('grammar', tk, 6).band, 3.5);
 });
 t('V12: điểm tổng làm tròn kiểu IELTS (.25 -> .5, .75 -> lên)', () => {
@@ -80,8 +84,8 @@ t('JSON rỗng không làm hỏng, không bịa điểm', () => {
 t('định dạng gọn {"F4a":"y"} được đọc đúng', () => {
   const checks = {}; ids('fluency').forEach(x => { checks[x.id] = x.band <= 6 ? 'y' : 'n'; });
   const n = SP.normalizeScoring({ criteria: { fluency: { checks, band: 7 } } }, true, 'low', null);
-  // V12: ô tích cho 6, AI ấn tượng 7 -> không thấp hơn 7 - 0.5
-  assert.equal(n.criteria.fluency.band, 6.5); assert.equal(n.criteria.fluency.llmBand, 7);
+  // V13: ô tích cho 6, AI ấn tượng 7 -> lấy 7 (AI là sàn, tối đa +1 band)
+  assert.equal(n.criteria.fluency.band, 7); assert.equal(n.criteria.fluency.llmBand, 7);
 });
 t('chỗ sửa vô nghĩa bị lọc (chỉ khác dấu câu / lặp từ)', () => {
   const n = SP.normalizeScoring({ edits: [{ find: 'go shopping', replace: 'Go shopping.', criterion: 'grammar' }, { find: 'blend food when I eat', replace: 'eat food when I eat', criterion: 'lexical' }, { find: 'he go', replace: 'he goes', criterion: 'grammar', status: 'likely' }] }, true, 'low', null);

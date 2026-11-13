@@ -1167,7 +1167,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v12',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v13',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -2117,7 +2117,8 @@ Is it better to read a physical book or an e-book?"></textarea>
 
   var CK_BANDS = [4, 5, 6, 7, 8, 9];
   var CK_STATUS = ['yes', 'partly', 'no', 'na'];
-  var CK_PASS = 0.6, CK_HALF = 0.34, CK_PARTLY = 0.75;   // V12 nới: 60% ô đạt là lên band, ô "một phần" tính 3/4 ô   // % ô cần đạt để lên band / để được nửa band
+  var CK_PASS = 0.5, CK_HALF = 0.3, CK_PARTLY = 0.8;   // V13 nới thêm (thầy: bài tốt ~7.5 bị chấm 6.0): 50% ô đạt là lên band, ô "một phần" = 0,8 ô
+  var CK_PASS_HI = 0.6;   // band 8–9   // V12 nới: 60% ô đạt là lên band, ô "một phần" tính 3/4 ô   // % ô cần đạt để lên band / để được nửa band
   /* LUẬT TÍNH BAND (cố định, không do AI quyết) — bản 2:
      - Mỗi band: ✓ = 1 điểm, ½ = 0,5 điểm, – (không chấm được) = không tính.
        Band "đạt" khi điểm (✓=1, ½=0,5) ≥ 70% số ô chấm được (band 8–9: 75% và ≥ 2 ô ✓) — xem CK_PASS.
@@ -2142,7 +2143,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       // Luật v12: đạt band khi ≥ 60% số ô chấm được của band đó đạt (ô "một phần" = ¾ ô); band 8–9 cần ≥ 67% và ≥ 2 ô ✓.
       // Band chỉ có < 2 ô chấm được = "không rõ": không chặn, không cho lên.
       var pct = assessable ? (yes + CK_PARTLY * partly) / assessable : 0;
-      var state = assessable < 2 ? 'unknown' : (pct >= (b >= 8 ? 0.67 : CK_PASS) && yes >= (b >= 8 ? 2 : 1) ? 'ok' : 'fail');
+      var state = assessable < 2 ? 'unknown' : (pct >= (b >= 8 ? CK_PASS_HI : CK_PASS) && yes >= (b >= 8 ? 2 : 1) ? 'ok' : 'fail');
       detail.push({ band: b, state: state, ok: state === 'ok', yes: yes, partly: partly, no: no, assessable: assessable, pct: Math.round(pct * 100) });
     }
     /* V12: 1 band trượt "lẻ" (band ngay trên nó vẫn đạt) không chặn cả chuỗi — 1 ô AI tích khắt khe
@@ -2170,9 +2171,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     // Nửa band: band kế tiếp chưa đạt nhưng đã thể hiện được một phần rõ: có ≥ 2 ô chấm được, ≥ 1 ô ✓,
     // TỐI ĐA 1 ô ✗ (V11: code cũ quên điều kiện này dù chú thích có ghi) và điểm ≥ 40% -> cộng 0.5.
     var nx = detail.filter(function (d) { return d.band === Math.floor(got) + 1; })[0];
-    if (got % 1 === 0 && nx && nx.state !== 'ok' && got < 9 && nx.assessable >= 2 && nx.yes >= 1 && nx.no <= 1 && nx.pct >= CK_HALF * 100) got += 0.5;
+    if (got % 1 === 0 && nx && nx.state !== 'ok' && got < 9 && nx.assessable >= 2 && nx.yes >= 1 && nx.no <= 2 && nx.pct >= CK_HALF * 100) got += 0.5;   // V13: cho phép tới 2 ô ✗
     /* V12: không thấp hơn ấn tượng chung của AI quá nửa band (giảm dao động giữa các câu) */
-    if (hasLlm && got >= 4) { var lf = Math.min(Math.round(lb * 2) / 2 - 0.5, got + 1); if (lf > got) got = Math.min(9, lf); }
+    /* V13: ấn tượng chung của AI là SÀN (không trừ 0.5 nữa), kéo lên tối đa 1 band */
+    if (hasLlm && got >= 4) { var lf = Math.min(Math.round(lb * 2) / 2, got + 1); if (lf > got) got = Math.min(9, lf); }
     return { band: got, detail: detail };
   }
   /* Phát âm V11: ô nào AI bỏ "–" (hoặc không trả) mà trang ĐÃ ĐO được thì code tự tích — có GIỚI HẠN:
@@ -4952,7 +4954,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   // Mô tả band là bản DIỄN GIẢI (paraphrase) từ IELTS Speaking Band Descriptors công khai.
   // ==========================================
   const SCORING_SYSTEM_PROMPT = [
-    'You are a calibrated IELTS Speaking examiner. For practice, estimate what a trained examiner would award ONE recorded answer, using only the evidence given. Be evidence-based, fair and encouraging: this is a practice tool for Vietnamese learners and harsh marking makes them give up. When a box is borderline, choose the more favourable tick ("y" over "p", "p" over "n", "-" over "n"). Use ONE fixed standard for every answer: answers of similar quality must receive the same ticks whatever the part, topic or length. You cannot hear the audio: you receive text and code-computed measurements only.',
+    'You are a calibrated IELTS Speaking examiner. For practice, estimate what a trained examiner would award ONE recorded answer, using only the evidence given. Be evidence-based, fair and encouraging: this is a practice tool for Vietnamese learners and harsh marking makes them give up. When a box is borderline, choose the more favourable tick ("y" over "p", "p" over "n", "-" over "n"). PART 1 IS SHORT BY DESIGN: a natural Part 1 answer of 2-5 sentences is a COMPLETE answer, so never tick "n" or "p" for length or development (F6a, F7a, F7c, F8c, L6a) in Part 1, and never give "too short" or "not developed enough" as a reason or in toNextBand for Part 1. An answer with no real errors, natural discourse markers (well, I mean, actually), natural collocations or phrasal verbs (eye-catching, stick with you, come across) and a few complex structures (if-clause, relative clause, comparison) is typically band 7-7.5 in Fluency, Lexical and Grammar, even if the words are common: precise, natural, error-free everyday English is band 7 evidence, not band 6. Use ONE fixed standard for every answer: answers of similar quality must receive the same ticks whatever the part, topic or length. You cannot hear the audio: you receive text and code-computed measurements only.',
     'INPUT (JSON): part; question; transcript_asr_hypothesis (Whisper, prompted to keep fillers/repetitions; it may still fix grammar, add plurals, drop disfluencies, mishear words, add punctuation: a hypothesis, not truth); speech_findings (code-computed by comparing a second independent recognition and the audio; cat = filler | repetition | morphology | final_s | asr_disagreement:sound_alike | asr_disagreement:lexical_difference | asr_disagreement:inserted_in_A | asr_disagreement:possible_hallucination; likely = probable spoken form; status likely | uncertain); asr_low_confidence_segments; audio_quality; fluency_measurements (code-computed: words per minute, pauses over 1s/2s, longest pause, words between pauses, repetitions); pronunciation_evidence (rule 7); previous_attempt (optional).',
     'HOW BANDS ARE SET: you do NOT choose the band. For each criterion tick EVERY box below as "y" (clearly shown: you can point to a quote or measurement), "p" (partly shown or inconsistent), "n" (positive evidence AGAINST it, rule 1) or "-" (not assessable: this answer gave no need or room for it). Boxes are cumulative: if a higher feature is clearly shown, matching lower boxes are normally "y". The application computes each band from your ticks: a band is reached when at least 60% of its assessable boxes are met ("p" = three quarters) with at least one "y" (bands 8-9: 67% and at least two "y") and lower bands are reached; a half band is added when the next band is about a third met with at most one "n". Tick each box honestly and independently, never towards a band you have in mind.\n' + SPCore.checklistPromptText(),
     'RULES. (1) ONE ANSWER IS A SMALL SAMPLE of an 11-14 minute test: estimate the band if the candidate spoke like this for the whole test (Part 1 about 2-5 sentences; Part 2 a 1-2 minute turn; Part 3 an extended answer). A box this answer did not need (no idiom in a short Part 1 reply, no conditional when none was needed, few discourse markers in two sentences) is "-", NOT "n". Tick "n" only on positive evidence: errors, misuse, breakdown, a contradicting measurement, or very basic / repeated wording where the question clearly invited more. Credit what the answer does show: one natural collocation or one correct complex structure is real positive evidence, but alone it never establishes a high band; judge the overall pattern, not the number of errors. Topic collocations used naturally (e.g. "daily necessities", "go grocery shopping", "ranging from X to Y") are L7a/L7b evidence; one slip like "luxurious products" does not cancel them. Never reward sophistication for its own sake: rare or complicated words used unnaturally earn nothing, common words used precisely are fine. ' +
