@@ -869,11 +869,11 @@ Is it better to read a physical book or an e-book?"></textarea>
           <!-- Ô ghi chú ý tưởng (giống ô ghi chú bài học khoá học): lưu riêng từng câu hỏi trên máy -->
           <div id="spNoteCard" class="pv-card sp-note">
             <div class="sp-note-head">
-              <span class="sp-note-title">📝 Ghi chú ý tưởng</span>
+              <span class="sp-note-title" onclick="spNote.fold()" style="cursor:pointer">📝 Ghi chú ý tưởng</span>
               <span id="spNoteSaved" class="sp-note-saved"></span>
-              <button type="button" class="sp-note-fold" onclick="spNote.fold()" id="spNoteFoldBtn" title="Thu gọn / mở ô ghi chú">Thu gọn</button>
+              <button type="button" class="sp-note-fold" onclick="spNote.fold()" id="spNoteFoldBtn" title="Mở / thu gọn ô ghi chú">Mở</button>
             </div>
-            <div id="spNoteBody">
+            <div id="spNoteBody" class="hidden">
               <div class="sp-note-bar" onmousedown="if(event.target.closest('button'))event.preventDefault()">
                 <button type="button" onclick="spNote.cmd('bold')" title="In đậm (Cmd+B)"><b>B</b></button>
                 <button type="button" onclick="spNote.cmd('italic')" title="In nghiêng (Cmd+I)"><i>I</i></button>
@@ -960,13 +960,15 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (tx) { ev.preventDefault(); document.execCommand('insertText', false, tx); }
       });
       setLangBtn();
-      try { if (localStorage.getItem('spNoteFold') === '1') fold(true); } catch (er) {}
+      var open = false; try { open = localStorage.getItem('spNoteFold') === '0'; } catch (er) {}
+      if (!open) fold(true);   // mặc định đóng, cần mới mở
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
     function fold(force) {
       var b = document.getElementById('spNoteBody'), btn = document.getElementById('spNoteFoldBtn');
       var hide = force === true ? true : !b.classList.contains('hidden');
       b.classList.toggle('hidden', hide); btn.textContent = hide ? 'Mở' : 'Thu gọn';
+      if (!hide && force !== true) { var e2 = ed(); if (e2) e2.focus(); }
       try { localStorage.setItem('spNoteFold', hide ? '1' : '0'); } catch (er) {}
     }
     window.addEventListener('beforeunload', save);
