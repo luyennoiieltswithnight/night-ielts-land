@@ -2634,7 +2634,9 @@ Is it better to read a physical book or an e-book?"></textarea>
     // Gói miễn phí của Groq: ~8.000 token/phút cho mỗi model, tính cả phần gửi đi lẫn phần xin viết ra.
     // Ước lượng phần gửi đi (≈ 3,2 ký tự/token, dư cho tiếng Việt) rồi chỉ xin viết ra phần còn lại.
     const estIn = Math.ceil(JSON.stringify(messages).length / 3.2);
-    let maxOut = Math.max(1200, Math.min((opts && opts.maxTokens) || 1800, GROQ_TPM_BUDGET - estIn));
+    // Đi qua máy chủ AI của Night (OpenAI, không bị giới hạn 8.000 token/phút như Groq miễn phí) → xin đủ số token cần, tránh bị cắt cụt giữa JSON
+    const viaProxy = !!(window.NightPlan && NightPlan.groqFetch);   // một key cho cả web: mọi lời gọi đều qua máy chủ
+    let maxOut = viaProxy ? Math.min((opts && opts.maxTokens) || 1800, 6000) : Math.max(1200, Math.min((opts && opts.maxTokens) || 1800, GROQ_TPM_BUDGET - estIn));
     for (let attempt = 0; attempt < 4 + chain.length; attempt++) {
       const payload = {
         model: model,
