@@ -86,12 +86,13 @@ function doGet() {
   return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (oa ? ' · OpenAI (Speaking ' + oaModel_('chat', 'speaking') + ', Writing ' + oaModel_('chat', 'writing') + ') · nghe giọng: Groq trước, OpenAI ' + oaModel_('stt') + ' dự phòng' : ' · CHƯA có OPENAI_API_KEY') + (n ? ' · dự phòng ' + n + ' key Groq' : ''));
 }
 function openaiKey_() { return String(PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY') || '').trim(); }
-/* Speaking chấm bằng gpt-4.1-nano (rẻ ~4 lần), Writing giữ gpt-4.1-mini. Đổi model: thêm Thuộc tính tập lệnh
+/* Speaking chấm bằng gpt-5-nano (rẻ nhất, ~40đ/câu; lỗi thì tự chuyển gpt-4.1-mini), Writing giữ gpt-4.1-mini.
+   (gpt-4.1-nano đã bị OpenAI khai tử 11/2026.) Đổi model: thêm Thuộc tính tập lệnh
    OPENAI_SPEAKING_MODEL / OPENAI_CHAT_MODEL / OPENAI_STT_MODEL — không cần sửa code. */
 function oaModel_(kind, skill) {
   const P = PropertiesService.getScriptProperties();
   if (kind === 'stt') return P.getProperty('OPENAI_STT_MODEL') || 'whisper-1';
-  if (skill === 'speaking') return P.getProperty('OPENAI_SPEAKING_MODEL') || 'gpt-4.1-nano';
+  if (skill === 'speaking') return P.getProperty('OPENAI_SPEAKING_MODEL') || 'gpt-5-nano';
   return P.getProperty('OPENAI_CHAT_MODEL') || 'gpt-4.1-mini';
 }
 function busy_(r) { const c = r ? r.getResponseCode() : 0; return !r || c === 429 || c >= 500; }
@@ -102,19 +103,37 @@ function toOpenAI_(payload, skill) {
   ['reasoning_format', 'include_reasoning', 'reasoning_effort', 'service_tier', 'compound_custom', 'documents', 'search_settings', 'citation_options', 'disable_tool_validation'].forEach(function (k) { delete p[k]; });
   if (p.max_tokens && !p.max_completion_tokens) { p.max_completion_tokens = p.max_tokens; }
   delete p.max_tokens;
+  return fitModel_(p);
+}
+/* Họ GPT-5 là model "suy nghĩ": không nhận temperature, phải đặt mức nghĩ thấp nhất cho nhanh + rẻ. */
+function fitModel_(p) {
+  if (/^gpt-5/.test(p.model)) {
+    delete p.temperature; delete p.top_p; delete p.presence_penalty; delete p.frequency_penalty;
+    p.reasoning_effort = /^gpt-5-/.test(p.model) || p.model === 'gpt-5' ? 'minimal' : 'none';
+  }
   return p;
 }
 function chat_(payload, skill) {
   let r = null;
   if (openaiKey_()) {
-    const pl = JSON.stringify(toOpenAI_(payload, skill));
-    r = UrlFetchApp.fetch(OPENAI + 'chat/completions', { method: 'post', contentType: 'application/json', payload: pl, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
+    const p1 = toOpenAI_(payload, skill);
+    r = oaChat_(p1);
+    if (r.getResponseCode() !== 200 && !busy_(r) && p1.model !== 'gpt-4.1-mini') {   // model bị khai tử / không nhận tham số → dùng gpt-4.1-mini
+      console.log('OpenAI ' + p1.model + ' lỗi ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 300));
+      const p2 = JSON.parse(JSON.stringify(payload)); const keepTemp = p2.temperature;
+      const q = toOpenAI_(p2, skill); q.model = 'gpt-4.1-mini'; delete q.reasoning_effort; if (keepTemp != null) q.temperature = keepTemp;
+      r = oaChat_(q);
+    }
+    if (r.getResponseCode() !== 200) console.log('OpenAI lỗi ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 300));
     if (!busy_(r) || !groqKey_()) return r;
   }
   const gl = JSON.stringify(payload);
   return withKeys_(function (k) {
     return UrlFetchApp.fetch(GROQ + 'chat/completions', { method: 'post', contentType: 'application/json', payload: gl, headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true });
   });
+}
+function oaChat_(p) {
+  return UrlFetchApp.fetch(OPENAI + 'chat/completions', { method: 'post', contentType: 'application/json', payload: JSON.stringify(p), headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
 }
 
 const FREE_PER_DAY = 2, TICKET_CALLS = 20, TICKET_MIN = 30;
