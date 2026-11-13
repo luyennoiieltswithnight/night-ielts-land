@@ -86,13 +86,13 @@ function doGet() {
   return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (oa ? ' · OpenAI (Speaking ' + oaModel_('chat', 'speaking') + ', Writing ' + oaModel_('chat', 'writing') + ') · nghe giọng: Groq trước, OpenAI ' + oaModel_('stt') + ' dự phòng' : ' · CHƯA có OPENAI_API_KEY') + (n ? ' · dự phòng ' + n + ' key Groq' : ''));
 }
 function openaiKey_() { return String(PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY') || '').trim(); }
-/* Speaking chấm bằng gpt-5-nano (rẻ nhất, ~40đ/câu; lỗi thì tự chuyển gpt-4.1-mini), Writing giữ gpt-4.1-mini.
+/* Speaking + Writing chấm bằng gpt-4.1-mini (~150đ/câu). gpt-5-nano rẻ hơn nhưng chấm quá thấp tay (13/11/2026: bài ~6.5 bị chấm 5.5) → không dùng.
    (gpt-4.1-nano đã bị OpenAI khai tử 11/2026.) Đổi model: thêm Thuộc tính tập lệnh
    OPENAI_SPEAKING_MODEL / OPENAI_CHAT_MODEL / OPENAI_STT_MODEL — không cần sửa code. */
 function oaModel_(kind, skill) {
   const P = PropertiesService.getScriptProperties();
   if (kind === 'stt') return P.getProperty('OPENAI_STT_MODEL') || 'whisper-1';
-  if (skill === 'speaking') return P.getProperty('OPENAI_SPEAKING_MODEL') || 'gpt-5-nano';
+  if (skill === 'speaking') return P.getProperty('OPENAI_SPEAKING_MODEL') || 'gpt-4.1-mini';
   return P.getProperty('OPENAI_CHAT_MODEL') || 'gpt-4.1-mini';
 }
 function busy_(r) { const c = r ? r.getResponseCode() : 0; return !r || c === 429 || c >= 500; }
