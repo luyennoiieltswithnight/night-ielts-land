@@ -1,7 +1,7 @@
 /* Night IELTS — Khu vườn từ vựng: chạy 1 lượt ÔN (spaced repetition) bên trong màn Nghe – Gõ.
    Không sửa engine: chỉ bọc next/reveal/speak để CHẤM từng mục rồi báo ra trang vườn (vuon.html):
-     perfect = gõ đúng, không gợi ý, không gõ sai  -> cây lên 1 bậc
-     ok      = có gợi ý / gõ sai rồi sửa / phải nghe (ở kiểu "nhìn nghĩa") -> giữ bậc
+     perfect = tự gõ ra được (gõ sai rồi tự sửa lại đúng vẫn tính) -> cây lên 1 bậc
+     ok      = có dùng gợi ý / phải bấm nghe (ở kiểu "nhìn nghĩa") -> giữ bậc
      fail    = bấm Xem đáp án hoặc bỏ qua           -> về bậc 1
    window.NV_SKIN.srs = { type: 'phrase'|'sentence', mf: [true/false theo từng mục] }
    mf = "nhìn nghĩa, tự nhớ" (active recall): không tự đọc; bấm loa = dùng gợi ý. */
@@ -41,7 +41,7 @@
 
   function grade() {
     if (!cur) return null;
-    var g = !state.completed || cur.rev ? 'fail' : (cur.hint || cur.err || cur.heard || state.hintActive) ? 'ok' : 'perfect';
+    var g = !state.completed || cur.rev ? 'fail' : (cur.hint || cur.heard || state.hintActive) ? 'ok' : 'perfect';
     results[cur.i] = g;
     try { parent.postMessage({ nvSrs: { i: cur.i, g: g } }, '*'); } catch (e) {}
     return g;
@@ -95,7 +95,7 @@
     syncPlant();
     if (state.errorIndex >= 0) cur.err = true;
     if (state.hintActive) cur.hint = true;
-    if (state.completed && !cur.fx && K.pl) { cur.fx = 1; growFx(cur.i, cur.rev ? 'fail' : (cur.hint || cur.err || cur.heard || state.hintActive) ? 'ok' : 'perfect'); }
+    if (state.completed && !cur.fx && K.pl) { cur.fx = 1; growFx(cur.i, cur.rev ? 'fail' : (cur.hint || cur.heard || state.hintActive) ? 'ok' : 'perfect'); }
     var lab = document.querySelector('.nv-mf'), show = mfNow() && !state.completed;
     var stage = document.querySelector('.nv-stage');
     if (show && !lab && stage) stage.insertAdjacentHTML('afterbegin', '<div class="nv-mf">Nhìn nghĩa, tự nhớ ra từ — bấm loa là dùng gợi ý</div>');
