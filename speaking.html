@@ -4979,6 +4979,14 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (nb !== c.band) { calApplied[k] = { from: c.band, to: nb }; c.band = nb; norm.scores[k] = nb; }
       });
       norm.calib = Object.keys(calApplied).length ? { applied: calApplied, n: cal.n || 0 } : null;
+      // Nới tay ~20% (thầy yêu cầu): rút ngắn 20% khoảng cách từ điểm AI tới band 9, làm tròn 0.5 như IELTS.
+      // vd 5.0 -> 6.0 · 6.0 -> 6.5 · 6.5 -> 7.0 · 7.0 -> 7.5 · 8.0 giữ 8.0. Không nâng bài quá ngắn / dưới band 3.
+      if (!(norm.sampleAdequacy && norm.sampleAdequacy.level === 'insufficient')) RS_CRIT.forEach(k => {
+        const c = norm.criteria[k];
+        if (!c || c.band == null || c.band < 3) return;
+        const nb = Math.min(9, Math.round((c.band + 0.2 * (9 - c.band)) * 2) / 2);
+        if (nb > c.band) { c.band = nb; norm.scores[k] = nb; }
+      });
       // Chốt chặn nhất quán: cùng câu hỏi, nội dung không ngắn đi, lỗi Từ vựng / Ngữ pháp không nhiều hơn lần trước
       // -> điểm tiêu chí đó không được thấp hơn lần trước (tránh "đọc bản đã sửa mà điểm lại tụt").
       if (prevRec) {
