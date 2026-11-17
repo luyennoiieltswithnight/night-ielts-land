@@ -834,10 +834,10 @@
   new MutationObserver(decorate).observe(document.documentElement, { childList: true, subtree: true });
 })();
 
-/* ===== Chép chính tả từ đề Listening =====
+/* ===== Chép chính tả từ đề Listening (gói Astra · Học sinh · thầy) =====
    Chấm xong Section nào (hoặc nộp cả đề / mở xem lại) thì hiện nút "Chép chính tả": nghe từng câu trong transcript
-   của Section đó và gõ lại bằng khung Nghe – Gõ (giọng đọc máy, vì transcript không có mốc thời gian từng câu).
-   Câu nào phải xem đáp án / dùng gợi ý / gõ sai thì tự lưu vào "Câu nghe sai" để ôn lại, và gửi được sang Khu vườn từ vựng. ===== */
+   bằng AUDIO GỐC của đề (mốc thời gian dò sẵn trong testN-align.json) rồi gõ lại bằng khung Nghe – Gõ.
+   Câu nào phải xem đáp án / dùng gợi ý / gõ sai tự vào "Câu nghe sai" để ôn lại, gửi được sang Khu vườn. Logic chung ở luyengo/dictation.js. ===== */
 (function () {
   if (!/\/listening\//.test(location.pathname)) return;
   var KEY = 'nv-dict:' + location.pathname, MISS = 'nv-dict-miss:' + location.pathname;
@@ -846,7 +846,6 @@
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   function done() { return ls(KEY) || {}; }
   function mark(n) { var d = done(); if (n === 0) [1, 2, 3, 4].forEach(function (k) { d[k] = 1; }); else d[n] = 1; ls(KEY, d); pill(); }
-  /* nối vào chỗ chấm Section / nộp cả đề (bọc thêm 1 lớp, không đụng lớp lịch sử) */
   function hook() {
     var ok = false;
     if (typeof window.openSectionReview === 'function' && !window.openSectionReview.__nvDict) {
@@ -862,37 +861,23 @@
   var tries = 0, t = setInterval(function () { if ((hook() && window.saveProgressRecord && window.saveProgressRecord.__nvDict) || ++tries > 80) clearInterval(t); }, 250);
   if (REVIEW) setTimeout(function () { mark(0); }, 1500);
 
-  /* câu trong transcript của 1 Section */
-  function sentences(n) {
-    var box = document.getElementById('passage-' + n + '-text'); if (!box) return [];
-    var out = [];
-    box.querySelectorAll('p').forEach(function (p) {
-      var raw = (p.textContent || '').replace(/\s+/g, ' ').trim(), who = '';
-      var m = raw.match(/^([A-Z][A-Z .'’-]{1,30}):\s*/); if (m) { who = m[1].trim(); raw = raw.slice(m[0].length); }
-      raw.split(/(?<=[.?!])\s+(?=["'“‘(]?[A-Z0-9])/).forEach(function (s) {
-        s = s.trim(); var w = s.split(/\s+/).length;
-        if (w < 3 || !/[a-zA-Z]/.test(s)) return;
-        if (w > 26) { var mid = s.indexOf(', ', Math.floor(s.length / 2) - 20); if (mid > 0) { out.push({ s: s.slice(0, mid + 1), who: who }); out.push({ s: s.slice(mid + 2), who: who }); return; } }
-        out.push({ s: s, who: who });
-      });
-    });
-    return out;
-  }
+  var dP = null;
+  function lib() { if (window.NVDict) return Promise.resolve(window.NVDict); if (dP) return dP; dP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/luyengo/dictation.js?v=1'; s.onload = function () { res(window.NVDict); }; s.onerror = rej; document.head.appendChild(s); }); return dP; }
+  function audioSrc() { try { return typeof AUDIO_SRC !== 'undefined' && AUDIO_SRC ? new URL(AUDIO_SRC, location.href).href : ''; } catch (e) { return ''; } }
+  function alignUrl() { var a = audioSrc(); return a ? a.replace(/-audio\.mp3$|\.mp3$/, '') + '-align.json' : ''; }
   function title(n) { var b = document.getElementById('passage-' + n + '-text'); return (b && b.getAttribute('data-title')) || ''; }
 
-  /* nút nổi + bảng chọn */
   function css() {
     if (document.getElementById('nv-dict-css')) return;
     var st = document.createElement('style'); st.id = 'nv-dict-css';
-    st.textContent = '#nv-dict-pill{position:fixed;right:16px;bottom:18px;z-index:9400;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:12px 18px;background:linear-gradient(135deg,#6C70DC,#9B7BEA);color:#fff;font:800 14px "Plus Jakarta Sans",system-ui,sans-serif;cursor:pointer;box-shadow:0 14px 28px -12px rgba(76,63,168,.8);animation:nvDictIn .5s cubic-bezier(.2,1.4,.4,1)}#nv-dict-pill:hover{transform:translateY(-2px)}@keyframes nvDictIn{from{transform:translateY(20px);opacity:0}}' +
+    st.textContent = '#nv-dict-pill{position:fixed;right:16px;bottom:18px;z-index:9400;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;padding:12px 18px;background:linear-gradient(135deg,#6C70DC,#9B7BEA);color:#fff;font:800 14px "Plus Jakarta Sans",system-ui,sans-serif;cursor:pointer;box-shadow:0 14px 28px -12px rgba(76,63,168,.8);animation:nvDictIn .5s cubic-bezier(.2,1.4,.4,1)}#nv-dict-pill:hover{transform:translateY(-2px)}#nv-dict-pill small{background:#FFD66B;color:#3A2410;border-radius:99px;padding:2px 7px;font-size:10.5px}@keyframes nvDictIn{from{transform:translateY(20px);opacity:0}}' +
       '#nv-dict-ov{position:fixed;inset:0;z-index:100060;background:rgba(27,31,75,.6);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}' +
       '#nv-dict-ov .bx{width:100%;max-width:460px;background:#fff;border-radius:26px;padding:20px;font:500 14px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;color:#24242A;max-height:calc(100vh - 32px);overflow:auto}' +
       '#nv-dict-ov h3{margin:0 0 4px;font-size:19px;font-weight:900}#nv-dict-ov p{margin:0 0 12px;color:#6B6B78}' +
       '#nv-dict-ov .it{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:2px solid #E4E4EC;background:#fff;border-radius:16px;padding:12px 14px;margin-bottom:8px;cursor:pointer;font:inherit}#nv-dict-ov .it:hover{border-color:#6C70DC}' +
       '#nv-dict-ov .it b{display:block;font-size:14.5px}#nv-dict-ov .it small{color:#8A8A99}#nv-dict-ov .it .n{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#EEF0FF;color:#4B4FC0;font-weight:900;flex:none}' +
       '#nv-dict-ov .it.miss .n{background:#FFE4E6;color:#BE123C}#nv-dict-ov .it[disabled]{opacity:.5;cursor:default}' +
-      '#nv-dict-ov .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}#nv-dict-ov .bt{border:0;border-radius:999px;padding:10px 14px;font:800 13px inherit;font-family:inherit;cursor:pointer;background:#F0F0F5;color:#24242A}#nv-dict-ov .bt.g{background:#E8F5E9;color:#2E7D32}' +
-      '#nv-dict-play{position:fixed;inset:0;z-index:100070;background:#1B1F4B;display:flex;flex-direction:column}#nv-dict-play iframe{flex:1;border:0;width:100%}';
+      '#nv-dict-ov .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}#nv-dict-ov .bt{border:0;border-radius:999px;padding:10px 14px;font:800 13px inherit;font-family:inherit;cursor:pointer;background:#F0F0F5;color:#24242A}#nv-dict-ov .bt.g{background:#E8F5E9;color:#2E7D32}';
     document.head.appendChild(st);
   }
   function pill() {
@@ -900,24 +885,40 @@
     var b = document.getElementById('nv-dict-pill');
     if (!has) { if (b) b.remove(); return; }
     css();
-    if (!b) { b = document.createElement('button'); b.id = 'nv-dict-pill'; b.type = 'button'; b.innerHTML = '<i class="fa-solid fa-keyboard"></i> Chép chính tả'; b.onclick = menu; document.body.appendChild(b); }
+    if (!b) { b = document.createElement('button'); b.id = 'nv-dict-pill'; b.type = 'button'; b.innerHTML = '<i class="fa-solid fa-keyboard"></i> Chép chính tả <small>ASTRA</small>'; b.onclick = function () { lib().then(function (D) { return D.canUse(); }).then(function (ok) { if (ok) menu(); }).catch(function () {}); }; document.body.appendChild(b); }
   }
   function menu() {
-    css();
+    var D = window.NVDict; css();
     var d = done(), miss = ls(MISS) || [], ov = document.createElement('div'); ov.id = 'nv-dict-ov';
     var rows = [1, 2, 3, 4].map(function (n) {
-      var c = sentences(n).length; if (!c) return '';
+      var c = D.sentences(document, n).length; if (!c) return '';
       var ok = d[n];
-      return '<button class="it" type="button" data-s="' + n + '"' + (ok ? '' : ' disabled') + '><span class="n">' + n + '</span><span><b>Section ' + n + (title(n) ? ' · ' + esc(title(n)) : '') + '</b><small>' + (ok ? c + ' câu · nghe và gõ lại từng câu' : 'Chấm đáp án Section này trước để mở') + '</small></span></button>';
+      return '<button class="it" type="button" data-s="' + n + '"' + (ok ? '' : ' disabled') + '><span class="n">' + n + '</span><span><b>Section ' + n + (title(n) ? ' · ' + esc(title(n)) : '') + '</b><small>' + (ok ? c + ' câu · nghe audio gốc và gõ lại' : 'Chấm đáp án Section này trước để mở') + '</small></span></button>';
     }).join('');
-    ov.innerHTML = '<div class="bx"><h3>Chép chính tả</h3><p>Nghe từng câu trong transcript rồi gõ lại. Câu nào phải xem đáp án, dùng gợi ý hoặc gõ sai sẽ được lưu vào “Câu nghe sai” để ôn lại.</p>' + rows +
+    ov.innerHTML = '<div class="bx"><h3>Chép chính tả</h3><p>Nghe từng câu của đề (audio gốc) rồi gõ lại. Câu nào phải xem đáp án, dùng gợi ý hoặc gõ sai sẽ được lưu vào “Câu nghe sai” để ôn lại.</p>' + rows +
       (miss.length ? '<button class="it miss" type="button" data-miss="1"><span class="n">' + miss.length + '</span><span><b>Ôn lại câu nghe sai</b><small>Những câu bạn chưa nghe ra ở đề này</small></span></button>' : '') +
       '<div class="row">' + (miss.length ? '<button class="bt g" type="button" data-plant><i class="fa-solid fa-seedling"></i> Gieo câu sai vào Khu vườn</button><button class="bt" type="button" data-clear>Xoá danh sách câu sai</button>' : '') + '<button class="bt" type="button" data-x>Đóng</button></div></div>';
     document.body.appendChild(ov);
+    var run = function (items, name, review) {
+      D.open({ title: 'Chép chính tả · ' + name, items: items, audio: audioSrc(), onClose: pill, onResult: function (it, bad) {
+        var M = ls(MISS) || [], at = M.findIndex(function (x) { return x.s === it.s; });
+        if (bad && at < 0) M.push({ s: it.s, who: it.who || '', t0: it.t0, t1: it.t1 });
+        if (!bad && at >= 0 && review) M.splice(at, 1);
+        ls(MISS, M);
+      } });
+    };
     ov.onclick = function (e) {
       if (e.target === ov || e.target.closest('[data-x]')) return ov.remove();
-      var s = e.target.closest('[data-s]'); if (s && !s.disabled) { ov.remove(); return open(sentences(+s.dataset.s).map(function (x, i, a) { return { s: x.s, who: x.who, tag: 'Section ' + s.dataset.s + ' · câu ' + (i + 1) + '/' + a.length }; }), 'Section ' + s.dataset.s); }
-      if (e.target.closest('[data-miss]')) { ov.remove(); return open(miss.map(function (x, i) { return { s: x.s, who: x.who || '', tag: 'Câu nghe sai ' + (i + 1) + '/' + miss.length }; }), 'Câu nghe sai'); }
+      var s = e.target.closest('[data-s]');
+      if (s && !s.disabled) {
+        ov.remove(); var n = +s.dataset.s;
+        D.timing(alignUrl()).then(function (T) {
+          var L = D.attach(D.sentences(document, n), T, n).map(function (x, i, a) { x.tag = 'Section ' + n + ' · câu ' + (i + 1) + '/' + a.length; return x; });
+          run(L, 'Section ' + n, false);
+        });
+        return;
+      }
+      if (e.target.closest('[data-miss]')) { ov.remove(); return run(miss.map(function (x, i) { return { s: x.s, who: x.who || '', t0: x.t0, t1: x.t1, tag: 'Câu nghe sai ' + (i + 1) + '/' + miss.length }; }), 'Câu nghe sai', true); }
       if (e.target.closest('[data-clear]')) { ls(MISS, []); ov.remove(); pill(); return; }
       if (e.target.closest('[data-plant]')) {
         var src = (document.title || 'Listening').replace(/^Night IELTS\s*[-–·]\s*/i, '').slice(0, 50);
@@ -925,48 +926,6 @@
         e.target.closest('[data-plant]').innerHTML = '<i class="fa-solid fa-check"></i> Đã gửi — mở Khu vườn để gieo';
       }
     };
-  }
-  var engP = null;
-  function engine() {
-    if (window.LTG_EN) return Promise.resolve(window.LTG_EN);
-    if (engP) return engP;
-    engP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/luyengo/engine-en.js?v=20261110'; s.onload = function () { res(window.LTG_EN); }; s.onerror = rej; document.head.appendChild(s); });
-    return engP;
-  }
-  function open(list, name) {
-    if (!list.length) return;
-    engine().then(function (E) {
-      var items = list.map(function (x) { return { phrase: x.s, meaningVi: x.tag + (x.who ? ' · ' + x.who : ''), sentence: x.s, sentenceVi: '' }; });
-      var html = E.build('Chép chính tả · ' + name, items, 'blue').replace(/<script src="\/night-app\.js"[^>]*><\/script>/, '');
-      var origin = location.origin + '/';
-      /* đánh dấu câu sai trong khung gõ rồi báo ra ngoài */
-      var track = '<script>(function(){var bad={},cur=-1;function w(n,f){var o=window[n];if(typeof o!=="function")return;window[n]=function(){f();return o.apply(this,arguments);};}' +
-        'function i(){return typeof state!=="undefined"?state.practiceIndex:-1}' +
-        'w("reveal",function(){bad[i()]=1;});w("giveHint",function(){bad[i()]=1;});' +
-        'setInterval(function(){try{if(state.errorIndex>=0||state.hintActive)bad[i()]=1;var k=i();if(k!==cur){if(cur>=0)parent.postMessage({nvDict:{i:cur,bad:!!bad[cur]}},"*");cur=k;}}catch(e){}},150);' +
-        'window.addEventListener("pagehide",function(){try{parent.postMessage({nvDict:{i:cur,bad:!!bad[cur],last:1}},"*")}catch(e){}});' +
-        '(function go(){var a=document.getElementById("app");if(!a||!a.firstChild||typeof state==="undefined"||typeof render!=="function")return setTimeout(go,60);state.viewMode="type";state.practiceType="phrase";state.practiceIndex=0;state.input="";state.completed=false;state.revealed=false;render(0);setTimeout(function(){var h=document.getElementById("hiddenInput");if(h)h.focus();try{speak(current().audioText,1)}catch(e){}},400);})();' +
-        'window.__nvDictFlush=function(){try{parent.postMessage({nvDict:{i:cur,bad:!!bad[cur],last:1}},"*")}catch(e){}};})();<\/script>';
-      var skin = '<script>window.NV_SKIN=' + JSON.stringify({ lang: 'en', ac: '#6C70DC', img: origin + 'khoahoc/img/ira/', pkey: '', theme: 'night' }) + '<\/script><script src="' + origin + 'luyengo/skin.js?v=2"><\/script>';
-      html = html.replace(/<\/body>\s*<\/html>\s*$/, skin + track + '</body></html>');
-      var wrap = document.createElement('div'); wrap.id = 'nv-dict-play';
-      var fr = document.createElement('iframe'); fr.setAttribute('allow', 'autoplay'); wrap.appendChild(fr); document.body.appendChild(wrap);
-      document.body.style.overflow = 'hidden';
-      fr.srcdoc = html;
-      var onMsg = function (e) {
-        if (e.source !== fr.contentWindow) return;
-        if (e.data && e.data.nvDict) {
-          var it = list[e.data.nvDict.i]; if (!it) return;
-          var M = ls(MISS) || [], at = M.findIndex(function (x) { return x.s === it.s; });
-          if (e.data.nvDict.bad && at < 0) M.push({ s: it.s, who: it.who || '' });
-          if (!e.data.nvDict.bad && at >= 0 && /^Câu nghe sai/.test(it.tag)) M.splice(at, 1); /* ôn lại mà nghe đúng rồi thì gỡ khỏi danh sách */
-          ls(MISS, M);
-        }
-        if (e.data === 'nv-close') close();
-      };
-      var close = function () { try { fr.contentWindow.__nvDictFlush && fr.contentWindow.__nvDictFlush(); } catch (e) {} setTimeout(function () { window.removeEventListener('message', onMsg); wrap.remove(); document.body.style.overflow = ''; pill(); }, 60); };
-      window.addEventListener('message', onMsg);
-    }).catch(function () { alert('Chưa mở được khung gõ — kiểm tra mạng rồi thử lại nhé.'); });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pill); else pill();
 })();
