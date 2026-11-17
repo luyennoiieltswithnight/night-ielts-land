@@ -1169,7 +1169,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v15',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v16',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -2121,7 +2121,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   /* V14 — CHỐT CHẶN THEO BẰNG CHỨNG (code tự kiểm, không tin AI):
      AI liệt kê từ vựng ít phổ biến / thành ngữ / cấu trúc phức / từ nối; code giữ lại những mục CÓ THẬT trong transcript,
      rồi đặt trần band theo số mục thật + số từ + tốc độ nói. Ngưỡng do người viết đặt theo mô tả band IELTS, chưa kiểm chứng giám khảo. */
-  var BASIC_W = ' good nice bad big small like love very really many much interesting important people thing things place enjoy relax beautiful lot lots great happy fun boring different same make do get go have want think know ';
+  var BASIC_W = ' good nice bad big small like love very really many much interesting important people thing things place enjoy relax beautiful lot lots great happy fun boring different same make do get go have want think know energy morning afternoon evening night study studies studying school work job time day days home house family friend friends food money city country game games music book books movie movies healthy busy free helpful useful easy difficult hard best better favourite favorite usually often sometimes always ';
   var STOP_W = ' the a an and or but so to of in on at for with from by about it its is are was were be been am i me my we our you your he she they them their this that these those there here not no yes can could will would should do does did have has had just also some any more most very ';
   function verifyInventory(inv, transcript, question) {
     inv = inv || {};
@@ -2141,22 +2141,25 @@ Is it better to read a physical book or an e-book?"></textarea>
       lexErrors: num(inv.lexErrors), gramErrors: num(inv.gramErrors), basicSystematic: inv.basicSystematic === true,
       dropped: (Array.isArray(inv.lexis) ? inv.lexis.length : 0) + (Array.isArray(inv.idioms) ? inv.idioms.length : 0) + (Array.isArray(inv.complex) ? inv.complex.length : 0) - lexis.length - idioms.length - complex.length };
   }
-  function evidenceCaps(v, part, words, wpm) {
+  function evidenceCaps(v, part, words, wpm, fillers) {
     part = Number(part) || 1; words = Number(words) || 0;
     var P1 = part === 1, caps = {}, why = {};
     var cap = function (k, b, r) { if (caps[k] == null || b < caps[k]) { caps[k] = b; why[k] = r; } };
     // TỪ VỰNG: số từ/cụm ít phổ biến + thành ngữ có thật trong bài
-    var nl = v.lexis.length + v.idioms.length, need7 = P1 ? 2 : 3, need8 = P1 ? 4 : 6;
-    if (nl === 0) cap('lexical', 5.5, 'chưa có từ / cụm nào ít phổ biến — toàn từ cơ bản');
+    var nl = v.lexis.length + v.idioms.length, need7 = P1 ? 3 : 4, need8 = P1 ? 5 : 7;   // V16: chặt hơn
+    if (nl === 0) cap('lexical', 5, 'chưa có từ / cụm nào ít phổ biến — toàn từ cơ bản');
+    else if (nl === 1) cap('lexical', 5.5, 'chỉ có 1 từ/cụm ít phổ biến, còn lại là từ cơ bản');
     else if (nl < need7) cap('lexical', 6, 'mới có ' + nl + ' từ/cụm ít phổ biến (band 7 cần ≥ ' + need7 + ')');
     else if (nl < need8 || !v.idioms.length) cap('lexical', 7.5, 'band 8 cần ≥ ' + need8 + ' từ/cụm ít phổ biến và có cụm thành ngữ / cách nói tự nhiên');
     if (words && v.lexErrors / words * 100 > 4) cap('lexical', 6, 'dùng sai từ khá nhiều (' + v.lexErrors + ' lỗi)');
     // NGỮ PHÁP: số LOẠI cấu trúc phức dùng đúng + mật độ lỗi
     var nt = v.types.length, g7 = P1 ? 2 : 3, g8 = P1 ? 3 : 4, ger = words ? v.gramErrors / words * 100 : 0;
-    if (nt === 0) cap('grammar', 5.5, 'chỉ có câu đơn, chưa có cấu trúc phức nào dùng đúng');
+    if (nt === 0) cap('grammar', 5, 'chỉ có câu đơn, chưa có cấu trúc phức nào dùng đúng');
+    else if (nt === 1) cap('grammar', 5.5, 'mới có 1 loại cấu trúc phức (chủ yếu câu đơn)');
     else if (nt < g7) cap('grammar', 6, 'mới có ' + nt + ' loại cấu trúc phức (band 7 cần ≥ ' + g7 + ' loại)');
     else if (nt < g8) cap('grammar', 7.5, 'band 8 cần ≥ ' + g8 + ' loại cấu trúc phức');
-    if (ger > 6) cap('grammar', 5.5, 'lỗi ngữ pháp dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
+    if (ger > 10) cap('grammar', 5, 'lỗi ngữ pháp rất dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
+    else if (ger > 6) cap('grammar', 5.5, 'lỗi ngữ pháp dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
     else if (ger > 3.5 || v.basicSystematic) cap('grammar', 6, v.basicSystematic ? 'lặp lại cùng một lỗi cơ bản' : 'lỗi ngữ pháp còn nhiều (' + v.gramErrors + ' lỗi)');
     else if (ger > 2) cap('grammar', 7, 'band 8 cần phần lớn câu không lỗi');
     // TRÔI CHẢY: độ dài theo Part + từ nối + tốc độ
@@ -2165,6 +2168,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     else if (words < L[1]) cap('fluency', 6, 'câu trả lời còn ngắn, chưa phát triển ý (' + words + ' từ)');
     else if (words < L[2]) cap('fluency', 7, 'band 7.5+ cần nói dài và phát triển ý hơn (' + words + ' từ)');
     if (!P1 && v.markers.length < 2) cap('fluency', 6.5, 'ít từ nối / discourse marker (band 7 cần dùng đa dạng)');
+    var fr = words ? (fillers || 0) / words * 100 : 0;
+    if (fr > 12) cap('fluency', 5, 'ngập ngừng rất nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
+    else if (fr > 7) cap('fluency', 5.5, 'ngập ngừng nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
+    else if (fr > 4) cap('fluency', 6, 'còn ngập ngừng khá nhiều (' + fillers + ' lần "er/um")');
     if (wpm && wpm < 75) cap('fluency', 6, 'nói chậm (' + wpm + ' từ/phút)');
     else if (wpm && wpm < 95) cap('fluency', 7, 'tốc độ nói còn chậm (' + wpm + ' từ/phút)');
     return { caps: caps, why: why };
@@ -2396,7 +2403,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     var up = function (x) { return Math.ceil(x * 2 - 1e-9) / 2; };
     var pct = pronEv && pronEv.pct_words_affected != null ? Number(pronEv.pct_words_affected) : null;
     var clear = pct == null || pct <= 15;
-    var target = clear ? Math.max(up(mean) + 0.5, mx, 5.5) : up(mean);
+    var target = clear ? Math.max(up(mean), 5) : up(mean);   // V16: không còn +0.5 / lấy tiêu chí cao nhất (đẩy band tổng lên oan)
     target = Math.min(9, target);
     if (target > p.band) { p.rawBand = p.band; p.band = target; p.lifted = true; if (p.toNextBand && target >= 9) p.toNextBand = ''; }
   }
@@ -4979,6 +4986,8 @@ Is it better to read a physical book or an e-book?"></textarea>
         errors: (prevRec.edits || []).filter(e => e.status !== 'uncertain').slice(0, 10).map(e => e.find + ' -> ' + e.replace)
       };
       const userMsg = { role: 'user', content: 'Assess this response. All evidence is below as JSON.\n\n' + JSON.stringify(evidence) };
+      const fixP = callGroqChatJson([{ role: 'system', content: GRAMMAR_FIX_PROMPT }, { role: 'user', content: 'Question: ' + q.text + '\n\nTranscript:\n' + transcript }],
+        { temperature: 0, maxTokens: 2500, json: true, reasoning: 'low', noRetry: true, max429: 1, timeoutMs: 60000 }).catch(e => { console.warn('Lượt sửa lỗi lỗi:', e); return null; });
       let usedModel = model;
       try {
         parsed = await callGroqChatJson([{ role: 'system', content: SCORING_SYSTEM_PROMPT }, userMsg],
@@ -5038,9 +5047,23 @@ Is it better to read a physical book or an e-book?"></textarea>
       });
       norm.calib = Object.keys(calApplied).length ? { applied: calApplied, n: cal.n || 0 } : null;
       // V14: bỏ "nới tay 20%" (nén mọi bài về ~7, mất phân hoá). Thay bằng CHỐT CHẶN THEO BẰNG CHỨNG có thật trong bài.
+      // V16: gộp lỗi từ lượt sửa lỗi riêng (ưu tiên) với lỗi lượt chấm tìm thêm (không trùng chỗ)
+      const fixed = await fixP;
+      if (fixed && Array.isArray(fixed.edits)) {
+        const fx = SPCore.normalizeScoring({ edits: fixed.edits }, true).edits;
+        const low = t => String(t || '').toLowerCase();
+        const overlap = (a, b) => low(a.find).includes(low(b.find)) || low(b.find).includes(low(a.find));
+        norm.edits = fx.concat((norm.edits || []).filter(e => !fx.some(f => overlap(f, e)))).slice(0, 40);
+      }
+      if (parsed && parsed.inventory) {
+        const cnt = k => (norm.edits || []).filter(e => e.status !== 'uncertain' && e.criterion === k).length;
+        parsed.inventory.gramErrors = Math.max(Number(parsed.inventory.gramErrors) || 0, cnt('grammar'));
+        parsed.inventory.lexErrors = Math.max(Number(parsed.inventory.lexErrors) || 0, cnt('lexical'));
+      }
       const inv = SPCore.verifyInventory(parsed && parsed.inventory, transcript, q.text);
       const nWordsAns = transcript.split(/\s+/).filter(Boolean).length;
-      const gates = SPCore.evidenceCaps(inv, part, nWordsAns, audio ? fluency.wordsPerMinute : null);
+      const nFill = (transcript.match(/\b(er|erm|err|um|umm|uh|uhm|ah|hmm)\b/gi) || []).length + (findings || []).filter(f => f.category === 'filler').length;
+      const gates = SPCore.evidenceCaps(inv, part, nWordsAns, audio ? fluency.wordsPerMinute : null, nFill);
       norm.inventory = inv; norm.gates = {};
       if (parsed && parsed.inventory) ['fluency', 'lexical', 'grammar'].forEach(k => {
         const c = norm.criteria[k], cp = gates.caps[k];
@@ -5048,6 +5071,9 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (c.band > cp) { norm.gates[k] = { from: c.band, to: cp, why: gates.why[k] }; c.band = cp; norm.scores[k] = cp; }
         else norm.gates[k] = { cap: cp, why: gates.why[k] };
       });
+      // Phát âm không được cao hơn trung bình 3 tiêu chí kia quá nhiều chỉ vì được "nâng" trước khi chốt chặn
+      { const pc = norm.criteria.pronunciation, oth = ['fluency', 'lexical', 'grammar'].map(k => norm.criteria[k] && norm.criteria[k].band).filter(b => b != null);
+        if (pc && pc.lifted && pc.band != null && oth.length) { const m = oth.reduce((a, b) => a + b, 0) / oth.length, t = Math.max(pc.rawBand != null ? pc.rawBand : 0, Math.ceil(m * 2 - 1e-9) / 2); if (t < pc.band) { pc.band = t; norm.scores.pronunciation = t; } } }
       // Chốt chặn nhất quán: cùng câu hỏi, nội dung không ngắn đi, lỗi Từ vựng / Ngữ pháp không nhiều hơn lần trước
       // -> điểm tiêu chí đó không được thấp hơn lần trước (tránh "đọc bản đã sửa mà điểm lại tụt").
       if (prevRec) {
@@ -5146,6 +5172,11 @@ Is it better to read a physical book or an e-book?"></textarea>
   // RUBRIC v3 — prompt cố định + schema cố định. Đổi nội dung => đổi SPCore.ENGINE.rubric.
   // Mô tả band là bản DIỄN GIẢI (paraphrase) từ IELTS Speaking Band Descriptors công khai.
   // ==========================================
+  // V16: lượt SỬA LỖI riêng (chạy song song với lượt chấm) — chỉ làm 1 việc nên không bỏ sót lỗi
+  const GRAMMAR_FIX_PROMPT = 'You correct the English of ONE spoken IELTS answer by a Vietnamese learner. The transcript is speech recognised by a machine: IGNORE punctuation, capitalisation, sentence boundaries, fillers (er, um, uh), repeated words and self-corrections (those are fluency, not grammar). ' +
+    'Go through the answer clause by clause from the first word to the last and list EVERY real grammar and vocabulary error. Check: subject-verb agreement; verb form (after modals, to + base verb, -ing after enjoy/like/avoid, missing or extra auxiliary or "be": "to productive" -> "to be productive", "I\'m have" -> "I have"); tense; word form (adjective vs adverb vs noun vs verb: "more energy to productive" -> "more energy to be productive", "speak fluent" -> "speak fluently"); articles; singular / plural and countable nouns; prepositions; pronouns; comparatives; word order; conjunctions and linking ("Although ... but", "because of + clause"); sentence structure (missing subject or main verb, two verbs without a connector, Vietnamese patterns like "I very like", "It has many people go"); collocation and word choice ("do a mistake" -> "make a mistake"). ' +
+    'Fix each error at the smallest level that makes it correct: a WORD, a PHRASE, or the whole CLAUSE when the structure is wrong. Keep the speaker\'s meaning; do not upgrade correct language; do not correct fillers or repetitions; each "find" must be copied EXACTLY from the transcript (1-14 words, you may include a filler inside it if the error spans it) and edits must not overlap. ' +
+    'Respond with ONE JSON object only: {"edits": [{"find": "", "replace": "", "type": "agreement" | "verb_form" | "tense" | "word_form" | "article" | "plural" | "preposition" | "pronoun" | "comparison" | "word_order" | "conjunction" | "sentence" | "collocation" | "word_choice", "criterion": "grammar" | "lexical", "why": "1 short Vietnamese sentence naming the rule", "status": "confirmed" | "likely" | "uncertain"}]}. No error: {"edits": []}.';
   const SCORING_SYSTEM_PROMPT = [
     'You are a calibrated IELTS Speaking examiner. For practice, estimate what a trained examiner would award ONE recorded answer, using only the evidence given, and correct EVERY language error in it. ACCURACY AND DISCRIMINATION come first: a student must see the real gap between a basic answer and a strong one. Be neither harsh nor generous. Answers that differ in language quality MUST receive different bands. Use ONE fixed standard for every answer whatever the part or topic. You cannot hear the audio: you receive text and code-computed measurements only.',
     'INPUT (JSON): part; question; transcript_asr_hypothesis (Whisper, prompted to keep fillers/repetitions; it may still fix grammar, add plurals, drop disfluencies, mishear words, add punctuation: a hypothesis, not truth); speech_findings (code-computed by comparing a second independent recognition and the audio; cat = filler | repetition | morphology | final_s | asr_disagreement:sound_alike | asr_disagreement:lexical_difference | asr_disagreement:inserted_in_A | asr_disagreement:possible_hallucination; likely = probable spoken form; status likely | uncertain); asr_low_confidence_segments; audio_quality; fluency_measurements (code-computed: words per minute, pauses over 1s/2s, longest pause, words between pauses, repetitions); pronunciation_evidence (rule 7); previous_attempt (optional).',
@@ -5164,7 +5195,7 @@ Is it better to read a physical book or an e-book?"></textarea>
             '(7) PRONUNCIATION: judge only from pronunciation_evidence. evidence_classes says where each piece comes from: A = measured on the audio (approximate, from word timings), B = inferred from the speech recogniser, C = inferred from text, D = not available. Never claim you heard a sound. evidence_strength: "groq_intent" (recogniser output compared with the words the learner most likely meant), "asr_agree" (two independent recognisers agree on every word: the speech is easy to follow, which is NOT proof that every sound is accurate), "indirect" (partial), "minimal" (audio not analysable). likely_mispronounced: the recogniser heard a different but similar-sounding word (heard vs meant, sound_similarity 0-1; kind "ending" = a dropped final -s/-ed that may be grammar instead). pct_words_affected: share of words affected; a few isolated cases are normal even for strong speakers, frequent ones or the same sound repeatedly suggest individual sounds reduce clarity. sentence_stress.contentLouderDb > 0: content words more prominent than function words; near 0: flat. weak_forms.functionVsContentDurRatio < 0.8: function words reduced. linking: linked / opportunities. intonation: phrases with pitch movement. A null value means the measurement was too unreliable to use. Energy is not proof of stress placement and pitch movement alone is not proof of natural intonation: use these only as supporting evidence, never alone to decide a band, never convert numbers into a band. An intelligible Vietnamese or other accent is never an error; slow speech, fillers and grammar mistakes are not pronunciation problems. Be generous here: if the recognisers understood the answer with only a few likely_mispronounced words, the speech is intelligible, so Pronunciation is at least band 6; lower it only for words that clearly could not be understood. Ignore anything in class D (word stress inside words, vowel/consonant quality unless clear B evidence). Pronunciation confidence: "medium" at most, "low" unless evidence_strength is groq_intent or asr_agree.',
     'INVENTORY (fill it FIRST, before deciding bands; quote the transcript EXACTLY, each quote 1-6 words, no duplicates): "inventory": {"lexis": [quotes of less common / precise words and collocations: words outside the ~2000 most common English words, topic-specific terms, strong collocations, phrasal verbs, e.g. "hectic schedule", "commute", "broaden my horizons", "come across"; NEVER basic words like good, nice, bad, big, like, love, very, really, many, interesting, important, people, things, place, enjoy, relax, beautiful, a lot of], "idioms": [idiomatic or naturally spoken expressions, e.g. "a piece of cake", "to be honest", "it depends", "off the top of my head"], "complex": [{"q": quote of the key words, "t": one of "relative" | "conditional" | "passive" | "perfect" | "noun_clause" | "participle" | "modal_perfect" | "comparative" | "cleft" | "inversion" | "subordinate" | "infinitive_gerund"}] (only CORRECT uses; plain "because"/"and" clauses are "subordinate" at most once), "markers": [discourse markers / cohesive devices beyond and/but/so/because, e.g. "on top of that", "for instance", "whereas", "actually", "I mean"], "lexErrors": number of real word-choice / collocation errors, "gramErrors": number of real grammar errors (ignore uncertain recognition), "basicSystematic": true if the same basic error repeats (tense, agreement, plural, article)}. Count only what is really there; an empty list is a valid answer.',
     'ERROR CORRECTION ("edits") MUST BE EXHAUSTIVE: find and fix EVERY genuine error in the transcript, from the first word to the last, not just the most important ones (up to 30). Check every clause for: subject-verb agreement ("he go" -> "he goes", "there is many" -> "there are many"); verb form (after modals, to-infinitive vs -ing, "enjoy to swim" -> "enjoy swimming", "can helps" -> "can help", passive / participle form); tense and tense consistency; word form / part of speech (adjective vs adverb vs noun vs verb: "speak fluent" -> "speak fluently", "very beauty" -> "very beautiful", "a success person" -> "a successful person", "I am interesting in" -> "I am interested in"); articles (a/an/the/zero); singular / plural and countable / uncountable ("many informations", "one of my friend"); prepositions; pronouns and possessives; comparatives / superlatives; word order (including questions inside statements: "I don\'t know what is it" -> "what it is"); conjunctions and linking ("Although ... but", "because of + clause", "Despite + clause", missing or wrong connective); sentence-level structure (missing subject or verb, two finite verbs without a connector, "It has many people go there" -> "Many people go there", Vietnamese-style "I very like" -> "I really like"); collocation and word choice ("do a mistake" -> "make a mistake", "learn knowledge" -> "gain knowledge"). Fix at the smallest level that makes it correct: a WORD ("go" -> "goes"), a PHRASE ("enjoy to swim" -> "enjoy swimming"), or the whole CLAUSE when the structure is wrong ("It has many people go there" -> "Many people go there"). Each edit: {"find": exact transcript text of 1-14 words, "replace": correction ("" to delete), "type": "agreement" | "verb_form" | "tense" | "word_form" | "article" | "plural" | "preposition" | "pronoun" | "comparison" | "word_order" | "conjunction" | "sentence" | "collocation" | "word_choice" | "coherence", "criterion": "grammar" for grammar types, "lexical" for collocation / word_choice / word_form errors that are really vocabulary, "fluency" for coherence, "why": 1 short Vietnamese sentence naming the rule (e.g. "Chủ ngữ số ít \'he\' -> động từ thêm -s: goes"), "status": "confirmed" | "likely" | "uncertain"}. Edits must not overlap; each must keep the candidate\'s meaning, read naturally when the sentence is re-read with it in place, introduce no new error and differ from "find". Do NOT edit what is already correct just to sound nicer (upgrades are not errors), do NOT edit punctuation or capitalisation, and mark "uncertain" anything that may be a recognition error (rule 2). No genuine error: "edits": [].',
-    'OUTPUT (compact; all explanations in natural Vietnamese for a Vietnamese learner, specific to THIS answer). Per criterion: "band"; "confidence": "high" | "medium" | "low"; "uncertainty": "" or 1 short sentence on what limits certainty; "feedback": 1-2 sentences quoting the candidate\'s words: what was good, what was weak (it must match the band); "toNextBand": 1 sentence naming exactly what is missing for the next band, with an example from or for this answer ("" at band 9). Also "sampleAdequacy": {"level": "adequate" | "limited" | "insufficient", "note": 1 sentence}; "whyNotHigher": 1-2 sentences on what holds the overall score back.',
+    'OUTPUT (compact; all explanations in natural Vietnamese for a Vietnamese learner, specific to THIS answer). Per criterion: "band"; "confidence": "high" | "medium" | "low"; "uncertainty": "" or 1 short sentence on what limits certainty; "feedback": 1-2 sentences quoting the candidate\'s words: what was good, what was weak (it must match the band); "toNextBand": 1 sentence naming exactly what is missing for the next band, with an example from or for this answer ("" at band 9). Also "sampleAdequacy": {"level": "adequate" | "limited" | "insufficient", "note": 1 sentence}; "whyNotHigher": 1-2 sentences IN VIETNAMESE on what holds the overall score back. Every explanation field MUST be Vietnamese, never English.',
     'Respond with ONE valid JSON object only: {"inventory": {"lexis": [], "idioms": [], "complex": [], "markers": [], "lexErrors": 0, "gramErrors": 0, "basicSystematic": false}, "edits": [], "changeNote": "", "sampleAdequacy": {}, "criteria": {"fluency": {"band": 0, "confidence": "", "uncertainty": "", "feedback": "", "toNextBand": ""}, "lexical": {}, "grammar": {}, "pronunciation": {}}, "whyNotHigher": ""}'
   ].join('\n\n');
 
