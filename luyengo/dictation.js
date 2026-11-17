@@ -15,6 +15,11 @@
     box.querySelectorAll('p').forEach(function (p) {
       var raw = (p.textContent || '').replace(/\s+/g, ' ').trim(), who = '';
       var m = raw.match(PFX); if (m) { who = m[1].trim(); raw = raw.slice(m[0].length); }
+      else {
+        /* Tên người nói viết thường kiểu "Official: ...", "Man: ..." — bỏ khỏi câu nhưng VẪN đếm từ để khớp mốc thời gian (file mốc đã tính các từ này) */
+        var m2 = raw.match(/^([A-Z][A-Za-z.'’-]*(?: [A-Za-z.'’-]+){0,2}):\s+/);
+        if (m2) { who = m2[1].trim(); tok += m2[1].split(' ').filter(function (w) { return norm(w); }).length; raw = raw.slice(m2[0].length); }
+      }
       raw.split(/(?<=[.?!])\s+(?=["'“‘(]?[A-Z0-9])/).forEach(function (s) {
         s = s.trim();
         var cnt = s.split(' ').filter(function (w) { return norm(w); }).length, a = tok; tok += cnt;
@@ -52,6 +57,25 @@
 
   var DCSS = "html{background:#FFF8EE!important}body,body.paper-texture{background:radial-gradient(60% 50% at 0% 0%,#FFE3EC 0%,transparent 70%),radial-gradient(55% 50% at 100% 0%,#DDF4FF 0%,transparent 70%),radial-gradient(60% 55% at 100% 100%,#E3FBEF 0%,transparent 70%),radial-gradient(60% 55% at 0% 100%,#FFF3C9 0%,transparent 70%),#FFF8EE!important;background-image:radial-gradient(60% 50% at 0% 0%,#FFE3EC 0%,transparent 70%),radial-gradient(55% 50% at 100% 0%,#DDF4FF 0%,transparent 70%),radial-gradient(60% 55% at 100% 100%,#E3FBEF 0%,transparent 70%),radial-gradient(60% 55% at 0% 100%,#FFF3C9 0%,transparent 70%)!important}body:before{content:\"\";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:radial-gradient(5px 5px at 8% 20%,#FF6B8B 50%,transparent 52%),radial-gradient(4px 4px at 22% 82%,#FECA57 50%,transparent 52%),radial-gradient(6px 6px at 91% 16%,#48C6EF 50%,transparent 52%),radial-gradient(4px 4px at 86% 74%,#1DD1A1 50%,transparent 52%),radial-gradient(5px 5px at 52% 6%,#A78BFA 50%,transparent 52%),radial-gradient(4px 4px at 4% 58%,#FF9F43 50%,transparent 52%),radial-gradient(5px 5px at 97% 46%,#FF6FB5 50%,transparent 52%)}#app>div.min-h-screen{background:rgba(255,255,255,.55)!important;backdrop-filter:blur(6px);border:2px solid #fff!important;box-shadow:0 30px 70px -30px rgba(255,107,139,.45)!important;position:relative}#app main{background:transparent!important}#app header.sticky{background:#fff!important;border-radius:22px;border:0!important;box-shadow:0 10px 26px -18px rgba(80,60,160,.5)}#app header.sticky:after{content:\"\";position:absolute;left:18px;right:18px;bottom:0;height:4px;border-radius:9px;background:linear-gradient(90deg,#FF6B8B,#FF9F43,#FECA57,#1DD1A1,#48C6EF,#A78BFA)}#app header.sticky h1{color:#2A2350!important}#app header.sticky div[class*=\"tracking-widest\"],#app header.sticky span{color:#8B84B8!important}#app header.sticky select{background:#F3F0FF!important;color:#2A2350!important}#app header.sticky button{background:linear-gradient(135deg,#A78BFA,#48C6EF)!important;color:#fff!important}.nv-exit{background:linear-gradient(135deg,#FF6B8B,#FF9F43)!important}#app .nv-type section.bg-white{position:relative;overflow:hidden;background:#fff!important;border:0!important;border-radius:30px!important;box-shadow:0 0 0 3px var(--dl),0 30px 60px -28px var(--dc)!important;transition:box-shadow .4s}#app .nv-type section.bg-white:before{content:\"\";position:absolute;left:0;right:0;top:0;height:8px;background:linear-gradient(90deg,#FF6B8B,#FF9F43,#FECA57,#1DD1A1,#48C6EF,#A78BFA,#FF6FB5)}#app .nv-type section.bg-white:after{content:\"\";position:absolute;right:-70px;bottom:-80px;width:240px;height:240px;border-radius:999px;background:var(--dl);opacity:.7;pointer-events:none;transition:background .4s}#app .nv-type section>div.border-b{background:transparent!important;border:0!important;position:relative;z-index:1}#app .nv-count{color:var(--dc)}#app .nv-count small{color:#9A93C2}#app .nv-prog{background:#F1EEFA}#app .nv-prog i{background:linear-gradient(90deg,#FF6B8B,#FF9F43,#FECA57,#1DD1A1,#48C6EF,#A78BFA)!important}#app .nv-type section>div.border-b>span:last-child{background:var(--dl)!important;color:var(--dd)!important}#app .nv-stage{background:transparent!important;position:relative;z-index:1}#app .nv-stage [class*=\"tracking-widest\"]{color:var(--dc)!important}#app .nv-stage>div:nth-child(2)>div:last-child{background:var(--dl)!important;border:0!important;color:var(--dd)!important;box-shadow:none!important;font-weight:800}#app .nv-type button[aria-label=\"Nghe\"]{background:linear-gradient(135deg,var(--dc),var(--d2))!important;color:#fff!important;box-shadow:0 0 0 10px var(--dl),0 18px 36px -12px var(--dc)!important}#app .nv-type button[aria-label=\"Nghe\"] *{color:#fff!important}#app .nv-type button[aria-label=\"Nghe\"]:before,#app .nv-type button[aria-label=\"Nghe\"]:after{border-color:var(--dc)!important}#app .nv-type #inputWrapper{background:#FFFDF8!important;border:2.5px dashed var(--dc)!important}#app .nv-type #inputWrapper:focus-within{border-style:solid!important;background:#fff!important;box-shadow:0 0 0 5px var(--dl)!important}#app .nv-stage .char-typed{color:var(--dd)!important;border-bottom-color:var(--dc)!important}#app .nv-stage .char-error{color:#E11D48!important;border-bottom-color:#E11D48!important;background:#FFE4E6}#app .nv-stage .char-hint{color:#D97706!important}#app .nv-stage .char-box:not(.char-typed):not(.char-error):not(.char-hint){color:#C9C3E3!important;border-bottom-color:#E4DFF5!important}#app .nv-type #typingFeedback{color:#10B981}#app .nv-type section>div.border-t{background:#FBF9FF!important;border-top:0!important;position:relative;z-index:1}#app .nv-type section>div.border-t>div{background:transparent!important;gap:6px}#app .nv-type section>div.border-t>div>button{border-radius:999px!important;font-weight:800!important}#app .nv-type section>div.border-t>div>button:nth-child(1){background:#E0F2FE!important;color:#0369A1!important}#app .nv-type section>div.border-t>div>button:nth-child(2){background:#DCFCE7!important;color:#15803D!important}#app .nv-type section>div.border-t>div>button:nth-child(3){background:#EDE9FE!important;color:#6D28D9!important}#app .nv-type section>div.border-t>div>button:nth-child(4){background:#FEF3C7!important;color:#B45309!important}#app .nv-type section>div.border-t>div>button:nth-child(5){background:#FFE4EF!important;color:#BE185D!important}#app .nv-type section>div.border-t>div>button *{color:inherit!important}#app .nv-type section>div.border-t>button:last-child{background:linear-gradient(135deg,var(--dc),var(--d2))!important;color:#fff!important;box-shadow:0 12px 24px -12px var(--dc)!important}#app .nv-type section>div.border-t>button:last-child *{color:#fff!important}#app .nv-type section>div.border-t>button:first-child{background:#fff!important;border:2px solid #EEE9FB!important;color:#5B5394!important}#app div:has(>button[onclick=\"setPhraseMode()\"]){display:none!important}#purpleProgressBar{background:linear-gradient(90deg,#FF6B8B,#FECA57,#1DD1A1,#48C6EF)!important}.nv-side{filter:drop-shadow(0 8px 14px rgba(120,90,200,.25))}";
   var PAL = '[["#FF6B8B","#FF9F43","#FFE4EA","#BE123C"],["#FF9F43","#FECA57","#FFEDD5","#C2410C"],["#10B981","#48C6EF","#D1FAE5","#047857"],["#3B82F6","#48C6EF","#DBEAFE","#1D4ED8"],["#8B5CF6","#FF6FB5","#EDE9FE","#6D28D9"],["#EC4899","#A78BFA","#FCE7F3","#BE185D"]]';
+  /* Nghĩa tiếng Việt cho từng câu (AI dịch 1 lần / phần, lưu trên máy) */
+  function translate(list, key) {
+    var K = 'nv-dict-vi:' + (key || ''), cache = null;
+    try { cache = JSON.parse(localStorage.getItem(K) || 'null'); } catch (e) {}
+    var src = list.map(function (x) { return x.s; });
+    if (cache && cache.length === src.length) { list.forEach(function (x, i) { x.vi = cache[i]; }); return Promise.resolve(); }
+    return plan().then(function (P) {
+      if (!P || !P.groqFetch) return;
+      var body = { model: 'openai/gpt-oss-20b', temperature: 0.2, max_tokens: 6000, reasoning_effort: 'low', response_format: { type: 'json_object' },
+        messages: [{ role: 'system', content: 'Translate each English sentence (lines from an IELTS Listening conversation or talk) into short, natural Vietnamese that a learner can use as a hint. Keep names and numbers. Respond with JSON only: {"vi": ["...", ...]} with exactly the same number of items, in the same order.' },
+          { role: 'user', content: JSON.stringify(src) }] };
+      var go = P.groqFetch('https://api.groq.com/openai/v1/chat/completions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, 'speaking')
+        .then(function (r) { return r.json(); }).then(function (j) {
+          var t = j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content, o = JSON.parse(t || '{}');
+          if (o && Array.isArray(o.vi) && o.vi.length === src.length) { list.forEach(function (x, i) { x.vi = String(o.vi[i] || ''); }); if (key) try { localStorage.setItem(K, JSON.stringify(o.vi)); } catch (e) {} }
+        });
+      return Promise.race([go, new Promise(function (r) { setTimeout(r, 20000); })]);
+    }).catch(function (e) { console.warn('Chưa dịch được nghĩa:', e); });
+  }
   var planP = null;
   function plan() {
     if (window.NightPlan) return Promise.resolve(window.NightPlan);
@@ -82,9 +106,14 @@
   }
   function open(o) {
     var list = o.items || []; if (!list.length) return;
-    return engine().then(function (E) {
-      css();
-      var items = list.map(function (x) { return { phrase: x.s, meaningVi: x.tag + (x.who ? ' · ' + x.who : ''), sentence: x.s, sentenceVi: '' }; });
+    css();
+    var wait = document.createElement('div'); wait.id = 'nv-dict-wait';
+    wait.style.cssText = 'position:fixed;inset:0;z-index:100071;display:grid;place-items:center;background:rgba(36,36,42,.55);backdrop-filter:blur(6px);font:700 15px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;color:#fff;text-align:center';
+    wait.innerHTML = '<div><div style="width:34px;height:34px;margin:0 auto 12px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:nvdsp 1s linear infinite"></div>Đang chuẩn bị bài và nghĩa tiếng Việt...</div><style>@keyframes nvdsp{to{transform:rotate(360deg)}}</style>';
+    document.body.appendChild(wait);
+    return Promise.all([engine(), o.noVi ? null : translate(list, o.viKey)]).then(function (res) {
+      var E = res[0]; wait.remove();
+      var items = list.map(function (x) { return { phrase: x.s, meaningVi: x.vi || (x.tag + (x.who ? ' · ' + x.who : '')), sentence: x.s, sentenceVi: x.vi || '' }; });
       var html = E.build(o.title || 'Chép chính tả', items, 'blue').replace(/<script src="\/night-app\.js"[^>]*><\/script>/, '');
       var seg = {}; list.forEach(function (x) { if (x.t0 != null) seg[x.s] = [x.t0, x.t1]; });
       var useAudio = o.audio && Object.keys(seg).length;
@@ -115,7 +144,7 @@
       var close = function () { try { fr.contentWindow.__nvDictFlush && fr.contentWindow.__nvDictFlush(); } catch (e) {} setTimeout(function () { window.removeEventListener('message', onMsg); wrap.remove(); document.body.style.overflow = ov; if (o.onClose) o.onClose(); }, 60); };
       window.addEventListener('message', onMsg);
       return useAudio;
-    });
+    }).catch(function (e) { wait.remove(); alert('Chưa mở được bài — kiểm tra mạng rồi thử lại nhé.'); });
   }
   window.NVDict = { sentences: sentences, timing: timing, attach: attach, open: open, canUse: canUse, ROOT: ROOT };
 })();

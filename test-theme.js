@@ -895,7 +895,7 @@
   if (REVIEW) setTimeout(function () { mark(0); }, 1500);
 
   var dP = null;
-  function lib() { if (window.NVDict) return Promise.resolve(window.NVDict); if (dP) return dP; dP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/luyengo/dictation.js?v=2'; s.onload = function () { res(window.NVDict); }; s.onerror = rej; document.head.appendChild(s); }); return dP; }
+  function lib() { if (window.NVDict) return Promise.resolve(window.NVDict); if (dP) return dP; dP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/luyengo/dictation.js?v=3'; s.onload = function () { res(window.NVDict); }; s.onerror = rej; document.head.appendChild(s); }); return dP; }
   function audioSrc() { try { return typeof AUDIO_SRC !== 'undefined' && AUDIO_SRC ? new URL(AUDIO_SRC, location.href).href : ''; } catch (e) { return ''; } }
   function alignUrl() { var a = audioSrc(); return a ? a.replace(/-audio\.mp3$|\.mp3$/, '') + '-align.json' : ''; }
   function title(n) { var b = document.getElementById('passage-' + n + '-text'); return (b && b.getAttribute('data-title')) || ''; }
@@ -933,7 +933,7 @@
       '<div class="row">' + (miss.length ? '<button class="bt g" type="button" data-plant><i class="fa-solid fa-seedling"></i> Gieo câu sai vào Khu vườn</button><button class="bt" type="button" data-clear>Xoá danh sách câu sai</button>' : '') + '<button class="bt" type="button" data-x>Đóng</button></div></div>';
     document.body.appendChild(ov);
     var run = function (items, name, review) {
-      D.open({ title: 'Chép chính tả · ' + name, items: items, audio: audioSrc(), onClose: pill, onResult: function (it, bad) {
+      D.open({ title: 'Chép chính tả · ' + name, items: items, audio: audioSrc(), viKey: review ? '' : location.pathname + ':' + name, onClose: pill, onResult: function (it, bad) {
         var M = ls(MISS) || [], at = M.findIndex(function (x) { return x.s === it.s; });
         if (bad && at < 0) M.push({ s: it.s, who: it.who || '', t0: it.t0, t1: it.t1 });
         if (!bad && at >= 0 && review) M.splice(at, 1);
