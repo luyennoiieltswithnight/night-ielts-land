@@ -7,6 +7,39 @@
 (function () {
   if (window.__nightTestTheme) return;
   window.__nightTestTheme = true;
+  /* ===== TẠM THỜI: đề Reading / Listening chỉ mở cho HỌC SINH của thầy (role student) và thầy (admin).
+     Tài khoản khác (User, Pro, Astra, chưa đăng nhập) thấy màn chặn + lối sang Chép chính tả / Speaking / Writing. ===== */
+  (function rlGate() {
+    if (!/^\/(reading|listening)\//.test(location.pathname)) return;
+    var de = document.documentElement; de.classList.add('nv-rl-lock');
+    var st = document.createElement('style');
+    st.textContent = 'html.nv-rl-lock body>*:not(#nv-rl-gate){visibility:hidden!important}html.nv-rl-lock body{overflow:hidden!important}' +
+      '#nv-rl-gate{position:fixed;inset:0;z-index:2147483600;display:grid;place-items:center;padding:16px;background:linear-gradient(160deg,#CDD0FA,#9599EA);font-family:"Plus Jakarta Sans",system-ui,sans-serif}' +
+      '#nv-rl-gate .bx{max-width:460px;width:100%;background:#fff;border-radius:30px;padding:28px 24px;text-align:center;box-shadow:0 30px 70px -24px rgba(36,36,42,.55)}' +
+      '#nv-rl-gate h2{margin:12px 0 8px;font-size:21px;color:#24242A}#nv-rl-gate p{margin:0 0 18px;color:#55555f;line-height:1.6;font-size:14.5px}' +
+      '#nv-rl-gate a{display:block;margin-top:8px;padding:12px 16px;border-radius:999px;font-weight:800;text-decoration:none;font-size:14px}' +
+      '#nv-rl-gate .p{background:#24242A;color:#fff}#nv-rl-gate .s{background:#F4F4F7;color:#24242A}';
+    (document.head || de).appendChild(st);
+    var show = function (msg) {
+      var go = function () {
+        if (document.getElementById('nv-rl-gate')) return;
+        var g = document.createElement('div'); g.id = 'nv-rl-gate';
+        g.innerHTML = '<div class="bx"><div style="font-size:42px">🔒</div><h2>Phần đề này đang tạm khoá</h2><p>' + msg + '</p>' +
+          '<a class="p" href="/chinhta.html">Luyện chép chính tả Listening</a><a class="s" href="/speaking.html">Luyện Speaking</a><a class="s" href="/writing.html">Luyện Writing</a><a class="s" href="/index.html">Về trang chủ</a></div>';
+        document.body.appendChild(g);
+      };
+      if (document.body) go(); else document.addEventListener('DOMContentLoaded', go);
+    };
+    var load = function () {
+      if (window.NightPlan) return Promise.resolve(window.NightPlan);
+      return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/night-plan.js?v=20261113a'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; (document.head || de).appendChild(s); });
+    };
+    load().then(function (P) { return P.init().then(function () { return P; }); }).then(function (P) {
+      var r = P.role();
+      if (r === 'admin' || r === 'student') { de.classList.remove('nv-rl-lock'); return; }
+      show(P.me() ? 'Đề Reading và Listening hiện chỉ dành cho học sinh lớp của Night IELTS. Bạn vẫn luyện được Chép chính tả, Speaking, Writing và Vườn từ vựng.' : 'Bạn đăng nhập ở trang chủ trước nhé. Đề Reading và Listening hiện chỉ dành cho học sinh lớp của Night IELTS.');
+    }).catch(function () { show('Chưa kiểm tra được tài khoản. Kiểm tra mạng rồi tải lại trang nhé.'); });
+  })();
   try {
     if (!document.querySelector('link[data-nt-font]')) {
       var l = document.createElement('link');
