@@ -133,7 +133,7 @@
 /* Nộp đề Reading / Listening → màn hình ăn mừng + chuỗi học + huy hiệu (night-fame.js) */
 (function () {
   if (window.__nightFameHook) return; window.__nightFameHook = true;
-  var src; try { src = new URL('../../night-fame.js?v=20261028d', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/night-fame.js'; }
+  var src; try { src = new URL('../../night-fame.js?v=20261117a', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/night-fame.js'; }
   function wrapSave() {
     var orig = window.saveProgressRecord;
     if (typeof orig !== 'function' || orig.__fame) return;
@@ -779,4 +779,57 @@
       } catch (e) {}
     }, 400);
   });
+})();
+
+/* ===== "Làm chung" (làm đề cùng bạn bè): tạo link = quyền Astra / Học sinh / thầy; ai bấm link vào làm chung thì không cần gói.
+   Không sửa code Làm chung trong từng đề: chặn đúng cú bấm "Tạo link làm chung", kiểm tra gói rồi mới cho chạy tiếp.
+   Kèm nhãn "MỚI" nhấp nháy trên nút Làm chung cho tới khi người dùng bấm thử lần đầu. ===== */
+(function () {
+  var SEEN = 'nv-coop-seen';
+  var planP = null;
+  function plan() {
+    if (window.NightPlan) return Promise.resolve(window.NightPlan);
+    if (planP) return planP;
+    planP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/night-plan.js?v=20261113a'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; document.head.appendChild(s); });
+    return planP;
+  }
+  function canHost(P) { var r = P.role(), me = P.me(); return r === 'admin' || r === 'student' || (r === 'pro' && P.tierOf(me) === 'astra'); }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('#live-session-create-btn') : null;
+    if (!b || b.dataset.nvOk) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    var old = b.textContent; b.disabled = true; b.textContent = 'Đang kiểm tra tài khoản…';
+    plan().then(function (P) { return P.init().then(function () { return P; }); }).then(function (P) {
+      b.disabled = false; b.textContent = old;
+      if (canHost(P)) { b.dataset.nvOk = '1'; b.click(); return; }
+      if (typeof window.closeLiveSessionModal === 'function') window.closeLiveSessionModal();
+      P.openUpgrade('Tạo phòng “Làm chung” dành cho tài khoản 🌟 Astra và Học sinh của Night IELTS. Bạn bè bấm vào link của bạn thì làm chung miễn phí — chỉ cần 1 người có Astra.', 'astra');
+    }).catch(function () { b.disabled = false; b.textContent = old; alert('Chưa kiểm tra được tài khoản — bạn đăng nhập rồi thử lại nhé.'); });
+  }, true);
+  /* ghi chú quyền trong hộp thoại + nhãn MỚI trên nút */
+  function decorate() {
+    var body = document.getElementById('live-session-body');
+    if (body && body.querySelector('#live-session-create-btn') && !body.querySelector('.nv-coop-who')) {
+      var p = document.createElement('p'); p.className = 'nv-coop-who';
+      p.style.cssText = 'margin:12px 0 0;padding:10px 12px;border-radius:12px;background:linear-gradient(120deg,#FFF1F5,#FFF7ED);color:#9A3412;font-size:13px;font-weight:700;line-height:1.5';
+      p.textContent = 'Tạo link: tài khoản Astra hoặc Học sinh. Người nhận link: ai cũng vào làm chung được, không cần gói.';
+      body.querySelector('#live-session-create-btn').insertAdjacentElement('afterend', p);
+    }
+  }
+  function badge() {
+    var btn = document.querySelector('button[onclick="toggleLiveSessionBox()"]');
+    if (!btn || btn.dataset.nvNew) return !!btn;
+    btn.dataset.nvNew = '1';
+    try { if (localStorage.getItem(SEEN)) return true; } catch (e) {}
+    if (!document.getElementById('nv-coop-css')) {
+      var st = document.createElement('style'); st.id = 'nv-coop-css';
+      st.textContent = '.nv-coop-hot{position:relative;animation:nvCoopGlow 1.8s ease-in-out infinite}.nv-coop-hot:after{content:"MỚI";position:absolute;top:-9px;right:-8px;background:linear-gradient(135deg,#FF6B9A,#FF9E5E);color:#fff;font:900 9.5px/1 system-ui,sans-serif;letter-spacing:.06em;padding:4px 6px;border-radius:99px;box-shadow:0 4px 10px -3px rgba(255,107,154,.8)}@keyframes nvCoopGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,107,154,.0)}50%{box-shadow:0 0 0 5px rgba(255,107,154,.35)}}';
+      document.head.appendChild(st);
+    }
+    btn.classList.add('nv-coop-hot');
+    btn.addEventListener('click', function () { btn.classList.remove('nv-coop-hot'); try { localStorage.setItem(SEEN, '1'); } catch (e) {} }, { once: true });
+    return true;
+  }
+  var tries = 0, t = setInterval(function () { if (badge() || ++tries > 40) clearInterval(t); }, 250);
+  new MutationObserver(decorate).observe(document.documentElement, { childList: true, subtree: true });
 })();

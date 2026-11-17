@@ -153,9 +153,26 @@
         f.months[mk] = m;
         var news = earned(f, ev).filter(function (id) { return !f.badges[id]; });
         news.forEach(function (id) { f.badges[id] = ev.at; });
-        return o.fs.setDoc(ref, f).then(function () { return { f: f, news: news, u: u }; });
+        return o.fs.setDoc(ref, f).then(function () { reward15(o, u, f); return { f: f, news: news, u: u }; });
       });
     }).catch(function (e) { console.warn('[NightFame]', e); return null; });
+  }
+  /* ---------- Quà 15 huy hiệu: tặng 1 tháng Astra ----------
+     Đủ 15 huy hiệu → tự gửi yêu cầu "Astra 1 tháng" (0đ, ghi rõ QUÀ 15 HUY HIỆU) vào hàng chờ duyệt của thầy (👑 Tài khoản → Yêu cầu).
+     Mỗi tài khoản nhận 1 lần. Đang có yêu cầu chuyển khoản chờ duyệt thì để lần sau mới gửi, không ghi đè. */
+  var REWARD_N = 15;
+  function reward15(o, u, f) {
+    if (!f || f.reward15 || Object.keys(f.badges || {}).length < REWARD_N) return;
+    var rq = o.fs.doc(o.db, 'proRequests', u.uid);
+    o.fs.getDoc(rq).then(function (s) {
+      if (s.exists() && s.data().status === 'pending') return;
+      return o.fs.setDoc(rq, { uid: u.uid, email: (o.user && o.user.email) || '', name: u.name || '', photo: u.photo || '', code: 'QUÀ 15 HUY HIỆU', amount: 0, plan: 'astra', months: 1, reward: 'badges15', status: 'pending', createdAt: Date.now() })
+        .then(function () { return o.fs.setDoc(o.fs.doc(o.db, 'fame', u.uid), { reward15: Date.now() }, { merge: true }); })
+        .then(function () {
+          sheet('Quà 15 huy hiệu', '<div style="text-align:center"><img src="' + IRA + 'trophy_school_boy.webp" alt="" style="height:120px"><h3 style="margin:8px 0 6px">Bạn đã gom đủ ' + REWARD_N + ' huy hiệu!</h3>' +
+            '<p style="margin:0;color:#4B4B58;line-height:1.55">Night IELTS tặng bạn <b>1 tháng Astra miễn phí</b> — AI chấm Speaking, Writing và mở toàn bộ khoá học. Thầy sẽ kích hoạt cho bạn sớm nhé.</p></div>');
+        });
+    }).catch(function (e) { console.warn('[NightFame] reward', e); });
   }
   function bestSentence(t) {
     var ss = (String(t).match(/[^.!?]+[.!?]+/g) || [String(t)]).map(function (x) { return x.trim(); }).filter(function (x) { var w = x.split(/\s+/).length; return w >= 6 && w <= 28; });
@@ -624,7 +641,13 @@
       if (!u) { body.innerHTML = '<p>Đăng nhập để xem huy hiệu.</p>'; return; }
       return u.o.fs.getDoc(u.o.fs.doc(u.o.db, 'fame', u.uid)).then(function (s) {
         var f = s.exists() ? s.data() : {}, got = f.badges || {}, n = Object.keys(got).length;
-        body.innerHTML = '<p style="margin:0 0 12px;color:#6B6B78">Đã có <b style="color:#24242A">' + n + '/' + BADGES.length + '</b> · Chuỗi hiện tại ' + (f.streak || 0) + ' · Kỷ lục ' + (f.best || 0) + ' ngày</p><div class="nf-grid">' +
+        var pr = Math.min(n, REWARD_N);
+        var gift = '<div style="display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:12px 14px;border-radius:18px;background:linear-gradient(120deg,#FFF1F5,#FFF7ED);border:1.5px solid #FFD3B5">' +
+          '<img src="' + IRA + 'present_box_3084.webp" alt="" style="height:52px;flex:none"><div style="flex:1;min-width:0"><b style="display:block;font-size:14px;color:#9A3412">' + (f.reward15 ? 'Đã nhận quà: 1 tháng Astra miễn phí' : 'Gom đủ ' + REWARD_N + ' huy hiệu → tặng 1 tháng Astra miễn phí') + '</b>' +
+          '<div style="height:10px;border-radius:99px;background:#FFE4D1;margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:' + (pr / REWARD_N * 100) + '%;background:linear-gradient(90deg,#FF9E5E,#FF6B9A);border-radius:99px"></i></div>' +
+          '<small style="color:#9A3412;font-weight:700">' + pr + '/' + REWARD_N + ' huy hiệu' + (f.reward15 ? ' · thầy sẽ kích hoạt cho bạn' : n >= REWARD_N ? ' · đang gửi quà…' : ' · còn ' + (REWARD_N - n) + ' huy hiệu nữa') + '</small></div></div>';
+        if (!f.reward15 && n >= REWARD_N) reward15(u.o, u, f);
+        body.innerHTML = gift + '<p style="margin:0 0 12px;color:#6B6B78">Đã có <b style="color:#24242A">' + n + '/' + BADGES.length + '</b> · Chuỗi hiện tại ' + (f.streak || 0) + ' · Kỷ lục ' + (f.best || 0) + ' ngày</p><div class="nf-grid">' +
           BADGES.map(function (b) {
             var has = got[b.id], rr = RAR[b.r], hid = !has && b.h;
             return '<div class="nf-b' + (has ? '' : ' lock') + '" style="' + (has ? 'border-color:' + rr[1] : '') + '"><img src="' + IRA + b.i + '.webp" alt=""><b>' + (hid ? '???' : esc(b.n)) + '</b><small>' + (hid ? 'Huy hiệu ẩn, tự khám phá nha 👀' : esc(b.d)) + '</small><span class="r" style="color:' + rr[1] + ';background:' + rr[2] + '">' + rr[0] + '</span>' + (has ? '<small>' + new Date(has).toLocaleDateString('vi-VN') + '</small>' : '') + '</div>';
