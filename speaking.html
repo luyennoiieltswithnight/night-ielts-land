@@ -1169,7 +1169,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v16',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v17',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -2162,6 +2162,11 @@ Is it better to read a physical book or an e-book?"></textarea>
     else if (ger > 6) cap('grammar', 5.5, 'lỗi ngữ pháp dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
     else if (ger > 3.5 || v.basicSystematic) cap('grammar', 6, v.basicSystematic ? 'lặp lại cùng một lỗi cơ bản' : 'lỗi ngữ pháp còn nhiều (' + v.gramErrors + ' lỗi)');
     else if (ger > 2) cap('grammar', 7, 'band 8 cần phần lớn câu không lỗi');
+    // V17: BÀI QUÁ NGẮN (không tính er/um) -> giới hạn cả 3 tiêu chí: quá ít ngôn ngữ để chứng minh band cao
+    var cw = Math.max(0, words - (fillers || 0)), S1 = P1 ? [10, 18, 28] : part === 2 ? [40, 70, 100] : [15, 28, 40];
+    if (cw < S1[0]) { cap('fluency', 4, 'trả lời quá ngắn (' + cw + ' từ), chưa phát triển ý'); cap('lexical', 4, 'quá ít từ để thể hiện vốn từ (' + cw + ' từ)'); cap('grammar', 4, 'quá ít câu để thể hiện ngữ pháp (' + cw + ' từ)'); }
+    else if (cw < S1[1]) { cap('fluency', 4.5, 'trả lời rất ngắn (' + cw + ' từ), chưa có lý do / ví dụ'); cap('lexical', 5, 'bài ngắn, vốn từ thể hiện được rất ít (' + cw + ' từ)'); cap('grammar', 5, 'bài ngắn, chủ yếu 1 câu đơn (' + cw + ' từ)'); }
+    else if (cw < S1[2]) { cap('fluency', 5.5, 'trả lời còn ngắn (' + cw + ' từ), cần mở rộng thêm lý do / ví dụ'); cap('lexical', 6, 'bài ngắn nên vốn từ thể hiện được ít (' + cw + ' từ)'); cap('grammar', 6, 'bài ngắn nên ít cấu trúc (' + cw + ' từ)'); }
     // TRÔI CHẢY: độ dài theo Part + từ nối + tốc độ
     var L = P1 ? [12, 20, 30] : part === 2 ? [70, 110, 150] : [25, 40, 60];
     if (words < L[0]) cap('fluency', 5, 'câu trả lời quá ngắn (' + words + ' từ)');
@@ -2403,7 +2408,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     var up = function (x) { return Math.ceil(x * 2 - 1e-9) / 2; };
     var pct = pronEv && pronEv.pct_words_affected != null ? Number(pronEv.pct_words_affected) : null;
     var clear = pct == null || pct <= 15;
-    var target = clear ? Math.max(up(mean), 5) : up(mean);   // V16: không còn +0.5 / lấy tiêu chí cao nhất (đẩy band tổng lên oan)
+    var target = up(mean);   // V17: không có sàn 5 nữa   // V16: không còn +0.5 / lấy tiêu chí cao nhất (đẩy band tổng lên oan)
     target = Math.min(9, target);
     if (target > p.band) { p.rawBand = p.band; p.band = target; p.lifted = true; if (p.toNextBand && target >= 9) p.toNextBand = ''; }
   }
@@ -5175,7 +5180,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   // V16: lượt SỬA LỖI riêng (chạy song song với lượt chấm) — chỉ làm 1 việc nên không bỏ sót lỗi
   const GRAMMAR_FIX_PROMPT = 'You correct the English of ONE spoken IELTS answer by a Vietnamese learner. The transcript is speech recognised by a machine: IGNORE punctuation, capitalisation, sentence boundaries, fillers (er, um, uh), repeated words and self-corrections (those are fluency, not grammar). ' +
     'Go through the answer clause by clause from the first word to the last and list EVERY real grammar and vocabulary error. Check: subject-verb agreement; verb form (after modals, to + base verb, -ing after enjoy/like/avoid, missing or extra auxiliary or "be": "to productive" -> "to be productive", "I\'m have" -> "I have"); tense; word form (adjective vs adverb vs noun vs verb: "more energy to productive" -> "more energy to be productive", "speak fluent" -> "speak fluently"); articles; singular / plural and countable nouns; prepositions; pronouns; comparatives; word order; conjunctions and linking ("Although ... but", "because of + clause"); sentence structure (missing subject or main verb, two verbs without a connector, Vietnamese patterns like "I very like", "It has many people go"); collocation and word choice ("do a mistake" -> "make a mistake"). ' +
-    'Fix each error at the smallest level that makes it correct: a WORD, a PHRASE, or the whole CLAUSE when the structure is wrong. Keep the speaker\'s meaning; do not upgrade correct language; do not correct fillers or repetitions; each "find" must be copied EXACTLY from the transcript (1-14 words, you may include a filler inside it if the error spans it) and edits must not overlap. ' +
+    'Fix each error at the smallest level that makes it correct: a WORD, a PHRASE, or the whole CLAUSE when the structure is wrong. Keep the speaker\'s meaning: never replace content words with different words you guess (if a phrase does not make sense, it was probably misheard by the recogniser: mark it "uncertain" and only fix grammar around it, e.g. "see video of you" -> "see a video of you"); do not upgrade correct language; do not correct fillers or repetitions; each "find" must be copied EXACTLY from the transcript (1-14 words, you may include a filler inside it if the error spans it) and edits must not overlap. ' +
     'Respond with ONE JSON object only: {"edits": [{"find": "", "replace": "", "type": "agreement" | "verb_form" | "tense" | "word_form" | "article" | "plural" | "preposition" | "pronoun" | "comparison" | "word_order" | "conjunction" | "sentence" | "collocation" | "word_choice", "criterion": "grammar" | "lexical", "why": "1 short Vietnamese sentence naming the rule", "status": "confirmed" | "likely" | "uncertain"}]}. No error: {"edits": []}.';
   const SCORING_SYSTEM_PROMPT = [
     'You are a calibrated IELTS Speaking examiner. For practice, estimate what a trained examiner would award ONE recorded answer, using only the evidence given, and correct EVERY language error in it. ACCURACY AND DISCRIMINATION come first: a student must see the real gap between a basic answer and a strong one. Be neither harsh nor generous. Answers that differ in language quality MUST receive different bands. Use ONE fixed standard for every answer whatever the part or topic. You cannot hear the audio: you receive text and code-computed measurements only.',
