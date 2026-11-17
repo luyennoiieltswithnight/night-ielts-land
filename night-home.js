@@ -133,17 +133,19 @@
     var el = host('nv-band', '#nv-skills'); if (!el) return;
     if (!ST.data) { el.innerHTML = '<section class="nbp"><div class="nbp-card"><div class="nbp-wait"><i class="fa-solid fa-spinner fa-spin"></i> Đang tính band dự đoán…</div></div></section>'; return; }
     if (!ST.goal || ST.editing) return renderForm(el);
-    var D = ST.data, g = ST.goal, goal = Number(g.goal), have = SK.filter(function (s) { return D[s.k] != null; });
+    /* Tài khoản không phải học sinh: đề Reading / Listening đang tạm khoá -> dự đoán chỉ dựa trên Writing + Speaking */
+    var RL = document.body.classList.contains('rl-ok'), SKV = RL ? SK : SK.filter(function (s) { return s.k === 'writing' || s.k === 'speaking'; });
+    var D = ST.data, g = ST.goal, goal = Number(g.goal), have = SKV.filter(function (s) { return D[s.k] != null; });
     var est = have.length ? roundOverall(have.reduce(function (s, x) { return s + D[x.k]; }, 0) / have.length) : null;
     var days = g.date ? Math.ceil((new Date(g.date + 'T00:00:00') - new Date(new Date().toDateString())) / 864e5) : null;
     /* kỹ năng kéo điểm: chưa có dữ liệu → nhắc làm; có đủ → thấp nhất so với mục tiêu */
-    var missing = SK.filter(function (s) { return D[s.k] == null; });
+    var missing = SKV.filter(function (s) { return D[s.k] == null; });
     var weak = have.length ? have.slice().sort(function (a, b) { return D[a.k] - D[b.k]; })[0] : null;
     var gap = est != null ? Math.max(0, goal - est) : null;
-    var gapTxt = est == null ? 'Làm vài bài ở các kỹ năng để có dự đoán đầu tiên.' :
+    var gapTxt = est == null ? (RL ? 'Làm vài bài ở các kỹ năng để có dự đoán đầu tiên.' : 'Làm 1 bài Writing hoặc Speaking để có dự đoán đầu tiên.') :
       gap <= 0 ? 'Bạn đã chạm mục tiêu <b>' + fmt(goal) + '</b>! Giữ phong độ hoặc đặt mục tiêu cao hơn.' :
       'Còn thiếu <b>' + fmt(gap) + ' band</b> để đạt ' + fmt(goal) + (days != null && days > 0 ? ' — trung bình mỗi tuần cần lên khoảng <b>' + (gap / Math.max(1, days / 7)).toFixed(2) + '</b> band.' : '.');
-    var rows = SK.map(function (s) {
+    var rows = SKV.map(function (s) {
       var b = D[s.k], isWeak = weak && weak.k === s.k && b < goal;
       var note = b == null ? 'Chưa có bài trong 4 tháng gần đây — làm 1 bài để tính vào dự đoán' : isWeak ? 'Kỹ năng đang kéo điểm xuống nhiều nhất · ' + D.n[s.k] : D.n[s.k] + (b >= goal ? ' · đã đạt mục tiêu' : ' · còn ' + fmt(goal - b) + ' band');
       return '<div class="nbp-sk' + (isWeak ? ' weak' : '') + '"><div class="nbp-sn"><i class="fa-solid ' + s.ic + '" style="background:' + s.c + '"></i>' + s.n + '</div>' +
@@ -157,7 +159,7 @@
         '<div class="nbp-tg"><span><i class="fa-solid fa-bullseye"></i> Mục tiêu ' + fmt(goal) + '</span>' + (days != null ? '<span><i class="fa-solid fa-calendar-day"></i> ' + (days > 0 ? 'Còn ' + days + ' ngày' : days === 0 ? 'Thi hôm nay!' : 'Đã qua ngày thi') + '</span>' : '') + '</div>' +
         '<div class="nbp-gap">' + gapTxt + '</div>' +
         '<button class="nbp-edit" type="button"><i class="fa-solid fa-pen"></i> Đổi mục tiêu · ngày thi</button></div>' +
-      '<div class="nbp-r"><div class="nbp-h"><h3>Dự đoán band IELTS</h3><small>Tính từ điểm gần nhất của bạn trên Night IELTS (4 tháng)</small></div>' + rows +
+      '<div class="nbp-r"><div class="nbp-h"><h3>Dự đoán band IELTS</h3><small>' + (RL ? 'Tính từ điểm gần nhất của bạn trên Night IELTS (4 tháng)' : 'Dự đoán dựa trên <b>2 kỹ năng Writing và Speaking</b> — điểm gần nhất của bạn trên Night IELTS (4 tháng)') + '</small></div>' + rows +
         (focus ? '<button class="nbp-go" type="button"><i class="fa-solid ' + focus.ic + '"></i> Luyện ' + focus.n + ' ngay</button>' : '') + '</div>' +
       '</div></section>';
     el.querySelector('.nbp-edit').onclick = function () { ST.editing = true; render(); };
