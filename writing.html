@@ -1226,10 +1226,11 @@ body.full-work .shell>main{padding:10px}
   // Writing: AI chỉ dành cho người có key (Học sinh tự nhập, Pro / Astra được cấp). Tài khoản miễn phí -> mời nâng cấp.
   function hasGroqAI() { return !!getGroqConfig().apiKey; }
   function askAI() { if (window.NightPlan && NightPlan.freeOK()) NightPlan.openUpgrade('AI chấm và hướng dẫn Writing dành cho tài khoản ⭐ Pro / 🌟 Astra.', 'pro'); else openGroqSettingsModal(); }
-  function updateGear() { document.getElementById('groqGearDot').classList.toggle('hidden', hasGroqAI()); }
+  function updateGear() { document.getElementById('groqGearDot').classList.toggle('hidden', hasGroqAI() || !(window.NightPlan && NightPlan.role && NightPlan.role() === 'admin')); }
   function groqMissingHint() {
     if (getGroqConfig().apiKey) return '';
     if (window.NightPlan && NightPlan.freeOK()) return '<div class="warn-box mb12" style="background:#FFF7ED;border-color:#FED7AA;color:#9A3412">⭐ AI chấm và hướng dẫn Writing dành cho tài khoản <b>Pro / Astra</b>. Bạn vẫn viết và nộp bài bình thường. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="NightPlan.openUpgrade(\'\', \'pro\')">⭐ Nâng cấp Pro</button></div>';
+    if (!(window.NightPlan && NightPlan.role && NightPlan.role() === 'admin')) return '';   // chỉ thầy thấy dòng cấu hình key
     return '<div class="warn-box mb12"><i class="fa-solid fa-circle-exclamation"></i> Chưa cấu hình Groq API Key trên máy này. <button type="button" class="btn" style="padding:4px 10px;font-size:12px;" onclick="openGroqSettingsModal()">Cấu hình</button></div>';
   }
   window.openGroqSettingsModal = function () {
@@ -1256,7 +1257,7 @@ body.full-work .shell>main{padding:10px}
   async function callGroq(messages, opts) {
     opts = opts || {};
     const cfg = getGroqConfig();
-    if (!cfg.apiKey && !(window.NightPlan && (NightPlan.freeOK() || NightPlan.proxyOK()))) { const e = new Error('Chưa cấu hình Groq API Key (bấm bánh răng góc trên bên phải).'); e.code = 'NO_KEY'; throw e; }
+    if (!cfg.apiKey && !(window.NightPlan && (NightPlan.freeOK() || NightPlan.proxyOK()))) { const e = new Error('AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.'); e.code = 'NO_KEY'; throw e; }
     let res;
     // Groq bản miễn phí giới hạn số token/phút: gặp lỗi 429 thì chờ đúng số giây Groq báo rồi thử lại (tối đa 2 lần)
     for (let attempt = 0; attempt < 3; attempt++) {
