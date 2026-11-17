@@ -3,7 +3,7 @@
    NVDict.timing(alignUrl)          -> Promise mốc thời gian từng từ (file testN-align.json, dò sẵn từ audio gốc)
    NVDict.open({ title, items, audio, onResult }) -> mở khung Nghe – Gõ toàn màn hình.
      items: [{ s, who, tag, t0, t1 }] — có t0/t1 thì phát đúng đoạn trong AUDIO GỐC, không có thì đọc bằng giọng máy.
-   NVDict.canUse() -> Promise<boolean>: gói Astra, Học sinh, thầy (người khác bấm sẽ hiện bảng nâng cấp). */
+   NVDict.canUse() -> Promise<boolean>: gói Astra, Học sinh, giáo viên (người khác bấm sẽ hiện bảng nâng cấp). */
 (function () {
   var ROOT = (function () { try { var s = document.currentScript && document.currentScript.src; if (s) return s.replace(/luyengo\/dictation\.js.*$/, ''); } catch (e) {} return location.origin + '/'; })();
   var PFX = /^([A-Z][A-Z .'’-]{1,30}):\s*/;

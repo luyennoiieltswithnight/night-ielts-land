@@ -1,6 +1,6 @@
 /* Night IELTS — "In đề" cho giáo viên (chỉ tài khoản admin thấy nút) trên trang đề Reading / Listening.
    3 cấp: (1) in passage / section đang mở, (2) in cả đề, (3) in Passage N của NHIỀU đề (vd. chỉ ôn Passage 1).
-   Dữ liệu lấy từ chính file đề (questionsData + bài đọc gốc) + bản thầy đã sửa (Firestore readingEdits) nếu có.
+   Dữ liệu lấy từ chính file đề (questionsData + bài đọc gốc) + bản giáo viên đã sửa (Firestore readingEdits) nếu có.
    Không gọi AI. */
 (function () {
   if (window.NightPrint) return;
@@ -194,7 +194,7 @@
       '<img class="cv-img" src="' + IRA + ST.cover + '.webp" alt=""><h1>' + esc(title) + '</h1><div class="cv-sub">' + esc(sub) + '</div>' +
       (list ? '<ol class="cv-list">' + list.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' : '') +
       '<div class="cv-info"><div>Họ tên <span class="ln"></span></div><div>Lớp <span class="ln"></span></div><div>Ngày làm <span class="ln"></span></div><div>Thời gian <span class="ln"></span></div></div>' +
-      '<div class="cv-score"><div><small>Số câu đúng</small><b></b></div><div><small>Band</small><b></b></div><div><small>Chữ ký thầy</small><b></b></div></div>' +
+      '<div class="cv-score"><div><small>Số câu đúng</small><b></b></div><div><small>Band</small><b></b></div><div><small>Chữ ký giáo viên</small><b></b></div></div>' +
       '<div class="cv-tip"><img src="' + IRA + ST.puzzle + '.webp" alt=""><div><b>Mẹo làm bài</b><br>' + (KIND === 'reading' ? 'Đọc câu hỏi trước · gạch keyword · đọc từng đoạn, câu nào thấy thông tin thì làm luôn · câu khó để lại, rà soát cuối bài.' : 'Đọc trước câu hỏi trong 30 giây · đoán loại từ cần điền · nghe theo thứ tự câu hỏi · kiểm tra chính tả, số ít / số nhiều.') + '</div></div></section>';
   }
   var CSS = '' +

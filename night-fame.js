@@ -1,6 +1,6 @@
 /* Night IELTS — night-fame.js: ghi nhận việc học cho đáng khoe.
    1. Khoảnh khắc chiến thắng: làm xong đề / bài / chấm AI → màn hình ăn mừng + nút xuất ảnh story 9:16.
-   2. Night Check-in: chụp ảnh bàn học (chỉ chụp mới), lên Tường lớp, thả 🔥😭👏, thầy đóng mộc.
+   2. Night Check-in: chụp ảnh bàn học (chỉ chụp mới), lên Tường lớp, thả 🔥😭👏, giáo viên đóng mộc.
    3. Album huy hiệu có độ hiếm.   4. Night Wrapped hằng tháng.   5. Học sinh của tuần.   6. Lửa lớp.
    Firestore:
      fame/<uid>            { name, photo, streak, best, lastDay, total:{kind:n}, bestBand:{kind:b}, badges:{id:ts},
@@ -79,7 +79,7 @@
     { id: 'band8', n: 'Hệ 8.0', d: 'Đạt band 8.0 trở lên', r: 'legend', i: 'trophy_school_boy', h: 1 },
     { id: 'checkin7', n: 'Check-in chăm chỉ', d: 'Check-in 7 lần', r: 'rare', i: 'camera_film_2730' },
     { id: 'ontime', n: 'Đúng giờ vàng', d: 'Check-in trong 15 phút từ lúc chuông reo', r: 'rare', i: 'kitchen_timer', h: 1 },
-    { id: 'kudos', n: 'Được thầy đóng mộc', d: 'Thầy Night khen một bài / một check-in', r: 'rare', i: 'teacher_tensaku_woman' },
+    { id: 'kudos', n: 'Được giáo viên đóng mộc', d: 'Night IELTS khen một bài / một check-in', r: 'rare', i: 'teacher_tensaku_woman' },
     { id: 'sotw', n: 'Học sinh của tuần', d: 'Được chọn là Học sinh của tuần', r: 'legend', i: 'jibun_migaki_man_0425', h: 1 }
   ];
   var BMAP = {}; BADGES.forEach(function (b) { BMAP[b.id] = b; });
@@ -108,7 +108,7 @@
   /* ---------- Ghi nhận 1 hoạt động ---------- */
   var KIND = {
     reading: ['Reading', ''], listening: ['Listening', ''], speaking: ['Speaking', ''], writing: ['Writing', ''],
-    lesson: ['Bài học', ''], checkin: ['Check-in', ''], kudos: ['Thầy khen', '']
+    lesson: ['Bài học', ''], checkin: ['Check-in', ''], kudos: ['Giáo viên khen', '']
   };
   var CAPS = {
     any: ['Học xong rồi, giờ lướt TikTok không áy náy', 'Một bước gần hơn tới band mơ ước', 'Ai cản được tui nữa', 'IELTS ơi chờ đó', 'Hôm nay tui chọn học thay vì nằm'],
@@ -116,7 +116,7 @@
     night: ['3 giờ sáng vẫn còn cày, cú đêm chính hiệu', 'Đêm khuya chỉ có tui và IELTS'],
     streak: ['Chuỗi này mà đứt là tui khóc', 'Ngày thứ {n} không bỏ cuộc', '{n} ngày liền, ai cản nổi'],
     checkin: ['Check-in bàn học, chứng minh tui có học', 'Góc học tập hôm nay', 'Đang chăm, đừng làm phiền'],
-    kudos: ['Được thầy Night đóng mộc, khung ảnh liền', 'Thầy khen đó, nói ít hiểu nhiều']
+    kudos: ['Được Night IELTS đóng mộc, khung ảnh liền', 'Giáo viên khen đó, nói ít hiểu nhiều']
   };
   function seenId(id) { if (!id) return false; var a = lsGet('nightFameSeen', []); if (a.indexOf(id) >= 0) return true; a.push(id); lsSet('nightFameSeen', a.slice(-300)); return false; }
 
@@ -158,7 +158,7 @@
     }).catch(function (e) { console.warn('[NightFame]', e); return null; });
   }
   /* ---------- Quà 15 huy hiệu: tặng 1 tháng Astra ----------
-     Đủ 15 huy hiệu → tự gửi yêu cầu "Astra 1 tháng" (0đ, ghi rõ QUÀ 15 HUY HIỆU) vào hàng chờ duyệt của thầy (👑 Tài khoản → Yêu cầu).
+     Đủ 15 huy hiệu → tự gửi yêu cầu "Astra 1 tháng" (0đ, ghi rõ QUÀ 15 HUY HIỆU) vào hàng chờ duyệt của giáo viên (👑 Tài khoản → Yêu cầu).
      Mỗi tài khoản nhận 1 lần. Đang có yêu cầu chuyển khoản chờ duyệt thì để lần sau mới gửi, không ghi đè. */
   var REWARD_N = 15;
   function reward15(o, u, f) {
@@ -170,7 +170,7 @@
         .then(function () { return o.fs.setDoc(o.fs.doc(o.db, 'fame', u.uid), { reward15: Date.now() }, { merge: true }); })
         .then(function () {
           sheet('Quà 15 huy hiệu', '<div style="text-align:center"><img src="' + IRA + 'trophy_school_boy.webp" alt="" style="height:120px"><h3 style="margin:8px 0 6px">Bạn đã gom đủ ' + REWARD_N + ' huy hiệu!</h3>' +
-            '<p style="margin:0;color:#4B4B58;line-height:1.55">Night IELTS tặng bạn <b>1 tháng Astra miễn phí</b> — AI chấm Speaking, Writing và mở toàn bộ khoá học. Thầy sẽ kích hoạt cho bạn sớm nhé.</p></div>');
+            '<p style="margin:0;color:#4B4B58;line-height:1.55">Night IELTS tặng bạn <b>1 tháng Astra miễn phí</b> — AI chấm Speaking, Writing và mở toàn bộ khoá học. Giáo viên sẽ kích hoạt cho bạn sớm nhé.</p></div>');
         });
     }).catch(function (e) { console.warn('[NightFame] reward', e); });
   }
@@ -292,7 +292,7 @@
     css();
     var f = (r && r.f) || {}, news = (r && r.news) || [], u = (r && r.u) || {};
     var big = ev.big || (ev.band ? Number(ev.band).toFixed(1) : (ev.total && typeof ev.score === 'number' ? ev.score + '/' + ev.total : (ev.kind === 'kudos' ? 'Đỉnh!' : '✓')));
-    var label = (ev.kind === 'checkin' ? 'Check-in xong!' : ev.kind === 'kudos' ? 'Thầy Night khen bạn!' : (KIND[ev.kind][0] + (ev.band ? ' · Band' : ev.total && typeof ev.score === 'number' ? ' · Đúng' : ' · Hoàn thành')));
+    var label = (ev.kind === 'checkin' ? 'Check-in xong!' : ev.kind === 'kudos' ? 'Night IELTS khen bạn!' : (KIND[ev.kind][0] + (ev.band ? ' · Band' : ev.total && typeof ev.score === 'number' ? ' · Đúng' : ' · Hoàn thành')));
     var cap = ev.caption || captionOf(ev, f), st = stickerOf(ev, news);
     var data = { label: label, big: big, title: ev.title || '', cap: cap, sticker: st, streak: f.streak || 0, name: u.name || '', photo: f.av ? avUrl(f.av) : (u.photo || ''), img: ev.img || '', news: news };
     var ov = document.createElement('div'); ov.className = 'nf-ov';
@@ -607,7 +607,7 @@
           if (k === 'stamp' && x.id && !x.stamp) {
             var text = pick(['THẦY DUYỆT', 'ĐỈNH', 'CHĂM QUÁ', '10 ĐIỂM']);
             x.stamp = { text: text, at: Date.now() }; paint(true);
-            Promise.all([o.fs.updateDoc(o.fs.doc(o.db, 'checkins', x.id), { stamp: x.stamp }), giveKudos(o, x.uid, 'Thầy đóng mộc “' + text + '” lên check-in của bạn', 'kudos')]).catch(function (er) { toast('Lỗi: ' + (er.code || er.message)); });
+            Promise.all([o.fs.updateDoc(o.fs.doc(o.db, 'checkins', x.id), { stamp: x.stamp }), giveKudos(o, x.uid, 'Giáo viên đóng mộc “' + text + '” lên check-in của bạn', 'kudos')]).catch(function (er) { toast('Lỗi: ' + (er.code || er.message)); });
           }
         };
         paint();
@@ -645,7 +645,7 @@
         var gift = '<div style="display:flex;align-items:center;gap:12px;margin:0 0 14px;padding:12px 14px;border-radius:18px;background:linear-gradient(120deg,#FFF1F5,#FFF7ED);border:1.5px solid #FFD3B5">' +
           '<img src="' + IRA + 'present_box_3084.webp" alt="" style="height:52px;flex:none"><div style="flex:1;min-width:0"><b style="display:block;font-size:14px;color:#9A3412">' + (f.reward15 ? 'Đã nhận quà: 1 tháng Astra miễn phí' : 'Gom đủ ' + REWARD_N + ' huy hiệu → tặng 1 tháng Astra miễn phí') + '</b>' +
           '<div style="height:10px;border-radius:99px;background:#FFE4D1;margin-top:6px;overflow:hidden"><i style="display:block;height:100%;width:' + (pr / REWARD_N * 100) + '%;background:linear-gradient(90deg,#FF9E5E,#FF6B9A);border-radius:99px"></i></div>' +
-          '<small style="color:#9A3412;font-weight:700">' + pr + '/' + REWARD_N + ' huy hiệu' + (f.reward15 ? ' · thầy sẽ kích hoạt cho bạn' : n >= REWARD_N ? ' · đang gửi quà…' : ' · còn ' + (REWARD_N - n) + ' huy hiệu nữa') + '</small></div></div>';
+          '<small style="color:#9A3412;font-weight:700">' + pr + '/' + REWARD_N + ' huy hiệu' + (f.reward15 ? ' · giáo viên sẽ kích hoạt cho bạn' : n >= REWARD_N ? ' · đang gửi quà…' : ' · còn ' + (REWARD_N - n) + ' huy hiệu nữa') + '</small></div></div>';
         if (!f.reward15 && n >= REWARD_N) reward15(u.o, u, f);
         body.innerHTML = gift + '<p style="margin:0 0 12px;color:#6B6B78">Đã có <b style="color:#24242A">' + n + '/' + BADGES.length + '</b> · Chuỗi hiện tại ' + (f.streak || 0) + ' · Kỷ lục ' + (f.best || 0) + ' ngày</p><div class="nf-grid">' +
           BADGES.map(function (b) {
@@ -669,7 +669,7 @@
     if (top === 'speaking') return ['Thánh Nói 🗣️', 'Mic là bạn, AI là khán giả trung thành.', 'ai_talk_woman'];
     if (top === 'writing') return ['Ngòi Bút Vàng ✍️', 'Viết nhiều tới mức AI cũng phải nể.', 'book_sakubun_kodomo_girl'];
     if (top === 'reading' || top === 'listening') return ['Thợ Săn Đề 🎯', 'Đề nào cũng xử, không chừa đề nào.', 'test_shiken_woman'];
-    if (top === 'lesson') return ['Mọt Bài Giảng 📚', 'Bài nào thầy dạy cũng thuộc.', 'denkyuu_on'];
+    if (top === 'lesson') return ['Mọt Bài Giảng 📚', 'Bài nào giáo viên dạy cũng thuộc.', 'denkyuu_on'];
     return ['Chiến Binh Thầm Lặng 🥷', 'Ít nói, học đều, bất ngờ bùng nổ.', 'jibun_migaki_man_0425'];
   }
   function openWrapped(mk) {
@@ -732,7 +732,7 @@
         var tk = avTokens(f), meAv = avOf({ av: f.av, photo: u.photo });
         if (f.av) { var ha = document.getElementById('user-avatar'); if (ha) ha.src = meAv; }
         el.innerHTML = '<div class="nf-strip">' +
-          (sw && Date.now() - sw.at < 8 * 864e5 ? '<div class="nf-sotw"><img class="av" src="' + esc(avOf(sw)) + '" onerror="this.style.visibility=\'hidden\'"><div style="flex:1"><b>Học sinh của tuần: ' + esc(sw.name) + '</b><br><span style="color:#92400E">' + esc(sw.note || 'Được thầy Night vinh danh') + '</span></div><img src="' + IRA + 'trophy_school_boy.webp" style="width:52px;height:52px;object-fit:contain"></div>' : '') +
+          (sw && Date.now() - sw.at < 8 * 864e5 ? '<div class="nf-sotw"><img class="av" src="' + esc(avOf(sw)) + '" onerror="this.style.visibility=\'hidden\'"><div style="flex:1"><b>Học sinh của tuần: ' + esc(sw.name) + '</b><br><span style="color:#92400E">' + esc(sw.note || 'Được Night IELTS vinh danh') + '</span></div><img src="' + IRA + 'trophy_school_boy.webp" style="width:52px;height:52px;object-fit:contain"></div>' : '') +
           (isT ? '' : '<div class="nf-hello"><button class="av" data-a="avatar" aria-label="Đổi ảnh đại diện"><img src="' + esc(meAv) + '" alt=""></button><div style="flex:1;min-width:0"><b>Chào ' + esc((u.name || '').split(' ').pop()) + '</b><small>' + (tk ? 'Bạn có ' + tk + ' lượt mở avatar mới, chạm để chọn' : 'Chạm ảnh để đổi avatar · mỗi 5 ngày chuỗi mở thêm 1 ảnh') + '</small></div></div>') +
           (isT ? '' : '<button class="nf-tile dark" data-a="badges"><img class="ic" src="' + IRA + 'yaruki_moeru_woman_8815.webp" alt=""><span><b>' + stk + ' ngày</b><small>' + (stk && f.lastDay !== dayKey() ? 'Học ngay kẻo tắt chuỗi' : 'Chuỗi học · kỷ lục ' + (f.best || 0)) + '</small></span></button>') +
           '<button class="nf-tile' + (ring ? ' hot' : '') + '" data-a="checkin"><img class="ic" src="' + IRA + 'camera_film_2730.webp" alt=""><span><b>' + (isT ? 'Tường lớp' : did ? 'Đã check-in' : ring ? 'Chuông đang reo!' : 'Check-in') + '</b><small>' + (isT ? 'Xem ảnh, đóng mộc khen' : 'Chụp góc học, giữ lửa lớp') + '</small></span></button>' +
@@ -745,7 +745,7 @@
           if (a.dataset.a === 'avatar') openAvatar(function () { mount(el); });
         };
         if (/[?&]checkin=1/.test(location.search) && !window.__nfAutoCI) { window.__nfAutoCI = true; openCheckin(); }
-        /* Lời khen mới từ thầy → ăn mừng + huy hiệu */
+        /* Lời khen mới từ giáo viên → ăn mừng + huy hiệu */
         if (!isT) {
           var seen = f.kudosSeen || 0, fresh = (f.kudos || []).filter(function (k) { return k.at > seen; });
           if (fresh.length) {

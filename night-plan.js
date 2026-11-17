@@ -2,14 +2,14 @@
    Dùng chung cho index.html, speaking.html, writing.html, khoahoc/night-progress.js, khoahoc/roadmap.js.
 
    Vai trò (users/<uid>.role):
-     admin   – thầy, dùng mọi thứ.
-     student – học sinh của thầy: được giao bài, vào các khoá thầy thêm, AI dùng key riêng.
+     admin   – giáo viên, dùng mọi thứ.
+     student – học sinh của giáo viên: được giao bài, vào các khoá giáo viên thêm, AI dùng key riêng.
      pro     – trả 99k/tháng: mở toàn bộ khoá học, AI dùng key riêng. Hết hạn (proUntil) → như user.
      user    – tài khoản thường (mới đăng ký): 3 buổi đầu mỗi khoá, AI miễn phí 5 phút / 5 tiếng
-               cho mỗi kỹ năng qua máy chủ trung gian (apps-script/ai-proxy), dùng key của thầy.
+               cho mỗi kỹ năng qua máy chủ trung gian (apps-script/ai-proxy), dùng key của giáo viên.
 
    Firestore:
-     publicSettings/main  { bank, acc, holder, qr, price, aiProxy, payServer }   (thầy sửa trong "👑 Tài khoản")
+     publicSettings/main  { bank, acc, holder, qr, price, aiProxy, payServer }   (giáo viên sửa trong "👑 Tài khoản")
      Kho key AI: nằm ở máy chủ thanh toán (apps-script/thanh-toan, Thuộc tính KEY_POOL), không ở Firestore.
      proRequests/<uid>    { uid, email, name, photo, code, amount, status:'pending'|'approved'|'rejected', createdAt } */
 (function () {
@@ -29,10 +29,10 @@
   var LS_ME = 'nightPlanMe', LS_SET = 'nightPlanSettings';
   var SKILL_NAME = { speaking: 'Speaking', writing: 'Writing' };
   /* MỘT KEY AI CHO CẢ WEB (11/2026): mọi lời gọi tới api.groq.com trên trang có night-plan.js đều được chuyển
-     qua máy chủ AI của thầy (apps-script/ai-proxy — 1 key OpenAI). Không ai phải nhập key nữa. */
+     qua máy chủ AI của giáo viên (apps-script/ai-proxy — 1 key OpenAI). Không ai phải nhập key nữa. */
   var ONE_KEY = true, AI_PLACEHOLDER = 'night-ai';
   var _fetch = window.fetch.bind(window);
-  // Máy chủ thanh toán (apps-script/thanh-toan) — mặc định, thầy có thể đổi trong 👑 Tài khoản → Cài đặt
+  // Máy chủ thanh toán (apps-script/thanh-toan) — mặc định, giáo viên có thể đổi trong 👑 Tài khoản → Cài đặt
   var PAY_SERVER_DEFAULT = 'https://script.google.com/macros/s/AKfycbx8EyDjs7WFXlfK2VhDT_Dpdi3XMvADi_AbDpzJIBDA-NWWrMtKR-nys0C-x_3k9tC78A/exec';
   function payServer() { return (settings && settings.payServer) || PAY_SERVER_DEFAULT; }
 
@@ -182,7 +182,7 @@
   }
   function ensure() { if (!me || !initP) initP = null; return boot(); }
   function role() { return effRole(me); }
-  /* Được dùng AI miễn phí (key của thầy, có giới hạn)? Chỉ tài khoản thường / Pro đã hết hạn. */
+  /* Được dùng AI miễn phí (key của giáo viên, có giới hạn)? Chỉ tài khoản thường / Pro đã hết hạn. */
   function freeOK() { return role() === 'user'; }
   /* Quyền vào khoá: 'full' | 'free' (3 buổi đầu) */
   function courseAccess(u, enrolled) {
@@ -240,7 +240,7 @@
       (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { b.textContent = 'Đã copy'; }, function () { b.textContent = t; });
     });
   }
-  /* VietQR: ảnh QR có sẵn số tiền + nội dung CK (quét là điền hết). Đoán mã ngân hàng từ tên thầy nhập. */
+  /* VietQR: ảnh QR có sẵn số tiền + nội dung CK (quét là điền hết). Đoán mã ngân hàng từ tên giáo viên nhập. */
   var BANKS = [['vietcombank|vcb','970436'],['vietinbank|ctg|icb','970415'],['bidv','970418'],['agribank|vba','970405'],['techcombank|tcb','970407'],['mbbank|mb bank|^mb$|quan doi','970422'],['acb|a chau','970416'],['vpbank|vp bank','970432'],['tpbank|tp bank|tien phong','970423'],['sacombank|stb','970403'],['hdbank','970437'],['vib','970441'],['shb','970443'],['ocb|phuong dong','970448'],['msb|maritime','970426'],['seabank','970440'],['eximbank|eib','970431'],['lpbank|lienviet|lpb','970449'],['vietcapital|ban viet','970454'],['abbank','970425'],['namabank|nam a','970428'],['bac a|bab','970409'],['pvcombank','970412'],['kienlong','970452'],['cake','546034'],['ubank','546035'],['timo','963388'],['scb','970429'],['dong a','970406'],['baoviet','970438'],['saigonbank','970400'],['vietabank|viet a','970427'],['ncb|quoc dan','970419'],['pgbank','970430'],['oceanbank','970414'],['gpbank','970408'],['vrb','970421'],['woori','970457'],['shinhan','970424'],['uob','970458'],['cimb','422589'],['public bank','970439'],['hong leong','970442'],['standard chartered','970410'],['vikki','970406']];
   function bankBin(name) {
     var n = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').trim();
@@ -348,8 +348,8 @@
     }).catch(function (e) { box.innerHTML = '<p class="npl-note">Không tải được (' + esc(e && e.message) + ').</p>'; });
   }
 
-  /* ---------- Quản lý tài khoản (thầy) ---------- */
-  var ROLE_LABEL = { user: 'User', pro: 'Pro', astra: 'Astra', student: 'Học sinh', admin: 'Thầy' };
+  /* ---------- Quản lý tài khoản (giáo viên) ---------- */
+  var ROLE_LABEL = { user: 'User', pro: 'Pro', astra: 'Astra', student: 'Học sinh', admin: 'Giáo viên' };
   function pendingCount() {
     return fb().then(function (o) {
       return o.fs.getDocs(o.fs.query(o.fs.collection(o.db, 'proRequests'), o.fs.where('status', '==', 'pending'))).then(function (s) { return s.size; });
@@ -445,16 +445,16 @@
           ['pro', 'astra'].map(function (k) { return '<tr><td style="padding:4px;font-weight:800">' + PLAN_DEF[k].icon + ' ' + PLAN_DEF[k].name + '</td>' + MONTHS.map(function (m) { return '<td style="padding:4px"><input class="npl-inp" type="number" data-pp="' + k + m + '" value="' + planPrice(k, m) + '" style="width:100%;padding:6px 8px"></td>'; }).join('') + '</tr>'; }).join('') +
           '</table><p class="npl-note" style="margin:4px 0 0">Pro = AI chấm Speaking + Writing. Astra = Pro + mở toàn bộ khoá học. Tài khoản Pro mua trước khi chia gói được tính là Astra đến hết hạn.</p></div>' +
           '<label class="npl-f"><span>Link máy chủ AI miễn phí (Apps Script ai-proxy, dạng https://script.google.com/macros/s/…/exec)</span><input class="npl-inp" id="npl-proxy" value="' + esc(s.aiProxy || '') + '" placeholder="Để trống = tắt AI miễn phí cho User"></label>' +
-          '<p class="npl-note" style="margin:-4px 0 12px">Tài khoản User được AI miễn phí <b>5 phút mỗi 5 tiếng</b> cho mỗi kỹ năng (Speaking tính thời lượng ghi âm, Writing ≈ 1–2 bài chấm). Key Groq của thầy nằm trong Apps Script, không lộ ra web. Hướng dẫn cài ở đầu file <b>apps-script/ai-proxy/Code.gs</b>.</p>' +
+          '<p class="npl-note" style="margin:-4px 0 12px">Tài khoản User được AI miễn phí <b>5 phút mỗi 5 tiếng</b> cho mỗi kỹ năng (Speaking tính thời lượng ghi âm, Writing ≈ 1–2 bài chấm). Key Groq của giáo viên nằm trong Apps Script, không lộ ra web. Hướng dẫn cài ở đầu file <b>apps-script/ai-proxy/Code.gs</b>.</p>' +
           '<label class="npl-f"><span>Link máy chủ thanh toán (Apps Script thanh-toan, dạng https://script.google.com/macros/s/…/exec) — dùng cho kho key AI</span><input class="npl-inp" id="npl-pay" value="' + esc(s.payServer || PAY_SERVER_DEFAULT) + '" placeholder="https://script.google.com/macros/s/…/exec"></label>' +
           '<div class="npl-f" id="npl-pool"><span>🔑 Kho key AI — tự cấp cho tài khoản Pro / Astra chưa có key</span><div id="npl-pool-box" class="npl-note">' + (payServer() ? 'Đang tải kho key…' : 'Dán link máy chủ thanh toán ở trên rồi bấm Lưu cài đặt để dùng kho key.') + '</div>' +
           '<textarea class="npl-inp" id="npl-pool-add" rows="3" placeholder="Dán key Groq mới (gsk_…), mỗi key một dòng" style="width:100%;margin-top:6px;font-family:monospace;font-size:12px;-webkit-text-security:disc"></textarea>' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><button class="npl-btn sm gold" id="npl-pool-addbtn" type="button">➕ Thêm vào kho</button><button class="npl-btn sm ghost" id="npl-pool-reclaim" type="button">♻️ Thu hồi key của tài khoản hết hạn &gt; 30 ngày</button></div>' +
-          '<p class="npl-note" style="margin:6px 0 0">Ai trả tiền qua SePay, được thầy duyệt / đổi sang Pro · Astra, hoặc tài khoản Pro chưa có key mở web → máy chủ tự lấy 1 key trống ghi vào tài khoản. Kho hết key thì tài khoản vẫn dùng AI qua máy chủ chung như trước.</p></div>' +
+          '<p class="npl-note" style="margin:6px 0 0">Ai trả tiền qua SePay, được giáo viên duyệt / đổi sang Pro · Astra, hoặc tài khoản Pro chưa có key mở web → máy chủ tự lấy 1 key trống ghi vào tài khoản. Kho hết key thì tài khoản vẫn dùng AI qua máy chủ chung như trước.</p></div>' +
           '<label class="npl-f"><span>Số Zalo nhận góp ý / khiếu nại (hiện nút 💬 ở góc trái dưới mọi trang)</span><input class="npl-inp" id="npl-zalo" value="' + esc(s.zalo || '') + '" placeholder="vd: 0912345678 — để trống = ẩn nút"></label>' +
           '<div class="npl-f"><span>Thông tin chuyển khoản hiện cho người mua Pro</span><div class="npl-ok" style="background:#F8F8FB;color:#24242A">' +
           (s.acc ? esc(s.bank || '') + ' · <b>' + esc(s.acc) + '</b> · ' + esc(s.holder || '') + (s.qr ? ' · có ảnh QR' : '') + (s.acc ? (bankBin(s.bank) ? '<br><span style="color:#047857;font-size:12px">✅ QR tự điền số tiền + nội dung: đang bật</span>' : '<br><span style="color:#E11D48;font-size:12px">⚠️ Không nhận ra tên ngân hàng "' + esc(s.bank || '') + '" để tạo QR tự điền — sửa tên ngân hàng trong Học Phí (vd: Vietcombank, MB Bank, Techcombank)</span>') : '') : 'Chưa có') +
-          '<br><span style="color:#6B6B78;font-size:12px">Lấy tự động từ mục <b>Học Phí → Thông tin chuyển khoản</b> mỗi lần thầy bấm Lưu ở đây.</span></div></div>' +
+          '<br><span style="color:#6B6B78;font-size:12px">Lấy tự động từ mục <b>Học Phí → Thông tin chuyển khoản</b> mỗi lần giáo viên bấm Lưu ở đây.</span></div></div>' +
           '<button class="npl-btn" id="npl-save">Lưu cài đặt</button> <span id="npl-msg" class="npl-note"></span>';
         body.querySelector('#npl-save').onclick = function () {
           var btn = this; btn.disabled = true;
@@ -551,7 +551,7 @@
     return /^Bearer\s+\S{10,}$/.test(a) && !/Bearer\s+(undefined|null)$/.test(a);
   }
   /* Thay cho fetch() tới api.groq.com. Có key riêng → gọi thẳng Groq như cũ.
-     Không có key + tài khoản User → đi qua máy chủ AI của thầy (có giới hạn). */
+     Không có key + tài khoản User → đi qua máy chủ AI của giáo viên (có giới hạn). */
   function groqFetch(url, init, skill) {
     if (!ONE_KEY && hasRealKey(init)) return _fetch(url, init);
     skill = skill === 'writing' ? 'writing' : 'speaking';
@@ -693,7 +693,7 @@
     return ov;
   }
 
-  /* Bắt mọi fetch() tới api.groq.com trên trang → chuyển qua máy chủ AI (1 key của thầy). */
+  /* Bắt mọi fetch() tới api.groq.com trên trang → chuyển qua máy chủ AI (1 key của giáo viên). */
   if (ONE_KEY && !window.__nplFetchHook) {
     window.__nplFetchHook = true;
     window.fetch = function (input, init) {
@@ -708,7 +708,7 @@
     openUpgrade: openUpgrade, openAdmin: openAdmin, pendingCount: pendingCount,
     groqFetch: groqFetch, freeHint: freeHint, openCourseBuy: openCourseBuy, openCourseGuide: openCourseGuide, courseUntil: courseUntil, coursePrice: coursePrice, payCode: payCode, siteRoot: siteRoot, tierOf: tierOf, planName: planName, planPrice: planPrice
   };
-  /* Nút "Góp ý · Khiếu nại" -> mở Zalo của thầy (số nhập trong 👑 Tài khoản → Cài đặt) */
+  /* Nút "Góp ý · Khiếu nại" -> mở Zalo của giáo viên (số nhập trong 👑 Tài khoản → Cài đặt) */
   function zaloNum() { var z = String((settings && settings.zalo) || '').replace(/[^0-9]/g, ''); return z.length >= 9 ? z : ''; }
   function showSupportBtn() {
     if (LITE) return;

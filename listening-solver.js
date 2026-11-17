@@ -1,13 +1,13 @@
 /* Một key AI cho cả web: nạp night-plan.js (chế độ gọn) để mọi lời gọi AI đi qua máy chủ của Night IELTS */
 (function () { if (window.NightPlan || document.querySelector('script[src*="night-plan.js"]')) return; var s = document.createElement('script'); s.src = '/night-plan.js?v=20261113a'; s.setAttribute('data-lite', ''); (document.head || document.documentElement).appendChild(s); })();
-/* Night IELTS — "Giải đề cùng thầy" cho Listening (chỉ tài khoản admin/thầy thấy nút).
-   Quy trình của thầy, mỗi Section:
+/* Night IELTS — "Giải đề cùng giáo viên" cho Listening (chỉ tài khoản admin/giáo viên thấy nút).
+   Quy trình của giáo viên, mỗi Section:
      1) Từ cần nhớ: cặp từ trong đề ↔ cách nói trong transcript (phiên âm, loa, ảnh Irasutoya) → học sinh chép.
      2) Từng nhóm câu: cách đọc nhóm (điền từ đọc lướt theo thứ tự · matching/map đọc TỪNG option, option thừa ·
         trắc nghiệm đọc keyword đề + khác biệt giữa A/B/C).
      3) Từng câu: dự đoán (loại từ + đáp án có thể / keyword) + từ tín hiệu để "đợi"
         → bấm tiếp: đáp án, mở transcript, tô vị trí + cặp từ đồng nghĩa.
-   Nội dung do AI (Groq, key của thầy trong trình duyệt) soạn 1 lần / Section, lưu Firestore
+   Nội dung do AI (Groq, key của giáo viên trong trình duyệt) soạn 1 lần / Section, lưu Firestore
    publicSettings/listenSolve__<đề>__s<N> → các lớp sau mở ra là có ngay. Có nút Soạn lại / Sửa. */
 (function () {
   if (window.ListeningSolver) return;
@@ -138,7 +138,7 @@
       .catch(function () { return null; });
   }
   function saveDoc(s, obj) {
-    return (FBX || Promise.reject(new Error('Chưa đăng nhập tài khoản thầy'))).then(function (x) {
+    return (FBX || Promise.reject(new Error('Chưa đăng nhập tài khoản giáo viên'))).then(function (x) {
       return x.fs.setDoc(x.fs.doc(x.db, 'publicSettings', docId(s)), { json: JSON.stringify(obj), path: location.pathname, section: s, updatedAt: Date.now(), by: x.uid || '' });
     });
   }
@@ -197,7 +197,7 @@
       var how = gi.how || (MCQ_TYPES[G.type] ? 'Đọc tiêu đề, gạch keyword của từng câu; lướt A/B/C để thấy chúng khác nhau ở đâu.' : isOpt ? 'Câu hỏi đi theo thứ tự. Đọc kỹ TỪNG option vì sẽ có option thừa.' : 'Đề đi theo thứ tự câu 1, 2, 3… Đọc lướt từ trên xuống, dự đoán từng chỗ trống.');
       var keyOf = {}; (gi.options || []).forEach(function (op) { var L = (/^\s*([A-Z])\b/.exec(op.o || '') || [])[1]; if (L) keyOf[L] = op.key; });
       out.push({ kind: 'group', G: G, st: MCQ_TYPES[G.type] ? 'magnifier6_girl' : isOpt ? 'pose_puzzle_kumiawaseru' : 'pose_yubisashi_kakunin_businessman', title: range(G) + ' · ' + (TYPE_NAME[G.type] || G.type), html: esc(how), diff: G.type === 'multi' ? ((qInfo[G.qs[0].num] || {}).diff || '') : '', kws: G.type === 'multi' ? ((qInfo[G.qs[0].num] || {}).keywords || []) : [], opts: isOpt ? G.opts.map(function (o) { var L = (/^\s*([A-Z])[.)\s]/.exec(o) || [])[1]; return { o: o, key: L ? keyOf[L] || '' : '' }; }) : null, groupInfo: gi });
-      if (G.type !== 'multi') out.push({ kind: 'predictall', G: G, st: 'kangaeruhito_1840', title: range(G) + ': dự đoán TẤT CẢ các câu trước khi nghe', html: 'Dự đoán xong cả nhóm rồi mới nghe. Sau đó thầy mở đáp án lần lượt từng câu.' });
+      if (G.type !== 'multi') out.push({ kind: 'predictall', G: G, st: 'kangaeruhito_1840', title: range(G) + ': dự đoán TẤT CẢ các câu trước khi nghe', html: 'Dự đoán xong cả nhóm rồi mới nghe. Sau đó giáo viên mở đáp án lần lượt từng câu.' });
       G.qs.forEach(function (x) {
         var info = qInfo[x.num] || {};
         out.push({ kind: 'answer', G: G, x: x, info: info, st: 'denkyuu_on', title: 'Câu ' + x.num + ': đáp án & vị trí trong transcript' });
@@ -582,7 +582,7 @@
     var msg = $('#ls-edbar .msg'); msg.textContent = 'Đang lưu…';
     var blocks = {};
     if (!reset) ED.blocks.forEach(function (b) { blocks[b.k] = cleanHtml(b.el); });
-    (FBX || Promise.reject(new Error('Chưa đăng nhập tài khoản thầy'))).then(function (x) {
+    (FBX || Promise.reject(new Error('Chưa đăng nhập tài khoản giáo viên'))).then(function (x) {
       var ref = x.fs.doc(x.db, 'publicSettings', EDIT_DOC);
       return reset ? x.fs.deleteDoc(ref) : x.fs.setDoc(ref, { json: JSON.stringify({ blocks: blocks }), path: location.pathname, updatedAt: Date.now(), by: x.uid || '' });
     }).then(function () { msg.textContent = 'Đã lưu! Đang tải lại…'; setTimeout(function () { location.reload(); }, 600); })
@@ -595,10 +595,10 @@
     css();
     var host = $('.header-right');
     if (host && !$('#ls-edit-h')) { var be = document.createElement('button'); be.id = 'ls-edit-h'; be.type = 'button'; be.textContent = 'Sửa đề'; be.title = 'In đậm tiêu đề, nghiêng, gạch chân… lưu cho mọi người'; be.style.cssText = 'background:#f1effb;color:#4b40b8;border:0;border-radius:999px;padding:7px 14px;font-weight:700;cursor:pointer;margin-right:6px'; be.onclick = edOpen; host.insertBefore(be, host.firstChild); }
-    if (host) { var b = document.createElement('button'); b.id = 'ls-btn-h'; b.type = 'button'; b.textContent = 'Giải đề'; b.title = 'Giải đề cùng thầy (chỉ thầy thấy)'; b.onclick = function () { S ? close() : open(); }; host.insertBefore(b, host.firstChild); }
+    if (host) { var b = document.createElement('button'); b.id = 'ls-btn-h'; b.type = 'button'; b.textContent = 'Giải đề'; b.title = 'Giải đề cùng giáo viên (chỉ giáo viên thấy)'; b.onclick = function () { S ? close() : open(); }; host.insertBefore(b, host.firstChild); }
     var box = $('#setup-screen .modal-box') || $('#setup-screen > div');
     if (box && !$('#ls-btn')) {
-      var b2 = document.createElement('button'); b2.id = 'ls-btn'; b2.type = 'button'; b2.textContent = 'Giải đề cùng thầy';
+      var b2 = document.createElement('button'); b2.id = 'ls-btn'; b2.type = 'button'; b2.textContent = 'Giải đề cùng giáo viên';
       b2.style.cssText = 'display:block;margin:12px auto 0;background:#1f2937;color:#fde68a;border:0;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer';
       b2.onclick = open; box.appendChild(b2);
       var b3 = document.createElement('button'); b3.type = 'button'; b3.id = 'ls-edit2'; b3.textContent = 'Sửa đề'; b3.style.cssText = 'display:block;margin:8px auto 0;background:#f1effb;color:#4b40b8;border:0;border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer'; b3.onclick = edOpen; box.appendChild(b3);

@@ -6,7 +6,7 @@
        id = <uid>__<courseKey>__<lessonId>
        { studentId, name, email, photo, courseKey, lessonId, session, title,
          answers:{…}, stats:{done,total,correct,pct}, lastSection, startedAt, updatedAt, completedAt }
-   - Tài khoản role "admin" (thầy) không bị lưu tiến độ; trang lộ trình hiện bảng tiến độ cả lớp. */
+   - Tài khoản role "admin" (giáo viên) không bị lưu tiến độ; trang lộ trình hiện bảng tiến độ cả lớp. */
 (function () {
   if (window.NightProgress) return;
   var FB_CONFIG = {
@@ -89,7 +89,7 @@
   }
   function boughtUntil(u, key) { var b = u && u.buys; return b && Number(b[key]) > Date.now() ? Number(b[key]) : 0; }
   function enrolledIn(u, key) { var c = (u && u.courses) || []; return Array.isArray(c) ? c.indexOf(key) >= 0 : !!c[key]; }
-  /* Gói tài khoản (xem ../night-plan.js): admin / pro còn hạn → mọi khoá; học sinh → khoá thầy thêm;
+  /* Gói tài khoản (xem ../night-plan.js): admin / pro còn hạn → mọi khoá; học sinh → khoá giáo viên thêm;
      còn lại (user, pro hết hạn, học sinh chưa được thêm) → học thử FREE_N buổi đầu. */
   var FREE_N = 3;
   function effRole(u) { var r = (u && u.role) || 'student'; return r === 'pro' && !(Number(u.proUntil) > Date.now()) ? 'user' : r; }
@@ -166,7 +166,7 @@
           var ref = o.fs.doc(o.db, 'users', user.uid), created = false;
           unsubUser = o.fs.onSnapshot(ref, function (snap) {
             /* Bản từ bộ nhớ máy (mạng chập chờn / mới mở app) có thể báo "chưa có hồ sơ" dù trên máy chủ vẫn có
-               → KHÔNG được tạo hồ sơ mới lúc đó (trước đây ghi đè cả tài khoản thầy thành User). Chờ máy chủ trả lời. */
+               → KHÔNG được tạo hồ sơ mới lúc đó (trước đây ghi đè cả tài khoản giáo viên thành User). Chờ máy chủ trả lời. */
             if (!snap.exists() && snap.metadata && snap.metadata.fromCache) return;
             if (!snap.exists() && !created) {
               created = true;
@@ -210,7 +210,7 @@
   function docId(uid, courseKey, lessonId) { return uid + '__' + courseKey + '__' + lessonId; }
   function localKey(courseKey, lessonId, uid) { return 'night-prog-' + courseKey + '-' + lessonId + '-' + (uid || 'guest'); }
 
-  /* Ghi chú dùng chung thầy ↔ học sinh: lessonNotes/<uidHọcSinh>__<course>__<lesson> */
+  /* Ghi chú dùng chung giáo viên ↔ học sinh: lessonNotes/<uidHọcSinh>__<course>__<lesson> */
   function notesChannel(ctx, studentUid, meta) {
     if (!ctx.o || !studentUid) return null;
     var fs = ctx.o.fs, ref = fs.doc(ctx.o.db, 'lessonNotes', docId(studentUid, meta.courseKey, meta.lessonId));
@@ -231,7 +231,7 @@
     };
   }
 
-  /* Thầy xem trực tiếp bài của 1 học sinh: chỉ đọc, cập nhật theo thời gian thực */
+  /* giáo viên xem trực tiếp bài của 1 học sinh: chỉ đọc, cập nhật theo thời gian thực */
   function watchStore(ctx, meta, studentUid) {
     var fs = ctx.o.fs, data = { answers: {} }, remote = [], first = true;
     var store = {
@@ -344,7 +344,7 @@
     ]).then(function (r) { return { docs: r[0], students: r[1] }; });
   }
 
-  /* Thầy thêm / bỏ học sinh khỏi khoá: users/<uid>.courses (mảng mã khoá) */
+  /* giáo viên thêm / bỏ học sinh khỏi khoá: users/<uid>.courses (mảng mã khoá) */
   function setEnroll(ctx, uid, courseKey, on) {
     var fs = ctx.o.fs;
     return fs.updateDoc(fs.doc(ctx.o.db, 'users', uid), { courses: on ? fs.arrayUnion(courseKey) : fs.arrayRemove(courseKey) });

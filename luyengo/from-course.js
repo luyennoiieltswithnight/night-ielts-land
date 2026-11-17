@@ -1,5 +1,5 @@
 /* Night IELTS — lấy từ vựng + mẫu câu từ các khoá học (khoahoc/<khoá>/buoi-XX.html) để luyện Nghe – Gõ.
-   Đọc thẳng dữ liệu của bài (NightLesson.render({...})), nên bài mới thầy đăng lên sẽ tự có bài luyện gõ, không cần soạn lại.
+   Đọc thẳng dữ liệu của bài (NightLesson.render({...})), nên bài mới giáo viên đăng lên sẽ tự có bài luyện gõ, không cần soạn lại.
    NVCourse.COURSES · NVCourse.roadmap(key) · NVCourse.lesson(key, n) → { title, items, lang } */
 (function (root) {
   var COURSES = {

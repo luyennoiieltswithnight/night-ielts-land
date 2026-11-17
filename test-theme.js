@@ -7,7 +7,7 @@
 (function () {
   if (window.__nightTestTheme) return;
   window.__nightTestTheme = true;
-  /* ===== TẠM THỜI: đề Reading / Listening chỉ mở cho HỌC SINH của thầy (role student) và thầy (admin).
+  /* ===== TẠM THỜI: đề Reading / Listening chỉ mở cho HỌC SINH của giáo viên (role student) và giáo viên (admin).
      Tài khoản khác (User, Pro, Astra, chưa đăng nhập) thấy màn chặn + lối sang Chép chính tả / Speaking / Writing. ===== */
   (function rlGate() {
     if (!/^\/(reading|listening)\//.test(location.pathname)) return;
@@ -185,7 +185,7 @@
   window.addEventListener('load', function () { wrapSave(); setTimeout(wrapSave, 2500); });
 })();
 
-/* Reading: chế độ "Giải đề" của thầy (reading-solver.js tự kiểm tra admin, người khác không thấy gì) */
+/* Reading: chế độ "Giải đề" của giáo viên (reading-solver.js tự kiểm tra admin, người khác không thấy gì) */
 (function () {
   if (window.__nightSolverHook || !/\/reading\//.test(location.pathname)) return; window.__nightSolverHook = true;
   var src; try { src = new URL('reading-solver.js?v=20261104a', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/reading-solver.js'; }
@@ -193,7 +193,7 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
 })();
 
-/* Listening: chế độ "Giải đề cùng thầy" (listening-solver.js tự kiểm tra admin, người khác không thấy gì) */
+/* Listening: chế độ "Giải đề cùng giáo viên" (listening-solver.js tự kiểm tra admin, người khác không thấy gì) */
 (function () {
   if (window.__nightLSolverHook || !/\/listening\//.test(location.pathname)) return; window.__nightLSolverHook = true;
   var src; try { src = new URL('listening-solver.js?v=20261106c', document.currentScript ? document.currentScript.src : location.href).href; } catch (e) { src = '/listening-solver.js'; }
@@ -648,7 +648,7 @@
 /* ===== Lịch sử bài làm: mỗi lần NỘP BÀI lưu 1 bản gọn lên Firestore (testAttempts) =====
    Chỉ lưu câu trả lời + điểm (~0,5–1 KB/lần). Đề + đáp án đúng đã nằm sẵn trong file đề.
    - User thường: tự hết hạn sau 30 ngày (expiresAt — bật TTL trong Firebase để tự xoá).
-   - Học sinh / Pro / Astra / thầy: giữ mãi (lần làm lúc đang có gói vẫn giữ kể cả khi gói hết).
+   - Học sinh / Pro / Astra / giáo viên: giữ mãi (lần làm lúc đang có gói vẫn giữ kể cả khi gói hết).
    Xem lại: mở <đề>?review=<mã> -> tự điền lại câu trả lời và chấm, KHÔNG lưu thêm. */
 (function () {
   if (!/\/(reading|listening)\//.test(location.pathname) || window.__nvHist) return;
@@ -814,7 +814,7 @@
   });
 })();
 
-/* ===== "Làm chung" (làm đề cùng bạn bè): tạo link = quyền Astra / Học sinh / thầy; ai bấm link vào làm chung thì không cần gói.
+/* ===== "Làm chung" (làm đề cùng bạn bè): tạo link = quyền Astra / Học sinh / giáo viên; ai bấm link vào làm chung thì không cần gói.
    Không sửa code Làm chung trong từng đề: chặn đúng cú bấm "Tạo link làm chung", kiểm tra gói rồi mới cho chạy tiếp.
    Kèm nhãn "MỚI" nhấp nháy trên nút Làm chung cho tới khi người dùng bấm thử lần đầu. ===== */
 (function () {
@@ -867,7 +867,7 @@
   new MutationObserver(decorate).observe(document.documentElement, { childList: true, subtree: true });
 })();
 
-/* ===== Chép chính tả từ đề Listening (gói Astra · Học sinh · thầy) =====
+/* ===== Chép chính tả từ đề Listening (gói Astra · Học sinh · giáo viên) =====
    Chấm xong Section nào (hoặc nộp cả đề / mở xem lại) thì hiện nút "Chép chính tả": nghe từng câu trong transcript
    bằng AUDIO GỐC của đề (mốc thời gian dò sẵn trong testN-align.json) rồi gõ lại bằng khung Nghe – Gõ.
    Câu nào phải xem đáp án / dùng gợi ý / gõ sai tự vào "Câu nghe sai" để ôn lại, gửi được sang Khu vườn. Logic chung ở luyengo/dictation.js. ===== */

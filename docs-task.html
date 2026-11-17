@@ -70,8 +70,8 @@
     const late = A.deadlineAt && now > A.deadlineAt && !done;
     const isTeacher = role === 'admin';
     const mine = me && me.uid === A.studentId;
-    const st = graded ? ['st-graded', '✅ Thầy đã chữa bài — mở file để xem nhận xét']
-      : done ? ['st-done', '📩 Đã nộp' + (A.submittedAt ? ' lúc ' + new Date(A.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '') + (isTeacher ? ' — chờ Thầy chữa' : ' — Thầy sẽ chữa sớm')]
+    const st = graded ? ['st-graded', '✅ giáo viên đã chữa bài — mở file để xem nhận xét']
+      : done ? ['st-done', '📩 Đã nộp' + (A.submittedAt ? ' lúc ' + new Date(A.submittedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '') + (isTeacher ? ' — chờ giáo viên chữa' : ' — Giáo viên sẽ chữa sớm')]
       : ['st-todo', late ? '⚠️ Đã quá hạn, em làm ngay nhé' : '📝 Chưa nộp'];
     let actions = `<a class="btn b-open" href="${esc(A.link)}" target="_blank" rel="noopener"><i class="fa-regular fa-file-word"></i> ${isTeacher && !mine ? 'Mở bài của học sinh trên Google Docs' : 'Mở bài trên Google Docs'}</a>`;
     if (mine && !done) actions += `<button class="btn b-sub" id="submit"><i class="fa-solid fa-paper-plane"></i> Em làm xong rồi — Nộp bài</button>`;
@@ -89,7 +89,7 @@
         ${A.deadlineAt ? `<span class="${late ? 'late' : ''}">⏰ Hạn nộp ${fmt(A.deadlineAt)}</span>` : ''}
         ${isTeacher && A.__studentName ? `<span>👤 ${esc(A.__studentName)}</span>` : ''}
       </div>
-      ${A.note ? `<div class="note"><b>Lời dặn của Thầy</b>${esc(A.note)}</div>` : ''}
+      ${A.note ? `<div class="note"><b>Lời dặn của giáo viên</b>${esc(A.note)}</div>` : ''}
       <div class="status ${st[0]}">${st[1]}</div>
       ${actions}
       <p class="help">${isTeacher && !mine
@@ -133,7 +133,7 @@
       const u = await getDoc(doc(db, 'users', user.uid));
       role = (u.exists() && u.data().role) || 'student';
       const s = await getDoc(doc(db, 'assignments', id));
-      if (!s.exists()) { card.innerHTML = '<p class="msg">Bài này không còn nữa (có thể Thầy đã xoá hoặc đã quá hạn lưu).</p><a class="btn b-ghost" href="index.html">Về trang chủ</a>'; return; }
+      if (!s.exists()) { card.innerHTML = '<p class="msg">Bài này không còn nữa (có thể giáo viên đã xoá hoặc đã quá hạn lưu).</p><a class="btn b-ghost" href="index.html">Về trang chủ</a>'; return; }
       A = s.data();
       if (role === 'admin' && A.studentId !== user.uid) {
         try { const su = await getDoc(doc(db, 'users', A.studentId)); if (su.exists()) A.__studentName = su.data().name || su.data().email; } catch (e) {}

@@ -4,7 +4,7 @@
  * NIGHT IELTS — vocab-teach.js (dùng chung cho cả web)
  * Bôi đen 1 từ / cụm từ ngắn → nút "🎀 Giảng vocab" → thẻ to, dễ thương cho cả lớp nhìn:
  *   - Từ to + đọc mẫu (tự nhận tiếng Anh / tiếng Trung), phiên âm, từ loại
- *   - Ô nghĩa thầy tự gõ, hoặc ✨ AI dịch (có key Groq → dịch theo đúng câu trong bài; không có → Google Dịch)
+ *   - Ô nghĩa giáo viên tự gõ, hoặc ✨ AI dịch (có key Groq → dịch theo đúng câu trong bài; không có → Google Dịch)
  *   - Ảnh: 🎨 Irasutoya (dịch sang tiếng Nhật rồi tìm) · 📷 ảnh thật (Openverse / Wikimedia)
  *     · dán ảnh Ctrl+V / kéo thả / dán link · nút 🔎 Google mở Google Ảnh
  *   - Nghĩa + ảnh lưu theo từ trên máy (localStorage), lần sau mở lại có sẵn
@@ -288,7 +288,7 @@
           '<div class="nvt-mbox"><div class="nvt-mtop"><span class="nvt-lbl">💡 Nghĩa</span><span style="display:flex;gap:6px">' +
             '<button type="button" class="nvt-b" data-a="hide" title="Che nghĩa để học sinh đoán">🙈 Che</button>' +
             '<button type="button" class="nvt-ai" data-a="ai">✨ AI dịch</button></span></div>' +
-            '<div class="nvt-mean" data-r="mean" contenteditable="true" spellcheck="false" data-ph="Thầy gõ nghĩa ở đây…"></div>' +
+            '<div class="nvt-mean" data-r="mean" contenteditable="true" spellcheck="false" data-ph="Giáo viên gõ nghĩa ở đây…"></div>' +
             '<button type="button" class="nvt-guess" data-a="hide" style="display:none" data-r="guess">🤔 Đoán xem nghĩa là gì?</button>' +
             '<p class="nvt-msg" data-r="msg"></p></div>' +
           '<div class="nvt-ex" data-r="ex"></div>' +
@@ -337,7 +337,7 @@
         : (isCJK(word) && !q ? translate(word, 'zh-CN', 'en').catch(function () { return word; }) : Promise.resolve(q || kw.img || word)).then(photos);
       return p.then(function (L) { pics[which] = L; if (which === tab) { idx = 0; renderImg(); } return L; });
     }
-    function setImg(u) { d.img = { u: u, src: 'Ảnh của thầy' }; persist(); renderImg(); }
+    function setImg(u) { d.img = { u: u, src: 'Ảnh của giáo viên' }; persist(); renderImg(); }
     function msg(t) { $('msg').textContent = t || ''; }
 
     root.addEventListener('mousedown', function (e) { if (e.target === root) close(); });

@@ -1,4 +1,4 @@
-/* Night IELTS — giọng đọc thầy/trò tự chọn ở /giong-doc.html (lưu localStorage nightVoice_en / _zh / _vi).
+/* Night IELTS — giọng đọc giáo viên/trò tự chọn ở /giong-doc.html (lưu localStorage nightVoice_en / _zh / _vi).
    Bọc speechSynthesis.speak: câu tiếng nào thì dùng giọng đã chọn cho tiếng đó. */
 (function () {
   try {

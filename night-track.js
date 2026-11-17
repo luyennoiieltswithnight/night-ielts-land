@@ -4,7 +4,7 @@
  *   <script src="https://nightielts.id.vn/night-track.js" defer></script>
  *
  * Khi học sinh (đã đăng nhập ở trang chủ) nộp cả đề hoặc chấm riêng 1 Passage / 1 Section:
- *  1. Tự đánh dấu HOÀN THÀNH các bài Thầy đã giao trùng đề này (kể cả khi học sinh mở đề từ
+ *  1. Tự đánh dấu HOÀN THÀNH các bài giáo viên đã giao trùng đề này (kể cả khi học sinh mở đề từ
  *     thư viện thay vì bấm vào bài được giao) — để trang Tiến độ không còn báo "chưa làm".
  *  2. Gửi bản ghi bài làm sang Google Docs riêng của học sinh (thẻ Reading / Listening):
  *     ngày giờ, điểm, từng câu (bạn chọn / đáp án / đúng sai / giải thích câu sai), và bài đọc /
@@ -603,7 +603,7 @@
     LIVE.askedFor = sid;
     askNick(function () { startLive(sid); liveDb().then(function (L) { L.mod.set(L.mod.ref(L.db, 'liveSessions/' + sid + '/names/' + LIVE.cid), { n: LIVE.nick, t: Date.now() }).catch(function () {}); renderPeople(); }); });
   }
-  // Người mở link làm chung: hỏi tên ngay. Thầy bấm "Tạo link làm chung": bộ có sẵn đổi URL -> bắt lúc đó.
+  // Người mở link làm chung: hỏi tên ngay. Giáo viên bấm "Tạo link làm chung": bộ có sẵn đổi URL -> bắt lúc đó.
   var origReplace = history.replaceState;
   history.replaceState = function () {
     var out = origReplace.apply(this, arguments);
@@ -615,12 +615,12 @@
 
   // =====================================================================
   // 🏁 THI ĐUA: mỗi bạn TỰ LÀM bài của mình (không đè ô của nhau), nhưng thấy bạn khác đã điền
-  // những câu nào (chấm tên cạnh từng câu + bảng ô số). Thầy bấm "Hiện đáp án" thì mới thấy đáp án.
-  // Link: ?room=ID (học sinh) · ?room=ID&hk=KHOÁ (thầy điều khiển). Dữ liệu: liveSessions/ID/...
+  // những câu nào (chấm tên cạnh từng câu + bảng ô số). Giáo viên bấm "Hiện đáp án" thì mới thấy đáp án.
+  // Link: ?room=ID (học sinh) · ?room=ID&hk=KHOÁ (giáo viên điều khiển). Dữ liệu: liveSessions/ID/...
   // =====================================================================
   var ROOM = { id: null, host: false, meta: {}, players: {}, last: '', panelOpen: true };
   var ROOM_TTL = 1 * 24 * 60 * 60 * 1000;   // phòng Thi đua tự xoá sau 1 ngày
-  // Dọn phòng quá hạn: danh sách phòng nằm ở liveSessions/_rooms (nhỏ, đọc nhanh), mỗi lần Thầy tạo phòng mới thì quét 1 lượt
+  // Dọn phòng quá hạn: danh sách phòng nằm ở liveSessions/_rooms (nhỏ, đọc nhanh), mỗi lần giáo viên tạo phòng mới thì quét 1 lượt
   function sweepRooms(L) {
     var now = Date.now();
     return L.mod.get(L.mod.ref(L.db, 'liveSessions/_rooms')).then(function (sn) {
@@ -704,11 +704,11 @@
       var hk = ROOM.meta.hostKey;
       ov.innerHTML = '<div id="nt-room-box"><h3>🏁 Phòng thi đua ' + esc2(ROOM.id) + '</h3>' +
         '<label>Link gửi học sinh</label><div class="row"><input readonly value="' + esc2(roomUrl(ROOM.id)) + '"><button data-cp="0">Copy</button></div>' +
-        (ROOM.host && hk ? '<label>Link cho Thầy theo dõi (đừng gửi học sinh)</label><div class="row"><input readonly value="' + esc2(roomUrl(ROOM.id, hk)) + '"><button data-cp="1" class="ghost">Copy</button></div>' : '') +
+        (ROOM.host && hk ? '<label>Link cho giáo viên theo dõi (đừng gửi học sinh)</label><div class="row"><input readonly value="' + esc2(roomUrl(ROOM.id, hk)) + '"><button data-cp="1" class="ghost">Copy</button></div>' : '') +
         '<div class="row" style="justify-content:flex-end"><button class="ghost" data-x>Đóng</button></div></div>';
     } else {
       ov.innerHTML = '<div id="nt-room-box"><h3>🏁 Làm thi đua</h3>' +
-        '<p>Mỗi bạn <b>tự làm bài của mình</b> (không ai đè đáp án của ai). Cạnh mỗi câu hiện chấm tên các bạn đã điền câu đó, và bảng bên trái cho thấy từng bạn đang làm tới câu nào — <b>không thấy đáp án</b> cho tới khi Thầy bấm “👁 Hiện đáp án”.</p>' +
+        '<p>Mỗi bạn <b>tự làm bài của mình</b> (không ai đè đáp án của ai). Cạnh mỗi câu hiện chấm tên các bạn đã điền câu đó, và bảng bên trái cho thấy từng bạn đang làm tới câu nào — <b>không thấy đáp án</b> cho tới khi giáo viên bấm “👁 Hiện đáp án”.</p>' +
         '<div class="row" style="justify-content:flex-end"><button class="ghost" data-x>Huỷ</button><button data-new>Tạo phòng</button></div></div>';
     }
     document.body.appendChild(ov);
@@ -753,7 +753,7 @@
           ROOM.id = null;
           roomCss();
           var ov = document.createElement('div'); ov.id = 'nt-room-modal';
-          ov.innerHTML = '<div id="nt-room-box"><h3>⏰ Phòng thi đua đã hết hạn</h3><p>Phòng thi đua chỉ giữ 1 ngày nên đã tự xoá. Nhờ Thầy tạo phòng mới và gửi lại link nhé. Bạn vẫn có thể tự làm bài như bình thường.</p><div class="row" style="justify-content:flex-end"><button data-x>OK</button></div></div>';
+          ov.innerHTML = '<div id="nt-room-box"><h3>⏰ Phòng thi đua đã hết hạn</h3><p>Phòng thi đua chỉ giữ 1 ngày nên đã tự xoá. Nhờ giáo viên tạo phòng mới và gửi lại link nhé. Bạn vẫn có thể tự làm bài như bình thường.</p><div class="row" style="justify-content:flex-end"><button data-x>OK</button></div></div>';
           ov.addEventListener('click', function (e) { if (e.target === ov || e.target.closest('[data-x]')) ov.remove(); });
           document.body.appendChild(ov);
           return;
@@ -768,7 +768,7 @@
   function startRoom(L, base) {
     var meRef = L.mod.ref(L.db, base + '/players/' + LIVE.cid);
     function push(force) {
-      if (ROOM.host) return;   // Thầy chỉ theo dõi
+      if (ROOM.host) return;   // giáo viên chỉ theo dõi
       var m = myAnswers(), sig = JSON.stringify(m.a) + (ROOM.done ? '1' : '');
       if (!force && sig === ROOM.last) return;
       ROOM.last = sig;
@@ -813,7 +813,7 @@
   function setupRoomAnnotations(L, base) {
     var annRef = L.mod.ref(L.db, base + '/annotations');
     window.__onAnnotCreate = function (id, type, passageId, start, end, extra) {
-      var d = { type: type, passageId: passageId, start: start, end: end, extra: extra === undefined ? null : extra, by: ROOM.host ? 'Thầy' : (LIVE.nick || ''), c: LIVE.cid, ts: Date.now() };
+      var d = { type: type, passageId: passageId, start: start, end: end, extra: extra === undefined ? null : extra, by: ROOM.host ? 'Giáo viên' : (LIVE.nick || ''), c: LIVE.cid, ts: Date.now() };
       ROOM.ann[id] = d;
       L.mod.set(L.mod.child(annRef, id), d).catch(function () {});
       setTimeout(function () { tagAnn(id); }, 30);
@@ -856,7 +856,7 @@
     }
     var others = list.filter(function (p) { return !p.me; });
     pn.innerHTML = '<div class="nt-rp-h">🏁 Thi đua <small>· ' + list.length + ' bạn · phòng ' + esc2(ROOM.id) + '</small><span class="tg">' + (ROOM.panelOpen ? '▾ thu gọn' : '▸ mở') + '</span></div>' +
-      (ROOM.host ? '<div class="nt-rp-host"><button data-rv class="' + (ROOM.meta.reveal ? 'on' : '') + '">👁 Hiện đáp án cho học sinh: ' + (ROOM.meta.reveal ? 'BẬT' : 'TẮT') + '</button><button data-lk>🔗 Link</button><span class="lk">Thầy luôn thấy đáp án</span></div>' : '') +
+      (ROOM.host ? '<div class="nt-rp-host"><button data-rv class="' + (ROOM.meta.reveal ? 'on' : '') + '">👁 Hiện đáp án cho học sinh: ' + (ROOM.meta.reveal ? 'BẬT' : 'TẮT') + '</button><button data-lk>🔗 Link</button><span class="lk">Giáo viên luôn thấy đáp án</span></div>' : '') +
       '<div class="nt-rp-b">' + (list.length ? list.map(function (p) {
         var col = nickColor(p.n), cells = '';
         for (var q = 1; q <= total; q++) cells += '<span class="' + (p.a[q] ? 'f' : '') + '"' + (p.a[q] ? ' style="background:' + col + '"' : '') + '>' + q + '</span>';

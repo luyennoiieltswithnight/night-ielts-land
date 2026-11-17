@@ -1,5 +1,5 @@
-/* Night IELTS — "Giải đề" Reading (chỉ tài khoản admin/thầy thấy nút).
-   Mô phỏng cách thầy làm bài: Pre-reading (nhóm A đọc hết, nhóm B chỉ đọc câu đầu, Headings để sau),
+/* Night IELTS — "Giải đề" Reading (chỉ tài khoản admin/giáo viên thấy nút).
+   Mô phỏng cách giáo viên làm bài: Pre-reading (nhóm A đọc hết, nhóm B chỉ đọc câu đầu, Headings để sau),
    đọc từng đoạn → giải câu nào thông tin xuất hiện, câu chưa thấy thì để lại → cuối bài rà soát.
    Dùng chung cho MỌI đề reading/<set>/testN.html: chỉ đọc questionsData + <span id="loc-N"> trong bài.
    Không gọi AI, không tốn token. */
@@ -691,14 +691,14 @@
     if ($('#rs-btn') || !data()) return;
     var host = $('.header-right'); if (!host) return;
     if (!$('#rs-css')) { var st = document.createElement('style'); st.id = 'rs-css'; st.textContent = CSS; document.head.appendChild(st); }
-    var b = document.createElement('button'); b.id = 'rs-btn'; b.type = 'button'; b.textContent = 'Giải đề'; b.title = 'Chế độ giải đề theo phương pháp của thầy (chỉ thầy thấy)';
+    var b = document.createElement('button'); b.id = 'rs-btn'; b.type = 'button'; b.textContent = 'Giải đề'; b.title = 'Chế độ giải đề theo phương pháp của giáo viên (chỉ giáo viên thấy)';
     b.onclick = function () { S ? close() : open(); };
     host.insertBefore(b, host.firstChild);
     var be = document.createElement('button'); be.id = 'rs-edit'; be.type = 'button'; be.textContent = 'Sửa đề'; be.title = 'Sửa chia đoạn / ô heading / chữ trong bài — lưu vĩnh viễn'; be.onclick = edOpen;
     host.insertBefore(be, b.nextSibling);
     var box = $('#setup-screen .modal-box');
     if (box && !$('#rs-btn2')) {
-      var b2 = document.createElement('button'); b2.id = 'rs-btn2'; b2.type = 'button'; b2.textContent = 'Giải đề cùng thầy';
+      var b2 = document.createElement('button'); b2.id = 'rs-btn2'; b2.type = 'button'; b2.textContent = 'Giải đề cùng giáo viên';
       b2.style.cssText = 'display:block;margin:12px auto 0;background:#1f2937;color:#fde68a;border:0;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer';
       b2.onclick = open; box.appendChild(b2);
       var b3 = document.createElement('button'); b3.type = 'button'; b3.id = 'rs-edit2'; b3.textContent = 'Sửa đề'; b3.style.cssText = 'display:block;margin:8px auto 0;background:#f1effb;color:#4b40b8;border:0;border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer'; b3.onclick = edOpen; box.appendChild(b3);

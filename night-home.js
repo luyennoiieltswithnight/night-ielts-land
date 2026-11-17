@@ -100,7 +100,7 @@
       '<div><span class="ncp-new"><i class="fa-solid fa-gift"></i> QUÀ TẶNG</span>' +
       '<h3>Gom đủ 15 huy hiệu — nhận 1 tháng Astra miễn phí</h3>' +
       '<p>Học đều mỗi ngày, làm đề, luyện Speaking, Writing… là huy hiệu tự rơi vào album. Đủ 15 cái, Night IELTS tặng bạn 1 tháng Astra: AI chấm Speaking + Writing và mở toàn bộ khoá học.</p>' +
-      '<div class="ncp-row"><button class="ncp-cta" type="button" data-album><i class="fa-solid fa-medal"></i> Xem album huy hiệu</button><span class="ncp-who">Mỗi tài khoản nhận 1 lần · thầy kích hoạt sau khi bạn đủ huy hiệu</span></div></div></section>';
+      '<div class="ncp-row"><button class="ncp-cta" type="button" data-album><i class="fa-solid fa-medal"></i> Xem album huy hiệu</button><span class="ncp-who">Mỗi tài khoản nhận 1 lần · giáo viên kích hoạt sau khi bạn đủ huy hiệu</span></div></div></section>';
     el.querySelector('.ncp-x').onclick = function () { LS(GIFT_KEY, Date.now()); var s = el.querySelector('.ncp'); s.style.transition = 'opacity .25s,transform .25s'; s.style.opacity = '0'; s.style.transform = 'translateY(-8px)'; setTimeout(function () { el.innerHTML = ''; }, 260); };
     el.querySelector('[data-album]').onclick = function () { if (window.NightFame && NightFame.openBadges) NightFame.openBadges(); else alert('Đăng nhập để xem album huy hiệu nhé.'); };
   }

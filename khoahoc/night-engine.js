@@ -11,7 +11,7 @@
   const { useState, useRef, useEffect, useCallback } = React;
   /* Kho tiến độ (night-progress.js gắn vào khi đã đăng nhập). Mặc định: không lưu. */
   let NVP = { get: (k, d) => d, set() {}, track: false, onRemote: () => () => {} };
-  /* Khi dữ liệu thay đổi từ xa (thầy đang xem trực tiếp bài học sinh) → nạp lại trạng thái */
+  /* Khi dữ liệu thay đổi từ xa (giáo viên đang xem trực tiếp bài học sinh) → nạp lại trạng thái */
   function useNvpRemote(apply) { useEffect(() => (NVP.onRemote ? NVP.onRemote(apply) : undefined), []); }
   const TTS_OK = typeof window !== "undefined" && "speechSynthesis" in window;
   let ACCENT = "en-GB";
@@ -40,7 +40,7 @@
   }
   /* ---- Hội thoại 2 giọng: đoán giới tính theo tên nhân vật, chọn giọng nam / nữ khác nhau ---- */
   const FEMALE_RX = /^(lan|linh|hà|ha|vy|hoa|mai|thảo|thao|trang|ngọc|ngoc|hương|huong|nga|chi|my|anh thư|thư|thu|nhung|yến|yen|ly|hạnh|hanh|phương|phuong|quỳnh|quynh|emma|anna|sarah|lucy|kate|amy|jane|mary|lisa|sophie|olivia|alice|emily|anne|amber|ruth|becky|jenny|tina|nora|zoe|mia|lily|grace|helen|julia|laura|rachel|susan|wendy|cô|chị|bà|mẹ|mom|mum|teacher \(f\)|woman|girl|she)\b/i;
-  const MALE_RX = /^(minh|tuấn|tuan|khoa|nam|hùng|hung|long|duy|quang|bảo|bao|huy|phong|đức|duc|tùng|tung|hải|hai|sơn|son|tom|jack|david|john|ben|sam|mike|peter|paul|james|william|harry|leo|max|alex|daniel|chris|mark|tony|kevin|ryan|anh|thầy|ông|bố|dad|man|boy|he)\b/i;
+  const MALE_RX = /^(minh|tuấn|tuan|khoa|nam|hùng|hung|long|duy|quang|bảo|bao|huy|phong|đức|duc|tùng|tung|hải|hai|sơn|son|tom|jack|david|john|ben|sam|mike|peter|paul|james|william|harry|leo|max|alex|daniel|chris|mark|tony|kevin|ryan|anh|giáo viên|ông|bố|dad|man|boy|he)\b/i;
   function spkGender(name, idx) {
     const n = String(name || "").trim();
     if (FEMALE_RX.test(n)) return "f";
@@ -1178,7 +1178,7 @@
         setStoreFull(true);
       }
     }, [notes]);
-    /* Ghi chú dùng chung thầy ↔ học sinh (lessonNotes trên Firebase), cập nhật theo thời gian thực */
+    /* Ghi chú dùng chung giáo viên ↔ học sinh (lessonNotes trên Firebase), cập nhật theo thời gian thực */
     const ch = NVP.notes || null;
     const editingRef = useRef({}), fromRemote = useRef(false), ready = useRef(false);
     useEffect(() => {
@@ -1860,7 +1860,7 @@
         h("span", { "aria-hidden": "true", className: "pointer-events-none absolute -right-10 -top-14 h-44 w-44 rounded-full border-[18px] border-white/5" }),
         h("p", { className: "relative text-[11px] font-extrabold uppercase tracking-[0.2em] text-peach" }, "Viết thật · AI chấm"),
         h("p", { className: "relative mt-1 text-lg font-extrabold leading-snug" }, "Viết bài hoàn chỉnh rồi để AI chấm theo 4 tiêu chí IELTS"),
-        h("p", { className: "relative mt-1 text-sm text-white/70" }, intro ? rich(intro) : "Bấm một đề → mở trang Writing: viết, nộp, AI sửa từng câu, cho band và gợi ý nâng band. Thầy xem lại được bài của em.")),
+        h("p", { className: "relative mt-1 text-sm text-white/70" }, intro ? rich(intro) : "Bấm một đề → mở trang Writing: viết, nộp, AI sửa từng câu, cho band và gợi ý nâng band. Giáo viên xem lại được bài của em.")),
       h("div", { className: `grid gap-4 ${items.length > 1 ? "md:grid-cols-2" : ""}` }, items.map((it, i) => h("div", { key: i, className: "flex flex-col overflow-hidden rounded-[26px] bg-white shadow-floating" },
         it.img && h("div", { className: "flex items-center justify-center bg-panel p-3" }, h("img", { src: it.img, alt: "", loading: "lazy", className: "max-h-56 w-auto max-w-full rounded-2xl" })),
         h("div", { className: "flex flex-1 flex-col p-5" },
@@ -1878,7 +1878,7 @@
     return h("a", { href, target: "_blank", rel: "noopener", className: "mb-4 flex items-center justify-between gap-3 rounded-3xl bg-gradient-to-r from-fuchsia-500 to-indigo-600 p-4 text-white shadow-premium transition hover:brightness-110" },
       h("span", null,
         h("span", { className: "block text-sm font-extrabold" }, "🤖 Luyện bộ câu này với AI chấm điểm"),
-        h("span", { className: "block text-xs text-white/80" }, "Mở tool Speaking của Night IELTS — ghi âm, AI chấm theo 4 tiêu chí, thầy xem lại được.")),
+        h("span", { className: "block text-xs text-white/80" }, "Mở tool Speaking của Night IELTS — ghi âm, AI chấm theo 4 tiêu chí, giáo viên xem lại được.")),
       h("span", { className: "text-xl" }, "→"));
   }
 
@@ -2034,7 +2034,7 @@
           h("div", { className: "flex-1 text-center sm:text-left" },
             h("p", { className: "text-[11px] font-extrabold uppercase tracking-[0.2em] text-white/80" }, "Nâng cao · ", count, " phần"),
             h("h2", { className: "mt-1 text-2xl font-extrabold leading-tight sm:text-3xl" }, info.title || "Nội dung Band 8"),
-            h("p", { className: "mt-2 text-sm leading-relaxed text-white/90 [&_*]:!text-white [&_b]:underline [&_b]:decoration-white/50 [&_strong]:underline" }, rich(info.desc || "Dành cho bạn nhắm 7.0+. Học cùng thầy trên lớp hoặc tự đọc ở nhà.")),
+            h("p", { className: "mt-2 text-sm leading-relaxed text-white/90 [&_*]:!text-white [&_b]:underline [&_b]:decoration-white/50 [&_strong]:underline" }, rich(info.desc || "Dành cho bạn nhắm 7.0+. Học cùng giáo viên trên lớp hoặc tự đọc ở nhà.")),
             h("button", { onClick: onToggle, "aria-expanded": open,
               className: `mt-5 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-extrabold shadow-lg transition hover:-translate-y-0.5 ${open ? "bg-white text-peach-dark" : "bg-ink text-white"}` },
               open ? "Thu gọn Band 8" : "★ Mở nội dung Band 8", h("span", { "aria-hidden": "true" }, open ? "▴" : "▾"))))));
@@ -2559,7 +2559,7 @@
         h("div", { className: "flex items-center gap-3 rounded-2xl bg-primary-light p-3" },
           h("span", { className: "nv-seal nv-seal-lg" }, nm.zh),
           h("div", { className: "min-w-0" }, h("p", { className: "text-[11px] font-extrabold uppercase tracking-widest text-primary" }, "Tên Hán Việt"), h("p", { className: "text-lg font-bold" }, h(Py, { text: nm.py })),
-            nm.miss.length > 0 && h("p", { className: "text-[11px] text-rose-600" }, "Chưa có trong từ điển: ", nm.miss.join(", "), " — hỏi thầy chữ Hán nhé!"))),
+            nm.miss.length > 0 && h("p", { className: "text-[11px] text-rose-600" }, "Chưa có trong từ điển: ", nm.miss.join(", "), " — hỏi giáo viên chữ Hán nhé!"))),
         sel("Quốc tịch", f.nat, nats, "nat"), sel("Nghề nghiệp", f.job, jobs, "job"), sel("Đang học", f.lang, langs, "lang"),
         h("label", { className: "block" }, h("span", { className: "mb-1 block text-[11px] font-extrabold uppercase tracking-widest text-slate-400" }, "Nhà có mấy người: ", f.fam),
           h("input", { type: "range", min: 2, max: 10, value: f.fam, onChange: (e) => set({ fam: +e.target.value }), className: "w-full accent-primary" })),
@@ -2692,7 +2692,7 @@
   }
   const isZhLesson = (lesson) => /^zh/.test((lesson && lesson.lang) || "") || courseKeyOf(lesson) === "tiengtrung";
   /* ===================== PHƯƠNG PHÁP IPA CỦA NIGHT — "THE EASIEST APPROACH" =====================
-     type "ipamap": bảng IPA nhìn qua từng "lăng kính" (lenses) của thầy:
+     type "ipamap": bảng IPA nhìn qua từng "lăng kính" (lenses) của giáo viên:
        van   — nguyên âm = PHẦN VẦN, phụ âm = ÂM ĐẦU (như tiếng Việt)
        nhom  — 12 đơn · 8 đôi · 24 phụ âm
        ueoai — 12 nguyên âm đơn gom về 6 chữ tiếng Việt U E O A I + Ơ (kèm khẩu hình)
@@ -3788,7 +3788,7 @@
       try { inner = (PRINTERS[s.type] || printGeneric)(s); } catch (e) { inner = printGeneric(s); }
       return `<section class="np-sec np-blk" data-sec="${esc(s.id)}"><button class="np-x" contenteditable="false" title="Bỏ cả phần này">✕</button><h2><span class="np-num">${String(i + 1).padStart(2, "0")}</span><span>${rh(s.title || s.nav || "")}</span>${s.band8 ? '<span class="np-b8">BAND 8</span>' : ""}${s.sticker ? `<img class="np-stk" src="${esc(IRA_BASE + s.sticker)}" alt="" onerror="this.remove()">` : ""}</h2>${s.desc ? `<p class="np-desc">${rh(s.desc)}</p>` : ""}<div class="np-body"><div class="np-main">${inner}</div><div class="np-aside"><span>Ghi chú</span></div></div></section>`;
     }).join("");
-    const end = blk(`<div class="np-end"><div class="np-gt">Ghi chú của tôi</div><div class="np-dots"></div><div class="np-rate">Hôm nay mình hiểu bài: <i></i><i></i><i></i><i></i><i></i><span style="margin-left:auto">Điều mình muốn hỏi thầy: ...........................................</span></div></div>`);
+    const end = blk(`<div class="np-end"><div class="np-gt">Ghi chú của tôi</div><div class="np-dots"></div><div class="np-rate">Hôm nay mình hiểu bài: <i></i><i></i><i></i><i></i><i></i><span style="margin-left:auto">Điều mình muốn hỏi giáo viên: ...........................................</span></div></div>`);
     return head + goals + body + end;
   }
   function buildCoverHtml(meta, lessons) {
@@ -3796,7 +3796,7 @@
     return `<div class="np-blk np-cover"><button class="np-x" contenteditable="false">✕</button><div class="np-cv-top"><div class="np-brand">Night IELTS · Tài liệu học tập</div><h1>${esc(meta.title || L0.course || "")}</h1><p>${lessons.length} buổi · học xong buổi nào tích buổi đó</p><img src="${esc(IRA_BASE + th[4])}" alt="" onerror="this.remove()"></div>` +
       `<div class="np-cv-who"><span>Họ tên</span><span>Lớp</span><span>Bắt đầu</span></div>` +
       `<h2 style="margin-top:.4em"><span class="np-num">✓</span><span>Mục lục</span></h2><div class="np-toc">${lessons.map((L, i) => `<p><b>${String(i + 1).padStart(2, "0")}</b><span>${rh(L.title || L.session || "")}</span><i></i></p>`).join("")}</div>` +
-      `<div class="np-goals" style="margin-top:auto"><div class="np-gt">Cam kết của mình</div><p>Học đều mỗi tuần, làm đủ bài tập về nhà.</p><p>Viết ghi chú ở lề và cuối mỗi buổi.</p><p>Không hiểu chỗ nào thì hỏi thầy liền.</p></div></div>`;
+      `<div class="np-goals" style="margin-top:auto"><div class="np-gt">Cam kết của mình</div><p>Học đều mỗi tuần, làm đủ bài tập về nhà.</p><p>Viết ghi chú ở lề và cuối mỗi buổi.</p><p>Không hiểu chỗ nào thì hỏi giáo viên liền.</p></div></div>`;
   }
 
   const PRINT_PREF = "night-print-prefs-v2";
@@ -3828,7 +3828,7 @@
     });
   }
   function openPrintStudio(input, meta = {}) {
-    if (!NV_ADMIN && !NV_PRINT_OK) { alert("Chỉ thầy mới in / lưu PDF được bài học này."); return; }
+    if (!NV_ADMIN && !NV_PRINT_OK) { alert("Chỉ giáo viên mới in / lưu PDF được bài học này."); return; }
     if (document.getElementById("np-root")) return;
     if (!document.getElementById("np-style")) { const st = document.createElement("style"); st.id = "np-style"; st.textContent = PRINT_CSS; document.head.appendChild(st); }
     const multi = Array.isArray(input);
@@ -4302,7 +4302,7 @@
 
   // Thanh công cụ giảng dạy
   /* ===================== 🦆 ĐUA VỊT — chọn ngẫu nhiên học sinh trả lời (phím R) =====================
-     Danh sách lớp lưu trên máy thầy (localStorage, dùng chung mọi bài). Có thể bỏ qua bạn đã được gọi. */
+     Danh sách lớp lưu trên máy giáo viên (localStorage, dùng chung mọi bài). Có thể bỏ qua bạn đã được gọi. */
   const RACE_KEY = "night-race-v1";
   let raceUsedMem = [];
   function raceLoad() { const d = lsGet(RACE_KEY, null); return d && d.lists ? d : { cur: "Lớp của tôi", lists: { "Lớp của tôi": "" }, skip: true }; }
@@ -5032,7 +5032,7 @@
     printCourse(lessons, meta) {
       nvLoadProgress().then((NP) => (NP ? NP.gate() : { role: "" })).then((ctx) => {
         NV_ADMIN = ctx.role === "admin" || ctx.role === "local";
-        if (!NV_ADMIN) { document.body.innerHTML = '<div style="max-width:420px;margin:80px auto;text-align:center;font:600 16px system-ui;color:#24242A">Chỉ thầy mới in / lưu PDF toàn khoá được.<br><a href="javascript:history.back()" style="color:#6C70DC">← Quay lại</a></div>'; return; }
+        if (!NV_ADMIN) { document.body.innerHTML = '<div style="max-width:420px;margin:80px auto;text-align:center;font:600 16px system-ui;color:#24242A">Chỉ giáo viên mới in / lưu PDF toàn khoá được.<br><a href="javascript:history.back()" style="color:#6C70DC">← Quay lại</a></div>'; return; }
         openPrintStudio(lessons, meta || {});
       });
     },
@@ -5071,7 +5071,7 @@
         document.body.appendChild(root);
       }
       document.body.classList.add("text-slate-800", "antialiased");
-      { const ps = document.createElement("style"); ps.textContent = '@media print{html:not(.nv-admin):not(.nv-print) body>*{display:none!important}html:not(.nv-admin):not(.nv-print) body:before{content:"Bài học thuộc bản quyền Night IELTS — chỉ thầy được in.";display:block;padding:40px;font:700 18px system-ui}}'; document.head.appendChild(ps); }
+      { const ps = document.createElement("style"); ps.textContent = '@media print{html:not(.nv-admin):not(.nv-print) body>*{display:none!important}html:not(.nv-admin):not(.nv-print) body:before{content:"Bài học thuộc bản quyền Night IELTS — chỉ giáo viên được in.";display:block;padding:40px;font:700 18px system-ui}}'; document.head.appendChild(ps); }
       const mount = () => ReactDOM.createRoot(root).render(/* @__PURE__ */ React.createElement(LessonApp, { lesson }));
       nvLoadProgress().then((NP) => {
         if (!NP) return mount();
