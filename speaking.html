@@ -89,6 +89,7 @@ textarea.ni-input{line-height:1.5;}
 .ni-dash-item{display:block;padding:14px 16px;margin-bottom:10px;}
 
 /* ---- Cấu hình Groq API key ---- */
+.inv-box{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 6px}.inv-chip{background:var(--panel,#F4F4F7);border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:700}.inv-box i{font-size:12.5px;color:var(--ink-3)}
 .groq-gear-btn{position:relative;flex-shrink:0;}
 .groq-gear-dot{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:999px;background:var(--accent);border:2px solid var(--page);}
 .groq-modal-overlay{position:fixed;inset:0;background:rgba(34,28,43,.4);display:flex;align-items:center;justify-content:center;z-index:60;padding:16px;}
@@ -1168,7 +1169,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v13',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v14',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -2116,10 +2117,63 @@ Is it better to read a physical book or an e-book?"></textarea>
     return { kept: kept.slice(0, 12), weakForms: weak.slice(0, 15), dropped: dropped, wordsAssessed: (op && op.wordsAssessed) || 0 };
   }
 
+
+  /* V14 — CHỐT CHẶN THEO BẰNG CHỨNG (code tự kiểm, không tin AI):
+     AI liệt kê từ vựng ít phổ biến / thành ngữ / cấu trúc phức / từ nối; code giữ lại những mục CÓ THẬT trong transcript,
+     rồi đặt trần band theo số mục thật + số từ + tốc độ nói. Ngưỡng do người viết đặt theo mô tả band IELTS, chưa kiểm chứng giám khảo. */
+  var BASIC_W = ' good nice bad big small like love very really many much interesting important people thing things place enjoy relax beautiful lot lots great happy fun boring different same make do get go have want think know ';
+  var STOP_W = ' the a an and or but so to of in on at for with from by about it its is are was were be been am i me my we our you your he she they them their this that these those there here not no yes can could will would should do does did have has had just also some any more most very ';
+  function verifyInventory(inv, transcript, question) {
+    inv = inv || {};
+    var nt = ' ' + String(transcript || '').toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+    var clean = function (q) { return String(q || '').toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim(); };
+    var found = function (q) { q = clean(q); return q && nt.indexOf(' ' + q + ' ') !== -1; };
+    var uniq = function (arr, f) { var seen = {}, out = []; (Array.isArray(arr) ? arr : []).forEach(function (x) { var q = f ? f(x) : x; var k = clean(q); if (!k || seen[k] || !found(q)) return; seen[k] = 1; out.push(x); }); return out; };
+    var qw = ' ' + clean(question) + ' ';
+    // từ/cụm chỉ gồm từ cơ bản, từ chức năng, hoặc lặp lại từ trong câu hỏi -> không tính là từ vựng ăn điểm
+    var lexis = uniq(inv.lexis).filter(function (q) { return clean(q).split(' ').some(function (w) { return w.length > 2 && BASIC_W.indexOf(' ' + w + ' ') === -1 && STOP_W.indexOf(' ' + w + ' ') === -1 && qw.indexOf(' ' + w + ' ') === -1 && qw.indexOf(' ' + w.replace(/(ing|s|ed)$/, '') + ' ') === -1; }); });
+    var idioms = uniq(inv.idioms);
+    var complex = uniq(inv.complex, function (x) { return x && x.q; }).map(function (x) { return { q: String(x.q), t: String(x.t || 'subordinate') }; });
+    var types = {}; complex.forEach(function (x) { types[x.t] = 1; });
+    var markers = uniq(inv.markers);
+    var num = function (v) { v = Number(v); return isFinite(v) && v >= 0 ? Math.round(v) : 0; };
+    return { lexis: lexis.slice(0, 20), idioms: idioms.slice(0, 10), complex: complex.slice(0, 15), types: Object.keys(types), markers: markers.slice(0, 12),
+      lexErrors: num(inv.lexErrors), gramErrors: num(inv.gramErrors), basicSystematic: inv.basicSystematic === true,
+      dropped: (Array.isArray(inv.lexis) ? inv.lexis.length : 0) + (Array.isArray(inv.idioms) ? inv.idioms.length : 0) + (Array.isArray(inv.complex) ? inv.complex.length : 0) - lexis.length - idioms.length - complex.length };
+  }
+  function evidenceCaps(v, part, words, wpm) {
+    part = Number(part) || 1; words = Number(words) || 0;
+    var P1 = part === 1, caps = {}, why = {};
+    var cap = function (k, b, r) { if (caps[k] == null || b < caps[k]) { caps[k] = b; why[k] = r; } };
+    // TỪ VỰNG: số từ/cụm ít phổ biến + thành ngữ có thật trong bài
+    var nl = v.lexis.length + v.idioms.length, need7 = P1 ? 2 : 3, need8 = P1 ? 4 : 6;
+    if (nl === 0) cap('lexical', 5.5, 'chưa có từ / cụm nào ít phổ biến — toàn từ cơ bản');
+    else if (nl < need7) cap('lexical', 6, 'mới có ' + nl + ' từ/cụm ít phổ biến (band 7 cần ≥ ' + need7 + ')');
+    else if (nl < need8 || !v.idioms.length) cap('lexical', 7.5, 'band 8 cần ≥ ' + need8 + ' từ/cụm ít phổ biến và có cụm thành ngữ / cách nói tự nhiên');
+    if (words && v.lexErrors / words * 100 > 4) cap('lexical', 6, 'dùng sai từ khá nhiều (' + v.lexErrors + ' lỗi)');
+    // NGỮ PHÁP: số LOẠI cấu trúc phức dùng đúng + mật độ lỗi
+    var nt = v.types.length, g7 = P1 ? 2 : 3, g8 = P1 ? 3 : 4, ger = words ? v.gramErrors / words * 100 : 0;
+    if (nt === 0) cap('grammar', 5.5, 'chỉ có câu đơn, chưa có cấu trúc phức nào dùng đúng');
+    else if (nt < g7) cap('grammar', 6, 'mới có ' + nt + ' loại cấu trúc phức (band 7 cần ≥ ' + g7 + ' loại)');
+    else if (nt < g8) cap('grammar', 7.5, 'band 8 cần ≥ ' + g8 + ' loại cấu trúc phức');
+    if (ger > 6) cap('grammar', 5.5, 'lỗi ngữ pháp dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
+    else if (ger > 3.5 || v.basicSystematic) cap('grammar', 6, v.basicSystematic ? 'lặp lại cùng một lỗi cơ bản' : 'lỗi ngữ pháp còn nhiều (' + v.gramErrors + ' lỗi)');
+    else if (ger > 2) cap('grammar', 7, 'band 8 cần phần lớn câu không lỗi');
+    // TRÔI CHẢY: độ dài theo Part + từ nối + tốc độ
+    var L = P1 ? [12, 20, 30] : part === 2 ? [70, 110, 150] : [25, 40, 60];
+    if (words < L[0]) cap('fluency', 5, 'câu trả lời quá ngắn (' + words + ' từ)');
+    else if (words < L[1]) cap('fluency', 6, 'câu trả lời còn ngắn, chưa phát triển ý (' + words + ' từ)');
+    else if (words < L[2]) cap('fluency', 7, 'band 7.5+ cần nói dài và phát triển ý hơn (' + words + ' từ)');
+    if (!P1 && v.markers.length < 2) cap('fluency', 6.5, 'ít từ nối / discourse marker (band 7 cần dùng đa dạng)');
+    if (wpm && wpm < 75) cap('fluency', 6, 'nói chậm (' + wpm + ' từ/phút)');
+    else if (wpm && wpm < 95) cap('fluency', 7, 'tốc độ nói còn chậm (' + wpm + ' từ/phút)');
+    return { caps: caps, why: why };
+  }
   var CK_BANDS = [4, 5, 6, 7, 8, 9];
   var CK_STATUS = ['yes', 'partly', 'no', 'na'];
-  var CK_PASS = 0.5, CK_HALF = 0.3, CK_PARTLY = 0.8;   // V13 nới thêm (thầy: bài tốt ~7.5 bị chấm 6.0): 50% ô đạt là lên band, ô "một phần" = 0,8 ô
-  var CK_PASS_HI = 0.6;   // band 8–9   // V12 nới: 60% ô đạt là lên band, ô "một phần" tính 3/4 ô   // % ô cần đạt để lên band / để được nửa band
+  var CK_PASS = 0.6, CK_HALF = 0.35, CK_PARTLY = 0.6;   // V14: chặt lại để phân hoá (bài yếu không còn lên 7)
+  //   // V13 nới thêm (thầy: bài tốt ~7.5 bị chấm 6.0): 50% ô đạt là lên band, ô "một phần" = 0,8 ô
+  var CK_PASS_HI = 0.7;   // band 8–9   // V12 nới: 60% ô đạt là lên band, ô "một phần" tính 3/4 ô   // % ô cần đạt để lên band / để được nửa band
   /* LUẬT TÍNH BAND (cố định, không do AI quyết) — bản 2:
      - Mỗi band: ✓ = 1 điểm, ½ = 0,5 điểm, – (không chấm được) = không tính.
        Band "đạt" khi điểm (✓=1, ½=0,5) ≥ 70% số ô chấm được (band 8–9: 75% và ≥ 2 ô ✓) — xem CK_PASS.
@@ -2172,10 +2226,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     // Nửa band: band kế tiếp chưa đạt nhưng đã thể hiện được một phần rõ: có ≥ 2 ô chấm được, ≥ 1 ô ✓,
     // TỐI ĐA 1 ô ✗ (V11: code cũ quên điều kiện này dù chú thích có ghi) và điểm ≥ 40% -> cộng 0.5.
     var nx = detail.filter(function (d) { return d.band === Math.floor(got) + 1; })[0];
-    if (got % 1 === 0 && nx && nx.state !== 'ok' && got < 9 && nx.assessable >= 2 && nx.yes >= 1 && nx.no <= 2 && nx.pct >= CK_HALF * 100) got += 0.5;   // V13: cho phép tới 2 ô ✗
+    if (got % 1 === 0 && nx && nx.state !== 'ok' && got < 9 && nx.assessable >= 2 && nx.yes >= 1 && nx.no <= 1 && nx.pct >= CK_HALF * 100) got += 0.5;   // V14: tối đa 1 ô ✗
     /* V12: không thấp hơn ấn tượng chung của AI quá nửa band (giảm dao động giữa các câu) */
     /* V13: ấn tượng chung của AI là SÀN (không trừ 0.5 nữa), kéo lên tối đa 1 band */
-    if (hasLlm && got >= 4) { var lf = Math.min(Math.round(lb * 2) / 2, got + 1); if (lf > got) got = Math.min(9, lf); }
+    if (hasLlm && got >= 4) { var lf = Math.min(Math.round(lb * 2) / 2, got + 0.5); if (lf > got) got = Math.min(9, lf); }   // V14: AI chỉ kéo lên tối đa nửa band
     return { band: got, detail: detail };
   }
   /* Phát âm V11: ô nào AI bỏ "–" (hoặc không trả) mà trang ĐÃ ĐO được thì code tự tích — có GIỚI HẠN:
@@ -2445,6 +2499,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     ENGINE: ENGINE, CRITS: CRITS,
     overallBand: overallBand, partialBand: partialBand, displayBand: displayBand,
     analyzePcm: analyzePcm, qualityCheck: qualityCheck,
+    verifyInventory: verifyInventory, evidenceCaps: evidenceCaps,
     alignWords: alignWords, flowMarks: flowMarks, pauseMarks: pauseMarks, fluencyMetrics: fluencyMetrics,
     resampleLinear: resampleLinear, pitchTrack: pitchTrack, prosodyMetrics: prosodyMetrics, rhythmMetrics: rhythmMetrics,
     compareDecodes: compareDecodes, alignDecodes: alignDecodes, pronunciationEvidence: pronunciationEvidence,
@@ -4979,20 +5034,24 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (nb !== c.band) { calApplied[k] = { from: c.band, to: nb }; c.band = nb; norm.scores[k] = nb; }
       });
       norm.calib = Object.keys(calApplied).length ? { applied: calApplied, n: cal.n || 0 } : null;
-      // Nới tay ~20% (thầy yêu cầu): rút ngắn 20% khoảng cách từ điểm AI tới band 9, làm tròn 0.5 như IELTS.
-      // vd 5.0 -> 6.0 · 6.0 -> 6.5 · 6.5 -> 7.0 · 7.0 -> 7.5 · 8.0 giữ 8.0. Không nâng bài quá ngắn / dưới band 3.
-      if (!(norm.sampleAdequacy && norm.sampleAdequacy.level === 'insufficient')) RS_CRIT.forEach(k => {
-        const c = norm.criteria[k];
-        if (!c || c.band == null || c.band < 3) return;
-        const nb = Math.min(9, Math.round((c.band + 0.2 * (9 - c.band)) * 2) / 2);
-        if (nb > c.band) { c.band = nb; norm.scores[k] = nb; }
+      // V14: bỏ "nới tay 20%" (nén mọi bài về ~7, mất phân hoá). Thay bằng CHỐT CHẶN THEO BẰNG CHỨNG có thật trong bài.
+      const inv = SPCore.verifyInventory(parsed && parsed.inventory, transcript, q.text);
+      const nWordsAns = transcript.split(/\s+/).filter(Boolean).length;
+      const gates = SPCore.evidenceCaps(inv, part, nWordsAns, audio ? fluency.wordsPerMinute : null);
+      norm.inventory = inv; norm.gates = {};
+      if (parsed && parsed.inventory) ['fluency', 'lexical', 'grammar'].forEach(k => {
+        const c = norm.criteria[k], cp = gates.caps[k];
+        if (!c || c.band == null || cp == null) return;
+        if (c.band > cp) { norm.gates[k] = { from: c.band, to: cp, why: gates.why[k] }; c.band = cp; norm.scores[k] = cp; }
+        else norm.gates[k] = { cap: cp, why: gates.why[k] };
       });
       // Chốt chặn nhất quán: cùng câu hỏi, nội dung không ngắn đi, lỗi Từ vựng / Ngữ pháp không nhiều hơn lần trước
       // -> điểm tiêu chí đó không được thấp hơn lần trước (tránh "đọc bản đã sửa mà điểm lại tụt").
       if (prevRec) {
         const wc = t => String(t || '').split(/\s+/).filter(Boolean).length;
         const errs = (ed, k) => (ed || []).filter(e => e.status !== 'uncertain' && e.criterion === k).length;
-        if (wc(transcript) >= 0.8 * wc(prevRec.transcript)) ['lexical', 'grammar'].forEach(k => {
+        if (prevRec.rubric === norm.rubric && wc(transcript) >= 0.8 * wc(prevRec.transcript)) ['lexical', 'grammar'].forEach(k => {   // V14: chỉ so với bài chấm cùng cách chấm
+          if (norm.gates && norm.gates[k] && norm.gates[k].to != null) return;   // đã bị chốt chặn theo bằng chứng -> không kéo lên
           const c = norm.criteria[k], pb = prevRec.scores[k];
           if (c && c.band != null && typeof pb === 'number' && c.band < pb && errs(norm.edits, k) <= errs(prevRec.edits, k)) {
             (norm.consistency = norm.consistency || {})[k] = { from: c.band, to: pb };
@@ -5015,7 +5074,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         studentId: window.__currentUid, packageId: pkg.id, packageTitle: pkg.title,
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: norm.scores, criteria: norm.criteria, rubric: norm.rubric,
-        sampleAdequacy: norm.sampleAdequacy, calib: norm.calib || null,
+        sampleAdequacy: norm.sampleAdequacy, calib: norm.calib || null, inventory: norm.inventory || null, gates: norm.gates || null,
         whyNotHigher: norm.whyNotHigher, changeNote: norm.changeNote || '', consistency: norm.consistency || null, edits: norm.edits,
         refinedAnswer: norm.refinedAnswer,
         refinementNotes: norm.refinementNotes,
@@ -5081,18 +5140,19 @@ Is it better to read a physical book or an e-book?"></textarea>
   // Mô tả band là bản DIỄN GIẢI (paraphrase) từ IELTS Speaking Band Descriptors công khai.
   // ==========================================
   const SCORING_SYSTEM_PROMPT = [
-    'You are a calibrated IELTS Speaking examiner. For practice, estimate what a trained examiner would award ONE recorded answer, using only the evidence given. Be evidence-based, fair and encouraging: this is a practice tool for Vietnamese learners and harsh marking makes them give up. When a box is borderline, choose the more favourable tick ("y" over "p", "p" over "n", "-" over "n"). PART 1 IS SHORT BY DESIGN: a natural Part 1 answer of 2-5 sentences is a COMPLETE answer, so never tick "n" or "p" for length or development (F6a, F7a, F7c, F8c, L6a) in Part 1, and never give "too short" or "not developed enough" as a reason or in toNextBand for Part 1. An answer with no real errors, natural discourse markers (well, I mean, actually), natural collocations or phrasal verbs (eye-catching, stick with you, come across) and a few complex structures (if-clause, relative clause, comparison) is typically band 7-7.5 in Fluency, Lexical and Grammar, even if the words are common: precise, natural, error-free everyday English is band 7 evidence, not band 6. Use ONE fixed standard for every answer: answers of similar quality must receive the same ticks whatever the part, topic or length. You cannot hear the audio: you receive text and code-computed measurements only.',
+    'You are a calibrated IELTS Speaking examiner. For practice, estimate what a trained examiner would award ONE recorded answer, using only the evidence given. ACCURACY AND DISCRIMINATION come first: a student must see the real gap between a basic answer and a strong one. Be neither harsh nor generous; tick every box honestly on the evidence, never towards a band you have in mind. Answers that differ in language quality MUST receive different ticks: a short answer of simple, common words (good, nice, like, very, many, interesting) with no developed ideas is band 5-6 even if error-free; band 7 needs a visible range of less common / precise vocabulary AND several kinds of complex grammar used with good control; band 8 needs that range used flexibly and precisely across a developed answer with very few errors. Error-free simple English is band 6 evidence, NOT band 7. PART 1 IS SHORT BY DESIGN: 2-5 natural sentences (about 25-70 words) is a complete Part 1 answer, so do not penalise Part 1 for not being as long as Part 2; but a one-sentence or one-line Part 1 reply is a minimal answer (F6a "n"). Use ONE fixed standard for every answer: answers of similar quality get the same ticks whatever the part or topic. You cannot hear the audio: you receive text and code-computed measurements only.',
     'INPUT (JSON): part; question; transcript_asr_hypothesis (Whisper, prompted to keep fillers/repetitions; it may still fix grammar, add plurals, drop disfluencies, mishear words, add punctuation: a hypothesis, not truth); speech_findings (code-computed by comparing a second independent recognition and the audio; cat = filler | repetition | morphology | final_s | asr_disagreement:sound_alike | asr_disagreement:lexical_difference | asr_disagreement:inserted_in_A | asr_disagreement:possible_hallucination; likely = probable spoken form; status likely | uncertain); asr_low_confidence_segments; audio_quality; fluency_measurements (code-computed: words per minute, pauses over 1s/2s, longest pause, words between pauses, repetitions); pronunciation_evidence (rule 7); previous_attempt (optional).',
-    'HOW BANDS ARE SET: you do NOT choose the band. For each criterion tick EVERY box below as "y" (clearly shown: you can point to a quote or measurement), "p" (partly shown or inconsistent), "n" (positive evidence AGAINST it, rule 1) or "-" (not assessable: this answer gave no need or room for it). Boxes are cumulative: if a higher feature is clearly shown, matching lower boxes are normally "y". The application computes each band from your ticks: a band is reached when at least 60% of its assessable boxes are met ("p" = three quarters) with at least one "y" (bands 8-9: 67% and at least two "y") and lower bands are reached; a half band is added when the next band is about a third met with at most one "n". Tick each box honestly and independently, never towards a band you have in mind.\n' + SPCore.checklistPromptText(),
-    'RULES. (1) ONE ANSWER IS A SMALL SAMPLE of an 11-14 minute test: estimate the band if the candidate spoke like this for the whole test (Part 1 about 2-5 sentences; Part 2 a 1-2 minute turn; Part 3 an extended answer). A box this answer did not need (no idiom in a short Part 1 reply, no conditional when none was needed, few discourse markers in two sentences) is "-", NOT "n". Tick "n" only on positive evidence: errors, misuse, breakdown, a contradicting measurement, or very basic / repeated wording where the question clearly invited more. Credit what the answer does show: one natural collocation or one correct complex structure is real positive evidence, but alone it never establishes a high band; judge the overall pattern, not the number of errors. Topic collocations used naturally (e.g. "daily necessities", "go grocery shopping", "ranging from X to Y") are L7a/L7b evidence; one slip like "luxurious products" does not cancel them. Never reward sophistication for its own sake: rare or complicated words used unnaturally earn nothing, common words used precisely are fine. ' +
+    'HOW BANDS ARE SET: you do NOT choose the band. For each criterion tick EVERY box below as "y" (clearly shown: you can point to a quote or measurement), "p" (partly shown or inconsistent), "n" (positive evidence AGAINST it, rule 1) or "-" (not assessable: this answer gave no need or room for it). Boxes are cumulative: if a higher feature is clearly shown, matching lower boxes are normally "y". The application computes each band from your ticks: a band is reached when at least 60% of its assessable boxes are met ("p" = three quarters) with at least one "y" (bands 8-9: 70% and at least two "y") and lower bands are reached; a half band is added when the next band is partly met with at most one "n". The application ALSO checks your "inventory" (below) against the transcript and caps Lexical and Grammar bands when too few real items are found, and caps Fluency for very short answers. Tick each box honestly and independently, never towards a band you have in mind.\n' + SPCore.checklistPromptText(),
+    'RULES. (1) ONE ANSWER IS A SMALL SAMPLE of an 11-14 minute test: estimate the band if the candidate spoke like this for the whole test (Part 1 about 2-5 sentences; Part 2 a 1-2 minute turn; Part 3 an extended answer). "-" (not assessable) is ONLY for band 4-6 boxes that this answer gave no room for. BAND 7, 8 AND 9 BOXES ARE NEVER "-": they describe range and flexibility that a candidate must SHOW; if the answer does not show it, tick "n" (or "p" if partly shown). Tick "n" also on errors, misuse, breakdown, a contradicting measurement, or basic / repeated wording. One natural collocation or one correct complex structure is real evidence, but alone it never establishes band 7: band 7 needs SEVERAL such items. Topic collocations used naturally (e.g. "daily necessities", "go grocery shopping", "ranging from X to Y") count as less-common items; one slip does not cancel them. Never reward sophistication for its own sake: rare or complicated words used unnaturally earn nothing, common words used precisely are fine. ' +
       '(2) WHAT WAS ACTUALLY SAID: judge grammar and vocabulary on the most likely spoken words. A finding with status "likely" gives the probable form (e.g. "many student"): assess that form and report the error as "likely". An "uncertain" finding, a low-confidence segment or anything that could be a recognition error must never count against the candidate or turn a box into "n"; if mentioned, mark the edit "uncertain". Ignore words flagged possible_hallucination. ' +
       '(3) SPEECH, NOT WRITING: every full stop, comma, question mark and capital letter was inserted by the recogniser. Never judge punctuation, capitalisation, sentence boundaries, run-ons, comma splices or fragments; never count "error-free sentences" by full stops. Contractions, ellipsis, incomplete but natural conversational sentences, starting with And/But, "the neighbours, they usually go...", tag-on phrases are normal speech, not errors. ' +
       '(4) FLUENCY: fillers, repetitions and false starts are Fluency evidence only, never Grammar or Lexical errors; repetition caused by hesitation is not limited vocabulary. Speed is not fluency; pauses between ideas or to plan content are fine; hesitation matters only when frequent, language-related (searching for words or grammar) or disruptive. The recogniser often removes fillers, so their absence proves nothing. Use fluency_measurements for any claim about pauses or speed, as support, never as an automatic band. ' +
       '(5) LEXICAL: range, precision, appropriacy, collocation, paraphrase, flexibility. Distinguish a real word-choice error from an acceptable alternative or a slightly unnatural but clear expression. GRAMMAR: range and accuracy are separate; distinguish isolated slips, systematic errors in basic grammar and errors only in complex structures; a long sentence is not range and complexity is not accuracy. Assess each criterion independently; do not pull criteria towards an average and do not inflate; bands 8-9 are reachable when their boxes are met. ' +
       '(6) CONSISTENCY: if previous_attempt is given, grade both on the same scale. When this answer fixes earlier errors with similar content and length and adds no new weakness, Lexical and Grammar must not go down; do not force consistency if the answer clearly got worse. "changeNote": 1 Vietnamese sentence on which bands changed and exactly why ("" if none). Quote only words that are in the transcript; never invent pauses, audio events, errors or pronunciation problems. ' +
       '(7) PRONUNCIATION: judge only from pronunciation_evidence. evidence_classes says where each piece comes from: A = measured on the audio (approximate, from word timings), B = inferred from the speech recogniser, C = inferred from text, D = not available. Never claim you heard a sound. evidence_strength: "groq_intent" (recogniser output compared with the words the learner most likely meant), "asr_agree" (two independent recognisers agree on every word: the speech is easy to follow, which is NOT proof that every sound is accurate), "indirect" (partial), "minimal" (audio not analysable). likely_mispronounced: the recogniser heard a different but similar-sounding word (heard vs meant, sound_similarity 0-1; kind "ending" = a dropped final -s/-ed that may be grammar instead). pct_words_affected: share of words affected; a few isolated cases are normal even for strong speakers, frequent ones or the same sound repeatedly suggest individual sounds reduce clarity. sentence_stress.contentLouderDb > 0: content words more prominent than function words; near 0: flat. weak_forms.functionVsContentDurRatio < 0.8: function words reduced. linking: linked / opportunities. intonation: phrases with pitch movement. A null value means the measurement was too unreliable to use. Energy is not proof of stress placement and pitch movement alone is not proof of natural intonation: use these only as supporting evidence, never alone to decide a band, never convert numbers into a band. An intelligible Vietnamese or other accent is never an error; slow speech, fillers and grammar mistakes are not pronunciation problems. Be generous here: if the recognisers understood the answer with only a few likely_mispronounced words, the speech is intelligible, so P4a, P5a, P6a and P7a are "y"; tick "n" only for words that clearly could not be understood. Tick "-" for anything in class D (word stress inside words, vowel/consonant quality unless clear B evidence). Intelligibility, chunking, linking/weak forms and intonation boxes can be ticked y/p/n when their evidence is present. Pronunciation confidence: "medium" at most, "low" unless evidence_strength is groq_intent or asr_agree.',
+    'INVENTORY (fill it FIRST, before ticking boxes; quote the transcript EXACTLY, each quote 1-6 words, no duplicates): "inventory": {"lexis": [quotes of less common / precise words and collocations: words outside the ~2000 most common English words, topic-specific terms, strong collocations, phrasal verbs, e.g. "hectic schedule", "commute", "broaden my horizons", "come across"; NEVER basic words like good, nice, bad, big, like, love, very, really, many, interesting, important, people, things, place, enjoy, relax, beautiful, a lot of], "idioms": [idiomatic or naturally spoken expressions, e.g. "a piece of cake", "to be honest", "it depends", "off the top of my head"], "complex": [{"q": quote of the key words, "t": one of "relative" | "conditional" | "passive" | "perfect" | "noun_clause" | "participle" | "modal_perfect" | "comparative" | "cleft" | "inversion" | "subordinate" | "infinitive_gerund"}] (only CORRECT uses; plain "because"/"and" clauses are "subordinate" at most once), "markers": [discourse markers / cohesive devices beyond and/but/so/because, e.g. "on top of that", "for instance", "whereas", "actually", "I mean"], "lexErrors": number of real word-choice / collocation errors, "gramErrors": number of real grammar errors (ignore uncertain recognition), "basicSystematic": true if the same basic error repeats (tense, agreement, plural, article)}. Count only what is really there; an empty list is a valid answer.',
     'OUTPUT (compact; all explanations in natural Vietnamese for a Vietnamese learner, specific to THIS answer). Per criterion: "checks": ONE object mapping EVERY box id of that criterion to "y" | "p" | "n" | "-", e.g. {"F4a":"y","F4b":"y","F5a":"p"}; "why": an object with, ONLY for boxes ticked "n", a quote or measurement of at most 8 words; "band": your whole-test impression (comparison only, it does not set the score); "confidence": "high" | "medium" | "low"; "uncertainty": "" or 1 short sentence on what limits certainty; "feedback": 1-2 sentences quoting the candidate\'s words: what was good, what was weak; it MUST match the ticks (if few band 4-5 boxes are met, say clearly the answer is weak and why; if boxes up to band 7-8 are met, lead with strengths and mention only next-band boxes as the way up); "toNextBand": 1 sentence naming a missing box of the next band with an example ("" at band 9). Also "sampleAdequacy": {"level": "adequate" | "limited" | "insufficient", "note": 1 sentence}; "whyNotHigher": 1-2 sentences on what holds the overall score back; "edits": genuine grammar / word-choice / collocation errors and clear coherence problems only, at most 10, not overlapping, each {"find": exact transcript text of 1-6 words, "replace": correction ("" to delete), "criterion": "fluency" | "lexical" | "grammar", "why": 1 Vietnamese sentence naming the rule or meaning problem (e.g. "Sau \'don\'t\' dùng động từ nguyên mẫu: don\'t wash"), "status": "confirmed" | "likely" | "uncertain", "evidence": short source note}. An edit must fix a real problem, keep the candidate\'s meaning, read naturally when the whole spoken sentence is re-read with the replacement in place, not repeat words already there (never e.g. "I can eat food when I eat"), differ from "find" in its words, and introduce no new error. Never "correct" a phrase that is already correct just to offer a nicer alternative (e.g. "secondhand products" is fine): upgrades are not errors. No punctuation or capitalisation edits. If the original looks like a misrecognised phrase whose meaning is unclear, leave it out or mark it "uncertain". No genuine error: "edits": [].',
-    'Respond with ONE valid JSON object only: {"changeNote": "", "sampleAdequacy": {}, "criteria": {"fluency": {"checks": {}, "why": {}, "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "toNextBand": ""}, "lexical": {}, "grammar": {}, "pronunciation": {}}, "whyNotHigher": "", "edits": []}'
+    'Respond with ONE valid JSON object only: {"inventory": {"lexis": [], "idioms": [], "complex": [], "markers": [], "lexErrors": 0, "gramErrors": 0, "basicSystematic": false}, "changeNote": "", "sampleAdequacy": {}, "criteria": {"fluency": {"checks": {}, "why": {}, "band": 0, "confidence": "", "uncertainty": "", "feedback": "", "toNextBand": ""}, "lexical": {}, "grammar": {}, "pronunciation": {}}, "whyNotHigher": "", "edits": []}'
   ].join('\n\n');
 
   // Màu theo tiêu chí — dùng chung cho điểm, chỗ sửa, nhận xét, bản nâng cấp
@@ -5241,7 +5301,20 @@ Is it better to read a physical book or an e-book?"></textarea>
         }).join('') + '</ul></div>';
     }).join('');
     return '<details class="ck-wrap"><summary class="crit-sum">Bảng tiêu chí: tích được tới band ' + fmtBand(c.band) + ' — xem từng ô</summary>' +
-      '<p class="crit-meta" style="margin:6px 0 8px;">Band = band cao nhất đạt được, với mọi band bên dưới cũng đạt (band toàn ô – thì bỏ qua, không tính trượt). Một band đạt khi ✓ (1 điểm) + ½ (nửa điểm) ≥ <b>70%</b> số ô chấm được của band đó (band 8–9: ≥ 75% và ít nhất 2 ô ✓). Band kế tiếp đạt ≥ 40% thì được cộng <b>nửa band</b>. – = chưa chấm được ô này. 📏 = trang tự tích theo số đo trên file ghi âm.</p>' + rows + '</details>';
+      '<p class="crit-meta" style="margin:6px 0 8px;">Band = band cao nhất đạt được, với mọi band bên dưới cũng đạt (band toàn ô – thì bỏ qua, không tính trượt). Một band đạt khi ✓ (1 điểm) + ½ (nửa điểm) ≥ <b>60%</b> số ô chấm được của band đó (½ tính 0,6 ô; band 8–9: ≥ 70% và ít nhất 2 ô ✓). Band kế tiếp đạt ≥ 35% (tối đa 1 ô ✗) thì được cộng <b>nửa band</b>. Sau đó trang còn kiểm số từ vựng ăn điểm, số loại cấu trúc phức và độ dài bài có thật trong bài để đặt trần band. – = chưa chấm được ô này. 📏 = trang tự tích theo số đo trên file ghi âm.</p>' + rows + '</details>';
+  }
+  // V14: bằng chứng cụ thể code đã kiểm (có thật trong bài) + lý do bị giới hạn band
+  function invHtml(rec, k) {
+    const v = rec.inventory, g = (rec.gates || {})[k];
+    if (!v && !g) return '';
+    const chips = (arr, f) => arr.map(x => '<span class="inv-chip">' + escapeHtml(f ? f(x) : x) + '</span>').join('');
+    const TY = { relative: 'mệnh đề quan hệ', conditional: 'câu điều kiện', passive: 'bị động', perfect: 'thì hoàn thành', noun_clause: 'mệnh đề danh từ', participle: 'phân từ', modal_perfect: 'modal + have V3', comparative: 'so sánh', cleft: 'câu chẻ', inversion: 'đảo ngữ', subordinate: 'mệnh đề phụ', infinitive_gerund: 'to V / V-ing' };
+    let h = '';
+    if (v && k === 'lexical') h += '<p class="crit-meta" style="margin-top:8px"><b>Từ / cụm ăn điểm (' + (v.lexis.length + v.idioms.length) + '):</b></p><div class="inv-box">' + (v.lexis.length + v.idioms.length ? chips(v.lexis) + chips(v.idioms) : '<i>chưa có — toàn từ cơ bản</i>') + '</div>';
+    if (v && k === 'grammar') h += '<p class="crit-meta" style="margin-top:8px"><b>Cấu trúc phức dùng đúng (' + v.types.length + ' loại):</b></p><div class="inv-box">' + (v.complex.length ? chips(v.complex, x => (TY[x.t] || x.t) + ': ' + x.q) : '<i>chưa có — toàn câu đơn</i>') + '</div>';
+    if (v && k === 'fluency') h += '<p class="crit-meta" style="margin-top:8px"><b>Từ nối / discourse marker (' + v.markers.length + '):</b></p><div class="inv-box">' + (v.markers.length ? chips(v.markers) : '<i>chưa có (ngoài and / but / so / because)</i>') + '</div>';
+    if (g && g.why) h += '<div class="crit-next" style="--c:var(--' + k + ')"><b>' + (g.to != null ? 'Giới hạn ở ' + fmtBand(g.to) + ':' : 'Trần band ' + fmtBand(g.cap) + ':') + '</b> ' + escapeHtml(g.why) + '</div>';
+    return h;
   }
   function critHtml(record) {
     const crit = record.criteria || {};
@@ -5263,6 +5336,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         '<p class="crit-text">' + escapeHtml(c.feedback || '') + '</p>' +
         (v3 && c.interpretation && c.interpretation !== c.feedback ? '<p class="crit-meta"><b>Vì sao band này:</b> ' + escapeHtml(c.interpretation) + '</p>' : '') +
         (v3 ? list('Bằng chứng', c.evidence) + list('Điểm yếu chính', c.weaknesses) + list('Nên luyện', c.recommendations) : '') +
+        invHtml(record, k) +
         (k === 'pronunciation' ? pronWordsHtml(record) : '') + checklistHtml(k, c) +
         (c.toNextBand && Number(c.band) < 9 ? '<div class="crit-next" style="--c:var(--' + k + ')"><b>Vì sao chưa lên ' + (Math.floor(Number(c.band)) + 1) + ':</b> ' + escapeHtml(c.toNextBand) + '</div>' : '') +
         (c.uncertainty ? '<p class="crit-meta"><i class="fa-solid fa-circle-info"></i> ' + escapeHtml(c.uncertainty) + '</p>' : '') +
