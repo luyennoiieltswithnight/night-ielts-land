@@ -4850,7 +4850,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     const lap = (k, t) => { tm[k] = +((performance.now() - t) / 1000).toFixed(1); };
     if (!quiet) window.__onGroqWait = s => { spinnerMsg.textContent = 'AI đang bận, tự thử lại sau ' + s + ' giây...'; };
     if (!quiet) window.__aiScoring = true;
-    let audioSave = null, savedOk = false, cleanupId = null;
+    let audioSave = null, savedOk = false, cleanupId = null, audioChunkN = 0, audioChunkList = [];
     try {
       if (!recBlob.size) throw Object.assign(new Error('File ghi âm trống.'), { quality: { status: 'reject', issues: [{ code: 'empty', level: 'reject', msg: 'File ghi âm trống. Hãy ghi âm lại.' }] } });
       // CHẠY SONG SONG ngay từ đầu: 2 lần nghe (Groq) + lưu file ghi âm (Firestore) + giải mã âm thanh trên máy
@@ -4883,6 +4883,7 @@ Is it better to read a physical book or an e-book?"></textarea>
             createdAt: createdAt, expiresAt: expiresAt
           });
         }
+        audioChunkN = chunkDocs.length; audioChunkList = chunkDocs;
         await Promise.all(chunkDocs.map(c => setDoc(doc(db, 'speakingAttempts', attemptId + '_a' + c.idx), c)));
         lap('saveAudio', tS);
         return chunkDocs;
@@ -5066,7 +5067,10 @@ Is it better to read a physical book or an e-book?"></textarea>
       // 6) File ghi âm đã được lưu song song từ đầu; chỉ cần chờ nó xong (thường đã xong từ lâu)
       spinnerMsg.textContent = 'Đang lưu bài làm...';
       let audioChunkCount = 0, chunkDocs = [];
-      try { chunkDocs = await audioSave; audioChunkCount = chunkDocs.length; }
+      // Mạng chậm (4G/5G yếu): không bắt học sinh chờ file ghi âm tải xong — chờ tối đa 5 giây rồi cho xem kết quả,
+      // Firestore vẫn tiếp tục gửi ngầm.
+      const waitMax = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() => r('__slow'), ms))]);
+      try { const r = await waitMax(audioSave, 5000); if (r === '__slow') { audioChunkCount = audioChunkN; chunkDocs = audioChunkList; console.warn('Lưu ghi âm chậm, chạy ngầm'); } else { chunkDocs = r; audioChunkCount = r.length; } }
       catch (e) { console.warn('Không lưu được file ghi âm:', e); audioChunkCount = 0; }
       tm.total = +((performance.now() - T0) / 1000).toFixed(1);
 
@@ -5090,8 +5094,9 @@ Is it better to read a physical book or an e-book?"></textarea>
         audioChunkCount: audioChunkCount, audioMime: audioMime, timing: tm,
         createdAt: createdAt, expiresAt: expiresAt
       }));
-      await setDoc(doc(db, 'speakingAttempts', attemptId), record);
-      savedOk = true;
+      const saveP = setDoc(doc(db, 'speakingAttempts', attemptId), record);
+      savedOk = true;   // đã giao cho Firestore (có bộ nhớ đệm trên máy): không xoá các mảnh ghi âm nữa
+      if ((await waitMax(saveP.then(() => 'ok'), 6000)) !== 'ok') saveP.catch(e => { console.warn('Lưu bài làm lỗi:', e); try { alert('Mạng yếu nên bài làm chưa lưu lên máy chủ được. Điểm vẫn hiện, nhưng có thể không thấy lại trong lịch sử.'); } catch (x) {} });
       try { bumpDay(); } catch (e) {}
       record.id = attemptId;
       logPracticeToProgress(record, attemptId);
