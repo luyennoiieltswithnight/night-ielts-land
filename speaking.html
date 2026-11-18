@@ -240,6 +240,7 @@ audio{width:100%;height:40px;}
 .crit-next{margin:10px 0 0;font-size:14px;line-height:1.7;color:var(--ink-2);max-width:74ch;border-left:2px solid var(--c);padding:2px 0 2px 12px;}
 .crit-next b{color:var(--ink);}
 .crit-sum{font-size:13px;font-weight:700;color:var(--ink-2);cursor:pointer;}
+.cx-box{margin-top:16px;padding:14px 16px;border-radius:18px;background:#fff;border:1.5px solid #D9F2DE}.cx-h{margin:0 0 6px;font-weight:800;font-size:14px;color:#15803D}.cx-h span{font-weight:600;font-size:12px;color:var(--ink-3);margin-left:6px}.cx-m{margin:0 0 8px;font-size:13.5px;color:var(--ink-2,#55555f)}.cx-t{margin:0;font-size:16px;line-height:1.75}.cx-new{color:#15803D;background:#E3F6EA;border-radius:5px;padding:0 3px}
 .ed-why-box{margin-top:16px;padding-top:12px;border-top:1px dashed var(--rule);font-size:14px;line-height:1.5}.ed-why-h{font-weight:800;font-size:13px;color:var(--ink-2);margin:0 0 6px;letter-spacing:.3px}.ed-why{margin:0;padding:0 0 0 20px}.ed-why li{padding:6px 0;color:var(--ink)}.ed-why li.off{display:none}.ed-why li>.dot{display:inline-block;vertical-align:middle;margin-right:6px}.ed-why li>span:last-child{display:inline}.ed-why del{color:var(--ink-3)}.ed-why small{display:block;font-size:13px;color:var(--ink-2);margin-top:2px}.ed-why em{color:var(--ink-3)}
 .crit-edits{list-style:none;margin:8px 0 0;padding:0;}
 .crit-edits li{font-size:14px;padding:6px 0;border-top:1px solid var(--rule);color:var(--ink);}
@@ -1169,7 +1170,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v17',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v18',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -2459,7 +2460,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       changeNote: String(parsed.changeNote || ''),
       edits: (Array.isArray(parsed.edits) ? parsed.edits : []).map(function (e) {
         var st = String(e.status || '').toLowerCase(); if (['confirmed', 'likely', 'uncertain'].indexOf(st) === -1) st = (e.asrPossible || e.asr_possible) ? 'uncertain' : 'likely';
-        var TYV = { agreement: 'Hoà hợp chủ–vị', verb_form: 'Dạng động từ', tense: 'Thì', word_form: 'Dạng từ', article: 'Mạo từ', plural: 'Số ít / số nhiều', preposition: 'Giới từ', pronoun: 'Đại từ', comparison: 'So sánh', word_order: 'Trật tự từ', conjunction: 'Liên từ', sentence: 'Cấu trúc câu', collocation: 'Collocation', word_choice: 'Dùng từ', coherence: 'Mạch lạc' }, ty = TYV[String(e.type || '').toLowerCase()] || '';
+        var TYV = { misheard: 'Máy nghe nhầm', agreement: 'Hoà hợp chủ–vị', verb_form: 'Dạng động từ', tense: 'Thì', word_form: 'Dạng từ', article: 'Mạo từ', plural: 'Số ít / số nhiều', preposition: 'Giới từ', pronoun: 'Đại từ', comparison: 'So sánh', word_order: 'Trật tự từ', conjunction: 'Liên từ', sentence: 'Cấu trúc câu', collocation: 'Collocation', word_choice: 'Dùng từ', coherence: 'Mạch lạc' }, ty = TYV[String(e.type || '').toLowerCase()] || '';
         return { find: String(e.find || ''), replace: String(e.replace == null ? '' : e.replace), criterion: spCrit(e.criterion), type: ty, why: (ty ? '[' + ty + '] ' : '') + String(e.why || ''), status: st, asrPossible: st === 'uncertain', evidence: String(e.evidence || '') };
       }).filter(function (e) {
         // Bỏ chỗ "sửa" mà thực ra giữ nguyên (chỉ khác hoa/thường, dấu câu, khoảng trắng)
@@ -4992,7 +4993,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       };
       const userMsg = { role: 'user', content: 'Assess this response. All evidence is below as JSON.\n\n' + JSON.stringify(evidence) };
       const fixP = callGroqChatJson([{ role: 'system', content: GRAMMAR_FIX_PROMPT }, { role: 'user', content: 'Question: ' + q.text + '\n\nTranscript:\n' + transcript }],
-        { temperature: 0, maxTokens: 2500, json: true, reasoning: 'low', noRetry: true, max429: 1, timeoutMs: 60000 }).catch(e => { console.warn('Lượt sửa lỗi lỗi:', e); return null; });
+        { temperature: 0, maxTokens: 4000, json: true, reasoning: 'low', noRetry: true, max429: 1, timeoutMs: 70000 }).catch(e => { console.warn('Lượt sửa lỗi lỗi:', e); return null; });
       let usedModel = model;
       try {
         parsed = await callGroqChatJson([{ role: 'system', content: SCORING_SYSTEM_PROMPT }, userMsg],
@@ -5054,6 +5055,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       // V14: bỏ "nới tay 20%" (nén mọi bài về ~7, mất phân hoá). Thay bằng CHỐT CHẶN THEO BẰNG CHỨNG có thật trong bài.
       // V16: gộp lỗi từ lượt sửa lỗi riêng (ưu tiên) với lỗi lượt chấm tìm thêm (không trùng chỗ)
       const fixed = await fixP;
+      if (fixed && typeof fixed.corrected === 'string' && fixed.corrected.trim()) { norm.corrected = fixed.corrected.trim().slice(0, 3000); norm.meaning = String(fixed.meaning || '').slice(0, 400); }
       if (fixed && Array.isArray(fixed.edits)) {
         const fx = SPCore.normalizeScoring({ edits: fixed.edits }, true).edits;
         const low = t => String(t || '').toLowerCase();
@@ -5112,7 +5114,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: norm.scores, criteria: norm.criteria, rubric: norm.rubric,
         sampleAdequacy: norm.sampleAdequacy, calib: norm.calib || null, inventory: norm.inventory || null, gates: norm.gates || null,
-        whyNotHigher: norm.whyNotHigher, changeNote: norm.changeNote || '', consistency: norm.consistency || null, edits: norm.edits,
+        whyNotHigher: norm.whyNotHigher, changeNote: norm.changeNote || '', consistency: norm.consistency || null, edits: norm.edits, corrected: norm.corrected || null, meaning: norm.meaning || null,
         refinedAnswer: norm.refinedAnswer,
         refinementNotes: norm.refinementNotes,
         // bằng chứng đo được (để xem lại / hiệu chuẩn sau này)
@@ -5178,10 +5180,16 @@ Is it better to read a physical book or an e-book?"></textarea>
   // Mô tả band là bản DIỄN GIẢI (paraphrase) từ IELTS Speaking Band Descriptors công khai.
   // ==========================================
   // V16: lượt SỬA LỖI riêng (chạy song song với lượt chấm) — chỉ làm 1 việc nên không bỏ sót lỗi
-  const GRAMMAR_FIX_PROMPT = 'You correct the English of ONE spoken IELTS answer by a Vietnamese learner. The transcript is speech recognised by a machine: IGNORE punctuation, capitalisation, sentence boundaries, fillers (er, um, uh), repeated words and self-corrections (those are fluency, not grammar). ' +
-    'Go through the answer clause by clause from the first word to the last and list EVERY real grammar and vocabulary error. Check: subject-verb agreement; verb form (after modals, to + base verb, -ing after enjoy/like/avoid, missing or extra auxiliary or "be": "to productive" -> "to be productive", "I\'m have" -> "I have"); tense; word form (adjective vs adverb vs noun vs verb: "more energy to productive" -> "more energy to be productive", "speak fluent" -> "speak fluently"); articles; singular / plural and countable nouns; prepositions; pronouns; comparatives; word order; conjunctions and linking ("Although ... but", "because of + clause"); sentence structure (missing subject or main verb, two verbs without a connector, Vietnamese patterns like "I very like", "It has many people go"); collocation and word choice ("do a mistake" -> "make a mistake"). ' +
-    'Fix each error at the smallest level that makes it correct: a WORD, a PHRASE, or the whole CLAUSE when the structure is wrong. Keep the speaker\'s meaning: never replace content words with different words you guess (if a phrase does not make sense, it was probably misheard by the recogniser: mark it "uncertain" and only fix grammar around it, e.g. "see video of you" -> "see a video of you"); do not upgrade correct language; do not correct fillers or repetitions; each "find" must be copied EXACTLY from the transcript (1-14 words, you may include a filler inside it if the error spans it) and edits must not overlap. ' +
-    'Respond with ONE JSON object only: {"edits": [{"find": "", "replace": "", "type": "agreement" | "verb_form" | "tense" | "word_form" | "article" | "plural" | "preposition" | "pronoun" | "comparison" | "word_order" | "conjunction" | "sentence" | "collocation" | "word_choice", "criterion": "grammar" | "lexical", "why": "1 short Vietnamese sentence naming the rule", "status": "confirmed" | "likely" | "uncertain"}]}. No error: {"edits": []}.';
+  // V18: SỬA LỖI 3 BƯỚC — (1) hiểu câu hỏi + ý học sinh, (2) khôi phục chữ máy nghe nhầm theo ngữ cảnh,
+  // (3) viết lại cả bài đúng & tự nhiên mà vẫn giữ ý / từ của học sinh, rồi liệt kê MỌI chỗ khác nhau thành lỗi.
+  const GRAMMAR_FIX_PROMPT = 'You are an experienced IELTS Speaking teacher correcting ONE spoken answer by a Vietnamese learner. The transcript comes from automatic speech recognition, so some words may be MISHEARD because of the learner\'s pronunciation. Work in three steps. ' +
+    'STEP 1 - UNDERSTAND: read the question and the whole answer; work out what the learner is trying to say and their line of thinking (their opinion, reasons, examples). ' +
+    'STEP 2 - RECOVER MISHEARD WORDS: any phrase that makes no sense in context but sounds similar to a phrase that fits the question and the learner\'s idea was probably misheard. Replace it with the most likely intended words (e.g. question "Do you think everyone should have a hobby?", transcript "it\'s been on in sale" -> intended "it depends on"; "I want to see video of you" when talking about a trip -> "I want to see the view"). Only do this when the transcript wording clearly does not fit; never change a phrase that makes sense. ' +
+    'STEP 3 - CORRECT: write "corrected": the learner\'s whole answer rewritten so that it is grammatically correct and uses words naturally, as a teacher would correct it on the board. Keep the learner\'s ideas, order, sentence plan and as many of their own words as possible; do not add new ideas or make it sound advanced; drop fillers (er, um, uh) and accidental repetitions. ' +
+    'Then list in "edits" EVERY change you made between the transcript and "corrected" (except removed fillers / repetitions), from the first word to the last, so that a learner sees all their mistakes. Check every clause for: subject-verb agreement; verb form (after modals, to + base verb, -ing after enjoy/like, missing or extra auxiliary or "be": "to productive" -> "to be productive"); tense; word form (adjective / adverb / noun / verb); articles; singular / plural, countable nouns; prepositions; pronouns; comparatives; word order; conjunctions and linking; sentence structure (missing subject or verb, two verbs without a connector, "I very like", "It has many people go"); collocation and word choice ("busy plan" -> "busy schedule", "do a mistake" -> "make a mistake"). Fix each at the smallest level that makes it right: a WORD, a PHRASE, or the whole CLAUSE when the structure is wrong. ' +
+    'Each edit: {"find": text copied EXACTLY from the transcript (1-16 words, it may include a filler inside), "replace": the corrected words as they appear in "corrected" ("" to delete), "type": "misheard" | "agreement" | "verb_form" | "tense" | "word_form" | "article" | "plural" | "preposition" | "pronoun" | "comparison" | "word_order" | "conjunction" | "sentence" | "collocation" | "word_choice", "criterion": "pronunciation" for misheard, "lexical" for collocation / word_choice, otherwise "grammar", "why": 1 short Vietnamese sentence naming the rule (for misheard: "Máy nghe thành \'...\' — có lẽ bạn muốn nói \'...\'; chú ý phát âm rõ hơn"), "status": "confirmed" | "likely" | "uncertain"}. Edits must not overlap. ' +
+    'Respond with ONE JSON object only: {"meaning": "1 Vietnamese sentence: what the learner wants to say", "corrected": "", "edits": []}.';
+
   const SCORING_SYSTEM_PROMPT = [
     'You are a calibrated IELTS Speaking examiner. For practice, estimate what a trained examiner would award ONE recorded answer, using only the evidence given, and correct EVERY language error in it. ACCURACY AND DISCRIMINATION come first: a student must see the real gap between a basic answer and a strong one. Be neither harsh nor generous. Answers that differ in language quality MUST receive different bands. Use ONE fixed standard for every answer whatever the part or topic. You cannot hear the audio: you receive text and code-computed measurements only.',
     'INPUT (JSON): part; question; transcript_asr_hypothesis (Whisper, prompted to keep fillers/repetitions; it may still fix grammar, add plurals, drop disfluencies, mishear words, add punctuation: a hypothesis, not truth); speech_findings (code-computed by comparing a second independent recognition and the audio; cat = filler | repetition | morphology | final_s | asr_disagreement:sound_alike | asr_disagreement:lexical_difference | asr_disagreement:inserted_in_A | asr_disagreement:possible_hallucination; likely = probable spoken form; status likely | uncertain); asr_low_confidence_segments; audio_quality; fluency_measurements (code-computed: words per minute, pauses over 1s/2s, longest pause, words between pauses, repetitions); pronunciation_evidence (rule 7); previous_attempt (optional).',
@@ -6132,14 +6140,28 @@ Is it better to read a physical book or an e-book?"></textarea>
     }
     const toks = SPCore.alignWords(tr, rec.words || []);
     const grabKw = () => { __kwNodes = Array.from(el.querySelectorAll('.kw[data-s]')).map(n => ({ n: n, s: +n.dataset.s, e: +n.dataset.e })); };
-    if (!marked) { el.innerHTML = '“' + wrapWords(tr, 0, tr.length, toks) + '”<br><small style="color:var(--ink-3)">Không có lỗi cần sửa trong bài này.</small>'; grabKw(); return; }
+    if (!marked) { el.innerHTML = '“' + wrapWords(tr, 0, tr.length, toks) + '”<br><small style="color:var(--ink-3)">Không có lỗi cần sửa trong bài này.</small>' + correctedHtml(rec, tr); grabKw(); return; }
     const m = spMarkTranscript(tr, edits, toks);
-    el.innerHTML = m.html + edWhyList(edits, m.placed);
+    el.innerHTML = m.html + edWhyList(edits, m.placed) + correctedHtml(rec, tr);
     grabKw();
     const cnt = k => m.placed.filter(p => k === 'all' || edits[p.i].criterion === k).length;
     document.getElementById('resTrFilters').innerHTML = ['all'].concat(SP_CRIT).filter(k => k === 'all' || cnt(k)).map(k =>
       '<button type="button" class="chip' + (__res.filter === k ? ' active' : '') + '" onclick="setTrFilter(\'' + k + '\')">' + (k === 'all' ? 'Tất cả' : '<i class="dot ' + k + '"></i>' + SP_SHORT[k]) + ' <span style="opacity:.6">' + cnt(k) + '</span></button>').join('');
     el.querySelectorAll('.fx, .ed-why li').forEach(x => x.classList.toggle('off', __res.filter !== 'all' && edits[+x.dataset.i].criterion !== __res.filter));
+  }
+  // V18: "Bài nói đã sửa" — cả bài viết lại đúng, giữ ý của học sinh; chữ được sửa tô đậm (so từng từ với bài gốc)
+  function correctedHtml(rec, tr) {
+    if (!rec || !rec.corrected) return '';
+    const nw = w => w.toLowerCase().replace(/[^a-z0-9']/g, '');
+    const A = String(tr).split(/\s+/).map(nw).filter(w => w && !/^(er|erm|um|umm|uh|uhm|ah)$/.test(w)), B = rec.corrected.split(/\s+/);
+    const b = B.map(nw), n = A.length, m = b.length, L = [];
+    for (let i = 0; i <= n; i++) L.push(new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === b[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const same = new Array(m).fill(false); let i = 0, j = 0;
+    while (i < n && j < m) { if (A[i] === b[j]) { same[j] = true; i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) i++; else j++; }
+    const body = B.map((w, k) => same[k] || !b[k] ? escapeHtml(w) : '<b class="cx-new">' + escapeHtml(w) + '</b>').join(' ');
+    return '<div class="cx-box"><p class="cx-h">Bài nói đã sửa <span>giữ ý của bạn · chữ đậm là chỗ được sửa</span></p>' +
+      (rec.meaning ? '<p class="cx-m"><b>Ý bạn muốn nói:</b> ' + escapeHtml(rec.meaning) + '</p>' : '') + '<p class="cx-t">' + body + '</p></div>';
   }
   // Danh sách giải thích từng chỗ sửa, luôn hiện ngay dưới bài (không cần rê chuột / chạm)
   const CRIT_FALLBACK = { grammar: 'Lỗi ngữ pháp ở cụm này.', lexical: 'Dùng từ / kết hợp từ chưa tự nhiên.', fluency: 'Chỗ này làm câu nói bị rối ý.', pronunciation: 'Phát âm chưa rõ.' };
