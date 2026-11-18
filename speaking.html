@@ -2531,7 +2531,7 @@ Is it better to read a physical book or an e-book?"></textarea>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
   import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-  import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache, doc, getDoc, getDocFromCache, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, getDocs, getDocsFromCache } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, memoryLocalCache, doc, getDoc, getDocFromCache, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, getDocs, getDocsFromCache, onSnapshot, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8",
@@ -4292,7 +4292,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       return false;
     };
     const show = () => {
-      if (!shown) { shown = true; renderQNav(); renderQuestion(); showOnly('practiceView'); jump(); return; }
+      if (!shown) { shown = true; renderQNav(); renderQuestion(); showOnly('practiceView'); jump(); try { liveInit(uid, role); } catch (e) { console.warn(e); } return; }
       if (jump()) return;
       renderQNav();
       if (!practiceBusy()) renderQuestion();
@@ -4398,6 +4398,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     paintGoals();
     __retryMode = false;
     discardRecording();
+    try { liveOnQuestion(); } catch (e) {}
 
     const existing = __doneQIds[q.id];
     if (existing) {
@@ -5136,6 +5137,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       logPracticeToProgress(record, attemptId);
       if (audioChunkCount) __audioChunks[attemptId] = chunkDocs;
       (hist[q.id] = hist[q.id] || []).push(record);
+      try { liveReport(record, q); } catch (e) {}
       if (quiet) { C.record = record; spinner.classList.add('hidden'); try { sendSpeakingDocLog(record); } catch (e) {} return; }
       __doneQIds[q.id] = record;
 
@@ -6442,6 +6444,153 @@ Is it better to read a physical book or an e-book?"></textarea>
     } finally { btn.disabled = false; }
   };
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('rvModal').classList.contains('show')) closeReview(); });
+
+  // ==========================================
+  // LỚP HỌC TRỰC TIẾP (chỉ tài khoản giáo viên/admin tạo được)
+  // Giáo viên bấm "Dạy trực tiếp" -> mã + QR. Học sinh quét vào: câu hỏi do giáo viên điều khiển, ghi chú của
+  // giáo viên hiện trên màn học sinh; học sinh nói -> AI chấm -> kết quả hiện ngay trên màn giáo viên.
+  // Firestore: liveSpeak/{code} = { owner, pkgId, title, idx, note, active, at }, liveSpeak/{code}/answers/{id}
+  // ==========================================
+  const LIVE = { code: params.get('live'), host: false, joined: false, d: null, unsub: null, unsubA: null, answers: [], pendIdx: null };
+  function liveGenCode() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 6; i++) c += A[Math.floor(Math.random() * A.length)]; return c; }
+  function liveLink(code) { return location.origin + location.pathname + '?packageId=' + encodeURIComponent(__pkg.id) + '&live=' + code; }
+  function liveCss() {
+    if (document.getElementById('live-css')) return;
+    const st = document.createElement('style'); st.id = 'live-css';
+    st.textContent = `
+.live-btn{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:999px;padding:9px 15px;font-weight:800;font-size:13px;cursor:pointer;background:linear-gradient(135deg,#FF5E7E,#FF9E5E);color:#fff;box-shadow:0 10px 22px -12px rgba(255,94,126,.9);margin-left:auto}
+.live-dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:lvP 1.2s infinite}@keyframes lvP{50%{opacity:.3}}
+#liveBanner{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:20px;background:#24242A;color:#fff;font-weight:800;font-size:14px;margin-bottom:14px}
+#liveBanner .live-dot{background:#FF5E7E}#liveBanner small{font-weight:600;color:#C9C4FF;margin-left:auto}
+#liveNoteCard{background:#FFF8E1;border:2px solid #FFD66B;border-radius:22px;padding:14px 18px;margin-bottom:14px}
+#liveNoteCard h4{margin:0 0 6px;font-size:14px;color:#8A5A00}#liveNoteCard div{white-space:pre-wrap;font-size:16px;line-height:1.6;color:#3A2A00}
+body.sp-live #qNav,body.sp-live #qPrevBtn,body.sp-live #qNextBtn{pointer-events:none;opacity:.45}
+#livePanel{position:fixed;top:12px;right:12px;bottom:12px;width:min(440px,calc(100vw - 24px));z-index:2147483000;background:#fff;border-radius:26px;box-shadow:0 30px 70px -20px rgba(36,36,42,.6);display:flex;flex-direction:column;overflow:hidden;font-family:inherit}
+#livePanel.min{bottom:auto;height:auto}#livePanel.min .lp-body{display:none}
+.lp-head{display:flex;align-items:center;gap:8px;padding:12px 14px;background:#24242A;color:#fff}.lp-head b{flex:1;font-size:14px}.lp-head button{border:0;border-radius:999px;padding:7px 11px;font-weight:800;font-size:12px;cursor:pointer;background:rgba(255,255,255,.12);color:#fff}
+.lp-body{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.lp-join{display:flex;gap:12px;align-items:center;background:#F4F4F7;border-radius:20px;padding:12px}.lp-qr{width:132px;height:132px;flex:none;background:#fff;border-radius:12px;padding:6px;display:grid;place-items:center}.lp-qr img,.lp-qr canvas{width:120px!important;height:120px!important}
+.lp-code{font-size:28px;font-weight:900;letter-spacing:.12em;color:#24242A}.lp-join small{display:block;color:#55555f;font-size:12px;margin:2px 0 8px}
+.lp-join button,.lp-ctl button{border:0;border-radius:999px;padding:8px 12px;font-weight:800;font-size:12.5px;cursor:pointer;background:#24242A;color:#fff}
+.lp-ctl{display:flex;align-items:center;gap:8px}.lp-ctl span{flex:1;font-weight:800;font-size:13px;text-align:center}
+.lp-q{font-size:14.5px;font-weight:700;color:#24242A;background:#EDEEFD;border-radius:14px;padding:10px 12px}
+.lp-note textarea{width:100%;box-sizing:border-box;min-height:84px;border:1.5px solid #FFD66B;background:#FFFBEA;border-radius:14px;padding:10px 12px;font:15px/1.5 inherit;resize:vertical;outline:0}
+.lp-note p{margin:0 0 5px;font-size:12px;font-weight:800;color:#8A5A00}
+.lp-ans h5{margin:0 0 6px;font-size:13px;color:#55555f}.lp-card{border-radius:18px;background:#F4F4F7;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.lp-card .top{display:flex;align-items:center;gap:10px}.lp-card .bd{width:46px;height:46px;border-radius:14px;background:#24242A;color:#FFD66B;display:grid;place-items:center;font-weight:900;font-size:17px;flex:none}
+.lp-card .nm{font-weight:800;font-size:14px}.lp-card .sc{font-size:11.5px;color:#55555f}
+.lp-card .more{display:none;margin-top:8px;font-size:13.5px;line-height:1.55}.lp-card.open .more{display:block}.lp-card .more p{margin:0 0 6px}
+.lp-card .ed{color:#55555f}.lp-card .ed del{color:#C0392B}.lp-card .ed b{color:#15803D}
+.lp-empty{color:#8f90a0;font-size:13px;text-align:center;padding:12px}
+@media(max-width:700px){#livePanel{top:auto;left:8px;right:8px;bottom:8px;width:auto;height:72vh}}`;
+    document.head.appendChild(st);
+  }
+  function liveInit(uid, role) {
+    liveCss();
+    if (role === 'admin') {
+      if (!document.getElementById('liveStartBtn')) {
+        const b = document.createElement('button'); b.id = 'liveStartBtn'; b.type = 'button'; b.className = 'live-btn';
+        b.innerHTML = '<span class="live-dot"></span> Dạy trực tiếp';
+        b.onclick = () => liveHostStart(LIVE.code);
+        const crumb = document.querySelector('.pv-crumb'); if (crumb) { crumb.style.display = 'flex'; crumb.style.alignItems = 'center'; crumb.appendChild(b); }
+      }
+      if (LIVE.code) liveHostStart(LIVE.code);
+      return;
+    }
+    if (LIVE.code) liveJoin(uid);
+  }
+  // ---------- HỌC SINH ----------
+  function liveJoin(uid) {
+    LIVE.joined = true;
+    const left = document.querySelector('.pv-left');
+    if (!document.getElementById('liveBanner')) left.insertAdjacentHTML('afterbegin', '<div id="liveBanner"><span class="live-dot"></span> Đang học trực tiếp cùng giáo viên <small>Câu hỏi do giáo viên chọn</small></div><div id="liveNoteCard" class="hidden"><h4>📌 Ghi chú của giáo viên</h4><div id="liveNoteText"></div></div>');
+    document.body.classList.add('sp-live');
+    LIVE.unsub = onSnapshot(doc(db, 'liveSpeak', LIVE.code), sn => {
+      const d = sn.exists() ? sn.data() : null; LIVE.d = d;
+      if (!d || !d.active) {
+        document.body.classList.remove('sp-live');
+        document.getElementById('liveBanner').innerHTML = '<span class="live-dot" style="background:#8f90a0;animation:none"></span> Buổi học trực tiếp đã kết thúc — bạn có thể tự luyện tiếp';
+        document.getElementById('liveNoteCard').classList.add('hidden'); return;
+      }
+      const nc = document.getElementById('liveNoteCard');
+      nc.classList.toggle('hidden', !String(d.note || '').trim());
+      document.getElementById('liveNoteText').textContent = d.note || '';
+      const i = Math.max(0, Math.min(__pkg.questions.length - 1, d.idx | 0));
+      if (i !== __qIdx) { if (practiceBusy()) LIVE.pendIdx = i; else { __qIdx = i; renderQNav(); renderQuestion(); window.scrollTo({ top: 0, behavior: 'smooth' }); } }
+    }, e => { console.warn('Lớp trực tiếp:', e); document.getElementById('liveBanner').innerHTML = 'Chưa vào được lớp trực tiếp (mã sai hoặc chưa được cấp quyền).'; });
+    setInterval(() => { if (LIVE.pendIdx != null && !practiceBusy()) { __qIdx = LIVE.pendIdx; LIVE.pendIdx = null; renderQNav(); renderQuestion(); } }, 1500);
+  }
+  function liveReport(rec, q) {
+    if (!LIVE.joined || !LIVE.code || !LIVE.d || !LIVE.d.active) return;
+    const u = auth.currentUser || {};
+    const sc = rec.scores || {};
+    addDoc(collection(db, 'liveSpeak', LIVE.code, 'answers'), {
+      uid: u.uid || window.__currentUid || '', name: (u.displayName || u.email || 'Học sinh').slice(0, 60), qIdx: __pkg.questions.findIndex(x => x.id === q.id), qText: String(q.text).slice(0, 300),
+      overall: sc.overall != null ? sc.overall : null, scores: { fluency: sc.fluency ?? null, lexical: sc.lexical ?? null, grammar: sc.grammar ?? null, pronunciation: sc.pronunciation ?? null },
+      transcript: String(rec.transcript || '').slice(0, 2500), corrected: rec.corrected ? String(rec.corrected).slice(0, 2500) : null,
+      edits: (rec.edits || []).slice(0, 15).map(e => ({ find: e.find, replace: e.replace, why: String(e.why || '').slice(0, 160) })), attemptId: rec.id || null, at: Date.now()
+    }).catch(e => console.warn('Không gửi được kết quả lên lớp:', e));
+  }
+  // ---------- GIÁO VIÊN ----------
+  let __liveNoteT = null;
+  async function liveHostStart(code) {
+    LIVE.host = true;
+    if (!code) {
+      code = liveGenCode();
+      try { await setDoc(doc(db, 'liveSpeak', code), { owner: window.__currentUid, pkgId: __pkg.id, title: __pkg.title || '', idx: __qIdx, note: '', active: true, at: Date.now() }); }
+      catch (e) { alert('Chưa tạo được lớp trực tiếp: ' + e.message + '\n(Cần thêm quyền "liveSpeak" trong Firestore Rules.)'); LIVE.host = false; return; }
+      LIVE.code = code;
+      try { history.replaceState(null, '', '?packageId=' + encodeURIComponent(__pkg.id) + '&live=' + code); } catch (e) {}
+    } else {
+      LIVE.code = code;
+      try { await updateDoc(doc(db, 'liveSpeak', code), { active: true, idx: __qIdx }); } catch (e) {}
+    }
+    livePanel();
+  }
+  function liveOnQuestion() {
+    if (!LIVE.host || !LIVE.code) return;
+    updateDoc(doc(db, 'liveSpeak', LIVE.code), { idx: __qIdx }).catch(() => {});
+    livePaintAnswers();
+    const qs = document.getElementById('lpQ'); if (qs) { qs.textContent = (__qIdx + 1) + '. ' + String(__pkg.questions[__qIdx].text).split(/you should say/i)[0]; document.getElementById('lpCnt').textContent = 'Câu ' + (__qIdx + 1) + ' / ' + __pkg.questions.length; }
+  }
+  function livePanel() {
+    let p = document.getElementById('livePanel');
+    if (!p) {
+      p = document.createElement('div'); p.id = 'livePanel';
+      p.innerHTML = '<div class="lp-head"><span class="live-dot" style="background:#FF5E7E"></span><b>Lớp trực tiếp</b><button type="button" id="lpMin">Thu nhỏ</button><button type="button" id="lpEnd">Kết thúc</button></div>' +
+        '<div class="lp-body"><div class="lp-join"><div class="lp-qr" id="lpQr"></div><div style="min-width:0"><small>Học sinh quét QR hoặc mở link</small><div class="lp-code">' + LIVE.code + '</div><small style="word-break:break-all">' + escapeHtml(liveLink(LIVE.code)) + '</small><button type="button" id="lpCopy">Sao chép link</button></div></div>' +
+        '<div class="lp-ctl"><button type="button" id="lpPrev">◀ Câu trước</button><span id="lpCnt"></span><button type="button" id="lpNext">Câu sau ▶</button></div><div class="lp-q" id="lpQ"></div>' +
+        '<div class="lp-note"><p>📌 Ghi chú hiện lên màn học sinh</p><textarea id="lpNote" placeholder="Gõ ý tưởng, từ vựng, khung câu… học sinh thấy ngay"></textarea></div>' +
+        '<div class="lp-ans"><h5 id="lpAnsH">Câu trả lời của học sinh</h5><div id="lpAns"></div></div></div>';
+      document.body.appendChild(p);
+      p.querySelector('#lpMin').onclick = () => { p.classList.toggle('min'); p.querySelector('#lpMin').textContent = p.classList.contains('min') ? 'Mở' : 'Thu nhỏ'; };
+      p.querySelector('#lpEnd').onclick = async () => { if (!confirm('Kết thúc buổi học trực tiếp? Học sinh sẽ không nhận câu hỏi mới nữa.')) return; try { await updateDoc(doc(db, 'liveSpeak', LIVE.code), { active: false }); } catch (e) {} if (LIVE.unsubA) LIVE.unsubA(); p.remove(); LIVE.host = false; LIVE.code = null; try { history.replaceState(null, '', '?packageId=' + encodeURIComponent(__pkg.id)); } catch (e) {} };
+      p.querySelector('#lpCopy').onclick = () => { navigator.clipboard && navigator.clipboard.writeText(liveLink(LIVE.code)); p.querySelector('#lpCopy').textContent = 'Đã chép ✓'; };
+      p.querySelector('#lpPrev').onclick = () => { if (__qIdx > 0) { __qIdx--; renderQNav(); renderQuestion(); } };
+      p.querySelector('#lpNext').onclick = () => { if (__qIdx < __pkg.questions.length - 1) { __qIdx++; renderQNav(); renderQuestion(); } };
+      p.querySelector('#lpNote').oninput = e => { clearTimeout(__liveNoteT); const v = e.target.value.slice(0, 2000); __liveNoteT = setTimeout(() => updateDoc(doc(db, 'liveSpeak', LIVE.code), { note: v }).catch(() => {}), 500); };
+      p.querySelector('#lpAns').onclick = e => { const c = e.target.closest('.lp-card'); if (c) c.classList.toggle('open'); };
+      const qr = p.querySelector('#lpQr');
+      const drawQr = () => { try { new window.QRCode(qr, { text: liveLink(LIVE.code), width: 120, height: 120, correctLevel: window.QRCode.CorrectLevel.M }); } catch (e) { qr.textContent = LIVE.code; } };
+      if (window.QRCode) drawQr(); else { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'; sc.onload = drawQr; sc.onerror = () => { qr.textContent = LIVE.code; }; document.head.appendChild(sc); }
+      getDoc(doc(db, 'liveSpeak', LIVE.code)).then(sn => { if (sn.exists()) p.querySelector('#lpNote').value = sn.data().note || ''; }).catch(() => {});
+      if (LIVE.unsubA) LIVE.unsubA();
+      LIVE.unsubA = onSnapshot(query(collection(db, 'liveSpeak', LIVE.code, 'answers'), orderBy('at', 'desc'), limit(200)), sn => {
+        LIVE.answers = []; sn.forEach(d => LIVE.answers.push(Object.assign({ id: d.id }, d.data()))); livePaintAnswers();
+      }, e => { document.getElementById('lpAns').innerHTML = '<p class="lp-empty">Chưa đọc được câu trả lời: ' + escapeHtml(e.message) + '</p>'; });
+    }
+    liveOnQuestion();
+  }
+  function livePaintAnswers() {
+    const box = document.getElementById('lpAns'); if (!box) return;
+    const fb = b => b == null ? '–' : (Math.round(b * 2) / 2).toFixed(1);
+    const L = LIVE.answers.filter(a => a.qIdx === __qIdx);
+    document.getElementById('lpAnsH').textContent = 'Câu trả lời cho câu này (' + L.length + ') · bấm để xem chi tiết';
+    box.innerHTML = L.length ? L.map(a => '<div class="lp-card"><div class="top"><div class="bd">' + fb(a.overall) + '</div><div style="min-width:0"><div class="nm">' + escapeHtml(a.name || 'Học sinh') + '</div><div class="sc">Trôi chảy ' + fb(a.scores && a.scores.fluency) + ' · Từ vựng ' + fb(a.scores && a.scores.lexical) + ' · Ngữ pháp ' + fb(a.scores && a.scores.grammar) + ' · Phát âm ' + fb(a.scores && a.scores.pronunciation) + ' · ' + new Date(a.at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + '</div></div></div>' +
+      '<div class="more"><p><b>Học sinh nói:</b> “' + escapeHtml(a.transcript || '') + '”</p>' + (a.corrected ? '<p><b style="color:#15803D">Bài đã sửa:</b> ' + escapeHtml(a.corrected) + '</p>' : '') +
+      (a.edits && a.edits.length ? '<div class="ed">' + a.edits.map(e => '<p><del>' + escapeHtml(e.find) + '</del> → <b>' + escapeHtml(e.replace || '(bỏ)') + '</b> <small>' + escapeHtml(e.why || '') + '</small></p>').join('') + '</div>' : '') + '</div></div>').join('')
+      : '<p class="lp-empty">Chưa có học sinh nào trả lời câu này.</p>';
+  }
 
   // ==========================================
   // BOOT
