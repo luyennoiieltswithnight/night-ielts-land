@@ -291,6 +291,7 @@
     var blocks;
     try { blocks = buildLog(range, label, score, total, band); } catch (e) { console.warn('Night track:', e); return; }
     fb().then(function (o) {
+      if (!o.user && /[?&](room|liveSession)=/.test(location.search)) return;   // khách vào bằng link phòng: không cần nhắc đăng nhập
       if (!o.user) { ntToast('Bạn chưa đăng nhập Gmail ở trang chủ Night IELTS nên kết quả lần này KHÔNG được lưu vào Tiến độ và Sổ bài làm. Đăng nhập ở trang chủ rồi làm lại nhé.'); return; }
       var name = document.title + (isListening && !/cam|real|ielts/i.test(document.title) ? ' (' + PAGE.replace(/^listening\//, '').replace(/\.html$/, '') + ')' : '');
       sendDocLog(o.user.uid, name + ' — ' + label, blocks);
