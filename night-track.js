@@ -784,7 +784,7 @@
         var w = function () { var r = o.apply(this, arguments); ROOM.done = true; push(true); return r; }; w.__ntRoom = true; window[fn] = w;
       });
     }
-    setupRoomAnnotations(L, base);
+    // Thi đua: tô màu / gạch chân / ghi chú là RIÊNG từng người (không gửi lên phòng) -> không gọi setupRoomAnnotations
     L.mod.onValue(L.mod.ref(L.db, base + '/meta'), function (sn) { ROOM.meta = sn.val() || ROOM.meta; renderRoom(); });
     L.mod.onValue(L.mod.ref(L.db, base + '/players'), function (sn) { ROOM.players = sn.val() || {}; renderRoom(); });
     setInterval(renderRoom, 20000);
