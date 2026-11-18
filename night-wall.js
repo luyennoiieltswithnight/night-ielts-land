@@ -31,6 +31,7 @@
       '.nwall-f button{border:0;border-radius:999px;padding:9px 15px;font:800 13px "Plus Jakarta Sans",system-ui,sans-serif;cursor:pointer;background:linear-gradient(135deg,#FFB86B,#FF6B9A);color:#2B1236;white-space:nowrap}.nwall-f button:disabled{opacity:.5}',
       '.nwall-m{font-size:11.5px;color:rgba(255,255,255,.6);margin:6px 4px 0;min-height:15px}',
       '.nwall-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font:22px "Patrick Hand",cursive;color:rgba(255,255,255,.6)}',
+      '@media(min-width:900px){.nwall-n{max-width:26%}.nwall-sky{min-height:215px}}',
       '@media(max-width:640px){.nwall-n{max-width:44%;font-size:17px}.nwall-sky{min-height:230px}}',
       '@media(prefers-reduced-motion:reduce){.nwall-n{animation:none}}'
     ].join('\n');
