@@ -531,8 +531,7 @@ body.full-work .shell>main{padding:10px}
 .ai-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .ai-col>.scroll{flex:1;min-height:0;overflow-y:auto}
 @media (min-width:1024px){
-  .work{grid-template-columns:var(--lw,minmax(260px,.9fr)) 14px minmax(380px,1.35fr) minmax(280px,.95fr)!important;column-gap:0!important}
-  .ai-col{margin-left:14px}
+  .work{grid-template-columns:var(--lw,minmax(260px,.9fr)) 14px minmax(360px,1.35fr) 14px var(--rw,minmax(280px,.95fr))!important;column-gap:0!important}
 }
 @media (max-width:1023px){.ai-col{min-height:420px}}
 .sheet{border:0!important;border-radius:28px!important;background:var(--nv-panel)!important}
@@ -810,6 +809,7 @@ body.full-work .shell>main{padding:10px}
         </div>
         <div id="wkOverlay" class="overlay hidden"><div class="spin"></div><p id="wkOverlayMsg" style="margin:0;font-weight:600;">Đang lưu bài...</p><p class="muted" style="margin:0;">Chấm kỹ 4 tiêu chí nên mất khoảng 30–60 giây.</p></div>
       </div>
+      <div id="wkSplit2" class="splitter" title="Kéo để đổi độ rộng cột AI · bấm đúp để trả về mặc định"></div>
       <!-- Phải: AI hỗ trợ (Gợi ý AI / Viết từng bước) -->
       <div class="sheet ai-col">
         <div class="wk-ltabs" role="tablist">
@@ -1177,7 +1177,8 @@ body.full-work .shell>main{padding:10px}
     function applyCol() {
       if (colFrac == null) { work.style.removeProperty('--lw'); return; }
       const W = work.getBoundingClientRect().width || (innerWidth - 48);
-      const px = Math.round(Math.min(W - 14 - 380, Math.max(340, colFrac * W)));
+      const rw = parseFloat(work.style.getPropertyValue('--rw')) || 0;
+      const px = Math.round(Math.min(W - 28 - 360 - (rw || 280), Math.max(240, colFrac * W)));
       work.style.setProperty('--lw', px + 'px');
     }
     function applyRow() {
@@ -1221,6 +1222,18 @@ body.full-work .shell>main{padding:10px}
       colFrac = (e.clientX - r.left - 7) / r.width; applyCol();
     }, () => { try { localStorage.setItem('nightWrSplit', colFrac); } catch (er) {} });
     split.addEventListener('dblclick', () => { colFrac = null; applyCol(); try { localStorage.removeItem('nightWrSplit'); } catch (e) {} });
+    // Thanh kéo thứ 2: giữa ô viết bài và cột AI
+    const split2 = document.getElementById('wkSplit2'); let rwFrac = null;
+    function applyR() {
+      if (rwFrac == null) { work.style.removeProperty('--rw'); return; }
+      const W = work.getBoundingClientRect().width || (innerWidth - 48), lw = parseFloat(work.style.getPropertyValue('--lw')) || W * 0.28;
+      work.style.setProperty('--rw', Math.round(Math.min(W - 28 - 360 - lw, Math.max(260, rwFrac * W))) + 'px');
+    }
+    try { const f = parseFloat(localStorage.getItem('nightWrSplitR')); if (f > 0 && f < 1) rwFrac = f; } catch (e) {}
+    if (wide()) applyR();
+    window.addEventListener('resize', () => { if (wide()) applyR(); });
+    drag(split2, 'col', e => { const r = work.getBoundingClientRect(); rwFrac = (r.right - e.clientX - 7) / r.width; applyR(); }, () => { try { localStorage.setItem('nightWrSplitR', rwFrac); } catch (er) {} });
+    split2.addEventListener('dblclick', () => { rwFrac = null; applyR(); try { localStorage.removeItem('nightWrSplitR'); } catch (e) {} });
     let startY = 0, startH = 0;
     vs.addEventListener('pointerdown', e => { startY = e.clientY; startH = document.getElementById('wkPrompt').getBoundingClientRect().height; }, true);
     drag(vs, 'row', e => { rowPx = startH + (e.clientY - startY); applyRow(); }, () => { try { localStorage.setItem('nightWrPromptH', rowPx); } catch (er) {} });
