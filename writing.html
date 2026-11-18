@@ -491,7 +491,7 @@ details[open] > summary:before{content:'▾ ';}
 .left-col.lt-prompt .guide-head,.left-col.lt-prompt>.scroll{display:none}
 .left-col.lt-prompt #wkPromptPane{flex:1;min-height:0;overflow-y:auto;border-bottom:0;padding:18px 24px 24px!important}
 .left-col.lt-prompt .prompt-pane .prompt,.left-col.lt-prompt .prompt-pane.sized .prompt{max-height:none!important;height:auto!important;overflow:visible!important;-webkit-mask-image:none!important;mask-image:none!important;font-size:16px;line-height:1.7}
-.left-col.lt-prompt .prompt-pane .prompt img{max-height:none!important;width:100%;max-width:640px;margin:12px auto;border-radius:14px;box-shadow:0 0 0 1px #ECEDF3}
+.left-col.lt-prompt .prompt-pane .prompt img{cursor:zoom-in;max-height:none!important;width:100%;max-width:640px;margin:12px auto;border-radius:14px;box-shadow:0 0 0 1px #ECEDF3}
 .left-col.lt-prompt #wkPromptToggle,.left-col.lt-prompt .vsplit{display:none!important}
 .prompt-pane-head .tag{font-size:12px}
 .guide-head{background:#fff!important;padding:14px 22px 0!important}
@@ -525,6 +525,15 @@ body.full-work .shell{max-width:none!important}
 @media(min-width:768px){.shell>main{border-radius:36px;padding:26px 28px}}
 body.full-work .shell>main{padding:10px}
 @media(min-width:1024px){.work{height:calc(100vh - 150px)!important}}
+/* V3: 3 cột — Đề bài | Viết bài (giữa, rộng nhất) | AI hỗ trợ */
+.wk-phead{display:flex;align-items:center;gap:8px;padding:14px 22px;border-bottom:1px solid #ECEDF3;font-weight:800;font-size:14px;color:#24242A;flex:none}
+.ai-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.ai-col>.scroll{flex:1;min-height:0;overflow-y:auto}
+@media (min-width:1024px){
+  .work{grid-template-columns:var(--lw,minmax(260px,.9fr)) 14px minmax(380px,1.35fr) minmax(280px,.95fr)!important;column-gap:0!important}
+  .ai-col{margin-left:14px}
+}
+@media (max-width:1023px){.ai-col{min-height:420px}}
 .sheet{border:0!important;border-radius:28px!important;background:var(--nv-panel)!important}
 .work>.sheet,.shell>main .sheet .sheet{background:#fff!important;box-shadow:0 14px 34px -20px rgba(36,36,42,.4)}
 .work>.sheet{background:#fff!important;border:1.5px solid #ECEDF3!important}
@@ -763,11 +772,7 @@ body.full-work .shell>main{padding:10px}
     <div id="workView" class="hidden work">
       <!-- Trái: đề (luôn ở trên) + gợi ý (cuộn bên dưới) -->
       <div class="sheet left-col lt-prompt">
-        <div class="wk-ltabs" role="tablist">
-          <button type="button" data-l="prompt" class="on" onclick="setLeftTab('prompt')"><i class="fa-regular fa-file-lines"></i> Đề bài</button>
-          <button type="button" data-l="guide" onclick="setLeftTab('guide')"><i class="fa-solid fa-wand-magic-sparkles"></i> Gợi ý AI</button>
-          <button type="button" data-l="coach" onclick="setLeftTab('coach')"><i class="fa-solid fa-shoe-prints"></i> Từng bước</button>
-        </div>
+        <div class="wk-phead"><i class="fa-regular fa-file-lines"></i> Đề bài</div>
         <div id="wkPromptPane" class="prompt-pane">
           <div class="prompt-pane-head">
             <span id="wkTaskTag" class="tag tag-blue"></span><span id="wkTypeTag" class="tag hidden"></span><span id="wkDeadlineTag" class="tag hidden"></span>
@@ -776,6 +781,39 @@ body.full-work .shell>main{padding:10px}
           </div>
           <div id="wkPrompt" class="prompt"></div>
           <div id="wkVSplit" class="vsplit" title="Kéo để đổi chiều cao phần đề"></div>
+        </div>
+      </div>
+      <div id="wkSplit" class="splitter" title="Kéo để đổi độ rộng 2 cột · bấm đúp để trả về mặc định"></div>
+      <!-- Phải: viết bài -->
+      <div class="sheet" style="position:relative;">
+        <div class="toolbar">
+          <button type="button" title="In đậm (Ctrl+B)" onclick="wrCmd('wkEditor','bold')"><b>B</b></button>
+          <button type="button" title="In nghiêng (Ctrl+I)" onclick="wrCmd('wkEditor','italic')"><i>I</i></button>
+          <button type="button" title="Gạch chân (Ctrl+U)" onclick="wrCmd('wkEditor','underline')"><u>U</u></button>
+          <button type="button" title="Gạch ngang" onclick="wrCmd('wkEditor','strikeThrough')"><s>S</s></button>
+          <button type="button" title="Tô vàng" onclick="wrCmd('wkEditor','hiliteColor','#fff1a8')"><i class="fa-solid fa-highlighter"></i></button>
+          <span class="sep"></span>
+          <button type="button" title="Gạch đầu dòng" onclick="wrCmd('wkEditor','insertUnorderedList')"><i class="fa-solid fa-list-ul"></i></button>
+          <button type="button" title="Xoá định dạng" onclick="wrCmd('wkEditor','removeFormat')"><i class="fa-solid fa-text-slash"></i></button>
+          <button type="button" title="Hoàn tác" onclick="wrCmd('wkEditor','undo')"><i class="fa-solid fa-rotate-left"></i></button>
+          <span id="wkTimer" class="wk-timer" title="Thời gian đã viết (IELTS: Task 1 ~20 phút, Task 2 ~40 phút)"><i class="fa-regular fa-clock"></i> <b>00:00</b></span>
+          <span id="wkWordCount" class="wc">0 từ</span>
+        </div>
+        <div class="wk-wbar"><i id="wkWBar"></i></div>
+        <div class="scroll">
+          <div id="wkEditor" contenteditable="true" spellcheck="false" class="editor" data-placeholder="Viết bài của bạn ở đây. Mỗi đoạn cách nhau 1 dòng trống."></div>
+        </div>
+        <div class="submit-bar">
+          <span id="wkSaved" class="muted grow">Bài nháp tự lưu trên máy này.</span>
+          <button id="wkSubmitBtn" type="button" class="btn-primary" onclick="submitWork()">Nộp bài và chấm</button>
+        </div>
+        <div id="wkOverlay" class="overlay hidden"><div class="spin"></div><p id="wkOverlayMsg" style="margin:0;font-weight:600;">Đang lưu bài...</p><p class="muted" style="margin:0;">Chấm kỹ 4 tiêu chí nên mất khoảng 30–60 giây.</p></div>
+      </div>
+      <!-- Phải: AI hỗ trợ (Gợi ý AI / Viết từng bước) -->
+      <div class="sheet ai-col">
+        <div class="wk-ltabs" role="tablist">
+          <button type="button" data-l="guide" class="on" onclick="setLeftTab('guide')"><i class="fa-solid fa-wand-magic-sparkles"></i> Gợi ý AI</button>
+          <button type="button" data-l="coach" onclick="setLeftTab('coach')"><i class="fa-solid fa-shoe-prints"></i> Từng bước</button>
         </div>
         <div class="guide-head">
           <div class="row">
@@ -813,32 +851,6 @@ body.full-work .shell>main{padding:10px}
             <div id="wkCoach" class="hidden"></div>
           </div>
         </div>
-      </div>
-      <div id="wkSplit" class="splitter" title="Kéo để đổi độ rộng 2 cột · bấm đúp để trả về mặc định"></div>
-      <!-- Phải: viết bài -->
-      <div class="sheet" style="position:relative;">
-        <div class="toolbar">
-          <button type="button" title="In đậm (Ctrl+B)" onclick="wrCmd('wkEditor','bold')"><b>B</b></button>
-          <button type="button" title="In nghiêng (Ctrl+I)" onclick="wrCmd('wkEditor','italic')"><i>I</i></button>
-          <button type="button" title="Gạch chân (Ctrl+U)" onclick="wrCmd('wkEditor','underline')"><u>U</u></button>
-          <button type="button" title="Gạch ngang" onclick="wrCmd('wkEditor','strikeThrough')"><s>S</s></button>
-          <button type="button" title="Tô vàng" onclick="wrCmd('wkEditor','hiliteColor','#fff1a8')"><i class="fa-solid fa-highlighter"></i></button>
-          <span class="sep"></span>
-          <button type="button" title="Gạch đầu dòng" onclick="wrCmd('wkEditor','insertUnorderedList')"><i class="fa-solid fa-list-ul"></i></button>
-          <button type="button" title="Xoá định dạng" onclick="wrCmd('wkEditor','removeFormat')"><i class="fa-solid fa-text-slash"></i></button>
-          <button type="button" title="Hoàn tác" onclick="wrCmd('wkEditor','undo')"><i class="fa-solid fa-rotate-left"></i></button>
-          <span id="wkTimer" class="wk-timer" title="Thời gian đã viết (IELTS: Task 1 ~20 phút, Task 2 ~40 phút)"><i class="fa-regular fa-clock"></i> <b>00:00</b></span>
-          <span id="wkWordCount" class="wc">0 từ</span>
-        </div>
-        <div class="wk-wbar"><i id="wkWBar"></i></div>
-        <div class="scroll">
-          <div id="wkEditor" contenteditable="true" spellcheck="false" class="editor" data-placeholder="Viết bài của bạn ở đây. Mỗi đoạn cách nhau 1 dòng trống."></div>
-        </div>
-        <div class="submit-bar">
-          <span id="wkSaved" class="muted grow">Bài nháp tự lưu trên máy này.</span>
-          <button id="wkSubmitBtn" type="button" class="btn-primary" onclick="submitWork()">Nộp bài và chấm</button>
-        </div>
-        <div id="wkOverlay" class="overlay hidden"><div class="spin"></div><p id="wkOverlayMsg" style="margin:0;font-weight:600;">Đang lưu bài...</p><p class="muted" style="margin:0;">Chấm kỹ 4 tiêu chí nên mất khoảng 30–60 giây.</p></div>
       </div>
     </div>
 
@@ -1821,7 +1833,7 @@ body.full-work .shell>main{padding:10px}
     gEl.innerHTML = renderGuide(__guide, t);
     gEl.dataset.annKey = 'g|' + guideKey() + '|' + t;
     annApply(gEl);
-    const sc = document.querySelector('#workView .left-col .scroll'); if (sc) sc.scrollTop = 0;
+    const sc = document.querySelector('#workView .ai-col .scroll'); if (sc) sc.scrollTop = 0;
   };
 
   // Phần chung: đề + mô tả ảnh (Task 1) để gửi cho AI
@@ -2033,11 +2045,18 @@ body.full-work .shell>main{padding:10px}
   // ==========================================
   let __leftMode = 'guide';
   try { __leftMode = localStorage.getItem('nightWrLeftMode') === 'coach' ? 'coach' : 'guide'; } catch (e) {}
+  // Bấm vào hình trong đề -> phóng to toàn màn hình (cột đề hẹp nên chữ trong biểu đồ nhỏ)
+  document.addEventListener('click', e => {
+    const im = e.target.closest('#wkPrompt img'); if (!im) return;
+    const z = document.createElement('div');
+    z.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(20,20,28,.85);display:grid;place-items:center;padding:20px;cursor:zoom-out';
+    z.innerHTML = '<img src="' + im.src + '" style="max-width:min(1100px,96vw);max-height:92vh;background:#fff;border-radius:16px;padding:10px">';
+    z.onclick = () => z.remove(); document.body.appendChild(z);
+  });
   window.setLeftTab = function (t) {
-    const lc = document.querySelector('#workView .left-col');
-    lc.classList.toggle('lt-prompt', t === 'prompt');
-    lc.querySelectorAll('.wk-ltabs button').forEach(b => b.classList.toggle('on', b.dataset.l === t));
-    if (t !== 'prompt') setLeftMode(t);
+    if (t === 'prompt') t = (__leftMode === 'coach') ? 'coach' : 'guide';
+    document.querySelectorAll('#workView .ai-col .wk-ltabs button').forEach(b => b.classList.toggle('on', b.dataset.l === t));
+    setLeftMode(t);
   };
   let __wkT0 = 0, __wkTick = null;
   function startWorkTimer() {
@@ -2057,7 +2076,7 @@ body.full-work .shell>main{padding:10px}
     ['guideHead', 'guideBody'].forEach(id => document.getElementById(id).classList.toggle('hidden', m !== 'guide'));
     ['coachHead', 'wkCoach'].forEach(id => document.getElementById(id).classList.toggle('hidden', m !== 'coach'));
     if (m === 'coach') renderCoach();
-    const sc = document.querySelector('#workView .left-col .scroll'); if (sc) sc.scrollTop = 0;
+    const sc = document.querySelector('#workView .ai-col .scroll'); if (sc) sc.scrollTop = 0;
   };
 
   // Nhóm dạng đề Task 1: số liệu (line/bar/pie/table/mixed), bản đồ, quy trình — mỗi nhóm cách viết khác hẳn
