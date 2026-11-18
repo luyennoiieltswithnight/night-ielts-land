@@ -20,6 +20,26 @@
       '#nv-rl-gate a{display:block;margin-top:8px;padding:12px 16px;border-radius:999px;font-weight:800;text-decoration:none;font-size:14px}' +
       '#nv-rl-gate .p{background:#24242A;color:#fff}#nv-rl-gate .s{background:#F4F4F7;color:#24242A}';
     (document.head || de).appendChild(st);
+    /* Link làm chung (?liveSession=...) giáo viên chia sẻ: KHÔNG cần đăng nhập, chỉ cần gõ tên */
+    if (new URLSearchParams(location.search).get('liveSession')) {
+      var nm = ''; try { nm = localStorage.getItem('nv-guest-name') || ''; } catch (e) {}
+      var askName = function () {
+        if (document.getElementById('nv-rl-gate')) return;
+        var g = document.createElement('div'); g.id = 'nv-rl-gate';
+        g.innerHTML = '<form class="bx" id="nvNameF"><div style="font-size:42px">👋</div><h2>Vào làm bài cùng lớp</h2><p>Gõ tên của bạn để mọi người trong phòng biết bạn là ai. Không cần đăng nhập.</p>' +
+          '<input id="nvNameI" maxlength="40" required placeholder="Tên của bạn" style="width:100%;box-sizing:border-box;border:2px solid #E2E3EE;border-radius:999px;padding:13px 18px;font:600 16px inherit;outline:0;text-align:center;margin-bottom:6px">' +
+          '<button type="submit" style="width:100%;border:0;margin-top:8px;padding:13px 16px;border-radius:999px;font-weight:800;font-size:15px;background:#24242A;color:#fff;cursor:pointer">Vào phòng</button></form>';
+        document.body.appendChild(g);
+        var inp = g.querySelector('#nvNameI'); inp.value = nm; inp.focus();
+        g.querySelector('#nvNameF').onsubmit = function (e) {
+          e.preventDefault(); var v = inp.value.replace(/\s+/g, ' ').trim().slice(0, 40); if (!v) return;
+          try { localStorage.setItem('nv-guest-name', v); } catch (x) {}
+          window.__nvGuestName = v; g.remove(); de.classList.remove('nv-rl-lock');
+        };
+      };
+      if (document.body) askName(); else document.addEventListener('DOMContentLoaded', askName);
+      return;
+    }
     var show = function (msg) {
       var go = function () {
         if (document.getElementById('nv-rl-gate')) return;
