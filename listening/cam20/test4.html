@@ -2823,9 +2823,12 @@
                 return out;
             }
 
+            /* Chế độ THI ĐUA (?liveMode=race): cùng phòng nhưng mỗi người tự làm — đáp án, ghi chú, tô màu, audio đều riêng */
+            var NV_RACE = new URLSearchParams(location.search).get('liveMode') === 'race';
             function shareUrl(id) {
                 var url = new URL(location.href);
                 url.searchParams.set('liveSession', id);
+                if (NV_RACE) url.searchParams.set('liveMode', 'race'); else url.searchParams.delete('liveMode');
                 return url.toString();
             }
 
@@ -2849,13 +2852,17 @@
                 if (!sessionId) {
                     body.innerHTML =
                         '<p style="margin:0 0 12px 0;">Tạo link để làm đề Listening này cùng lúc với người khác — đáp án sẽ tự đồng bộ theo thời gian thực.</p>' +
-                        '<button class="submit-btn" id="live-session-create-btn">Tạo link làm chung</button>' +
+                        '<div style="display:flex;flex-wrap:wrap;gap:8px"><button class="submit-btn" id="live-session-create-btn">👥 Tạo link làm chung</button><button class="submit-btn" id="live-session-race-btn" style="background:#E8576F">🏁 Tạo link thi đua</button></div>' +
+                        '<p style="margin:10px 0 0 0; font-size:12.5px; color:#666;"><b>Làm chung:</b> đáp án, ghi chú, tô màu hiện cho cả phòng. <b>Thi đua:</b> cùng phòng nhưng mỗi người tự làm — đáp án, ghi chú, tô màu chỉ người đó thấy.</p>' +
                         '<p style="margin:12px 0 0 0; font-size:12.5px; color:#888;">⚠️ Cần bài test đã được xuất bản lên 1 trang web (vd GitHub Pages) thì học sinh ở máy khác mới mở link được — mở trực tiếp file trên máy sẽ không dùng được.</p>';
                     var btn = document.getElementById('live-session-create-btn');
-                    if (btn) btn.addEventListener('click', function () { createSession(); });
+                    if (btn) btn.addEventListener('click', function () { NV_RACE = false; createSession(); });
+                    var rbtn = document.getElementById('live-session-race-btn');
+                    if (rbtn) rbtn.addEventListener('click', function () { NV_RACE = true; createSession(); });
                 } else {
                     var url = shareUrl(sessionId);
                     body.innerHTML =
+                        (NV_RACE ? '<p style="margin:0 0 10px 0;padding:8px 12px;border-radius:10px;background:#FFE4EA;color:#9F1239;font-weight:700;">🏁 Chế độ thi đua — mỗi người tự làm, ghi chú / tô màu chỉ mình thấy</p>' : '') +
                         '<p style="margin:0 0 10px 0;">👥 Đang tham gia: <strong id="live-participant-count-modal">' + currentParticipantCount + '</strong> người</p>' +
                         '<div style="display:flex; gap:8px;">' +
                         '<input type="text" id="live-session-link-input" readonly value="' + url.replace(/"/g, '&quot;') + '" style="flex:1; padding:8px; border-radius:6px; border:2px solid var(--border-color);">' +
@@ -2950,10 +2957,10 @@
                 if (!setup || setup.style.display !== 'none') return; // chưa bấm "Bắt đầu làm bài"
                 syncStarted = true;
                 setupPresence();
-                setupAnswerSync();
-                setupMultiGroupSync();
-                setupAnnotationSync();
-                setupAudioSync();
+                if (!NV_RACE) setupAnswerSync();
+                if (!NV_RACE) setupMultiGroupSync();
+                if (!NV_RACE) setupAnnotationSync();
+                if (!NV_RACE) setupAudioSync();
                 updateParticipantBadge(currentParticipantCount);
             }
 
