@@ -526,6 +526,7 @@ body.full-work .shell{max-width:none!important}
 body.full-work .shell>main{padding:10px}
 @media(min-width:1024px){.work{height:calc(100vh - 150px)!important}}
 /* V3: 3 cột — Đề bài | Viết bài (giữa, rộng nhất) | AI hỗ trợ */
+.wk-edit-btn{margin-left:auto;border:0;border-radius:999px;padding:7px 13px;font-weight:800;font-size:12.5px;cursor:pointer;background:#24242A;color:#fff;font-family:inherit;display:inline-flex;gap:6px;align-items:center}.wk-edit-btn:hover{background:#6C70DC}
 .wk-phead{display:flex;align-items:center;gap:8px;padding:14px 22px;border-bottom:1px solid #ECEDF3;font-weight:800;font-size:14px;color:#24242A;flex:none}
 .ai-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .ai-col>.scroll{flex:1;min-height:0;overflow-y:auto}
@@ -563,7 +564,7 @@ body.full-work .shell>main{padding:10px}
 <script src="night-plan.js?v=20261113a"></script>
 <script src="night-fame.js?v=20261117a"></script>
 <script src="writing-real-data.js?v=1"></script>
-<script src="writing-real.js?v=1"></script>
+<script src="writing-real.js?v=2"></script>
 </head>
 <body>
 <div class="shell">
@@ -1590,15 +1591,27 @@ body.full-work .shell>main{padding:10px}
     paintRealHub();
   }
   // ---- Kho ĐỀ THI THẬT 2026 + thi thử (writing-real.js) ----
+  // Sửa đề của giáo viên (writingRealEdits/{itemId} = { text, img, vis }) — tải 1 lần, áp vào kho đề thi thật
+  let __realOvP = null;
+  function loadRealOverrides() {
+    if (!__realOvP) __realOvP = getDocs(collection(db, 'writingRealEdits')).then(sn => { const m = {}; sn.forEach(d => { m[d.id] = d.data(); }); if (window.NVWR) NVWR.setOverrides(m); return m; }).catch(e => { console.warn('Chưa tải được đề đã sửa:', e); return {}; });
+    return __realOvP;
+  }
   const realCtx = {
+    get admin() { return __role === 'admin'; },
+    saveEdit: (id, data) => setDoc(doc(db, 'writingRealEdits', id), data),
+    deleteEdit: id => deleteDoc(doc(db, 'writingRealEdits', id)),
+    onEdited: id => { paintRealHub(); if (new URLSearchParams(location.search).get('real') === id) route(); },
     docs: () => __myDocs,
     open: id => navigate('writing.html?real=' + id),
     mock: id => window.NVWR.openMock(id, realCtx),
     grade: (item, html, text, onStep, extra) => gradePractice(item, html, text, onStep, extra),
     onClose: () => { if (!currentId()) paintRealHub(); }
   };
+  window.realCtx = realCtx;
   function paintRealHub(parent, before) {
     const el = document.getElementById('wrRealHub'); if (!el || !window.NVWR) return;
+    loadRealOverrides().then(m => { if (Object.keys(m).length && !el.__ovPainted) { el.__ovPainted = 1; window.NVWR.paintHub(el, realCtx); } });
     if (parent && el.parentNode !== parent) parent.insertBefore(el, before || parent.firstChild);
     else if (parent && before && el.nextSibling !== before) parent.insertBefore(el, before);
     window.NVWR.paintHub(el, realCtx);
@@ -3483,7 +3496,16 @@ body.full-work .shell>main{padding:10px}
     const seq = ++__routeSeq;
     hidePop();
     const p = new URLSearchParams(location.search), id = p.get('id');
-    if (p.get('real')) { const it = window.NVWR && window.NVWR.item(p.get('real')); if (it) { openWork({ mode: 'practice', item: { title: it.title, promptHtml: it.promptHtml, task: it.task, type: it.type, sourceBankId: it.sourceBankId } }); return; } }
+    if (p.get('real')) {
+      await Promise.race([loadRealOverrides(), new Promise(r => setTimeout(r, 2500))]);
+      const it = window.NVWR && window.NVWR.item(p.get('real'));
+      if (it) {
+        openWork({ mode: 'practice', item: { title: it.title, promptHtml: it.promptHtml, task: it.task, type: it.type, sourceBankId: it.sourceBankId } });
+        const ph = document.querySelector('#workView .wk-phead');
+        if (ph) ph.innerHTML = '<i class="fa-regular fa-file-lines"></i> Đề bài' + (__role === 'admin' ? '<button type="button" class="wk-edit-btn" onclick="NVWR.openEditor(\'' + it.id + '\', realCtx)"><i class="fa-solid fa-pen"></i> Sửa đề</button>' : '');
+        return;
+      }
+    }
     if (p.get('practice')) { await openPracticeById(p.get('practice'), seq); return; }
     if (p.get('pkg')) { if (openLessonPkg(p.get('pkg'))) return; }
     if (!id) {

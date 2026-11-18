@@ -143,7 +143,8 @@
   }
 
   /* ---------- mục đề cho trang Writing ---------- */
-  var CACHE = {};
+  var CACHE = {}, OV = {};
+  function setOverrides(m) { OV = m || {}; CACHE = {}; }
   function item(itemId) {
     if (CACHE[itemId]) return CACHE[itemId];
     var m = String(itemId).match(/^real_(.+)_(t[12])$/); if (!m) return null;
@@ -151,15 +152,19 @@
     var it;
     if (m[2] === 't1') {
       if (!e.t1) return null;
-      var t = e.t1, imgs = parts(t).map(function (c) { return '<p style="text-align:center"><img src="' + uri(svgOf(c)) + '" alt="' + esc(T1VI[c.k] || 'chart') + '" style="max-width:100%;border-radius:12px;background:#fff"></p>'; }).join('');
-      it = { id: itemId, task: 'task1', type: T1TYPE[t.k], kind: t.k, date: e.date, entry: e.id, title: 'Task 1 · ' + fmtD(e.date) + ' · ' + (T1VI[t.k] || ''), text: t.p,
-        promptHtml: '<p><b>You should spend about 20 minutes on this task.</b></p><p>' + esc(t.p) + '</p><p>Summarise the information by selecting and reporting the main features, and make comparisons where relevant.</p><p><b>Write at least 150 words.</b></p>' + imgs +
-          '<div hidden data-nv-vis>' + esc(parts(t).map(visText).join(' ')) + '</div>' };
+      var t = e.t1, ov = OV[itemId] || {}, ptxt = ov.text || t.p;
+      /* Giáo viên đã thay hình -> dùng hình đó (AI tự đọc hình), bỏ số liệu của hình vẽ sẵn */
+      var imgs = ov.img ? '<p style="text-align:center"><img src="' + ov.img + '" alt="Task 1" style="max-width:100%;border-radius:12px;background:#fff"></p>'
+        : parts(t).map(function (c) { return '<p style="text-align:center"><img src="' + uri(svgOf(c)) + '" alt="' + esc(T1VI[c.k] || 'chart') + '" style="max-width:100%;border-radius:12px;background:#fff"></p>'; }).join('');
+      it = { id: itemId, task: 'task1', type: T1TYPE[t.k], kind: t.k, date: e.date, entry: e.id, title: 'Task 1 · ' + fmtD(e.date) + ' · ' + (T1VI[t.k] || ''), text: ptxt, edited: !!(ov.img || ov.text),
+        promptHtml: '<p><b>You should spend about 20 minutes on this task.</b></p><p>' + esc(ptxt) + '</p><p>Summarise the information by selecting and reporting the main features, and make comparisons where relevant.</p><p><b>Write at least 150 words.</b></p>' + imgs +
+          (ov.img ? (ov.vis ? '<div hidden data-nv-vis>' + esc(ov.vis) + '</div>' : '') : '<div hidden data-nv-vis>' + esc(parts(t).map(visText).join(' ')) + '</div>') };
     } else {
       if (!e.t2) return null;
-      var k = e.t2[0], tail = T2TAIL[k] || '';
-      it = { id: itemId, task: 'task2', type: T2TYPE[k], kind: k, date: e.date, entry: e.id, title: 'Task 2 · ' + fmtD(e.date) + ' · ' + T2VI[k], text: e.t2[1],
-        promptHtml: '<p><b>You should spend about 40 minutes on this task.</b></p><p>Write about the following topic:</p><blockquote style="margin:10px 0;padding:12px 16px;border-left:4px solid #6C70DC;background:#F4F4FB;border-radius:10px"><p style="margin:0"><i>' + esc(e.t2[1]) + '</i></p>' + (tail ? '<p style="margin:8px 0 0"><i>' + esc(tail) + '</i></p>' : '') + '</blockquote><p>Give reasons for your answer and include any relevant examples from your own knowledge or experience.</p><p><b>Write at least 250 words.</b></p>' };
+      var k = e.t2[0], tail = T2TAIL[k] || '', ov2 = OV[itemId] || {}, q2 = ov2.text || e.t2[1];
+      if (ov2.text) tail = '';
+      it = { id: itemId, task: 'task2', type: T2TYPE[k], kind: k, date: e.date, entry: e.id, title: 'Task 2 · ' + fmtD(e.date) + ' · ' + T2VI[k], text: q2, edited: !!ov2.text,
+        promptHtml: '<p><b>You should spend about 40 minutes on this task.</b></p><p>Write about the following topic:</p><blockquote style="margin:10px 0;padding:12px 16px;border-left:4px solid #6C70DC;background:#F4F4FB;border-radius:10px"><p style="margin:0"><i>' + esc(q2).replace(/\n/g, '<br>') + '</i></p>' + (tail ? '<p style="margin:8px 0 0"><i>' + esc(tail) + '</i></p>' : '') + '</blockquote><p>Give reasons for your answer and include any relevant examples from your own knowledge or experience.</p><p><b>Write at least 250 words.</b></p>' };
     }
     it.sourceBankId = itemId;
     CACHE[itemId] = it;
@@ -185,7 +190,8 @@
       '.wr-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.wr-chips button{background:#F4F4F7;padding:7px 12px;font-size:12.5px}.wr-chips .on{background:#6C70DC;color:#fff}',
       '.wr-search{flex:1;min-width:200px;display:flex;align-items:center;gap:8px;background:#F4F4F7;border-radius:999px;padding:10px 14px;color:#8f90a0}.wr-search input{border:0;outline:0;flex:1;font:inherit;background:transparent;color:#24242A}',
       '.wr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}',
-      '.wr-card{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border-radius:22px;background:#F4F4F7;overflow:hidden;transition:transform .15s,box-shadow .15s;min-height:170px}',
+      '.wr-edit{position:absolute;top:8px;right:8px;z-index:2;background:#24242A;color:#fff;border-radius:999px;padding:5px 10px;font-size:11.5px;font-weight:800;display:inline-flex;gap:5px;align-items:center}.wr-edit:hover{background:#6C70DC}',
+      '.wr-card{all:unset;position:relative;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;border-radius:22px;background:#F4F4F7;overflow:hidden;transition:transform .15s,box-shadow .15s;min-height:170px}',
       '.wr-card:hover{transform:translateY(-3px);box-shadow:0 16px 30px -20px rgba(36,36,42,.5);background:#EDEEFD}',
       '.wr-thumb{height:132px;background:#fff;display:grid;place-items:center;overflow:hidden;border-bottom:1px solid #E6E7F0}.wr-thumb img{max-width:100%;max-height:132px;object-fit:contain}',
       '.wr-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:7px;flex:1}',
@@ -266,7 +272,7 @@
       var items = allItems(S.tab).filter(function (i) { return (!S.month || i.date.indexOf(S.month) === 0) && (!S.type || i.kind === S.type) && (!q || (i.text + ' ' + i.title).toLowerCase().indexOf(q) !== -1); });
       out = '<div class="wr-grid">' + items.slice(0, S.shown).map(function (i) {
         var d = dm[i.id], img = i.task === 'task1' ? (i.promptHtml.match(/<img src="([^"]+)"/) || [])[1] : '';
-        return '<button class="wr-card" data-open="' + i.id + '">' + (img ? '<span class="wr-thumb"><img src="' + img + '" alt="" loading="lazy"></span>' : '') +
+        return '<button class="wr-card" data-open="' + i.id + '">' + (ctx.admin ? '<span class="wr-edit" data-edit="' + i.id + '" title="Sửa đề"><i class="fa-solid fa-pen"></i> Sửa đề</span>' : '') + (img ? '<span class="wr-thumb"><img src="' + img + '" alt="" loading="lazy"></span>' : '') +
           '<span class="wr-body"><span class="wr-meta"><span>' + fmtD(i.date) + '</span><span class="' + (i.task === 'task1' ? 'ty' : 't2') + '">' + esc(i.task === 'task1' ? T1VI[i.kind] : T2VI[i.kind]) + '</span></span>' +
           '<span class="wr-txt' + (i.task === 'task2' ? ' wr-q' : '') + '">' + esc(i.text) + '</span>' +
           '<span class="wr-st">' + (d ? '<span class="ok"><i class="fa-solid fa-check"></i> Đã viết ' + d.n + ' lần</span>' + (d.best ? '<span class="bd">' + fmtB(d.best) + '</span>' : '') : '<span>Chưa viết</span><i class="fa-solid fa-arrow-right"></i>') + '</span></span></button>';
@@ -277,6 +283,7 @@
     paintList();
     var save = function () { try { localStorage.setItem('nvwr-hub', JSON.stringify({ tab: S.tab })); } catch (e) {} };
     el.onclick = function (ev) {
+      var ed = ev.target.closest('[data-edit]'); if (ed && ctx.admin) { ev.preventDefault(); ev.stopPropagation(); openEditor(ed.dataset.edit, ctx); return; }
       var b = ev.target.closest('button'); if (!b || !el.contains(b)) return;
       if (b.dataset.tab) { S.tab = b.dataset.tab; S.type = ''; S.shown = 24; save(); paintHub(el, ctx); return; }
       if (b.dataset.m != null) { S.month = b.dataset.m; S.shown = 24; paintHub(el, ctx); return; }
@@ -369,5 +376,68 @@
     persist(); show('t1'); tick();
   }
 
-  window.NVWR = { item: item, paintHub: paintHub, openMock: openMock, entries: ENT, svgOf: svgOf };
+  /* ---------- SỬA ĐỀ (chỉ admin): thay câu đề / thay hình Task 1 ---------- */
+  function shrink(file) {
+    return new Promise(function (res, rej) {
+      var fr = new FileReader(); fr.onerror = rej;
+      fr.onload = function () {
+        var im = new Image(); im.onerror = rej;
+        im.onload = function () {
+          var W = im.width, H = im.height, k = Math.min(1, 1400 / Math.max(W, H)), c = document.createElement('canvas');
+          c.width = Math.round(W * k); c.height = Math.round(H * k); var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(im, 0, 0, c.width, c.height);
+          var q = 0.85, out = c.toDataURL('image/jpeg', q); while (out.length > 700000 && q > 0.4) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+          res(out);
+        };
+        im.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+  function openEditor(itemId, ctx) {
+    css(); var it = item(itemId); if (!it) return;
+    var ov = Object.assign({}, OV[itemId] || {}), isT1 = it.task === 'task1';
+    var m = document.createElement('div'); m.id = 'wr-ed';
+    m.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(20,20,28,.6);display:grid;place-items:center;padding:16px;font-family:"Plus Jakarta Sans",system-ui,sans-serif';
+    m.innerHTML = '<div style="background:#fff;border-radius:26px;width:min(720px,100%);max-height:92vh;overflow:auto;padding:22px">' +
+      '<h3 style="margin:0 0 4px;font-size:19px">Sửa đề · ' + esc(it.title) + '</h3><p style="margin:0 0 14px;color:#55555f;font-size:13px">Thay đổi hiện cho mọi người. Bấm "Về bản gốc" để dùng lại đề / hình vẽ sẵn.</p>' +
+      '<label style="font-weight:800;font-size:13px">Câu đề</label><textarea id="weT" rows="' + (isT1 ? 3 : 5) + '" style="width:100%;box-sizing:border-box;margin:6px 0 14px;border:1.5px solid #E2E3EE;border-radius:14px;padding:10px 12px;font:15px/1.5 inherit"></textarea>' +
+      (isT1 ? '<label style="font-weight:800;font-size:13px">Hình của đề</label><div id="weP" style="margin:6px 0 8px;background:#F4F4F7;border-radius:14px;padding:10px;text-align:center;min-height:120px"></div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px"><label style="background:#24242A;color:#fff;border-radius:999px;padding:9px 14px;font-weight:800;font-size:13px;cursor:pointer">Chọn hình từ máy<input id="weF" type="file" accept="image/*" hidden></label><button type="button" id="weR" style="border:0;background:#F4F4F7;border-radius:999px;padding:9px 14px;font-weight:800;font-size:13px;cursor:pointer">Dùng hình vẽ sẵn</button></div>' +
+        '<p style="margin:0 0 6px;color:#8f90a0;font-size:12px">Có thể dán hình (Ctrl/Cmd + V) vào đây. Hình tự thu nhỏ trước khi lưu.</p>' +
+        '<label style="font-weight:800;font-size:13px">Số liệu cho AI (không bắt buộc)</label><textarea id="weV" rows="3" placeholder="Ví dụ: UK 1990 = 45%, 2000 = 52%... Để trống thì AI tự đọc hình." style="width:100%;box-sizing:border-box;margin:6px 0 14px;border:1.5px solid #E2E3EE;border-radius:14px;padding:10px 12px;font:14px/1.5 inherit"></textarea>' : '') +
+      '<p id="weM" style="margin:0 0 10px;color:#C2410C;font-size:13px;min-height:16px"></p>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" id="weReset" style="border:0;background:#FFE4E6;color:#BE123C;border-radius:999px;padding:10px 16px;font-weight:800;cursor:pointer;margin-right:auto">Về bản gốc</button><button type="button" id="weX" style="border:0;background:#F4F4F7;border-radius:999px;padding:10px 16px;font-weight:800;cursor:pointer">Huỷ</button><button type="button" id="weS" style="border:0;background:#24242A;color:#fff;border-radius:999px;padding:10px 18px;font-weight:800;cursor:pointer">Lưu đề</button></div></div>';
+    document.body.appendChild(m);
+    var $ = function (q) { return m.querySelector(q); };
+    $('#weT').value = it.text;
+    var paintP = function () { if (!isT1) return; var src = ov.img || (it.promptHtml.match(/<img src="([^"]+)"/) || [])[1]; $('#weP').innerHTML = (ov.img ? '' : '<p style="margin:0 0 6px;font-size:12px;color:#8f90a0">Đang dùng hình vẽ sẵn</p>') + (src ? '<img src="' + src + '" style="max-width:100%;max-height:300px;border-radius:10px;background:#fff">' : ''); };
+    if (isT1) {
+      $('#weV').value = ov.vis || '';
+      var take = function (f) { if (!f || !/^image\//.test(f.type)) return; $('#weM').textContent = 'Đang xử lý hình...'; shrink(f).then(function (d) { ov.img = d; $('#weM').textContent = ''; paintP(); }).catch(function () { $('#weM').textContent = 'Không đọc được hình này.'; }); };
+      $('#weF').onchange = function () { take(this.files[0]); };
+      m.addEventListener('paste', function (e) { var f = [].slice.call((e.clipboardData || {}).files || [])[0]; if (f) { e.preventDefault(); take(f); } });
+      $('#weR').onclick = function () { delete ov.img; paintP(); };
+      paintP();
+    }
+    var close = function () { m.remove(); };
+    $('#weX').onclick = close; m.onclick = function (e) { if (e.target === m) close(); };
+    var done = function () { CACHE = {}; close(); if (ctx.onEdited) ctx.onEdited(itemId); };
+    $('#weReset').onclick = function () {
+      if (!confirm('Trả đề này về bản gốc (câu đề và hình vẽ sẵn)?')) return;
+      Promise.resolve(ctx.deleteEdit(itemId)).then(function () { delete OV[itemId]; done(); }).catch(function (e) { $('#weM').textContent = 'Lỗi: ' + e.message; });
+    };
+    $('#weS').onclick = function () {
+      var txt = $('#weT').value.trim(), data = {};
+      var orig = isT1 ? (ENT.filter(function (x) { return x.id === it.entry; })[0].t1.p) : (ENT.filter(function (x) { return x.id === it.entry; })[0].t2[1]);
+      if (txt && txt !== orig) data.text = txt.slice(0, 3000);
+      if (isT1 && ov.img) data.img = ov.img;
+      if (isT1 && $('#weV').value.trim()) data.vis = $('#weV').value.trim().slice(0, 4000);
+      $('#weS').disabled = true; $('#weM').textContent = 'Đang lưu...';
+      var pr = Object.keys(data).length ? ctx.saveEdit(itemId, Object.assign(data, { at: Date.now() })) : ctx.deleteEdit(itemId);
+      Promise.resolve(pr).then(function () { if (Object.keys(data).length) OV[itemId] = data; else delete OV[itemId]; done(); })
+        .catch(function (e) { $('#weS').disabled = false; $('#weM').textContent = 'Chưa lưu được: ' + e.message; });
+    };
+  }
+
+  window.NVWR = { setOverrides: setOverrides, openEditor: openEditor, item: item, paintHub: paintHub, openMock: openMock, entries: ENT, svgOf: svgOf };
 })();
