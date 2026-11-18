@@ -531,7 +531,8 @@ body.full-work .shell>main{padding:10px}
 .ai-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .ai-col>.scroll{flex:1;min-height:0;overflow-y:auto}
 @media (min-width:1024px){
-  .work{grid-template-columns:var(--lw,minmax(260px,.9fr)) 14px minmax(360px,1.35fr) 14px var(--rw,minmax(280px,.95fr))!important;column-gap:0!important}
+  .work{grid-template-columns:minmax(220px,var(--lf,.9fr)) 14px minmax(340px,var(--cf,1.35fr)) 14px minmax(260px,var(--rf,.95fr))!important;column-gap:0!important;max-width:100%;overflow:hidden}
+  .work>.sheet{min-width:0}
 }
 @media (max-width:1023px){.ai-col{min-height:420px}}
 .sheet{border:0!important;border-radius:28px!important;background:var(--nv-panel)!important}
@@ -1174,19 +1175,20 @@ body.full-work .shell>main{padding:10px}
     const pane = document.getElementById('wkPromptPane'), vs = document.getElementById('wkVSplit');
     let colFrac = null, rowPx = null;
     const wide = () => innerWidth >= 1024;
+    /* V3: 3 cột dùng tỉ lệ (fr) nên không bao giờ tràn ra ngoài màn hình. colFrac = phần cột đề, rwFrac = phần cột AI */
+    let rwFrac = null;
     function applyCol() {
-      if (colFrac == null) { work.style.removeProperty('--lw'); return; }
-      const W = work.getBoundingClientRect().width || (innerWidth - 48);
-      const rw = parseFloat(work.style.getPropertyValue('--rw')) || 0;
-      const px = Math.round(Math.min(W - 28 - 360 - (rw || 280), Math.max(240, colFrac * W)));
-      work.style.setProperty('--lw', px + 'px');
+      const lf = colFrac == null ? null : Math.min(.6, Math.max(.12, colFrac)), rf = rwFrac == null ? null : Math.min(.6, Math.max(.14, rwFrac));
+      if (lf == null && rf == null) { ['--lf', '--cf', '--rf'].forEach(k => work.style.removeProperty(k)); return; }
+      const L = lf == null ? .28 : lf, R = rf == null ? .28 : rf, C = Math.max(.2, 1 - L - R);
+      work.style.setProperty('--lf', L + 'fr'); work.style.setProperty('--cf', C + 'fr'); work.style.setProperty('--rf', R + 'fr');
     }
     function applyRow() {
       if (rowPx == null) { pane.classList.remove('sized'); pane.style.removeProperty('--ph'); return; }
       rowPx = Math.min(innerHeight * 0.75, Math.max(90, rowPx));
       pane.classList.add('sized'); pane.style.setProperty('--ph', Math.round(rowPx) + 'px');
     }
-    try { const f = parseFloat(localStorage.getItem('nightWrSplit')); if (f > 0 && f < 1) colFrac = f; const h = parseFloat(localStorage.getItem('nightWrPromptH')); if (h > 0) rowPx = h; } catch (e) {}
+    try { const f = parseFloat(localStorage.getItem('nightWrSplitL')); if (f > 0 && f < 1) colFrac = f; const h = parseFloat(localStorage.getItem('nightWrPromptH')); if (h > 0) rowPx = h; } catch (e) {}
     applyRow();
     window.__applyWorkSizes = () => { if (wide()) applyCol(); };
     window.addEventListener('resize', () => { if (wide()) applyCol(); });
@@ -1220,20 +1222,14 @@ body.full-work .shell>main{padding:10px}
     drag(split, 'col', e => {
       const r = work.getBoundingClientRect();
       colFrac = (e.clientX - r.left - 7) / r.width; applyCol();
-    }, () => { try { localStorage.setItem('nightWrSplit', colFrac); } catch (er) {} });
-    split.addEventListener('dblclick', () => { colFrac = null; applyCol(); try { localStorage.removeItem('nightWrSplit'); } catch (e) {} });
+    }, () => { try { localStorage.setItem('nightWrSplitL', colFrac); } catch (er) {} });
+    split.addEventListener('dblclick', () => { colFrac = null; applyCol(); try { localStorage.removeItem('nightWrSplitL'); } catch (e) {} });
     // Thanh kéo thứ 2: giữa ô viết bài và cột AI
-    const split2 = document.getElementById('wkSplit2'); let rwFrac = null;
-    function applyR() {
-      if (rwFrac == null) { work.style.removeProperty('--rw'); return; }
-      const W = work.getBoundingClientRect().width || (innerWidth - 48), lw = parseFloat(work.style.getPropertyValue('--lw')) || W * 0.28;
-      work.style.setProperty('--rw', Math.round(Math.min(W - 28 - 360 - lw, Math.max(260, rwFrac * W))) + 'px');
-    }
+    const split2 = document.getElementById('wkSplit2');
     try { const f = parseFloat(localStorage.getItem('nightWrSplitR')); if (f > 0 && f < 1) rwFrac = f; } catch (e) {}
-    if (wide()) applyR();
-    window.addEventListener('resize', () => { if (wide()) applyR(); });
-    drag(split2, 'col', e => { const r = work.getBoundingClientRect(); rwFrac = (r.right - e.clientX - 7) / r.width; applyR(); }, () => { try { localStorage.setItem('nightWrSplitR', rwFrac); } catch (er) {} });
-    split2.addEventListener('dblclick', () => { rwFrac = null; applyR(); try { localStorage.removeItem('nightWrSplitR'); } catch (e) {} });
+    if (wide()) applyCol();
+    drag(split2, 'col', e => { const r = work.getBoundingClientRect(); rwFrac = (r.right - e.clientX - 7) / r.width; applyCol(); }, () => { try { localStorage.setItem('nightWrSplitR', rwFrac); } catch (er) {} });
+    split2.addEventListener('dblclick', () => { rwFrac = null; applyCol(); try { localStorage.removeItem('nightWrSplitR'); } catch (e) {} });
     let startY = 0, startH = 0;
     vs.addEventListener('pointerdown', e => { startY = e.clientY; startH = document.getElementById('wkPrompt').getBoundingClientRect().height; }, true);
     drag(vs, 'row', e => { rowPx = startH + (e.clientY - startY); applyRow(); }, () => { try { localStorage.setItem('nightWrPromptH', rowPx); } catch (er) {} });
