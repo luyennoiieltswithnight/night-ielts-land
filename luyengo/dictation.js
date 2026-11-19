@@ -98,53 +98,146 @@
     engP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = ROOT + 'luyengo/engine-en.js?v=20261110'; s.onload = function () { res(window.LTG_EN); }; s.onerror = rej; document.head.appendChild(s); });
     return engP;
   }
+  /* ===== V3: giao diện TỐI GIẢN (kiểu "nghe – gõ" nền giấy): nghĩa tiếng Việt to ở giữa, câu tiếng Anh là các ô từ
+     có gạch chân, chữ gõ đúng hiện màu xanh; câu trước hiện mờ phía trên; thống kê + nút gọn phía dưới. Không dùng iframe. ===== */
   function css() {
-    if (document.getElementById('nv-dictp-css')) return;
-    var st = document.createElement('style'); st.id = 'nv-dictp-css';
-    st.textContent = '#nv-dict-play{position:fixed;inset:0;z-index:100070;background:#FFF8EE;display:flex;flex-direction:column}#nv-dict-play iframe{flex:1;border:0;width:100%}';
+    if (document.getElementById('nvd-css')) return;
+    var f = document.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@600;700&display=swap'; document.head.appendChild(f);
+    var st = document.createElement('style'); st.id = 'nvd-css';
+    st.textContent = [
+      '#nvd{position:fixed;inset:0;z-index:100070;background:#FAF8F4;color:#2B2B2B;display:flex;flex-direction:column;font-family:"Plus Jakarta Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}',
+      '#nvd .top{display:flex;align-items:center;gap:12px;padding:14px 20px 0}',
+      '#nvd .x{border:0;background:transparent;font-size:22px;line-height:1;color:#9a958c;cursor:pointer;padding:6px 8px;border-radius:10px}#nvd .x:hover{background:#EFECE6;color:#2B2B2B}',
+      '#nvd .ttl{flex:1;min-width:0;font-size:13px;color:#9a958c;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '#nvd .cnt{font-size:13px;color:#9a958c;font-weight:700;font-variant-numeric:tabular-nums}',
+      '#nvd .bar{height:3px;background:#ECE8E1;margin:12px 20px 0;border-radius:3px;overflow:hidden}#nvd .bar i{display:block;height:100%;background:#5DBB7E;transition:width .3s}',
+      '#nvd .prev{min-height:22px;text-align:center;font-size:12.5px;color:#a8a39a;margin:22px 16px 0;display:flex;justify-content:center;gap:14px;flex-wrap:wrap}#nvd .prev b{color:#7d786f;font-weight:600}#nvd .prev .ok{color:#5DBB7E}',
+      '#nvd .mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 18px 0;min-height:0;overflow:auto}',
+      '#nvd .vi{font-size:clamp(22px,3.6vw,38px);font-weight:700;color:#3a3833;text-align:center;max-width:900px;line-height:1.35;letter-spacing:.01em}',
+      '#nvd .who{margin-top:8px;font-size:11.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#b9b3a8}',
+      '#nvd .words{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 18px;margin:38px 0 6px;max-width:1000px;cursor:text}',
+      '#nvd .w{display:flex;flex-direction:column;align-items:center}',
+      '#nvd .w .t{font-family:"Source Serif 4",Georgia,serif;font-weight:700;font-size:clamp(24px,3.4vw,40px);line-height:1.15;color:#5DBB7E;white-space:pre;min-height:1.15em}',
+      '#nvd .w .t .g{color:transparent}#nvd .w .t .bad{color:#E0675A;animation:nvdShake .25s}#nvd .w .t .hint{color:#E3A33B}#nvd .w .t .rv{color:#9E9AA8}',
+      '#nvd .w .u{height:2px;width:100%;background:#D9D4CA;margin-top:4px;border-radius:2px}#nvd .w.cur .u{background:#5DBB7E;height:3px}#nvd .w.done .u{background:#BFE3CB}',
+      '#nvd .p{font-family:"Source Serif 4",Georgia,serif;font-weight:700;font-size:clamp(24px,3.4vw,40px);color:#C9C3B8;align-self:flex-start}',
+      '@keyframes nvdShake{25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}',
+      '#nvd .play{margin-top:18px;border:0;background:#fff;box-shadow:0 0 0 1px #E6E1D8;width:46px;height:46px;border-radius:50%;cursor:pointer;color:#5DBB7E;font-size:17px;display:grid;place-items:center}#nvd .play:hover{box-shadow:0 0 0 2px #5DBB7E}#nvd .play.on{background:#5DBB7E;color:#fff}',
+      '#nvd .msg{min-height:20px;margin-top:12px;font-size:13px;color:#5DBB7E;font-weight:700}',
+      '#nvd .stats{display:flex;justify-content:center;gap:0;margin:8px auto 0;font-size:12.5px;color:#9a958c}#nvd .stats span{padding:4px 14px;border-left:1px solid #E6E1D8}#nvd .stats span:first-child{border-left:0}#nvd .stats b{color:#5DBB7E;margin-left:5px}#nvd .stats .e{color:#E0675A}#nvd .stats .r{color:#6C70DC}',
+      '#nvd .acts{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;padding:14px 16px max(18px,env(safe-area-inset-bottom))}',
+      '#nvd .acts button{border:0;background:#fff;box-shadow:0 0 0 1px #E6E1D8;border-radius:10px;padding:9px 14px;font:700 13px inherit;color:#5d5850;cursor:pointer;display:inline-flex;align-items:center;gap:7px}#nvd .acts button:hover{box-shadow:0 0 0 1.5px #bdb6aa}',
+      '#nvd .acts kbd{font:600 10.5px inherit;color:#aaa49a;background:#F3F0EA;border-radius:5px;padding:1px 5px}',
+      '#nvd .acts .go{background:#5DBB7E;color:#fff;box-shadow:none}#nvd .acts .go kbd{background:rgba(255,255,255,.25);color:#fff}#nvd .acts .go:hover{background:#4FAA6F;box-shadow:none}',
+      '#nvd .acts .slow.on{background:#EEF7F1;box-shadow:0 0 0 1.5px #5DBB7E;color:#3E8E5A}',
+      '#nvd .hid{position:absolute;opacity:0;left:-9999px;top:0;width:1px;height:1px}',
+      '@media(max-width:640px){#nvd .acts kbd{display:none}#nvd .words{gap:8px 12px;margin-top:26px}#nvd .acts button{padding:9px 11px}}'
+    ].join('\n');
     document.head.appendChild(st);
   }
   function open(o) {
     var list = o.items || []; if (!list.length) return;
     css();
     var wait = document.createElement('div'); wait.id = 'nv-dict-wait';
-    wait.style.cssText = 'position:fixed;inset:0;z-index:100071;display:grid;place-items:center;background:rgba(36,36,42,.55);backdrop-filter:blur(6px);font:700 15px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;color:#fff;text-align:center';
-    wait.innerHTML = '<div><div style="width:34px;height:34px;margin:0 auto 12px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:nvdsp 1s linear infinite"></div>Đang chuẩn bị bài và nghĩa tiếng Việt...</div><style>@keyframes nvdsp{to{transform:rotate(360deg)}}</style>';
+    wait.style.cssText = 'position:fixed;inset:0;z-index:100071;display:grid;place-items:center;background:rgba(250,248,244,.92);font:700 15px/1.5 "Plus Jakarta Sans",system-ui,sans-serif;color:#7d786f;text-align:center';
+    wait.innerHTML = '<div><div style="width:30px;height:30px;margin:0 auto 12px;border:3px solid #E6E1D8;border-top-color:#5DBB7E;border-radius:50%;animation:nvdsp 1s linear infinite"></div>Đang chuẩn bị bài và nghĩa tiếng Việt...</div><style>@keyframes nvdsp{to{transform:rotate(360deg)}}</style>';
     document.body.appendChild(wait);
-    return Promise.all([engine(), o.noVi ? null : translate(list, o.viKey)]).then(function (res) {
-      var E = res[0]; wait.remove();
-      var items = list.map(function (x) { return { phrase: x.s, meaningVi: x.vi || (x.tag + (x.who ? ' · ' + x.who : '')), sentence: x.s, sentenceVi: x.vi || '' }; });
-      var html = E.build(o.title || 'Chép chính tả', items, 'blue').replace(/<script src="\/night-app\.js"[^>]*><\/script>/, '');
-      var seg = {}; list.forEach(function (x) { if (x.t0 != null) seg[x.s] = [x.t0, x.t1]; });
-      var useAudio = o.audio && Object.keys(seg).length;
-      /* 1) mở thẳng màn gõ  2) phát đúng đoạn audio gốc thay cho giọng máy  3) báo câu sai ra ngoài */
-      var js = '<style>' + DCSS + '</style><script>(function(){var bad={},cur=-1,PAL=' + PAL + ';function paint(k){var c=PAL[(k<0?0:k)%PAL.length],r=document.documentElement.style;r.setProperty("--dc",c[0]);r.setProperty("--d2",c[1]);r.setProperty("--dl",c[2]);r.setProperty("--dd",c[3]);}paint(0);' +
-        (useAudio ? 'var SEG=' + JSON.stringify(seg) + ',AU=new Audio(' + JSON.stringify(o.audio) + '),stop=0;AU.preload="auto";' +
-          'function tick(){if(stop&&AU.currentTime>=stop){AU.pause();stop=0;return}if(stop)requestAnimationFrame(tick)}' +
-          'var ORIG=window.speak;window.speak=function(t,r){var g=SEG[t];if(!g)return ORIG&&ORIG.apply(this,arguments);try{speechSynthesis.cancel()}catch(e){}try{parent.postMessage("nv-speak","*")}catch(e){}' +
-          'AU.playbackRate=(r&&r<1)?0.75:1;try{AU.currentTime=g[0]}catch(e){}stop=g[1];var p=AU.play();if(p&&p.catch)p.catch(function(){});requestAnimationFrame(tick)};' : '') +
-        'function w(n,f){var o=window[n];if(typeof o!=="function")return;window[n]=function(){f();return o.apply(this,arguments);};}' +
-        'function i(){return typeof state!=="undefined"?state.practiceIndex:-1}' +
-        'w("reveal",function(){bad[i()]=1;});w("giveHint",function(){bad[i()]=1;});' +
-        'setInterval(function(){try{if(state.errorIndex>=0||state.hintActive)bad[i()]=1;var k=i();if(k!==cur){paint(k);if(cur>=0)parent.postMessage({nvDict:{i:cur,bad:!!bad[cur],ok:!!state}},"*");cur=k;}}catch(e){}},150);' +
-        'window.__nvDictFlush=function(){try{parent.postMessage({nvDict:{i:cur,bad:!!bad[cur],last:1}},"*")}catch(e){}};' +
-        '(function go(){var a=document.getElementById("app");if(!a||!a.firstChild||typeof state==="undefined"||typeof render!=="function")return setTimeout(go,60);state.viewMode="type";state.practiceType="phrase";state.practiceIndex=0;state.input="";state.completed=false;state.revealed=false;render(0);setTimeout(function(){var h=document.getElementById("hiddenInput");if(h)h.focus();try{speak(current().audioText,1)}catch(e){}},400);})();' +
-        '})();<\/script>';
-      var skin = '<script>window.NV_SKIN=' + JSON.stringify({ lang: 'en', ac: '#6C70DC', img: ROOT + 'khoahoc/img/ira/', pkey: '', theme: 'dict' }) + '<\/script><script src="' + ROOT + 'luyengo/skin.js?v=2"><\/script>';
-      html = html.replace(/<\/body>\s*<\/html>\s*$/, skin + js + '</body></html>');
-      var wrap = document.createElement('div'); wrap.id = 'nv-dict-play';
-      var fr = document.createElement('iframe'); fr.setAttribute('allow', 'autoplay'); wrap.appendChild(fr); document.body.appendChild(wrap);
-      var ov = document.body.style.overflow; document.body.style.overflow = 'hidden';
-      fr.srcdoc = html;
-      var onMsg = function (e) {
-        if (e.source !== fr.contentWindow) return;
-        if (e.data && e.data.nvDict) { var it = list[e.data.nvDict.i]; if (it && o.onResult) o.onResult(it, !!e.data.nvDict.bad); }
-        if (e.data === 'nv-close') close();
-      };
-      var close = function () { try { fr.contentWindow.__nvDictFlush && fr.contentWindow.__nvDictFlush(); } catch (e) {} setTimeout(function () { window.removeEventListener('message', onMsg); wrap.remove(); document.body.style.overflow = ov; if (o.onClose) o.onClose(); }, 60); };
-      window.addEventListener('message', onMsg);
-      return useAudio;
-    }).catch(function (e) { wait.remove(); alert('Chưa mở được bài — kiểm tra mạng rồi thử lại nhé.'); });
+    return Promise.resolve(o.noVi ? null : translate(list, o.viKey)).then(function () {
+      wait.remove();
+      var hasSeg = list.some(function (x) { return x.t0 != null; }), AU = o.audio && hasSeg ? new Audio(o.audio) : null, stopAt = 0, slow = false;
+      if (AU) AU.preload = 'auto';
+      var W = document.createElement('div'); W.id = 'nvd';
+      W.innerHTML = '<div class="top"><button class="x" title="Đóng (Esc)">✕</button><div class="ttl"></div><div class="cnt"></div></div><div class="bar"><i></i></div>' +
+        '<div class="prev"></div><div class="mid"><div class="vi"></div><div class="who"></div><div class="words"></div><button class="play" title="Nghe lại">▶</button><div class="msg"></div></div>' +
+        '<div class="stats"><span>Đã đúng<b class="c">0</b></span><span>Đã sai<b class="e">0</b></span><span>Tỉ lệ đúng<b class="r">–</b></span></div>' +
+        '<div class="acts"><button data-a="prev">← Câu trước</button><button data-a="play">🔊 Nghe lại <kbd>⌘⇧</kbd></button><button data-a="slow" class="slow">🐢 Chậm</button><button data-a="hint">💡 Gợi ý <kbd>Tab</kbd></button><button data-a="show">👁 Xem đáp án</button><button data-a="next" class="go">Tiếp <kbd>Enter</kbd></button></div>' +
+        '<input class="hid" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">';
+      document.body.appendChild(W);
+      var ovf = document.body.style.overflow; document.body.style.overflow = 'hidden';
+      var $ = function (q) { return W.querySelector(q); }, inp = $('.hid');
+      $('.ttl').textContent = o.title || 'Chép chính tả';
+      var norm1 = function (c) { return String(c).toLowerCase().replace(/[’‘`]/g, "'"); };
+      var isL = function (c) { return /[A-Za-z0-9]/.test(c); };
+      var idx = 0, S = null, ok = 0, bad = 0, done = {};
+      function build(k) {
+        var x = list[k], words = x.s.split(/\s+/).filter(Boolean);
+        S = { k: k, words: words.map(function (w) { return { raw: w, chars: w.split(''), got: w.split('').map(function (c) { return isL(c) ? null : c; }) }; }), bad: false, finished: false, flag: {} };
+        render();
+      }
+      function cursor() { for (var i = 0; i < S.words.length; i++) for (var j = 0; j < S.words[i].chars.length; j++) if (S.words[i].got[j] == null) return [i, j]; return null; }
+      function render() {
+        var x = list[S.k], cur = cursor();
+        $('.cnt').textContent = (S.k + 1) + ' / ' + list.length;
+        $('.bar i').style.width = (Object.keys(done).length / list.length * 100) + '%';
+        $('.vi').textContent = x.vi || x.tag || '';
+        $('.who').textContent = x.who || '';
+        var pv = list[S.k - 1];
+        $('.prev').innerHTML = pv ? '<span>Câu trước</span><b>' + esc(pv.s) + '</b>' + (done[S.k - 1] === 'ok' ? '<span class="ok">✓</span>' : '') + (pv.vi ? '<span>' + esc(pv.vi) + '</span>' : '') : '';
+        $('.words').innerHTML = S.words.map(function (w, i) {
+          var letters = w.chars.map(function (c, j) {
+            var g = w.got[j]; if (!isL(c)) return /[.,!?;:"”“()]/.test(c) ? '' : '<span>' + esc(c) + '</span>';
+            var fl = S.flag[i + ':' + j];
+            return g == null ? '<span class="g">' + esc(c) + '</span>' : '<span class="' + (fl || '') + '">' + esc(c) + '</span>';
+          }).join('');
+          var punct = w.chars.filter(function (c) { return /[.,!?;:"”“()]/.test(c); }).join('');
+          var cls = 'w' + (cur && cur[0] === i ? ' cur' : '') + (w.got.every(function (g) { return g != null; }) ? ' done' : '');
+          return '<span class="' + cls + '"><span class="t">' + letters + '</span><span class="u"></span></span>' + (punct ? '<span class="p">' + esc(punct) + '</span>' : '');
+        }).join('');
+        $('.msg').textContent = S.finished ? (S.bad ? 'Xong câu này — nhấn Enter để sang câu tiếp' : 'Chính xác! Nhấn Enter để sang câu tiếp') : '';
+        var tot = ok + bad; $('.stats .c').textContent = ok; $('.stats .e').textContent = bad; $('.stats .r').textContent = tot ? Math.round(ok / tot * 100) + '%' : '–';
+      }
+      function finish() {
+        if (S.finished) return; S.finished = true;
+        if (done[S.k] == null) { if (S.bad) bad++; else ok++; done[S.k] = S.bad ? 'bad' : 'ok'; if (o.onResult) try { o.onResult(list[S.k], S.bad); } catch (e) {} }
+        render();
+      }
+      function typeChar(c) {
+        if (S.finished) return; var cur = cursor(); if (!cur) return finish();
+        var want = S.words[cur[0]].chars[cur[1]];
+        if (norm1(c) === norm1(want)) { S.words[cur[0]].got[cur[1]] = want; delete S.flag[cur[0] + ':' + cur[1]]; if (!cursor()) finish(); else render(); }
+        else { S.bad = true; var el = $('.w.cur .t .g'); if (el) { el.textContent = c; el.className = 'bad'; setTimeout(render, 260); } }
+      }
+      function back() { if (S.finished) return; var last = null; S.words.forEach(function (w, i) { w.chars.forEach(function (c, j) { if (isL(c) && w.got[j] != null) last = [i, j]; }); }); if (last) { S.words[last[0]].got[last[1]] = null; render(); } }
+      function hint() { var cur = cursor(); if (!cur) return; S.bad = true; var w = S.words[cur[0]]; for (var j = cur[1]; j < w.chars.length; j++) if (isL(w.chars[j])) { w.got[j] = w.chars[j]; S.flag[cur[0] + ':' + j] = 'hint'; } if (!cursor()) finish(); else render(); }
+      function reveal() { S.bad = true; S.words.forEach(function (w, i) { w.chars.forEach(function (c, j) { if (w.got[j] == null) { w.got[j] = c; S.flag[i + ':' + j] = 'rv'; } }); }); finish(); }
+      function play() {
+        var x = list[S.k]; try { speechSynthesis.cancel(); } catch (e) {}
+        if (AU && x.t0 != null) { AU.playbackRate = slow ? 0.75 : 1; try { AU.currentTime = x.t0; } catch (e) {} stopAt = x.t1; var pr = AU.play(); if (pr && pr.catch) pr.catch(function () {}); $('.play').classList.add('on'); tick(); return; }
+        try { var u = new SpeechSynthesisUtterance(x.s); u.lang = 'en-GB'; u.rate = slow ? 0.7 : 0.95; speechSynthesis.speak(u); } catch (e) {}
+      }
+      function tick() { if (!AU) return; if (stopAt && AU.currentTime >= stopAt) { AU.pause(); stopAt = 0; $('.play').classList.remove('on'); return; } if (stopAt) requestAnimationFrame(tick); }
+      function go(k) { if (k < 0 || k >= list.length) { if (k >= list.length) close(); return; } if (AU) AU.pause(); build(k); setTimeout(play, 150); focus(); }
+      function next() { if (!S.finished) { if (!cursor()) finish(); else { S.bad = true; if (done[S.k] == null) { bad++; done[S.k] = 'bad'; if (o.onResult) try { o.onResult(list[S.k], true); } catch (e) {} } } } go(S.k + 1); }
+      function focus() { try { inp.focus({ preventScroll: true }); } catch (e) {} }
+      function close() { if (AU) AU.pause(); try { speechSynthesis.cancel(); } catch (e) {} document.removeEventListener('keydown', onKey, true); W.remove(); document.body.style.overflow = ovf; if (o.onClose) o.onClose(); }
+      var shiftOnly = false;
+      function onKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'Shift' || e.key === 'Meta' || e.key === 'Control')) { shiftOnly = true; return; }
+        shiftOnly = false;
+        if (e.key === 'Enter') { e.preventDefault(); if (S.finished) next(); else if (!cursor()) finish(); return; }
+        if (e.key === 'Tab') { e.preventDefault(); hint(); return; }
+        if (e.key === 'Backspace') { e.preventDefault(); back(); return; }
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (e.key && e.key.length === 1 && e.key !== ' ') { e.preventDefault(); typeChar(e.key); }
+        else if (e.key === ' ') e.preventDefault();
+      }
+      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('keyup', function (e) { if (shiftOnly && (e.key === 'Shift' || e.key === 'Meta' || e.key === 'Control')) { shiftOnly = false; play(); } }, true);
+      /* điện thoại: gõ qua ô ẩn */
+      inp.addEventListener('input', function () { var v = inp.value; inp.value = ''; for (var i = 0; i < v.length; i++) if (v[i] !== ' ') typeChar(v[i]); });
+      W.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); focus(); if (!b) return;
+        if (b.classList.contains('x')) return close();
+        if (b.classList.contains('play')) return play();
+        var a = b.dataset.a;
+        if (a === 'prev') go(S.k - 1); else if (a === 'play') play(); else if (a === 'slow') { slow = !slow; b.classList.toggle('on', slow); play(); }
+        else if (a === 'hint') hint(); else if (a === 'show') reveal(); else if (a === 'next') next();
+      });
+      build(0); setTimeout(function () { play(); focus(); }, 300);
+      return !!AU;
+    }).catch(function (e) { wait.remove(); console.warn(e); alert('Chưa mở được bài — kiểm tra mạng rồi thử lại nhé.'); });
   }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   window.NVDict = { sentences: sentences, timing: timing, attach: attach, open: open, canUse: canUse, ROOT: ROOT };
 })();

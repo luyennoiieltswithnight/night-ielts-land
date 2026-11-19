@@ -899,7 +899,7 @@
   if (REVIEW) setTimeout(function () { mark(0); }, 1500);
 
   var dP = null;
-  function lib() { if (window.NVDict) return Promise.resolve(window.NVDict); if (dP) return dP; dP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/luyengo/dictation.js?v=3'; s.onload = function () { res(window.NVDict); }; s.onerror = rej; document.head.appendChild(s); }); return dP; }
+  function lib() { if (window.NVDict) return Promise.resolve(window.NVDict); if (dP) return dP; dP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/luyengo/dictation.js?v=4'; s.onload = function () { res(window.NVDict); }; s.onerror = rej; document.head.appendChild(s); }); return dP; }
   function audioSrc() { try { return typeof AUDIO_SRC !== 'undefined' && AUDIO_SRC ? new URL(AUDIO_SRC, location.href).href : ''; } catch (e) { return ''; } }
   function alignUrl() { var a = audioSrc(); return a ? a.replace(/-audio\.mp3$|\.mp3$/, '') + '-align.json' : ''; }
   function title(n) { var b = document.getElementById('passage-' + n + '-text'); return (b && b.getAttribute('data-title')) || ''; }
