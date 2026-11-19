@@ -80,7 +80,7 @@
   function plan() {
     if (window.NightPlan) return Promise.resolve(window.NightPlan);
     if (planP) return planP;
-    planP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = ROOT + 'night-plan.js?v=20261113a'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; document.head.appendChild(s); });
+    planP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = ROOT + 'night-plan.js?v=20261119a'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; document.head.appendChild(s); });
     return planP;
   }
   function canUse(silent) {

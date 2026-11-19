@@ -106,7 +106,7 @@
     if (window.NightPlan) return Promise.resolve(window.NightPlan);
     return new Promise(function (res) {
       var sc = document.createElement('script');
-      try { sc.src = new URL('../night-plan.js?v=20261108a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-plan.js'; }
+      try { sc.src = new URL('../night-plan.js?v=20261119a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-plan.js'; }
       sc.onload = function () { res(window.NightPlan || null); }; sc.onerror = function () { res(null); };
       document.head.appendChild(sc);
     });
@@ -178,6 +178,8 @@
             var u = snap.exists() ? snap.data() : { role: 'user' };
             var role = u.role || 'student';
             var access = accessOf(u, key);
+            // Trang đã hiện theo quyền cũ lưu trên máy (vd. vừa mua Astra) mà quyền thật đã đổi -> lưu quyền mới rồi tải lại 1 lần
+            if (done && cached && cached.uid === user.uid && cached.access !== access) { writeAcc(key, { uid: user.uid, role: role, plan: effRole(u), access: access, courses: u.courses || [], bought: boughtUntil(u, key), tier: u.tier || '' }); location.reload(); return; }
             if (access === 'free' && n > FREE_N) { clearAcc(key); showPaywall(o, user, key, u); return; }
             writeAcc(key, { uid: user.uid, role: role, plan: effRole(u), access: access, courses: u.courses || [], bought: boughtUntil(u, key), tier: u.tier || '' });
             if (unsubUser) { unsubUser(); unsubUser = null; }

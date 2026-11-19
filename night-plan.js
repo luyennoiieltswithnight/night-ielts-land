@@ -537,6 +537,7 @@
   function quotaMsg(qt) {
     var nm = SKILL_NAME[qt.skill] || qt.skill;
     if (qt.skill === 'writing') return 'Bạn đã dùng hết ' + qt.limit + ' bài Writing được AI chấm thử miễn phí. Nâng cấp ⭐ Pro để AI chấm Writing không giới hạn nhé.';
+    if (qt.used < qt.limit) return 'AI đang bận, bạn chờ khoảng 1 phút rồi bấm chấm lại nhé (chưa bị trừ lượt).';
     if (qt.kind === 'daily') return 'Bạn đã dùng hết ' + qt.limit + ' lượt chấm Speaking miễn phí hôm nay. Ngày mai bạn có lượt mới, hoặc nâng cấp ⭐ Pro để chấm không giới hạn nhé.';
     return 'Bạn đã dùng hết lượt AI miễn phí cho ' + nm + '. Nâng cấp ⭐ Pro để dùng không giới hạn nhé.';
   }
@@ -589,10 +590,15 @@
         return Promise.all(jobs).then(function () { req.fields = fields; req.file = file; return req; });
       });
     }).then(function (req) {
-      return _fetch(settings.aiProxy, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(req) });
-    }).then(function (r) {
-      if (!r.ok) throw new Error('AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.');
-      return r.json();
+      var post = function () { return _fetch(settings.aiProxy, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(req) }).then(function (r) {
+        if (!r.ok) throw new Error('AI đang bận, bạn chờ khoảng 1 phút rồi thử lại nhé.');
+        return r.json();
+      }); };
+      return post().then(function (j) {
+        // Lần chấm chưa được mở vé (lần gọi trừ lượt trước đó bị lỗi mạng / gọi lại) mà vẫn còn lượt -> trừ lượt ngay ở lần gọi này
+        if (j.error === 'QUOTA' && !req.charge && req.skill === 'speaking' && j.quota && j.quota.used < j.quota.limit) { req.charge = true; return post(); }
+        return j;
+      });
     }).then(function (j) {
       if (j.error === 'QUOTA') { var e = new Error(quotaMsg(j.quota)); e.code = 'QUOTA'; showQuota(j.quota); throw e; }
       if (j.error === 'PRO_ONLY') { var e3 = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra.'); e3.code = 'PRO_ONLY'; throw e3; }
