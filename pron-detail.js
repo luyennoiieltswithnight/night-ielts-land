@@ -66,38 +66,53 @@
     if (document.getElementById('npd-css')) return;
     var s = document.createElement('style'); s.id = 'npd-css';
     s.textContent = [
-      '.npd-ov{position:fixed;inset:0;z-index:10050;background:rgba(20,16,48,.55);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}',
-      '.npd{width:100%;max-width:860px;background:#fff;border-radius:26px;box-shadow:0 30px 60px -20px rgba(20,10,80,.5);padding:20px 20px 24px;color:#1F1B3A;font-family:"Plus Jakarta Sans",system-ui,sans-serif;animation:npdIn .25s ease-out}',
+      '.npd-ov{position:fixed;inset:0;z-index:10050;background:rgba(20,16,48,.55);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:22px 12px}',
+      '.npd{width:100%;max-width:1040px;background:#FBFAFF;border-radius:28px;box-shadow:0 30px 70px -20px rgba(20,10,80,.55);color:#1F1B3A;font-family:"Plus Jakarta Sans",system-ui,sans-serif;animation:npdIn .25s ease-out;overflow:hidden}',
       '@keyframes npdIn{from{opacity:0;transform:translateY(14px)}}',
-      '.npd-top{display:flex;align-items:center;gap:16px}.npd-top h3{margin:0;font-size:21px;font-weight:800}.npd-top p{margin:3px 0 0;color:#6B6890;font-size:13.5px}',
-      '.npd-x{margin-left:auto;align-self:flex-start;border:0;background:#F1EFFA;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;color:#4B4870;flex:none}',
-      '.npd-ring{--v:0;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c,#16A34A) calc(var(--v)*1%),#EEE 0);flex:none}',
-      '.npd-ring b{width:66px;height:66px;border-radius:50%;background:#fff;display:grid;place-items:center;align-content:center;font-size:24px;font-weight:800;line-height:1.9}',
-      '.npd-leg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B6890;margin-top:6px}.npd-leg span:before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;background:var(--b);box-shadow:var(--o,none)}',
-      '.npd-words{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;max-height:42vh;overflow:auto;padding:2px}',
-      '.npd-w{border:1.5px solid #E7E4F5;border-radius:14px;padding:7px 10px 6px;background:#fff;cursor:pointer;transition:transform .12s;font:inherit;text-align:left;color:inherit}',
-      '.npd-w:hover{transform:translateY(-2px)}.npd-w.sel{border-color:#5B4BDB;box-shadow:0 0 0 3px #E4DFFF}.npd-w.fn{opacity:.7}',
-      '.npd-w .t{font-weight:800;font-size:16px;display:flex;align-items:center;gap:5px}.npd-w .t small{font-size:10.5px;font-weight:800;border-radius:999px;padding:1px 6px;color:#fff;background:var(--c)}',
-      '.npd-ph{display:flex;align-items:flex-start;gap:3px;margin-top:5px;flex-wrap:wrap}',
-      '.npd-p{font-family:"Noto Sans","Segoe UI",sans-serif;font-size:13px;border-radius:6px;padding:0 5px;font-weight:700;line-height:1.6}',
-      '.npd-p.ok{background:#DCFCE7;color:#16A34A}.npd-p.near{background:#FEF3C7;color:#B45309}.npd-p.sub{background:#FEE2E2;color:#DC2626}',
-      '.npd-p.miss{background:#fff;color:#DC2626;outline:1.5px dashed #DC2626;outline-offset:-1.5px;text-decoration:line-through}.npd-p.extra{background:#F1F5F9;color:#64748B;font-style:italic}',
-      '.npd-d{border-radius:18px;background:linear-gradient(180deg,#FBFAFF,#fff);border:1px solid #E7E4F5;padding:16px;margin-top:14px}',
-      '.npd-d h4{margin:0;font-size:24px;font-weight:800;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.npd-d h4 span{font-family:"Noto Sans",sans-serif;color:#6B6890;font-size:15px;font-weight:400}',
-      '.npd-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}',
-      '.npd-b{border:0;border-radius:999px;padding:8px 14px;font:700 13.5px "Plus Jakarta Sans",sans-serif;cursor:pointer;background:#EEEAFE;color:#5B4BDB;display:inline-flex;align-items:center;gap:6px}',
-      '.npd-b.me{background:#FFE4EC;color:#BE185D}.npd-b.cmp{background:linear-gradient(135deg,#5B4BDB,#8B5CF6);color:#fff}.npd-b:disabled{opacity:.45;cursor:default}.npd-b.on{box-shadow:0 0 0 3px rgba(91,75,219,.25)}',
-      '.npd-b svg{width:14px;height:14px}',
-      '.npd-big{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin:14px 0 4px}.npd-big .npd-p{font-size:21px;padding:3px 10px;border-radius:10px}',
-      '.npd-fix{border-left:4px solid var(--c);background:#fff;border-radius:12px;padding:10px 12px;margin-top:9px;box-shadow:0 4px 14px -10px rgba(0,0,0,.25)}',
-      '.npd-fix b.h{display:block;margin-bottom:3px}.npd-fix .how{color:#3F3D56;font-size:14.5px;line-height:1.55}.npd-fix .eg{color:#6B6890;font-size:13px;margin-top:4px}',
-      '.npd-ok{color:#16A34A;font-weight:700;margin-top:8px}',
-      '.npd-load{padding:40px 10px;text-align:center;color:#6B6890;font-weight:600}.npd-load i{display:block;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;border:3px solid #E4DFFF;border-top-color:#5B4BDB;animation:npdSp 1s linear infinite}@keyframes npdSp{to{transform:rotate(360deg)}}',
-      '.npd-err{color:#DC2626;font-weight:700;padding:20px 4px}',
-      '.npd-note{font-size:12px;color:#8A87A8;margin-top:12px;line-height:1.5}',
+      '.npd-hd{display:flex;align-items:center;gap:16px;padding:18px 22px;background:linear-gradient(120deg,#2A2370,#5B4BDB 60%,#B84BD8);color:#fff}',
+      '.npd-ring{--v:0;width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c,#22C55E) calc(var(--v)*1%),rgba(255,255,255,.18) 0);flex:none}',
+      '.npd-ring b{width:60px;height:60px;border-radius:50%;background:#251F63;display:grid;place-items:center;font-size:22px;font-weight:800}',
+      '.npd-hd h3{margin:0;font-size:20px;font-weight:800}.npd-hd p{margin:4px 0 0;font-size:13.5px;opacity:.85;line-height:1.45}',
+      '.npd-stat{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.npd-stat span{background:rgba(255,255,255,.16);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}',
+      '.npd-x{margin-left:auto;align-self:flex-start;border:0;background:rgba(255,255,255,.18);width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;color:#fff;flex:none}',
+      '.npd-main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;padding:18px 22px 22px}',
+      '.npd-sec{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A87A8;margin:0 0 8px}',
+      '.npd-box{background:#fff;border:1px solid #ECE9F8;border-radius:20px;padding:16px}',
+      '.npd-text{font-size:17px;line-height:2.05}',
+      '.npd-tw{border:0;background:none;font:inherit;color:inherit;padding:1px 3px;border-radius:7px;cursor:pointer;border-bottom:2.5px solid transparent}',
+      '.npd-tw.lv1{border-bottom-color:#F59E0B}.npd-tw.lv2{background:#FEE2E2;color:#B91C1C;border-bottom-color:#EF4444}.npd-tw.fn{color:#8A87A8}',
+      '.npd-tw.sel{background:#5B4BDB;color:#fff;border-bottom-color:#5B4BDB}',
+      '.npd-todo{display:flex;flex-wrap:wrap;gap:8px}',
+      '.npd-chip{border:1.5px solid #ECE9F8;background:#fff;border-radius:14px;padding:7px 11px;font:700 14.5px "Plus Jakarta Sans",sans-serif;color:#1F1B3A;cursor:pointer;display:inline-flex;align-items:center;gap:7px}',
+      '.npd-chip i{font-style:normal;font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px;color:#fff;background:var(--c)}.npd-chip.sel{border-color:#5B4BDB;box-shadow:0 0 0 3px #E4DFFF}',
+      '.npd-good{color:#16A34A;font-weight:700;font-size:14px}',
+      '.npd-side{position:sticky;top:0;align-self:start}',
+      '.npd-card{background:#fff;border:1px solid #ECE9F8;border-radius:22px;padding:18px;box-shadow:0 14px 30px -24px rgba(40,20,140,.45)}',
+      '.npd-card h4{margin:0;font-size:30px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.npd-card h4 span{font-family:"Noto Sans","Segoe UI",sans-serif;color:#8A87A8;font-size:16px;font-weight:400}',
+      '.npd-big{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin:12px 0 2px}',
+      '.npd-p{font-family:"Noto Sans","Segoe UI",sans-serif;font-weight:700;border-radius:10px;padding:3px 11px;font-size:20px;line-height:1.5}',
+      '.npd-p.ok{background:#DCFCE7;color:#15803D}.npd-p.near{background:#FEF3C7;color:#B45309}.npd-p.sub{background:#FEE2E2;color:#DC2626}',
+      '.npd-p.miss{background:#fff;color:#DC2626;box-shadow:inset 0 0 0 2px #EF4444;text-decoration:line-through}.npd-p.extra{background:#F1F5F9;color:#64748B;font-style:italic}',
+      '.npd-p small{display:block;font-size:10px;font-weight:700;text-align:center;font-family:"Plus Jakarta Sans",sans-serif;opacity:.8;line-height:1.2;text-decoration:none}',
+      '.npd-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}',
+      '.npd-b{border:0;border-radius:14px;padding:10px 12px;font:700 13.5px "Plus Jakarta Sans",sans-serif;cursor:pointer;background:#EEEAFE;color:#4B3CC9;display:flex;align-items:center;justify-content:center;gap:7px}',
+      '.npd-b.me{background:#FFE4EC;color:#BE185D}.npd-b.cmp{background:#1F1B3A;color:#fff}.npd-b:disabled{opacity:.4;cursor:default}.npd-b.on{outline:3px solid rgba(91,75,219,.3)}',
+      '.npd-b svg{width:15px;height:15px;flex:none}',
+      '.npd-fix{border-radius:14px;background:#FFF8F8;border:1px solid #FDE2E2;padding:11px 13px;margin-top:10px}.npd-fix.near{background:#FFFBEB;border-color:#FDE9B5}.npd-fix.extra{background:#F8FAFC;border-color:#E2E8F0}',
+      '.npd-fix b.h{display:block;margin-bottom:4px;font-size:14.5px}.npd-fix .how{color:#3F3D56;font-size:14px;line-height:1.55}.npd-fix .eg{color:#6B6890;font-size:12.5px;margin-top:5px}',
+      '.npd-ok{color:#16A34A;font-weight:700;margin-top:12px}',
+      '.npd-prac{margin-top:14px;border-top:1px dashed #E4E1F3;padding-top:14px}',
+      '.npd-rec{width:100%;border:0;border-radius:16px;padding:13px;font:800 15px "Plus Jakarta Sans",sans-serif;color:#fff;cursor:pointer;background:linear-gradient(135deg,#5B4BDB,#EC4899);display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 20px -12px #5B4BDB}',
+      '.npd-rec.on{background:linear-gradient(135deg,#EF4444,#F97316);animation:npdPulse 1.1s infinite}@keyframes npdPulse{50%{box-shadow:0 0 0 9px rgba(239,68,68,.15)}}',
+      '.npd-rec:disabled{opacity:.6;cursor:default}.npd-rec svg{width:18px;height:18px;flex:none}',
+      '.npd-try{margin-top:10px;font-size:14px}.npd-try .npd-big .npd-p{font-size:17px}',
+      '.npd-try .msg{font-weight:800;margin-top:6px}',
+      '.npd-load{padding:60px 10px;text-align:center;color:#6B6890;font-weight:600}.npd-load i{display:block;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;border:3px solid #E4DFFF;border-top-color:#5B4BDB;animation:npdSp 1s linear infinite}@keyframes npdSp{to{transform:rotate(360deg)}}',
+      '.npd-err{color:#DC2626;font-weight:700;padding:26px 22px}',
+      '.npd-note{font-size:12px;color:#8A87A8;margin:12px 2px 0;line-height:1.5}',
       '.npd-open{display:inline-flex;align-items:center;gap:8px;margin:10px 0 2px;border:0;border-radius:999px;padding:9px 15px;font:800 13.5px "Plus Jakarta Sans",sans-serif;cursor:pointer;color:#fff;background:linear-gradient(135deg,#5B4BDB,#EC4899);box-shadow:0 8px 18px -10px #5B4BDB}',
       '.npd-open small{background:rgba(255,255,255,.25);border-radius:999px;padding:1px 8px;font-size:12px}',
-      '@media(max-width:560px){.npd{padding:16px 14px 20px;border-radius:22px}.npd-ov{padding:10px 6px}.npd-ring{width:68px;height:68px}.npd-ring b{width:54px;height:54px;font-size:20px}.npd-top h3{font-size:18px}}'
+      '@media(max-width:820px){.npd-main{grid-template-columns:1fr;padding:14px}.npd-side{position:static}.npd-hd{padding:14px 16px}.npd-ring{width:62px;height:62px}.npd-ring b{width:48px;height:48px;font-size:18px}.npd-hd h3{font-size:17px}.npd-card h4{font-size:25px}.npd-ov{padding:8px 4px}.npd{border-radius:22px}}'
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -178,63 +193,112 @@
     mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
     cmp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4 3 8l4 4M3 8h13M17 20l4-4-4-4M21 16H8"/></svg>'
   };
+  function phChips(ph, extra, withGot) {
+    return ph.map(function (p) {
+      var lab = withGot && p.st !== 'ok' ? '<small>' + (p.st === 'miss' ? 'thiếu' : 'bạn: ' + esc(key(p.got))) + '</small>' : '';
+      return '<span class="npd-p ' + p.st + '">' + esc(key(p.p)) + lab + '</span>';
+    }).join('') + (extra || []).map(function (x) { return '<span class="npd-p extra">+' + esc(key(x)) + (withGot ? '<small>thừa</small>' : '') + '</span>'; }).join('');
+  }
+  function fixList(w) {
+    var n = w.ph.length, out = [], seen = {};
+    w.ph.forEach(function (p, k) {
+      if (p.st === 'ok') return;
+      var t = tipOf(p.p), pos = k === 0 ? 'đầu' : k === n - 1 ? 'cuối' : 'giữa', title;
+      if (p.st === 'miss') title = (pos === 'cuối' && !VOW.test(key(p.p)) ? 'Nuốt mất âm cuối ' : 'Thiếu âm ') + '/' + key(p.p) + '/' + (pos !== 'cuối' ? ' ở ' + pos + ' từ' : '');
+      else if (p.st === 'sub') title = 'Đọc /' + key(p.p) + '/ thành /' + key(p.got) + '/';
+      else title = '/' + key(p.p) + '/ gần đúng (bạn đọc /' + key(p.got) + '/)';
+      var head = '<b class="h">' + esc(title) + '</b>';
+      if (seen[key(p.p)]) { out.push('<div class="npd-fix ' + (p.st === 'near' ? 'near' : '') + '">' + head + '</div>'); return; }
+      seen[key(p.p)] = 1;
+      out.push('<div class="npd-fix ' + (p.st === 'near' ? 'near' : '') + '">' + head + '<div class="how"><b>Cách đọc ' + esc(t[0]) + ':</b> ' + esc(t[1]) + '</div>' + (t[2] ? '<div class="eg">Luyện với: ' + esc(t[2]) + '</div>' : '') + '</div>');
+    });
+    if (w.extra.length) out.push('<div class="npd-fix extra"><b class="h">Thừa âm ' + w.extra.map(function (x) { return '/' + esc(key(x)) + '/'; }).join(' ') + '</b><div class="how">Bạn đọc thêm âm không có trong từ. Đọc gọn lại, đừng thêm "ơ" hay "s" phía sau.</div></div>');
+    return out.join('');
+  }
+  var mr = null;
+  function recordWord(btn, onBlob) {
+    if (mr && mr.state === 'recording') { mr.stop(); return; }
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (st) {
+      var ch = [], mime = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].filter(function (m) { return window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m); })[0];
+      mr = new MediaRecorder(st, mime ? { mimeType: mime } : undefined);
+      mr.ondataavailable = function (e) { if (e.data && e.data.size) ch.push(e.data); };
+      var auto = setTimeout(function () { if (mr && mr.state === 'recording') mr.stop(); }, 6000);
+      mr.onstop = function () { clearTimeout(auto); st.getTracks().forEach(function (t) { t.stop(); }); btn.classList.remove('on'); onBlob(new Blob(ch, { type: mr.mimeType || 'audio/webm' })); };
+      mr.start(); btn.classList.add('on'); btn.innerHTML = IC.mic + 'Đang nghe… đọc xong bấm để dừng';
+    }).catch(function () { btn.textContent = 'Chưa cho phép dùng micro'; });
+  }
+
   function open(o) {
     css();
     var ov = document.createElement('div'); ov.className = 'npd-ov';
-    ov.innerHTML = '<div class="npd" role="dialog" aria-label="Phát âm từng âm"><div class="npd-top"><div class="npd-ring" id="npdRing"><b id="npdSc">…</b></div><div><h3>Phát âm từng âm</h3><p id="npdSub">Bấm vào từng chữ để xem âm sai, nghe chuẩn và nghe lại giọng của bạn.</p>' +
-      '<div class="npd-leg"><span style="--b:#DCFCE7">Đúng</span><span style="--b:#FEF3C7">Gần đúng</span><span style="--b:#FEE2E2">Sai âm</span><span style="--b:#fff;--o:inset 0 0 0 1.5px #DC2626">Thiếu âm</span></div></div>' +
-      '<button class="npd-x" aria-label="Đóng">×</button></div><div id="npdBody"><div class="npd-load"><i></i>Đang chấm từng âm trong bài nói của bạn…</div></div></div>';
+    ov.innerHTML = '<div class="npd" role="dialog" aria-label="Phát âm từng âm"><div class="npd-hd"><div class="npd-ring" id="npdRing"><b id="npdSc">…</b></div>' +
+      '<div style="min-width:0"><h3>Phát âm của bạn</h3><p id="npdSub">Đang nghe từng âm trong bài nói…</p><div class="npd-stat" id="npdStat"></div></div><button class="npd-x" aria-label="Đóng">×</button></div>' +
+      '<div id="npdBody"><div class="npd-load"><i></i>Đang chấm từng âm trong bài nói của bạn…</div></div></div>';
     document.body.appendChild(ov);
-    var close = function () { stop(); ov.remove(); document.removeEventListener('keydown', onKey); };
+    var close = function () { stop(); if (mr && mr.state === 'recording') try { mr.stop(); } catch (e) {} ov.remove(); document.removeEventListener('keydown', onKey); };
     var onKey = function (e) { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
     ov.addEventListener('click', function (e) { if (e.target === ov || e.target.closest('.npd-x')) close(); });
     var blobP = null, getBlob = function () { return blobP || (blobP = o.getBlob ? o.getBlob() : Promise.reject()); };
-    var o2 = Object.assign({}, o, { getBlob: getBlob });
-    run(o2).then(function (R) {
+    run(Object.assign({}, o, { getBlob: getBlob })).then(function (R) {
       attachTimes(R.words, o.words);
-      var ring = ov.querySelector('#npdRing'); ring.style.setProperty('--v', R.score); ring.style.setProperty('--c', colorOf(R.score));
-      ov.querySelector('#npdSc').innerHTML = toBand(R.score).toFixed(1) + '<span style="display:block;font-size:10px;font-weight:700;color:#8A87A8;margin-top:-14px">' + R.score + '% âm đúng</span>';
-      ov.querySelector('#npdSub').textContent = 'Band phát âm từ độ chuẩn từng âm: ' + toBand(R.score).toFixed(1) + ' (' + R.score + '% âm đúng). Bấm vào từng chữ để xem âm sai, nghe chuẩn và nghe lại giọng của bạn.';
+      var band = toBand(R.score), bad = R.words.filter(function (w) { return !w.fn && w.score < 85; });
+      var ring = ov.querySelector('#npdRing'); ring.style.setProperty('--v', R.score); ring.style.setProperty('--c', R.score >= 85 ? '#4ADE80' : R.score >= 60 ? '#FBBF24' : '#F87171');
+      ov.querySelector('#npdSc').textContent = band.toFixed(1);
+      ov.querySelector('#npdSub').textContent = bad.length ? 'Bấm vào chữ tô màu để xem sai ở âm nào, nghe chuẩn, nghe lại giọng bạn và đọc lại cho đúng.' : 'Bạn phát âm rất chuẩn. Bấm vào bất kỳ chữ nào để nghe lại và so sánh.';
+      ov.querySelector('#npdStat').innerHTML = '<span>Band phát âm ' + band.toFixed(1) + '</span><span>' + R.score + '% âm đúng</span><span>' + bad.length + ' chữ cần sửa</span>';
+      var lv = function (w) { return w.score >= 85 ? 0 : w.score >= 60 ? 1 : 2; };
+      var todo = bad.map(function (w) { return w; }).sort(function (a, b) { return a.score - b.score; }).slice(0, 10);
       var body = ov.querySelector('#npdBody');
-      body.innerHTML = '<div class="npd-words">' + R.words.map(function (w, i) {
-        return '<button class="npd-w' + (w.fn ? ' fn' : '') + '" data-i="' + i + '" style="--c:' + colorOf(w.score) + '"><div class="t">' + esc(w.w) + ' <small>' + w.score + '</small></div><div class="npd-ph">' +
-          w.ph.map(function (p) { return '<span class="npd-p ' + p.st + '">' + esc(key(p.p)) + '</span>'; }).join('') + w.extra.map(function (x) { return '<span class="npd-p extra">+' + esc(key(x)) + '</span>'; }).join('') + '</div></button>';
-      }).join('') + '</div><div id="npdDet"></div><p class="npd-note">Chấm theo giọng Mỹ. Chữ mờ là từ phụ (a, the, to…) nên được đọc lướt, chấm nhẹ tay hơn. Điểm phát âm từng âm để luyện tập, có thể lệch ở những chỗ máy nghe chưa rõ.</p>';
+      body.innerHTML = '<div class="npd-main"><div>' +
+        '<p class="npd-sec">Bài nói của bạn</p><div class="npd-box npd-text">' + R.words.map(function (w, i) { return '<button class="npd-tw lv' + lv(w) + (w.fn ? ' fn' : '') + '" data-i="' + i + '">' + esc(w.w) + '</button>'; }).join(' ') + '</div>' +
+        '<p class="npd-sec" style="margin-top:16px">Chữ cần sửa nhất</p><div class="npd-box">' + (todo.length ? '<div class="npd-todo">' + todo.map(function (w) { return '<button class="npd-chip" data-i="' + R.words.indexOf(w) + '" style="--c:' + colorOf(w.score) + '">' + esc(w.w) + '<i>' + w.score + '</i></button>'; }).join('') + '</div>' : '<div class="npd-good">Không có chữ nào sai rõ. Tuyệt vời!</div>') + '</div>' +
+        '<p class="npd-note"><b style="color:#B91C1C">Nền đỏ</b>: sai nhiều · <b style="color:#B45309">gạch vàng</b>: gần đúng · chữ xám: từ phụ (a, the, to…) nên đọc lướt. Chấm theo giọng Mỹ, có thể lệch ở chỗ máy nghe chưa rõ.</p>' +
+        '</div><div class="npd-side" id="npdDet"></div></div>';
       var pick = function (i) {
         var w = R.words[i]; if (!w) return;
-        [].forEach.call(body.querySelectorAll('.npd-w'), function (b) { b.classList.toggle('sel', +b.dataset.i === i); });
-        var n = w.ph.length, fixes = [];
-        w.ph.forEach(function (p, k) {
-          if (p.st === 'ok') return;
-          var t = tipOf(p.p), pos = k === 0 ? 'đầu' : k === n - 1 ? 'cuối' : 'giữa', title;
-          if (p.st === 'miss') title = (pos === 'cuối' && !VOW.test(key(p.p)) ? 'Nuốt mất âm cuối ' : 'Thiếu âm ') + '/' + key(p.p) + '/' + (pos !== 'cuối' ? ' ở ' + pos + ' từ' : '');
-          else if (p.st === 'sub') title = 'Đọc /' + key(p.p) + '/ thành /' + key(p.got) + '/';
-          else title = '/' + key(p.p) + '/ gần đúng (bạn đọc /' + key(p.got) + '/)';
-          fixes.push('<div class="npd-fix" style="--c:' + (p.st === 'near' ? '#F59E0B' : '#DC2626') + '"><b class="h">' + esc(title) + '</b><div class="how"><b>Cách đọc ' + esc(t[0]) + ':</b> ' + esc(t[1]) + '</div>' + (t[2] ? '<div class="eg">Luyện với: ' + esc(t[2]) + '</div>' : '') + '</div>');
-        });
-        if (w.extra.length) fixes.push('<div class="npd-fix" style="--c:#94A3B8"><b class="h">Thừa âm ' + w.extra.map(function (x) { return '/' + esc(key(x)) + '/'; }).join(' ') + '</b><div class="how">Bạn đọc thêm âm không có trong từ. Đọc gọn lại, đừng thêm "ơ" hay "s" phía sau.</div></div>');
-        var hasT = w.s != null && isFinite(w.s) && w.e > w.s;
-        body.querySelector('#npdDet').innerHTML = '<div class="npd-d"><h4>' + esc(w.w) + ' <span>/' + esc(w.ph.map(function (p) { return key(p.p); }).join('')) + '/</span></h4>' +
+        [].forEach.call(body.querySelectorAll('[data-i]'), function (b) { b.classList.toggle('sel', +b.dataset.i === i); });
+        var hasT = w.s != null && isFinite(w.s) && w.e > w.s, fx = fixList(w);
+        var det = body.querySelector('#npdDet');
+        det.innerHTML = '<div class="npd-card"><p class="npd-sec">Chữ đang xem · <span style="color:' + colorOf(w.score) + '">' + w.score + '% âm đúng</span></p><h4>' + esc(w.w) + ' <span>/' + esc(w.ph.map(function (p) { return key(p.p); }).join('')) + '/</span></h4>' +
+          '<div class="npd-big">' + phChips(w.ph, w.extra, true) + '</div>' +
           '<div class="npd-btns"><button class="npd-b" data-a="std">' + IC.spk + 'Nghe chuẩn</button><button class="npd-b" data-a="slow">' + IC.slow + 'Nghe chậm</button>' +
-          '<button class="npd-b me" data-a="me"' + (hasT ? '' : ' disabled title="Không tìm được chỗ chữ này trong file ghi âm"') + '>' + IC.mic + 'Nghe bạn đọc</button>' +
-          '<button class="npd-b cmp" data-a="cmp"' + (hasT ? '' : ' disabled') + '>' + IC.cmp + 'So sánh: chuẩn rồi bạn</button></div>' +
-          '<div class="npd-big">' + w.ph.map(function (p) { return '<span class="npd-p ' + p.st + '" title="' + (p.st === 'ok' ? 'Đúng' : p.st === 'miss' ? 'Thiếu' : 'Bạn đọc: ' + esc(key(p.got))) + '">' + esc(key(p.p)) + '</span>'; }).join('') + '</div>' +
-          (fixes.length ? fixes.join('') : '<div class="npd-ok">Chữ này bạn phát âm đúng hết các âm.</div>') + '</div>';
-        [].forEach.call(body.querySelectorAll('[data-a]'), function (b) {
+          '<button class="npd-b me" data-a="me"' + (hasT ? '' : ' disabled title="Không tìm được chỗ chữ này trong file ghi âm"') + '>' + IC.mic + 'Giọng bạn</button>' +
+          '<button class="npd-b cmp" data-a="cmp"' + (hasT ? '' : ' disabled') + '>' + IC.cmp + 'Chuẩn rồi bạn</button></div>' +
+          (fx || '<div class="npd-ok">Chữ này bạn phát âm đúng hết các âm.</div>') +
+          '<div class="npd-prac"><p class="npd-sec">Luyện lại chữ này</p><button class="npd-rec" id="npdRec">' + IC.mic + 'Bấm rồi đọc "' + esc(w.w) + '"</button><div class="npd-try" id="npdTry"></div></div></div>';
+        [].forEach.call(det.querySelectorAll('[data-a]'), function (b) {
           b.onclick = function () {
-            var a = b.dataset.a; [].forEach.call(body.querySelectorAll('[data-a]'), function (x) { x.classList.remove('on'); }); b.classList.add('on');
+            var a = b.dataset.a; [].forEach.call(det.querySelectorAll('[data-a]'), function (x) { x.classList.remove('on'); }); b.classList.add('on');
             var done = function () { b.classList.remove('on'); };
             var mine = function () { return getBlob().then(function (bl) { return playMine(bl, w.s, w.e); }); };
             (a === 'std' ? say(w.w, .9) : a === 'slow' ? say(w.w, .5) : a === 'me' ? mine() : say(w.w, .85).then(function () { return new Promise(function (r) { setTimeout(r, 350); }); }).then(mine))
               .then(done, function () { done(); if (a === 'me' || a === 'cmp') { b.disabled = true; b.title = 'Không phát được file ghi âm trên máy này'; } });
           };
         });
-        body.querySelector('#npdDet').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        var rb = det.querySelector('#npdRec'), tryEl = det.querySelector('#npdTry'), best = w.score;
+        rb.onclick = function () {
+          stop();
+          recordWord(rb, function (bl) {
+            rb.disabled = true; rb.innerHTML = IC.mic + 'Đang chấm…';
+            score(bl, w.w).then(function (j) {
+              var t = j.words && j.words[0];
+              if (!t) throw new Error('Chưa nghe rõ, đọc to hơn chút nhé.');
+              var up = t.score > best; best = Math.max(best, t.score);
+              tryEl.innerHTML = '<div class="npd-big">' + phChips(t.ph, t.extra, true) + '</div><div class="msg" style="color:' + colorOf(t.score) + '">' +
+                (t.score >= 95 ? 'Chuẩn rồi! ' : t.score >= 85 ? 'Rất tốt! ' : up ? 'Tốt hơn lần trước rồi! ' : 'Chưa chuẩn, thử lại nhé. ') + t.score + '% âm đúng</div>' +
+                '<button class="npd-b me" style="margin-top:8px;width:100%" data-mine>' + IC.spk + 'Nghe lại lần vừa đọc</button>';
+              tryEl.querySelector('[data-mine]').onclick = function () { decode(bl).then(function (b) { playMine(bl, 0, b.duration); }); };
+            }).catch(function (e) { tryEl.innerHTML = '<div class="msg" style="color:#DC2626">' + esc(e && e.message && !/fetch|busy/i.test(e.message) ? e.message : 'Máy chấm đang bận, thử lại sau ít giây nhé.') + '</div>'; })
+              .then(function () { rb.disabled = false; rb.innerHTML = IC.mic + 'Đọc lại "' + esc(w.w) + '"'; });
+          });
+        };
+        if (window.innerWidth <= 820) det.scrollIntoView({ behavior: 'smooth', block: 'start' });
       };
-      body.querySelector('.npd-words').addEventListener('click', function (e) { var b = e.target.closest('.npd-w'); if (b) pick(+b.dataset.i); });
-      var worst = R.words.map(function (w, i) { return [w.fn ? 999 : w.score, i]; }).sort(function (a, b) { return a[0] - b[0]; })[0];
-      pick(worst ? worst[1] : 0);
+      body.querySelector('.npd-main').addEventListener('click', function (e) { var b = e.target.closest('.npd-tw,.npd-chip'); if (b) pick(+b.dataset.i); });
+      var first = todo[0] ? R.words.indexOf(todo[0]) : 0;
+      pick(first);
+      if (window.innerWidth <= 820) ov.scrollTop = 0;
     }).catch(function (e) {
       ov.querySelector('#npdSc').textContent = '–';
       ov.querySelector('#npdBody').innerHTML = '<div class="npd-err">' + esc(e && e.message && !/fetch|busy|network/i.test(e.message) ? e.message : 'Máy chấm phát âm đang bận hoặc đang khởi động. Bạn đợi khoảng 1 phút rồi bấm lại nhé.') + '</div>';

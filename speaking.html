@@ -382,6 +382,16 @@ audio{width:100%;height:40px;}
 .cpill.fluency{background:#11b8a6;color:#05372f}
 .cpill.na{background:#fff;color:var(--ink-3);border:1.5px dashed #b9b5cc;font-weight:600;}
 .cpill small{font-weight:600;opacity:.85;font-size:11.5px;}
+.cp-btn{border:0;cursor:pointer;font-family:inherit;transition:transform .12s,box-shadow .12s}.cp-btn:hover{transform:translateY(-1px)}
+.cp-btn.cp-on{box-shadow:0 0 0 3px #fff,0 0 0 5px var(--ink)}
+.cpill.cp-all{background:#fff;color:var(--ink);border:1.5px solid var(--lav-2)}
+.cp-pron{position:relative;padding-right:12px;background:linear-gradient(135deg,#5B4BDB,#EC4899)!important;color:#fff;box-shadow:0 8px 20px -10px #EC4899;animation:cpGlow 2.2s ease-in-out infinite}
+@keyframes cpGlow{50%{box-shadow:0 0 0 6px rgba(236,72,153,.18),0 8px 20px -10px #EC4899}}
+.cp-new{font-size:10px;font-weight:800;background:#FDE047;color:#713F12;border-radius:999px;padding:1px 6px;margin-left:4px}
+.cp-cta{font-size:12px;font-weight:700;opacity:.95;border-left:1px solid rgba(255,255,255,.4);padding-left:8px;margin-left:4px}
+.cp-hint{width:100%;font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.tr-vi{margin-top:14px;border-radius:16px;background:#F5F3FF;padding:12px 14px}.tr-vi b{font-size:13px;color:var(--ink-2)}.tr-vi p{margin:6px 0 0;font-size:15px;line-height:1.65;color:var(--ink)}
+
 .res-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--lav-2);}
 .res-foot .score-note{margin:0;}
 .link-btn.magenta{color:var(--magenta);font-size:16px;font-weight:800;text-decoration-color:var(--magenta);}
@@ -632,7 +642,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
 <script src="night-plan.js?v=20261119a"></script>
-<script src="pron-detail.js?v=3"></script>
+<script src="pron-detail.js?v=4"></script>
 <script src="night-fame.js?v=20261117a"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -1032,7 +1042,7 @@ Is it better to read a physical book or an e-book?"></textarea>
                 <div class="res-player">
                   <audio id="resAudioPlayback" controls class="hidden"></audio>
                   <p id="resAudioMissingNote" class="text-xs hidden" style="color:var(--ink-3);">Lần làm này không có file ghi âm (bản cũ trước khi cập nhật).</p>
-                  <div id="resTrSeg" class="res-tabs" role="tablist">
+                  <div id="resTrSeg" class="res-tabs" role="tablist" style="display:none">
                     <button type="button" data-v="marked" class="active" onclick="setTrView('marked')">Sửa lỗi</button>
                     <button type="button" data-v="flow" onclick="setTrView('flow')">Trôi chảy</button>
                   </div>
@@ -1040,9 +1050,10 @@ Is it better to read a physical book or an e-book?"></textarea>
                 <div class="score-bubble" title="Band ước tính bởi AI, không phải điểm IELTS chính thức"><b id="resOverallBand">-</b><small id="resOverallLabel">ước tính</small></div>
               </div>
 
+              <div id="resMiniBands" class="pill-row"></div>
               <div id="resTrTools" class="hidden">
                 <div class="legend"><span><del>chữ sai</del><ins>chữ đúng</ins></span><span class="muted">Giải thích ở mục "Vì sao sửa?" bên dưới.</span></div>
-                <div id="resTrFilters" class="filters"></div>
+                <div id="resTrFilters" class="filters" style="display:none"></div>
               </div>
               <p id="resTranscript" class="transcript"></p>
               <div id="resFlowTools" class="hidden flow-foot">
@@ -1051,7 +1062,6 @@ Is it better to read a physical book or an e-book?"></textarea>
               </div>
               <div id="resFlowStats" class="flow-stats hidden"></div>
 
-              <div id="resMiniBands" class="pill-row"></div>
               <div id="resWhy" class="why-box hidden"></div>
               <details class="res-more"><summary>Độ tin cậy &amp; cách chấm</summary><div id="resQuality" class="q-alert hidden"></div><p class="score-note" id="resEngineNote">Band ước tính bởi AI để luyện tập, không phải kết quả IELTS chính thức.</p></details>
               <div id="resHistory" class="hist-box hidden"></div>
@@ -5473,6 +5483,33 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (n < 2 || ov == null) { el.innerHTML = '📊 Làm thêm vài câu trong bộ này để có <b>ước tính cả bài nói</b> (sát điểm thi hơn điểm 1 câu).'; return; }
     el.innerHTML = '📊 Ước tính cả bài nói: <b style="font-size:16px">' + fmtBand(ov) + '</b> <span style="opacity:.75">(từ ' + n + ' câu đã làm trong bộ này · ' + SP_CRIT.map(k => SP_SHORT[k] + ' ' + (avg[k] == null ? '-' : (Math.round(avg[k] * 2) / 2).toFixed(1))).join(' · ') + ')</span>';
   }
+  /* ---------- V19: 4 ô tiêu chí là nút: Trôi chảy -> xem trôi chảy + dịch, Từ vựng / Ngữ pháp -> lỗi của tiêu chí đó, Phát âm -> phát âm từng âm ---------- */
+  function paintPills(record) {
+    const crit = record.criteria || {}, el = document.getElementById('resMiniBands'); if (!el) return;
+    const cur = __res ? (__res.view === 'flow' ? 'fluency' : __res.filter) : 'all';
+    const pills = SP_CRIT.map(k => {
+      const c = crit[k] || {};
+      if (c.band == null) return '<span class="cpill na" title="' + escapeHtml(k === 'pronunciation' ? pronStatusText(record) : '') + '">' + SP_SHORT[k] + ': chưa chấm</span>';
+      const band = (Number(c.band) % 1 ? fmtBand(c.band) : c.band);
+      if (k === 'pronunciation' && npdCan(record)) return '<button type="button" class="cpill pronunciation cp-btn cp-pron" data-npd>' + SP_SHORT[k] + ': ' + band + '<span class="cp-new">MỚI</span><span class="cp-cta">Bấm để check phát âm của bạn</span></button>';
+      return '<button type="button" class="cpill ' + k + ' cp-btn' + (cur === k ? ' cp-on' : '') + '" data-crit="' + k + '">' + SP_SHORT[k] + ': ' + band + (k === 'pronunciation' && !isNewRubric(record) ? ' <small>(từ văn bản)</small>' : '') + '</button>';
+    }).join('');
+    el.innerHTML = '<button type="button" class="cpill cp-all cp-btn' + (cur === 'all' ? ' cp-on' : '') + '" data-crit="all">Tất cả lỗi</button>' + pills +
+      '<div class="cp-hint">Bấm vào từng tiêu chí để xem bạn đang yếu ở đâu</div>';
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('#resMiniBands [data-crit]'); if (!b || !__res) return;
+    const k = b.dataset.crit;
+    if (k === 'fluency') __res.view = 'flow'; else { __res.view = 'marked'; __res.filter = k; }
+    spHidePop(); renderTranscript(); paintPills(__res.record);
+  });
+  // Dịch nghĩa cả bài (dùng chung bản chia cụm + dịch của mục Trôi chảy)
+  function viHtml(rec) {
+    if (rec.chunks && rec.chunks.length) return '<div class="tr-vi"><b>Dịch nghĩa bài nói của bạn</b><p>' + rec.chunks.map(c => escapeHtml(c.vi)).filter(Boolean).join(' ') + '</p></div>';
+    if (rec.__chunkErr || !(rec.transcript || '').trim()) return '';
+    ensureChunks(rec).then(r => { if (r && __res && __res.record === rec && __res.view === 'marked') renderTranscript(); });
+    return '<div class="tr-vi"><b>Dịch nghĩa bài nói của bạn</b><p style="color:var(--ink-3)">Đang dịch…</p></div>';
+  }
   /* ---------- Phát âm từng âm (pron-detail.js): bấm điểm Phát âm -> cửa sổ chi tiết ---------- */
   function npdCan(rec) { return !!(window.NightPron && rec && rec.transcript && (rec.phoneme || rec.audioChunkCount || rec.audioBase64 || rec.legacyAudio || (__recBlob && !rec.id))); }
   function npdBtnHtml(rec) {
@@ -5513,11 +5550,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     document.getElementById('resOverallLabel').textContent = disp.partial ? '3 tiêu chí' : 'ước tính';
     document.querySelector('.score-bubble').classList.toggle('partial', disp.partial);
     document.getElementById('resOverallRing').style.setProperty('--pct', Math.max(0, Math.min(100, (Number(disp.band) || 0) / 9 * 100)));
-    document.getElementById('resMiniBands').innerHTML = SP_CRIT.map(k => {
-      const c = crit[k] || {};
-      if (c.band == null) return '<span class="cpill na" title="' + escapeHtml(k === 'pronunciation' ? pronStatusText(record) : '') + '">' + SP_SHORT[k] + ': chưa chấm</span>';
-      return '<span class="cpill ' + k + '"' + (k === 'pronunciation' && npdCan(record) ? ' data-npd style="cursor:pointer" title="Bấm để xem phát âm từng âm"' : '') + '>' + SP_SHORT[k] + ': ' + (Number(c.band) % 1 ? fmtBand(c.band) : c.band) + (k === 'pronunciation' && !isNewRubric(record) ? ' <small>(từ văn bản)</small>' : '') + '</span>';
-    }).join('');
+    paintPills(record);
     paintWholeEstimate(record);
     const why = document.getElementById('resWhy');
     const whyAll = whyHtml(record) + changeHtml(record);
@@ -6194,9 +6227,9 @@ Is it better to read a physical book or an e-book?"></textarea>
     }
     const toks = SPCore.alignWords(tr, rec.words || []);
     const grabKw = () => { __kwNodes = Array.from(el.querySelectorAll('.kw[data-s]')).map(n => ({ n: n, s: +n.dataset.s, e: +n.dataset.e })); };
-    if (!marked) { el.innerHTML = '“' + wrapWords(tr, 0, tr.length, toks) + '”<br><small style="color:var(--ink-3)">Không có lỗi cần sửa trong bài này.</small>' + correctedHtml(rec, tr); grabKw(); return; }
+    if (!marked) { el.innerHTML = '“' + wrapWords(tr, 0, tr.length, toks) + '”<br><small style="color:var(--ink-3)">Không có lỗi cần sửa trong bài này.</small>' + correctedHtml(rec, tr) + viHtml(rec); grabKw(); return; }
     const m = spMarkTranscript(tr, edits, toks);
-    el.innerHTML = m.html + edWhyList(edits, m.placed) + correctedHtml(rec, tr);
+    el.innerHTML = m.html + edWhyList(edits, m.placed) + correctedHtml(rec, tr) + viHtml(rec);
     grabKw();
     const cnt = k => m.placed.filter(p => k === 'all' || edits[p.i].criterion === k).length;
     document.getElementById('resTrFilters').innerHTML = ['all'].concat(SP_CRIT).filter(k => k === 'all' || cnt(k)).map(k =>
