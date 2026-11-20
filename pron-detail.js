@@ -113,10 +113,10 @@
       .then(function (j) { if (j.error) throw new Error(j.error); return j; });
   }
   function compact(j) {
-    return { v: 1, score: j.score, at: Date.now(), words: j.words.map(function (w) { return { w: w.w, score: w.score, fn: !!w.fn, ph: w.ph.map(function (p) { return [p.p, p.st, p.got || '']; }), x: w.extra || [] }; }) };
+    return { v: 1, score: j.score, at: Date.now(), words: j.words.map(function (w) { return { w: w.w, score: w.score, fn: !!w.fn, ph: w.ph.map(function (p) { return p.p + '|' + p.st + '|' + (p.got || ''); }).join(' '), x: (w.extra || []).join(' ') }; }) };   // Firestore không nhận mảng lồng nhau -> lưu dạng chuỗi
   }
   function expand(c) {
-    return { score: c.score, words: c.words.map(function (w) { return { w: w.w, score: w.score, fn: w.fn, ph: w.ph.map(function (a) { return { p: a[0], st: a[1], got: a[2] }; }), extra: w.x || [] }; }) };
+    return { score: c.score, words: c.words.map(function (w) { return { w: w.w, score: w.score, fn: w.fn, ph: (typeof w.ph === 'string' ? w.ph.split(' ').filter(Boolean).map(function (t) { return t.split('|'); }) : w.ph).map(function (a) { return { p: a[0], st: a[1], got: a[2] || '' }; }), extra: typeof w.x === 'string' ? w.x.split(' ').filter(Boolean) : (w.x || []) }; }) };
   }
   function run(o) {
     var id = o.id || 'cur';
