@@ -13,7 +13,7 @@
   var rowY = function (r, xPct) { var t = xPct / 100; return ROWS[r] + 4 * t * (1 - t) * SAG; };
   function css() {
     if (document.getElementById('nwall-css')) return;
-    var f = document.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&display=swap'; document.head.appendChild(f);
+    var f = document.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=Patrick+Hand&subset=vietnamese&display=swap'; document.head.appendChild(f);
     var s = document.createElement('style'); s.id = 'nwall-css';
     s.textContent = [
       '.nwall{position:relative;overflow:hidden;border-radius:30px;padding:20px 20px 16px;color:#fff;isolation:isolate;background:linear-gradient(180deg,#0E0B2E 0%,#1C1652 45%,#2C1E5E 80%,#3D2462 100%)}',
@@ -28,7 +28,7 @@
       // tiêu đề
       '.nwall-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-right:64px}',
       '.nwall-h .tag{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 11px;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase}',
-      '.nwall-h h4{margin:0;font:700 34px/1 "Caveat","Patrick Hand",cursive;letter-spacing:.01em;background:linear-gradient(90deg,#FFF3C4,#FFC2D9 55%,#C9D6FF);-webkit-background-clip:text;background-clip:text;color:transparent}',
+      '.nwall-h h4{margin:0;font:400 34px/1.05 "Patrick Hand",cursive;letter-spacing:.01em;background:linear-gradient(90deg,#FFF3C4,#FFC2D9 55%,#C9D6FF);-webkit-background-clip:text;background-clip:text;color:transparent}',
       '.nwall-on{display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,.16);border:1px solid rgba(110,231,183,.35);color:#D1FAE5;border-radius:999px;padding:6px 12px 6px 10px;font-size:12.5px;font-weight:700;white-space:nowrap}',
       '.nwall-on i{width:8px;height:8px;border-radius:50%;background:#34D399;box-shadow:0 0 0 0 rgba(52,211,153,.7);animation:nwPing 1.8s infinite}',
       '.nwall-on b{font-size:14px;color:#fff}',
@@ -51,7 +51,7 @@
       '@keyframes nwSwing{0%,100%{transform:rotate(var(--r,-3deg))}50%{transform:rotate(calc(var(--r,-3deg) * -1))}}',
       '@keyframes nwIn{from{opacity:0;transform:translateY(-40px) rotate(-20deg) scale(.6)}to{opacity:1}}',
       '@keyframes nwOut{to{opacity:0;transform:translateY(-60px) rotate(25deg) scale(.5)}}',
-      '.nwall-empty{position:absolute;left:0;right:0;top:44%;text-align:center;font:26px "Caveat",cursive;color:rgba(255,255,255,.65)}',
+      '.nwall-empty{position:absolute;left:0;right:0;top:44%;text-align:center;font:24px "Patrick Hand",cursive;color:rgba(255,255,255,.65)}',
       // ô nhập
       '.nwall-f{display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(6px);border-radius:999px;padding:5px 5px 5px 16px}',
       '.nwall-f svg{width:18px;height:18px;flex:none;opacity:.7}',
@@ -89,7 +89,14 @@
       '<div class="nwall-m" id="nwM">Không hiện tên · tối đa ' + LEN + ' ký tự · lời mới sẽ đẩy lời cũ nhất bay đi</div></div>';
     var sky = el.querySelector('#nwSky'), shown = {}, slotOf = {}, mineIds = {};
     // Số người đang học cùng
-    if (window.NightOnline) onUnsub = NightOnline.watch(function (n) { var b = el.querySelector('#nwOn'); if (!b) return; b.style.display = n > 0 ? '' : 'none'; el.querySelector('#nwOnN').textContent = n; });
+    // Hiện số thật: từ 10 người đang online trở lên -> "đang học cùng bạn"; ít hơn -> "bạn đã học hôm nay" (từ 10 trở lên); giáo viên luôn thấy cả hai
+    if (window.NightOnline) onUnsub = NightOnline.watch(function (n, d) {
+      var b = el.querySelector('#nwOn'); if (!b) return; var txt = '';
+      if (o.admin) txt = '<b>' + n + '</b> người đang online · <b>' + (d || n) + '</b> bạn học hôm nay';
+      else if (n >= 10) txt = '<b>' + n + '</b> người đang học cùng bạn';
+      else if (d >= 10) txt = '<b>' + d + '</b> bạn đã vào học hôm nay';
+      b.style.display = txt ? '' : 'none'; b.lastChild.innerHTML = txt;
+    });
     function free() { var S = slots(), used = {}; Object.keys(slotOf).forEach(function (k) { used[slotOf[k]] = 1; }); for (var i = 0; i < S.length; i++) if (!used[i]) return i; return 0; }
     function render(list) {
       list = list.slice(0, small() ? 6 : MAX);
