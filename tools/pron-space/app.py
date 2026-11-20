@@ -15,7 +15,7 @@ from phonemizer.separator import Separator
 
 MODEL = os.environ.get("PRON_MODEL", "facebook/wav2vec2-lv-60-espeak-cv-ft")
 MAX_SEC = 150
-torch.set_num_threads(max(1, os.cpu_count() or 2))
+torch.set_num_threads(int(os.environ.get("THREADS", "2")))  # máy free 2 nhân: đặt nhiều luồng hơn sẽ chậm hơn
 
 app = FastAPI()
 app.add_middleware(
@@ -36,7 +36,8 @@ def load():
         with _lock:
             if _model is None:
                 _proc = AutoProcessor.from_pretrained(MODEL)
-                _model = AutoModelForCTC.from_pretrained(MODEL).eval()
+                m = AutoModelForCTC.from_pretrained(MODEL).eval()
+                _model = torch.quantization.quantize_dynamic(m, {torch.nn.Linear}, dtype=torch.qint8)  # nhanh gấp 2-3 lần trên CPU
     return _proc, _model
 
 
@@ -60,7 +61,7 @@ def norm(p):
 
 REDUCED = {"ə", "ʌ", "ɪ", "ɜ", "ʊ", "ɛ"}
 VOWELS = REDUCED | {"i", "u", "æ", "ɑ", "ɔ", "a", "aɪ", "aʊ", "eɪ", "oʊ", "ɔɪ", "ɪɹ", "ɛɹ", "ʊɹ", "ɑɹ", "ɔɹ"}
-NEAR = [{"i", "ɪ"}, {"u", "ʊ"}, {"ɑ", "ɔ", "a"}, {"æ", "ɛ"}, {"t", "d"}, {"θ", "t"}, {"ð", "d"}, {"eɪ", "ɛ"}, {"oʊ", "ɔ"}, {"ɔɹ", "ɔ"}, {"ɑɹ", "ɑ"}, {"ɛɹ", "ɛ"}, {"ɪɹ", "ɪ"}, {"ʊɹ", "ʊ"}]
+NEAR = [{"i", "ɪ"}, {"u", "ʊ"}, {"ɑ", "ɔ", "a"}, {"æ", "ɛ"}, {"t", "d"}, {"iə", "i", "ɪɹ", "ɪ"}, {"eə", "ɛɹ", "ɛ"}, {"ʊə", "ʊɹ", "ʊ"}, {"eɪ", "ɛ"}, {"oʊ", "ɔ"}, {"ɔɹ", "ɔ"}, {"ɑɹ", "ɑ"}, {"ɛɹ", "ɛ"}, {"ɪɹ", "ɪ"}, {"ʊɹ", "ʊ"}]
 FUNCTION = set("a an the to of and in on at is are was were be it its for that this with as by or but from i you he she we they my your our his her their me him us them do does did have has had not no so if than then there will can would could should".split())
 
 
@@ -152,7 +153,9 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
     wav = decode_audio(raw)
     if len(wav) < 8000:
         return {"error": "Bài ghi âm quá ngắn."}
+    t1 = time.time()
     heard = recognize(wav)
+    t2 = time.time()
     hyp = [norm(p) for p in heard]
 
     ref, owner, fn, disp = [], [], [], []
@@ -188,4 +191,4 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
         wt = 0.4 if x["fn"] else 1.0
         tot_w += wt * n; tot_s += wt * n * x["score"]
     return {"ok": True, "score": round(tot_s / tot_w) if tot_w else 0, "words": W, "heard": " ".join(heard),
-            "sec": round(len(wav) / 16000, 1), "ms": int((time.time() - t0) * 1000)}
+            "sec": round(len(wav) / 16000, 1), "ms": int((time.time() - t0) * 1000), "ms_model": int((t2 - t1) * 1000)}
