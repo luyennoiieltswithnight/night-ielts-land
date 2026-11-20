@@ -147,7 +147,8 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
     raw = await audio.read()
     if len(raw) > 12_000_000:
         return {"error": "File ghi âm quá dài."}
-    words = WORD_RE.findall(text or "")[:400]
+    FILL = {"um", "umm", "uh", "uhm", "er", "erm", "err", "ah", "ahh", "hmm", "hm", "mm", "mmm", "eh"}
+    words = [w for w in WORD_RE.findall(text or "") if w.lower() not in FILL][:400]   # bỏ tiếng ngập ngừng, không chấm
     if not words:
         return {"error": "Thiếu lời nói để so."}
     wav = decode_audio(raw)
