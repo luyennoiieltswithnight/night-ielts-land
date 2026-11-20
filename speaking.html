@@ -632,6 +632,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
 <script src="night-plan.js?v=20261119a"></script>
+<script src="pron-detail.js?v=1"></script>
 <script src="night-fame.js?v=20261117a"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -5396,7 +5397,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         (v3 && c.interpretation && c.interpretation !== c.feedback ? '<p class="crit-meta"><b>Vì sao band này:</b> ' + escapeHtml(c.interpretation) + '</p>' : '') +
         (v3 ? list('Bằng chứng', c.evidence) + list('Điểm yếu chính', c.weaknesses) + list('Nên luyện', c.recommendations) : '') +
         invHtml(record, k) +
-        (k === 'pronunciation' ? pronWordsHtml(record) : '') + checklistHtml(k, c) +
+        (k === 'pronunciation' ? npdBtnHtml(record) + pronWordsHtml(record) : '') + checklistHtml(k, c) +
         (c.toNextBand && Number(c.band) < 9 ? '<div class="crit-next" style="--c:var(--' + k + ')"><b>Vì sao chưa lên ' + (Math.floor(Number(c.band)) + 1) + ':</b> ' + escapeHtml(c.toNextBand) + '</div>' : '') +
         (c.uncertainty ? '<p class="crit-meta"><i class="fa-solid fa-circle-info"></i> ' + escapeHtml(c.uncertainty) + '</p>' : '') +
         (mine.length || mineNotes.length ? '<details class="mt-2"><summary class="crit-sum">' + (mine.length ? mine.length + ' lỗi' : '') + (mine.length && mineNotes.length ? ' · ' : '') + (mineNotes.length ? mineNotes.length + ' chỗ nâng cấp' : '') + ' thuộc tiêu chí này</summary><ul class="crit-edits">' +
@@ -5444,6 +5445,29 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (n < 2 || ov == null) { el.innerHTML = '📊 Làm thêm vài câu trong bộ này để có <b>ước tính cả bài nói</b> (sát điểm thi hơn điểm 1 câu).'; return; }
     el.innerHTML = '📊 Ước tính cả bài nói: <b style="font-size:16px">' + fmtBand(ov) + '</b> <span style="opacity:.75">(từ ' + n + ' câu đã làm trong bộ này · ' + SP_CRIT.map(k => SP_SHORT[k] + ' ' + (avg[k] == null ? '-' : (Math.round(avg[k] * 2) / 2).toFixed(1))).join(' · ') + ')</span>';
   }
+  /* ---------- Phát âm từng âm (pron-detail.js): bấm điểm Phát âm -> cửa sổ chi tiết ---------- */
+  function npdCan(rec) { return !!(window.NightPron && rec && rec.transcript && (rec.phoneme || rec.audioChunkCount || rec.audioBase64 || rec.legacyAudio || (__recBlob && !rec.id))); }
+  function npdBtnHtml(rec) {
+    if (!npdCan(rec)) return '';
+    window.NightPron.btnCss();
+    const sc = rec.phoneme ? rec.phoneme.score : (window.NightPron.result(rec.id) || {}).score;
+    return '<button type="button" class="npd-open" data-npd>Xem phát âm từng âm' + (sc != null ? ' <small>' + sc + '/100</small>' : '') + '</button>';
+  }
+  function npdOpts(rec) {
+    return {
+      id: rec.id || 'cur', text: rec.transcript, words: rec.words || [], cached: rec.phoneme || null,
+      getBlob: () => (__resAudioUrl ? fetch(__resAudioUrl).then(r => r.blob()) : __recBlob ? Promise.resolve(__recBlob) : ensureAudioChunks(rec).then(ch => { const u = audioUrlFor(rec, ch.length ? ch : __audioChunks[rec.id]); return u ? fetch(u).then(r => r.blob()) : null; })),
+      save: c => {
+        rec.phoneme = c;
+        document.querySelectorAll('.npd-open[data-npd]').forEach(b => { b.innerHTML = 'Xem phát âm từng âm <small>' + c.score + '/100</small>'; });
+        if (rec.id && rec.studentId === window.__currentUid) updateDoc(doc(db, 'speakingAttempts', rec.id), { phoneme: c }).catch(e => console.warn('Không lưu được phát âm từng âm:', e));
+      }
+    };
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-npd]'); if (!b || !window.NightPron) return;
+    const rec = window.__spCurRecord; if (rec) window.NightPron.open(npdOpts(rec));
+  });
   function showResult(record) {
     __viewingAttemptId = record.id || null;
     window.__spCurRecord = record;   // để phần đánh dấu áp dụng chỗ giáo viên đã đánh dấu
@@ -5464,7 +5488,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     document.getElementById('resMiniBands').innerHTML = SP_CRIT.map(k => {
       const c = crit[k] || {};
       if (c.band == null) return '<span class="cpill na" title="' + escapeHtml(k === 'pronunciation' ? pronStatusText(record) : '') + '">' + SP_SHORT[k] + ': chưa chấm</span>';
-      return '<span class="cpill ' + k + '">' + SP_SHORT[k] + ': ' + (Number(c.band) % 1 ? fmtBand(c.band) : c.band) + (k === 'pronunciation' && !isNewRubric(record) ? ' <small>(từ văn bản)</small>' : '') + '</span>';
+      return '<span class="cpill ' + k + '"' + (k === 'pronunciation' && npdCan(record) ? ' data-npd style="cursor:pointer" title="Bấm để xem phát âm từng âm"' : '') + '>' + SP_SHORT[k] + ': ' + (Number(c.band) % 1 ? fmtBand(c.band) : c.band) + (k === 'pronunciation' && !isNewRubric(record) ? ' <small>(từ văn bản)</small>' : '') + '</span>';
     }).join('');
     paintWholeEstimate(record);
     const why = document.getElementById('resWhy');
@@ -5500,7 +5524,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       ensureAudioChunks(record).then(chunks => {
         if (__viewingAttemptId !== (record.id || null)) return;
         const url = audioUrlFor(record, chunks.length ? chunks : __audioChunks[record.id]);
-        if (url) { __resAudioUrl = url; audioPlayer.src = url; audioPlayer.classList.remove('hidden'); audioMissingNote.classList.add('hidden'); }
+        if (url) { __resAudioUrl = url; audioPlayer.src = url; audioPlayer.classList.remove('hidden'); audioMissingNote.classList.add('hidden');  if (window.NightPron && npdCan(record) && !record.phoneme) window.NightPron.prefetch(npdOpts(record)); }
         else audioMissingNote.textContent = 'Không tải được file ghi âm.';
       });
     } else {
