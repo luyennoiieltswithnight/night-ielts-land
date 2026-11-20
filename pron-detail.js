@@ -67,7 +67,7 @@
     var s = document.createElement('style'); s.id = 'npd-css';
     s.textContent = [
       '.npd-ov{position:fixed;inset:0;z-index:10050;background:rgba(20,16,48,.55);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:22px 12px}',
-      '.npd{width:100%;max-width:1040px;background:#FBFAFF;border-radius:28px;box-shadow:0 30px 70px -20px rgba(20,10,80,.55);color:#1F1B3A;font-family:"Plus Jakarta Sans",system-ui,sans-serif;animation:npdIn .25s ease-out;overflow:hidden}',
+      '.npd{width:100%;max-width:1180px;background:#FBFAFF;border-radius:28px;box-shadow:0 30px 70px -20px rgba(20,10,80,.55);color:#1F1B3A;font-family:"Plus Jakarta Sans",system-ui,sans-serif;animation:npdIn .25s ease-out;overflow:clip}',
       '@keyframes npdIn{from{opacity:0;transform:translateY(14px)}}',
       '.npd-hd{display:flex;align-items:center;gap:16px;padding:18px 22px;background:linear-gradient(120deg,#2A2370,#5B4BDB 60%,#B84BD8);color:#fff}',
       '.npd-ring{--v:0;width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c,#22C55E) calc(var(--v)*1%),rgba(255,255,255,.18) 0);flex:none}',
@@ -75,7 +75,7 @@
       '.npd-hd h3{margin:0;font-size:20px;font-weight:800}.npd-hd p{margin:4px 0 0;font-size:13.5px;opacity:.85;line-height:1.45}',
       '.npd-stat{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.npd-stat span{background:rgba(255,255,255,.16);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}',
       '.npd-x{margin-left:auto;align-self:flex-start;border:0;background:rgba(255,255,255,.18);width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;color:#fff;flex:none}',
-      '.npd-main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;padding:18px 22px 22px}',
+      '.npd-main{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);gap:18px;padding:18px 22px 22px}',
       '.npd-sec{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8A87A8;margin:0 0 8px}',
       '.npd-box{background:#fff;border:1px solid #ECE9F8;border-radius:20px;padding:16px}',
       '.npd-text{font-size:17px;line-height:2.05}',
@@ -86,7 +86,14 @@
       '.npd-chip{border:1.5px solid #ECE9F8;background:#fff;border-radius:14px;padding:7px 11px;font:700 14.5px "Plus Jakarta Sans",sans-serif;color:#1F1B3A;cursor:pointer;display:inline-flex;align-items:center;gap:7px}',
       '.npd-chip i{font-style:normal;font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px;color:#fff;background:var(--c)}.npd-chip.sel{border-color:#5B4BDB;box-shadow:0 0 0 3px #E4DFFF}',
       '.npd-good{color:#16A34A;font-weight:700;font-size:14px}',
-      '.npd-side{position:sticky;top:0;align-self:start}',
+      '.npd-grid{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}',
+      '.npd-w{border:1.5px solid #ECE9F8;border-radius:14px;padding:7px 10px 6px;background:#fff;cursor:pointer;transition:transform .12s;font:inherit;text-align:left;color:inherit}',
+      '.npd-w:hover{transform:translateY(-2px)}.npd-w.sel{border-color:#5B4BDB;box-shadow:0 0 0 3px #E4DFFF}.npd-w.fn{opacity:.72}',
+      '.npd-w .t{font-weight:800;font-size:16px;display:flex;align-items:center;gap:5px}.npd-w .t small{font-size:10.5px;font-weight:800;border-radius:999px;padding:1px 6px;color:#fff;background:var(--c)}',
+      '.npd-ph{display:flex;align-items:flex-start;gap:3px;margin-top:5px;flex-wrap:wrap}',
+      '.npd-ph .npd-p{font-size:13px;padding:0 5px;border-radius:6px;line-height:1.6}',
+      '.npd-leg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B6890;margin:0 0 10px}.npd-leg span:before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;background:var(--b);box-shadow:var(--o,none)}',
+      '.npd-side{position:sticky;top:12px;align-self:start}',
       '.npd-card{background:#fff;border:1px solid #ECE9F8;border-radius:22px;padding:18px;box-shadow:0 14px 30px -24px rgba(40,20,140,.45)}',
       '.npd-card h4{margin:0;font-size:30px;font-weight:800;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.npd-card h4 span{font-family:"Noto Sans","Segoe UI",sans-serif;color:#8A87A8;font-size:16px;font-weight:400}',
       '.npd-big{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap;margin:12px 0 2px}',
@@ -246,15 +253,17 @@
       var band = toBand(R.score), bad = R.words.filter(function (w) { return !w.fn && w.score < 85; });
       var ring = ov.querySelector('#npdRing'); ring.style.setProperty('--v', R.score); ring.style.setProperty('--c', R.score >= 85 ? '#4ADE80' : R.score >= 60 ? '#FBBF24' : '#F87171');
       ov.querySelector('#npdSc').textContent = band.toFixed(1);
-      ov.querySelector('#npdSub').textContent = bad.length ? 'Bấm vào chữ tô màu để xem sai ở âm nào, nghe chuẩn, nghe lại giọng bạn và đọc lại cho đúng.' : 'Bạn phát âm rất chuẩn. Bấm vào bất kỳ chữ nào để nghe lại và so sánh.';
+      ov.querySelector('#npdSub').textContent = bad.length ? 'Nhìn cả bài để so: âm đỏ là sai, khung đỏ là thiếu. Bấm vào chữ bất kỳ để nghe chuẩn, nghe lại giọng bạn và đọc lại cho đúng.' : 'Bạn phát âm rất chuẩn. Bấm vào bất kỳ chữ nào để nghe lại và so sánh.';
       ov.querySelector('#npdStat').innerHTML = '<span>Band phát âm ' + band.toFixed(1) + '</span><span>' + R.score + '% âm đúng</span><span>' + bad.length + ' chữ cần sửa</span>';
       var lv = function (w) { return w.score >= 85 ? 0 : w.score >= 60 ? 1 : 2; };
       var todo = bad.map(function (w) { return w; }).sort(function (a, b) { return a.score - b.score; }).slice(0, 10);
       var body = ov.querySelector('#npdBody');
       body.innerHTML = '<div class="npd-main"><div>' +
-        '<p class="npd-sec">Bài nói của bạn</p><div class="npd-box npd-text">' + R.words.map(function (w, i) { return '<button class="npd-tw lv' + lv(w) + (w.fn ? ' fn' : '') + '" data-i="' + i + '">' + esc(w.w) + '</button>'; }).join(' ') + '</div>' +
-        '<p class="npd-sec" style="margin-top:16px">Chữ cần sửa nhất</p><div class="npd-box">' + (todo.length ? '<div class="npd-todo">' + todo.map(function (w) { return '<button class="npd-chip" data-i="' + R.words.indexOf(w) + '" style="--c:' + colorOf(w.score) + '">' + esc(w.w) + '<i>' + w.score + '</i></button>'; }).join('') + '</div>' : '<div class="npd-good">Không có chữ nào sai rõ. Tuyệt vời!</div>') + '</div>' +
-        '<p class="npd-note"><b style="color:#B91C1C">Nền đỏ</b>: sai nhiều · <b style="color:#B45309">gạch vàng</b>: gần đúng · chữ xám: từ phụ (a, the, to…) nên đọc lướt. Chấm theo giọng Mỹ, có thể lệch ở chỗ máy nghe chưa rõ.</p>' +
+        '<div class="npd-leg"><span style="--b:#DCFCE7">Đúng</span><span style="--b:#FEF3C7">Gần đúng</span><span style="--b:#FEE2E2">Sai âm</span><span style="--b:#fff;--o:inset 0 0 0 1.5px #DC2626">Thiếu âm</span><span style="--b:#F1F5F9">Thừa âm</span></div>' +
+        '<div class="npd-grid">' + R.words.map(function (w, i) {
+          return '<button class="npd-w' + (w.fn ? ' fn' : '') + '" data-i="' + i + '" style="--c:' + colorOf(w.score) + '"><div class="t">' + esc(w.w) + ' <small>' + w.score + '</small></div><div class="npd-ph">' + phChips(w.ph, w.extra, false) + '</div></button>';
+        }).join('') + '</div>' +
+        '<p class="npd-note">Chữ mờ là từ phụ (a, the, to…) nên đọc lướt, chấm nhẹ tay hơn. Chấm theo giọng Mỹ, có thể lệch ở chỗ máy nghe chưa rõ.</p>' +
         '</div><div class="npd-side" id="npdDet"></div></div>';
       var pick = function (i) {
         var w = R.words[i]; if (!w) return;
@@ -296,7 +305,7 @@
         };
         if (window.innerWidth <= 820) det.scrollIntoView({ behavior: 'smooth', block: 'start' });
       };
-      body.querySelector('.npd-main').addEventListener('click', function (e) { var b = e.target.closest('.npd-tw,.npd-chip'); if (b) pick(+b.dataset.i); });
+      body.querySelector('.npd-main').addEventListener('click', function (e) { var b = e.target.closest('.npd-w'); if (b) pick(+b.dataset.i); });
       var first = todo[0] ? R.words.indexOf(todo[0]) : 0;
       pick(first);
       if (window.innerWidth <= 820) ov.scrollTop = 0;
