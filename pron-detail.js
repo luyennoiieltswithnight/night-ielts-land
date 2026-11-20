@@ -87,6 +87,11 @@
       '.npd-chip i{font-style:normal;font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px;color:#fff;background:var(--c)}.npd-chip.sel{border-color:#5B4BDB;box-shadow:0 0 0 3px #E4DFFF}',
       '.npd-good{color:#16A34A;font-weight:700;font-size:14px}',
       '.npd-grid{display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start}',
+      '.npd-kbar{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}',
+      '.npd-k{border:0;border-radius:999px;padding:10px 16px;font:800 13.5px "Plus Jakarta Sans",sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:8px;background:#1F1B3A;color:#fff}',
+      '.npd-k.std{background:#EEEAFE;color:#4B3CC9}.npd-k svg{width:15px;height:15px}.npd-k.on{background:#EF4444;color:#fff}',
+      '.npd-w.kara{background:#5B4BDB;border-color:#5B4BDB;transform:translateY(-3px) scale(1.04);box-shadow:0 10px 20px -10px #5B4BDB}.npd-w.kara .t{color:#fff}.npd-w.kara .t small{background:#fff;color:#5B4BDB}',
+      '.npd-w.past{opacity:.55}',
       '.npd-w{border:1.5px solid #ECE9F8;border-radius:14px;padding:7px 10px 6px;background:#fff;cursor:pointer;transition:transform .12s;font:inherit;text-align:left;color:inherit}',
       '.npd-w:hover{transform:translateY(-2px)}.npd-w.sel{border-color:#5B4BDB;box-shadow:0 0 0 3px #E4DFFF}.npd-w.fn{opacity:.72}',
       '.npd-w .t{font-weight:800;font-size:16px;display:flex;align-items:center;gap:5px}.npd-w .t small{font-size:10.5px;font-weight:800;border-radius:999px;padding:1px 6px;color:#fff;background:var(--c)}',
@@ -196,6 +201,8 @@
 
   /* ---------- Giao diện ---------- */
   var IC = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+    stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
     spk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>',
     slow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
@@ -243,7 +250,7 @@
       '<div style="min-width:0"><h3>Phát âm của bạn</h3><p id="npdSub">Đang nghe từng âm trong bài nói…</p><div class="npd-stat" id="npdStat"></div></div><button class="npd-x" aria-label="Đóng">×</button></div>' +
       '<div id="npdBody"><div class="npd-load"><i></i>Đang chấm từng âm trong bài nói của bạn…</div></div></div>';
     document.body.appendChild(ov);
-    var close = function () { stop(); if (mr && mr.state === 'recording') try { mr.stop(); } catch (e) {} ov.remove(); document.removeEventListener('keydown', onKey); };
+    var close = function () { if (ov.__kStop) ov.__kStop(); stop(); if (mr && mr.state === 'recording') try { mr.stop(); } catch (e) {} ov.remove(); document.removeEventListener('keydown', onKey); };
     var onKey = function (e) { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
     ov.addEventListener('click', function (e) { if (e.target === ov || e.target.closest('.npd-x')) close(); });
@@ -259,6 +266,7 @@
       var todo = bad.map(function (w) { return w; }).sort(function (a, b) { return a.score - b.score; }).slice(0, 10);
       var body = ov.querySelector('#npdBody');
       body.innerHTML = '<div class="npd-main"><div>' +
+        '<div class="npd-kbar"><button class="npd-k" data-k="me">' + IC.play + 'Nghe bài của bạn · chạy chữ</button><button class="npd-k std" data-k="std">' + IC.play + 'Nghe giọng chuẩn · chạy chữ</button></div>' +
         '<div class="npd-leg"><span style="--b:#DCFCE7">Đúng</span><span style="--b:#FEF3C7">Gần đúng</span><span style="--b:#FEE2E2">Sai âm</span><span style="--b:#fff;--o:inset 0 0 0 1.5px #DC2626">Thiếu âm</span><span style="--b:#F1F5F9">Thừa âm</span></div>' +
         '<div class="npd-grid">' + R.words.map(function (w, i) {
           return '<button class="npd-w' + (w.fn ? ' fn' : '') + '" data-i="' + i + '" style="--c:' + colorOf(w.score) + '"><div class="t">' + esc(w.w) + ' <small>' + w.score + '</small></div><div class="npd-ph">' + phChips(w.ph, w.extra, false) + '</div></button>';
@@ -267,6 +275,7 @@
         '</div><div class="npd-side" id="npdDet"></div></div>';
       var pick = function (i) {
         var w = R.words[i]; if (!w) return;
+        if (ov.__kStop) ov.__kStop();
         [].forEach.call(body.querySelectorAll('[data-i]'), function (b) { b.classList.toggle('sel', +b.dataset.i === i); });
         var hasT = w.s != null && isFinite(w.s) && w.e > w.s, fx = fixList(w);
         var det = body.querySelector('#npdDet');
@@ -305,6 +314,47 @@
         };
         if (window.innerWidth <= 820) det.scrollIntoView({ behavior: 'smooth', block: 'start' });
       };
+      /* ---------- Karaoke: phát cả bài, chữ đang đọc sáng lên ---------- */
+      var cards = [].slice.call(body.querySelectorAll('.npd-w')), kb = [].slice.call(body.querySelectorAll('.npd-k')), raf = 0, kOn = null;
+      var mark = function (i) { cards.forEach(function (c, k) { c.classList.toggle('kara', k === i); c.classList.toggle('past', i >= 0 && k < i); }); if (i >= 0 && cards[i]) cards[i].scrollIntoView({ block: 'nearest', behavior: 'smooth' }); };
+      var kStop = function () { cancelAnimationFrame(raf); stop(); mark(-1); cards.forEach(function (c) { c.classList.remove('past'); }); kb.forEach(function (b) { b.classList.remove('on'); b.innerHTML = IC.play + (b.dataset.k === 'me' ? 'Nghe bài của bạn · chạy chữ' : 'Nghe giọng chuẩn · chạy chữ'); }); kOn = null; };
+      ov.__kStop = kStop;
+      var hasTimes = R.words.some(function (w) { return w.s != null && w.e > w.s; });
+      if (!hasTimes) kb[0].disabled = true;
+      kb.forEach(function (b) {
+        b.onclick = function () {
+          var k = b.dataset.k; if (kOn === k) { kStop(); return; } kStop(); kOn = k;
+          b.classList.add('on'); b.innerHTML = IC.stop + 'Dừng';
+          if (k === 'me') {
+            getBlob().then(decode).then(function (buf) {
+              if (kOn !== 'me') return;
+              if (actx.state === 'suspended') actx.resume();
+              var src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination); var t0 = actx.currentTime; src.start(); playing = src;
+              src.onended = function () { if (kOn === 'me') kStop(); };
+              var cur = -1;
+              (function tick() {
+                var t = actx.currentTime - t0, i = -1;
+                for (var n = 0; n < R.words.length; n++) { var w = R.words[n]; if (w.s != null && t >= w.s - 0.05 && t <= (w.e || w.s) + 0.12) { i = n; break; } if (w.s != null && w.s > t) break; }
+                if (i >= 0 && i !== cur) { cur = i; mark(i); }
+                if (kOn === 'me') raf = requestAnimationFrame(tick);
+              })();
+            }).catch(function () { kStop(); b.disabled = true; });
+          } else {
+            var txt = '', starts = [];
+            R.words.forEach(function (w) { starts.push(txt.length); txt += w.w + ' '; });
+            try {
+              speechSynthesis.cancel();
+              var u = new SpeechSynthesisUtterance(txt.trim()); u.lang = 'en-US'; u.rate = 0.85;
+              var v = speechSynthesis.getVoices().filter(function (x) { return /en[-_]US/i.test(x.lang); }); var best = v.filter(function (x) { return /Samantha|Google US|Aria|Jenny|Natural/i.test(x.name); })[0] || v[0]; if (best) u.voice = best;
+              var gotB = false, est = null;
+              u.onboundary = function (e) { if (e.name && e.name !== 'word') return; gotB = true; var i = 0; while (i + 1 < starts.length && starts[i + 1] <= e.charIndex) i++; mark(i); };
+              u.onstart = function () { var t0 = Date.now(), per = 60000 / (150 * 0.85); est = setInterval(function () { if (gotB || kOn !== 'std') return clearInterval(est); var el = Date.now() - t0, acc = 0, i = 0; for (; i < R.words.length; i++) { acc += per * Math.max(1, R.words[i].w.length / 5); if (acc > el) break; } mark(Math.min(i, R.words.length - 1)); }, 120); };
+              u.onend = u.onerror = function () { clearInterval(est); if (kOn === 'std') kStop(); };
+              speechSynthesis.speak(u);
+            } catch (e) { kStop(); }
+          }
+        };
+      });
       body.querySelector('.npd-main').addEventListener('click', function (e) { var b = e.target.closest('.npd-w'); if (b) pick(+b.dataset.i); });
       var first = todo[0] ? R.words.indexOf(todo[0]) : 0;
       pick(first);
