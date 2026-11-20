@@ -119,8 +119,11 @@ def decode_audio(raw):
 
 
 def recognize(wav):
+    """Trả về (danh sách âm, mốc thời gian [bắt đầu, kết thúc] giây của từng âm)."""
     proc, model = load()
-    out = []
+    tok = proc.tokenizer
+    skip = {tok.pad_token, "|", " ", "<s>", "</s>", "<unk>", None}
+    out, times = [], []
     step = 16000 * 30  # cắt 30 giây / đoạn cho nhẹ máy
     for s in range(0, len(wav), step):
         seg = wav[s:s + step]
@@ -128,9 +131,18 @@ def recognize(wav):
             continue
         inp = proc(seg, sampling_rate=16000, return_tensors="pt")
         with torch.inference_mode():
-            ids = model(inp.input_values).logits.argmax(-1)
-        out.extend(proc.batch_decode(ids)[0].split())
-    return out
+            ids = model(inp.input_values).logits.argmax(-1)[0].tolist()
+        toks = tok.convert_ids_to_tokens(ids)
+        fr = len(seg) / 16000 / max(1, len(ids))  # ~0.02 giây / khung
+        off = s / 16000
+        prev = None
+        for f, t in enumerate(toks):
+            if t != prev and t not in skip:
+                out.append(t); times.append([off + f * fr, off + (f + 1) * fr])
+            elif t == prev and t not in skip and times:
+                times[-1][1] = off + (f + 1) * fr
+            prev = t
+    return out, times
 
 
 WORD_RE = re.compile(r"[A-Za-z]+(?:'[A-Za-z]+)?")
@@ -155,7 +167,7 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
     if len(wav) < 8000:
         return {"error": "Bài ghi âm quá ngắn."}
     t1 = time.time()
-    heard = recognize(wav)
+    heard, htimes = recognize(wav)
     t2 = time.time()
     hyp = [norm(p) for p in heard]
 
@@ -175,6 +187,9 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
             continue
         last_w = owner[i]
         r = ref[i]
+        if j is not None:
+            tw = W[owner[i]]
+            tw["s"] = min(tw.get("s", 1e9), htimes[j][0]); tw["e"] = max(tw.get("e", 0), htimes[j][1])
         if j is None:
             st, got = "miss", ""
         else:
@@ -189,6 +204,8 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
         good = sum(1 if p["st"] == "ok" else 0.75 if p["st"] == "near" else 0 for p in x["ph"])
         x["score"] = round(100 * max(0.0, good - 0.5 * len(x["extra"])) / n)
         x["fn"] = x["w"].lower() in FUNCTION
+        if "s" in x:
+            x["s"], x["e"] = round(x["s"], 2), round(x["e"], 2)
         wt = 0.4 if x["fn"] else 1.0
         tot_w += wt * n; tot_s += wt * n * x["score"]
     return {"ok": True, "score": round(tot_s / tot_w) if tot_w else 0, "words": W, "heard": " ".join(heard),
