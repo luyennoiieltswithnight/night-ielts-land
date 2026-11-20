@@ -102,9 +102,9 @@
       '.npd-fix b.h{display:block;margin-bottom:4px;font-size:14.5px}.npd-fix .how{color:#3F3D56;font-size:14px;line-height:1.55}.npd-fix .eg{color:#6B6890;font-size:12.5px;margin-top:5px}',
       '.npd-ok{color:#16A34A;font-weight:700;margin-top:12px}',
       '.npd-prac{margin-top:14px;border-top:1px dashed #E4E1F3;padding-top:14px}',
-      '.npd-rec{width:100%;border:0;border-radius:16px;padding:13px;font:800 15px "Plus Jakarta Sans",sans-serif;color:#fff;cursor:pointer;background:linear-gradient(135deg,#5B4BDB,#EC4899);display:flex;align-items:center;justify-content:center;gap:9px;box-shadow:0 10px 20px -12px #5B4BDB}',
-      '.npd-rec.on{background:linear-gradient(135deg,#EF4444,#F97316);animation:npdPulse 1.1s infinite}@keyframes npdPulse{50%{box-shadow:0 0 0 9px rgba(239,68,68,.15)}}',
-      '.npd-rec:disabled{opacity:.6;cursor:default}.npd-rec svg{width:18px;height:18px;flex:none}',
+      '.npd-rec{display:inline-flex;align-items:center;gap:8px;border:1.5px solid #E4DFFF;border-radius:999px;padding:9px 16px;font:700 14px "Plus Jakarta Sans",sans-serif;color:#4B3CC9;background:#F6F4FF;cursor:pointer}.npd-rec:hover{background:#EEEAFE}',
+      '.npd-rec.on{color:#fff;background:#EF4444;border-color:#EF4444;animation:npdPulse 1.1s infinite}@keyframes npdPulse{50%{box-shadow:0 0 0 7px rgba(239,68,68,.15)}}',
+      '.npd-rec:disabled{opacity:.6;cursor:default}.npd-rec svg{width:16px;height:16px;flex:none}',
       '.npd-try{margin-top:10px;font-size:14px}.npd-try .npd-big .npd-p{font-size:17px}',
       '.npd-try .msg{font-weight:800;margin-top:6px}',
       '.npd-load{padding:60px 10px;text-align:center;color:#6B6890;font-weight:600}.npd-load i{display:block;width:34px;height:34px;margin:0 auto 12px;border-radius:50%;border:3px solid #E4DFFF;border-top-color:#5B4BDB;animation:npdSp 1s linear infinite}@keyframes npdSp{to{transform:rotate(360deg)}}',
@@ -128,10 +128,10 @@
       .then(function (j) { if (j.error) throw new Error(j.error); return j; });
   }
   function compact(j) {
-    return { v: 1, score: j.score, at: Date.now(), words: j.words.map(function (w) { return { w: w.w, score: w.score, fn: !!w.fn, ph: w.ph.map(function (p) { return p.p + '|' + p.st + '|' + (p.got || ''); }).join(' '), x: (w.extra || []).join(' ') }; }) };   // Firestore không nhận mảng lồng nhau -> lưu dạng chuỗi
+    return { v: 1, score: j.score, at: Date.now(), words: j.words.map(function (w) { return { w: w.w, score: w.score, fn: !!w.fn, s: w.s != null ? w.s : null, e: w.e != null ? w.e : null, ph: w.ph.map(function (p) { return p.p + '|' + p.st + '|' + (p.got || ''); }).join(' '), x: (w.extra || []).join(' ') }; }) };   // Firestore không nhận mảng lồng nhau -> lưu dạng chuỗi
   }
   function expand(c) {
-    return { score: c.score, words: c.words.map(function (w) { return { w: w.w, score: w.score, fn: w.fn, ph: (typeof w.ph === 'string' ? w.ph.split(' ').filter(Boolean).map(function (t) { return t.split('|'); }) : w.ph).map(function (a) { return { p: a[0], st: a[1], got: a[2] || '' }; }), extra: typeof w.x === 'string' ? w.x.split(' ').filter(Boolean) : (w.x || []) }; }) };
+    return { score: c.score, words: c.words.map(function (w) { return { w: w.w, score: w.score, fn: w.fn, s: w.s, e: w.e, ph: (typeof w.ph === 'string' ? w.ph.split(' ').filter(Boolean).map(function (t) { return t.split('|'); }) : w.ph).map(function (a) { return { p: a[0], st: a[1], got: a[2] || '' }; }), extra: typeof w.x === 'string' ? w.x.split(' ').filter(Boolean) : (w.x || []) }; }) };
   }
   function run(o) {
     var id = o.id || 'cur';
@@ -150,6 +150,7 @@
     var toks = [];
     (ww || []).forEach(function (x) { String(x.w || '').toLowerCase().replace(/[’]/g, "'").split(/[^a-z']+/).filter(function (t) { return /[a-z]/.test(t); }).forEach(function (t) { toks.push({ t: t.replace(/^'+|'+$/g, ''), s: +x.s, e: +x.e }); }); });
     var k = 0;
+    if (W.some(function (w) { return w.s != null && w.e > w.s; })) return;   // máy chấm đã trả mốc thời gian từng chữ
     W.forEach(function (w) {
       var t = w.w.toLowerCase();
       for (var a = k; a < Math.min(toks.length, k + 4); a++) if (toks[a].t === t) { w.s = toks[a].s; w.e = toks[a].e; k = a + 1; return; }
@@ -266,7 +267,7 @@
           '<button class="npd-b me" data-a="me"' + (hasT ? '' : ' disabled title="Không tìm được chỗ chữ này trong file ghi âm"') + '>' + IC.mic + 'Giọng bạn</button>' +
           '<button class="npd-b cmp" data-a="cmp"' + (hasT ? '' : ' disabled') + '>' + IC.cmp + 'Chuẩn rồi bạn</button></div>' +
           (fx || '<div class="npd-ok">Chữ này bạn phát âm đúng hết các âm.</div>') +
-          '<div class="npd-prac"><p class="npd-sec">Luyện lại chữ này</p><button class="npd-rec" id="npdRec">' + IC.mic + 'Bấm rồi đọc "' + esc(w.w) + '"</button><div class="npd-try" id="npdTry"></div></div></div>';
+          '<div class="npd-prac"><p class="npd-sec">Tự đọc lại cho đúng</p><button class="npd-rec" id="npdRec">' + IC.mic + 'Đọc lại "' + esc(w.w) + '"</button><div class="npd-try" id="npdTry"></div></div></div>';
         [].forEach.call(det.querySelectorAll('[data-a]'), function (b) {
           b.onclick = function () {
             var a = b.dataset.a; [].forEach.call(det.querySelectorAll('[data-a]'), function (x) { x.classList.remove('on'); }); b.classList.add('on');
