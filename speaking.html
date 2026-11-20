@@ -632,7 +632,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
 <script src="night-plan.js?v=20261119a"></script>
-<script src="pron-detail.js?v=1"></script>
+<script src="pron-detail.js?v=2"></script>
 <script src="night-fame.js?v=20261117a"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -4881,6 +4881,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       const asrP = cache.asr ? Promise.resolve(cache.asr) : callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel, SPCore.ENGINE.verbatimPrompt).then(r => { lap('asr', tA); cache.asr = r; return r; });
       // Lần nghe thứ 2 (để so) bỏ qua khi chấm ngầm bài thi thử -> bớt 1 lần gọi AI mỗi câu
       const asr2P = cache.asr2 !== undefined ? Promise.resolve(cache.asr2) : quiet ? Promise.resolve(null) : (isFree ? asrP.then(() => callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)) : callGroqTranscribe(recBlob, SPCore.ENGINE.asrModel2)).then(r => { cache.asr2 = r; return r; }).catch(e => { console.warn('Lần nhận dạng thứ 2 lỗi:', e); return null; });
+      // Phát âm từng âm (máy chấm riêng): chạy song song ngay khi có lời nói, không chặn các bước khác
+      const phonP = window.NightPron ? asrP.then(a => a && a.text ? window.NightPron.scoreRaw(recBlob, a.text) : null).catch(e => { console.warn('Phát âm từng âm:', e); return null; }) : Promise.resolve(null);
       asrP.catch(() => {}); // tránh báo lỗi "chưa bắt" nếu bài bị loại vì chất lượng
       const createdAt = Date.now();
       const expiresAt = createdAt + ATTEMPT_TTL_MS;
@@ -5080,6 +5082,17 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (c.band > cp) { norm.gates[k] = { from: c.band, to: cp, why: gates.why[k] }; c.band = cp; norm.scores[k] = cp; }
         else norm.gates[k] = { cap: cp, why: gates.why[k] };
       });
+      // V19: gộp band "phát âm từng âm" (đo thật từng âm) vào tiêu chí Phát âm: 60% từng âm + 40% cách cũ (ngữ điệu, độ rõ)
+      {
+        const ph = await Promise.race([phonP, new Promise(r => setTimeout(() => r(null), 8000))]);
+        const pc = norm.criteria.pronunciation;
+        if (ph && ph.words && ph.words.length >= 3 && pc) {
+          norm.phoneme = ph;
+          const pb = window.NightPron.toBand(ph.score);
+          const nb = pc.band == null ? pb : Math.round((0.6 * pb + 0.4 * pc.band) * 2) / 2;
+          pc.phonemeBand = pb; pc.prePhoneme = pc.band; pc.band = nb; norm.scores.pronunciation = nb;
+        }
+      }
       // Phát âm không được cao hơn trung bình 3 tiêu chí kia quá nhiều chỉ vì được "nâng" trước khi chốt chặn
       { const pc = norm.criteria.pronunciation, oth = ['fluency', 'lexical', 'grammar'].map(k => norm.criteria[k] && norm.criteria[k].band).filter(b => b != null);
         if (pc && pc.lifted && pc.band != null && oth.length) { const m = oth.reduce((a, b) => a + b, 0) / oth.length, t = Math.max(pc.rawBand != null ? pc.rawBand : 0, Math.ceil(m * 2 - 1e-9) / 2); if (t < pc.band) { pc.band = t; norm.scores.pronunciation = t; } } }
@@ -5130,6 +5143,7 @@ Is it better to read a physical book or an e-book?"></textarea>
         questionId: q.id, questionText: q.text,
         transcript: transcript, scores: norm.scores, criteria: norm.criteria, rubric: norm.rubric,
         sampleAdequacy: norm.sampleAdequacy, calib: norm.calib || null, inventory: norm.inventory || null, gates: norm.gates || null,
+        phoneme: norm.phoneme || null,
         whyNotHigher: norm.whyNotHigher, changeNote: norm.changeNote || '', consistency: norm.consistency || null, edits: norm.edits, corrected: norm.corrected || null, meaning: norm.meaning || null,
         refinedAnswer: norm.refinedAnswer,
         refinementNotes: norm.refinementNotes,
@@ -5465,7 +5479,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (!npdCan(rec)) return '';
     window.NightPron.btnCss();
     const sc = rec.phoneme ? rec.phoneme.score : (window.NightPron.result(rec.id) || {}).score;
-    return '<button type="button" class="npd-open" data-npd>Xem phát âm từng âm' + (sc != null ? ' <small>' + sc + '/100</small>' : '') + '</button>';
+    return '<button type="button" class="npd-open" data-npd>Xem phát âm từng âm' + (sc != null ? ' <small>band ' + window.NightPron.toBand(sc).toFixed(1) + ' · ' + sc + '% âm đúng</small>' : '') + '</button>';
   }
   function npdOpts(rec) {
     return {
@@ -5473,7 +5487,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       getBlob: () => (__resAudioUrl ? fetch(__resAudioUrl).then(r => r.blob()) : __recBlob ? Promise.resolve(__recBlob) : ensureAudioChunks(rec).then(ch => { const u = audioUrlFor(rec, ch.length ? ch : __audioChunks[rec.id]); return u ? fetch(u).then(r => r.blob()) : null; })),
       save: c => {
         rec.phoneme = c;
-        document.querySelectorAll('.npd-open[data-npd]').forEach(b => { b.innerHTML = 'Xem phát âm từng âm <small>' + c.score + '/100</small>'; });
+        document.querySelectorAll('.npd-open[data-npd]').forEach(b => { b.innerHTML = 'Xem phát âm từng âm <small>band ' + window.NightPron.toBand(c.score).toFixed(1) + ' · ' + c.score + '% âm đúng</small>'; });
         if (rec.id && rec.studentId === window.__currentUid) updateDoc(doc(db, 'speakingAttempts', rec.id), { phoneme: c }).catch(e => console.warn('Không lưu được phát âm từng âm:', e));
       }
     };

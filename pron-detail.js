@@ -72,7 +72,7 @@
       '.npd-top{display:flex;align-items:center;gap:16px}.npd-top h3{margin:0;font-size:21px;font-weight:800}.npd-top p{margin:3px 0 0;color:#6B6890;font-size:13.5px}',
       '.npd-x{margin-left:auto;align-self:flex-start;border:0;background:#F1EFFA;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;color:#4B4870;flex:none}',
       '.npd-ring{--v:0;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c,#16A34A) calc(var(--v)*1%),#EEE 0);flex:none}',
-      '.npd-ring b{width:66px;height:66px;border-radius:50%;background:#fff;display:grid;place-items:center;font-size:24px;font-weight:800}',
+      '.npd-ring b{width:66px;height:66px;border-radius:50%;background:#fff;display:grid;place-items:center;align-content:center;font-size:24px;font-weight:800;line-height:1.9}',
       '.npd-leg{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:#6B6890;margin-top:6px}.npd-leg span:before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;background:var(--b);box-shadow:var(--o,none)}',
       '.npd-words{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;max-height:42vh;overflow:auto;padding:2px}',
       '.npd-w{border:1.5px solid #E7E4F5;border-radius:14px;padding:7px 10px 6px;background:#fff;cursor:pointer;transition:transform .12s;font:inherit;text-align:left;color:inherit}',
@@ -194,7 +194,8 @@
     run(o2).then(function (R) {
       attachTimes(R.words, o.words);
       var ring = ov.querySelector('#npdRing'); ring.style.setProperty('--v', R.score); ring.style.setProperty('--c', colorOf(R.score));
-      ov.querySelector('#npdSc').textContent = R.score;
+      ov.querySelector('#npdSc').innerHTML = toBand(R.score).toFixed(1) + '<span style="display:block;font-size:10px;font-weight:700;color:#8A87A8;margin-top:-14px">' + R.score + '% âm đúng</span>';
+      ov.querySelector('#npdSub').textContent = 'Band phát âm từ độ chuẩn từng âm: ' + toBand(R.score).toFixed(1) + ' (' + R.score + '% âm đúng). Bấm vào từng chữ để xem âm sai, nghe chuẩn và nghe lại giọng của bạn.';
       var body = ov.querySelector('#npdBody');
       body.innerHTML = '<div class="npd-words">' + R.words.map(function (w, i) {
         return '<button class="npd-w' + (w.fn ? ' fn' : '') + '" data-i="' + i + '" style="--c:' + colorOf(w.score) + '"><div class="t">' + esc(w.w) + ' <small>' + w.score + '</small></div><div class="npd-ph">' +
@@ -239,6 +240,13 @@
       ov.querySelector('#npdBody').innerHTML = '<div class="npd-err">' + esc(e && e.message && !/fetch|busy|network/i.test(e.message) ? e.message : 'Máy chấm phát âm đang bận hoặc đang khởi động. Bạn đợi khoảng 1 phút rồi bấm lại nhé.') + '</div>';
     });
   }
+  /* Đổi độ chuẩn âm (0-100) sang band IELTS cho tiêu chí Phát âm (phần "phát âm từng âm") */
+  function toBand(v) {
+    var T = [[95, 8.5], [90, 8], [85, 7.5], [80, 7], [74, 6.5], [68, 6], [61, 5.5], [53, 5], [45, 4.5], [37, 4], [28, 3.5]];
+    for (var i = 0; i < T.length; i++) if (v >= T[i][0]) return T[i][1];
+    return 3;
+  }
+  function scoreRaw(blob, text) { return score(blob, text).then(compact); }
   function prefetch(o) { return run(o).catch(function () { return null; }); }
-  window.NightPron = { open: open, prefetch: prefetch, result: function (id) { return results[id || 'cur'] || null; }, btnCss: css };
+  window.NightPron = { open: open, toBand: toBand, scoreRaw: scoreRaw, prefetch: prefetch, result: function (id) { return results[id || 'cur'] || null; }, btnCss: css };
 })();
