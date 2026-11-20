@@ -106,7 +106,7 @@
     if (window.NightPlan) return Promise.resolve(window.NightPlan);
     return new Promise(function (res) {
       var sc = document.createElement('script');
-      try { sc.src = new URL('../night-plan.js?v=20261119a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-plan.js'; }
+      try { sc.src = new URL('../night-plan.js?v=20261120a', document.querySelector('script[src*="night-progress.js"]').src).href; } catch (e) { sc.src = '/night-plan.js'; }
       sc.onload = function () { res(window.NightPlan || null); }; sc.onerror = function () { res(null); };
       document.head.appendChild(sc);
     });

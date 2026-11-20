@@ -773,3 +773,45 @@
   if (document.body) showUpdateNotice(); else document.addEventListener('DOMContentLoaded', showUpdateNotice);
   boot();
 })();
+
+/* ---------- ĐANG HỌC CÙNG BẠN: đếm số người đang mở web (Realtime Database) ----------
+   Mỗi tab ghi 1 "nhịp tim" 30 giây/lần vào liveSessions/_site/online/{id}; tắt tab / mất mạng thì tự xoá.
+   Ai im quá 90 giây không được tính. NightOnline.watch(cb) -> cb(số người), trả về hàm huỷ. */
+(function () {
+  if (window.NightOnline) return;
+  var URL = 'https://night-ielts-land-default-rtdb.firebaseio.com', PATH = 'liveSessions/_site/online';
+  var CFG = { apiKey: 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8', authDomain: 'night-ielts-land.firebaseapp.com', projectId: 'night-ielts-land', storageBucket: 'night-ielts-land.firebasestorage.app', messagingSenderId: '408519436407', appId: '1:408519436407:web:a9f0b9ba23368b54427e72', databaseURL: URL };
+  var cid = (function () { try { var k = sessionStorage.getItem('nv-online-id'); if (!k) { k = Date.now().toString(36) + Math.random().toString(36).slice(2, 8); sessionStorage.setItem('nv-online-id', k); } return k; } catch (e) { return Math.random().toString(36).slice(2); } })();
+  var dbP = null, last = 0, cbs = [], snapOn = false;
+  function db() {
+    return dbP || (dbP = Promise.all([import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'), import('https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js')]).then(function (m) {
+      var app = m[0].getApps()[0] || m[0].initializeApp(CFG);
+      return { d: m[1], db: m[1].getDatabase(app, URL) };
+    }));
+  }
+  function count(v) { var n = 0, now = Date.now(); Object.keys(v || {}).forEach(function (k) { if (v[k] && now - Number(v[k].t) < 90e3) n++; }); return Math.max(1, n); }
+  function start() {
+    db().then(function (X) {
+      var me = X.d.ref(X.db, PATH + '/' + cid);
+      var beat = function () { X.d.set(me, { t: Date.now() }).catch(function () {}); };
+      X.d.onValue(X.d.ref(X.db, '.info/connected'), function (s) { if (s.val() === true) { X.d.onDisconnect(me).remove(); beat(); } });
+      setInterval(beat, 30e3);
+      // dọn nhịp tim cũ (máy tắt ngang không kịp xoá)
+      setTimeout(function () { X.d.get(X.d.ref(X.db, PATH)).then(function (s) { var v = s.val() || {}, now = Date.now(); Object.keys(v).forEach(function (k) { if (!v[k] || now - Number(v[k].t) > 10 * 60e3) X.d.remove(X.d.ref(X.db, PATH + '/' + k)).catch(function () {}); }); }).catch(function () {}); }, 8000);
+    }).catch(function (e) { console.warn('NightOnline:', e); });
+  }
+  function watch(cb) {
+    cbs.push(cb); if (last) cb(last);
+    if (!snapOn) {
+      snapOn = true;
+      db().then(function (X) {
+        var v0 = {};
+        X.d.onValue(X.d.ref(X.db, PATH), function (s) { v0 = s.val() || {}; last = count(v0); cbs.forEach(function (f) { try { f(last); } catch (e) {} }); });
+        setInterval(function () { var n = count(v0); if (n !== last) { last = n; cbs.forEach(function (f) { try { f(n); } catch (e) {} }); } }, 30e3);
+      }).catch(function () {});
+    }
+    return function () { cbs = cbs.filter(function (f) { return f !== cb; }); };
+  }
+  window.NightOnline = { watch: watch };
+  if (document.readyState === 'complete') setTimeout(start, 1500); else window.addEventListener('load', function () { setTimeout(start, 1500); });
+})();
