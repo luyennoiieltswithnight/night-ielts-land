@@ -2137,9 +2137,24 @@ Is it better to read a physical book or an e-book?"></textarea>
   var STOP_W = ' the a an and or but so to of in on at for with from by about it its is are was were be been am i me my we our you your he she they them their this that these those there here not no yes can could will would should do does did have has had just also some any more most very ';
   function verifyInventory(inv, transcript, question) {
     inv = inv || {};
-    var nt = ' ' + String(transcript || '').toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ') + ' ';
-    var clean = function (q) { return String(q || '').toLowerCase().replace(/[’‘]/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim(); };
-    var found = function (q) { q = clean(q); return q && nt.indexOf(' ' + q + ' ') !== -1; };
+    var exp = function (t) { return t.replace(/\b(it|that|there|what|he|she)'s\b/g, '$1 is').replace(/\bi'm\b/g, 'i am').replace(/n't\b/g, ' not').replace(/'re\b/g, ' are').replace(/'ve\b/g, ' have').replace(/'ll\b/g, ' will').replace(/'d\b/g, ' would').replace(/\bca not\b/g, 'can not').replace(/\bwo not\b/g, 'will not'); };   // V20: it's = it is
+    var nt = ' ' + exp(String(transcript || '').toLowerCase().replace(/[’‘]/g, "'")).replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+    var clean = function (q) { return exp(String(q || '').toLowerCase().replace(/[’‘]/g, "'")).replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim(); };
+    var FILL = / (er|erm|err|um+|uh+m?|ah+|hm+|mm+|like|you know|i mean)(?= )/g;
+    var nt2 = nt.replace(FILL, ' ').replace(/\s+/g, ' ');
+    var found = function (q) {
+      q = clean(q); if (!q) return false;
+      if (nt.indexOf(' ' + q + ' ') !== -1 || nt2.indexOf(' ' + q + ' ') !== -1) return true;
+      // V20: cụm bị ngắt bởi lặp từ / sửa lời ("at, at your disposal") -> các từ xuất hiện đúng thứ tự, cách nhau tối đa 2 từ
+      var ws = q.split(' '), toks = nt2.trim().split(' ');
+      for (var i = 0; i < toks.length; i++) {
+        if (toks[i] !== ws[0]) continue;
+        var j = i, ok = true;
+        for (var k = 1; k < ws.length; k++) { var hit = -1; for (var g = j + 1; g <= Math.min(toks.length - 1, j + 3); g++) if (toks[g] === ws[k]) { hit = g; break; } if (hit < 0) { ok = false; break; } j = hit; }
+        if (ok) return true;
+      }
+      return false;
+    };
     var uniq = function (arr, f) { var seen = {}, out = []; (Array.isArray(arr) ? arr : []).forEach(function (x) { var q = f ? f(x) : x; var k = clean(q); if (!k || seen[k] || !found(q)) return; seen[k] = 1; out.push(x); }); return out; };
     var qw = ' ' + clean(question) + ' ';
     // từ/cụm chỉ gồm từ cơ bản, từ chức năng, hoặc lặp lại từ trong câu hỏi -> không tính là từ vựng ăn điểm
@@ -2166,8 +2181,8 @@ Is it better to read a physical book or an e-book?"></textarea>
     if (words && v.lexErrors / words * 100 > 4) cap('lexical', 6, 'dùng sai từ khá nhiều (' + v.lexErrors + ' lỗi)');
     // NGỮ PHÁP: số LOẠI cấu trúc phức dùng đúng + mật độ lỗi
     var nt = v.types.length, g7 = P1 ? 2 : 3, g8 = P1 ? 3 : 4, ger = words ? v.gramErrors / words * 100 : 0;
-    if (nt === 0) cap('grammar', 5, 'chỉ có câu đơn, chưa có cấu trúc phức nào dùng đúng');
-    else if (nt === 1) cap('grammar', 5.5, 'mới có 1 loại cấu trúc phức (chủ yếu câu đơn)');
+    if (nt === 0) cap('grammar', P1 ? 5.5 : 5, 'chỉ có câu đơn, chưa có cấu trúc phức nào dùng đúng');
+    else if (nt === 1) cap('grammar', P1 ? 6 : 5.5, 'mới có 1 loại cấu trúc phức (chủ yếu câu đơn)');
     else if (nt < g7) cap('grammar', 6, 'mới có ' + nt + ' loại cấu trúc phức (band 7 cần ≥ ' + g7 + ' loại)');
     else if (nt < g8) cap('grammar', 7.5, 'band 8 cần ≥ ' + g8 + ' loại cấu trúc phức');
     if (ger > 10) cap('grammar', 5, 'lỗi ngữ pháp rất dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
@@ -2186,9 +2201,10 @@ Is it better to read a physical book or an e-book?"></textarea>
     else if (words < L[2]) cap('fluency', 7, 'band 7.5+ cần nói dài và phát triển ý hơn (' + words + ' từ)');
     if (!P1 && v.markers.length < 2) cap('fluency', 6.5, 'ít từ nối / discourse marker (band 7 cần dùng đa dạng)');
     var fr = words ? (fillers || 0) / words * 100 : 0;
-    if (fr > 12) cap('fluency', 5, 'ngập ngừng rất nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
-    else if (fr > 7) cap('fluency', 5.5, 'ngập ngừng nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
-    else if (fr > 4) cap('fluency', 6, 'còn ngập ngừng khá nhiều (' + fillers + ' lần "er/um")');
+    if (fr > 16) cap('fluency', 5, 'ngập ngừng rất nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
+    else if (fr > 11) cap('fluency', 5.5, 'ngập ngừng nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
+    else if (fr > 8) cap('fluency', 6, 'còn ngập ngừng khá nhiều (' + fillers + ' lần "er/um")');
+    else if (fr > 5) cap('fluency', 7, 'band 7.5+ cần ít "er/um" hơn (' + fillers + ' lần)');   // V20: nới — band 7 vẫn cho phép ngập ngừng tự nhiên
     if (wpm && wpm < 75) cap('fluency', 6, 'nói chậm (' + wpm + ' từ/phút)');
     else if (wpm && wpm < 95) cap('fluency', 7, 'tốc độ nói còn chậm (' + wpm + ' từ/phút)');
     return { caps: caps, why: why };
@@ -5083,7 +5099,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       }
       const inv = SPCore.verifyInventory(parsed && parsed.inventory, transcript, q.text);
       const nWordsAns = transcript.split(/\s+/).filter(Boolean).length;
-      const nFill = (transcript.match(/\b(er|erm|err|um+|uh+m?|ah+|hm+|mm+)\b/gi) || []).length + (findings || []).filter(f => f.category === 'filler').length;
+      const nFill = Math.max((transcript.match(/\b(er|erm|err|um+|uh+m?|ah+|hm+|mm+)\b/gi) || []).length, (findings || []).filter(f => f.category === 'filler').length);   // V20: không đếm trùng
       const gates = SPCore.evidenceCaps(inv, part, nWordsAns, audio ? fluency.wordsPerMinute : null, nFill);
       norm.inventory = inv; norm.gates = {};
       if (parsed && parsed.inventory) ['fluency', 'lexical', 'grammar'].forEach(k => {
@@ -5092,14 +5108,14 @@ Is it better to read a physical book or an e-book?"></textarea>
         if (c.band > cp) { norm.gates[k] = { from: c.band, to: cp, why: gates.why[k] }; c.band = cp; norm.scores[k] = cp; }
         else norm.gates[k] = { cap: cp, why: gates.why[k] };
       });
-      // V19: gộp band "phát âm từng âm" (đo thật từng âm) vào tiêu chí Phát âm: 60% từng âm + 40% cách cũ (ngữ điệu, độ rõ)
+      // V20: có kết quả "phát âm từng âm" (đo thật từng âm) thì band Phát âm lấy theo nó
       {
         const ph = await Promise.race([phonP, new Promise(r => setTimeout(() => r(null), 8000))]);
         const pc = norm.criteria.pronunciation;
         if (ph && ph.words && ph.words.length >= 3 && pc) {
           norm.phoneme = ph;
           const pb = window.NightPron.toBand(ph.score);
-          const nb = pc.band == null ? pb : Math.round((0.6 * pb + 0.4 * pc.band) * 2) / 2;
+          const nb = pb;   // V20: band Phát âm = band đo từng âm (khớp với cửa sổ Phát âm từng âm)
           pc.phonemeBand = pb; pc.prePhoneme = pc.band; pc.band = nb; norm.scores.pronunciation = nb;
         }
       }
@@ -5229,6 +5245,7 @@ Is it better to read a physical book or an e-book?"></textarea>
     'STEP 3 - CORRECT: write "corrected": the learner\'s whole answer rewritten so that it is grammatically correct and uses words naturally, as a teacher would correct it on the board. Keep the learner\'s ideas, order, sentence plan and as many of their own words as possible; do not add new ideas or make it sound advanced; drop fillers (er, um, uh) and accidental repetitions. ' +
     'Then list in "edits" EVERY change you made between the transcript and "corrected" (except removed fillers / repetitions), from the first word to the last, so that a learner sees all their mistakes. Check every clause for: subject-verb agreement; verb form (after modals, to + base verb, -ing after enjoy/like, missing or extra auxiliary or "be": "to productive" -> "to be productive"); tense; word form (adjective / adverb / noun / verb); articles; singular / plural, countable nouns; prepositions; pronouns; comparatives; word order; conjunctions and linking; sentence structure (missing subject or verb, two verbs without a connector, "I very like", "It has many people go"); collocation and word choice ("busy plan" -> "busy schedule", "do a mistake" -> "make a mistake"). Fix each at the smallest level that makes it right: a WORD, a PHRASE, or the whole CLAUSE when the structure is wrong. ' +
     'Each edit: {"find": text copied EXACTLY from the transcript (1-16 words, it may include a filler inside), "replace": the corrected words as they appear in "corrected" ("" to delete), "type": "misheard" | "agreement" | "verb_form" | "tense" | "word_form" | "article" | "plural" | "preposition" | "pronoun" | "comparison" | "word_order" | "conjunction" | "sentence" | "collocation" | "word_choice", "criterion": "pronunciation" for misheard, "lexical" for collocation / word_choice, otherwise "grammar", "why": 1 short Vietnamese sentence naming the rule (for misheard: "Máy nghe thành \'...\' — có lẽ bạn muốn nói \'...\'; chú ý phát âm rõ hơn"), "status": "confirmed" | "likely" | "uncertain"}. Edits must not overlap. ' +
+    'ACCURACY RULES: never "correct" something that is already correct English (e.g. "it offers many options" is correct: singular "it" takes "offers"; "kind of" as a hedge is fine). Do not mark natural spoken features as errors: fillers (um, er), self-corrections and repetitions ("you can, you have…") belong to fluency, not grammar or vocabulary. Only mark a grammar or vocabulary error when a trained IELTS examiner would clearly count it as an error; if in doubt, leave it out or use status "uncertain". ' +
     'Respond with ONE JSON object only: {"meaning": "1 Vietnamese sentence: what the learner wants to say", "corrected": "", "edits": []}.';
 
   const SCORING_SYSTEM_PROMPT = [
