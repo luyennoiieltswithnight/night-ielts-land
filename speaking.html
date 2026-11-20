@@ -5071,7 +5071,7 @@ Is it better to read a physical book or an e-book?"></textarea>
       }
       const inv = SPCore.verifyInventory(parsed && parsed.inventory, transcript, q.text);
       const nWordsAns = transcript.split(/\s+/).filter(Boolean).length;
-      const nFill = (transcript.match(/\b(er|erm|err|um|umm|uh|uhm|ah|hmm)\b/gi) || []).length + (findings || []).filter(f => f.category === 'filler').length;
+      const nFill = (transcript.match(/\b(er|erm|err|um+|uh+m?|ah+|hm+|mm+)\b/gi) || []).length + (findings || []).filter(f => f.category === 'filler').length;
       const gates = SPCore.evidenceCaps(inv, part, nWordsAns, audio ? fluency.wordsPerMinute : null, nFill);
       norm.inventory = inv; norm.gates = {};
       if (parsed && parsed.inventory) ['fluency', 'lexical', 'grammar'].forEach(k => {
@@ -5083,6 +5083,20 @@ Is it better to read a physical book or an e-book?"></textarea>
       // Phát âm không được cao hơn trung bình 3 tiêu chí kia quá nhiều chỉ vì được "nâng" trước khi chốt chặn
       { const pc = norm.criteria.pronunciation, oth = ['fluency', 'lexical', 'grammar'].map(k => norm.criteria[k] && norm.criteria[k].band).filter(b => b != null);
         if (pc && pc.lifted && pc.band != null && oth.length) { const m = oth.reduce((a, b) => a + b, 0) / oth.length, t = Math.max(pc.rawBand != null ? pc.rawBand : 0, Math.ceil(m * 2 - 1e-9) / 2); if (t < pc.band) { pc.band = t; norm.scores.pronunciation = t; } } }
+      // V19: KHÔNG TRẢ LỜI CÂU HỎI ("I have no idea…", "I don't know…") -> IELTS coi là chưa giao tiếp được nội dung: chặn cả 4 tiêu chí
+      {
+        const plain = ' ' + transcript.toLowerCase().replace(/[’]/g, "'").replace(/\b(er|erm|err|um+|uh+m?|ah+|hm+|mm+|like)\b/g, ' ') + ' ';
+        const content = plain.split(/[^a-z']+/).filter(Boolean).length;
+        const refuse = /\b(no idea|don'?t know|do not know|not sure (what|how|about)|can'?t (answer|think|say)|cannot (answer|think)|nothing to say|don'?t remember|do not remember|forgot|no answer)\b/.test(plain);
+        const lim = part === '2' ? 60 : 30;
+        if (refuse && content < lim) {
+          const why = 'chưa trả lời câu hỏi (chỉ nói là không biết / không có ý), chưa có nội dung để chấm';
+          const CAPS = { fluency: 3, lexical: 3, grammar: 3, pronunciation: 4 };
+          Object.keys(CAPS).forEach(k => { const c = norm.criteria[k]; if (c && c.band != null && c.band > CAPS[k]) { norm.gates[k] = { from: c.band, to: CAPS[k], why: why }; c.band = CAPS[k]; norm.scores[k] = CAPS[k]; } });
+          norm.nonAnswer = true;
+          norm.whyNotHigher = 'Bạn chưa trả lời câu hỏi (chỉ nói là không biết / không có ý) nên giám khảo không có gì để chấm. Dù không chắc, hãy nói 1 ý đơn giản + 1 lý do + 1 ví dụ, vd: "To be honest, I\'m not really sure, but I guess… because… For example…".';
+        }
+      }
       // Chốt chặn nhất quán: cùng câu hỏi, nội dung không ngắn đi, lỗi Từ vựng / Ngữ pháp không nhiều hơn lần trước
       // -> điểm tiêu chí đó không được thấp hơn lần trước (tránh "đọc bản đã sửa mà điểm lại tụt").
       if (prevRec) {
