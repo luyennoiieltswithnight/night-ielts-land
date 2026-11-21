@@ -966,3 +966,32 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pill); else pill();
 })();
+
+/* ===== LÀM LẺ 1 PASSAGE / 1 SECTION: mở đề với ?part=N (từ trang luyen-phan.html) =====
+   Tự vào chế độ Luyện tập, chọn đúng phần, ẩn các tab phần khác, Listening tua audio tới đầu section. */
+(function () {
+  var qs = new URLSearchParams(location.search), part = parseInt(qs.get('part'), 10);
+  if (!part || qs.get('assignmentId') || qs.get('liveSession') || qs.get('room')) return;
+  function go() {
+    if (typeof selectMode !== 'function' || typeof startTest !== 'function') return;
+    var setup = document.getElementById('setup-screen'); if (setup && setup.style.display === 'none') return;
+    try { selectMode('practice'); } catch (e) {}
+    var dd = document.getElementById('passage-dropdown') || document.getElementById('section-dropdown');
+    if (dd) { if (![].some.call(dd.options, function (o) { return o.value === String(part); })) return; dd.value = String(part); }
+    try { startTest(); } catch (e) { console.warn(e); return; }
+    var isL = !!document.getElementById('section-dropdown');
+    var st = document.createElement('style');
+    st.textContent = '#passage-tabs .tab-btn:not(:nth-child(' + part + ')),#section-tabs .tab-btn:not(:nth-child(' + part + ')),.section-quick-jump button:not(:nth-child(' + part + ')){display:none!important}' +
+      '.nv-onepart{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:9000;background:#24242A;color:#fff;border-radius:999px;padding:8px 8px 8px 16px;font:700 13px "Plus Jakarta Sans",system-ui,sans-serif;display:flex;gap:10px;align-items:center;box-shadow:0 10px 24px -10px rgba(0,0,0,.5)}' +
+      '.nv-onepart a{background:#fff;color:#24242A;border-radius:999px;padding:6px 12px;text-decoration:none;font-weight:800}';
+    document.head.appendChild(st);
+    var b = document.createElement('div'); b.className = 'nv-onepart';
+    var all = location.pathname + location.search.replace(/([?&])part=\d+&?/, '$1').replace(/[?&]$/, '');
+    b.innerHTML = 'Đang luyện riêng ' + (isL ? 'Section ' : 'Passage ') + part + ' <a href="luyen-phan.html">Chọn phần khác</a><a href="' + all + '">Làm cả đề</a>';
+    b.querySelector('a').href = (location.pathname.split('/').slice(0, -3).join('/') || '') + '/luyen-phan.html';
+    document.body.appendChild(b);
+    setTimeout(function () { b.style.transition = 'opacity .4s'; b.style.opacity = '.92'; }, 4000);
+    if (isL) { var j = document.querySelectorAll('.section-quick-jump button')[part - 1]; if (j) setTimeout(function () { j.click(); var a = document.querySelector('audio'); if (a) try { a.pause(); } catch (e) {} }, 400); }
+  }
+  if (document.readyState === 'complete') setTimeout(go, 600); else window.addEventListener('load', function () { setTimeout(go, 600); });
+})();

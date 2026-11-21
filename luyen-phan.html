@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Luyện từng phần · Night IELTS</title>
+<meta name="theme-color" content="#24242A">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root{--ink:#24242A;--mut:#6B6B78;--line:#EEEEF3;--panel:#F4F4F7;--r:#F97316;--l:#6C70DC}
+*{box-sizing:border-box}html,body{background:#E9E9EF}
+body{margin:0;color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif;padding:10px 10px 40px;-webkit-font-smoothing:antialiased}
+button,input,select{font-family:inherit}
+.frame{max-width:76rem;margin:0 auto;background:var(--ink);border-radius:28px;padding:6px}
+header{display:flex;align-items:center;gap:12px;color:#fff;padding:10px 12px 14px;flex-wrap:wrap}
+header a{text-decoration:none;color:var(--ink);background:#fff;border-radius:999px;padding:9px 14px;font-weight:800;font-size:13px}
+header h1{margin:0;font-size:17px;font-weight:800}header h1 small{display:block;font-size:11px;color:#A9A9B8;font-weight:600}
+.body{background:#fff;border-radius:24px;padding:20px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tabs button{border:0;border-radius:999px;padding:10px 18px;font-weight:800;font-size:14px;cursor:pointer;background:var(--panel)}
+.tabs button.on{background:var(--ink);color:#fff}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.bar input,.bar select{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.bar input{flex:1;min-width:220px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:0;border-radius:999px;padding:7px 12px;font-weight:700;font-size:12.5px;cursor:pointer;background:var(--panel);color:#4B4B58}
+.chip.on{background:var(--ink);color:#fff}
+.count{font-size:13px;color:var(--mut);margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.card{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:inherit;background:var(--panel);border-radius:18px;padding:14px;border:1.5px solid transparent;transition:transform .12s,border-color .12s}
+.card:hover{transform:translateY(-2px);border-color:var(--c)}
+.card .top{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:800;color:var(--mut)}
+.card .num{background:var(--c);color:#fff;border-radius:10px;padding:3px 9px;font-size:12px}
+.card h3{margin:0;font-size:15.5px;line-height:1.35}
+.card .t{display:flex;flex-wrap:wrap;gap:4px}
+.card .t span{font-size:11px;font-weight:700;background:#fff;border-radius:999px;padding:2px 8px;color:#4B4B58}
+.card .q{font-size:12px;color:var(--mut)}
+.empty{padding:30px;text-align:center;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header><a href="index.html"><i class="fa-solid fa-arrow-left"></i> Trang chủ</a><h1>Luyện từng phần<small>Làm lẻ 1 Passage Reading hoặc 1 Section Listening</small></h1></header>
+  <div class="body">
+    <div class="tabs" id="tabs"><button class="on" data-s="reading"><i class="fa-solid fa-book-open"></i> Reading · Passage</button><button data-s="listening"><i class="fa-solid fa-headphones"></i> Listening · Section</button></div>
+    <div class="bar"><input id="q" placeholder="Tìm theo tên bài (vd: urban farming, museum…)"><select id="part"></select><select id="book"></select></div>
+    <div class="chips" id="types"></div>
+    <p class="count" id="count"></p>
+    <div class="grid" id="grid"><div class="empty">Đang tải…</div></div>
+  </div>
+</div>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s || '').replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var ALL = [], S = { skill: 'reading', type: '', part: '', book: '', q: '' };
+  try { var sv = JSON.parse(localStorage.getItem('nv-luyenphan') || 'null'); if (sv) Object.assign(S, sv); } catch (e) {}
+  var bookName = function (x) { return (x.set === 'real' ? 'Real ' : 'Orange ') + x.book + ' · Test ' + x.test; };
+  function paintFilters() {
+    [].forEach.call($('tabs').children, function (b) { b.classList.toggle('on', b.dataset.s === S.skill); });
+    var L = ALL.filter(function (x) { return x.skill === S.skill; }), n = S.skill === 'reading' ? 3 : 4, nm = S.skill === 'reading' ? 'Passage' : 'Section';
+    $('part').innerHTML = '<option value="">Mọi ' + nm + '</option>' + Array.from({ length: n }, function (_, i) { return '<option value="' + (i + 1) + '"' + (S.part == i + 1 ? ' selected' : '') + '>' + nm + ' ' + (i + 1) + '</option>'; }).join('');
+    var books = []; L.forEach(function (x) { var k = x.set + x.book; if (!books.some(function (b) { return b.k === k; })) books.push({ k: k, t: (x.set === 'real' ? 'Real ' : 'Orange ') + x.book }); });
+    $('book').innerHTML = '<option value="">Mọi bộ đề</option>' + books.map(function (b) { return '<option value="' + b.k + '"' + (S.book === b.k ? ' selected' : '') + '>' + esc(b.t) + '</option>'; }).join('');
+    var types = {}; L.forEach(function (x) { x.types.forEach(function (t, i) { types[t] = x.labels[i]; }); });
+    $('types').innerHTML = '<button class="chip' + (!S.type ? ' on' : '') + '" data-t="">Mọi dạng câu hỏi</button>' + Object.keys(types).map(function (t) { return '<button class="chip' + (S.type === t ? ' on' : '') + '" data-t="' + t + '">' + esc(types[t]) + '</button>'; }).join('');
+    $('q').value = S.q;
+  }
+  function paint() {
+    try { localStorage.setItem('nv-luyenphan', JSON.stringify(S)); } catch (e) {}
+    var q = S.q.trim().toLowerCase(), c = S.skill === 'reading' ? 'var(--r)' : 'var(--l)', nm = S.skill === 'reading' ? 'Passage' : 'Section';
+    var L = ALL.filter(function (x) {
+      return x.skill === S.skill && (!S.part || x.part == S.part) && (!S.book || x.set + x.book === S.book) && (!S.type || x.types.indexOf(S.type) >= 0) && (!q || (x.title || '').toLowerCase().indexOf(q) >= 0);
+    });
+    $('count').textContent = L.length + ' ' + nm.toLowerCase() + ' phù hợp';
+    $('grid').innerHTML = L.length ? L.map(function (x) {
+      return '<a class="card" style="--c:' + c + '" href="' + esc(x.url) + '?part=' + x.part + '"><div class="top"><span class="num">' + nm + ' ' + x.part + '</span>' + esc(bookName(x)) + '</div>' +
+        '<h3>' + esc(x.title || (nm + ' ' + x.part)) + '</h3><div class="t">' + x.labels.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>' +
+        '<div class="q">Câu ' + x.q[0] + '–' + x.q[1] + ' · ' + (x.q[1] - x.q[0] + 1) + ' câu' + (S.skill === 'reading' ? ' · ~20 phút' : '') + '</div></a>';
+    }).join('') : '<div class="empty">Không có phần nào khớp bộ lọc.</div>';
+  }
+  $('tabs').onclick = function (e) { var b = e.target.closest('[data-s]'); if (!b) return; S = { skill: b.dataset.s, type: '', part: '', book: '', q: '' }; paintFilters(); paint(); };
+  $('types').onclick = function (e) { var b = e.target.closest('[data-t]'); if (!b) return; S.type = b.dataset.t; paintFilters(); paint(); };
+  $('part').onchange = function () { S.part = this.value; paint(); };
+  $('book').onchange = function () { S.book = this.value; paint(); };
+  $('q').oninput = function () { S.q = this.value; paint(); };
+  fetch('parts-index.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (j) { ALL = j; paintFilters(); paint(); })
+    .catch(function () { $('grid').innerHTML = '<div class="empty">Chưa tải được danh sách đề.</div>'; });
+})();
+</script>
+</body>
+</html>
