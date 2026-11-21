@@ -266,7 +266,7 @@ function isPaid_(uid, tok) {
       ok = role === 'admin' || role === 'student' || (role === 'pro' && until > Date.now());   // Học sinh của thầy: không giới hạn
     }
   } catch (e) {}
-  c.put(k, ok ? '1' : '0', 600);
+  c.put(k, ok ? '1' : '0', ok ? 600 : 30);   // chưa trả tiền: chỉ nhớ 30 giây, để người vừa mua dùng được ngay
   return ok;
 }
 function verify_(tok) {

@@ -95,8 +95,9 @@
           if (!user) { me = null; lsSet(LS_ME, null); return res(); }
           o.fs.getDoc(o.fs.doc(o.db, 'users', user.uid)).then(function (s) {
             var d = s.exists() ? s.data() : { role: 'user' };
-            me = { uid: user.uid, email: user.email || d.email || '', name: user.displayName || d.name || '', photo: user.photoURL || d.photo || '', role: d.role || 'student', groqKey: d.groqKey || '', proUntil: d.proUntil || 0 };
+            me = { uid: user.uid, email: user.email || d.email || '', name: user.displayName || d.name || '', photo: user.photoURL || d.photo || '', role: d.role || 'student', groqKey: d.groqKey || '', proUntil: d.proUntil || 0, tier: d.tier || '', buys: d.buys || {} };
             lsSet(LS_ME, me); syncManagedKey(); res();
+            waitPaid(o, user.uid);
           }).catch(function () { res(); });
         });
       });
@@ -330,7 +331,8 @@
             '<button type="button" class="npl-btn ghost" id="npl-sent" style="font-size:12px"' + (rq && rq.status === 'pending' ? ' disabled' : '') + '>Đã chuyển hơn 10 phút mà chưa mở? Báo Night IELTS</button>';
           stopW(); stopW = watchMe(o, user.uid, function (u) { return Number(u.proUntil) > Math.max(startU, Date.now()) + 1000; }, function (u) {
             var w = box.querySelector('[data-wait]');
-            if (w) { w.style.background = '#ECFDF5'; w.style.color = '#065F46'; w.innerHTML = '🎉 Đã nhận tiền! Gói <b>' + esc(planName(u) || '') + '</b> dùng đến hết ngày <b>' + dmy(u.proUntil) + '</b>. Tải lại trang để dùng ngay.'; }
+            if (w) { w.style.background = '#ECFDF5'; w.style.color = '#065F46'; w.innerHTML = '🎉 Đã nhận tiền! Gói <b>' + esc(planName(u) || '') + '</b> dùng đến hết ngày <b>' + dmy(u.proUntil) + '</b>. Trang sẽ tự tải lại để dùng ngay…'; }
+            setTimeout(function () { location.reload(); }, 3000);
           });
           wireCopy(box);
           box.querySelectorAll('[data-plan]').forEach(function (x) { x.onclick = function () { plan = x.dataset.plan; paint(); }; });
@@ -642,11 +644,29 @@
       '<p class="npl-note" style="margin:0 0 8px">📱 Quét mã QR bằng app ngân hàng (hoặc MoMo, ZaloPay): <b>số tiền và nội dung đã điền sẵn</b>. Nếu chuyển tay, ghi <b>đúng nội dung ' + esc(code) + '</b>.</p>' +
       '<div class="npl-ok" style="background:#EFF6FF;color:#1E40AF" data-wait>⏳ Đang chờ tiền về… Chuyển xong <b>trang tự mở khoá sau vài giây</b>, không cần bấm gì.</div>';
   }
+  /* Vừa tạo đơn (trong 3 tiếng) mà đóng bảng thanh toán / tải lại trang: vẫn lắng nghe, tiền về là tự cập nhật quyền + tải lại trang */
+  var LS_WAIT = 'nv-wait-pay';
+  function waitPaid(o, uid) {
+    var w = lsGet(LS_WAIT); if (!w || w.uid !== uid || Date.now() - w.t > 3 * 3600e3) return;
+    var base = JSON.stringify([me && me.role, me && me.proUntil, me && me.buys]);
+    var un = o.fs.onSnapshot(o.fs.doc(o.db, 'users', uid), function (sn) {
+      var d = sn.exists() ? sn.data() : null; if (!d) return;
+      if (JSON.stringify([d.role || 'student', d.proUntil || 0, d.buys || {}]) === base) return;
+      try { un(); } catch (e) {}
+      lsSet(LS_WAIT, null); me.role = d.role || me.role; me.proUntil = d.proUntil || 0; me.tier = d.tier || ''; me.buys = d.buys || {}; lsSet(LS_ME, me);
+      pill('🎉 Đã nhận tiền, tài khoản đã được nâng cấp. Đang tải lại trang…'); setTimeout(function () { location.reload(); }, 2500);
+    }, function () {});
+  }
   /* theo dõi tài khoản: điều kiện done(u) đúng → gọi ok() */
   function watchMe(o, uid, done, ok) {
+    lsSet(LS_WAIT, { uid: uid, t: Date.now() });
     var un = o.fs.onSnapshot(o.fs.doc(o.db, 'users', uid), function (sn) {
       var u = sn.exists() ? sn.data() : null;
-      if (u && done(u)) { me = u; try { un(); } catch (e) {} ok(u); }
+      if (u && done(u)) {
+        lsSet(LS_WAIT, null);
+        me = Object.assign({}, me || {}, { role: u.role, proUntil: u.proUntil || 0, tier: u.tier || '', buys: u.buys || {}, groqKey: u.groqKey || '' }); lsSet(LS_ME, me);
+        try { un(); } catch (e) {} ok(u);
+      }
     }, function () {});
     return function () { try { un(); } catch (e) {} };
   }
