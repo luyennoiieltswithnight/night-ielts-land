@@ -237,6 +237,11 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
     for x in extra_after.get(-1, []):
         W[0]["extra"].append(x)
 
+    # Chữ KHÔNG có tiếng nào khớp (mọi âm đều "thiếu") = máy ghi lời bịa ra hoặc học sinh bỏ sót chữ:
+    # hiện ra nhưng không tính vào điểm phát âm
+    for x in W:
+        x["skip"] = bool(x["ph"]) and all(p["st"] == "miss" for p in x["ph"]) and not x["extra"]
+
     tot_w = tot_s = 0.0
     for x in W:
         n = len(x["ph"]) or 1
@@ -245,7 +250,7 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
         x["fn"] = x["w"].lower() in FUNCTION
         if "s" in x:
             x["s"], x["e"] = round(x["s"], 2), round(x["e"], 2)
-        wt = 0.4 if x["fn"] else 1.0
+        wt = 0 if x["skip"] else 0.4 if x["fn"] else 1.0
         tot_w += wt * n; tot_s += wt * n * x["score"]
-    return {"ok": True, "score": round(tot_s / tot_w) if tot_w else 0, "words": W, "heard": " ".join(heard),
+    return {"ok": True, "score": round(tot_s / tot_w) if tot_w else 0, "skipped": sum(1 for x in W if x["skip"]), "words": W, "heard": " ".join(heard),
             "sec": round(len(wav) / 16000, 1), "ms": int((time.time() - t0) * 1000), "ms_model": int((t2 - t1) * 1000)}
