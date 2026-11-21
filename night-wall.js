@@ -34,7 +34,7 @@
       '.nwall-on b{font-size:14px;color:#fff}',
       '@keyframes nwPing{70%{box-shadow:0 0 0 8px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}',
       // dây đèn
-      '.nwall-sky{position:relative;height:430px;margin:10px -8px 8px}',
+      '.nwall-sky{position:relative;height:370px;margin:10px -8px 8px}',
       '.nwall-sky svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}',
       '.nwall-sky path{fill:none;stroke:rgba(255,236,200,.45);stroke-width:1.4}',
       '.nwall-bulb{position:absolute;width:7px;height:9px;margin:-2px 0 0 -3.5px;border-radius:50% 50% 45% 45%;background:var(--b);box-shadow:0 0 10px 2px var(--b);animation:nwBulb 2.6s ease-in-out infinite;animation-delay:var(--dl)}',

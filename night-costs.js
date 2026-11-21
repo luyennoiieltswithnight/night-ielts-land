@@ -29,7 +29,7 @@
       '.ncost{background:#fff;border:1px solid #EEEEF3;border-radius:26px;padding:18px 18px 14px;box-shadow:0 18px 40px -34px rgba(36,36,42,.5)}',
       '.ncost-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}.ncost-h h3{margin:0;font-size:18px;font-weight:800}',
       '.ncost-h .tag{font-size:10.5px;font-weight:800;letter-spacing:.08em;background:#24242A;color:#fff;border-radius:999px;padding:4px 9px}',
-      '.ncost-sum{margin-left:auto;font-size:12.5px;font-weight:700;color:#6B6B78}.ncost-sum b{color:#24242A}',
+      '.ncost-sum{margin-left:auto;margin-right:4px;font-size:12.5px;font-weight:700;color:#6B6B78}.ncost-sum b{color:#24242A}',
       '.ncost-alert{border-radius:14px;padding:9px 12px;margin-bottom:10px;font-size:13px;font-weight:700;background:#FEF2F2;color:#B91C1C}',
       '.ncost-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}',
       '.ncost-i{border-radius:18px;background:#F7F7FA;padding:13px 14px;display:flex;flex-direction:column;gap:6px;border:1.5px solid transparent}',
@@ -51,7 +51,8 @@
   }
   function mount(el, o) {
     if (!el || !o || !o.db) return; css();
-    var ref = o.doc(o.db, 'payments', '__costs'), items = null, editing = null;
+    var ref = o.doc(o.db, 'payments', '__costs'), items = null, editing = null, open = false;
+    try { open = localStorage.getItem('nv-costs-open') === '1'; } catch (e) {}
     function save() { return o.setDoc(ref, { items: items, updatedAt: Date.now() }).catch(function (e) { alert('Chưa lưu được: ' + e.message); }); }
     function render() {
       var monthly = 0, alerts = [];
@@ -60,9 +61,9 @@
         if (it.cycle === 'month' || it.cycle === 'topup') monthly += vnd; else if (it.cycle === 'year') monthly += vnd / 12;
         var d = daysTo(it.due); if (d != null && d <= 7) alerts.push(it.name.split(' (')[0] + (d < 0 ? ' đã quá hạn ' + (-d) + ' ngày' : d === 0 ? ' đến hạn hôm nay' : ' còn ' + d + ' ngày'));
       });
-      el.innerHTML = '<div class="ncost"><div class="ncost-h"><span class="tag">CHỈ GIÁO VIÊN</span><h3>Chi phí & hoá đơn</h3><span class="ncost-sum">Ước tính <b>' + Math.round(monthly).toLocaleString('vi-VN') + ' đ</b> / tháng</span></div>' +
+      el.innerHTML = '<div class="ncost"><div class="ncost-h"><span class="tag">CHỈ GIÁO VIÊN</span><h3>Chi phí & hoá đơn</h3><span class="ncost-sum">Ước tính <b>' + Math.round(monthly).toLocaleString('vi-VN') + ' đ</b> / tháng</span><button class="ncost-b" data-a="tog">' + (open ? 'Thu gọn ▴' : 'Xem ' + items.length + ' dịch vụ ▾') + '</button></div>' +
         (alerts.length ? '<div class="ncost-alert">Sắp phải trả: ' + esc(alerts.join(' · ')) + '</div>' : '') +
-        '<div class="ncost-list">' + items.map(function (it, i) {
+        '<div style="display:' + (open || editing != null ? 'block' : 'none') + '"><div class="ncost-list">' + items.map(function (it, i) {
           if (editing === i) return '<div class="ncost-i"><div class="ncost-f">' +
             '<input data-f="name" value="' + esc(it.name) + '" placeholder="Tên dịch vụ">' +
             '<div class="two"><input data-f="amount" type="number" min="0" step="any" value="' + esc(it.amount) + '" placeholder="Số tiền"><select data-f="cur"><option' + (it.cur === 'đ' ? ' selected' : '') + '>đ</option><option' + (it.cur === 'USD' ? ' selected' : '') + '>USD</option></select></div>' +
@@ -82,12 +83,13 @@
             (it.cycle === 'month' || it.cycle === 'year' ? '<button class="ncost-b pri" data-a="paid" data-i="' + i + '">Đã trả kỳ này</button>' : '') +
             '<button class="ncost-b" data-a="edit" data-i="' + i + '">Sửa</button></div></div>';
         }).join('') + '</div>' +
-        '<div class="ncost-foot"><button class="ncost-b" data-a="add">+ Thêm dịch vụ</button><a class="ncost-b pri" href="don-hang.html">Đơn hàng & người mua →</a><span>Số USD quy đổi ~26.000đ để ước tính. Học sinh không thấy mục này.</span></div></div>';
+        '<div class="ncost-foot"><button class="ncost-b" data-a="add">+ Thêm dịch vụ</button><a class="ncost-b pri" href="don-hang.html">Đơn hàng & người mua →</a><span>Số USD quy đổi ~26.000đ để ước tính. Học sinh không thấy mục này.</span></div></div></div>';
     }
     el.addEventListener('click', function (e) {
       var b = e.target.closest('[data-a]'); if (!b || !items) return;
       var a = b.dataset.a, i = +b.dataset.i;
-      if (a === 'edit') { editing = i; render(); }
+      if (a === 'tog') { open = !open; try { localStorage.setItem('nv-costs-open', open ? '1' : '0'); } catch (x) {} render(); }
+      else if (a === 'edit') { editing = i; render(); }
       else if (a === 'cancel') { editing = null; render(); }
       else if (a === 'ok') {
         var box = b.closest('.ncost-i'), it = items[i];
