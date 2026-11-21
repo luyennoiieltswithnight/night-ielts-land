@@ -93,6 +93,7 @@
       '.npd-w.kara{background:#5B4BDB;border-color:#5B4BDB;transform:translateY(-3px) scale(1.04);box-shadow:0 10px 20px -10px #5B4BDB}.npd-w.kara .t{color:#fff}.npd-w.kara .t small{background:#fff;color:#5B4BDB}',
       '.npd-w.past{opacity:.55}',
       '.npd-w{border:1.5px solid #ECE9F8;border-radius:14px;padding:7px 10px 6px;background:#fff;cursor:pointer;transition:transform .12s;font:inherit;text-align:left;color:inherit}',
+      '.npd-w.skip{border-style:dashed;background:#F8FAFC;opacity:.75}.npd-w.skip .t{color:#94A3B8;text-decoration:line-through}.npd-w.skip .t small{background:#CBD5E1}.npd-sk{font-size:11px;font-weight:700;color:#94A3B8}',
       '.npd-w:hover{transform:translateY(-2px)}.npd-w.sel{border-color:#5B4BDB;box-shadow:0 0 0 3px #E4DFFF}.npd-w.fn{opacity:.72}',
       '.npd-w .t{font-weight:800;font-size:16px;display:flex;align-items:center;gap:5px}.npd-w .t small{font-size:10.5px;font-weight:800;border-radius:999px;padding:1px 6px;color:#fff;background:var(--c)}',
       '.npd-ph{display:flex;align-items:flex-start;gap:3px;margin-top:5px;flex-wrap:wrap}',
@@ -142,10 +143,10 @@
       .then(function (j) { if (j.error) throw new Error(j.error); return j; });
   }
   function compact(j) {
-    return { v: 1, score: j.score, at: Date.now(), words: j.words.map(function (w) { return { w: w.w, score: w.score, fn: !!w.fn, s: w.s != null ? w.s : null, e: w.e != null ? w.e : null, ph: w.ph.map(function (p) { return p.p + '|' + p.st + '|' + (p.got || ''); }).join(' '), x: (w.extra || []).join(' ') }; }) };   // Firestore không nhận mảng lồng nhau -> lưu dạng chuỗi
+    return { v: 1, score: j.score, at: Date.now(), words: j.words.map(function (w) { return { w: w.w, score: w.score, fn: !!w.fn, k: w.skip ? 1 : 0, s: w.s != null ? w.s : null, e: w.e != null ? w.e : null, ph: w.ph.map(function (p) { return p.p + '|' + p.st + '|' + (p.got || ''); }).join(' '), x: (w.extra || []).join(' ') }; }) };   // Firestore không nhận mảng lồng nhau -> lưu dạng chuỗi
   }
   function expand(c) {
-    return { score: c.score, words: c.words.map(function (w) { return { w: w.w, score: w.score, fn: w.fn, s: w.s, e: w.e, ph: (typeof w.ph === 'string' ? w.ph.split(' ').filter(Boolean).map(function (t) { return t.split('|'); }) : w.ph).map(function (a) { return { p: a[0], st: a[1], got: a[2] || '' }; }), extra: typeof w.x === 'string' ? w.x.split(' ').filter(Boolean) : (w.x || []) }; }) };
+    return { score: c.score, words: c.words.map(function (w) { return { w: w.w, score: w.score, fn: w.fn, skip: !!w.k, s: w.s, e: w.e, ph: (typeof w.ph === 'string' ? w.ph.split(' ').filter(Boolean).map(function (t) { return t.split('|'); }) : w.ph).map(function (a) { return { p: a[0], st: a[1], got: a[2] || '' }; }), extra: typeof w.x === 'string' ? w.x.split(' ').filter(Boolean) : (w.x || []) }; }) };
   }
   function run(o) {
     var id = o.id || 'cur';
@@ -267,7 +268,7 @@
     var blobP = null, getBlob = function () { return blobP || (blobP = o.getBlob ? o.getBlob() : Promise.reject()); };
     run(Object.assign({}, o, { getBlob: getBlob })).then(function (R) {
       attachTimes(R.words, o.words);
-      var band = toBand(R.score), bad = R.words.filter(function (w) { return !w.fn && w.score < 85; });
+      var band = toBand(R.score), bad = R.words.filter(function (w) { return !w.fn && !w.skip && w.score < 85; });
       var ring = ov.querySelector('#npdRing'); ring.style.setProperty('--v', R.score); ring.style.setProperty('--c', R.score >= 85 ? '#4ADE80' : R.score >= 60 ? '#FBBF24' : '#F87171');
       ov.querySelector('#npdSc').textContent = band.toFixed(1);
       ov.querySelector('#npdSub').textContent = bad.length ? 'Nhìn cả bài để so: âm đỏ là sai, khung đỏ là thiếu. Bấm vào chữ bất kỳ để nghe chuẩn, nghe lại giọng bạn và đọc lại cho đúng.' : 'Bạn phát âm rất chuẩn. Bấm vào bất kỳ chữ nào để nghe lại và so sánh.';
@@ -279,6 +280,7 @@
         '<div class="npd-kbar"><button class="npd-k" data-k="me">' + IC.play + 'Nghe bài của bạn · chạy chữ</button><button class="npd-k std" data-k="std">' + IC.play + 'Nghe giọng chuẩn · chạy chữ</button></div>' +
         '<div class="npd-leg"><span style="--b:#DCFCE7">Đúng</span><span style="--b:#FEF3C7">Gần đúng</span><span style="--b:#FEE2E2">Sai âm</span><span style="--b:#fff;--o:inset 0 0 0 1.5px #DC2626">Thiếu âm</span><span style="--b:#F1F5F9">Thừa âm</span><span style="--b:#E0F2FE">Nói tự nhiên (giảm, nuốt, nối âm, không trừ điểm)</span></div>' +
         '<div class="npd-grid">' + R.words.map(function (w, i) {
+          if (w.skip) return '<button class="npd-w skip" data-i="' + i + '"><div class="t">' + esc(w.w) + ' <small>?</small></div><div class="npd-ph"><span class="npd-sk">không nghe thấy</span></div></button>';
           return '<button class="npd-w' + (w.fn ? ' fn' : '') + '" data-i="' + i + '" style="--c:' + colorOf(w.score) + '"><div class="t">' + esc(w.w) + ' <small>' + w.score + '</small></div><div class="npd-ph">' + phChips(w.ph, w.extra, false) + '</div></button>';
         }).join('') + '</div>' +
         '<p class="npd-note">Chữ mờ là từ phụ (a, the, to…) nên đọc lướt, chấm nhẹ tay hơn. Chấm theo giọng Mỹ, có thể lệch ở chỗ máy nghe chưa rõ.</p>' +
@@ -288,6 +290,7 @@
         if (ov.__kStop) ov.__kStop();
         [].forEach.call(body.querySelectorAll('[data-i]'), function (b) { b.classList.toggle('sel', +b.dataset.i === i); });
         var hasT = w.s != null && isFinite(w.s) && w.e > w.s, fx = fixList(w);
+        if (w.skip) fx = '<div class="npd-fix nat"><b class="h">Máy không nghe thấy chữ này</b><div class="how">Trong bài ghi âm không có tiếng nào khớp với chữ này. Có thể máy chuyển giọng nói thành chữ đã ghi nhầm (thêm vào chữ bạn không nói), hoặc bạn đọc bỏ sót. Chữ này không tính vào điểm phát âm.</div></div>';
         var det = body.querySelector('#npdDet');
         det.innerHTML = '<div class="npd-card"><p class="npd-sec">Chữ đang xem · <span style="color:' + colorOf(w.score) + '">' + w.score + '% âm đúng</span></p><h4>' + esc(w.w) + ' <span>/' + esc(w.ph.map(function (p) { return key(p.p); }).join('')) + '/</span></h4>' +
           '<div class="npd-big">' + phChips(w.ph, w.extra, true) + '</div>' +

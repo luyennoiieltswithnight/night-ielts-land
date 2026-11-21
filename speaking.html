@@ -642,7 +642,7 @@ html,body{background-color:#B9BCF4!important;background-image:repeating-linear-g
 @media (prefers-reduced-motion:reduce){.ni-shell *,.ni-shell *:before,.ni-shell *:after,.ni-header:before{animation:none!important;transition:none!important}}
 </style>
 <script src="night-plan.js?v=20261120b"></script>
-<script src="pron-detail.js?v=8"></script>
+<script src="pron-detail.js?v=9"></script>
 <script src="night-fame.js?v=20261117a"></script>
 </head>
 <body class="antialiased" style="font-family:'Plus Jakarta Sans',sans-serif;">
@@ -4952,7 +4952,14 @@ Is it better to read a physical book or an e-book?"></textarea>
       spinnerMsg.textContent = 'Đang chuyển giọng nói thành văn bản...';
       const asr = await asrP;
       const asr2 = await asr2P;
-      const transcript = asr.text;
+      let transcript = asr.text;
+      // V21: đối chiếu với máy nghe từng âm. Đoạn từ 3 chữ liền nhau trở lên mà không có tiếng nào khớp
+      // = máy chuyển giọng nói thành chữ đã "bịa" ra -> bỏ khỏi bài trước khi chấm, để không bị trừ điểm oan
+      try {
+        const ph = await Promise.race([phonP, new Promise(r => setTimeout(() => r(null), 7000))]);
+        const cut = ph && ph.words ? dropUnheard(transcript, asr.words, ph.words) : null;
+        if (cut) { console.info('Bỏ đoạn máy ghi bịa:', cut.removed); transcript = asr.text = cut.text; asr.words = cut.words; }
+      } catch (e) { console.warn('Không đối chiếu được với máy nghe từng âm:', e); }
       if (!transcript) throw Object.assign(new Error('x'), { quality: { status: 'reject', issues: [{ code: 'no_text', level: 'reject', msg: 'Không nhận ra lời nói nào. Hãy nói rõ hơn và ghi lại.' }] } });
 
       // 3) Số đo trôi chảy tính bằng code từ âm thanh + mốc thời gian
@@ -5499,6 +5506,30 @@ Is it better to read a physical book or an e-book?"></textarea>
     const n = latest.length, ov = SPCore.overallBand(avg);
     if (n < 2 || ov == null) { el.innerHTML = '📊 Làm thêm vài câu trong bộ này để có <b>ước tính cả bài nói</b> (sát điểm thi hơn điểm 1 câu).'; return; }
     el.innerHTML = '📊 Ước tính cả bài nói: <b style="font-size:16px">' + fmtBand(ov) + '</b> <span style="opacity:.75">(từ ' + n + ' câu đã làm trong bộ này · ' + SP_CRIT.map(k => SP_SHORT[k] + ' ' + (avg[k] == null ? '-' : (Math.round(avg[k] * 2) / 2).toFixed(1))).join(' · ') + ')</span>';
+  }
+  /* V21: bỏ đoạn chữ máy ghi bịa (máy nghe từng âm không thấy tiếng nào khớp) */
+  const NPD_FILL = new Set(['um', 'umm', 'uh', 'uhm', 'er', 'erm', 'err', 'ah', 'ahh', 'hmm', 'hm', 'mm', 'mmm', 'eh']);
+  function dropUnheard(text, asrWords, pw) {
+    const RE = /[A-Za-z]+(?:'[A-Za-z]+)?/g, toks = []; let m;
+    while ((m = RE.exec(text))) if (!NPD_FILL.has(m[0].toLowerCase())) toks.push({ s: m.index, e: m.index + m[0].length });
+    if (toks.length !== pw.length || toks.length < 6) return null;   // không khớp 1-1 thì thôi, không đoán
+    const drop = new Set();
+    for (let i = 0; i < pw.length;) {
+      if (!(pw[i].skip || pw[i].k)) { i++; continue; }
+      let j = i; while (j < pw.length && (pw[j].skip || pw[j].k)) j++;
+      if (j - i >= 3) for (let k = i; k < j; k++) drop.add(k);
+      i = j;
+    }
+    if (!drop.size || drop.size > toks.length * 0.5) return null;
+    let out = '', pos = 0; const removed = [];
+    [...drop].sort((a, b) => a - b).forEach(k => { out += text.slice(pos, toks[k].s); pos = toks[k].e; removed.push(text.slice(toks[k].s, toks[k].e)); });
+    out = (out + text.slice(pos)).replace(/\s+([,.!?;:])/g, '$1').replace(/([,.!?;:])\s*[,.;:]+/g, '$1').replace(/\s{2,}/g, ' ').trim();
+    let n = 0; const keepW = (asrWords || []).filter(w => {
+      const parts = String(w.w || w.word || '').match(/[A-Za-z]+(?:'[A-Za-z]+)?/g) || [];
+      const idx = parts.filter(t => !NPD_FILL.has(t.toLowerCase())).map(() => n++);
+      return !(idx.length && idx.every(k => drop.has(k)));
+    });
+    return { text: out, words: keepW, removed: removed.join(' ') };
   }
   /* ---------- V19: 4 ô tiêu chí là nút: Trôi chảy -> xem trôi chảy + dịch, Từ vựng / Ngữ pháp -> lỗi của tiêu chí đó, Phát âm -> phát âm từng âm ---------- */
   function paintPills(record) {
