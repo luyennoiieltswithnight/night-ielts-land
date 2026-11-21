@@ -82,7 +82,7 @@
             (it.cycle === 'month' || it.cycle === 'year' ? '<button class="ncost-b pri" data-a="paid" data-i="' + i + '">Đã trả kỳ này</button>' : '') +
             '<button class="ncost-b" data-a="edit" data-i="' + i + '">Sửa</button></div></div>';
         }).join('') + '</div>' +
-        '<div class="ncost-foot"><button class="ncost-b" data-a="add">+ Thêm dịch vụ</button><span>Số USD quy đổi ~26.000đ để ước tính. Học sinh không thấy mục này.</span></div></div>';
+        '<div class="ncost-foot"><button class="ncost-b" data-a="add">+ Thêm dịch vụ</button><a class="ncost-b pri" href="don-hang.html">Đơn hàng & người mua →</a><span>Số USD quy đổi ~26.000đ để ước tính. Học sinh không thấy mục này.</span></div></div>';
     }
     el.addEventListener('click', function (e) {
       var b = e.target.closest('[data-a]'); if (!b || !items) return;
