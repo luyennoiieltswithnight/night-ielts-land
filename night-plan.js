@@ -398,7 +398,7 @@
       }).then(function () { reqs = reqs.filter(function (r) { return r.uid !== uid; }); paint(); changed(); });
     }
     function tag(u) { var r = effRole(u), raw = u.role || 'student'; return '<span class="npl-tag ' + r + '">' + (raw === 'pro' && r === 'user' ? (u.tier === 'pro' ? 'Pro' : 'Astra') + ' hết hạn' : r === 'pro' ? (tierOf(u) === 'pro' ? '⭐ Pro' : '🌟 Astra') : ROLE_LABEL[r] || r) + '</span>'; }
-    function who(u) { return '<img loading="lazy" decoding="async" src="' + esc(u.photo || '') + '" alt="" onerror="this.style.visibility=\'hidden\'"><div class="npl-who"><b>' + esc(u.name || '(chưa có tên)') + '</b><small>' + esc(u.email || '') + '</small></div>'; }
+    function who(u) { return '<img loading="lazy" decoding="async" src="' + esc(u.photo || '') + '" alt="" onerror="this.style.visibility=\'hidden\'"><div class="npl-who"><b>' + esc(u.name || (u.email ? u.email.split('@')[0] : '') || u.orderName || '(chưa có tên)') + '</b><small>' + esc(u.email || '') + '</small></div>'; }
     function rowHtml(u) {
       var r = effRole(u), raw = u.role || 'student';
       return '<div class="npl-row" data-uid="' + esc(u.uid) + '">' + who(u) + tag(u) +
