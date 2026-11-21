@@ -275,7 +275,49 @@
   function planName(u) { var t = tierOf(u); return t ? PLAN_DEF[t].name : ''; }
 
   /* ---------- Nâng cấp Pro (người dùng) ---------- */
-  function openUpgrade(reason, wantPlan) {
+  /* ---------- TỰ KIỂM TRA QUYỀN + BÁO SỰ CỐ CHO GIÁO VIÊN ----------
+     Trước khi bắt ai đó nâng cấp: đọc lại tài khoản thật từ máy chủ. Nếu thực ra đã có quyền
+     (Pro/Astra còn hạn, Học sinh, giáo viên, hoặc đã mua khoá) thì KHÔNG hiện bảng nâng cấp, mà cập nhật lại
+     quyền trên máy + ghi 1 "sự cố" vào incidents/ để giáo viên thấy ngay trên trang chủ. */
+  var reported = {};
+  function reportIssue(kind, info) {
+    var k = kind + '|' + (info && info.page || location.pathname);
+    if (reported[k]) return; reported[k] = 1;
+    fb().then(function (o) {
+      var u = o.auth.currentUser; if (!u) return;
+      var d = Object.assign({ kind: kind, uid: u.uid, email: u.email || '', name: u.displayName || '', page: location.pathname + location.search.slice(0, 80), at: Date.now(), ua: navigator.userAgent.slice(0, 120), seen: false }, info || {});
+      return o.fs.addDoc(o.fs.collection(o.db, 'incidents'), d);
+    }).catch(function (e) { console.warn('Không ghi được sự cố:', e); });
+  }
+  function freshMe() {
+    return fb().then(function (o) {
+      var u = o.auth.currentUser; if (!u) return null;
+      return o.fs.getDocFromServer(o.fs.doc(o.db, 'users', u.uid)).then(function (sn) {
+        var d = sn.exists() ? sn.data() : {};
+        me = Object.assign({}, me || {}, { role: d.role || 'user', proUntil: d.proUntil || 0, tier: d.tier || '', buys: d.buys || {}, groqKey: d.groqKey || (me && me.groqKey) || '' });
+        lsSet(LS_ME, me); return me;
+      });
+    }).catch(function () { return null; });
+  }
+  /* true nếu tài khoản thật ra ĐÃ có quyền dùng thứ đang bị đòi nâng cấp */
+  function alreadyHas(m, wantPlan, course) {
+    if (!m) return false;
+    var r = effRole(m);
+    if (r === 'admin' || r === 'student') return true;
+    if (r !== 'pro') return false;
+    if (course) return tierOf(m) !== 'pro' || Number((m.buys || {})[course]) > Date.now();
+    return wantPlan === 'astra' ? tierOf(m) !== 'pro' : true;
+  }
+  function falseAlarm(m, kind, reason, course) {
+    reportIssue(kind, { reason: String(reason || '').slice(0, 160), role: m.role, tier: m.tier || '', proUntil: m.proUntil || 0, course: course || '' });
+    css();
+    var ov = modal('<div class="npl-hd"><h2>✅ Tài khoản đã có quyền</h2><button class="npl-x" aria-label="Đóng">×</button></div>' +
+      '<p class="npl-note">Tài khoản của bạn đang là <b>' + (m.role === 'pro' ? (tierOf(m) === 'pro' ? 'Pro' : 'Astra') + ' (đến ' + dmy(m.proUntil) + ')' : m.role === 'student' ? 'Học sinh' : 'Giáo viên') + '</b>. Trang vừa cập nhật lại quyền, đang tải lại để bạn dùng tiếp…</p>');
+    setTimeout(function () { location.reload(); }, 2500);
+    return ov;
+  }
+  function openUpgrade(reason, wantPlan, _checked) {
+    if (!_checked) { freshMe().then(function (m) { if (alreadyHas(m, wantPlan === 'pro' ? 'pro' : wantPlan)) falseAlarm(m, 'upgrade_prompt_but_paid', reason); else openUpgrade(reason, wantPlan, true); }); return; }
     css();
     var ov = modal('<div class="npl-hd"><h2>🌟 Nâng cấp Night IELTS</h2><button class="npl-x" aria-label="Đóng">×</button></div><p class="npl-note">Đang tải…</p>');
     var box = ov.querySelector('.npl-in');
@@ -602,6 +644,7 @@
         return j;
       });
     }).then(function (j) {
+      if ((j.error === 'QUOTA' || j.error === 'PRO_ONLY') && me && effRole(me) === 'pro') reportIssue('ai_denied_but_paid', { reason: j.error + ' · ' + (skill || ''), role: me.role, tier: me.tier || '', proUntil: me.proUntil || 0 });
       if (j.error === 'QUOTA') { var e = new Error(quotaMsg(j.quota)); e.code = 'QUOTA'; showQuota(j.quota); throw e; }
       if (j.error === 'PRO_ONLY') { var e3 = new Error('Tính năng AI này dành cho tài khoản ⭐ Pro / 🌟 Astra.'); e3.code = 'PRO_ONLY'; throw e3; }
       if (j.error) throw new Error(j.error);
@@ -670,7 +713,8 @@
     }, function () {});
     return function () { try { un(); } catch (e) {} };
   }
-  function openCourseBuy(key, name) {
+  function openCourseBuy(key, name, _checked) {
+    if (!_checked) { freshMe().then(function (m) { if (alreadyHas(m, 'astra', key)) falseAlarm(m, 'course_locked_but_paid', name || key, key); else openCourseBuy(key, name, true); }); return; }
     css(); name = name || COURSE_LABEL[key] || key;
     var hd = '<div class="npl-hd"><h2>🔓 Mua khoá học</h2><button class="npl-x" aria-label="Đóng">×</button></div>';
     var ov = modal(hd + '<p class="npl-note">Đang tải…</p>'), box = ov.querySelector('.npl-in'), stop = function () {};
