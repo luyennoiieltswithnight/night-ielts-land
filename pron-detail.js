@@ -105,6 +105,8 @@
       '.npd-p{font-family:"Noto Sans","Segoe UI",sans-serif;font-weight:700;border-radius:10px;padding:3px 11px;font-size:20px;line-height:1.5}',
       '.npd-p.ok{background:#DCFCE7;color:#15803D}.npd-p.near{background:#FEF3C7;color:#B45309}.npd-p.sub{background:#FEE2E2;color:#DC2626}',
       '.npd-p.miss{background:#fff;color:#DC2626;box-shadow:inset 0 0 0 2px #EF4444;text-decoration:line-through}.npd-p.extra{background:#F1F5F9;color:#64748B;font-style:italic}',
+      '.npd-p.weak,.npd-p.elide,.npd-p.link{background:#E0F2FE;color:#0369A1;font-style:italic}.npd-p.elide,.npd-p.link{box-shadow:inset 0 0 0 1.5px #7DD3FC;opacity:.85}',
+      '.npd-fix.nat{background:#F0F9FF;border-color:#BAE6FD}',
       '.npd-p small{display:block;font-size:10px;font-weight:700;text-align:center;font-family:"Plus Jakarta Sans",sans-serif;opacity:.8;line-height:1.2;text-decoration:none}',
       '.npd-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}',
       '.npd-b{border:0;border-radius:14px;padding:10px 12px;font:700 13.5px "Plus Jakarta Sans",sans-serif;cursor:pointer;background:#EEEAFE;color:#4B3CC9;display:flex;align-items:center;justify-content:center;gap:7px}',
@@ -210,7 +212,8 @@
   };
   function phChips(ph, extra, withGot) {
     return ph.map(function (p) {
-      var lab = withGot && p.st !== 'ok' ? '<small>' + (p.st === 'miss' ? 'thiếu' : 'bạn: ' + esc(key(p.got))) + '</small>' : '';
+      var NATL = { weak: 'giảm âm', elide: 'nuốt âm', link: 'nối âm' };
+      var lab = withGot && p.st !== 'ok' ? '<small>' + (NATL[p.st] || (p.st === 'miss' ? 'thiếu' : 'bạn: ' + esc(key(p.got)))) + '</small>' : '';
       return '<span class="npd-p ' + p.st + '">' + esc(key(p.p)) + lab + '</span>';
     }).join('') + (extra || []).map(function (x) { return '<span class="npd-p extra">+' + esc(key(x)) + (withGot ? '<small>thừa</small>' : '') + '</span>'; }).join('');
   }
@@ -218,6 +221,13 @@
     var n = w.ph.length, out = [], seen = {};
     w.ph.forEach(function (p, k) {
       if (p.st === 'ok') return;
+      if (p.st === 'weak' || p.st === 'elide' || p.st === 'link') {
+        var NT = { weak: ['Giảm âm tự nhiên', 'Từ chức năng (a, and, of, to, can, have…) thường được đọc nhẹ, nguyên âm thành /ə/ hoặc bỏ bớt âm. Người bản xứ nói vậy, không trừ điểm.'],
+          elide: ['Nuốt âm tự nhiên', 'Âm /' + key(p.p) + '/ kẹp giữa các phụ âm thường được lướt qua khi nói nhanh (next day, must be, family). Không trừ điểm.'],
+          link: ['Nối âm', 'Hai phụ âm giống nhau đứng cạnh nhau ở ranh giới 2 từ chỉ đọc 1 lần (went to, big girl). Rất tự nhiên, không trừ điểm.'] }[p.st];
+        if (!seen['nat' + p.st]) { seen['nat' + p.st] = 1; out.push('<div class="npd-fix nat"><b class="h">' + NT[0] + ' · /' + esc(key(p.p)) + '/' + (p.got ? ' → /' + esc(key(p.got)) + '/' : '') + '</b><div class="how">' + NT[1] + '</div></div>'); }
+        return;
+      }
       var t = tipOf(p.p), pos = k === 0 ? 'đầu' : k === n - 1 ? 'cuối' : 'giữa', title;
       if (p.st === 'miss') title = (pos === 'cuối' && !VOW.test(key(p.p)) ? 'Nuốt mất âm cuối ' : 'Thiếu âm ') + '/' + key(p.p) + '/' + (pos !== 'cuối' ? ' ở ' + pos + ' từ' : '');
       else if (p.st === 'sub') title = 'Đọc /' + key(p.p) + '/ thành /' + key(p.got) + '/';
@@ -267,7 +277,7 @@
       var body = ov.querySelector('#npdBody');
       body.innerHTML = '<div class="npd-main"><div>' +
         '<div class="npd-kbar"><button class="npd-k" data-k="me">' + IC.play + 'Nghe bài của bạn · chạy chữ</button><button class="npd-k std" data-k="std">' + IC.play + 'Nghe giọng chuẩn · chạy chữ</button></div>' +
-        '<div class="npd-leg"><span style="--b:#DCFCE7">Đúng</span><span style="--b:#FEF3C7">Gần đúng</span><span style="--b:#FEE2E2">Sai âm</span><span style="--b:#fff;--o:inset 0 0 0 1.5px #DC2626">Thiếu âm</span><span style="--b:#F1F5F9">Thừa âm</span></div>' +
+        '<div class="npd-leg"><span style="--b:#DCFCE7">Đúng</span><span style="--b:#FEF3C7">Gần đúng</span><span style="--b:#FEE2E2">Sai âm</span><span style="--b:#fff;--o:inset 0 0 0 1.5px #DC2626">Thiếu âm</span><span style="--b:#F1F5F9">Thừa âm</span><span style="--b:#E0F2FE">Nói tự nhiên (giảm, nuốt, nối âm, không trừ điểm)</span></div>' +
         '<div class="npd-grid">' + R.words.map(function (w, i) {
           return '<button class="npd-w' + (w.fn ? ' fn' : '') + '" data-i="' + i + '" style="--c:' + colorOf(w.score) + '"><div class="t">' + esc(w.w) + ' <small>' + w.score + '</small></div><div class="npd-ph">' + phChips(w.ph, w.extra, false) + '</div></button>';
         }).join('') + '</div>' +
