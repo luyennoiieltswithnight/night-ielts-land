@@ -169,6 +169,15 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
     t1 = time.time()
     heard, htimes = recognize(wav)
     t2 = time.time()
+    # gộp nguyên âm + ɹ mà máy tách rời (ɑ ɹ -> ɑɹ) cho khớp cách espeak viết (ɑːɹ)
+    RC = {"ɑ": "ɑːɹ", "ɔ": "ɔːɹ", "o": "oːɹ", "ɛ": "ɛɹ", "ɪ": "ɪɹ", "ʊ": "ʊɹ"}
+    h2, tm2 = [], []
+    for k, p in enumerate(heard):
+        b = p.replace("ː", "")
+        if h2 and p == "ɹ" and h2[-1].replace("ː", "") in RC:
+            h2[-1] = RC[h2[-1].replace("ː", "")]; tm2[-1] = [tm2[-1][0], htimes[k][1]]; continue
+        h2.append(p); tm2.append(list(htimes[k]))
+    heard, htimes = h2, tm2
     hyp = [norm(p) for p in heard]
 
     ref, owner, fn, disp = [], [], [], []
@@ -180,28 +189,58 @@ async def score(audio: UploadFile = File(...), text: str = Form(...)):
     path = align(ref, hyp, fn)
 
     W = [{"w": w, "ph": [], "extra": []} for w in words]
-    last_w = 0
+    stat, gotl = [None] * len(ref), [""] * len(ref)
+    extra_after = {}
+    last_i = -1
     for i, j in path:
         if i is None:
-            W[last_w]["extra"].append(heard[j])
+            extra_after.setdefault(last_i, []).append(heard[j])
             continue
-        last_w = owner[i]
-        r = ref[i]
+        last_i = i
         if j is not None:
             tw = W[owner[i]]
             tw["s"] = min(tw.get("s", 1e9), htimes[j][0]); tw["e"] = max(tw.get("e", 0), htimes[j][1])
-        if j is None:
-            st, got = "miss", ""
+            c = sub_cost(ref[i], hyp[j], fn[i])
+            stat[i] = "ok" if c == 0 else "near" if c <= 0.5 else "sub"
+            gotl[i] = heard[j]
         else:
-            c = sub_cost(r, hyp[j], fn[i])
-            st = "ok" if c == 0 else "near" if c <= 0.5 else "sub"
-            got = heard[j]
-        W[owner[i]]["ph"].append({"p": disp[i], "st": st, "got": got})
+            stat[i] = "miss"
+
+    # ---- Hiện tượng nói nối tự nhiên: hiện ra cho học sinh biết nhưng KHÔNG trừ điểm ----
+    #  weak  = giảm âm ở từ chức năng (a, and, of, to, have, can…: nguyên âm thành /ə/, bỏ /h/, bỏ /d/ của and…)
+    #  link  = nối âm: phụ âm giống nhau giữa 2 từ chỉ đọc 1 lần (went to)
+    #  elide = nuốt âm tự nhiên: /t/ /d/ kẹp giữa 2 phụ âm (next day, must be, exactly), /ə/ không nhấn giữa 2 phụ âm (family, different)
+    def is_c(k):
+        return 0 <= k < len(ref) and ref[k] not in VOWELS
+    for i in range(len(ref)):
+        st = stat[i]
+        if st in (None, "ok"):
+            continue
+        r = ref[i]
+        # nối âm: 2 phụ âm giống nhau ở ranh giới 2 từ chỉ đọc 1 lần (went to, big girl)
+        if st == "miss" and i > 0 and owner[i - 1] != owner[i] and ref[i - 1] == r and stat[i - 1] in ("ok", "near"):
+            stat[i] = "link"; continue
+        if st == "miss" and i + 1 < len(ref) and owner[i + 1] != owner[i] and ref[i + 1] == r and stat[i + 1] in ("ok", "near"):
+            stat[i] = "link"; continue
+        if fn[i] and (r in VOWELS or r in ("h", "d", "v", "t", "ð") and st == "miss" or r in ("h",)):
+            if st == "miss" or r in VOWELS or (r == "ð" and gotl[i] in ("d", "n")):
+                stat[i] = "weak"; continue
+        if st == "miss" and r in ("t", "d") and is_c(i - 1) and is_c(i + 1):
+            stat[i] = "elide"; continue
+        if st == "miss" and r in ("ə", "ɪ") and is_c(i - 1) and is_c(i + 1) and owner[i - 1] == owner[i] and owner[i + 1] == owner[i] \
+                and sum(1 for k in range(len(ref)) if owner[k] == owner[i] and k != i and ref[k] in VOWELS) >= 2:
+            stat[i] = "elide"; continue
+    for i in range(len(ref)):
+        W[owner[i]]["ph"].append({"p": disp[i], "st": stat[i] or "miss", "got": gotl[i]})
+        for x in extra_after.get(i, []):
+            W[owner[i]]["extra"].append(x)
+    for x in extra_after.get(-1, []):
+        W[0]["extra"].append(x)
 
     tot_w = tot_s = 0.0
     for x in W:
         n = len(x["ph"]) or 1
-        good = sum(1 if p["st"] == "ok" else 0.75 if p["st"] == "near" else 0 for p in x["ph"])
+        good = sum(1 if p["st"] in ("ok", "weak", "elide", "link") else 0.75 if p["st"] == "near" else 0 for p in x["ph"])
         x["score"] = round(100 * max(0.0, good - 0.5 * len(x["extra"])) / n)
         x["fn"] = x["w"].lower() in FUNCTION
         if "s" in x:
