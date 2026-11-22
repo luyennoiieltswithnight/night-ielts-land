@@ -42,6 +42,24 @@ th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--mu
 td.c{word-break:break-all;max-width:360px;color:#4B4B58}
 .empty{padding:30px;text-align:center;color:var(--mut)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:999px;padding:10px 18px;font-weight:700;font-size:13.5px;z-index:9;display:none}
+.inc{border-radius:20px;background:linear-gradient(135deg,#F0FDF4,#ECFEFF);box-shadow:inset 0 0 0 1.5px #BBF7D0;padding:14px;margin-bottom:14px}
+.inc .qk{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.inc .qk button{border:0;border-radius:999px;padding:8px 13px;font-weight:800;font-size:13px;cursor:pointer;background:#fff;box-shadow:inset 0 0 0 1px #D1FAE5;color:var(--ink)}
+.inc .qk button.on{background:var(--ok);color:#fff;box-shadow:none}
+.inc .dr{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--mut)}
+.inc .dr input{border:1.5px solid #D1FAE5;border-radius:12px;padding:8px 10px;font-size:14px;background:#fff;color:var(--ink)}
+.inc .tot{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:14px 0 4px}
+.inc .tot b{font-size:clamp(28px,6vw,40px);font-weight:900;color:var(--ok);letter-spacing:-.02em}
+.inc .tot span{font-size:13.5px;color:var(--mut);font-weight:700}
+.inc .kinds{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.inc .kind{background:#fff;border-radius:14px;padding:8px 12px;font-size:12.5px;box-shadow:inset 0 0 0 1px #E4E4EC}.inc .kind b{display:block;font-size:15px}
+.inc .chart{display:flex;align-items:flex-end;gap:3px;height:110px;margin-top:10px;padding-top:16px;overflow-x:auto}
+.inc .col{flex:1;min-width:10px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
+.inc .col i{display:block;width:100%;max-width:34px;background:var(--ok);border-radius:4px 4px 0 0;min-height:2px}
+.inc .col i.z{background:#D1D5DB}
+.inc .col small{font-size:9.5px;color:var(--mut);margin-top:3px;white-space:nowrap}
+.inc .col:hover:after{content:attr(data-t);position:absolute;bottom:100%;background:var(--ink);color:#fff;font-size:11px;font-weight:700;border-radius:8px;padding:3px 7px;white-space:nowrap;z-index:2}
+.inc .warn{font-size:12.5px;color:var(--bad);font-weight:700;margin-top:6px}
 @media(max-width:640px){.body{padding:14px}table,thead,tbody,tr,td,th{display:block}thead{display:none}tr{border-bottom:1px solid var(--line);padding:6px 0}td{border:0;padding:3px 0}}
 </style>
 </head>
@@ -105,8 +123,25 @@ async function loadOrders() {
   const s = await getDocs(query(collection(db, 'payOrders'), where('createdAt', '>', Date.now() - 7 * DAY)));
   ORD = []; s.forEach(d => ORD.push({ code: d.id, ...d.data() })); ORD.sort((a, b) => b.createdAt - a.createdAt);
 }
+/* Khoảng ngày theo giờ Việt Nam (UTC+7) */
+const vnDay = ms => new Date(ms + 7 * 3600e3).toISOString().slice(0, 10);
+const dayMs = d => { const [y, m, dd] = d.split('-').map(Number); return Date.UTC(y, m - 1, dd) - 7 * 3600e3; };
+const addDays = (d, n) => vnDay(dayMs(d) + n * DAY);
+function preset(k) {
+  const today = vnDay(Date.now()), [y, m] = today.split('-').map(Number), pad = n => String(n).padStart(2, '0');
+  const mStart = (yy, mm) => { if (mm < 1) { mm += 12; yy--; } return yy + '-' + pad(mm) + '-01'; };
+  if (k === 'today') return [today, today];
+  if (k === '7d') return [addDays(today, -6), today];
+  if (k === '30d') return [addDays(today, -29), today];
+  if (k === 'month') return [mStart(y, m), today];
+  if (k === 'last') return [mStart(y, m - 1), addDays(mStart(y, m), -1)];
+  if (k === 'year') return [y + '-01-01', today];
+  return ['2024-01-01', today];
+}
+let RANGE = { k: 'month', from: null, to: null };
 async function loadPays() {
-  const s = await getDocs(query(collection(db, 'payments'), orderBy('at', 'desc'), limit(120)));
+  if (!RANGE.from) [RANGE.from, RANGE.to] = preset(RANGE.k);
+  const s = await getDocs(query(collection(db, 'payments'), where('at', '>=', dayMs(RANGE.from)), where('at', '<', dayMs(RANGE.to) + DAY), orderBy('at', 'desc')));
   PAY = []; s.forEach(d => { if (d.id !== '__costs') PAY.push({ id: d.id, ...d.data() }); });
 }
 async function loadUsers() {
@@ -125,14 +160,37 @@ function paintPend() {
       : '<div class="empty">Không có đơn nào đang chờ.</div>');
   $('q').oninput = e => { const v = e.target.value.trim().toLowerCase(); document.querySelectorAll('.card[data-s]').forEach(c => c.style.display = !v || c.dataset.s.includes(v) ? '' : 'none'); };
 }
+function kindOf(r) { r = String(r || '').toLowerCase(); if (/astra/.test(r)) return 'Gói Astra'; if (/pro/.test(r)) return 'Gói Pro'; const m = r.match(/khoá\s+(\S+)/); return m ? 'Khoá ' + m[1] : 'Khác'; }
+function incomeHtml() {
+  const ok = PAY.filter(p => p.matched), unm = PAY.filter(p => !p.matched);
+  const total = ok.reduce((a, p) => a + (Number(p.amount) || 0), 0), unTot = unm.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  const kinds = {}; ok.forEach(p => { const k = kindOf(p.result); (kinds[k] = kinds[k] || { n: 0, sum: 0 }); kinds[k].n++; kinds[k].sum += Number(p.amount) || 0; });
+  // biểu đồ: theo ngày (≤ 62 ngày) hoặc theo tháng
+  const days = Math.round((dayMs(RANGE.to) - dayMs(RANGE.from)) / DAY) + 1, byMonth = days > 62, bins = [], idx = {};
+  if (byMonth) { let d = RANGE.from.slice(0, 7); const end = RANGE.to.slice(0, 7); for (let g = 0; g < 400 && d <= end; g++) { idx[d] = bins.length; bins.push({ k: d, lab: d.slice(5) + '/' + d.slice(2, 4), v: 0 }); let [yy, mm] = d.split('-').map(Number); mm++; if (mm > 12) { mm = 1; yy++; } d = yy + '-' + String(mm).padStart(2, '0'); } }
+  else for (let i = 0; i < days; i++) { const d = addDays(RANGE.from, i); idx[d] = bins.length; bins.push({ k: d, lab: d.slice(8) + '/' + d.slice(5, 7), v: 0 }); }
+  ok.forEach(p => { const d = vnDay(Number(p.at)), k = byMonth ? d.slice(0, 7) : d; if (k in idx) bins[idx[k]].v += Number(p.amount) || 0; });
+  const max = Math.max(1, ...bins.map(b => b.v)), every = Math.ceil(bins.length / (window.innerWidth < 640 ? 6 : 12));
+  const Q = [['today', 'Hôm nay'], ['7d', '7 ngày'], ['30d', '30 ngày'], ['month', 'Tháng này'], ['last', 'Tháng trước'], ['year', 'Năm nay'], ['all', 'Tất cả']];
+  return '<div class="inc"><div class="qk">' + Q.map(q => '<button data-pr="' + q[0] + '"' + (RANGE.k === q[0] ? ' class="on"' : '') + '>' + q[1] + '</button>').join('') + '</div>' +
+    '<div class="dr">Từ <input type="date" id="dFrom" value="' + RANGE.from + '"> đến <input type="date" id="dTo" value="' + RANGE.to + '"></div>' +
+    '<div class="tot"><b>' + money(total) + '</b><span>thu từ web · ' + ok.length + ' giao dịch đã duyệt' + (days > 1 ? ' · trung bình ' + money(Math.round(total / days)) + '/ngày' : '') + '</span></div>' +
+    (Object.keys(kinds).length ? '<div class="kinds">' + Object.entries(kinds).sort((a, b) => b[1].sum - a[1].sum).map(([k, v]) => '<span class="kind">' + esc(k) + ' · ' + v.n + ' lần<b>' + money(v.sum) + '</b></span>').join('') + '</div>' : '') +
+    (bins.length > 1 ? '<div class="chart">' + bins.map((b, i) => '<div class="col" data-t="' + b.lab + ': ' + money(b.v) + '"><i' + (b.v ? '' : ' class="z"') + ' style="height:' + Math.max(2, b.v / max * 100) + '%"></i><small>' + (i % every === 0 ? b.lab : '&nbsp;') + '</small></div>').join('') + '</div>' : '') +
+    (unm.length ? '<div class="warn">Chưa tính ' + money(unTot) + ' từ ' + unm.length + ' giao dịch chưa khớp đơn (dòng đỏ bên dưới).</div>' : '') + '</div>';
+}
 function paintPay() {
   const unm = PAY.filter(p => !p.matched);
   $('nUnm').style.display = unm.length ? '' : 'none'; $('nUnm').textContent = unm.length;
-  $('view').innerHTML = '<p class="hint">Các lần SePay báo tiền vào mà máy chủ đã nhận được. <b>Lần nào SePay gửi lỗi (như sáng nay khi Firebase hết lượt miễn phí) thì không có ở đây</b>: so với danh sách giao dịch trên my.sepay.vn rồi duyệt tay ở tab "Đơn chờ duyệt". Dòng đỏ = tiền vào nhưng không khớp đơn: gõ mã đơn để gán.</p>' +
-    '<table><thead><tr><th>Thời gian</th><th>Số tiền</th><th>Nội dung chuyển khoản</th><th>Kết quả</th></tr></thead><tbody>' +
+  $('view').innerHTML = incomeHtml() + '<p class="hint">Danh sách tiền vào trong khoảng đã chọn. <b>Lần nào SePay gửi lỗi (như khi Firebase hết lượt miễn phí) thì không có ở đây</b>: so với danh sách giao dịch trên my.sepay.vn rồi duyệt tay ở tab "Đơn chờ duyệt". Dòng đỏ = tiền vào nhưng không khớp đơn: gõ mã đơn để gán.</p>' +
+    (PAY.length ? '' : '<div class="empty">Không có giao dịch nào trong khoảng này.</div>') + '<table><thead><tr><th>Thời gian</th><th>Số tiền</th><th>Nội dung chuyển khoản</th><th>Kết quả</th></tr></thead><tbody>' +
     PAY.map(p => '<tr><td>' + vt(p.at) + '</td><td><b>' + money(p.amount) + '</b></td><td class="c">' + esc(p.content) + '</td><td>' +
       (p.matched ? '<span class="pill ok">' + esc(p.result || 'đã duyệt') + '</span>' + (p.manual ? ' <span class="pill">duyệt tay</span>' : '')
         : '<span class="pill bad">' + esc(p.note || 'chưa khớp') + '</span><div class="bar" style="margin:6px 0 0"><input style="min-width:140px" placeholder="Mã đơn NI…" data-code="' + esc(p.id) + '"><button class="b" data-assign="' + esc(p.id) + '">Gán & duyệt</button></div>') + '</td></tr>').join('') + '</tbody></table>';
+  const reload = async () => { $('view').style.opacity = .5; try { await loadPays(); paintPay(); } catch (e) { toast('Lỗi tải: ' + e.message); } $('view').style.opacity = 1; };
+  document.querySelectorAll('[data-pr]').forEach(b => b.onclick = () => { RANGE.k = b.dataset.pr; [RANGE.from, RANGE.to] = preset(RANGE.k); reload(); });
+  const onDate = () => { let f = $('dFrom').value, t = $('dTo').value; if (!f || !t) return; if (f > t) [f, t] = [t, f]; RANGE = { k: 'custom', from: f, to: t }; reload(); };
+  $('dFrom').onchange = onDate; $('dTo').onchange = onDate;
 }
 function paintBuys() {
   const now = Date.now(), rows = [];
