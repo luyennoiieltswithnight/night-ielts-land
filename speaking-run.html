@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Nai Chạy Speaking · Night IELTS</title>
+<meta name="theme-color" content="#24242A">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Plus+Jakarta+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#24242A;--mut:#6B6B78;--pri:#6C70DC;--ok:#16A34A}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:#E9E9EF;color:var(--ink);font-family:'Plus Jakarta Sans',system-ui,sans-serif}
+body{padding:10px 10px calc(20px + env(safe-area-inset-bottom))}
+button{font-family:inherit}
+.frame{max-width:64rem;margin:0 auto;background:var(--ink);border-radius:28px;padding:6px}
+header{display:flex;align-items:center;gap:10px;color:#fff;padding:8px 10px 12px;flex-wrap:wrap}
+header a{text-decoration:none;color:var(--ink);background:#fff;border-radius:999px;padding:8px 13px;font-weight:800;font-size:13px}
+header h1{margin:0;font:12px/1.5 'Press Start 2P',monospace;letter-spacing:.02em}
+header h1 small{display:block;font:600 11px 'Plus Jakarta Sans',sans-serif;color:#A9A9B8;margin-top:2px}
+.hd-r{margin-left:auto;display:flex;gap:6px;align-items:center}
+.hd-r select,.hd-r button{border:0;border-radius:999px;padding:8px 12px;font-weight:700;font-size:12.5px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}
+.hd-r select option{color:#24242A}
+.stage{position:relative;border-radius:22px;overflow:hidden;background:#FFE9C7;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rendering:crisp-edges}
+.hud{position:absolute;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;font:11px/1.6 'Press Start 2P',monospace;color:#3A2A4A;pointer-events:none}
+.hud b{color:#C2410C}
+.tip{position:absolute;left:0;right:0;bottom:16px;text-align:center;font:10px/1.8 'Press Start 2P',monospace;color:#3A2A4A;pointer-events:none;animation:blink 1.2s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+.info{display:flex;gap:10px;flex-wrap:wrap;padding:12px 8px 6px;color:#C9C9D6;font-size:12.5px}
+.info span{background:rgba(255,255,255,.08);border-radius:999px;padding:6px 12px}
+.info b{color:#FFD66B}
+/* bảng trả lời */
+.qv{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(36,36,42,.55);backdrop-filter:blur(3px)}
+.qv.on{display:flex;animation:pop .25s ease-out}
+@keyframes pop{from{opacity:0}}
+.qbox{width:100%;max-width:560px;background:#FFFDF7;border-radius:22px;padding:18px;box-shadow:0 0 0 4px #24242A,0 18px 0 -2px rgba(0,0,0,.2);max-height:100%;overflow:auto}
+.qtag{display:inline-block;font:9px/1.6 'Press Start 2P',monospace;background:#24242A;color:#FFD66B;border-radius:8px;padding:5px 8px}
+.qtag.death{background:#DC2626;color:#fff}.qtag.bonus{background:#6C70DC;color:#fff}
+.qtopic{font-size:12px;font-weight:800;color:var(--mut);margin:10px 0 2px;text-transform:uppercase;letter-spacing:.06em}
+.qtext{font-size:clamp(19px,3vw,24px);font-weight:800;line-height:1.35;margin:0 0 10px}
+.qhint{font-size:12.5px;color:var(--mut);margin:0 0 12px;line-height:1.5}
+.live{min-height:56px;border-radius:14px;background:#F4F1EA;padding:10px 12px;font-size:15px;line-height:1.5;color:#4B4B58;margin-bottom:10px}
+.meter{height:10px;border-radius:999px;background:#EDE8DC;overflow:hidden;margin-bottom:12px}
+.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,#F59E0B,#16A34A);transition:width .2s}
+.qrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pb{border:0;border-radius:14px;padding:12px 16px;font-weight:800;font-size:14px;cursor:pointer;background:#24242A;color:#fff;box-shadow:0 4px 0 #000}
+.pb:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
+.pb.mic{background:#DC2626;box-shadow:0 4px 0 #7F1D1D}.pb.mic.on{animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 4px 0 #7F1D1D,0 0 0 8px rgba(220,38,38,.18)}}
+.pb.go{background:#16A34A;box-shadow:0 4px 0 #14532D}
+.pb.ghost{background:#EFEBE2;color:#24242A;box-shadow:0 4px 0 #CFC8B8}
+.pb:disabled{opacity:.4;cursor:default;transform:none}
+.qmsg{font-size:13px;font-weight:700;color:var(--mut);margin-left:4px}
+.over{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;font:12px/1.8 'Press Start 2P',monospace;color:#3A2A4A}
+.over.on{display:flex}
+.over h2{font-size:18px;margin:0}
+@media(max-width:700px){.qv{position:fixed;z-index:60;align-items:flex-end;padding:10px 10px calc(14px + env(safe-area-inset-bottom))}.qbox{max-height:88vh}}
+@media(max-width:640px){header h1{font-size:10px}.hud{font-size:9px}.tip{font-size:8px}}
+</style>
+</head>
+<body>
+<div class="frame">
+  <header>
+    <a href="speaking.html">← Speaking</a>
+    <h1>NAI CHẠY SPEAKING<small>Space / chạm để nhảy · vấp ngã hay chạm biển "?" là phải nói</small></h1>
+    <div class="hd-r"><select id="topic" aria-label="Chủ đề"></select><button id="mute" aria-label="Âm thanh">🔊</button></div>
+  </header>
+  <div class="stage" id="stage">
+    <canvas id="cv" width="960" height="300"></canvas>
+    <div class="hud"><span>CÂU ĐÃ NÓI <b id="hAns">0</b></span><span>HI <b id="hHi">00000</b> &nbsp; <b id="hSc">00000</b></span></div>
+    <div class="tip" id="tip">BẤM SPACE HOẶC CHẠM ĐỂ BẮT ĐẦU</div>
+    <div class="qv" id="qv"><div class="qbox">
+      <span class="qtag" id="qTag">CÂU HỎI</span>
+      <div class="qtopic" id="qTopic"></div>
+      <p class="qtext" id="qText"></p>
+      <p class="qhint" id="qHint">Trả lời 2–3 câu: ý chính + lý do + ví dụ. Nói ít nhất 8 giây.</p>
+      <div class="live" id="live">Bấm "Bắt đầu nói" rồi trả lời bằng tiếng Anh…</div>
+      <div class="meter"><i id="meter"></i></div>
+      <div class="qrow">
+        <button class="pb mic" id="rec">🎤 Bắt đầu nói</button>
+        <button class="pb ghost" id="listen" style="display:none">▶ Nghe lại</button>
+        <button class="pb ghost" id="another">Đổi câu khác</button>
+        <button class="pb ghost" id="restart">Chơi lại từ 0</button>
+        <button class="pb go" id="cont" disabled>Chạy tiếp →</button>
+        <span class="qmsg" id="qMsg"></span>
+      </div>
+    </div></div>
+  </div>
+  <div class="info"><span>Đã trả lời tổng cộng <b id="iTot">0</b> câu</span><span>Vấp ngã → trả lời để <b>hồi sinh</b>, giữ nguyên điểm</span><span>Biển <b>?</b> → trả lời được <b>+100</b></span></div>
+</div>
+
+<script src="speaking-forecast.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var cv = $('cv'), cx = cv.getContext('2d');
+  var W = window.innerWidth < 700 ? 560 : 960, H = 300, GROUND = 248;   // điện thoại: khung hẹp hơn để nai và vật cản to, dễ nhìn
+  cv.width = W;
+  var ls = function (k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || 'null'); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
+
+  /* ---------- Câu hỏi Part 1 (đề dự đoán) ---------- */
+  var F = window.SP_FORECAST || { p1: [] };
+  var TOPICS = F.p1.filter(function (t) { return t.q && t.q.length; });
+  if (!TOPICS.length) TOPICS = [{ t: 'Daily life', q: ['What do you usually do in the morning?', 'Do you like your hometown? Why?', 'What kind of music do you like?'] }];
+  $('topic').innerHTML = '<option value="">Chủ đề: ngẫu nhiên</option>' + TOPICS.map(function (t, i) { return '<option value="' + i + '">' + t.t.replace(/</g, '&lt;') + '</option>'; }).join('');
+  var savedT = ls('nvrun-topic'); if (savedT != null && TOPICS[savedT]) $('topic').value = savedT;
+  $('topic').onchange = function () { ls('nvrun-topic', this.value === '' ? null : +this.value); this.blur(); };
+  var used = {};
+  function pickQ() {
+    var ti = $('topic').value === '' ? Math.floor(Math.random() * TOPICS.length) : +$('topic').value, T = TOPICS[ti];
+    var pool = T.q.filter(function (q) { return !used[q]; }); if (!pool.length) { T.q.forEach(function (q) { delete used[q]; }); pool = T.q; }
+    var q = pool[Math.floor(Math.random() * pool.length)]; used[q] = 1;
+    return { topic: T.t, q: q.replace(/\s*\[[^\]]*\]\s*/g, ' ').trim() };
+  }
+
+  /* ---------- Pixel sprites ---------- */
+  var PAL = { b: '#A8673A', l: '#E2B07A', d: '#5B3A21', w: '#FFF6E6', k: '#1F1720', a: '#7A5530', p: '#F4A6A6', g: '#4E9A4B', G: '#3B7A3A', s: '#8B8F99', S: '#6B6F78', y: '#FFD66B', Y: '#E0A92E', r: '#D9534F', v: '#3A2A4A', c: '#FFFFFF' };
+  function sprite(rows) {
+    var h = rows.length, w = rows[0].length, c = document.createElement('canvas'); c.width = w; c.height = h;
+    var g = c.getContext('2d');
+    rows.forEach(function (r, y) { for (var x = 0; x < w; x++) { var ch = r[x]; if (ch !== '.' && PAL[ch]) { g.fillStyle = PAL[ch]; g.fillRect(x, y, 1, 1); } } });
+    return c;
+  }
+  var DEER_TOP = [
+    '................a..a..',
+    '...............a..a...',
+    '...............aaaa...',
+    '................bbb...',
+    '...............bbkbb..',
+    '..............pbbbbbbd',
+    '...............bbbbb..',
+    '...............bbbl...',
+    '..............bbbl....',
+    '..wbbbbbbbbbbbbbbl....',
+    '.wwbbwbbbbwbbbbbb.....',
+    '..bbbbbbwbbbbwbbb.....',
+    '..bllllllllllllbb.....'
+  ];
+  var LEGS = [
+    ['...bb.b.......b.bb....', '...b..b.......b..b....', '..b...b......b...b....', '..d...d......d...d....'],
+    ['....bb.b.....bb.b.....', '....b..b.....b..b.....', '....b.b......b.b......', '....d.d......d.d......'],
+    ['....bb.b......bb.b....', '...b...b.....b...b....', '...b...b.....b...b....', '...d...d.....d...d....'],
+    ['...bbb.........bbb....', '....bd..........bd....', '......................', '......................']
+  ];
+  var DEER = LEGS.map(function (l) { return sprite(DEER_TOP.concat(l)); });
+  var DEER_HURT = sprite(DEER_TOP.map(function (r) { return r.replace('k', 'c'); }).concat(LEGS[3]));
+  var BUSH = [sprite(['...gg...', '..gGgg..', '.gggGgg.', 'gGgggggg', 'ggGggGgg', '.gggggg.']),
+    sprite(['....gg......', '..ggGgg.gg..', '.gggggGgggg.', 'gGgggggggGgg', 'gggGgggGgggg', '.gggggggggg.'])];
+  var ROCK = sprite(['...ssss...', '..sssSss..', '.sSssssss.', 'sssssSssss', 'sSssssssSs']);
+  var LOG = sprite(['.dddddddddddd.', 'dbbbbbbbbbbbbl', 'dbbdbbbbbdbbbl', '.dddddddddddd.']);
+  var SIGN = sprite(['yyyyyyyyy', 'yYYYYYYYy', 'yYvvvvvYy', 'yYYYYvvYy', 'yYYYvvYYy', 'yYYYvYYYy', 'yYYYYYYYy', 'yYYYvYYYy', 'yyyyyyyyy', '....d....', '....d....', '....d....', '....d....']);
+  var BIRD = [sprite(['v.......', 'vv....vv', '.vvvvvvr', '..vvvv..', '........']), sprite(['........', '......vv', 'vvvvvvvr', '.vvvvv..', '..v.v...'])];
+  var CLOUD = sprite(['....cccc......', '..cccccccc.cc.', '.cccccccccccccc', 'ccccccccccccccc']);
+  var FLOWER = sprite(['.r.', 'ryr', '.r.', '.g.']);
+  var SC = 4;   // 1 pixel sprite = 4 pixel màn hình
+
+  /* ---------- Âm thanh 8-bit ---------- */
+  var actx = null, muted = !!ls('nvrun-mute');
+  $('mute').textContent = muted ? '🔇' : '🔊';
+  $('mute').onclick = function () { muted = !muted; ls('nvrun-mute', muted); this.textContent = muted ? '🔇' : '🔊'; this.blur(); };
+  function beep(f1, f2, dur, type) {
+    if (muted) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
+      o.type = type || 'square'; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+      g.gain.setValueAtTime(.06, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + dur);
+    } catch (e) {}
+  }
+
+  /* ---------- Trạng thái game ---------- */
+  var S, hi = ls('nvrun-hi') || 0, totalAns = ls('nvrun-total') || 0;
+  $('hHi').textContent = String(hi).padStart(5, '0'); $('iTot').textContent = totalAns;
+  function reset() {
+    S = { mode: 'ready', t: 0, score: 0, speed: 380, y: 0, vy: 0, onGround: true, hold: false, obs: [], next: 1.2, inv: 0, ans: 0,
+      clouds: [{ x: 120, y: 50, s: .25 }, { x: 520, y: 80, s: .18 }, { x: W - 140, y: 40, s: .22 }], flowers: [], ground: 0, hills: 0, shake: 0, dust: [] };
+    $('hAns').textContent = 0;
+  }
+  reset();
+
+  /* ---------- Điều khiển ---------- */
+  function press() {
+    if (S.mode === 'ready' || S.mode === 'over') { if (S.mode === 'over') reset(); S.mode = 'run'; $('tip').style.display = 'none'; jump(); return; }
+    if (S.mode === 'run') jump();
+  }
+  function jump() { if (S.onGround) { S.vy = -860; S.onGround = false; S.hold = true; beep(420, 820, .12); for (var i = 0; i < 5; i++) S.dust.push({ x: 150 + Math.random() * 30, y: GROUND, vx: -60 - Math.random() * 90, vy: -40 - Math.random() * 60, l: .4 }); } }
+  document.addEventListener('keydown', function (e) {
+    if ($('qv').classList.contains('on')) return;
+    if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (!e.repeat) press(); }
+  });
+  document.addEventListener('keyup', function (e) { if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') S.hold = false; });
+  $('stage').addEventListener('pointerdown', function (e) { if (e.target.closest('.qbox')) return; e.preventDefault(); press(); });
+  $('stage').addEventListener('pointerup', function () { S.hold = false; });
+
+  /* ---------- Chướng ngại vật ---------- */
+  function spawn() {
+    var r = Math.random(), x = W + 40, o;
+    if (S.score > 250 && r < .16) o = { k: 'bird', img: BIRD[0], x: x, y: GROUND - (Math.random() < .5 ? 64 : 120), w: 32, h: 20 };
+    else if (r < .27 && S.score > 60) o = { k: 'sign', img: SIGN, x: x, y: GROUND - 52, w: 36, h: 52 };
+    else { var im = [BUSH[0], BUSH[1], ROCK, LOG][Math.floor(Math.random() * 4)]; o = { k: 'block', img: im, x: x, y: GROUND - im.height * SC, w: im.width * SC, h: im.height * SC }; }
+    S.obs.push(o);
+    var gap = 0.95 + Math.random() * 0.9 - Math.min(.35, S.speed / 2600);
+    if (Math.random() < .2 && S.speed > 480 && o.k === 'block') gap = .45;   // cụm 2 vật liền nhau
+    S.next = Math.max(.42, gap);
+  }
+  function hit(o) {
+    var dx = 150 + 12, dy = GROUND - 66 + S.y + 10, dw = 52, dh = 52;
+    var pad = o.k === 'sign' ? 0 : 6;
+    return dx < o.x + o.w - pad && dx + dw > o.x + pad && dy < o.y + o.h - pad && dy + dh > o.y + pad;
+  }
+
+  /* ---------- Vòng lặp ---------- */
+  var last = performance.now();
+  function step(now) {
+    var dt = Math.max(0, Math.min(.033, (now - last) / 1000)); last = now;
+    if (S.mode === 'run') update(dt);
+    else if (S.mode === 'ready') S.t += dt;
+    draw();
+    requestAnimationFrame(step);
+  }
+  function update(dt) {
+    S.t += dt; S.speed = Math.min(860, S.speed + dt * 9); S.score += dt * S.speed / 40;
+    var g = S.vy < 0 && S.hold ? 1700 : 3000;
+    S.vy += g * dt; S.y += S.vy * dt;
+    if (S.y >= 0) { if (!S.onGround) { for (var i = 0; i < 4; i++) S.dust.push({ x: 150 + Math.random() * 40, y: GROUND, vx: -80 - Math.random() * 60, vy: -30 - Math.random() * 40, l: .35 }); } S.y = 0; S.vy = 0; S.onGround = true; }
+    var dx = S.speed * dt;
+    S.ground = (S.ground + dx) % 48; S.hills = (S.hills + dx * .25) % 960;
+    S.clouds.forEach(function (c) { c.x -= dx * c.s; if (c.x < -80) { c.x = W + Math.random() * 200; c.y = 30 + Math.random() * 70; } });
+    S.next -= dt; if (S.next <= 0) spawn();
+    S.obs.forEach(function (o) { o.x -= dx * (o.k === 'bird' ? 1.15 : 1); if (o.k === 'bird') o.img = BIRD[Math.floor(S.t * 6) % 2]; });
+    S.obs = S.obs.filter(function (o) { return o.x > -80 && !o.gone; });
+    S.dust.forEach(function (p) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; p.l -= dt; }); S.dust = S.dust.filter(function (p) { return p.l > 0; });
+    S.flowers.forEach(function (f) { f.x -= dx; }); S.flowers = S.flowers.filter(function (f) { return f.x > -20; });
+    if (S.inv > 0) S.inv -= dt;
+    for (var k = 0; k < S.obs.length; k++) {
+      var o = S.obs[k]; if (!hit(o)) continue;
+      if (o.k === 'sign') { o.gone = true; beep(660, 990, .15, 'triangle'); ask('bonus'); return; }
+      if (S.inv > 0) continue;
+      S.mode = 'dead'; S.shake = .35; beep(300, 60, .4, 'sawtooth'); setTimeout(function () { ask('death'); }, 450); return;
+    }
+    var sc = Math.floor(S.score); $('hSc').textContent = String(sc).padStart(5, '0');
+    if (sc && sc % 500 === 0 && !S['m' + sc]) { S['m' + sc] = 1; beep(880, 1320, .15, 'triangle'); }
+  }
+  function sky() {   // trời chuyển dần sáng -> hoàng hôn -> đêm theo điểm
+    var p = (S.score % 3000) / 3000;
+    var stops = [['#FFE9C7', '#FFD3A8'], ['#FFD0B0', '#F7A6A0'], ['#4A3F7A', '#2A2350'], ['#BFE3F7', '#FFE9C7']];
+    var i = Math.floor(p * 4), a = stops[i];
+    return a;
+  }
+  function draw() {
+    cx.save();
+    if (S.shake > 0) { S.shake -= .016; cx.translate((Math.random() - .5) * 8, (Math.random() - .5) * 6); }
+    var sk = sky(), gr = cx.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, sk[0]); gr.addColorStop(1, sk[1]);
+    cx.fillStyle = gr; cx.fillRect(-10, -10, W + 20, H + 20);
+    var night = sk[0] === '#4A3F7A';
+    if (night) { cx.fillStyle = '#FFF6D6'; for (var i = 0; i < 40; i++) { var sx = (i * 197) % W, sy = (i * 71) % 150; if ((i + Math.floor(S.t * 2)) % 7) cx.fillRect(sx, sy, 3, 3); } }
+    cx.fillStyle = night ? '#FFF6D6' : '#FFF1C2'; cx.beginPath(); cx.arc(W - 140, 70, 26, 0, 7); cx.fill();
+    cx.imageSmoothingEnabled = false;
+    S.clouds.forEach(function (c) { cx.globalAlpha = night ? .35 : .9; cx.drawImage(CLOUD, Math.round(c.x), Math.round(c.y), CLOUD.width * 5, CLOUD.height * 5); }); cx.globalAlpha = 1;
+    // đồi xa (pixel bậc thang)
+    cx.fillStyle = night ? '#3B3466' : '#F2B98A';
+    for (var x = -S.hills; x < W + 960; x += 960) for (var k = 0; k < 960; k += 16) { var h = 40 + Math.round(26 * Math.sin((k / 960) * Math.PI * 4) + 14 * Math.sin((k / 960) * Math.PI * 9)); cx.fillRect(Math.round(x + k), GROUND - h, 16, h); }
+    cx.fillStyle = night ? '#2E5E3A' : '#7BBF6A'; cx.fillRect(0, GROUND, W, 6);
+    cx.fillStyle = night ? '#3A2E28' : '#C98E58'; cx.fillRect(0, GROUND + 6, W, H - GROUND);
+    cx.fillStyle = night ? '#2A211C' : '#A8703F';
+    for (var gx = -S.ground; gx < W; gx += 48) { cx.fillRect(Math.round(gx), GROUND + 16, 12, 4); cx.fillRect(Math.round(gx + 26), GROUND + 30, 8, 4); }
+    S.obs.forEach(function (o) {
+      cx.drawImage(o.img, Math.round(o.x), Math.round(o.y), o.img.width * SC, o.img.height * SC);
+      if (o.k === 'sign') { var bob = Math.sin(S.t * 6) * 3; cx.fillStyle = '#FFD66B'; cx.font = '10px "Press Start 2P"'; cx.fillText('+100', Math.round(o.x - 4), Math.round(o.y - 8 + bob)); }
+    });
+    S.dust.forEach(function (p) { cx.fillStyle = 'rgba(200,160,110,' + Math.max(0, p.l * 2) + ')'; cx.fillRect(Math.round(p.x), Math.round(p.y), 5, 5); });
+    S.flowers.forEach(function (f) { cx.drawImage(FLOWER, Math.round(f.x), GROUND - 16, 12, 16); });
+    // nai
+    var img = S.mode === 'dead' ? DEER_HURT : !S.onGround ? DEER[3] : S.mode === 'run' ? DEER[Math.floor(S.t * 12) % 3] : DEER[Math.floor(S.t * 2) % 2];
+    var dy = GROUND - img.height * SC + Math.round(S.y);
+    if (S.mode === 'ready') dy += Math.round(Math.sin(S.t * 4) * 2);
+    if (!(S.inv > 0 && Math.floor(S.t * 12) % 2)) cx.drawImage(img, 150, dy, img.width * SC, img.height * SC);
+    cx.restore();
+  }
+  requestAnimationFrame(step);
+
+  /* ---------- Trả lời câu hỏi ---------- */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null, mr = null, stream = null, chunks = [], blobUrl = null;
+  var Q = null, why = '', spoke = 0, words = 0, tStart = 0, timer = null, recording = false;
+  function ask(kind) {
+    S.mode = 'ask'; why = kind; Q = pickQ();
+    $('qTag').textContent = kind === 'death' ? 'NAI VẤP NGÃ! TRẢ LỜI ĐỂ HỒI SINH' : 'BIỂN ? · TRẢ LỜI ĐƯỢC +100';
+    $('qTag').className = 'qtag ' + (kind === 'death' ? 'death' : 'bonus');
+    $('qTopic').textContent = 'Part 1 · ' + Q.topic; $('qText').textContent = Q.q;
+    $('live').textContent = 'Bấm "Bắt đầu nói" rồi trả lời bằng tiếng Anh…'; $('meter').style.width = '0';
+    $('cont').disabled = true; $('cont').textContent = kind === 'death' ? 'Hồi sinh & chạy tiếp →' : 'Nhận +100 & chạy tiếp →';
+    $('listen').style.display = 'none'; $('qMsg').textContent = ''; $('restart').style.display = kind === 'death' ? '' : 'none'; $('rec').textContent = '🎤 Bắt đầu nói'; $('rec').classList.remove('on'); $('another').style.display = '';
+    spoke = 0; words = 0;
+    $('qv').classList.add('on');
+    setTimeout(function () { $('rec').focus(); }, 50);
+  }
+  function progress() {
+    var sec = (Date.now() - tStart) / 1000, need = SR ? Math.min(1, Math.min(sec / 8, words / 12) * 1) : Math.min(1, sec / 10);
+    if (SR && !words) need = Math.min(1, sec / 12);   // máy không hiện được chữ (mạng / trình duyệt): tính theo thời gian nói
+    $('meter').style.width = Math.round(need * 100) + '%';
+    spoke = sec; return need >= 1;
+  }
+  function startRec() {
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (st) {
+      stream = st; chunks = [];
+      try { mr = new MediaRecorder(st); mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); }; mr.onstop = function () { if (blobUrl) URL.revokeObjectURL(blobUrl); blobUrl = URL.createObjectURL(new Blob(chunks, { type: mr.mimeType || 'audio/webm' })); $('listen').style.display = ''; }; mr.start(); } catch (e) { mr = null; }
+      tStart = Date.now(); words = 0; recording = true;
+      $('rec').textContent = '■ Nói xong'; $('rec').classList.add('on'); $('another').style.display = 'none';
+      $('live').textContent = SR ? 'Đang nghe…' : 'Đang ghi âm… (trình duyệt này không hiện chữ, cứ nói tự nhiên)';
+      if (SR) {
+        rec = new SR(); rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = true;
+        rec.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript + ' '; t = t.trim(); $('live').textContent = t || 'Đang nghe…'; words = t ? t.split(/\s+/).length : 0; };
+        rec.onend = function () { if (mr && mr.state === 'recording') try { rec.start(); } catch (e) {} };
+        try { rec.start(); } catch (e) {}
+      }
+      timer = setInterval(function () {
+        var ok = progress();
+        $('qMsg').textContent = Math.floor(spoke) + 's' + (SR ? ' · ' + words + ' từ' : '');
+        if (spoke > 45) stopRec();
+        if (ok) $('rec').classList.add('ready');
+      }, 200);
+    }).catch(function () { $('qMsg').textContent = 'Cần cho phép dùng micro để trả lời nhé.'; });
+  }
+  function stopRec() {
+    clearInterval(timer); recording = false;
+    var ok = progress();
+    try { rec && (rec.onend = null, rec.stop()); } catch (e) {} rec = null;
+    try { mr && mr.state === 'recording' && mr.stop(); } catch (e) {}
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null;
+    $('rec').classList.remove('on'); $('rec').textContent = '🎤 Nói lại';
+    if (ok) {
+      $('cont').disabled = false; $('qMsg').textContent = 'Tốt lắm! ' + Math.round(spoke) + ' giây' + (SR ? ', ' + words + ' từ' : '') + '.'; beep(660, 1320, .2, 'triangle');
+      setTimeout(function () { $('cont').focus(); }, 50);
+    } else {
+      $('qMsg').textContent = SR && words < 12 ? 'Hơi ngắn, nói thêm lý do hoặc ví dụ nhé (cần ~12 từ trở lên).' : 'Nói lâu hơn một chút nhé (ít nhất 8–10 giây).';
+    }
+  }
+  $('rec').onclick = function () { if (recording) stopRec(); else startRec(); };
+  $('listen').onclick = function () { if (blobUrl) new Audio(blobUrl).play(); };
+  $('another').onclick = function () { if (recording) stopRec(); ask(why); };
+  $('restart').onclick = function () {
+    if (recording) stopRec();
+    $('qv').classList.remove('on'); var sc = Math.floor(S.score); if (sc > hi) { hi = sc; ls('nvrun-hi', hi); $('hHi').textContent = String(hi).padStart(5, '0'); }
+    reset(); $('hSc').textContent = '00000'; $('tip').textContent = 'BẤM SPACE HOẶC CHẠM ĐỂ BẮT ĐẦU'; $('tip').style.display = '';
+  };
+  $('cont').onclick = function () {
+    if (this.disabled) return;
+    $('qv').classList.remove('on');
+    S.ans++; $('hAns').textContent = S.ans; totalAns++; ls('nvrun-total', totalAns); $('iTot').textContent = totalAns;
+    if (why === 'bonus') { S.score += 100; S.flowers.push({ x: 170 }); }
+    else { S.obs = S.obs.filter(function (o) { return o.x > 400; }); S.inv = 1.6; S.y = 0; S.vy = 0; S.onGround = true; }
+    var sc = Math.floor(S.score); if (sc > hi) { hi = sc; ls('nvrun-hi', hi); $('hHi').textContent = String(hi).padStart(5, '0'); }
+    last = performance.now(); S.mode = 'run'; this.blur();
+  };
+  document.addEventListener('keydown', function (e) {
+    if (!$('qv').classList.contains('on')) return;
+    if (e.code === 'Enter' && !$('cont').disabled) { e.preventDefault(); $('cont').click(); }
+  });
+  window.addEventListener('blur', function () { if (S.mode === 'run') { S.mode = 'ready'; $('tip').textContent = 'TẠM DỪNG · BẤM SPACE ĐỂ CHẠY TIẾP'; $('tip').style.display = ''; } });
+})();
+</script>
+</body>
+</html>
