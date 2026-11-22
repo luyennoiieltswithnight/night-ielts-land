@@ -205,6 +205,8 @@
     '.npl-price{display:flex;align-items:baseline;gap:6px;margin:4px 0 12px}.npl-price b{font-size:30px;font-weight:800;color:#C2410C}.npl-price span{color:#6B6B78;font-size:14px}' +
     '.npl-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:6px 0 10px}@media(max-width:520px){.npl-plans{grid-template-columns:1fr}}.npl-plan{position:relative;text-align:left;padding:14px;border:2px solid #E4E4EC;border-radius:18px;background:#fff;font:inherit;cursor:pointer}.npl-plan.on{border-color:#F59E0B;background:#FFFBEB;box-shadow:0 10px 24px -14px rgba(245,158,11,.6)}.npl-plan.astra.on{border-color:#7C3AED;background:#F5F3FF;box-shadow:0 10px 24px -14px rgba(124,58,237,.6)}.npl-plan>b{display:block;font-size:17px}.npl-pp{display:block;font-size:20px;font-weight:800;color:#C2410C;margin:2px 0 6px}.npl-plan.astra .npl-pp{color:#6D28D9}.npl-pp small{font-size:12px;color:#6B6B78;font-weight:600}.npl-plan ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.45;color:#3F3F46}.npl-hot{position:absolute;top:-9px;right:10px;white-space:nowrap;line-height:1.4;background:#7C3AED;color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px}' +
     '.npl-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}.npl-m{position:relative;padding:10px 6px;border:2px solid #E4E4EC;border-radius:14px;background:#fff;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px}.npl-m b{font-size:14px}.npl-m span{font-size:13px;font-weight:700;color:#3F3F46}.npl-m small{font-size:11px;color:#059669;font-weight:700}.npl-m.on{border-color:#24242A;background:#24242A}.npl-m.on b,.npl-m.on span{color:#fff}.npl-m.on small{color:#6EE7B7}.npl-m .npl-hot{right:50%;transform:translateX(50%);background:#F59E0B}' +
+    '.npl-cmp{margin:0 0 12px;border-radius:14px;background:#F7F7FA;padding:10px 12px}.npl-cmp summary{cursor:pointer;font-weight:800;font-size:13.5px}.npl-cmp table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px;min-width:460px}.npl-cmp th,.npl-cmp td{padding:6px 5px;border-top:1px solid #E7E7EE;text-align:center;vertical-align:top}.npl-cmp tbody th{text-align:left;font-weight:700;max-width:170px}.npl-cmp thead th{font-size:12px;color:#55555f}.npl-cmp td:last-child{background:#FFF8E6}' +
+    '.npl-up{margin:0 0 12px;border-radius:16px;padding:12px 14px;background:linear-gradient(135deg,#FFF7E0,#FFE9F1);border:1.5px solid #FCD34D}.npl-up b.t{display:block;font-size:14.5px;margin-bottom:4px}.npl-up p{margin:0 0 8px;font-size:13px;line-height:1.5;color:#55555f}' +
     '.npl-ul{margin:0 0 14px;padding:0;list-style:none}.npl-ul li{padding:6px 0 6px 26px;position:relative;font-size:14px;line-height:1.5}.npl-ul li:before{content:"✓";position:absolute;left:4px;top:6px;color:#16A34A;font-weight:800}' +
     '.npl-pay{display:flex;gap:14px;align-items:flex-start;background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:18px;padding:12px;margin-bottom:12px;flex-wrap:wrap}' +
     '.npl-pay img{width:150px;height:150px;object-fit:contain;background:#fff;border-radius:12px;flex:none}' +
@@ -257,10 +259,25 @@
   function payCode(uid, plan, months) { return (plan ? 'NIGHT' + (plan === 'astra' ? 'A' : 'P') + (months || 1) : 'NIGHTPRO') + ' ' + String(uid || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase(); }
   /* ---------- Gói: Pro (AI chấm Speaking + Writing) · Astra (AI + mọi khoá học) ---------- */
   var PLAN_DEF = {
-    pro: { name: 'Pro', icon: '⭐', prices: { 1: 49000, 3: 129000, 6: 229000 }, perks: ['AI chấm chữa <b>Speaking</b> và <b>Writing</b> không giới hạn', 'Bản sửa lỗi, nâng cấp từ vựng, phân tích band chi tiết', 'Lưu bài làm, xem lại tiến bộ trên mọi thiết bị'] },
-    astra: { name: 'Astra', icon: '🌟', prices: { 1: 79000, 3: 199000, 6: 359000 }, perks: ['<b>Tất cả quyền lợi gói Pro</b>', 'Mở <b>toàn bộ buổi học</b> của mọi khoá: Giao tiếp, Speaking, Writing, Chuyên đề…', 'Học theo lộ trình, lưu tiến độ từng buổi'] }
+    pro: { name: 'Pro', icon: '⭐', prices: { 1: 49000, 3: 129000, 6: 229000 }, perks: ['AI chấm chữa <b>Speaking</b> và <b>Writing</b> không giới hạn', 'Gợi ý AI khi viết, sửa lỗi, phân tích band chi tiết', 'Luyện phát âm từng âm + Vườn từ vựng không giới hạn', '<span style="color:#9F1239">Không gồm khoá học</span>'] },
+    astra: { name: 'Astra', icon: '🌟', prices: { 1: 79000, 3: 199000, 6: 359000 }, perks: ['<b>Tất cả quyền lợi gói Pro</b> (AI chấm Speaking, Writing không giới hạn)', 'Mở <b>cả 5 khoá học</b>: Giao tiếp, Speaking 6.0, Writing 6.0→8.0, 25 Chuyên đề, Tiếng Trung', 'Chép chính tả Listening bằng audio gốc'] }
   };
   var MONTHS = [1, 3, 6];
+  /* Bảng so sánh nhanh các gói — để người mua không chọn nhầm */
+  function compareHtml() {
+    var y = '<b style="color:#15803D">✓</b>', n = '<span style="color:#C4C4CE">—</span>';
+    var rows = [
+      ['AI chấm Speaking', '2 lượt / ngày', '2 lượt / ngày', y + ' không giới hạn', y + ' không giới hạn'],
+      ['AI chấm Writing + gợi ý khi viết', 'thử 2 bài', 'thử 2 bài', y + ' không giới hạn', y + ' không giới hạn'],
+      ['Luyện phát âm từng âm', '5 lượt / ngày', '5 lượt / ngày', y, y],
+      ['Vườn từ vựng', n, n, y, y],
+      ['Khoá học (Giao tiếp, Speaking 6.0, Writing, 25 Chuyên đề, Tiếng Trung)', 'buổi học thử', '<b>1 khoá</b> bạn chọn, 30 ngày', n, y + ' <b>cả 5 khoá</b>'],
+      ['Chép chính tả Listening (audio gốc)', n, n, n, y],
+      ['Giá', '0đ', money(coursePrice()) + ' / khoá', money(planPrice('pro', 1)) + ' / tháng', money(planPrice('astra', 1)) + ' / tháng']
+    ];
+    return '<details class="npl-cmp" open><summary>📊 So sánh nhanh: Miễn phí · Mua lẻ khoá · Pro · Astra</summary><div style="overflow-x:auto"><table><thead><tr><th></th><th>Miễn phí</th><th>Mua lẻ 1 khoá</th><th>⭐ Pro</th><th>🌟 Astra</th></tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr>' + r.map(function (c, i) { return i ? '<td>' + c + '</td>' : '<th>' + c + '</th>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div></details>';
+  }
   /* Giá gốc hiển thị (gạch ngang): giá bán đang là giá đã giảm 20% → giá gốc = giá bán / 0,8, làm tròn nghìn */
   var LIST_OFF = 20;
   function listPrice(p) { return Math.round(p / (1 - LIST_OFF / 100) / 1000) * 1000; }
@@ -359,7 +376,7 @@
             return '<button type="button" class="npl-m' + (months === m ? ' on' : '') + '" data-m="' + m + '">' + (m === 3 ? '<span class="npl-hot">Phổ biến</span>' : '') + '<b>' + m + ' tháng</b>' + oldP(pr) + '<span>' + money(pr) + '</span>' + (sv ? '<small>tiết kiệm ' + sv + '%</small>' : '<small>&nbsp;</small>') + '</button>';
           }).join('');
           var hasBank = settings.acc || settings.qr, dq = vietQR(settings, price, code);
-          box.innerHTML = hd + status + '<div class="npl-plans">' + cards + '</div><div class="npl-ms">' + chips + '</div>' +
+          box.innerHTML = hd + status + '<div class="npl-plans">' + cards + '</div>' + compareHtml() + '<div class="npl-ms">' + chips + '</div>' +
             '<div class="npl-price">' + oldP(price) + '<b>' + money(price) + '</b>' + offTag() + '<span>' + months + ' tháng' + (months > 1 ? ' · ≈ ' + money(per) + '/tháng' + (save ? ' · tiết kiệm ' + save + '%' : '') : '') + '</span></div>' +
             (hasBank ? '<div class="npl-pay">' + (dq ? '<img src="' + esc(dq) + '" alt="QR chuyển khoản"' + (settings.qr ? ' onerror="this.onerror=null;this.src=\'' + esc(settings.qr) + '\'"' : '') + '>' : (settings.qr ? '<img src="' + esc(settings.qr) + '" alt="QR chuyển khoản">' : '')) +
               '<div class="npl-kv"><div><span>Ngân hàng</span><b>' + esc(settings.bank || '') + '</b></div>' +
@@ -727,11 +744,17 @@
       return getOrder(o, user, { kind: 'course', course: key }, price).then(function (code) {
         box.innerHTML = hd +
           '<p style="margin:0 0 4px;font-weight:800;font-size:16px">' + esc(name) + '</p>' +
-          '<div class="npl-price">' + oldP(price) + '<b>' + money(price) + '</b>' + offTag() + '<span>học trọn khoá trong 30 ngày</span></div>' +
+          '<div class="npl-price">' + oldP(price) + '<b>' + money(price) + '</b>' + offTag() + '<span>chỉ mở <b>riêng khoá này</b> trong 30 ngày</span></div>' +
+          (me && me.role === 'pro' && tierOf(me) !== 'pro' ? '' :
+            '<div class="npl-up"><b class="t">💡 Thêm ' + money(planPrice('astra', 1) - price) + ' là lên 🌟 Astra 1 tháng (' + money(planPrice('astra', 1)) + ')</b>' +
+            '<p>Mở <b>cả 5 khoá học</b> (Giao tiếp, Speaking 6.0, Writing 6.0→8.0, 25 Chuyên đề, Tiếng Trung) + <b>AI chấm Speaking & Writing không giới hạn</b> + chép chính tả Listening. Mua lẻ khoá chỉ mở 1 khoá, không có AI.</p>' +
+            '<button type="button" class="npl-btn gold" data-astra style="width:100%">Xem gói Astra →</button></div>') +
           (cur ? '<div class="npl-ok">✅ Bạn đang có khoá này đến hết ngày <b>' + dmy(cur) + '</b>. Mua thêm để cộng thêm 30 ngày.</div>' : '') +
           '<ul class="npl-ul"><li>Mở <b>tất cả buổi học</b> của khoá</li><li>Tải <b>PDF từng buổi</b> để in, take notes</li><li>Lưu tiến độ, ghi chú trên mọi máy</li></ul>' +
+          '<p class="npl-note" style="margin:4px 0 8px"><b>Vẫn muốn mua lẻ khoá này?</b> Chuyển khoản theo thông tin dưới đây:</p>' +
           payBlock(price, code);
         wireCopy(box);
+        var ab = box.querySelector('[data-astra]'); if (ab) ab.onclick = function () { ov.remove(); openUpgrade('Astra mở <b>cả 5 khoá học</b> + AI chấm Speaking & Writing không giới hạn.', 'astra'); };
         stop = watchMe(o, user.uid, function (u) { return courseUntil(u, key) > (cur || Date.now()) + 1000; }, function (u) {
           var w = box.querySelector('[data-wait]');
           if (w) { w.style.background = '#ECFDF5'; w.style.color = '#065F46'; w.innerHTML = '🎉 Đã nhận tiền! Khoá <b>' + esc(name) + '</b> mở đến hết ngày <b>' + dmy(courseUntil(u, key)) + '</b>.'; }
@@ -756,8 +779,10 @@
         : st.full ? '<div class="npl-ok">✅ Tài khoản của bạn đã mở khoá này.</div>'
         : '<div class="npl-pay" style="display:block"><b style="font-size:15px">🔓 Mua riêng khoá này</b><div class="npl-price" style="margin:6px 0 4px">' + oldP(price) + '<b>' + money(price) + '</b>' + offTag() + '<span>/ 30 ngày · mở toàn bộ buổi + tải PDF</span></div>' +
           '<p class="npl-note" style="margin:0 0 10px">Chuyển khoản quét QR — tiền vào là khoá tự mở, không cần chờ duyệt.</p>' +
-          '<button type="button" class="npl-btn gold" data-buy style="width:100%">Mua khoá · ' + money(price) + '</button></div>') +
+          '<button type="button" class="npl-btn gold" data-buy style="width:100%">Mua khoá · ' + money(price) + '</button>' +
+          '<p class="npl-note" style="margin:8px 0 0">💡 Mua lẻ chỉ mở khoá này. <b>Thêm ' + money(planPrice('astra', 1) - price) + '</b> là có 🌟 Astra: <b>cả 5 khoá</b> + AI chấm Speaking & Writing. <a href="#" data-astra2 style="color:#B45309;font-weight:800">Xem Astra →</a></p></div>') +
       '<button type="button" class="npl-btn ghost npl-x" style="width:100%;margin-top:10px">Đã hiểu, vào học</button>');
+    var a2 = ov.querySelector('[data-astra2]'); if (a2) a2.onclick = function (e) { e.preventDefault(); ov.remove(); openUpgrade('Astra mở <b>cả 5 khoá học</b> + AI chấm Speaking & Writing không giới hạn.', 'astra'); };
     var b = ov.querySelector('[data-buy]');
     if (b) b.onclick = function () { ov.remove(); openCourseBuy(key, name); };
     return ov;
