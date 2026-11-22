@@ -31,9 +31,13 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
 .info span{background:rgba(255,255,255,.08);border-radius:999px;padding:6px 12px}
 .info b{color:#FFD66B}
 /* bảng trả lời */
-.qv{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(36,36,42,.55);backdrop-filter:blur(3px)}
+.qv{position:fixed;z-index:60;inset:0;display:none;align-items:center;justify-content:center;padding:14px;background:rgba(36,36,42,.55);backdrop-filter:blur(3px)}
 .qv.on{display:flex;animation:pop .25s ease-out}
 @keyframes pop{from{opacity:0}}
+.qwin{width:100%;max-width:1100px;height:min(92vh,860px);background:#FFFDF7;border-radius:22px;box-shadow:0 0 0 4px #24242A,0 18px 0 -2px rgba(0,0,0,.2);display:flex;flex-direction:column;overflow:hidden}
+.qhead{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:2px solid #EFEBE2;flex-wrap:wrap}
+.qwin iframe{flex:1;width:100%;border:0;background:#fff}
+.qfoot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:10px 14px;border-top:2px solid #EFEBE2}
 .qbox{width:100%;max-width:560px;background:#FFFDF7;border-radius:22px;padding:18px;box-shadow:0 0 0 4px #24242A,0 18px 0 -2px rgba(0,0,0,.2);max-height:100%;overflow:auto}
 .qtag{display:inline-block;font:9px/1.6 'Press Start 2P',monospace;background:#24242A;color:#FFD66B;border-radius:8px;padding:5px 8px}
 .qtag.death{background:#DC2626;color:#fff}.qtag.bonus{background:#6C70DC;color:#fff}
@@ -55,7 +59,7 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
 .over{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;font:12px/1.8 'Press Start 2P',monospace;color:#3A2A4A}
 .over.on{display:flex}
 .over h2{font-size:18px;margin:0}
-@media(max-width:700px){.qv{position:fixed;z-index:60;align-items:flex-end;padding:10px 10px calc(14px + env(safe-area-inset-bottom))}.qbox{max-height:88vh}}
+@media(max-width:700px){.qv{padding:6px 6px calc(8px + env(safe-area-inset-bottom))}.qwin{height:96vh;border-radius:18px}.qfoot .pb{padding:10px 12px;font-size:13px}}
 @media(max-width:640px){header h1{font-size:10px}.hud{font-size:9px}.tip{font-size:8px}}
 </style>
 </head>
@@ -64,30 +68,23 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
   <header>
     <a href="speaking.html">← Speaking</a>
     <h1>NAI CHẠY SPEAKING<small>Space / chạm để nhảy · vấp ngã hay chạm biển "?" là phải nói</small></h1>
-    <div class="hd-r"><select id="topic" aria-label="Chủ đề"></select><button id="mute" aria-label="Âm thanh">🔊</button></div>
+    <div class="hd-r"><select id="topic" aria-label="Chọn Part"></select><button id="mute" aria-label="Âm thanh">🔊</button></div>
   </header>
   <div class="stage" id="stage">
     <canvas id="cv" width="960" height="300"></canvas>
     <div class="hud"><span>CÂU ĐÃ NÓI <b id="hAns">0</b></span><span>HI <b id="hHi">00000</b> &nbsp; <b id="hSc">00000</b></span></div>
     <div class="tip" id="tip">BẤM SPACE HOẶC CHẠM ĐỂ BẮT ĐẦU</div>
-    <div class="qv" id="qv"><div class="qbox">
-      <span class="qtag" id="qTag">CÂU HỎI</span>
-      <div class="qtopic" id="qTopic"></div>
-      <p class="qtext" id="qText"></p>
-      <p class="qhint" id="qHint">Trả lời 2–3 câu: ý chính + lý do + ví dụ. Nói ít nhất 8 giây.</p>
-      <div class="live" id="live">Bấm "Bắt đầu nói" rồi trả lời bằng tiếng Anh…</div>
-      <div class="meter"><i id="meter"></i></div>
-      <div class="qrow">
-        <button class="pb mic" id="rec">🎤 Bắt đầu nói</button>
-        <button class="pb ghost" id="listen" style="display:none">▶ Nghe lại</button>
+    <div class="qv" id="qv"><div class="qwin">
+      <div class="qhead"><span class="qtag" id="qTag">CÂU HỎI</span><span class="qmsg" id="qMsg"></span></div>
+      <iframe id="qFrame" title="Trả lời câu hỏi Speaking" allow="microphone; autoplay"></iframe>
+      <div class="qfoot">
         <button class="pb ghost" id="another">Đổi câu khác</button>
         <button class="pb ghost" id="restart">Chơi lại từ 0</button>
-        <button class="pb go" id="cont" disabled>Chạy tiếp →</button>
-        <span class="qmsg" id="qMsg"></span>
+        <button class="pb go" id="cont" disabled>Trả lời & chấm xong để chạy tiếp</button>
       </div>
     </div></div>
   </div>
-  <div class="info"><span>Đã trả lời tổng cộng <b id="iTot">0</b> câu</span><span>Vấp ngã → trả lời để <b>hồi sinh</b>, giữ nguyên điểm</span><span>Biển <b>?</b> → trả lời được <b>+100</b></span></div>
+  <div class="info"><span>Đã trả lời tổng cộng <b id="iTot">0</b> câu</span><span>Vấp ngã → trả lời & chấm điểm để <b>hồi sinh</b>, giữ nguyên điểm</span><span>Chọn <b>Part 1 / 2 / 3</b> ở góc trên</span><span>Biển <b>?</b> → trả lời được <b>+100</b></span></div>
 </div>
 
 <script src="speaking-forecast.js"></script>
@@ -100,19 +97,23 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
   cv.width = W;
   var ls = function (k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || 'null'); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
 
-  /* ---------- Câu hỏi Part 1 (đề dự đoán) ---------- */
-  var F = window.SP_FORECAST || { p1: [] };
-  var TOPICS = F.p1.filter(function (t) { return t.q && t.q.length; });
-  if (!TOPICS.length) TOPICS = [{ t: 'Daily life', q: ['What do you usually do in the morning?', 'Do you like your hometown? Why?', 'What kind of music do you like?'] }];
-  $('topic').innerHTML = '<option value="">Chủ đề: ngẫu nhiên</option>' + TOPICS.map(function (t, i) { return '<option value="' + i + '">' + t.t.replace(/</g, '&lt;') + '</option>'; }).join('');
-  var savedT = ls('nvrun-topic'); if (savedT != null && TOPICS[savedT]) $('topic').value = savedT;
-  $('topic').onchange = function () { ls('nvrun-topic', this.value === '' ? null : +this.value); this.blur(); };
+  /* ---------- Câu hỏi theo đề dự đoán: Part 1 / Part 2 / Part 3 (mở bằng trang Speaking để chấm như bình thường) ---------- */
+  var F = window.SP_FORECAST || { id: '', p1: [], p2: [] };
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  $('topic').innerHTML = '<option value="1">Part 1</option><option value="2">Part 2 (cue card)</option><option value="3">Part 3</option><option value="r">Part ngẫu nhiên</option>';
+  var savedP = ls('nvrun-part'); if (savedP) $('topic').value = savedP;
+  $('topic').onchange = function () { ls('nvrun-part', this.value); this.blur(); };
   var used = {};
   function pickQ() {
-    var ti = $('topic').value === '' ? Math.floor(Math.random() * TOPICS.length) : +$('topic').value, T = TOPICS[ti];
-    var pool = T.q.filter(function (q) { return !used[q]; }); if (!pool.length) { T.q.forEach(function (q) { delete used[q]; }); pool = T.q; }
-    var q = pool[Math.floor(Math.random() * pool.length)]; used[q] = 1;
-    return { topic: T.t, q: q.replace(/\s*\[[^\]]*\]\s*/g, ' ').trim() };
+    var part = $('topic').value; if (part === 'r') part = ['1', '1', '2', '3'][Math.floor(Math.random() * 4)];
+    if (part !== '1' && !F.p2.length) part = '1';
+    for (var tries = 0; tries < 30; tries++) {
+      var r;
+      if (part === '1') { var ti = Math.floor(Math.random() * F.p1.length), T = F.p1[ti], qi = Math.floor(Math.random() * T.q.length); r = { part: '1', pkg: F.id + '_p1_' + pad(ti + 1), q: qi, topic: T.t }; }
+      else { var pi = Math.floor(Math.random() * F.p2.length), P = F.p2[pi], q3 = 1 + Math.floor(Math.random() * Math.max(1, P.q.length)); r = { part: part, pkg: F.id + '_p23_' + pad(pi + 1), q: part === '2' ? 0 : q3, topic: P.t }; }
+      var key = r.pkg + ':' + r.q; if (!used[key]) { used[key] = 1; return r; }
+    }
+    used = {}; return pickQ();
   }
 
   /* ---------- Pixel sprites ---------- */
@@ -282,83 +283,45 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
   }
   requestAnimationFrame(step);
 
-  /* ---------- Trả lời câu hỏi ---------- */
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition, rec = null, mr = null, stream = null, chunks = [], blobUrl = null;
-  var Q = null, why = '', spoke = 0, words = 0, tStart = 0, timer = null, recording = false;
+  /* ---------- Trả lời câu hỏi: mở đúng câu trong trang Speaking (embed=1), chấm điểm như bình thường ---------- */
+  var why = '', Q = null, scoredOK = false;
   function ask(kind) {
-    S.mode = 'ask'; why = kind; Q = pickQ();
-    $('qTag').textContent = kind === 'death' ? 'NAI VẤP NGÃ! TRẢ LỜI ĐỂ HỒI SINH' : 'BIỂN ? · TRẢ LỜI ĐƯỢC +100';
+    S.mode = 'ask'; why = kind; Q = pickQ(); scoredOK = false;
+    $('qTag').textContent = (kind === 'death' ? 'NAI VẤP NGÃ! TRẢ LỜI ĐỂ HỒI SINH' : 'BIỂN ? · TRẢ LỜI ĐƯỢC +100') + ' · PART ' + Q.part;
     $('qTag').className = 'qtag ' + (kind === 'death' ? 'death' : 'bonus');
-    $('qTopic').textContent = 'Part 1 · ' + Q.topic; $('qText').textContent = Q.q;
-    $('live').textContent = 'Bấm "Bắt đầu nói" rồi trả lời bằng tiếng Anh…'; $('meter').style.width = '0';
-    $('cont').disabled = true; $('cont').textContent = kind === 'death' ? 'Hồi sinh & chạy tiếp →' : 'Nhận +100 & chạy tiếp →';
-    $('listen').style.display = 'none'; $('qMsg').textContent = ''; $('restart').style.display = kind === 'death' ? '' : 'none'; $('rec').textContent = '🎤 Bắt đầu nói'; $('rec').classList.remove('on'); $('another').style.display = '';
-    spoke = 0; words = 0;
+    $('qMsg').textContent = 'Ghi âm câu trả lời rồi bấm "Chấm điểm" như bình thường.';
+    $('cont').disabled = true; $('cont').textContent = 'Trả lời & chấm xong để chạy tiếp';
+    $('restart').style.display = kind === 'death' ? '' : 'none';
+    $('qFrame').src = 'speaking.html?packageId=' + encodeURIComponent(Q.pkg) + (Q.q ? '&q=' + Q.q : '') + '&embed=1';
     $('qv').classList.add('on');
-    setTimeout(function () { $('rec').focus(); }, 50);
   }
-  function progress() {
-    var sec = (Date.now() - tStart) / 1000, need = SR ? Math.min(1, Math.min(sec / 8, words / 12) * 1) : Math.min(1, sec / 10);
-    if (SR && !words) need = Math.min(1, sec / 12);   // máy không hiện được chữ (mạng / trình duyệt): tính theo thời gian nói
-    $('meter').style.width = Math.round(need * 100) + '%';
-    spoke = sec; return need >= 1;
-  }
-  function startRec() {
-    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (st) {
-      stream = st; chunks = [];
-      try { mr = new MediaRecorder(st); mr.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); }; mr.onstop = function () { if (blobUrl) URL.revokeObjectURL(blobUrl); blobUrl = URL.createObjectURL(new Blob(chunks, { type: mr.mimeType || 'audio/webm' })); $('listen').style.display = ''; }; mr.start(); } catch (e) { mr = null; }
-      tStart = Date.now(); words = 0; recording = true;
-      $('rec').textContent = '■ Nói xong'; $('rec').classList.add('on'); $('another').style.display = 'none';
-      $('live').textContent = SR ? 'Đang nghe…' : 'Đang ghi âm… (trình duyệt này không hiện chữ, cứ nói tự nhiên)';
-      if (SR) {
-        rec = new SR(); rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = true;
-        rec.onresult = function (e) { var t = ''; for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript + ' '; t = t.trim(); $('live').textContent = t || 'Đang nghe…'; words = t ? t.split(/\s+/).length : 0; };
-        rec.onend = function () { if (mr && mr.state === 'recording') try { rec.start(); } catch (e) {} };
-        try { rec.start(); } catch (e) {}
-      }
-      timer = setInterval(function () {
-        var ok = progress();
-        $('qMsg').textContent = Math.floor(spoke) + 's' + (SR ? ' · ' + words + ' từ' : '');
-        if (spoke > 45) stopRec();
-        if (ok) $('rec').classList.add('ready');
-      }, 200);
-    }).catch(function () { $('qMsg').textContent = 'Cần cho phép dùng micro để trả lời nhé.'; });
-  }
-  function stopRec() {
-    clearInterval(timer); recording = false;
-    var ok = progress();
-    try { rec && (rec.onend = null, rec.stop()); } catch (e) {} rec = null;
-    try { mr && mr.state === 'recording' && mr.stop(); } catch (e) {}
-    if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); stream = null;
-    $('rec').classList.remove('on'); $('rec').textContent = '🎤 Nói lại';
-    if (ok) {
-      $('cont').disabled = false; $('qMsg').textContent = 'Tốt lắm! ' + Math.round(spoke) + ' giây' + (SR ? ', ' + words + ' từ' : '') + '.'; beep(660, 1320, .2, 'triangle');
-      setTimeout(function () { $('cont').focus(); }, 50);
-    } else {
-      $('qMsg').textContent = SR && words < 12 ? 'Hơi ngắn, nói thêm lý do hoặc ví dụ nhé (cần ~12 từ trở lên).' : 'Nói lâu hơn một chút nhé (ít nhất 8–10 giây).';
+  window.addEventListener('message', function (e) {
+    if (e.origin !== location.origin || !e.data || !$('qv').classList.contains('on')) return;
+    if (e.data.type === 'nv-sp-scored') {
+      scoredOK = true; $('cont').disabled = false;
+      $('cont').textContent = why === 'death' ? 'Hồi sinh & chạy tiếp →' : 'Nhận +100 & chạy tiếp →';
+      $('qMsg').textContent = e.data.overall != null ? 'Band ' + e.data.overall + ' · xem nhận xét bên dưới rồi chạy tiếp nhé' : 'Đã chấm xong.';
+      beep(660, 1320, .2, 'triangle');
+    } else if (e.data.type === 'nv-sp-error') {
+      $('cont').disabled = false; $('cont').textContent = 'Chạy tiếp (chưa chấm được) →';
+      $('qMsg').textContent = e.data.msg || 'Chưa chấm được câu này.';
     }
-  }
-  $('rec').onclick = function () { if (recording) stopRec(); else startRec(); };
-  $('listen').onclick = function () { if (blobUrl) new Audio(blobUrl).play(); };
-  $('another').onclick = function () { if (recording) stopRec(); ask(why); };
+  });
+  $('another').onclick = function () { ask(why); };
   $('restart').onclick = function () {
-    if (recording) stopRec();
-    $('qv').classList.remove('on'); var sc = Math.floor(S.score); if (sc > hi) { hi = sc; ls('nvrun-hi', hi); $('hHi').textContent = String(hi).padStart(5, '0'); }
+    $('qv').classList.remove('on'); $('qFrame').src = 'about:blank';
+    var sc = Math.floor(S.score); if (sc > hi) { hi = sc; ls('nvrun-hi', hi); $('hHi').textContent = String(hi).padStart(5, '0'); }
     reset(); $('hSc').textContent = '00000'; $('tip').textContent = 'BẤM SPACE HOẶC CHẠM ĐỂ BẮT ĐẦU'; $('tip').style.display = '';
   };
   $('cont').onclick = function () {
     if (this.disabled) return;
-    $('qv').classList.remove('on');
-    S.ans++; $('hAns').textContent = S.ans; totalAns++; ls('nvrun-total', totalAns); $('iTot').textContent = totalAns;
-    if (why === 'bonus') { S.score += 100; S.flowers.push({ x: 170 }); }
+    $('qv').classList.remove('on'); $('qFrame').src = 'about:blank';
+    if (scoredOK) { S.ans++; $('hAns').textContent = S.ans; totalAns++; ls('nvrun-total', totalAns); $('iTot').textContent = totalAns; }
+    if (why === 'bonus') { if (scoredOK) S.score += 100; S.flowers.push({ x: 170 }); }
     else { S.obs = S.obs.filter(function (o) { return o.x > 400; }); S.inv = 1.6; S.y = 0; S.vy = 0; S.onGround = true; }
     var sc = Math.floor(S.score); if (sc > hi) { hi = sc; ls('nvrun-hi', hi); $('hHi').textContent = String(hi).padStart(5, '0'); }
-    last = performance.now(); S.mode = 'run'; this.blur();
+    last = performance.now(); S.mode = 'run'; this.blur(); window.focus();
   };
-  document.addEventListener('keydown', function (e) {
-    if (!$('qv').classList.contains('on')) return;
-    if (e.code === 'Enter' && !$('cont').disabled) { e.preventDefault(); $('cont').click(); }
-  });
   window.addEventListener('blur', function () { if (S.mode === 'run') { S.mode = 'ready'; $('tip').textContent = 'TẠM DỪNG · BẤM SPACE ĐỂ CHẠY TIẾP'; $('tip').style.display = ''; } });
 })();
 </script>
