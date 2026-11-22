@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Lật Thẻ Trí Nhớ · Night IELTS</title>
+<meta name="theme-color" content="#24242A">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+.mm-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;font:11px/1.8 "Press Start 2P",monospace}
+.mm-top .p{border-radius:12px;padding:6px 10px;background:#F4F4F7}.mm-top .p.on{background:#FFD66B}
+.mm-grid{display:grid;gap:10px;max-width:760px;margin:0 auto;perspective:900px}
+.mm-c{aspect-ratio:3/4;cursor:pointer;position:relative;transform-style:preserve-3d;transition:transform .45s}
+.mm-c.up,.mm-c.done{transform:rotateY(180deg)}
+.mm-c>div{position:absolute;inset:0;border-radius:6px;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px;text-align:center}
+.mm-back{background:conic-gradient(#7E82E6 25%,#6C70DC 0 50%,#7E82E6 0 75%,#6C70DC 0) 0 0/16px 16px;box-shadow:inset 0 0 0 4px #3F43A8,0 4px 0 #24242A;color:#fff;font:18px "Press Start 2P",monospace}
+.mm-face{transform:rotateY(180deg);background:#fff;box-shadow:0 0 0 3px #24242A,0 4px 0 3px #24242A;font-weight:800;font-size:clamp(13px,2vw,17px);line-height:1.25}
+.mm-face img{max-width:85%;max-height:62%;object-fit:contain}
+.mm-face small{font-size:12px;color:#6B6B78;font-weight:700;margin-top:4px}
+.mm-c.done .mm-face{box-shadow:0 0 0 3px #16A34A,0 4px 0 3px #16A34A;background:#F0FDF4}
+.mm-c.no .mm-face{animation:sh .35s}@keyframes sh{25%{transform:rotateY(180deg) translateX(-6px)}75%{transform:rotateY(180deg) translateX(6px)}}
+</style>
+</head>
+<body>
+<script src="games-core.js?v=1"></script>
+<script>
+(function () {
+  var body = NG.boot({ id: 'memory', title: 'LẬT THẺ TRÍ NHỚ', sub: 'Ghép hình / nghĩa với chữ tiếng Anh', need: 'words', min: 6,
+    levels: [['easy', '6 cặp (12 thẻ)'], ['mid', '8 cặp (16 thẻ)'], ['hard', '10 cặp (20 thẻ)'], ['duo', '👥 2 người thi (8 cặp)']],
+    help: 'Lật 2 thẻ: một thẻ hình (hoặc nghĩa tiếng Việt) và một thẻ chữ tiếng Anh. Đúng cặp thì giữ lại và nghe đọc mẫu. Chế độ 2 người: thay phiên lật, ai ghép được nhiều cặp hơn thì thắng (hợp livestream).',
+    onStart: start });
+  var POOL, LV, S;
+  function start(pool, src) { POOL = pool; LV = src.level; reset(); }
+  function reset() {
+    var n = LV === 'easy' ? 6 : LV === 'hard' ? 10 : 8, picks = [], seen = {};
+    NG.shuffle(POOL).forEach(function (w) { var k = w.w.toLowerCase(); if (picks.length < n && !seen[k] && !seen['m:' + w.m]) { seen[k] = seen['m:' + w.m] = 1; picks.push(w); } });
+    var cards = [];
+    picks.forEach(function (w, i) { cards.push({ id: i, kind: 'en', w: w }); cards.push({ id: i, kind: w.ira ? 'img' : 'vi', w: w }); });
+    S = { cards: NG.shuffle(cards), open: [], done: 0, moves: 0, t0: Date.now(), turn: 0, pts: [0, 0], lock: false, n: picks.length };
+    var cols = window.innerWidth < 640 ? 4 : (S.cards.length >= 20 ? 5 : 4);
+    body.innerHTML = '<div class="mm-top">' + (LV === 'duo' ? '<span class="p on" id="p0">NGƯỜI 1: <b>0</b></span><span class="p" id="p1">NGƯỜI 2: <b>0</b></span>' : '<span class="p">LƯỢT <b id="mv">0</b></span><span class="p">⏱ <b id="tm">0</b>s</span>') + '</div><div class="mm-grid" id="g" style="grid-template-columns:repeat(' + cols + ',1fr)"></div>';
+    var g = document.getElementById('g');
+    S.cards.forEach(function (c, i) {
+      var d = document.createElement('div'); d.className = 'mm-c';
+      var face = c.kind === 'en' ? NG.esc(c.w.w) + (c.w.ph ? '<small>' + NG.esc(c.w.ph) + '</small>' : '') : c.kind === 'img' ? '<img src="' + NG.img(c.w.ira) + '" alt="" loading="lazy"><small>' + NG.esc(c.w.m) + '</small>' : NG.esc(c.w.m);
+      d.innerHTML = '<div class="mm-back">🦌</div><div class="mm-face">' + face + '</div>';
+      d.onclick = function () { flip(i, d); }; c.el = d; g.appendChild(d);
+    });
+    if (LV !== 'duo') { clearInterval(S.tm); S.tm = setInterval(function () { var e = document.getElementById('tm'); if (e) e.textContent = Math.floor((Date.now() - S.t0) / 1000); }, 500); }
+  }
+  function flip(i, el) {
+    var c = S.cards[i]; if (S.lock || c.done || S.open.indexOf(c) >= 0) return;
+    el.classList.add('up'); NG.SFX.tap(); if (c.kind === 'en') NG.speak(c.w.w);
+    S.open.push(c); if (S.open.length < 2) return;
+    S.moves++; var mv = document.getElementById('mv'); if (mv) mv.textContent = S.moves;
+    var a = S.open[0], b = S.open[1];
+    if (a.id === b.id && a.kind !== b.kind) {
+      a.done = b.done = true; S.open = []; S.done++;
+      setTimeout(function () { a.el.classList.add('done'); b.el.classList.add('done'); NG.SFX.ok(); NG.speak(a.w.w); }, 250);
+      if (LV === 'duo') { S.pts[S.turn]++; document.querySelector('#p' + S.turn + ' b').textContent = S.pts[S.turn]; }
+      if (S.done === S.n) end();
+    } else {
+      S.lock = true;
+      setTimeout(function () { a.el.classList.add('no'); b.el.classList.add('no'); NG.SFX.bad(); }, 350);
+      setTimeout(function () { [a, b].forEach(function (x) { x.el.classList.remove('up', 'no'); }); S.open = []; S.lock = false;
+        if (LV === 'duo') { S.turn = 1 - S.turn; document.getElementById('p0').classList.toggle('on', S.turn === 0); document.getElementById('p1').classList.toggle('on', S.turn === 1); } }, 1100);
+    }
+  }
+  function end() {
+    clearInterval(S.tm); NG.SFX.win();
+    var sec = Math.floor((Date.now() - S.t0) / 1000);
+    setTimeout(function () {
+      if (LV === 'duo') NG.over(body, { id: 'memory-duo', score: Math.max(S.pts[0], S.pts[1]), title: S.pts[0] === S.pts[1] ? 'HOÀ NHAU!' : 'NGƯỜI ' + (S.pts[0] > S.pts[1] ? 1 : 2) + ' THẮNG!', line: S.pts[0] + ' – ' + S.pts[1], again: reset });
+      else NG.over(body, { id: 'memory-' + LV, score: Math.max(10, 1000 - S.moves * 20 - sec * 3), title: 'HOÀN THÀNH!', line: S.moves + ' lượt · ' + sec + ' giây', again: reset });
+    }, 700);
+  }
+})();
+</script>
+</body>
+</html>

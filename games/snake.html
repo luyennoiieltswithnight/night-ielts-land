@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rắn Săn Từ · Night IELTS</title>
+<meta name="theme-color" content="#24242A">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+.sn-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sn-q{flex:1;min-width:200px;background:#24242A;color:#fff;border-radius:16px;padding:10px 14px}
+.sn-q small{display:block;font-size:11px;color:#A9A9B8;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.sn-q b{font-size:20px}
+.sn-st{font:11px/1.8 "Press Start 2P",monospace;text-align:right}
+.sn-st span{display:block}
+canvas{display:block;width:100%;max-width:720px;margin:0 auto;border-radius:6px;image-rendering:pixelated;touch-action:none;background:#C9E7A5;box-shadow:0 0 0 4px #24242A,0 8px 0 4px #24242A}
+.sn-pad{display:none;grid-template-columns:repeat(3,64px);gap:6px;justify-content:center;margin-top:10px}
+.sn-pad button{height:54px;border:0;border-radius:14px;background:#24242A;color:#fff;font-size:22px}
+.sn-pad .x{visibility:hidden}
+@media(pointer:coarse){.sn-pad{display:grid}}
+.sn-tip{text-align:center;font-size:12.5px;color:#6B6B78;margin-top:8px}
+</style>
+</head>
+<body>
+<script src="games-core.js?v=1"></script>
+<script>
+(function () {
+  var body = NG.boot({ id: 'snake', title: 'RẮN SĂN TỪ', sub: 'Đọc nghĩa tiếng Việt · ăn đúng chữ tiếng Anh', need: 'words', min: 6,
+    levels: [['easy', '🐢 Dễ · 3 lựa chọn, chậm'], ['mid', '🐍 Vừa · 4 lựa chọn'], ['hard', '⚡ Khó · nhanh, 5 lựa chọn']],
+    help: 'Điều khiển bằng phím mũi tên / WASD, hoặc vuốt trên điện thoại. Ăn đúng từ: rắn dài ra +10 điểm. Ăn sai: mất 1 tim và rắn ngắn lại. Đâm tường hoặc tự cắn đuôi là thua.',
+    onStart: start });
+  var POOL, LV, cv, cx, COLS = 18, ROWS = 12, CELL = 40, S, timer;
+  var APPLE = ['....dg..', '...dgg..', '.rrrrrr.', 'rrwrrrrR', 'rwrrrrrR', 'rrrrrrRR', '.rrrrRR.', '..rRRR..'];
+  function start(pool, src) {
+    POOL = pool; LV = src.level;
+    body.innerHTML = '<div class="sn-top"><div class="sn-q"><small>Ăn chữ tiếng Anh có nghĩa là</small><b id="q">…</b></div><div class="sn-st"><span>ĐIỂM <b id="sc">0</b></span><span id="hp">❤❤❤</span></div></div>' +
+      '<canvas id="cv" width="720" height="480"></canvas><div class="sn-pad"><button class="x"></button><button data-d="0,-1">▲</button><button class="x"></button><button data-d="-1,0">◀</button><button data-d="0,1">▼</button><button data-d="1,0">▶</button></div><p class="sn-tip">Mẹo: chữ đúng sẽ được đọc to khi bạn ăn trúng.</p>';
+    cv = document.getElementById('cv'); cx = cv.getContext('2d');
+    body.querySelectorAll('[data-d]').forEach(function (b) { b.onpointerdown = function (e) { e.preventDefault(); var d = b.dataset.d.split(',').map(Number); turn(d[0], d[1]); }; });
+    reset();
+  }
+  function reset() {
+    S = { snake: [[5, 6], [4, 6], [3, 6]], dir: [1, 0], next: [1, 0], foods: [], score: 0, hp: 3, idx: 0, grow: 0, wrong: [], speed: LV === 'easy' ? 210 : LV === 'mid' ? 170 : 125, alive: true, flash: 0 };
+    newQ(); draw(); clearTimeout(timer); timer = setTimeout(tick, 600);
+    document.getElementById('sc').textContent = 0; document.getElementById('hp').textContent = '❤❤❤';
+  }
+  function free() { var c, k = 0; do { k++; c = [1 + Math.floor(Math.random() * (COLS - 2)), 1 + Math.floor(Math.random() * (ROWS - 2))]; } while ((S.snake.some(function (p) { return p[0] === c[0] && Math.abs(p[1] - c[1]) < 1; }) || S.foods.some(function (f) { return Math.abs(f.x - c[0]) < 4 && Math.abs(f.y - c[1]) < 2; }) || (Math.abs(c[0] - S.snake[0][0]) < 3 && Math.abs(c[1] - S.snake[0][1]) < 2)) && k < 300); return c; }
+  function newQ() {
+    var n = LV === 'easy' ? 3 : LV === 'mid' ? 4 : 5, t = POOL[S.idx++ % POOL.length], opts = [t];
+    NG.shuffle(POOL).forEach(function (w) { if (opts.length < n && w.w.toLowerCase() !== t.w.toLowerCase() && w.m !== t.m) opts.push(w); });
+    S.target = t; S.foods = [];
+    NG.shuffle(opts).forEach(function (w) { var c = free(); S.foods.push({ x: c[0], y: c[1], w: w }); });
+    document.getElementById('q').textContent = t.m;
+  }
+  function turn(dx, dy) { if (dx === -S.dir[0] && dy === -S.dir[1]) return; S.next = [dx, dy]; }
+  document.addEventListener('keydown', function (e) {
+    var k = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] }[e.code];
+    if (k && S) { e.preventDefault(); turn(k[0], k[1]); }
+  });
+  var sx = 0, sy = 0;
+  document.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  document.addEventListener('touchend', function (e) { if (!S) return; var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy; if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; if (Math.abs(dx) > Math.abs(dy)) turn(dx > 0 ? 1 : -1, 0); else turn(0, dy > 0 ? 1 : -1); });
+  function tick() {
+    if (!S.alive) return;
+    S.dir = S.next; var h = S.snake[0], nh = [h[0] + S.dir[0], h[1] + S.dir[1]];
+    if (nh[0] < 0 || nh[1] < 0 || nh[0] >= COLS || nh[1] >= ROWS || S.snake.some(function (p) { return p[0] === nh[0] && p[1] === nh[1]; })) return die();
+    S.snake.unshift(nh);
+    var f = S.foods.filter(function (f) { return f.x === nh[0] && f.y === nh[1]; })[0];
+    if (f) {
+      if (f.w === S.target) { S.score += 10; S.grow += 2; NG.SFX.ok(); NG.speak(f.w.w); S.speed = Math.max(LV === 'hard' ? 80 : 100, S.speed - 4); newQ(); }
+      else { S.hp--; NG.SFX.bad(); S.flash = 6; S.wrong.push('<b>' + NG.esc(f.w.w) + '</b> ≠ ' + NG.esc(S.target.m) + ' → đúng là <b style="color:#16A34A">' + NG.esc(S.target.w) + '</b>'); S.foods = S.foods.filter(function (x) { return x !== f; }); for (var i = 0; i < 2 && S.snake.length > 3; i++) S.snake.pop(); if (S.hp <= 0) return die(); }
+      document.getElementById('sc').textContent = S.score; document.getElementById('hp').textContent = '❤'.repeat(S.hp) + '♡'.repeat(3 - S.hp);
+    }
+    if (S.grow > 0) S.grow--; else S.snake.pop();
+    draw(); timer = setTimeout(tick, S.speed);
+  }
+  function die() { S.alive = false; NG.SFX.bad(); draw(); setTimeout(function () { NG.over(body, { id: 'snake-' + LV, score: S.score, title: 'RẮN ĐÃ NGÃ', line: Math.floor(S.score / 10) + ' từ đúng', review: S.wrong, again: reset }); }, 500); }
+  function rr(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
+  function draw() {
+    for (var y = 0; y < ROWS; y++) for (var x = 0; x < COLS; x++) { cx.fillStyle = (x + y) % 2 ? '#BFE19A' : '#C9E7A5'; cx.fillRect(x * CELL, y * CELL, CELL, CELL); }
+    if (S.flash > 0) { cx.fillStyle = 'rgba(220,38,38,' + S.flash / 20 + ')'; cx.fillRect(0, 0, 720, 480); S.flash--; }
+    S.foods.forEach(function (f) {
+      var px = f.x * CELL + CELL / 2, py = f.y * CELL + CELL / 2;
+      APPLE.forEach(function (r, yy) { for (var xx = 0; xx < r.length; xx++) { var c = { r: '#E8504A', R: '#B83A35', w: '#FFF1E6', g: '#4E9A4B', d: '#5B3A21' }[r[xx]]; if (c) { cx.fillStyle = c; cx.fillRect(px - 16 + xx * 4, py - 16 + yy * 4, 4, 4); } } });
+      cx.font = '800 16px "Plus Jakarta Sans",sans-serif'; var t = f.w.w, tw = cx.measureText(t).width + 14, bx = Math.min(720 - tw - 4, Math.max(4, px - tw / 2)), by = py - 46;
+      if (by < 2) by = py + 18;
+      cx.fillStyle = '#FFFDF7'; rr(bx, by, tw, 24, 8); cx.fill(); cx.strokeStyle = '#24242A'; cx.lineWidth = 2; cx.stroke(); cx.fillStyle = '#24242A'; cx.fillText(t, bx + 7, by + 17);
+    });
+    S.snake.forEach(function (p, i) {
+      var X = p[0] * CELL, Y = p[1] * CELL;
+      cx.fillStyle = '#3A2A4A'; cx.fillRect(X + 4, Y + 4, CELL - 8, CELL - 8);
+      cx.fillStyle = i === 0 ? '#8E91EA' : i % 2 ? '#6C70DC' : '#7E82E6'; cx.fillRect(X + 8, Y + 8, CELL - 16, CELL - 16);
+      cx.fillStyle = 'rgba(255,255,255,.45)'; cx.fillRect(X + 8, Y + 8, CELL - 16, 4);
+      if (i === 0) {   // đầu rắn: 2 mắt pixel + má hồng
+        var ox = S.dir[0] * 6, oy = S.dir[1] * 6;
+        cx.fillStyle = '#fff'; cx.fillRect(X + 10 + ox, Y + 12 + oy, 8, 8); cx.fillRect(X + 22 + ox, Y + 12 + oy, 8, 8);
+        cx.fillStyle = '#1F1720'; cx.fillRect(X + 13 + ox + S.dir[0] * 2, Y + 15 + oy + S.dir[1] * 2, 4, 4); cx.fillRect(X + 25 + ox + S.dir[0] * 2, Y + 15 + oy + S.dir[1] * 2, 4, 4);
+        cx.fillStyle = '#F4A6A6'; cx.fillRect(X + 8, Y + 24, 4, 4); cx.fillRect(X + 28, Y + 24, 4, 4);
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

@@ -37,6 +37,11 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
 .qwin{width:100%;max-width:1100px;height:min(92vh,860px);background:#FFFDF7;border-radius:22px;box-shadow:0 0 0 4px #24242A,0 18px 0 -2px rgba(0,0,0,.2);display:flex;flex-direction:column;overflow:hidden}
 .qhead{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:2px solid #EFEBE2;flex-wrap:wrap}
 .qwin iframe{flex:1;width:100%;border:0;background:#fff}
+.ez{flex:1;overflow:auto;padding:22px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.ez-l{margin:0;font:10px/1.6 'Press Start 2P',monospace;color:var(--mut)}.ez-s{margin:4px 0;font-size:clamp(22px,4vw,34px);font-weight:800;line-height:1.3;max-width:760px}.ez-v{margin:0 0 10px;color:var(--mut);font-size:14px}
+.ez-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.ez-res{min-height:60px;margin-top:12px;max-width:760px}
+.ez-res .w{display:inline-block;margin:3px 4px;padding:4px 9px;border-radius:10px;font-weight:800;font-size:17px}.ez-res .g{background:#DCFCE7;color:#15803D}.ez-res .y{background:#FEF3C7;color:#B45309}.ez-res .r{background:#FEE2E2;color:#B91C1C}
+.ez-res .band{font:13px/1.8 'Press Start 2P',monospace;margin:8px 0}
 .qfoot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:10px 14px;border-top:2px solid #EFEBE2}
 .qbox{width:100%;max-width:560px;background:#FFFDF7;border-radius:22px;padding:18px;box-shadow:0 0 0 4px #24242A,0 18px 0 -2px rgba(0,0,0,.2);max-height:100%;overflow:auto}
 .qtag{display:inline-block;font:9px/1.6 'Press Start 2P',monospace;background:#24242A;color:#FFD66B;border-radius:8px;padding:5px 8px}
@@ -68,7 +73,7 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
   <header>
     <a href="speaking.html">← Speaking</a>
     <h1>NAI CHẠY SPEAKING<small>Space / chạm để nhảy · vấp ngã hay chạm biển "?" là phải nói</small></h1>
-    <div class="hd-r"><select id="topic" aria-label="Chọn Part"></select><button id="mute" aria-label="Âm thanh">🔊</button></div>
+    <div class="hd-r"><select id="topic" aria-label="Chọn mức"></select><button id="mute" aria-label="Âm thanh">🔊</button></div>
   </header>
   <div class="stage" id="stage">
     <canvas id="cv" width="960" height="300"></canvas>
@@ -77,6 +82,11 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
     <div class="qv" id="qv"><div class="qwin">
       <div class="qhead"><span class="qtag" id="qTag">CÂU HỎI</span><span class="qmsg" id="qMsg"></span></div>
       <iframe id="qFrame" title="Trả lời câu hỏi Speaking" allow="microphone; autoplay"></iframe>
+      <div id="easyBox" class="ez" style="display:none">
+        <p class="ez-l">Đọc to câu này</p><p class="ez-s" id="ezS"></p><p class="ez-v" id="ezV"></p>
+        <div class="ez-row"><button class="pb ghost" id="ezHear">🔊 Nghe mẫu</button><button class="pb ghost" id="ezSlow">🐢 Chậm</button><button class="pb mic" id="ezRec">🎤 Bấm để đọc</button></div>
+        <div id="ezRes" class="ez-res"></div>
+      </div>
       <div class="qfoot">
         <button class="pb ghost" id="another">Đổi câu khác</button>
         <button class="pb ghost" id="restart">Chơi lại từ 0</button>
@@ -88,6 +98,7 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
 </div>
 
 <script src="speaking-forecast.js"></script>
+<script src="pron-detail.js?v=9"></script>
 <script>
 (function () {
   'use strict';
@@ -100,8 +111,8 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
   /* ---------- Câu hỏi theo đề dự đoán: Part 1 / Part 2 / Part 3 (mở bằng trang Speaking để chấm như bình thường) ---------- */
   var F = window.SP_FORECAST || { id: '', p1: [], p2: [] };
   var pad = function (n) { return String(n).padStart(2, '0'); };
-  $('topic').innerHTML = '<option value="1">Part 1</option><option value="2">Part 2 (cue card)</option><option value="3">Part 3</option><option value="r">Part ngẫu nhiên</option>';
-  var savedP = ls('nvrun-part'); if (savedP) $('topic').value = savedP;
+  $('topic').innerHTML = '<option value="e">Dễ · đọc theo câu mẫu</option><option value="1">Vừa · Part 1</option><option value="2">Khó · Part 2 (cue card)</option><option value="3">Khó · Part 3</option><option value="r">Part ngẫu nhiên</option>';
+  var savedP = ls('nvrun-part'); if (savedP) $('topic').value = savedP; else $('topic').value = 'e';
   $('topic').onchange = function () { ls('nvrun-part', this.value); this.blur(); };
   var used = {};
   function pickQ() {
@@ -176,7 +187,8 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
   var S, hi = ls('nvrun-hi') || 0, totalAns = ls('nvrun-total') || 0;
   $('hHi').textContent = String(hi).padStart(5, '0'); $('iTot').textContent = totalAns;
   function reset() {
-    S = { mode: 'ready', t: 0, score: 0, speed: 380, y: 0, vy: 0, onGround: true, hold: false, obs: [], next: 1.2, inv: 0, ans: 0,
+    var EASY = $('topic').value === 'e';
+    S = { mode: 'ready', t: 0, score: 0, speed: EASY ? 320 : 380, maxSp: EASY ? 620 : 860, y: 0, vy: 0, onGround: true, hold: false, obs: [], next: 1.2, inv: 0, ans: 0,
       clouds: [{ x: 120, y: 50, s: .25 }, { x: 520, y: 80, s: .18 }, { x: W - 140, y: 40, s: .22 }], flowers: [], ground: 0, hills: 0, shake: 0, dust: [] };
     $('hAns').textContent = 0;
   }
@@ -223,7 +235,7 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
     requestAnimationFrame(step);
   }
   function update(dt) {
-    S.t += dt; S.speed = Math.min(860, S.speed + dt * 9); S.score += dt * S.speed / 40;
+    S.t += dt; S.speed = Math.min(S.maxSp || 860, S.speed + dt * (S.maxSp === 620 ? 6 : 9)); S.score += dt * S.speed / 40;
     var g = S.vy < 0 && S.hold ? 1700 : 3000;
     S.vy += g * dt; S.y += S.vy * dt;
     if (S.y >= 0) { if (!S.onGround) { for (var i = 0; i < 4; i++) S.dust.push({ x: 150 + Math.random() * 40, y: GROUND, vx: -80 - Math.random() * 60, vy: -30 - Math.random() * 40, l: .35 }); } S.y = 0; S.vy = 0; S.onGround = true; }
@@ -285,7 +297,69 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;image-rend
 
   /* ---------- Trả lời câu hỏi: mở đúng câu trong trang Speaking (embed=1), chấm điểm như bình thường ---------- */
   var why = '', Q = null, scoredOK = false;
+  /* Mức Dễ: đọc theo 1 câu mẫu ngắn (câu ví dụ trong 3 buổi đầu của khoá Giao tiếp / Speaking), máy chấm phát âm từng âm */
+  var EZ = null, ezUsed = {};
+  function ezSentences() {
+    if (EZ) return EZ;
+    EZ = Promise.all(['giaotiep', 'speaking6'].map(function (k) { return fetch('games/data-' + k + '.json').then(function (r) { return r.json(); }).catch(function () { return { lessons: [] }; }); })).then(function (A) {
+      var out = []; A.forEach(function (d) { d.lessons.filter(function (l) { return l.n <= 3; }).forEach(function (l) { l.words.forEach(function (w) { var n = w[3] ? w[3].split(/\s+/).length : 0; if (n >= 4 && n <= 11) out.push({ s: w[3], w: w[0], m: w[2] }); }); }); });
+      if (!out.length) out = [{ s: 'I usually walk to work because it is cheaper.', w: 'walk', m: 'đi bộ' }];
+      return out;
+    });
+    return EZ;
+  }
+  function easyAsk(kind) {
+    $('qFrame').style.display = 'none'; $('easyBox').style.display = ''; $('ezRes').innerHTML = '';
+    $('qMsg').textContent = 'Nghe mẫu rồi bấm 🎤 đọc to câu này. Máy chấm từng âm.';
+    $('qTag').textContent = (kind === 'death' ? 'NAI VẤP NGÃ! ĐỌC CÂU ĐỂ HỒI SINH' : 'BIỂN ? · ĐỌC ĐÚNG ĐƯỢC +100') + ' · DỄ';
+    ezSentences().then(function (L) {
+      var pool = L.filter(function (x) { return !ezUsed[x.s]; }); if (!pool.length) { ezUsed = {}; pool = L; }
+      var x = pool[Math.floor(Math.random() * pool.length)]; ezUsed[x.s] = 1; Q = { ez: x };
+      $('ezS').textContent = x.s; $('ezV').textContent = 'Từ khoá: ' + x.w + ' · ' + x.m;
+      setTimeout(function () { sayEz(x.s, .9); }, 300);
+    });
+  }
+  function sayEz(t, r) { try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = r; speechSynthesis.speak(u); } catch (e) {} }
+  var ezMr = null, ezCh = [];
+  $('ezHear').onclick = function () { if (Q && Q.ez) sayEz(Q.ez.s, .9); };
+  $('ezSlow').onclick = function () { if (Q && Q.ez) sayEz(Q.ez.s, .6); };
+  $('ezRec').onclick = function () {
+    var b = this;
+    if (ezMr && ezMr.state === 'recording') { ezMr.stop(); return; }
+    try { speechSynthesis.cancel(); } catch (e) {}
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (st) {
+      ezCh = []; ezMr = new MediaRecorder(st);
+      ezMr.ondataavailable = function (e) { if (e.data && e.data.size) ezCh.push(e.data); };
+      ezMr.onstop = function () {
+        st.getTracks().forEach(function (t) { t.stop(); }); b.classList.remove('on'); b.textContent = '🎤 Đọc lại';
+        var blob = new Blob(ezCh, { type: ezMr.mimeType || 'audio/webm' });
+        $('ezRes').innerHTML = '<p class="ez-l">Đang chấm từng âm…</p>';
+        if (!window.NightPron) { $('ezRes').innerHTML = 'Chưa tải được máy chấm phát âm.'; return; }
+        NightPron.scoreRaw(blob, Q.ez.s).then(function (c) {
+          var R = { score: c.score, words: c.words };
+          var band = NightPron.toBand(c.score);
+          $('ezRes').innerHTML = '<div class="band">' + c.score + '% ÂM ĐÚNG · BAND ' + band.toFixed(1) + '</div>' + c.words.map(function (w) { return '<span class="w ' + (w.score >= 85 ? 'g' : w.score >= 60 ? 'y' : 'r') + '">' + w.w.replace(/</g, '&lt;') + '</span>'; }).join('') +
+            '<div style="margin-top:10px"><button class="pb ghost" id="ezDet">Xem lỗi từng âm</button></div>';
+          $('ezDet').onclick = function () { NightPron.open({ id: 'ez' + Date.now(), text: Q.ez.s, words: [], cached: c, getBlob: function () { return Promise.resolve(blob); } }); };
+          scoredOK = c.score >= 50; $('cont').disabled = false;
+          $('cont').textContent = scoredOK ? (why === 'death' ? 'Hồi sinh & chạy tiếp →' : 'Nhận +100 & chạy tiếp →') : 'Chạy tiếp (chưa được +100) →';
+          $('qMsg').textContent = scoredOK ? 'Tốt lắm! ' + (c.score >= 85 ? 'Phát âm rất chuẩn.' : 'Xem chữ vàng / đỏ để sửa thêm.') : 'Còn nhiều âm chưa chuẩn, bấm Đọc lại để thử lần nữa nhé.';
+          NightPron.btnCss && NightPron.btnCss();
+        }).catch(function () { $('ezRes').innerHTML = 'Máy chấm đang bận, đọc lại sau vài giây nhé.'; $('cont').disabled = false; $('cont').textContent = 'Chạy tiếp →'; });
+      };
+      ezMr.start(); b.classList.add('on'); b.textContent = '■ Đọc xong';
+      setTimeout(function () { if (ezMr && ezMr.state === 'recording') ezMr.stop(); }, 12000);
+    }).catch(function () { $('qMsg').textContent = 'Cần cho phép dùng micro nhé.'; });
+  };
   function ask(kind) {
+    if ($('topic').value === 'e') {
+      S.mode = 'ask'; why = kind; scoredOK = false;
+      $('qTag').className = 'qtag ' + (kind === 'death' ? 'death' : 'bonus');
+      $('cont').disabled = true; $('cont').textContent = 'Đọc xong để chạy tiếp';
+      $('restart').style.display = kind === 'death' ? '' : 'none';
+      $('qv').classList.add('on'); easyAsk(kind); return;
+    }
+    $('qFrame').style.display = ''; $('easyBox').style.display = 'none';
     S.mode = 'ask'; why = kind; Q = pickQ(); scoredOK = false;
     $('qTag').textContent = (kind === 'death' ? 'NAI VẤP NGÃ! TRẢ LỜI ĐỂ HỒI SINH' : 'BIỂN ? · TRẢ LỜI ĐƯỢC +100') + ' · PART ' + Q.part;
     $('qTag').className = 'qtag ' + (kind === 'death' ? 'death' : 'bonus');

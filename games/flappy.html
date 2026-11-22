@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Flappy Nai Ngữ Pháp · Night IELTS</title>
+<meta name="theme-color" content="#24242A">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+.fl-q{background:#24242A;color:#fff;border-radius:16px;padding:12px 14px;margin-bottom:10px;min-height:66px}
+.fl-q small{display:block;font-size:11px;color:#A9A9B8;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+.fl-q b{font-size:clamp(16px,2.4vw,21px);line-height:1.35}
+.fl-st{display:flex;justify-content:space-between;font:11px/1.8 "Press Start 2P",monospace;margin-bottom:6px}
+.fl-wrap{position:relative}
+canvas{display:block;width:100%;border-radius:18px;touch-action:manipulation;image-rendering:pixelated}
+.fl-tip{position:absolute;left:0;right:0;bottom:14px;text-align:center;font:10px/1.8 "Press Start 2P",monospace;color:#3A2A4A;pointer-events:none}
+.fl-ex{min-height:20px;font-size:13px;color:#B91C1C;font-weight:700;margin-top:8px}
+</style>
+</head>
+<body>
+<script src="games-core.js?v=1"></script>
+<script>
+(function () {
+  var body = NG.boot({ id: 'flappy', title: 'FLAPPY NAI', sub: 'Bay vào cửa có đáp án đúng', need: 'mcq', min: 5,
+    levels: [['easy', '🐢 Dễ · bay chậm, cửa rộng'], ['hard', '⚡ Khó · nhanh, cửa hẹp']],
+    help: 'Bấm Space / chạm màn hình để nai vỗ cánh bay lên. Mỗi cột có 2 cửa ghi 2 đáp án: bay qua cửa đúng được +1. Bay vào cửa sai hoặc đâm cột là mất 1 tim (có 3 tim).',
+    onStart: start });
+  var PAL = { b: '#A8673A', l: '#E2B07A', d: '#5B3A21', w: '#FFF6E6', k: '#1F1720', a: '#7A5530', p: '#F4A6A6', c: '#FFFFFF' };
+  function sprite(rows) { var c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length; var g = c.getContext('2d'); rows.forEach(function (r, y) { for (var x = 0; x < r.length; x++) if (PAL[r[x]]) { g.fillStyle = PAL[r[x]]; g.fillRect(x, y, 1, 1); } }); return c; }
+  var TOP = ['................a..a..', '...............a..a...', '...............aaaa...', '................bbb...', '...............bbkbb..', '..............pbbbbbbd', '...............bbbbb..', '...............bbbl...', '..............bbbl....', '..wbbbbbbbbbbbbbbl....', '.wwbbwbbbbwbbbbbb.....', '..bbbbbbwbbbbwbbb.....', '..bllllllllllllbb.....'];
+  var DEER = [sprite(TOP.concat(['...bbb.........bbb....', '....bd..........bd....'])), sprite(TOP.concat(['..bb.b.........b.bb...', '.b...d.........d...b..']))];
+  var POOL, LV, cv, cx, W = 900, H = 520, S, raf, last;
+  function start(pool, src) {
+    POOL = pool.filter(function (q) { return q.opts.length >= 2; }); LV = src.level;
+    if (window.innerWidth < 700) { W = 560; H = 640; }
+    body.innerHTML = '<div class="fl-q"><small>Câu hỏi</small><b id="q">Bấm Space / chạm để bắt đầu</b></div><div class="fl-st"><span>ĐIỂM <b id="sc">0</b></span><span id="hp">❤❤❤</span></div>' +
+      '<div class="fl-wrap"><canvas id="cv" width="' + W + '" height="' + H + '"></canvas><div class="fl-tip" id="tip">BẤM SPACE HOẶC CHẠM ĐỂ BAY</div></div><div class="fl-ex" id="ex"></div>';
+    cv = document.getElementById('cv'); cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
+    cv.addEventListener('pointerdown', function (e) { e.preventDefault(); flap(); });
+    reset();
+  }
+  function reset() {
+    cancelAnimationFrame(raf);
+    S = { y: H / 2, vy: 0, t: 0, score: 0, hp: 3, cols: [], next: 0, qi: 0, run: false, inv: 0, wrong: [], speed: LV === 'hard' ? 210 : 150, gap: LV === 'hard' ? 130 : 160 };
+    document.getElementById('sc').textContent = 0; document.getElementById('hp').textContent = '❤❤❤'; document.getElementById('ex').textContent = '';
+    document.getElementById('tip').style.display = '';
+    spawn(W + 60); last = performance.now(); raf = requestAnimationFrame(loop);
+  }
+  function spawn(x) {
+    var q = POOL[S.qi++ % POOL.length], wrong = NG.shuffle(q.opts.map(function (o, i) { return i; }).filter(function (i) { return i !== q.a; }))[0];
+    var up = Math.random() < .5, ys = [H * .3, H * .72];
+    S.cols.push({ x: x, q: q, gaps: [{ y: ys[0], t: q.opts[up ? q.a : wrong], ok: up }, { y: ys[1], t: q.opts[up ? wrong : q.a], ok: !up }], done: false });
+  }
+  function flap() { if (!S) return; if (!S.run) { S.run = true; document.getElementById('tip').style.display = 'none'; } S.vy = -390; NG.beep(520, 760, .07); }
+  document.addEventListener('keydown', function (e) { if ((e.code === 'Space' || e.code === 'ArrowUp') && S && !document.querySelector('.ng-over.on')) { e.preventDefault(); if (!e.repeat) flap(); } });
+  function loop(now) {
+    var dt = Math.max(0, Math.min(.033, (now - last) / 1000)); last = now; S.t += dt;
+    if (S.run && S.hp > 0) update(dt);
+    draw(); raf = requestAnimationFrame(loop);
+  }
+  function update(dt) {
+    S.vy += 1150 * dt; S.y += S.vy * dt; if (S.inv > 0) S.inv -= dt;
+    if (S.y < 20) { S.y = 20; S.vy = 0; }
+    if (S.y > H - 40) { S.y = H - 40; S.vy = -300; if (S.inv <= 0) hurt('Nai chạm đất rồi!'); }
+    var cur = S.cols[0]; if (cur) document.getElementById('q').textContent = cur.q.q;
+    S.cols.forEach(function (c) { c.x -= S.speed * dt; });
+    var px = 150, pw = 60, ph = 50;
+    S.cols.forEach(function (c) {
+      if (c.done) return;
+      if (px + pw > c.x && px < c.x + 70) {
+        var g = c.gaps.filter(function (g) { return Math.abs(S.y + ph / 2 - g.y) < S.gap / 2 - 14; })[0];
+        if (!g) { if (S.inv <= 0) { c.done = true; hurt('Đâm cột! Đáp án đúng: ' + c.q.opts[c.q.a], c.q); } }
+        else if (!g.ok) { c.done = true; hurt('Sai rồi! Đáp án đúng: ' + c.q.opts[c.q.a] + (c.q.ex ? ' · ' + c.q.ex : ''), c.q, g.t); }
+      }
+      if (!c.done && c.x + 70 < px) { c.done = true; S.score++; document.getElementById('sc').textContent = S.score; NG.SFX.ok(); document.getElementById('ex').textContent = ''; S.speed += 3; }
+    });
+    if (S.cols.length && S.cols[S.cols.length - 1].x < W - 430) spawn(W + 40);
+    S.cols = S.cols.filter(function (c) { return c.x > -120; });
+  }
+  function hurt(msg, q, pick) {
+    S.hp--; S.inv = 1.4; NG.SFX.bad(); document.getElementById('ex').textContent = msg;
+    if (q) S.wrong.push(NG.esc(q.q) + ' → <span style="color:#16A34A;font-weight:800">' + NG.esc(q.opts[q.a]) + '</span>' + (pick ? ' (bạn chọn <b>' + NG.esc(pick) + '</b>)' : ''));
+    document.getElementById('hp').textContent = '❤'.repeat(Math.max(0, S.hp)) + '♡'.repeat(3 - Math.max(0, S.hp));
+    if (S.hp <= 0) setTimeout(function () { NG.over(body, { id: 'flappy-' + LV, score: S.score, title: 'NAI MỆT RỒI', line: S.score + ' câu đúng', review: S.wrong, again: reset }); }, 500);
+  }
+  function rr(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
+  function draw() {
+    var g = cx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#BFE3F7'); g.addColorStop(1, '#FFE9C7'); cx.fillStyle = g; cx.fillRect(0, 0, W, H);
+    cx.fillStyle = 'rgba(255,255,255,.8)'; [[120, 80], [480, 50], [760, 110]].forEach(function (c, i) { var x = ((c[0] - S.t * 20 * (i + 1)) % (W + 160) + W + 160) % (W + 160) - 80; cx.fillRect(x, c[1], 70, 14); cx.fillRect(x + 14, c[1] - 10, 40, 10); });
+    cx.fillStyle = '#7BBF6A'; cx.fillRect(0, H - 14, W, 14);
+    S.cols.forEach(function (c) {
+      var gh = S.gap, top = c.gaps[0].y - gh / 2, mid1 = c.gaps[0].y + gh / 2, mid2 = c.gaps[1].y - gh / 2, bot = c.gaps[1].y + gh / 2;
+      cx.fillStyle = '#4E9A4B'; cx.fillRect(c.x, 0, 70, top); cx.fillRect(c.x, mid1, 70, mid2 - mid1); cx.fillRect(c.x, bot, 70, H - bot);
+      cx.fillStyle = '#3B7A3A'; [top - 16, mid1, mid2 - 16, bot].forEach(function (y) { cx.fillRect(c.x - 6, y, 82, 16); });
+      c.gaps.forEach(function (gp) {
+        cx.font = '800 ' + (W < 700 ? 18 : 17) + 'px "Plus Jakarta Sans",sans-serif'; var tw = cx.measureText(gp.t).width + 18, bx = c.x - tw - 10, by = gp.y - 16;
+        cx.fillStyle = '#FFFDF7'; rr(bx, by, tw, 32, 10); cx.fill(); cx.strokeStyle = '#24242A'; cx.lineWidth = 2.5; cx.stroke();
+        cx.fillStyle = '#24242A'; cx.fillText(gp.t, bx + 9, by + 22);
+      });
+    });
+    var img = DEER[S.vy < 0 ? 1 : 0];
+    cx.save(); cx.translate(150 + 44, S.y + 30); cx.rotate(Math.max(-.4, Math.min(.5, S.vy / 900)));
+    if (!(S.inv > 0 && Math.floor(S.t * 12) % 2)) cx.drawImage(img, -44, -30, img.width * 4, img.height * 4);
+    cx.restore();
+  }
+})();
+</script>
+</body>
+</html>
