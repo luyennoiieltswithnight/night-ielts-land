@@ -36,7 +36,7 @@
     };
     var load = function () {
       if (window.NightPlan) return Promise.resolve(window.NightPlan);
-      return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/night-plan.js?v=20261123a'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; (document.head || de).appendChild(s); });
+      return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/night-plan.js?v=20261123b'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; (document.head || de).appendChild(s); });
     };
     load().then(function (P) { return P.init().then(function () { return P; }); }).then(function (P) {
       var r = P.role();
@@ -827,7 +827,7 @@
   function plan() {
     if (window.NightPlan) return Promise.resolve(window.NightPlan);
     if (planP) return planP;
-    planP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/night-plan.js?v=20261123a'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; document.head.appendChild(s); });
+    planP = new Promise(function (res, rej) { var s = document.createElement('script'); s.src = '/night-plan.js?v=20261123b'; s.onload = function () { res(window.NightPlan); }; s.onerror = rej; document.head.appendChild(s); });
     return planP;
   }
   function canHost(P) { var r = P.role(), me = P.me(); return r === 'admin' || r === 'student' || (r === 'pro' && P.tierOf(me) === 'astra'); }

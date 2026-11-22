@@ -239,7 +239,7 @@
   function boot(o) {
     var body = frame(o.title, o.sub);
     body.innerHTML = '<p class="ng-note">Đang tải…</p>';
-    if (!document.querySelector('script[src*="night-plan.js"]')) { var p = document.createElement('script'); p.src = '../night-plan.js?v=20261123a'; document.head.appendChild(p); }
+    if (!document.querySelector('script[src*="night-plan.js"]')) { var p = document.createElement('script'); p.src = '../night-plan.js?v=20261123b'; document.head.appendChild(p); }
     auth().then(function () { picker(body, o); });
     return body;
   }

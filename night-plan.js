@@ -101,7 +101,7 @@
           }).catch(function () { res(); });
         });
       });
-      return Promise.all([setP, meP]).then(function () { maybeClaimKey(); return me; });
+      return Promise.all([setP, meP]).then(function () { maybeClaimKey(); if (document.body) renewNudge(); else document.addEventListener('DOMContentLoaded', function () { renewNudge(); }); return me; });
     }).catch(function () { return me; });
     return initP;
   }
@@ -797,11 +797,67 @@
       return _fetch(input, init);
     };
   }
+
+  /* ---------- NHẮC GIA HẠN: gói / khoá còn ≤ 3 ngày hoặc vừa hết hạn (≤ 7 ngày) ---------- */
+  var DAYMS = 864e5;
+  function vnDay(t) { return new Date((t || Date.now()) + 7 * 3600e3).toISOString().slice(0, 10); }
+  function expiring(m) {
+    var out = [], now = Date.now();
+    if (!m || m.role === 'admin' || m.role === 'student') return out;
+    var push = function (kind, key, name, until) {
+      until = Number(until) || 0; if (!until) return;
+      var left = Math.ceil((until - now) / DAYMS);
+      if (left <= 3 && left >= -7) out.push({ kind: kind, key: key, name: name, until: until, left: left });
+    };
+    if (m.role === 'pro') { var tr = m.tier === 'pro' ? 'pro' : 'astra'; push('plan', tr, 'gói ' + PLAN_DEF[tr].name, m.proUntil); }
+    // khoá lẻ: chỉ nhắc khi gói chưa bao trùm (Astra còn hạn thì khoá đã mở sẵn)
+    var astraOn = effRole(m) === 'pro' && tierOf(m) !== 'pro';
+    if (!astraOn) Object.keys(m.buys || {}).forEach(function (k) { push('course', k, 'khoá ' + (COURSE_LABEL[k] || k), m.buys[k]); });
+    return out.sort(function (a, b) { return a.left - b.left; });
+  }
+  function renewNudge(force) {
+    try {
+      if (LITE || !me || !document.body) return;
+      var list = expiring(me); if (!list.length) return;
+      var x = list[0], today = vnDay(), dk = 'nightRenewHide:' + me.uid + ':' + x.kind + x.key;
+      var wantOpen = /[?&]giahan=1/.test(location.search);
+      if (wantOpen) { openRenew(x); try { history.replaceState(null, '', location.pathname + location.search.replace(/[?&]giahan=1/, '').replace(/^&/, '?') + location.hash); } catch (e) {} }
+      if (!force && lsGet(dk) === today) return;
+      if (document.getElementById('ni-renew')) return;
+      var gone = x.left <= 0, when = dmy(x.until - 1), Nm = x.name.charAt(0).toUpperCase() + x.name.slice(1);
+      var msg = gone ? '<b>' + esc(Nm) + '</b> của bạn đã hết hạn ngày ' + when + '. Gia hạn để học tiếp không bị gián đoạn.'
+        : '<b>' + esc(Nm) + '</b> của bạn còn <b>' + x.left + ' ngày</b> (đến hết ' + when + '). Gia hạn sớm, ngày mới được cộng nối tiếp, không mất ngày nào.';
+      var d = document.createElement('div'); d.id = 'ni-renew';
+      d.style.cssText = 'position:relative;z-index:9997;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:' + (gone ? 'linear-gradient(90deg,#B91C1C,#EA580C)' : 'linear-gradient(90deg,#B45309,#F59E0B)') + ';color:#fff;font:600 13.5px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+      d.innerHTML = '<span style="flex:1;min-width:200px">' + msg + '</span><button type="button" data-go style="flex:none;border:0;border-radius:99px;background:#fff;color:#24242A;font:800 13px system-ui,sans-serif;padding:8px 14px;cursor:pointer">Gia hạn ngay</button><button type="button" data-x aria-label="Đóng" style="flex:none;background:rgba(255,255,255,.22);border:0;color:#fff;border-radius:99px;width:28px;height:28px;cursor:pointer;font-size:16px">×</button>';
+      d.querySelector('[data-go]').onclick = function () { openRenew(x); };
+      d.querySelector('[data-x]').onclick = function () { lsSet(dk, today); d.remove(); };
+      document.body.insertBefore(d, document.body.firstChild);
+    } catch (e) {}
+  }
+  function openRenew(x) {
+    var why = x.left > 0 ? 'Gia hạn ' + esc(x.name) + ': ngày mới được cộng tiếp vào sau ngày ' + dmy(x.until - 1) + '.' : 'Gia hạn ' + esc(x.name) + ' để học tiếp.';
+    if (x.kind === 'plan') openUpgrade(why, x.key === 'pro' ? 'pro' : 'astra', true);
+    else openCourseBuy(x.key, COURSE_LABEL[x.key], true);
+  }
+  /* ---------- CHUỖI NGÀY HỌC: mỗi ngày học ≥ 2 phút ghi 1 lần users/<uid>.studyDays ---------- */
+  function markStudy() {
+    try {
+      if (!me || !me.uid) return;
+      var day = vnDay(), k = 'nightStudy:' + me.uid;
+      var mine = lsGet(k) || []; if (mine.indexOf(day) >= 0) return;
+      mine.push(day); lsSet(k, mine.slice(-120));
+      fb().then(function (o) { return o.fs.setDoc(o.fs.doc(o.db, 'users', me.uid), { studyDays: o.fs.arrayUnion(day), lastStudy: Date.now() }, { merge: true }); }).catch(function () {});
+    } catch (e) {}
+  }
+  (function studyTimer() {
+    var on = 0, t = setInterval(function () { if (document.visibilityState === 'visible') on += 15; if (on >= 120 && me) { markStudy(); clearInterval(t); } }, 15000);
+  })();
   window.NightPlan = {
     FREE_LESSONS: FREE_LESSONS, init: boot, role: role, effRole: effRole, me: function () { return me; }, settings: function () { return settings; },
     freeOK: freeOK, proxyOK: function () { var r = role(); return r === 'pro' || (ONE_KEY && (r === 'admin' || r === 'student')); }, courseAccess: courseAccess, lessonFree: lessonFree,
     openUpgrade: openUpgrade, openAdmin: openAdmin, pendingCount: pendingCount,
-    groqFetch: groqFetch, freeHint: freeHint, openCourseBuy: openCourseBuy, openCourseGuide: openCourseGuide, courseUntil: courseUntil, coursePrice: coursePrice, payCode: payCode, siteRoot: siteRoot, tierOf: tierOf, planName: planName, planPrice: planPrice
+    groqFetch: groqFetch, markStudy: markStudy, expiring: function () { return expiring(me); }, renewNudge: renewNudge, freeHint: freeHint, openCourseBuy: openCourseBuy, openCourseGuide: openCourseGuide, courseUntil: courseUntil, coursePrice: coursePrice, payCode: payCode, siteRoot: siteRoot, tierOf: tierOf, planName: planName, planPrice: planPrice
   };
   /* Nút "Góp ý · Khiếu nại" -> mở Zalo của giáo viên (số nhập trong 👑 Tài khoản → Cài đặt) */
   function zaloNum() { var z = String((settings && settings.zalo) || '').replace(/[^0-9]/g, ''); return z.length >= 9 ? z : ''; }

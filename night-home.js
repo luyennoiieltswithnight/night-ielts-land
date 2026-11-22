@@ -46,6 +46,18 @@
     '.nbp-chips{display:flex;flex-wrap:wrap;gap:6px}.nbp-chips button{border:2px solid #E4E4EC;background:#fff;border-radius:14px;padding:9px 13px;font-weight:900;font-size:15px;cursor:pointer;color:#24242A}.nbp-chips button.on{border-color:#4C3FA8;background:#EEEBFF;color:#4C3FA8}',
     '.nbp-form label{font-weight:800;font-size:13px;color:#24242A;display:flex;flex-direction:column;gap:6px}.nbp-form input[type=date]{border:2px solid #E4E4EC;border-radius:14px;padding:10px 12px;font:inherit;font-weight:700;max-width:240px}',
     '.nbp-wait{color:#8A8A99;font-size:14px;padding:16px 0}',
+    '.npg{display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:14px;margin:12px 0 6px}',
+    '.npg>div{border-radius:26px;background:#fff;border:1px solid #EEEEF4;box-shadow:0 18px 40px -28px rgba(36,36,42,.45);padding:18px 20px}',
+    '.npg-st{background:linear-gradient(135deg,#FFF7ED,#FFEDD5)!important;border-color:#FED7AA!important}',
+    '.npg-k{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#9A3412}.npg-tr .npg-k{color:#4C3FA8}',
+    '.npg-big{display:flex;align-items:flex-end;gap:10px;margin:8px 0 10px}.npg-big i{font-size:40px;color:#F97316;margin-bottom:6px}.npg-big i.off{color:#D6D3D1}',
+    '.npg-big b{font-size:58px;line-height:.9;font-weight:900;color:#C2410C;letter-spacing:-.03em}.npg-big span{font-size:13px;color:#9A3412;font-weight:700;padding-bottom:4px;line-height:1.3}',
+    '.npg-dots{display:grid;grid-template-columns:repeat(14,1fr);gap:4px;margin-bottom:10px}.npg-dots i{aspect-ratio:1;border-radius:4px;background:#FED7AA;opacity:.55}.npg-dots i.on{background:#F97316;opacity:1}.npg-dots i.td{box-shadow:0 0 0 2px #C2410C}',
+    '.npg-sub{font-size:12.5px;color:#7C2D12;line-height:1.5}',
+    '.npg-d{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:24px;font-weight:900;color:#24242A;margin:6px 0 2px}.npg-d.up{color:#15803D}.npg-d.dn{color:#B91C1C}.npg-d small{font-size:12.5px;color:#8A8A99;font-weight:700}',
+    '.npg-svg{width:100%;height:auto;max-height:130px;overflow:visible}.npg-svg text{font:800 11px Plus Jakarta Sans,system-ui,sans-serif;fill:#4C3FA8}',
+    '.npg-e{margin:10px 0 0;color:#6B6B78;font-size:13.5px;line-height:1.55}',
+    '@media(max-width:820px){.npg{grid-template-columns:1fr}}',
     '@media(max-width:820px){.nbp-card{grid-template-columns:1fr;padding:14px;gap:14px}.nbp-big b{font-size:54px}.nbp-sk{grid-template-columns:100px 1fr 46px;padding:9px 10px}}',
     /* thông báo Làm chung */
     '.ncp{position:relative;overflow:hidden;margin:18px 0 4px;border-radius:28px;padding:20px 22px;display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center;color:#fff;background:linear-gradient(120deg,#FF6B9A 0%,#FF9E5E 45%,#FFC56B 100%);box-shadow:0 22px 44px -24px rgba(255,107,154,.85);animation:ncpIn .6s cubic-bezier(.2,1.2,.4,1)}',
@@ -124,15 +136,22 @@
     if (res[1]) { var S = []; res[1].forEach(function (d) { var x = d.data(), o = x.scores && Number(x.scores.overall); if (o && (Number(x.createdAt) || 0) >= cut) S.push({ at: Number(x.createdAt) || 0, b: o }); }); S.sort(function (a, b) { return b.at - a.at; }); S = S.slice(0, 12); if (S.length) { out.speaking = S.reduce(function (s, x) { return s + x.b; }, 0) / S.length; out.n.speaking = S.length + ' câu gần nhất'; } }
     /* Writing: trung bình 3 bài AI chấm gần nhất */
     if (res[2]) { var W = []; res[2].forEach(function (d) { var x = d.data(); if (x.kind !== 'writing' || !x.ai || !Number(x.ai.overall)) return; var at = Number(x.submittedAt) || Number(x.createdAt) || 0; if (at && at < cut) return; W.push({ at: at, b: Number(x.ai.overall) }); }); W.sort(function (a, b) { return b.at - a.at; }); W = W.slice(0, 3); if (W.length) { out.writing = W.reduce(function (s, x) { return s + x.b; }, 0) / W.length; out.n.writing = W.length + ' bài gần nhất'; } }
+    /* TIẾN BỘ: lịch sử band Speaking + Writing (không giới hạn 4 tháng) và các ngày có học */
+    var hist = [], dayset = {}, vday = function (t) { return t ? new Date(Number(t) + 7 * 3600e3).toISOString().slice(0, 10) : null; }, addDay = function (t) { var d = vday(t); if (d) dayset[d] = 1; };
+    if (res[1]) res[1].forEach(function (d) { var x = d.data(), o = x.scores && Number(x.scores.overall), at = Number(x.createdAt) || 0; addDay(at); if (o && at) hist.push({ at: at, b: o, k: 's' }); });
+    if (res[2]) res[2].forEach(function (d) { var x = d.data(), at = Number(x.submittedAt) || Number(x.completedAt) || 0; if (x.completed || x.submittedAt) addDay(at); if (x.kind === 'writing' && x.ai && Number(x.ai.overall) && at) hist.push({ at: at, b: Number(x.ai.overall), k: 'w' }); });
+    if (res[0]) res[0].forEach(function (d) { addDay(d.data().at); });
     /* mục tiêu: ưu tiên bản lưu trên tài khoản, rồi tới máy này */
-    var g = null; try { var u = res[3] && res[3].exists() ? res[3].data() : null; if (u && u.ielts && u.ielts.goal) g = u.ielts; } catch (e) {}
+    var g = null; try { var u = res[3] && res[3].exists() ? res[3].data() : null; if (u && u.ielts && u.ielts.goal) g = u.ielts; if (u && Array.isArray(u.studyDays)) u.studyDays.forEach(function (x) { dayset[x] = 1; }); } catch (e) {}
+    (LS('nightStudy:' + uid) || []).forEach(function (x) { dayset[x] = 1; });
+    out.hist = hist; out.days = dayset;
     ST.goal = g || LS(goalKey());
     ST.data = out;
   }
   function render() {
     var el = host('nv-band', '#nv-skills'); if (!el) return;
     if (!ST.data) { el.innerHTML = '<section class="nbp"><div class="nbp-card"><div class="nbp-wait"><i class="fa-solid fa-spinner fa-spin"></i> Đang tính band dự đoán…</div></div></section>'; return; }
-    if (!ST.goal || ST.editing) return renderForm(el);
+    if (!ST.goal || ST.editing) { renderProgress(); return renderForm(el); }
     /* Tài khoản không phải học sinh: đề Reading / Listening đang tạm khoá -> dự đoán chỉ dựa trên Writing + Speaking */
     var RL = document.body.classList.contains('rl-ok'), SKV = RL ? SK : SK.filter(function (s) { return s.k === 'writing' || s.k === 'speaking'; });
     var D = ST.data, g = ST.goal, goal = Number(g.goal), have = SKV.filter(function (s) { return D[s.k] != null; });
@@ -164,6 +183,35 @@
       '</div></section>';
     el.querySelector('.nbp-edit').onclick = function () { ST.editing = true; render(); };
     var go = el.querySelector('.nbp-go'); if (go && focus) go.onclick = focus.go;
+    renderProgress();
+  }
+  /* ---------------- (3) Tiến bộ: chuỗi ngày học + band lên/xuống ---------------- */
+  function renderProgress() {
+    var el = host('nv-progress', '#nv-skills'); if (!el || !ST.data || !ST.data.days) return;
+    var D = ST.data, days = D.days, vday = function (t) { return new Date(t + 7 * 3600e3).toISOString().slice(0, 10); }, now = Date.now(), DAY = 864e5;
+    var today = vday(now), studiedToday = !!days[today], streak = 0, t = studiedToday ? now : now - DAY;
+    while (days[vday(t)]) { streak++; t -= DAY; }
+    var all = Object.keys(days).sort(), best = 0, run = 0, prev = null;
+    all.forEach(function (d) { var ms = Date.parse(d + 'T00:00:00Z'); run = prev != null && ms - prev === DAY ? run + 1 : 1; prev = ms; best = Math.max(best, run); });
+    var dots = ''; for (var i = 13; i >= 0; i--) { var dd = vday(now - i * DAY), on = !!days[dd]; dots += '<i class="' + (on ? 'on' : '') + (i === 0 ? ' td' : '') + '" title="' + dd.slice(8) + '/' + dd.slice(5, 7) + (on ? ': có học' : '') + '"></i>'; }
+    var month = all.filter(function (d) { return d.slice(0, 7) === today.slice(0, 7); }).length;
+    /* band theo tuần (8 tuần gần nhất), gộp Speaking + Writing */
+    var W = []; for (var w = 7; w >= 0; w--) { var a = now - (w + 1) * 7 * DAY, b = now - w * 7 * DAY, xs = D.hist.filter(function (h) { return h.at > a && h.at <= b; }); W.push(xs.length ? xs.reduce(function (s, h) { return s + h.b; }, 0) / xs.length : null); }
+    var pts = W.map(function (v, i) { return v == null ? null : { i: i, v: v }; }).filter(Boolean), trend = '';
+    if (pts.length >= 2) {
+      var recent = pts.filter(function (p) { return p.i >= 6; }), older = pts.filter(function (p) { return p.i <= 3; });
+      if (!recent.length) recent = pts.slice(-1); if (!older.length) older = pts.slice(0, 1);
+      var avg = function (L) { return L.reduce(function (s, p) { return s + p.v; }, 0) / L.length; }, dlt = Math.round((avg(recent) - avg(older)) * 4) / 4;
+      var lo = Math.min.apply(null, pts.map(function (p) { return p.v; })) - .5, hi = Math.max.apply(null, pts.map(function (p) { return p.v; })) + .5, X = function (i) { return 12 + i * (276 / 7); }, Y = function (v) { return 82 - (v - lo) / (hi - lo) * 66; };
+      var path = pts.map(function (p, k) { return (k ? 'L' : 'M') + X(p.i).toFixed(1) + ' ' + Y(p.v).toFixed(1); }).join(' ');
+      trend = '<div class="npg-tr"><div class="npg-k">Band Speaking + Writing · 8 tuần</div>' +
+        '<div class="npg-d ' + (dlt > 0 ? 'up' : dlt < 0 ? 'dn' : '') + '">' + (dlt > 0 ? '<i class="fa-solid fa-arrow-trend-up"></i> +' + dlt.toFixed(2).replace(/0$/, '') + ' band' : dlt < 0 ? '<i class="fa-solid fa-arrow-trend-down"></i> ' + dlt.toFixed(2).replace(/0$/, '') + ' band' : '<i class="fa-solid fa-equals"></i> Giữ vững') + '<small>so với 1 tháng trước</small></div>' +
+        '<svg viewBox="0 0 300 96" class="npg-svg"><path d="' + path + '" fill="none" stroke="#6C70DC" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>' + pts.map(function (p) { return '<circle cx="' + X(p.i).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="5" fill="#fff" stroke="#6C70DC" stroke-width="3"/><text x="' + X(p.i).toFixed(1) + '" y="' + (Y(p.v) - 10).toFixed(1) + '" text-anchor="middle">' + fmt(p.v) + '</text>'; }).join('') + '</svg></div>';
+    } else trend = '<div class="npg-tr"><div class="npg-k">Band Speaking + Writing</div><p class="npg-e">Làm ít nhất 2 tuần có bài Speaking hoặc Writing được AI chấm để thấy đường tiến bộ của bạn ở đây.</p></div>';
+    el.innerHTML = '<section class="npg"><div class="npg-st"><div class="npg-k">Chuỗi ngày học</div>' +
+      '<div class="npg-big"><i class="fa-solid fa-fire' + (streak ? '' : ' off') + '"></i><b>' + streak + '</b><span>ngày<br>liên tiếp</span></div>' +
+      '<div class="npg-dots">' + dots + '</div>' +
+      '<div class="npg-sub">' + (studiedToday ? 'Hôm nay đã học rồi, giỏi lắm!' : streak ? 'Học hôm nay (ít nhất 2 phút) để giữ chuỗi ' + streak + ' ngày.' : 'Học 2 phút hôm nay để bắt đầu chuỗi mới.') + ' · Kỷ lục <b>' + Math.max(best, streak) + '</b> ngày · Tháng này <b>' + month + '</b> ngày</div></div>' + trend + '</section>';
   }
   function renderForm(el) {
     var g = ST.goal || {}, pick = Number(g.goal) || 6.5, date = g.date || '';
@@ -192,7 +240,7 @@
       load().then(render).catch(function (e) { console.warn('NightHome', e); ST.data = { n: {} }; render(); });
     },
     promo: function () { css(); promo(); giftPromo(); },
-    unmount: function () { ST.uid = null; ST.data = null; ['nv-band'].forEach(function (id) { var el = document.getElementById(id); if (el) el.innerHTML = ''; }); }
+    unmount: function () { ST.uid = null; ST.data = null; ['nv-band', 'nv-progress'].forEach(function (id) { var el = document.getElementById(id); if (el) el.innerHTML = ''; }); }
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { css(); promo(); giftPromo(); }); else { css(); promo(); giftPromo(); }
 })();

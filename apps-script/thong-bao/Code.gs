@@ -4,6 +4,7 @@
  *
  *  - Mỗi 5 phút: bài mới được giao  → "ting ting" cho học sinh đó.
  *  - Mỗi tối 19:30: còn bài chưa làm → nhắc bài; hết bài → nhắc học 15 phút.
+ *  - Mỗi sáng 9:00: gói Pro / Astra hoặc khoá 39k còn 3 ngày, còn 1 ngày, hoặc vừa hết hạn hôm qua → nhắc gia hạn.
  *
  * Cài đặt: dán file này + appsscript.json, chạy hàm setup() một lần, bấm Cho phép.
  * Kiểm tra: đăng nhập web trên điện thoại bằng Gmail của thầy, bật thông báo, rồi chạy testPush().
@@ -14,6 +15,7 @@ const SITE = 'https://nightielts.id.vn/';
 const ICON = SITE + 'icons/icon-192.png';
 const DAILY_HOUR = 19;      // giờ nhắc mỗi tối (giờ Việt Nam)
 const DAILY_MINUTE = 30;
+const RENEW_HOUR = 9;        // giờ nhắc gia hạn mỗi sáng
 // Night Check-in: mỗi ngày chuông reo 1 lần vào giờ NGẪU NHIÊN trong khoảng này (giờ Việt Nam)
 const CHECKIN_PLAN_HOUR = 13;            // lúc 13h script chọn giờ reo của hôm nay
 const CHECKIN_FROM = [15, 0], CHECKIN_TO = [21, 15];
@@ -25,11 +27,11 @@ const MSG_CHECKIN = [
 
 // ===================== LỜI NHẮN (sửa thoải mái) =====================
 const MSG_NEW = [
-  t => ['🔔 Ting ting! Bài mới về nè con vợ', `Thầy Night vừa giao "${t}". Vô làm liền cho nóng hổi nha 🔥`],
+  t => ['🔔 Ting ting! Bài mới về nè con vợ', `Night IELTS vừa giao "${t}". Vô làm liền cho nóng hổi nha 🔥`],
   t => ['📚 Bài mới ra lò!', `"${t}" đang chờ bạn đó. Làm xong là thấy mình giỏi liền 😎`],
   t => ['🚀 Nhiệm vụ mới đã mở khoá', `"${t}" — xử gọn trong 15 phút là đẹp nha!`],
 ];
-const MSG_NEW_MANY = n => ['🔔 Ting ting! Có ' + n + ' bài mới nè', 'Thầy Night vừa giao một loạt luôn á. Vô xem lẹ nha con vợ 🫶'];
+const MSG_NEW_MANY = n => ['🔔 Ting ting! Có ' + n + ' bài mới nè', 'Night IELTS vừa giao một loạt luôn á. Vô xem lẹ nha con vợ 🫶'];
 
 const MSG_REMIND = [
   n => [`⏰ Ê ê, còn ${n} bài chưa làm á`, 'Để lâu bài nó buồn đó. Vô xử lẹ đi con vợ 😤'],
@@ -45,7 +47,7 @@ const MSG_NUDGE = [
   ['🎧 Nghe 1 bài trước khi ngủ?', 'Tai quen tiếng Anh là Listening dễ thở hơn nhiều á 😴'],
   ['🔥 Giữ chuỗi học nha', 'Đã học là phải đều, 15 phút hôm nay = điểm đẹp tháng sau 📈'],
   ['📖 Đọc 1 đoạn Reading hông?', 'Đọc chút xíu thôi, não khoẻ ra liền 🧠'],
-  ['🫶 Thầy tin bạn nè', 'Ngồi xuống 15 phút học thôi, xong rồi đi chơi tiếp!'],
+  ['🫶 Night IELTS tin bạn nè', 'Ngồi xuống 15 phút học thôi, xong rồi đi chơi tiếp!'],
 ];
 
 // ===================== CÀI ĐẶT =====================
@@ -55,8 +57,9 @@ function setup() {
   ScriptApp.newTrigger('dailyNudge').timeBased().atHour(DAILY_HOUR).nearMinute(DAILY_MINUTE).everyDays(1)
     .inTimezone('Asia/Ho_Chi_Minh').create();
   ScriptApp.newTrigger('planCheckin').timeBased().atHour(CHECKIN_PLAN_HOUR).everyDays(1).inTimezone('Asia/Ho_Chi_Minh').create();
+  ScriptApp.newTrigger('renewNudge').timeBased().atHour(RENEW_HOUR).nearMinute(0).everyDays(1).inTimezone('Asia/Ho_Chi_Minh').create();
   PropertiesService.getScriptProperties().setProperty('LAST_CHECK', String(Date.now()));
-  Logger.log('Xong! Đã cài lịch: kiểm tra bài mới mỗi 5 phút + nhắc học lúc %s:%s mỗi tối.', DAILY_HOUR, DAILY_MINUTE);
+  Logger.log('Xong! Đã cài lịch: kiểm tra bài mới mỗi 5 phút + nhắc học lúc %s:%s mỗi tối + nhắc gia hạn lúc %s:00 mỗi sáng.', DAILY_HOUR, DAILY_MINUTE, RENEW_HOUR);
 }
 
 // Gửi thử 1 thông báo tới máy của chính thầy (Gmail đang chạy script này)
@@ -160,6 +163,48 @@ function absLink(link) {
   if (!link) return SITE;
   if (/^https?:\/\//.test(link)) return link;
   return SITE + String(link).replace(/^\.?\//, '');
+}
+
+// ===================== NHẮC GIA HẠN =====================
+const COURSE_NAME = { giaotiep: 'Giao tiếp Thực chiến', speaking6: 'IELTS Speaking 6.0', writing: 'IELTS Writing 6.0 → 8.0', chuyende: '25 Chuyên đề', tiengtrung: 'Tiếng Trung Quyển 1' };
+function renewMsg(name, left) {
+  if (left === 3) return ['Còn 3 ngày nữa là hết ' + name, 'Gia hạn sớm thì ngày mới được cộng nối tiếp, không mất ngày nào. Bấm để gia hạn.'];
+  if (left === 1) return ['Ngày mai là hết ' + name + ' rồi', 'Gia hạn hôm nay để chuỗi học và AI chấm bài không bị ngắt quãng nha.'];
+  return [name.charAt(0).toUpperCase() + name.slice(1) + ' đã hết hạn hôm qua', 'Bài và tiến độ của bạn vẫn còn nguyên. Gia hạn là học tiếp ngay.'];
+}
+/* Chạy mỗi sáng: gửi đúng 1 lần ở mốc còn 3 ngày, còn 1 ngày, và 1 ngày sau khi hết hạn */
+function renewNudge() {
+  const now = Date.now(), DAY = 864e5;
+  const daysLeft = until => Math.ceil((until - now) / DAY);
+  let sent = 0, checked = 0;
+  listUsersFull().forEach(u => {
+    if (!u.tokens.length || u.role === 'admin' || u.role === 'student') return;
+    const items = [];
+    if (u.role === 'pro' && u.proUntil) items.push({ name: 'gói ' + (u.tier === 'pro' ? 'Pro' : 'Astra'), until: Number(u.proUntil) });
+    const astraOn = u.role === 'pro' && u.tier !== 'pro' && Number(u.proUntil) > now;
+    if (!astraOn && u.buys) Object.keys(u.buys).forEach(k => items.push({ name: 'khoá ' + (COURSE_NAME[k] || k), until: Number(u.buys[k]) }));
+    const hit = items.map(x => Object.assign(x, { left: daysLeft(x.until) })).filter(x => x.left === 3 || x.left === 1 || (x.until <= now && x.until > now - DAY));
+    if (!hit.length) return;
+    checked++;
+    const x = hit.sort((a, b) => a.left - b.left)[0];
+    const m = renewMsg(x.name, x.until <= now ? -1 : x.left);
+    sent += pushToUser(u, m[0], m[1], SITE + '?giahan=1') ? 1 : 0;
+  });
+  Logger.log('Nhắc gia hạn: %s người đến mốc, gửi được %s', checked, sent);
+}
+function listUsersFull() {
+  const out = [];
+  let pageToken = '';
+  do {
+    const url = FS + '/users?pageSize=300' + ['role', 'email', 'name', 'fcmTokens', 'proUntil', 'tier', 'buys'].map(f => '&mask.fieldPaths=' + f).join('')
+      + (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+    const res = UrlFetchApp.fetch(url, { headers: authHeaders(), muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) throw new Error('Đọc users lỗi: ' + res.getContentText().slice(0, 500));
+    const j = JSON.parse(res.getContentText());
+    (j.documents || []).forEach(d => { const u = fromDoc(d); u.tokens = Array.isArray(u.fcmTokens) ? u.fcmTokens.filter(Boolean) : []; out.push(u); });
+    pageToken = j.nextPageToken || '';
+  } while (pageToken);
+  return out;
 }
 
 // ===================== FIRESTORE (REST) =====================
