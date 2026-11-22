@@ -584,7 +584,7 @@
     #test-list-container .nv-test>div:first-child{border-radius:22px 0 0 22px}
     #test-list-container h4{letter-spacing:-.02em}
     </style>
-<script src="night-plan.js?v=20261122a"></script>
+<script src="night-plan.js?v=20261122b"></script>
 <script src="night-home.js?v=1b"></script>
 <script src="night-wall.js?v=5"></script>
 <script src="night-costs.js?v=3"></script>
@@ -3825,6 +3825,21 @@
         // "Mới" = bài học sinh làm xong SAU lần cuối giáo viên mở học sinh đó (users/{id}.teacherSeenAt),
         // hoặc bài Writing vừa nộp mà giáo viên chưa mở.
         let __progStudents = null, __progAssign = null, __progSig = '';
+        // Tên hiển thị: tên → phần trước @ của email → tên chuyển khoản → "Học sinh" (không bao giờ hiện mã UID)
+        const __progExtra = {}, __progTried = new Set();
+        function stuName(stu, id) {
+            if (stu) { const n = stu.name || (stu.email || '').split('@')[0] || stu.orderName; if (n) return n; }
+            return 'Đang tải tên…';
+        }
+        // Bài giao cho người không còn là Học sinh/Pro (vd. hết hạn, đổi gói) → tự đọc tên từ hồ sơ của họ
+        function fillMissingStudents() {
+            if (!__progStudents || !__progAssign) return;
+            const ids = [...new Set(__progAssign.map(d => d.data.studentId).filter(id => id && !__progStudents[id] && !__progTried.has(id)))];
+            if (!ids.length) return;
+            ids.forEach(id => __progTried.add(id));
+            Promise.all(ids.map(id => getDoc(doc(db, 'users', id)).then(s => { __progExtra[id] = s.exists() ? s.data() : { name: 'Tài khoản đã xoá' }; }).catch(() => { __progExtra[id] = { name: 'Học sinh (không đọc được tên)' }; })))
+                .then(() => { Object.assign(__progStudents, __progExtra); __progSig = ''; window.__progRebuild && window.__progRebuild(); });
+        }
         async function loadProgressData(onUpdate) {
             const build = () => {
                 if (!__progStudents || !__progAssign) return;
@@ -3852,7 +3867,7 @@
                         id: d.id,
                         title: a.title || a.packageTitle || '(Không tên)',
                         studentId: a.studentId || '',
-                        studentName: stu ? stu.name : (a.studentId || '?'),
+                        studentName: stuName(stu, a.studentId),
                         studentEmail: stu ? stu.email : '',
                         percent, total, done, isDone, isNew, doneAt,
                         isLink: !!a.link,
@@ -3893,7 +3908,7 @@
                 if (sig !== __progSig) { __progSig = sig; if (onUpdate) onUpdate(); }
             };
             const pS = swrDocs(query(collection(db, "users"), where('role', 'in', ['student', 'pro'])), snap => {
-                const m = {}; snap.forEach(d => { m[d.id] = d.data(); }); __progStudents = m; build();
+                const m = {}; snap.forEach(d => { m[d.id] = d.data(); }); Object.assign(m, __progExtra); __progStudents = m; build(); fillMissingStudents();
             });
             const pA = swrDocs(collection(db, "assignments"), (snap, fromCache) => {
                 const list = [], now = Date.now();
@@ -3904,8 +3919,9 @@
                     if (expiresAt && now > expiresAt && !fromCache) { deleteDoc(doc(db, "assignments", d.id)).catch(() => {}); return; }
                     list.push({ id: d.id, data: a });
                 });
-                __progAssign = list; build();
+                __progAssign = list; build(); fillMissingStudents();
             });
+            window.__progRebuild = build;
             await Promise.all([pS, pA]);
             return true;
         }

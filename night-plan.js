@@ -788,7 +788,9 @@
     if (b) return;
     if (!document.getElementById('ni-support-css')) {
       var st = document.createElement('style'); st.id = 'ni-support-css';
-      st.textContent = '#ni-support-btn{position:fixed;left:14px;bottom:14px;z-index:9990;display:flex;align-items:center;gap:7px;padding:10px 15px 10px 12px;border:0;border-radius:99px;background:#0068FF;color:#fff;font:700 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 10px 24px -8px rgba(0,104,255,.6);cursor:pointer}#ni-support-btn svg{width:18px;height:18px}' +
+      st.textContent = '#ni-support-btn{position:fixed;left:14px;bottom:14px;z-index:90;display:flex;align-items:center;gap:7px;padding:10px 15px 10px 12px;border:0;border-radius:99px;background:#0068FF;color:#fff;font:700 13px/1 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 10px 24px -8px rgba(0,104,255,.6);cursor:pointer;transition:transform .25s,opacity .25s}#ni-support-btn svg{width:18px;height:18px;flex:none}' +
+        '#ni-support-btn.hid{transform:translateY(90px);opacity:0;pointer-events:none}' +
+        '@media(max-width:640px){#ni-support-btn{left:12px;bottom:max(12px,env(safe-area-inset-bottom));width:44px;height:44px;padding:0;justify-content:center;font-size:0;gap:0;opacity:.92}#ni-support-btn svg{width:20px;height:20px}}' +
         '#ni-sup-ov{position:fixed;inset:0;z-index:9999;background:rgba(20,20,30,.45);display:flex;align-items:flex-end;justify-content:center;padding:14px}@media(min-width:640px){#ni-sup-ov{align-items:center}}' +
         '#ni-sup{width:100%;max-width:380px;background:#fff;border-radius:22px;padding:18px;font:500 14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#24242A;box-shadow:0 30px 70px -20px rgba(0,0,0,.45)}#ni-sup h3{margin:0 0 4px;font-size:17px;font-weight:800}#ni-sup p{margin:0 0 12px;color:#6B6B78;font-size:13px}' +
         '#ni-sup button.o{display:flex;width:100%;align-items:center;gap:10px;text-align:left;padding:12px 14px;margin-bottom:8px;border:1.5px solid #E4E4EC;border-radius:14px;background:#fff;font:inherit;font-weight:700;cursor:pointer}#ni-sup button.o:hover{border-color:#0068FF;background:#F2F7FF}#ni-sup button.o small{display:block;font-weight:500;color:#6B6B78;font-size:12px}#ni-sup .x{margin-top:4px;width:100%;padding:10px;border:0;border-radius:12px;background:#F1F1F5;font:inherit;font-weight:700;cursor:pointer}';
@@ -797,8 +799,15 @@
     b = document.createElement('button');
     b.id = 'ni-support-btn'; b.type = 'button';
     b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Góp ý · Khiếu nại';
-    b.onclick = openSupport;
+    b.onclick = openSupport; b.title = 'Góp ý · Khiếu nại'; b.setAttribute('aria-label', 'Góp ý · Khiếu nại');
     document.body.appendChild(b);
+    /* Cuộn xuống đọc thì ẩn nút, cuộn lên hoặc tới cuối trang thì hiện lại */
+    var lastY = window.scrollY || 0;
+    window.addEventListener('scroll', function () {
+      var y = window.scrollY || 0, end = y + innerHeight >= document.documentElement.scrollHeight - 40;
+      if (Math.abs(y - lastY) < 8) return;
+      b.classList.toggle('hid', y > lastY && y > 120 && !end); lastY = y;
+    }, { passive: true });
   }
   function openSupport() {
     var z = zaloNum(); if (!z) return;
