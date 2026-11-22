@@ -404,7 +404,7 @@ async function importNotebook(silent) {
   const ctx = (() => { try { return JSON.parse(localStorage.getItem('nv-word-ctx') || '{}'); } catch (e) { return {}; } })();
   try {
     const snap = await getDocs(query(collection(db, 'savedWords'), where('studentId', '==', S.user.uid)));
-    snap.forEach(d => { const x = d.data(); if (addWord({ t: x.word, m: x.meaning, s: ctx[String(x.word || '').toLowerCase()] || '', l: /[一-鿿]/.test(x.word) ? 'zh' : 'en', src: x.sourceTitle })) n++; });
+    snap.forEach(d => { const x = d.data(); if (x.meaning && addWord({ t: x.word, m: x.meaning, s: x.sentence || ctx[String(x.word || '').toLowerCase()] || '', l: /[一-鿿]/.test(x.word) ? 'zh' : 'en', src: x.sourceTitle })) n++; });
   } catch (e) {}
   try { (JSON.parse(localStorage.getItem('ielts_vocab_book') || '[]')).forEach(x => { if (addWord({ t: x.en, m: x.vi, s: ctx[String(x.en || '').toLowerCase()] || '', src: 'Sổ từ vựng' })) n++; }); } catch (e) {}
   /* từ "Trồng vào vườn" từ trang Nghe – Gõ / khoá học (để chờ trong máy nếu chưa mở vườn) */
@@ -516,24 +516,52 @@ function openBank(b) {
     <div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1">${b == null ? 'Kho hạt giống' : STAGE[b].n} · ${L.length} từ</h3><button class="btn" style="background:var(--panel)" id="closeS"><i class="fa-solid fa-xmark"></i></button></div>
     <p class="sub">${b == null ? 'Thêm từ để gieo hạt. Từ bạn lưu khi làm đề Reading/Listening tự vào đây.' : STAGE[b].d}</p>
     ${b == null ? `<div style="background:var(--panel);border-radius:18px;padding:12px;margin-bottom:12px">
-      <input class="field ${zh ? 'zhf' : ''}" id="nt" placeholder="${zh ? 'Từ (chữ Hán), VD: 起床' : 'Từ / cụm từ, VD: take part in'}">
-      ${zh ? '<input class="field" id="npy" placeholder="Pinyin có dấu, mỗi chữ 1 âm tiết: qǐ chuáng">' : ''}
-      <div style="display:flex;gap:6px"><input class="field" id="nm" placeholder="Nghĩa tiếng Việt (bấm Dịch hoặc tự gõ, ghi chú thêm thoải mái)" style="flex:1"><button class="btn" type="button" id="trBtn" style="background:var(--peach-l);color:#C2410C;height:46px;flex:none"><i class="fa-solid fa-language"></i> Dịch</button></div>
-      <input class="field ${zh ? 'zhf' : ''}" id="ns" placeholder="Câu ví dụ (không bắt buộc)">
-      ${zh ? '<input class="field" id="nspy" placeholder="Pinyin của câu (nếu có câu)">' : ''}
+      ${zh ? `<input class="field zhf" id="nt" placeholder="Từ (chữ Hán), VD: 起床">
+      <input class="field" id="npy" placeholder="Pinyin có dấu, mỗi chữ 1 âm tiết: qǐ chuáng">
+      <div style="display:flex;gap:6px"><input class="field" id="nm" placeholder="Nghĩa tiếng Việt (bấm Dịch hoặc tự gõ)" style="flex:1"><button class="btn" type="button" id="trBtn" style="background:var(--peach-l);color:#C2410C;height:46px;flex:none"><i class="fa-solid fa-language"></i> Dịch</button></div>
+      <input class="field zhf" id="ns" placeholder="Câu ví dụ (không bắt buộc)"><input class="field" id="nspy" placeholder="Pinyin của câu (nếu có câu)">`
+      : `<textarea class="field" id="nt" rows="2" style="resize:vertical;min-height:52px" placeholder="Gõ từ tiếng Anh, nhiều từ thì xuống dòng hoặc dấu phẩy. VD: take part in, reluctant, cut down on"></textarea>
+      <p class="sub" style="margin:2px 2px 8px;font-size:12.5px"><b>Chỉ cần gõ từ tiếng Anh rồi bấm Gieo hạt.</b> AI tự điền nghĩa tiếng Việt và câu ví dụ.</p>
+      <details style="margin:0 0 8px"><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--mut)">Tự gõ nghĩa / câu ví dụ (không bắt buộc)</summary>
+      <input class="field" id="nm" placeholder="Nghĩa tiếng Việt (để trống thì AI điền)" style="margin-top:8px"><input class="field" id="ns" placeholder="Câu ví dụ (để trống thì AI điền)"></details>`}
       <div class="lbl2">Hạt mới sẽ nở thành</div>${flPicker(S.data.set.fl || 'mix', true)}
-      <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn" style="background:var(--ink);color:#fff" id="addW"><i class="fa-solid fa-seedling"></i> Gieo hạt</button><button class="btn" style="background:var(--lilac-l);color:#4B4FC0" id="imp"><i class="fa-solid fa-book"></i> Lấy từ Sổ từ vựng</button><button class="btn" style="background:#E8F5E9;color:#2E7D32" id="impLt"><i class="fa-solid fa-keyboard"></i> Nhập từ bài Nghe – Gõ</button></div></div>` : ''}
+      <div style="display:flex;flex-wrap:wrap;gap:8px"><button class="btn" style="background:var(--ink);color:#fff" id="addW"><i class="fa-solid fa-seedling"></i> Gieo hạt</button><button class="btn" style="background:#FFF1DE;color:#B45309" id="impCourse"><i class="fa-solid fa-graduation-cap"></i> Nhập từ khoá học</button><button class="btn" style="background:var(--lilac-l);color:#4B4FC0" id="imp"><i class="fa-solid fa-book"></i> Lấy từ Sổ từ vựng</button><button class="btn" style="background:#E8F5E9;color:#2E7D32" id="impLt"><i class="fa-solid fa-keyboard"></i> Nhập từ bài Nghe – Gõ</button></div></div>` : ''}
     ${L.map(x => `<div class="wl" data-w="${x.id}" style="cursor:pointer">${GardenArt.plant(flowerOf(x), isDry(x) ? 'wilt' : x.b, { special: !!x.fx }).replace('class="ga"', 'class="ga" style="width:34px;height:50px;flex:none"')}<div class="t"><b class="${x.l === 'zh' ? 'zhf' : ''}">${esc(x.t)}</b>${x.py ? ` <small style="display:inline;color:#4B4FC0">${esc(x.py)}</small>` : ''}<small>${esc(x.m)}${x.s && x.s !== x.t ? ' · ' + esc(x.s) : ''}</small></div><span class="due">${x.b === 0 ? 'chưa gieo' : isDue(x) ? '<span style="color:#E11D48">cần tưới</span>' : 'tưới ' + new Date(x.d).toLocaleDateString('vi-VN')}</span><button class="x" data-del="${x.id}" title="Nhổ cây"><i class="fa-solid fa-trash"></i></button></div>`).join('') || '<p class="sub" style="text-align:center;padding:20px">Chưa có từ nào.</p>'}`;
   $('#sheet').classList.add('show');
   $('#closeS').onclick = () => $('#sheet').classList.remove('show');
   const add = $('#addW');
-  if (add) add.onclick = () => {
-    const t = $('#nt').value.trim(), m = $('#nm').value.trim(), s = $('#ns').value.trim();
-    if (!t || !m) return toast('Nhập từ và nghĩa nhé');
-    const o = { t, m, s, l: S.lang, src: 'Tự thêm' };
-    if (zh) { const py = NVCourse.segPinyin(t, $('#npy').value), spy = s ? NVCourse.segPinyin(s, $('#nspy').value) : py; if (!py || (s && !spy)) return toast('Pinyin chưa khớp số chữ Hán'); o.py = py; o.spy = spy; }
-    if (addWord(o)) { save(); toast('Đã gieo hạt "' + t + '"'); openBank(null); render(); } else toast('Từ này đã có trong vườn');
+  if (add) add.onclick = async () => {
+    if (zh) {
+      const t = $('#nt').value.trim(), m = $('#nm').value.trim(), s0 = $('#ns').value.trim();
+      if (!t || !m) return toast('Nhập từ và nghĩa nhé');
+      const o = { t, m, s: s0, l: S.lang, src: 'Tự thêm' };
+      const py = NVCourse.segPinyin(t, $('#npy').value), spy = s0 ? NVCourse.segPinyin(s0, $('#nspy').value) : py; if (!py || (s0 && !spy)) return toast('Pinyin chưa khớp số chữ Hán'); o.py = py; o.spy = spy;
+      if (addWord(o)) { save(); toast('Đã gieo hạt "' + t + '"'); openBank(null); render(); } else toast('Từ này đã có trong vườn');
+      return;
+    }
+    /* Tiếng Anh: gõ 1 hoặc nhiều từ, AI tự điền nghĩa + câu ví dụ */
+    const list = [...new Set($('#nt').value.split(/[\n,;]+/).map(x => x.trim()).filter(Boolean))].slice(0, 30);
+    if (!list.length) return toast('Gõ từ tiếng Anh trước nhé');
+    const m = ($('#nm') || {}).value ? $('#nm').value.trim() : '', ex = ($('#ns') || {}).value ? $('#ns').value.trim() : '';
+    const fresh = list.filter(t => !S.data.w[idOf(t, 'en')]);
+    if (!fresh.length) return toast(list.length > 1 ? 'Các từ này đã có trong vườn' : 'Từ này đã có trong vườn');
+    let filled = {};
+    if (!(fresh.length === 1 && m && ex)) {
+      add.disabled = true; add.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> AI đang điền…';
+      try { filled = await translateMany(fresh); }
+      catch (e) {
+        add.disabled = false; add.innerHTML = '<i class="fa-solid fa-seedling"></i> Gieo hạt';
+        if (fresh.length === 1 && m) filled = {};
+        else return toast(e.code === 'PRO_ONLY' ? 'AI tự điền dành cho Pro / Astra / Học sinh. Mở "Tự gõ nghĩa" để gõ nghĩa nhé.' : 'AI đang bận, thử lại sau ít phút nhé');
+      }
+    }
+    let n = 0;
+    fresh.forEach(t => { const f = filled[t.toLowerCase()] || {}; const o = { t, m: (fresh.length === 1 && m) || f.m || '', s: (fresh.length === 1 && ex) || f.ex || '', l: 'en', src: 'Tự thêm' }; if (o.m && addWord(o)) n++; });
+    if (n) { save(); render(); }
+    toast(n ? 'Đã gieo ' + n + ' hạt' + (list.length > fresh.length ? ' (' + (list.length - fresh.length) + ' từ đã có sẵn)' : '') : 'Chưa gieo được, thử lại nhé');
+    openBank(null);
   };
+  const ic = $('#impCourse'); if (ic) ic.onclick = () => { IMP.tab = 'nv'; openImport(); };
   const imp = $('#imp'); if (imp) imp.onclick = async () => { await importNotebook(false); openBank(null); };
   const il = $('#impLt'); if (il) il.onclick = () => openImport();
   $('#sheetBody').querySelectorAll('#flPick [data-fl]').forEach(x => x.onclick = () => { S.data.set.fl = x.dataset.fl; save(); $('#sheetBody').querySelectorAll('#flPick [data-fl]').forEach(y => y.classList.toggle('on', y === x)); });
@@ -766,12 +794,13 @@ async function openImport() {
   if (tab === 'nv') {
     body = NVCourse.COURSES[lang].map(c => {
       const ss = IMP.nv[c.key];
-      return `<div class="lbl2" style="margin-top:12px;color:${c.col}">${esc(c.name)}</div>` + (!ss ? `<button class="btn" style="background:var(--panel);margin:6px 0" data-load="${c.key}"><i class="fa-solid fa-list"></i> Xem các buổi</button>` :
+      const openN = ss ? ss.filter(x => nvOpen(c.key, x.n)).length : 0;
+      return `<div class="lbl2" style="margin-top:12px;color:${c.col};display:flex;align-items:center;gap:8px">${esc(c.name)}${openN ? `<button class="btn" style="margin-left:auto;background:var(--ink);color:#fff;height:34px;font-size:12.5px" data-all="${c.key}"><i class="fa-solid fa-seedling"></i> Gieo cả ${openN} buổi đã mở</button>` : ''}</div>` + (!ss ? `<p class="sub" style="margin:6px 0"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải các buổi…</p>` :
         ss.map(x => nvOpen(c.key, x.n) ? row(`Buổi ${x.n} · ${x.title}`, x.tag ? esc(x.tag) : 'từ vựng + mẫu câu', `data-nv="${c.key}|${x.n}"`, false) : `<div class="srcl" style="opacity:.55"><div class="t"><b>Buổi ${x.n} · ${esc(x.title)}</b><small>Cần mở khoá học</small></div><i class="fa-solid fa-lock" style="color:var(--mut);padding:0 10px"></i></div>`).join(''));
     }).join('');
   }
   $('#sheetBody').innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1">Nhập từ bài Nghe – Gõ</h3><button class="btn" style="background:var(--panel)" id="backB"><i class="fa-solid fa-arrow-left"></i></button><button class="btn" style="background:var(--panel)" id="closeS"><i class="fa-solid fa-xmark"></i></button></div>
+    <div style="display:flex;align-items:center;gap:10px"><h3 style="flex:1">Nhập từ bài học</h3><button class="btn" style="background:var(--panel)" id="backB"><i class="fa-solid fa-arrow-left"></i></button><button class="btn" style="background:var(--panel)" id="closeS"><i class="fa-solid fa-xmark"></i></button></div>
     <p class="sub">Chọn bài — cả từ lẫn câu ví dụ của bài được gieo thành hạt giống (${lang === 'zh' ? 'tiếng Trung' : 'tiếng Anh'}). Từ đã có trong vườn sẽ không bị gieo lại.</p>
     <div class="lbl2">Hạt sẽ nở thành</div>${flPicker(S.data.set.fl || 'mix', true)}
     <div class="tabs">${[['mine', 'Bài của tôi'], ['lv', lang === 'zh' ? 'Khoá HSK' : 'Khoá A1 – C2'], ['nv', 'Khoá học Night IELTS']].map(([k, n]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${n}</button>`).join('')}</div>
@@ -785,6 +814,14 @@ async function openImport() {
   sb.querySelectorAll('[data-mine]').forEach(b => b.onclick = () => { const l = IMP.mine.list[+b.dataset.mine]; gieo(l.items || [], l.title || 'Bài của tôi'); openImport(); });
   sb.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => { const [c, i] = b.dataset.lv.split('|'), l = IMP.lv.map[c].lessons[+i]; gieo(l.items || [], c + ' · ' + l.title); openImport(); });
   sb.querySelectorAll('[data-load]').forEach(b => b.onclick = async () => { b.disabled = true; try { IMP.nv[b.dataset.load] = await NVCourse.roadmap(b.dataset.load); } catch (e) { toast('Chưa tải được danh sách buổi'); } openImport(); });
+  sb.querySelectorAll('[data-all]').forEach(b => b.onclick = async () => {
+    const key = b.dataset.all, ss = (IMP.nv[key] || []).filter(x => nvOpen(key, x.n)); b.disabled = true;
+    let items = [];
+    for (let i = 0; i < ss.length; i++) { b.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang lấy ${i + 1}/${ss.length}`; try { const r = await NVCourse.lesson(key, ss[i].n); items = items.concat(r.items.map(({ kind, ...x }) => x)); } catch (e) {} }
+    if (items.length) gieo(items, (NVCourse.COURSES[S.lang].find(c => c.key === key) || {}).name || key); else toast('Chưa lấy được từ của khoá này');
+    openImport();
+  });
+  if (tab === 'nv') NVCourse.COURSES[lang].forEach(c => { if (!IMP.nv[c.key] && !IMP['ld' + c.key]) { IMP['ld' + c.key] = 1; NVCourse.roadmap(c.key).then(r => { IMP.nv[c.key] = r; }).catch(() => { IMP.nv[c.key] = []; }).then(() => { if (IMP.tab === 'nv' && $('#sheet').classList.contains('show')) openImport(); }); } });
   sb.querySelectorAll('[data-nv]').forEach(b => b.onclick = async () => {
     const [key, n] = b.dataset.nv.split('|'); b.disabled = true; b.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang lấy';
     try { const r = await NVCourse.lesson(key, +n); if (!r.items.length) toast('Buổi này chưa có phần từ vựng'); else gieo(r.items.map(({ kind, ...x }) => x), r.title); } catch (e) { toast('Buổi này chưa mở hoặc chưa đăng'); }
@@ -817,6 +854,22 @@ async function translate(t, ctx, zh) {
   const j = await r.json(), o = JSON.parse(((j.choices || [])[0] || {}).message.content.match(/\{[\s\S]*\}/)[0]);
   if (zh) { o.py = NVCourse.segPinyin(t, o.py) || ''; o.expy = o.ex ? NVCourse.segPinyin(o.ex, o.expy) || '' : ''; if (!o.expy) o.ex = ''; }
   return o;
+}
+
+/* Nhiều từ tiếng Anh 1 lần -> { 'word': { m, ex } } */
+async function translateMany(list) {
+  const cfg = (() => { try { return JSON.parse(localStorage.getItem('nightIeltsGroqCfg') || '{}'); } catch (e) { return {}; } })();
+  const key = cfg.apiKey || (() => { try { return localStorage.getItem('nightIeltsGroqApiKey') || ''; } catch (e) { return ''; } })();
+  const body = { model: 'openai/gpt-oss-120b', temperature: 0.2, max_completion_tokens: 2500, reasoning_effort: 'low', response_format: { type: 'json_object' },
+    messages: [{ role: 'system', content: 'You help Vietnamese learners of English. For each English word or phrase, give its most common meaning. Reply ONLY JSON {"items":[{"t":"the word exactly as given","m":"short natural Vietnamese meaning(s), max 8 words","ex":"a short natural English example sentence using it (<= 14 words)"}]} in the same order.' },
+      { role: 'user', content: JSON.stringify(list) }] };
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
+  const init = { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: 'Bearer ' + key } : {}), body: JSON.stringify(body) };
+  const r = window.NightPlan && NightPlan.groqFetch ? await NightPlan.groqFetch(url, init, 'writing') : await fetch(url, init);
+  if (!r.ok) throw new Error('busy');
+  const j = await r.json(), o = JSON.parse(((j.choices || [])[0] || {}).message.content.match(/\{[\s\S]*\}/)[0]);
+  const out = {}; (o.items || []).forEach((x, i) => { const k = String(x.t || list[i] || '').toLowerCase().trim(); if (k) out[k] = { m: x.m || '', ex: x.ex || '' }; if (list[i]) out[list[i].toLowerCase()] = out[list[i].toLowerCase()] || { m: x.m || '', ex: x.ex || '' }; });
+  return out;
 }
 
 /* ---------- 1 buổi tưới vườn ---------- */

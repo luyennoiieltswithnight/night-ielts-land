@@ -180,6 +180,14 @@
     s.onload = go;
     document.head.appendChild(s);
   }
+  function saveToNotebook(word, range) {
+    const go = () => { const V = window.NightVocabTeach; if (V && V.saveWord) V.saveWord(word, V.sentenceOf(range, word)); };
+    if (window.NightVocabTeach) return go();
+    const s = document.createElement("script");
+    s.src = new URL("../vocab-teach.js", ENGINE_SRC || location.href).href;
+    s.onload = go;
+    document.head.appendChild(s);
+  }
   // Bôi đen chữ trong bài → thanh nhỏ: in đậm, gạch chân, tô màu, chữ đỏ, bỏ định dạng, Dịch
   function SelectionTranslateTooltip({ containerRef }) {
     const [tooltip, setTooltip] = useState(null);
@@ -249,6 +257,8 @@
         HL_OK && E("button", { type: "button", title: "Bỏ định dạng", "aria-label": "Bỏ định dạng", onPointerDown: act(() => { unmarkRange(tooltip.range); done(); }), className: "flex h-8 w-8 items-center justify-center rounded-full text-sm text-white/70 hover:bg-white/15" }, "⌫"),
         HL_OK && E("span", { className: "mx-0.5 h-5 w-px bg-white/25" }),
         E("button", { type: "button", onPointerDown: act(openTranslate), className: "rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white" }, "Dịch"),
+        tooltip.text.split(/\s+/).length <= 6 && tooltip.text.length <= 60 && E("button", { type: "button", title: "Thêm vào sổ từ vựng (tự vào Vườn từ vựng)", onPointerDown: act(() => { const w = tooltip.text.replace(/^[^\w]+|[^\w]+$/g, "") || tooltip.text; const rg = tooltip.range; done(); saveToNotebook(w, rg); }),
+          className: "ml-0.5 rounded-full bg-white px-3 py-1.5 text-xs font-extrabold text-violet-700" }, "📒 Lưu vào sổ"),
         tooltip.text.split(/\s+/).length <= 6 && tooltip.text.length <= 60 && E("button", { type: "button", title: "Mở thẻ giảng từ này cho cả lớp", onPointerDown: act(() => { const w = tooltip.text.replace(/^[^\w]+|[^\w]+$/g, "") || tooltip.text; const rg = tooltip.range; done(); openVocabTeach(w, rg); }),
           className: "ml-0.5 rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-3 py-1.5 text-xs font-extrabold text-white shadow" }, "🎀 Giảng vocab")));
   }

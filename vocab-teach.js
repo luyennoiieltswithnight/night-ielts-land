@@ -244,6 +244,8 @@
       '@media (max-width:767px){.nvt-grid{grid-template-columns:1fr}.nvt-card{padding:20px}.nvt-deco{font-size:24px}.nvt-mean{font-size:24px}}',
       /* nút nổi khi bôi đen (trang không dùng night-engine) */
       '.nvt-pill{position:absolute;z-index:2147482000;transform:translateX(-50%);border:0;border-radius:999px;padding:7px 14px;font:800 12px/1.2 "Plus Jakarta Sans",system-ui,sans-serif;color:#fff;cursor:pointer;white-space:nowrap;background:linear-gradient(90deg,#ec4899,#8b5cf6);box-shadow:0 6px 16px rgba(139,92,246,.4);animation:nvtPop .35s cubic-bezier(.2,1.4,.4,1) both}',
+      '.nvt-sw-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2147483600;background:#24242A;color:#fff;border-radius:999px;padding:10px 18px;font:600 13.5px/1.4 "Plus Jakarta Sans",system-ui,sans-serif;box-shadow:0 12px 30px -10px rgba(0,0,0,.5);max-width:92vw;transition:opacity .4s}.nvt-sw-toast a{color:#FFD66B}.nvt-sw-toast.bad{background:#B91C1C}.nvt-sw-toast.out{opacity:0}' +
+      '.nvt-pill.grp{display:flex;gap:2px;padding:3px}.nvt-pill.grp button{border:0;border-radius:999px;padding:5px 11px;font:800 12px/1.2 "Plus Jakarta Sans",system-ui,sans-serif;color:#fff;background:transparent;cursor:pointer}.nvt-pill.grp button:hover{background:rgba(255,255,255,.2)}.nvt-pill.grp button.sw{background:#fff;color:#7c3aed}' +
       '.nvt-pill:after{content:"";position:absolute;left:50%;bottom:-5px;width:10px;height:10px;transform:translateX(-50%) rotate(45deg);background:#a855f7;border-radius:2px;z-index:-1}.nvt-pill.below:after{bottom:auto;top:-5px}.nvt-tb-btn{white-space:nowrap;font-weight:700;color:#db2777!important}'
     ].join('');
     document.head.appendChild(st);
@@ -419,6 +421,35 @@
 
   /* ---------- Nút nổi khi bôi đen (chỉ ở trang KHÔNG dùng night-engine) ---------- */
   var pill = null;
+  /* ---------- 📒 Lưu vào sổ từ vựng (savedWords, tự vào Vườn từ vựng) — dùng ở mọi trang ---------- */
+  var FB_CFG = { apiKey: 'AIzaSyCmeN49M4oI78ZPWDhMlbisDOLaMJp2mb8', authDomain: 'night-ielts-land.firebaseapp.com', projectId: 'night-ielts-land', storageBucket: 'night-ielts-land.firebasestorage.app', messagingSenderId: '408519436407', appId: '1:408519436407:web:a9f0b9ba23368b54427e72' };
+  var fbP = null;
+  function fbMods() {
+    return fbP || (fbP = Promise.all([import('https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js'), import('https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js'), import('https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js')]).then(function (m) {
+      var app = m[0].getApps()[0] || m[0].initializeApp(FB_CFG);
+      return { auth: m[1].getAuth(app), A: m[1], F: m[2], db: m[2].getFirestore(app) };
+    }));
+  }
+  function toastSW(html, bad) {
+    css(); var t = document.createElement('div'); t.className = 'nvt-sw-toast' + (bad ? ' bad' : ''); t.innerHTML = html; document.body.appendChild(t);
+    setTimeout(function () { t.classList.add('out'); setTimeout(function () { t.remove(); }, 400); }, 2600);
+  }
+  function saveWord(word, sentence) {
+    word = cleanWord(String(word || '').replace(/\s+/g, ' ').trim()); if (!word) return Promise.resolve(false);
+    toastSW('Đang lưu <b>' + esc(word) + '</b>…');
+    return fbMods().then(function (o) {
+      return new Promise(function (res) { var un = o.A.onAuthStateChanged(o.auth, function (u) { un(); res(u); }); }).then(function (u) {
+        if (!u) { toastSW('Đăng nhập ở trang chủ để lưu từ vào sổ nhé.', true); return false; }
+        var cached = load(word);
+        var mp = cached && cached.meaning ? Promise.resolve(cached.meaning) : translate(word, 'auto', 'vi').catch(function () { return ''; });
+        return mp.then(function (m) {
+          var now = Date.now();
+          return o.F.addDoc(o.F.collection(o.db, 'savedWords'), { studentId: u.uid, word: word, meaning: m || '', sentence: sentence || '', sourceTitle: document.title || '', savedAt: now, expiresAt: now + 90 * 864e5 })
+            .then(function () { toastSW('📒 Đã lưu <b>' + esc(word) + '</b>' + (m ? ' · ' + esc(m) : '') + ' vào sổ từ vựng. Vào <a href="/vuon.html">Vườn từ vựng</a> để ôn.'); return true; });
+        });
+      });
+    }).catch(function (e) { console.warn(e); toastSW('Chưa lưu được, thử lại nhé.', true); return false; });
+  }
   function hidePill() { if (pill) { pill.remove(); pill = null; } }
   function cleanWord(t) { return t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '') || t; }
   function okText(t) {
@@ -444,10 +475,21 @@
       try { sel.removeAllRanges(); } catch (er) {}
       open(w, { sentence: sn });
     });
+    var sb = document.createElement('button');
+    sb.type = 'button'; sb.className = 'annot-btn nvt-tb-btn nvt-tb-save'; sb.title = 'Thêm vào sổ từ vựng'; sb.textContent = '📒 Lưu sổ';
+    sb.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    sb.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var sel = window.getSelection(), t = sel ? sel.toString().replace(/\s+/g, ' ').trim() : '';
+      if (!t || !sel.rangeCount) return;
+      var w = cleanWord(t), sn = sentenceOf(sel.getRangeAt(0), w);
+      tb.style.display = 'none'; try { sel.removeAllRanges(); } catch (er) {}
+      saveWord(w, sn);
+    });
     var tr = tb.querySelector('#annot-translate-btn, .annot-translate');
-    if (tr) tb.insertBefore(bt, tr); else tb.appendChild(bt);
+    if (tr) { tb.insertBefore(sb, tr); tb.insertBefore(bt, tr); } else { tb.appendChild(sb); tb.appendChild(bt); }
     // chỉ hiện khi bôi đen từ / cụm ngắn
-    var sync = function () { var t = (window.getSelection() || '').toString().replace(/\s+/g, ' ').trim(); bt.style.display = okText(t) ? '' : 'none'; };
+    var sync = function () { var t = (window.getSelection() || '').toString().replace(/\s+/g, ' ').trim(); bt.style.display = sb.style.display = okText(t) ? '' : 'none'; };
     document.addEventListener('selectionchange', sync); sync();
     return true;
   }
@@ -477,8 +519,8 @@
       var r = range.getBoundingClientRect();
       if (!r.width && !r.height) return hidePill();
       css(); hidePill();
-      pill = document.createElement('button');
-      pill.type = 'button'; pill.className = 'nvt-pill'; pill.textContent = '🎀 Giảng vocab';
+      pill = document.createElement('div');
+      pill.className = 'nvt-pill grp'; pill.innerHTML = '<button type="button" class="sw" data-k="save">📒 Lưu vào sổ</button><button type="button" data-k="teach">🎀 Giảng vocab</button>';
       pill.style.visibility = 'hidden'; pill.style.top = '0px'; pill.style.left = '0px';
       document.body.appendChild(pill);
       var pw = pill.offsetWidth || 130, ph = pill.offsetHeight || 30, vw = document.documentElement.clientWidth;
@@ -498,7 +540,7 @@
       pill.classList.toggle('below', pick > r.top);
       pill.style.visibility = '';
       var w = cleanWord(t), sn = sentenceOf(range, w);
-      var go = function (e) { e.preventDefault(); e.stopPropagation(); hidePill(); try { sel.removeAllRanges(); } catch (er) {} open(w, { sentence: sn }); };
+      var go = function (e) { var b = e.target.closest('[data-k]'); if (!b) return; e.preventDefault(); e.stopPropagation(); hidePill(); try { sel.removeAllRanges(); } catch (er) {} if (b.dataset.k === 'save') saveWord(w, sn); else open(w, { sentence: sn }); };
       pill.addEventListener('mousedown', function (e) { e.preventDefault(); e.stopPropagation(); });
       pill.addEventListener('pointerdown', go);
     }, 120);
@@ -509,5 +551,6 @@
   window.addEventListener('scroll', function () { if (pill && !window.getSelection().toString().trim()) hidePill(); }, { passive: true });
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hookToolbar); else hookToolbar();
-  window.NightVocabTeach = { open: open, close: close, sentenceOf: sentenceOf };
+  window.NightVocabTeach = { open: open, close: close, sentenceOf: sentenceOf, saveWord: saveWord };
+  window.NightSaveWord = saveWord;
 })();
