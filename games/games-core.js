@@ -37,7 +37,25 @@
   var voice = null;
   function pickVoice() { try { var v = speechSynthesis.getVoices().filter(function (x) { return /^en[-_](US|GB)/i.test(x.lang); }); voice = v.filter(function (x) { return /Samantha|Google US|Google UK|Aria|Jenny|Natural|Daniel/i.test(x.name); })[0] || v[0] || null; } catch (e) {} }
   try { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; } catch (e) {}
-  function speak(t, rate) { try { speechSynthesis.cancel(); var u = new SpeechSynthesisUtterance(t); u.lang = 'en-US'; u.rate = rate || .9; if (voice) u.voice = voice; speechSynthesis.speak(u); } catch (e) {} }
+  var viVoice = null, VI = /[ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i, tok = 0, curAudio = null;
+  function pickVi() { try { var v = speechSynthesis.getVoices().filter(function (x) { return /^vi/i.test(x.lang); }); viVoice = v.filter(function (x) { return /Google|Linh|An|HoaiMy|Natural/i.test(x.name); })[0] || v[0] || null; } catch (e) {} }
+  try { pickVi(); speechSynthesis.addEventListener('voiceschanged', pickVi); } catch (e) {}
+  function clean(t) { return String(t || '').replace(/\*/g, '').replace(/_{2,}|…|\.{3}/g, ' ... ').replace(/\s+/g, ' ').trim(); }
+  function stopTalk() { tok++; try { speechSynthesis.cancel(); } catch (e) {} if (curAudio) { try { curAudio.pause(); } catch (e) {} curAudio = null; } }
+  function say1(t, lang, rate, my) {
+    return new Promise(function (res) {
+      if (my !== tok || !t) return res();
+      lang = lang || (VI.test(t) ? 'vi' : 'en'); var done = false, fin = function () { if (!done) { done = true; res(); } };
+      if (lang === 'vi' && !viVoice) {   // máy chưa có giọng Việt → giọng Google
+        var a = new Audio('https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=vi&ttsspeed=' + (rate && rate < .8 ? '0.6' : '1') + '&q=' + encodeURIComponent(t.slice(0, 190)));
+        curAudio = a; a.onended = a.onerror = fin; a.play().catch(fin); setTimeout(fin, 9000); return;
+      }
+      try { var u = new SpeechSynthesisUtterance(t); u.lang = lang === 'vi' ? 'vi-VN' : 'en-US'; u.rate = rate || (lang === 'vi' ? 1 : .9); var vv = lang === 'vi' ? viVoice : voice; if (vv) u.voice = vv; u.onend = u.onerror = fin; speechSynthesis.speak(u); setTimeout(fin, 1500 + t.length * 110); } catch (e) { fin(); }
+    });
+  }
+  /* say([[chữ, 'vi'|'en', tốc độ], …]) đọc lần lượt; gọi lại thì dừng lượt cũ */
+  function say(list) { stopTalk(); var my = tok; return list.reduce(function (p, x) { return p.then(function () { return say1(clean(x[0]), x[1], x[2], my); }); }, Promise.resolve()); }
+  function speak(t, rate) { return say([[t, 'en', rate || .9]]); }
 
   /* ---------- âm thanh 8-bit ---------- */
   var actx = null, muted = !!ls('ng-mute');
@@ -60,7 +78,7 @@
       '.ng-frame{max-width:64rem;margin:0 auto;background:var(--ink);border-radius:28px;padding:6px}',
       '.ng-hd{display:flex;align-items:center;gap:10px;color:#fff;padding:8px 10px 12px;flex-wrap:wrap}',
       '.ng-hd a{text-decoration:none;color:var(--ink);background:#fff;border-radius:999px;padding:8px 13px;font-weight:800;font-size:13px}',
-      '.ng-hd h1{margin:0;font:12px/1.5 "Press Start 2P",monospace}.ng-hd h1 small{display:block;font:600 11px "Plus Jakarta Sans",sans-serif;color:#A9A9B8;margin-top:2px}',
+      '.ng-hd h1{margin:0;font:21px/1.15 "VT323",monospace}.ng-hd h1 small{display:block;font:600 11px "Plus Jakarta Sans",sans-serif;color:#A9A9B8;margin-top:2px}',
       '.ng-hd .r{margin-left:auto;display:flex;gap:6px}.ng-hd .r button{border:0;border-radius:999px;padding:8px 12px;font-weight:700;font-size:12.5px;background:rgba(255,255,255,.12);color:#fff;cursor:pointer}',
       '.ng-body{background:#FFFDF7;border-radius:24px;padding:18px;min-height:420px;position:relative;overflow:hidden}',
       '.ng-lbl{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}',
@@ -77,19 +95,43 @@
       '.ng-note{font-size:13px;color:var(--mut);line-height:1.5}',
       '.ng-lv{display:flex;gap:6px}.ng-lv button{border:0;border-radius:12px;padding:9px 14px;font-weight:800;font-size:13px;background:var(--panel);cursor:pointer}.ng-lv button.on{background:#FFD66B}',
       '.ng-over{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(255,253,247,.94);z-index:20;text-align:center;padding:20px}',
-      '.ng-over.on{display:flex}.ng-over h2{font:16px/1.6 "Press Start 2P",monospace;margin:0 0 10px}.ng-over .big{font-size:44px;font-weight:900;margin:6px 0}',
+      '.ng-over.on{display:flex}.ng-over h2{font:28px/1.15 "VT323",monospace;margin:0 0 10px}.ng-over .big{font-size:44px;font-weight:900;margin:6px 0}',
       '.ng-review{max-height:180px;overflow:auto;text-align:left;margin:10px auto;max-width:460px;font-size:13.5px;background:var(--panel);border-radius:14px;padding:10px 12px}',
       '.ng-review div{padding:3px 0;border-bottom:1px dashed #E2E2EA}.ng-review b{color:var(--bad)}',
-      '@media(max-width:640px){.ng-hd h1{font-size:10px}.ng-body{padding:14px}}'
+      '.ng-hd .r button{display:flex;align-items:center}.ng-chip,.ng-lv button,.ng-btn{display:inline-flex;align-items:center;gap:6px}',
+      '.ng-q{display:flex;align-items:center;gap:12px;background:#fff;border-radius:8px;box-shadow:0 0 0 4px #24242A,0 8px 0 4px #24242A;padding:14px 16px;margin:4px 4px 18px;min-height:96px}',
+      '.ng-q.pop{animation:ngq .35s}@keyframes ngq{0%{transform:scale(.97);background:#FFF6CF}100%{transform:none}}',
+      '.ng-q-in{flex:1;min-width:0;text-align:center}',
+      '.ng-q-l{display:block;font:18px/1.15 "VT323",monospace;color:#6C70DC;margin-bottom:4px}',
+      '.ng-q-m{font-size:clamp(22px,4.2vw,34px);font-weight:900;line-height:1.25;color:#24242A;word-break:break-word}',
+      '.ng-q-s{font-size:clamp(14px,2.2vw,17px);font-weight:600;color:#4A4A57;line-height:1.5;margin-top:6px}.ng-q-s:empty{display:none}',
+      '.ng-q .bl{display:inline-block;min-width:2.4em;height:.9em;border-bottom:4px solid #6C70DC;margin:0 .2em;vertical-align:baseline}',
+      '.ng-q-s .gt{display:inline-flex;align-items:center;gap:6px;border-radius:6px;padding:5px 10px;margin:3px 4px;font-weight:800;color:#24242A}',
+      '.ng-q-s .gt.up{background:#DBEAFE;box-shadow:inset 0 0 0 2px #3B82F6}.ng-q-s .gt.dn{background:#FCE7F3;box-shadow:inset 0 0 0 2px #EC4899}',
+      '.ng-q-say{flex:none;border:0;border-radius:8px;background:#FFD66B;box-shadow:0 4px 0 #B45309;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font:800 12px "Plus Jakarta Sans",sans-serif;color:#24242A}',
+      '.ng-q-say:active{transform:translateY(3px);box-shadow:0 1px 0 #B45309}',
+      '.pxh{margin-left:3px}',
+      '@media(max-width:640px){.ng-hd h1{font-size:18px}.ng-body{padding:14px}.ng-q{padding:12px;min-height:84px}}'
     ].join('\n');
     document.head.appendChild(s);
-    var f = document.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap'; document.head.appendChild(f);
+    var f = document.createElement('link'); f.rel = 'stylesheet'; f.href = 'https://fonts.googleapis.com/css2?family=VT323&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap'; document.head.appendChild(f);
+  }
+  function ic(n, h, o) { return window.PXI ? PXI.html(n, h, o) : ''; }
+  function hearts(n, max) { return window.PXI ? PXI.hearts(n, max || 3, 20) : new Array(n + 1).join('♥'); }
+  /* Khung câu hỏi lớn, đặt giữa phía trên khu chơi */
+  function qbar(id) { return '<div class="ng-q" id="' + (id || 'ngQ') + '"><div class="ng-q-in"><small class="ng-q-l"></small><div class="ng-q-m"></div><div class="ng-q-s"></div></div><button class="ng-q-say" type="button" aria-label="Đọc to">' + ic('spk', 22, { q: '#24242A', y: '#6C70DC' }) + '<span>Đọc</span></button></div>'; }
+  function setQ(o, id) {
+    var el = document.getElementById(id || 'ngQ'); if (!el) return;
+    el.querySelector('.ng-q-l').innerHTML = o.label || ''; el.querySelector('.ng-q-m').innerHTML = o.main || ''; el.querySelector('.ng-q-s').innerHTML = o.sub || '';
+    el.querySelector('.ng-q-m').style.fontSize = o.size || ''; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    var b = el.querySelector('.ng-q-say'); b.style.display = o.read ? '' : 'none'; b.onclick = function () { if (o.read) say(o.read); };
+    if (o.read && o.auto !== false) say(o.read);
   }
   function frame(title, sub) {
     css();
     document.body.innerHTML = '<div class="ng-frame"><header class="ng-hd"><a href="index.html">← Game</a><h1>' + esc(title) + '<small>' + esc(sub || '') + '</small></h1>' +
-      '<div class="r"><button id="ngMute">' + (muted ? '🔇' : '🔊') + '</button></div></header><div class="ng-body" id="ngBody"></div></div>';
-    document.getElementById('ngMute').onclick = function () { muted = !muted; ls('ng-mute', muted); this.textContent = muted ? '🔇' : '🔊'; this.blur(); };
+      '<div class="r"><button id="ngMute" aria-label="Âm thanh">' + ic(muted ? 'mute' : 'spk', 18) + '</button></div></header><div class="ng-body" id="ngBody"></div></div>';
+    document.getElementById('ngMute').onclick = function () { muted = !muted; ls('ng-mute', muted); this.innerHTML = ic(muted ? 'mute' : 'spk', 18); this.blur(); };
     return document.getElementById('ngBody');
   }
 
@@ -98,11 +140,11 @@
     var need = o.need || 'words', min = o.min || 6;
     var st = ls('ng-src:' + need) || { src: 'giaotiep', les: [] }, lv = ls('ng-lv:' + o.id) || 'easy';
     body.innerHTML = '<p class="ng-lbl">Chọn kiến thức để chơi</p><div class="ng-srcs" id="ngSrc"></div><div id="ngLes"></div>' +
-      (o.levels ? '<p class="ng-lbl" style="margin-top:14px">Độ khó</p><div class="ng-lv" id="ngLv">' + o.levels.map(function (l) { return '<button data-lv="' + l[0] + '"' + (l[0] === lv ? ' class="on"' : '') + '>' + l[1] + '</button>'; }).join('') + '</div>' : '') +
-      '<div class="ng-row"><button class="ng-btn go" id="ngGo">▶ Bắt đầu</button><span class="ng-note" id="ngCnt"></span></div>' +
+      (o.levels ? '<p class="ng-lbl" style="margin-top:14px">Độ khó</p><div class="ng-lv" id="ngLv">' + o.levels.map(function (l) { return '<button data-lv="' + l[0] + '"' + (l[0] === lv ? ' class="on"' : '') + '>' + (l[2] ? ic(l[2], 16) + ' ' : '') + l[1] + '</button>'; }).join('') + '</div>' : '') +
+      '<div class="ng-row"><button class="ng-btn go" id="ngGo">' + ic('play', 16, { k: '#14532D', g: '#fff' }) + ' Bắt đầu</button><span class="ng-note" id="ngCnt"></span></div>' +
       (o.help ? '<p class="ng-note" style="margin-top:12px">' + o.help + '</p>' : '');
     var srcs = (need === 'mcq' ? [['chuyende', '25 Chuyên đề'], ['giaotiep', 'Giao tiếp'], ['writing', 'Writing'], ['speaking6', 'Speaking 6.0']] : [['giaotiep', 'Giao tiếp'], ['speaking6', 'Speaking 6.0'], ['writing', 'Writing']]);
-    if (need !== 'mcq') srcs.push(['garden', '🌱 Từ trong Vườn của tôi']);
+    if (need !== 'mcq') srcs.push(['garden', 'Từ trong Vườn của tôi', 'sprout']);
     if (o.extra) srcs = o.extra.concat(srcs);
     if (!srcs.some(function (x) { return x[0] === st.src; })) st.src = srcs[0][0];
     var D = null, pool = [];
@@ -125,7 +167,7 @@
       return out;
     }
     function paintSrc() {
-      document.getElementById('ngSrc').innerHTML = srcs.map(function (x) { return '<button class="ng-chip' + (x[0] === st.src ? ' on' : '') + '" data-s="' + x[0] + '">' + esc(x[1]) + '</button>'; }).join('');
+      document.getElementById('ngSrc').innerHTML = srcs.map(function (x) { return '<button class="ng-chip' + (x[0] === st.src ? ' on' : '') + '" data-s="' + x[0] + '">' + (x[2] ? ic(x[2], 16) + ' ' : '') + esc(x[1]) + '</button>'; }).join('');
       var L = document.getElementById('ngLes');
       if (o.extra && o.extra.some(function (x) { return x[0] === st.src; })) { L.innerHTML = '<p class="ng-note">' + (o.extraNote || '') + '</p>'; D = null; count(); return; }
       if (st.src === 'garden') {
@@ -138,7 +180,7 @@
         if (!st.les.length || !avail.some(function (l) { return st.les.indexOf(l.n) >= 0; })) st.les = avail.filter(function (l) { return open(st.src, l.n); }).slice(0, 3).map(function (l) { return l.n; });
         L.innerHTML = '<div class="ng-row" style="margin:0 0 8px"><button class="ng-chip" id="ngAll">Chọn tất cả buổi đã mở</button><button class="ng-chip" id="ngNone">Bỏ chọn</button></div><div class="ng-les">' + avail.map(function (l) {
           var ok = open(st.src, l.n), on = ok && st.les.indexOf(l.n) >= 0;
-          return '<button class="ng-l' + (on ? ' on' : '') + (ok ? '' : ' lock') + '" data-n="' + l.n + '"><span class="ck">' + (ok ? (on ? '✓' : '') : '🔒') + '</span><span>' + esc(l.title.replace(/^Buổi\s*0?/, 'Buổi ')) + '<small>' + (need === 'mcq' ? l.mcq.length + ' câu' : l.words.length + ' từ') + (ok ? '' : ' · mở khoá để chơi') + '</small></span></button>';
+          return '<button class="ng-l' + (on ? ' on' : '') + (ok ? '' : ' lock') + '" data-n="' + l.n + '"><span class="ck">' + (ok ? (on ? '✓' : '') : ic('lock', 14)) + '</span><span>' + esc(l.title.replace(/^Buổi\s*0?/, 'Buổi ')) + '<small>' + (need === 'mcq' ? l.mcq.length + ' câu' : l.words.length + ' từ') + (ok ? '' : ' · mở khoá để chơi') + '</small></span></button>';
         }).join('') + '</div>';
         L.querySelectorAll('.ng-l').forEach(function (b) {
           b.onclick = function () {
@@ -170,12 +212,12 @@
   function over(body, o) {
     var el = body.querySelector('.ng-over') || (function () { var d = document.createElement('div'); d.className = 'ng-over'; body.appendChild(d); return d; })();
     var b = best(o.id, o.score);
-    el.innerHTML = '<div><h2>' + esc(o.title || 'HẾT VÁN') + '</h2><div class="big">' + o.score + '</div><p class="ng-note">' + (b.isNew ? '🏆 Kỷ lục mới!' : 'Kỷ lục: ' + b.hi) + (o.line ? ' · ' + o.line : '') + '</p>' +
+    el.innerHTML = '<div><h2>' + esc(o.title || 'HẾT VÁN') + '</h2><div class="big">' + o.score + '</div><p class="ng-note">' + (b.isNew ? ic('trophy', 18) + ' Kỷ lục mới!' : 'Kỷ lục: ' + b.hi) + (o.line ? ' · ' + o.line : '') + '</p>' +
       (o.review && o.review.length ? '<div class="ng-review"><p class="ng-lbl" style="margin:0 0 4px">Ôn lại câu sai</p>' + o.review.slice(0, 20).map(function (r) { return '<div>' + r + '</div>'; }).join('') + '</div>' : '') +
       '<div class="ng-row" style="justify-content:center"><button class="ng-btn go" data-again>Chơi lại</button><button class="ng-btn ghost" data-menu>Đổi bài</button></div></div>';
     el.classList.add('on');
     el.querySelector('[data-again]').onclick = function () { el.classList.remove('on'); o.again(); };
     el.querySelector('[data-menu]').onclick = function () { location.reload(); };
   }
-  window.NG = { boot: boot, speak: speak, beep: beep, SFX: SFX, shuffle: shuffle, esc: esc, ls: ls, best: best, over: over, img: function (ira) { return ira ? '../khoahoc/img/ira/' + ira : ''; }, me: function () { return ME; } };
+  window.NG = { boot: boot, speak: speak, say: say, stop: stopTalk, qbar: qbar, setQ: setQ, ic: ic, hearts: hearts, beep: beep, SFX: SFX, shuffle: shuffle, esc: esc, ls: ls, best: best, over: over, img: function (ira) { return ira ? '../khoahoc/img/ira/' + ira : ''; }, me: function () { return ME; } };
 })();

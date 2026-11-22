@@ -7,23 +7,22 @@
 <meta name="theme-color" content="#24242A">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
-.fl-q{background:#24242A;color:#fff;border-radius:16px;padding:12px 14px;margin-bottom:10px;min-height:66px}
-.fl-q small{display:block;font-size:11px;color:#A9A9B8;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
-.fl-q b{font-size:clamp(16px,2.4vw,21px);line-height:1.35}
-.fl-st{display:flex;justify-content:space-between;font:11px/1.8 "Press Start 2P",monospace;margin-bottom:6px}
+.fl-st{display:flex;justify-content:space-between;font:19px/1.15 "VT323",monospace;margin-bottom:6px}
 .fl-wrap{position:relative}
-canvas{display:block;width:100%;border-radius:18px;touch-action:manipulation;image-rendering:pixelated}
-.fl-tip{position:absolute;left:0;right:0;bottom:14px;text-align:center;font:10px/1.8 "Press Start 2P",monospace;color:#3A2A4A;pointer-events:none}
-.fl-ex{min-height:20px;font-size:13px;color:#B91C1C;font-weight:700;margin-top:8px}
+canvas{display:block;width:100%;border-radius:6px;touch-action:manipulation;image-rendering:pixelated;box-shadow:0 0 0 4px #24242A,0 8px 0 4px #24242A}
+.fl-st .hp{display:flex;align-items:center}
+.fl-tip{position:absolute;left:0;right:0;bottom:14px;text-align:center;font:18px/1.15 "VT323",monospace;color:#3A2A4A;pointer-events:none}
+.fl-ex{min-height:22px;font-size:15px;color:#B91C1C;font-weight:800;margin-top:14px;text-align:center}
 </style>
 </head>
 <body>
-<script src="games-core.js?v=1"></script>
+<script src="pixel-icons.js?v=1"></script>
+<script src="games-core.js?v=2"></script>
 <script>
 (function () {
   var body = NG.boot({ id: 'flappy', title: 'FLAPPY NAI', sub: 'Bay vào cửa có đáp án đúng', need: 'mcq', min: 5,
-    levels: [['easy', '🐢 Dễ · bay chậm, cửa rộng'], ['hard', '⚡ Khó · nhanh, cửa hẹp']],
-    help: 'Bấm Space / chạm màn hình để nai vỗ cánh bay lên. Mỗi cột có 2 cửa ghi 2 đáp án: bay qua cửa đúng được +1. Bay vào cửa sai hoặc đâm cột là mất 1 tim (có 3 tim).',
+    levels: [['easy', 'Dễ · bay chậm, cửa rộng', 'turtle'], ['hard', 'Khó · nhanh, cửa hẹp', 'bolt']],
+    help: 'Câu hỏi hiện to ở khung trên và được đọc lên. Hai đáp án nằm ở cửa TRÊN (xanh) và cửa DƯỚI (hồng). Bấm Space / chạm màn hình để nai bay lên, rồi bay qua cửa đúng: +1 điểm. Bay vào cửa sai hoặc đâm cột là mất 1 tim (có 3 tim).',
     onStart: start });
   var PAL = { b: '#A8673A', l: '#E2B07A', d: '#5B3A21', w: '#FFF6E6', k: '#1F1720', a: '#7A5530', p: '#F4A6A6', c: '#FFFFFF' };
   function sprite(rows) { var c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length; var g = c.getContext('2d'); rows.forEach(function (r, y) { for (var x = 0; x < r.length; x++) if (PAL[r[x]]) { g.fillStyle = PAL[r[x]]; g.fillRect(x, y, 1, 1); } }); return c; }
@@ -31,9 +30,11 @@ canvas{display:block;width:100%;border-radius:18px;touch-action:manipulation;ima
   var DEER = [sprite(TOP.concat(['...bbb.........bbb....', '....bd..........bd....'])), sprite(TOP.concat(['..bb.b.........b.bb...', '.b...d.........d...b..']))];
   var POOL, LV, cv, cx, W = 900, H = 520, S, raf, last;
   function start(pool, src) {
-    POOL = pool.filter(function (q) { return q.opts.length >= 2; }); LV = src.level;
-    if (window.innerWidth < 700) { W = 560; H = 640; }
-    body.innerHTML = '<div class="fl-q"><small>Câu hỏi</small><b id="q">Bấm Space / chạm để bắt đầu</b></div><div class="fl-st"><span>ĐIỂM <b id="sc">0</b></span><span id="hp">❤❤❤</span></div>' +
+    // bỏ câu thiếu đề bài (ví dụ đáp án chỉ 1 chữ cái G / P, hay đề chỉ 1 từ)
+    POOL = pool.filter(function (q) { return q.opts.length >= 2 && q.opts.every(function (o) { return String(o).trim().length >= 2 && String(o).length <= 34; }) && (/_|…|\?|:|\.\.\./.test(q.q) || q.q.split(/\s+/).length >= 6); });
+    if (POOL.length < 5) POOL = pool; LV = src.level;
+    if (window.innerWidth < 700) { W = 560; H = 640; } else { W = 900; H = 520; }
+    body.innerHTML = NG.qbar() + '<div class="fl-st"><span>ĐIỂM <b id="sc">0</b></span><span class="hp" id="hp"></span></div>' +
       '<div class="fl-wrap"><canvas id="cv" width="' + W + '" height="' + H + '"></canvas><div class="fl-tip" id="tip">BẤM SPACE HOẶC CHẠM ĐỂ BAY</div></div><div class="fl-ex" id="ex"></div>';
     cv = document.getElementById('cv'); cx = cv.getContext('2d'); cx.imageSmoothingEnabled = false;
     cv.addEventListener('pointerdown', function (e) { e.preventDefault(); flap(); });
@@ -41,17 +42,25 @@ canvas{display:block;width:100%;border-radius:18px;touch-action:manipulation;ima
   }
   function reset() {
     cancelAnimationFrame(raf);
-    S = { y: H / 2, vy: 0, t: 0, score: 0, hp: 3, cols: [], next: 0, qi: 0, run: false, inv: 0, wrong: [], speed: LV === 'hard' ? 210 : 150, gap: LV === 'hard' ? 130 : 160 };
-    document.getElementById('sc').textContent = 0; document.getElementById('hp').textContent = '❤❤❤'; document.getElementById('ex').textContent = '';
+    S = { y: H / 2, vy: 0, t: 0, score: 0, hp: 3, cols: [], next: 0, qi: 0, run: false, inv: 0, wrong: [], speed: LV === 'hard' ? 170 : 105, gap: LV === 'hard' ? 140 : 180, shown: null };
+    document.getElementById('sc').textContent = 0; document.getElementById('hp').innerHTML = NG.hearts(3); document.getElementById('ex').textContent = '';
     document.getElementById('tip').style.display = '';
-    spawn(W + 60); last = performance.now(); raf = requestAnimationFrame(loop);
+    spawn(W + 60); showQ(); last = performance.now(); raf = requestAnimationFrame(loop);
   }
   function spawn(x) {
     var q = POOL[S.qi++ % POOL.length], wrong = NG.shuffle(q.opts.map(function (o, i) { return i; }).filter(function (i) { return i !== q.a; }))[0];
     var up = Math.random() < .5, ys = [H * .3, H * .72];
     S.cols.push({ x: x, q: q, gaps: [{ y: ys[0], t: q.opts[up ? q.a : wrong], ok: up }, { y: ys[1], t: q.opts[up ? wrong : q.a], ok: !up }], done: false });
   }
-  function flap() { if (!S) return; if (!S.run) { S.run = true; document.getElementById('tip').style.display = 'none'; } S.vy = -390; NG.beep(520, 760, .07); }
+  function cur() { return S.cols.filter(function (c) { return !c.done; })[0]; }
+  function showQ() {
+    var c = cur(); if (!c || S.shown === c) return; S.shown = c;
+    var q = c.q, up = c.gaps[0].t, dn = c.gaps[1].t, txt = NG.esc(q.q.replace(/\*/g, '')).replace(/_{2,}|…/g, '<span class="bl"></span>');
+    NG.setQ({ label: 'CÂU ' + (S.score + (3 - S.hp) + 1), main: txt, size: q.q.length > 70 ? 'clamp(17px,2.6vw,22px)' : q.q.length > 40 ? 'clamp(19px,3vw,26px)' : '',
+      sub: '<span class="gt up">' + NG.ic('door', 16, { v: '#93C5FD', V: '#3B82F6' }) + 'Cửa trên: ' + NG.esc(up) + '</span><span class="gt dn">' + NG.ic('door', 16, { v: '#F9A8D4', V: '#EC4899' }) + 'Cửa dưới: ' + NG.esc(dn) + '</span>',
+      read: [[q.q.replace(/_{2,}|…/g, ' ... ')]] });
+  }
+  function flap() { if (!S) return; if (!S.run) { S.run = true; document.getElementById('tip').style.display = 'none'; } S.vy = LV === 'hard' ? -390 : -340; NG.beep(520, 760, .07); }
   document.addEventListener('keydown', function (e) { if ((e.code === 'Space' || e.code === 'ArrowUp') && S && !document.querySelector('.ng-over.on')) { e.preventDefault(); if (!e.repeat) flap(); } });
   function loop(now) {
     var dt = Math.max(0, Math.min(.033, (now - last) / 1000)); last = now; S.t += dt;
@@ -59,10 +68,10 @@ canvas{display:block;width:100%;border-radius:18px;touch-action:manipulation;ima
     draw(); raf = requestAnimationFrame(loop);
   }
   function update(dt) {
-    S.vy += 1150 * dt; S.y += S.vy * dt; if (S.inv > 0) S.inv -= dt;
+    S.vy += (LV === 'hard' ? 1150 : 950) * dt; S.y += S.vy * dt; if (S.inv > 0) S.inv -= dt;
     if (S.y < 20) { S.y = 20; S.vy = 0; }
     if (S.y > H - 40) { S.y = H - 40; S.vy = -300; if (S.inv <= 0) hurt('Nai chạm đất rồi!'); }
-    var cur = S.cols[0]; if (cur) document.getElementById('q').textContent = cur.q.q;
+    showQ();
     S.cols.forEach(function (c) { c.x -= S.speed * dt; });
     var px = 150, pw = 60, ph = 50;
     S.cols.forEach(function (c) {
@@ -74,13 +83,13 @@ canvas{display:block;width:100%;border-radius:18px;touch-action:manipulation;ima
       }
       if (!c.done && c.x + 70 < px) { c.done = true; S.score++; document.getElementById('sc').textContent = S.score; NG.SFX.ok(); document.getElementById('ex').textContent = ''; S.speed += 3; }
     });
-    if (S.cols.length && S.cols[S.cols.length - 1].x < W - 430) spawn(W + 40);
+    if (S.cols.length && S.cols[S.cols.length - 1].x < W - (LV === 'hard' ? 460 : 560)) spawn(W + 40);
     S.cols = S.cols.filter(function (c) { return c.x > -120; });
   }
   function hurt(msg, q, pick) {
     S.hp--; S.inv = 1.4; NG.SFX.bad(); document.getElementById('ex').textContent = msg;
     if (q) S.wrong.push(NG.esc(q.q) + ' → <span style="color:#16A34A;font-weight:800">' + NG.esc(q.opts[q.a]) + '</span>' + (pick ? ' (bạn chọn <b>' + NG.esc(pick) + '</b>)' : ''));
-    document.getElementById('hp').textContent = '❤'.repeat(Math.max(0, S.hp)) + '♡'.repeat(3 - Math.max(0, S.hp));
+    document.getElementById('hp').innerHTML = NG.hearts(Math.max(0, S.hp));
     if (S.hp <= 0) setTimeout(function () { NG.over(body, { id: 'flappy-' + LV, score: S.score, title: 'NAI MỆT RỒI', line: S.score + ' câu đúng', review: S.wrong, again: reset }); }, 500);
   }
   function rr(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
@@ -92,10 +101,15 @@ canvas{display:block;width:100%;border-radius:18px;touch-action:manipulation;ima
       var gh = S.gap, top = c.gaps[0].y - gh / 2, mid1 = c.gaps[0].y + gh / 2, mid2 = c.gaps[1].y - gh / 2, bot = c.gaps[1].y + gh / 2;
       cx.fillStyle = '#4E9A4B'; cx.fillRect(c.x, 0, 70, top); cx.fillRect(c.x, mid1, 70, mid2 - mid1); cx.fillRect(c.x, bot, 70, H - bot);
       cx.fillStyle = '#3B7A3A'; [top - 16, mid1, mid2 - 16, bot].forEach(function (y) { cx.fillRect(c.x - 6, y, 82, 16); });
-      c.gaps.forEach(function (gp) {
-        cx.font = '800 ' + (W < 700 ? 18 : 17) + 'px "Plus Jakarta Sans",sans-serif'; var tw = cx.measureText(gp.t).width + 18, bx = c.x - tw - 10, by = gp.y - 16;
-        cx.fillStyle = '#FFFDF7'; rr(bx, by, tw, 32, 10); cx.fill(); cx.strokeStyle = '#24242A'; cx.lineWidth = 2.5; cx.stroke();
-        cx.fillStyle = '#24242A'; cx.fillText(gp.t, bx + 9, by + 22);
+      c.gaps.forEach(function (gp, gi) {
+        // dải màu ngay trong cửa để nhận ra cửa trên (xanh) / dưới (hồng)
+        cx.fillStyle = gi ? 'rgba(236,72,153,.18)' : 'rgba(59,130,246,.18)'; cx.fillRect(c.x, gp.y - gh / 2, 70, gh);
+        var fs = W < 700 ? 30 : 24; cx.font = '800 ' + fs + 'px "Plus Jakarta Sans",sans-serif';
+        var t = gp.t; while (cx.measureText(t).width > (W < 700 ? 300 : 360) && t.length > 4) t = t.slice(0, -2); if (t !== gp.t) t += '…';
+        var tw = cx.measureText(t).width + 24, bx = Math.max(6, c.x - tw - 12), by = gp.y - fs * .9;
+        if (c.done) cx.globalAlpha = .35;
+        cx.fillStyle = gi ? '#FCE7F3' : '#DBEAFE'; rr(bx, by, tw, fs * 1.8, 8); cx.fill(); cx.strokeStyle = gi ? '#EC4899' : '#3B82F6'; cx.lineWidth = 4; cx.stroke();
+        cx.fillStyle = '#24242A'; cx.fillText(t, bx + 12, by + fs * 1.25); cx.globalAlpha = 1;
       });
     });
     var img = DEER[S.vy < 0 ? 1 : 0];

@@ -7,12 +7,11 @@
 <meta name="theme-color" content="#24242A">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
-.sg-st{display:flex;justify-content:space-between;align-items:center;font:11px/1.8 "Press Start 2P",monospace;margin-bottom:8px}
+.sg-st{display:flex;justify-content:space-between;align-items:center;font:19px/1.15 "VT323",monospace;margin-bottom:8px}
 .sg-box{position:relative;height:min(64vh,540px);border-radius:6px;box-shadow:0 0 0 4px #24242A,0 8px 0 4px #24242A;overflow:hidden;background:linear-gradient(#2A2350,#4A3F7A);display:flex;flex-direction:column}
 .sg-ceil{position:absolute;left:0;right:0;top:0;background:repeating-linear-gradient(90deg,#C2410C 0 46px,#9A3412 46px 48px),#C2410C;box-shadow:0 6px 0 rgba(0,0,0,.25);transition:height .3s linear;z-index:2}
 .sg-ceil:after{content:"";position:absolute;left:0;right:0;bottom:0;height:12px;background:repeating-linear-gradient(90deg,#FB923C 0 22px,#EA580C 22px 24px)}
-.sg-hint{position:relative;z-index:3;margin:auto 14px 10px;color:#E0E1FF;font-size:13px;font-weight:700;text-align:center}
-.sg-hint b{color:#FFD66B}
+.sg-hint{margin-top:auto}
 .sg-ans{position:relative;z-index:3;margin:0 12px 12px;min-height:62px;border-radius:16px;background:rgba(255,255,255,.12);border:2px dashed rgba(255,255,255,.35);display:flex;flex-wrap:wrap;gap:6px;padding:8px;align-content:flex-start}
 .sg-ans.win{background:rgba(22,163,74,.35);border-color:#4ADE80;animation:boom .5s}@keyframes boom{50%{transform:scale(1.04)}}
 .sg-tray{position:relative;z-index:3;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:12px;background:#1E1A3C}
@@ -24,21 +23,22 @@
 </style>
 </head>
 <body>
-<script src="games-core.js?v=1"></script>
+<script src="pixel-icons.js?v=1"></script>
+<script src="games-core.js?v=2"></script>
 <script>
 (function () {
   var body = NG.boot({ id: 'sentence', title: 'XẾP GẠCH CÂU', sub: 'Bấm các viên gạch theo đúng thứ tự câu', need: 'sentences', min: 4,
-    levels: [['easy', '🐢 Dễ · câu ngắn, trần xuống chậm'], ['hard', '⚡ Khó · câu dài, trần xuống nhanh']],
-    help: 'Các từ của 1 câu bị xáo trộn. Bấm lần lượt từng viên gạch theo đúng thứ tự để xếp lại câu. Trần gạch đỏ từ từ hạ xuống: xếp xong câu thì trần được đẩy lên. Bấm sai thì trần hạ nhanh hơn. Trần chạm hàng trả lời là thua.',
+    levels: [['easy', 'Dễ · câu ngắn, trần xuống chậm', 'turtle'], ['hard', 'Khó · câu dài, trần xuống nhanh', 'bolt']],
+    help: 'Khung trên cho biết câu có chứa từ nào và nghĩa của từ đó. Các từ của 1 câu bị xáo trộn. Bấm lần lượt từng viên gạch theo đúng thứ tự để xếp lại câu. Trần gạch đỏ từ từ hạ xuống: xếp xong câu thì trần được đẩy lên. Bấm sai thì trần hạ nhanh hơn. Trần chạm hàng trả lời là thua.',
     onStart: start });
   var POOL, LV, S, timer;
   function start(pool, src) {
     LV = src.level;
     POOL = pool.filter(function (x) { var n = x.s.split(/\s+/).length; return LV === 'easy' ? n <= 8 : n >= 6; });
     if (POOL.length < 4) POOL = pool;
-    body.innerHTML = '<div class="sg-st"><span>ĐIỂM <b id="sc">0</b></span><span>CÂU <b id="cn">0</b></span></div>' +
+    body.innerHTML = NG.qbar() + '<div class="sg-st"><span>ĐIỂM <b id="sc">0</b></span><span>CÂU <b id="cn">0</b></span></div>' +
       '<div class="sg-box" id="box"><div class="sg-ceil" id="ceil"></div><div class="sg-hint" id="hint"></div><div class="sg-ans" id="ans"></div><div class="sg-tray" id="tray"></div></div>' +
-      '<div class="sg-tools"><button class="ng-btn ghost" id="lis">🔊 Nghe câu (-5 điểm)</button><button class="ng-btn ghost" id="undo">↶ Gỡ viên cuối</button></div>';
+      '<div class="sg-tools"><button class="ng-btn ghost" id="lis">' + NG.ic('spk', 16, { q: '#24242A', y: '#6C70DC' }) + ' Nghe cả câu (-5 điểm)</button><button class="ng-btn ghost" id="undo">↶ Gỡ viên cuối</button></div>';
     document.getElementById('lis').onclick = function () { if (S && S.cur) { NG.speak(S.cur.s, .85); S.score = Math.max(0, S.score - 5); paintSt(); } };
     document.getElementById('undo').onclick = undo;
     reset();
@@ -61,7 +61,7 @@
     S.cur = POOL[S.idx++ % POOL.length]; S.parts = words(S.cur.s); S.pos = 0; S.miss = 0;
     var tray = document.getElementById('tray'), ans = document.getElementById('ans');
     ans.className = 'sg-ans'; ans.innerHTML = '';
-    document.getElementById('hint').innerHTML = 'Câu có từ <b>' + NG.esc(S.cur.w) + '</b> · ' + NG.esc(S.cur.vi);
+    NG.setQ({ label: 'XẾP LẠI CÂU CÓ TỪ', main: NG.esc(S.cur.w), sub: 'Nghĩa: ' + NG.esc(S.cur.vi) + ' · câu có ' + S.parts.length + ' từ', read: [[S.cur.w, 'en', .85], [S.cur.vi, 'vi']] });
     var order = S.parts.map(function (w, i) { return i; }); do { order = NG.shuffle(order); } while (order.length > 2 && order.every(function (v, i) { return v === i; }));
     tray.innerHTML = order.map(function (i) { return '<button class="sg-w" data-i="' + i + '">' + NG.esc(S.parts[i]) + '</button>'; }).join('');
     tray.querySelectorAll('.sg-w').forEach(function (b) { b.onclick = function () { pick(b); }; });
