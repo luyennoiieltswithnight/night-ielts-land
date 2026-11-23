@@ -149,9 +149,12 @@ function groqChat_(payload) {
   }
   return r;
 }
+function oaSkip_() {   // OpenAI vừa báo hết tiền (< 10 phút) → đi thẳng Groq cho nhanh; 10 phút thử lại 1 lần
+  try { const h = JSON.parse(PropertiesService.getScriptProperties().getProperty('OA_HEALTH') || '{}'); return h.state === 'no_credit' && Date.now() - (h.at || 0) < 600000 && !!groqKey_(); } catch (e) { return false; }
+}
 function chat_(payload, skill) {
   let r = null;
-  if (openaiKey_()) {
+  if (openaiKey_() && !oaSkip_()) {
     const p1 = toOpenAI_(payload, skill);
     r = oaChat_(p1);
     if (r.getResponseCode() !== 200 && !busy_(r) && p1.model !== 'gpt-4.1-mini') {   // model bị khai tử / không nhận tham số → dùng gpt-4.1-mini
@@ -396,7 +399,7 @@ function stt_(req) {
     });
     if (g && g.getResponseCode() === 200) return g;
   }
-  if (openaiKey_()) {
+  if (openaiKey_() && !(oaSkip_() && g)) {
     const fields = (req.fields || []).map(function (f) { return f[0] === 'model' ? ['model', oaModel_('stt')] : f; });
     const mp = multipart_(fields, req.file);
     const o = UrlFetchApp.fetch(OPENAI + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + mp.boundary, payload: mp.bytes, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
