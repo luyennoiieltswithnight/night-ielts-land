@@ -58,8 +58,9 @@ function setup() {
     .inTimezone('Asia/Ho_Chi_Minh').create();
   ScriptApp.newTrigger('planCheckin').timeBased().atHour(CHECKIN_PLAN_HOUR).everyDays(1).inTimezone('Asia/Ho_Chi_Minh').create();
   ScriptApp.newTrigger('renewNudge').timeBased().atHour(RENEW_HOUR).nearMinute(0).everyDays(1).inTimezone('Asia/Ho_Chi_Minh').create();
+  ScriptApp.newTrigger('adminWatch').timeBased().everyMinutes(15).create();
   PropertiesService.getScriptProperties().setProperty('LAST_CHECK', String(Date.now()));
-  Logger.log('Xong! Đã cài lịch: kiểm tra bài mới mỗi 5 phút + nhắc học lúc %s:%s mỗi tối + nhắc gia hạn lúc %s:00 mỗi sáng.', DAILY_HOUR, DAILY_MINUTE, RENEW_HOUR);
+  Logger.log('Xong! Đã cài lịch: kiểm tra bài mới mỗi 5 phút + nhắc học lúc %s:%s mỗi tối + nhắc gia hạn lúc %s:00 mỗi sáng + báo thầy khi AI hết tiền / dịch vụ sắp đến hạn (15 phút/lần).', DAILY_HOUR, DAILY_MINUTE, RENEW_HOUR);
 }
 
 // Gửi thử 1 thông báo tới máy của chính thầy (Gmail đang chạy script này)
@@ -163,6 +164,56 @@ function absLink(link) {
   if (!link) return SITE;
   if (/^https?:\/\//.test(link)) return link;
   return SITE + String(link).replace(/^\.?\//, '');
+}
+
+// ===================== BÁO CHO THẦY: AI hết tiền + dịch vụ sắp đến hạn =====================
+/* Chạy mỗi 15 phút:
+   - Hỏi máy chủ AI (?health=1): OpenAI hết tiền / key lỗi → báo ngay (nhắc lại mỗi 6 tiếng tới khi nạp), nạp xong → báo "đã chạy lại".
+   - 8 giờ sáng: đọc bảng Chi phí & hoá đơn (payments/__costs) → còn 7, 3, 1 ngày, đến hạn, quá hạn → báo. */
+function adminWatch() {
+  const P = PropertiesService.getScriptProperties(), now = Date.now();
+  let admins = null;
+  const send = (title, body, link) => { if (!admins) admins = listUsersFull().filter(u => u.role === 'admin' && u.tokens.length); admins.forEach(u => pushToUser(u, title, body, link)); };
+  // 1) Sức khoẻ AI
+  try {
+    const st = fsGetFields_('publicSettings/main'), url = st && st.aiProxy;
+    if (url) {
+      const r = UrlFetchApp.fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 'health=1', { muteHttpExceptions: true, followRedirects: true });
+      const h = JSON.parse(r.getContentText());
+      const was = P.getProperty('AI_ALERT_STATE') || 'ok', last = Number(P.getProperty('AI_ALERT_AT') || 0);
+      if (h.state === 'no_credit' && h.hasOpenAI) {
+        if (was !== 'no_credit' || now - last > 6 * 3600e3) {
+          send('OpenAI hết tiền / lỗi thanh toán', 'AI đang tự chạy bằng Groq / Gemini dự phòng (có thể chậm hơn khi đông người). Nạp tiền OpenAI để chấm nhanh lại như cũ.', 'https://platform.openai.com/settings/organization/billing/overview');
+          P.setProperty('AI_ALERT_STATE', 'no_credit'); P.setProperty('AI_ALERT_AT', String(now));
+        }
+      } else if (was === 'no_credit' && h.state === 'ok') {
+        send('OpenAI đã chạy lại bình thường', 'Đã nhận tiền nạp, AI chấm bằng OpenAI như cũ.', SITE);
+        P.setProperty('AI_ALERT_STATE', 'ok');
+      }
+    }
+  } catch (e) { Logger.log('adminWatch AI: ' + e); }
+  // 2) Dịch vụ trả phí sắp đến hạn — 1 lần/ngày sau 8 giờ sáng
+  try {
+    const vn = new Date(now + 7 * 3600e3), today = vn.toISOString().slice(0, 10);
+    if (vn.getUTCHours() >= 8 && P.getProperty('COST_ALERT_DAY') !== today) {
+      P.setProperty('COST_ALERT_DAY', today);
+      const doc = fsGetFields_('payments/__costs'), items = (doc && doc.items) || [], lines = [];
+      items.forEach(it => {
+        if (!it || !it.due) return;
+        const d = Math.round((Date.parse(it.due + 'T00:00:00+07:00') - Date.parse(today + 'T00:00:00+07:00')) / 864e5);
+        const nm = String(it.name || '').split(' (')[0];
+        if (d === 7 || d === 3 || d === 1) lines.push(nm + ' còn ' + d + ' ngày (' + it.due.split('-').reverse().join('/') + ')');
+        else if (d === 0) lines.push(nm + ' đến hạn HÔM NAY');
+        else if (d < 0 && d >= -7) lines.push(nm + ' đã QUÁ HẠN ' + (-d) + ' ngày');
+      });
+      if (lines.length) send(lines.length === 1 ? 'Sắp đến hạn: ' + lines[0] : lines.length + ' dịch vụ sắp đến hạn trả tiền', lines.join(' · ') + '. Bấm xem bảng Chi phí.', SITE);
+    }
+  } catch (e) { Logger.log('adminWatch chi phí: ' + e); }
+}
+function fsGetFields_(path) {
+  const r = UrlFetchApp.fetch(FS + '/' + path, { headers: authHeaders(), muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) return null;
+  return fromDoc(JSON.parse(r.getContentText()));
 }
 
 // ===================== NHẮC GIA HẠN =====================

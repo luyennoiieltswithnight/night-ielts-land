@@ -81,7 +81,8 @@ const MAX_BODY = 3000000;                       // ký tự, chặn gửi bài q
 const GROQ = 'https://api.groq.com/openai/v1/';
 const OPENAI = 'https://api.openai.com/v1/';
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.health) return ContentService.createTextOutput(JSON.stringify(oaHealth_())).setMimeType(ContentService.MimeType.JSON);
   const n = groqKeys_().length, oa = !!openaiKey_();
   return ContentService.createTextOutput('Night IELTS AI proxy đang chạy ✅' + (oa ? ' · OpenAI (Speaking ' + oaModel_('chat', 'speaking') + ', Writing ' + oaModel_('chat', 'writing') + ') · nghe giọng: Groq trước, OpenAI ' + oaModel_('stt') + ' dự phòng' : ' · CHƯA có OPENAI_API_KEY') + (n ? ' · dự phòng ' + n + ' key Groq' : ''));
 }
@@ -113,6 +114,41 @@ function fitModel_(p) {
   }
   return p;
 }
+/* ---- Theo dõi OpenAI: hết tiền / key lỗi → ghi lại để máy chủ Thông báo báo về điện thoại thầy ---- */
+function oaBilling_(r) {
+  if (!r) return false; const c = r.getResponseCode(); if (c === 401 || c === 402 || c === 403) return true;
+  if (c !== 429) return false; const t = String(r.getContentText() || ''); return /insufficient_quota|billing|exceeded your current quota|credit/i.test(t);
+}
+function oaNote_(r) {
+  try {
+    const P = PropertiesService.getScriptProperties(), cur = JSON.parse(P.getProperty('OA_HEALTH') || '{}');
+    if (r && r.getResponseCode() === 200) { if (cur.state && cur.state !== 'ok') P.setProperty('OA_HEALTH', JSON.stringify({ state: 'ok', at: Date.now(), since: cur.since || 0 })); return; }
+    if (!oaBilling_(r)) return;
+    const c = CacheService.getScriptCache(), n = Number(c.get('oa_fb') || 0) + 1; c.put('oa_fb', String(n), 21600);
+    if (cur.state !== 'no_credit' || Date.now() - (cur.at || 0) > 600000)
+      P.setProperty('OA_HEALTH', JSON.stringify({ state: 'no_credit', at: Date.now(), since: cur.state === 'no_credit' ? cur.since : Date.now(), code: r.getResponseCode(), msg: String(r.getContentText() || '').slice(0, 200), fallbacks: n }));
+  } catch (e) {}
+}
+function oaHealth_() {
+  const h = JSON.parse(PropertiesService.getScriptProperties().getProperty('OA_HEALTH') || '{"state":"ok"}');
+  h.hasOpenAI = !!openaiKey_(); h.groqKeys = groqKeys_().length; h.fallbacks6h = Number(CacheService.getScriptCache().get('oa_fb') || 0); return h;
+}
+/* Groq dự phòng: model của trang bị Groq gỡ / quá tải → thử lần lượt model khác */
+const GROQ_CHAIN = ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'];
+function groqChat_(payload) {
+  const tried = {}; let r = null;
+  const models = [payload.model].concat(GROQ_CHAIN);
+  for (let i = 0; i < models.length; i++) {
+    const m = models[i]; if (!m || tried[m]) continue; tried[m] = 1;
+    const p = JSON.parse(JSON.stringify(payload)); p.model = m;
+    const gl = JSON.stringify(p);
+    r = withKeys_(function (k) { return UrlFetchApp.fetch(GROQ + 'chat/completions', { method: 'post', contentType: 'application/json', payload: gl, headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true }); });
+    const c = r.getResponseCode();
+    if (c === 200 || !(c === 404 || c === 400 && /model|decommission/i.test(r.getContentText()) || c === 429 || c >= 500)) return r;
+    console.log('Groq ' + m + ' lỗi ' + c + ': ' + r.getContentText().slice(0, 200));
+  }
+  return r;
+}
 function chat_(payload, skill) {
   let r = null;
   if (openaiKey_()) {
@@ -125,12 +161,48 @@ function chat_(payload, skill) {
       r = oaChat_(q);
     }
     if (r.getResponseCode() !== 200) console.log('OpenAI lỗi ' + r.getResponseCode() + ': ' + r.getContentText().slice(0, 300));
-    if (!busy_(r) || !groqKey_()) return r;
+    oaNote_(r);
+    if (!(busy_(r) || oaBilling_(r)) || !groqKey_()) return r;   // hết tiền / key lỗi / quá tải → Groq
   }
-  const gl = JSON.stringify(payload);
-  return withKeys_(function (k) {
-    return UrlFetchApp.fetch(GROQ + 'chat/completions', { method: 'post', contentType: 'application/json', payload: gl, headers: { Authorization: 'Bearer ' + k }, muteHttpExceptions: true });
-  });
+  const g = groqChat_(payload);
+  if (g && g.getResponseCode() === 200) return g;
+  // Groq hết lượt / lỗi → Google Gemini (key miễn phí ở aistudio.google.com)
+  if (geminiKeys_().length) { const gm = geminiChat_(payload); if (gm && gm.getResponseCode() === 200) return gm; return g || gm; }
+  return g;
+}
+/* ---- Lớp dự phòng thứ 3: Google Gemini qua cổng tương thích OpenAI ----
+   Thuộc tính tập lệnh: GEMINI_API_KEY (thêm GEMINI_API_KEY_2, _3… nếu muốn), GEMINI_MODEL (mặc định gemini-2.5-flash). */
+const GEMINI = 'https://generativelanguage.googleapis.com/v1beta/openai/';
+function geminiKeys_() {
+  const P = PropertiesService.getScriptProperties().getProperties();
+  let keys = String(P.GEMINI_API_KEY || '').split(/[\s,;]+/);
+  Object.keys(P).filter(function (n) { return /^GEMINI_API_KEY_\d+$/.test(n); }).sort().forEach(function (n) { keys = keys.concat(String(P[n]).split(/[\s,;]+/)); });
+  return keys.filter(Boolean);
+}
+function geminiChat_(payload) {
+  const keys = geminiKeys_(), c = CacheService.getScriptCache(), P = PropertiesService.getScriptProperties();
+  const models = [P.getProperty('GEMINI_MODEL') || 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+  const p = JSON.parse(JSON.stringify(payload));
+  ['reasoning_format', 'include_reasoning', 'service_tier', 'compound_custom', 'documents', 'search_settings', 'citation_options', 'disable_tool_validation', 'seed', 'logprobs', 'top_logprobs', 'stop'].forEach(function (k) { delete p[k]; });
+  p.reasoning_effort = 'low';
+  if (p.max_completion_tokens && !p.max_tokens) p.max_tokens = p.max_completion_tokens; delete p.max_completion_tokens;
+  if (p.max_tokens) p.max_tokens = Math.max(p.max_tokens, 4096);   // Gemini tính cả phần "suy nghĩ" vào giới hạn
+  if (p.response_format && p.response_format.type === 'json_schema') p.response_format = { type: 'json_object' };
+  let r = null;
+  const start = (Number(c.get('gm_rr') || 0) + 1) % keys.length; c.put('gm_rr', String(start), 21600);
+  for (let mi = 0; mi < models.length; mi++) {
+    for (let n = 0; n < keys.length; n++) {
+      const i = (start + n) % keys.length; if (c.get('gm_cool_' + mi + '_' + i)) continue;
+      p.model = models[mi];
+      r = UrlFetchApp.fetch(GEMINI + 'chat/completions', { method: 'post', contentType: 'application/json', payload: JSON.stringify(p), headers: { Authorization: 'Bearer ' + keys[i] }, muteHttpExceptions: true });
+      const code = r.getResponseCode();
+      if (code === 200) return r;
+      console.log('Gemini ' + p.model + ' lỗi ' + code + ': ' + r.getContentText().slice(0, 200));
+      if (code === 429) c.put('gm_cool_' + mi + '_' + i, '1', 60);
+      else if (code !== 503 && code !== 500) return r;
+    }
+  }
+  return r;
 }
 function oaChat_(p) {
   return UrlFetchApp.fetch(OPENAI + 'chat/completions', { method: 'post', contentType: 'application/json', payload: JSON.stringify(p), headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
@@ -327,7 +399,9 @@ function stt_(req) {
   if (openaiKey_()) {
     const fields = (req.fields || []).map(function (f) { return f[0] === 'model' ? ['model', oaModel_('stt')] : f; });
     const mp = multipart_(fields, req.file);
-    return UrlFetchApp.fetch(OPENAI + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + mp.boundary, payload: mp.bytes, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
+    const o = UrlFetchApp.fetch(OPENAI + 'audio/transcriptions', { method: 'post', contentType: 'multipart/form-data; boundary=' + mp.boundary, payload: mp.bytes, headers: { Authorization: 'Bearer ' + openaiKey_() }, muteHttpExceptions: true });
+    oaNote_(o);
+    if (o.getResponseCode() === 200 || !g) return o;
   }
   return g;
 }
