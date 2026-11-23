@@ -76,7 +76,16 @@ function testPush() {
 }
 
 // ===================== BÀI MỚI (mỗi 5 phút) =====================
+/* Tự cài lịch còn thiếu (khỏi phải chạy lại setup() khi thêm việc mới) */
+function ensureTriggers_() {
+  try {
+    const have = ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction());
+    if (have.indexOf('renewNudge') < 0) ScriptApp.newTrigger('renewNudge').timeBased().atHour(RENEW_HOUR).nearMinute(0).everyDays(1).inTimezone('Asia/Ho_Chi_Minh').create();
+    if (have.indexOf('adminWatch') < 0) { ScriptApp.newTrigger('adminWatch').timeBased().everyMinutes(15).create(); adminWatch(); }
+  } catch (e) { Logger.log('ensureTriggers_: ' + e); }
+}
 function checkNewAssignments() {
+  ensureTriggers_();
   const props = PropertiesService.getScriptProperties();
   const now = Date.now();
   const last = Number(props.getProperty('LAST_CHECK') || now);
