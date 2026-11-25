@@ -995,3 +995,121 @@
   }
   if (document.readyState === 'complete') setTimeout(go, 600); else window.addEventListener('load', function () { setTimeout(go, 600); });
 })();
+
+/* ===== CHẾ ĐỘ CẢM ỨNG (iPad / máy tính bảng / điện thoại) =====
+   - Listening: thanh điều khiển audio to, nổi ở đáy màn hình (gần ngón cái): lùi/tiến 5s–10s, play to, tốc độ, kéo tua.
+   - Reading + Listening: nút chỉnh cỡ chữ A− / A+ (nhớ cho lần sau) thay cho việc phải chụm 2 ngón zoom cả trang.
+   - Ô điền đáp án ≥ 16px để iPad không tự phóng to trang khi chạm vào ô; lựa chọn, nút, thanh kéo chia đôi to hơn cho dễ chạm. */
+(function () {
+  var touch = false;
+  try { touch = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 1 && /Mac|iPad/.test(navigator.platform || navigator.userAgent)); } catch (e) {}
+  if (/[?&]touch=1/.test(location.search)) touch = true;
+  if (!touch) return;
+  document.documentElement.classList.add('nt-touch');
+  var LS = function (k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+  var fs = parseFloat(LS('nt-fs')) || 1;
+  document.documentElement.style.setProperty('--nt-fs', fs);
+  var I = {
+    back: '<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg>',
+    fwd: '<svg viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>',
+    down: '<svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>',
+    up: '<svg viewBox="0 0 24 24"><path d="M7 14l5-5 5 5z"/></svg>'
+  };
+  var css = [
+    /* chạm ô điền → iPad không tự zoom (iOS zoom khi chữ trong ô < 16px) */
+    'html.nt-touch input[type=text],html.nt-touch input:not([type]),html.nt-touch select,html.nt-touch textarea{font-size:16px!important}',
+    'html.nt-touch button,html.nt-touch label,html.nt-touch a{touch-action:manipulation}',
+    'html.nt-touch .radio-label{min-height:44px;padding:8px 10px!important}',
+    'html.nt-touch .radio-label input[type=radio],html.nt-touch input[type=checkbox]{width:22px;height:22px}',
+    'html.nt-touch .q-circle{min-width:34px!important;height:34px!important;font-size:14px!important}',
+    'html.nt-touch .tab-btn,html.nt-touch .section-quick-jump button{min-height:40px!important;padding:8px 14px!important;font-size:14px!important}',
+    'html.nt-touch .panel-resizer{width:30px!important}html.nt-touch .panel-resizer::after{width:8px!important;height:90px!important}',
+    /* cỡ chữ */
+    'html.nt-touch .passage-text{font-size:calc(17px * var(--nt-fs))!important}',
+    'html.nt-touch #questions-container,html.nt-touch .questions-block{zoom:var(--nt-fs)}',
+    /* hộp chỉnh cỡ chữ */
+    '.nt-fsbox{position:fixed;right:max(10px,env(safe-area-inset-right));bottom:calc(14px + env(safe-area-inset-bottom));z-index:150;display:flex;align-items:center;gap:2px;background:#24242A;border-radius:999px;padding:4px;box-shadow:0 10px 24px -10px rgba(0,0,0,.5)}',
+    '.nt-fsbox button{border:0;background:transparent;color:#fff;font:800 17px "Plus Jakarta Sans",system-ui,sans-serif;width:46px;height:46px;border-radius:999px;cursor:pointer}',
+    '.nt-fsbox button:active{background:rgba(255,255,255,.18)}.nt-fsbox button.s{font-size:13px}',
+    '.nt-fsbox span{color:#C9C9D6;font:700 12px system-ui,sans-serif;min-width:40px;text-align:center}',
+    /* thanh audio nổi */
+    'html.nt-touch body.nt-has-dock{padding-bottom:calc(150px + env(safe-area-inset-bottom))!important}',
+    '.nt-dock{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:150;width:min(640px,calc(100vw - 150px));background:#24242A;color:#fff;border-radius:26px;padding:10px 14px 12px;box-shadow:0 18px 40px -14px rgba(0,0,0,.55);font-family:"Plus Jakarta Sans",system-ui,sans-serif;user-select:none;-webkit-user-select:none}',
+    '.nt-dock .row{display:flex;align-items:center;justify-content:center;gap:10px}',
+    '.nt-dock .seek{display:flex;align-items:center;gap:10px;margin-bottom:8px;font:700 13px ui-monospace,Menlo,monospace;color:#C9C9D6}',
+    '.nt-dock input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:30px;background:transparent;margin:0}',
+    '.nt-dock input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:8px;background:linear-gradient(90deg,#FFD66B var(--p,0%),#4A4A57 var(--p,0%))}',
+    '.nt-dock input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:26px;height:26px;border-radius:50%;background:#fff;margin-top:-9px;box-shadow:0 2px 6px rgba(0,0,0,.4)}',
+    '.nt-dock input[type=range]::-moz-range-track{height:8px;border-radius:8px;background:#4A4A57}.nt-dock input[type=range]::-moz-range-progress{height:8px;border-radius:8px;background:#FFD66B}.nt-dock input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#fff;border:0}',
+    '.nt-dock button{border:0;cursor:pointer;color:#fff;background:#3A3A44;border-radius:999px;height:52px;min-width:58px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:2px;font:800 14px "Plus Jakarta Sans",system-ui,sans-serif}',
+    '.nt-dock button:active{transform:scale(.94);background:#4A4A57}',
+    '.nt-dock button svg{width:22px;height:22px;fill:currentColor}',
+    '.nt-dock .pp{width:70px;height:70px;min-width:70px;background:#FFD66B;color:#24242A}.nt-dock .pp svg{width:34px;height:34px}',
+    '.nt-dock .spd{min-width:64px;background:transparent;box-shadow:inset 0 0 0 2px #4A4A57}',
+    '.nt-dock .min{position:absolute;top:-14px;right:16px;height:30px;min-width:30px;width:30px;padding:0;background:#3A3A44;box-shadow:0 4px 10px rgba(0,0,0,.35)}.nt-dock .min svg{width:20px;height:20px}',
+    '.nt-dock .exam{display:none;text-align:center;font-weight:800;font-size:13px;color:#FCA5A5;padding:4px 0}',
+    'body.exam-mode .nt-dock .row,body.exam-mode .nt-dock input[type=range]{display:none}body.exam-mode .nt-dock .exam{display:block}',
+    '.nt-dock.mini{width:auto;padding:8px;border-radius:999px;left:auto;right:max(12px,env(safe-area-inset-right));bottom:calc(76px + env(safe-area-inset-bottom));transform:none}',
+    '.nt-dock.mini .seek,.nt-dock.mini .row>*:not(.pp),.nt-dock.mini .exam{display:none!important}.nt-dock.mini .row{display:flex!important}.nt-dock.mini .pp{width:60px;height:60px;min-width:60px}.nt-dock.mini .min{right:-6px;top:-10px}',
+    'html.nt-touch body.nt-has-dock.nt-mini{padding-bottom:calc(90px + env(safe-area-inset-bottom))!important}',
+    '@media(max-width:1100px){body.nt-has-dock:not(.nt-mini) .nt-fsbox{bottom:calc(168px + env(safe-area-inset-bottom))}}',
+    '@media(max-width:700px){.nt-dock{width:calc(100vw - 20px);bottom:calc(70px + env(safe-area-inset-bottom))}.nt-dock button{min-width:48px;height:48px}.nt-dock .pp{width:62px;height:62px;min-width:62px}.nt-dock .b10{display:none}}'
+  ].join('\n');
+  function boot() {
+    var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+    /* --- cỡ chữ --- */
+    if (document.querySelector('.passage-text,#questions-container,.questions-block')) {
+      var box = document.createElement('div'); box.className = 'nt-fsbox';
+      box.innerHTML = '<button type="button" class="s" data-d="-1" aria-label="Chữ nhỏ hơn">A−</button><span id="nt-fsv"></span><button type="button" data-d="1" aria-label="Chữ to hơn">A+</button>';
+      var paint = function () { document.documentElement.style.setProperty('--nt-fs', fs); document.getElementById('nt-fsv').textContent = Math.round(fs * 100) + '%'; };
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('button'); if (!b) return;
+        fs = Math.max(.8, Math.min(1.6, Math.round((fs + (+b.dataset.d) * .1) * 10) / 10)); LS('nt-fs', fs); paint();
+      });
+      document.body.appendChild(box); paint();
+    }
+    /* --- thanh audio nổi (Listening) --- */
+    var au = document.getElementById('global-audio'); if (!au) return;
+    var dock = document.createElement('div'); dock.className = 'nt-dock';
+    var mini = LS('nt-dock-mini') === '1';
+    dock.innerHTML = '<button type="button" class="min" aria-label="Thu gọn">' + I.down + '</button>' +
+      '<div class="seek"><span id="nt-cur">0:00</span><input type="range" id="nt-seek" min="0" max="1000" value="0" aria-label="Tua"><span id="nt-dur">0:00</span></div>' +
+      '<div class="row"><button type="button" class="b10" data-s="-10">' + I.back + '10</button><button type="button" data-s="-5">' + I.back + '5</button>' +
+      '<button type="button" class="pp" aria-label="Phát / dừng">' + I.play + '</button>' +
+      '<button type="button" data-s="5">5' + I.fwd + '</button><button type="button" class="b10" data-s="10">10' + I.fwd + '</button>' +
+      '<button type="button" class="spd" aria-label="Tốc độ">1x</button></div>' +
+      '<div class="exam">Thi thật: audio phát liên tục, không dừng / tua được</div>';
+    document.body.appendChild(dock); document.body.classList.add('nt-has-dock');
+    var pp = dock.querySelector('.pp'), seek = dock.querySelector('#nt-seek'), spd = dock.querySelector('.spd'), minB = dock.querySelector('.min');
+    var setMini = function (v) { mini = v; dock.classList.toggle('mini', v); document.body.classList.toggle('nt-mini', v); minB.innerHTML = v ? I.up : I.down; minB.setAttribute('aria-label', v ? 'Mở rộng' : 'Thu gọn'); LS('nt-dock-mini', v ? '1' : '0'); };
+    setMini(mini);
+    minB.onclick = function () { setMini(!mini); };
+    var fmt = function (t) { t = Math.max(0, Math.floor(t || 0)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+    var dragging = false;
+    var paintT = function () {
+      var d = au.duration || 0; document.getElementById('nt-dur').textContent = fmt(d);
+      if (!dragging) { document.getElementById('nt-cur').textContent = fmt(au.currentTime); var p = d ? au.currentTime / d * 1000 : 0; seek.value = p; seek.style.setProperty('--p', p / 10 + '%'); }
+    };
+    var paintP = function () { pp.innerHTML = au.paused ? I.play : I.pause; };
+    ['timeupdate', 'loadedmetadata', 'durationchange', 'seeked'].forEach(function (ev) { au.addEventListener(ev, paintT); });
+    ['play', 'pause', 'ended'].forEach(function (ev) { au.addEventListener(ev, paintP); });
+    pp.onclick = function () { if (typeof window.toggleAudioPlay === 'function') window.toggleAudioPlay(); else if (au.paused) au.play(); else au.pause(); setTimeout(paintP, 50); };
+    dock.querySelectorAll('[data-s]').forEach(function (b) { b.onclick = function () { var n = +b.dataset.s; if (typeof window.seekBy === 'function') window.seekBy(n); else au.currentTime = Math.max(0, au.currentTime + n); }; });
+    seek.addEventListener('input', function () { dragging = true; var d = au.duration || 0; document.getElementById('nt-cur').textContent = fmt(seek.value / 1000 * d); seek.style.setProperty('--p', seek.value / 10 + '%'); });
+    seek.addEventListener('change', function () { var d = au.duration || 0; if (d) au.currentTime = seek.value / 1000 * d; dragging = false; });
+    var SP = [0.75, 1, 1.25, 1.5];
+    var paintS = function () { spd.textContent = (au.playbackRate || 1) + 'x'; };
+    spd.onclick = function () {
+      var i = (SP.indexOf(au.playbackRate) + 1) % SP.length, v = SP[i];
+      var sel = document.querySelector('.audio-speed select');
+      if (sel) { sel.value = String(v); sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      if (typeof window.setAudioSpeed === 'function') window.setAudioSpeed(String(v)); else au.playbackRate = v;
+      setTimeout(paintS, 30);
+    };
+    au.addEventListener('ratechange', paintS);
+    paintT(); paintP(); paintS();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
