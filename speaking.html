@@ -1187,7 +1187,7 @@ Is it better to read a physical book or an e-book?"></textarea>
   'use strict';
 
   var ENGINE = {
-    rubric: 'v18',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
+    rubric: 'v22',                       // đổi khi đổi prompt/schema -> lịch sử biết lần nào chấm theo bản nào
     asrModel: 'whisper-large-v3',
     asrModel2: 'whisper-large-v3-turbo',   // lần nhận dạng thứ 2 (không nhắc) để so sánh
     // Câu "mồi" cho Whisper: viết theo kiểu nói có um/uh, lặp từ, ngắt câu -> Whisper bắt chước, giữ lại các hiện tượng đó.
@@ -2174,45 +2174,38 @@ Is it better to read a physical book or an e-book?"></textarea>
       lexErrors: num(inv.lexErrors), gramErrors: num(inv.gramErrors), basicSystematic: inv.basicSystematic === true,
       dropped: (Array.isArray(inv.lexis) ? inv.lexis.length : 0) + (Array.isArray(inv.idioms) ? inv.idioms.length : 0) + (Array.isArray(inv.complex) ? inv.complex.length : 0) - lexis.length - idioms.length - complex.length };
   }
+  /* V22 (11/2026): BỎ "ĐẾM CHỈ TIÊU". IELTS không có luật "đủ N idiom / N cụm từ / N loại câu phức mới lên band":
+     giám khảo chấm CHẤT LƯỢNG (tự nhiên, chính xác, linh hoạt, đúng ngữ cảnh). Idiom không bắt buộc — collocation, phrasal verb,
+     cách nói tự nhiên của người bản xứ đều là "idiomatic language". Code chỉ còn vài LAN CAN chặn bài thật sự cơ bản bị chấm quá tay
+     (không có từ nào ngoài từ cơ bản, chỉ toàn câu đơn, lỗi rất dày, trả lời 1 câu cụt) — không bao giờ đòi đủ số lượng để lên 7–8. */
   function evidenceCaps(v, part, words, wpm, fillers) {
     part = Number(part) || 1; words = Number(words) || 0;
-    var P1 = part === 1, caps = {}, why = {};
+    var P1 = part === 1, P2 = part === 2, caps = {}, why = {};
     var cap = function (k, b, r) { if (caps[k] == null || b < caps[k]) { caps[k] = b; why[k] = r; } };
-    // TỪ VỰNG: số từ/cụm ít phổ biến + thành ngữ có thật trong bài
-    var nl = v.lexis.length + v.idioms.length, need7 = P1 ? 3 : 4, need8 = P1 ? 5 : 7;   // V16: chặt hơn
-    if (nl === 0) cap('lexical', 5, 'chưa có từ / cụm nào ít phổ biến — toàn từ cơ bản');
-    else if (nl === 1) cap('lexical', 5.5, 'chỉ có 1 từ/cụm ít phổ biến, còn lại là từ cơ bản');
-    else if (nl < need7) cap('lexical', 6, 'mới có ' + nl + ' từ/cụm ít phổ biến (band 7 cần ≥ ' + need7 + ')');
-    else if (nl < need8 || !v.idioms.length) cap('lexical', 7.5, 'band 8 cần ≥ ' + need8 + ' từ/cụm ít phổ biến và có cụm thành ngữ / cách nói tự nhiên');
-    if (words && v.lexErrors / words * 100 > 4) cap('lexical', 6, 'dùng sai từ khá nhiều (' + v.lexErrors + ' lỗi)');
-    // NGỮ PHÁP: số LOẠI cấu trúc phức dùng đúng + mật độ lỗi
-    var nt = v.types.length, g7 = P1 ? 2 : 3, g8 = P1 ? 3 : 4, ger = words ? v.gramErrors / words * 100 : 0;
-    if (nt === 0) cap('grammar', P1 ? 5.5 : 5, 'chỉ có câu đơn, chưa có cấu trúc phức nào dùng đúng');
-    else if (nt === 1) cap('grammar', P1 ? 6 : 5.5, 'mới có 1 loại cấu trúc phức (chủ yếu câu đơn)');
-    else if (nt < g7) cap('grammar', 6, 'mới có ' + nt + ' loại cấu trúc phức (band 7 cần ≥ ' + g7 + ' loại)');
-    else if (nt < g8) cap('grammar', 7.5, 'band 8 cần ≥ ' + g8 + ' loại cấu trúc phức');
+    var cw = Math.max(0, words - (fillers || 0));
+    // TỪ VỰNG: chỉ chặn khi KHÔNG có từ/cụm nào ngoài từ cơ bản, hoặc dùng sai từ rất nhiều
+    var nl = v.lexis.length + v.idioms.length;
+    if (nl === 0 && cw >= 12) cap('lexical', 6, 'toàn từ cơ bản, chưa có từ / cụm nào chính xác hay tự nhiên hơn mức thông dụng');
+    if (words && v.lexErrors / words * 100 > 7) cap('lexical', 5.5, 'dùng sai từ / collocation rất nhiều (' + v.lexErrors + ' lỗi)');
+    else if (words && v.lexErrors / words * 100 > 4) cap('lexical', 6.5, 'dùng sai từ / collocation khá nhiều (' + v.lexErrors + ' lỗi)');
+    // NGỮ PHÁP: chỉ chặn khi toàn câu đơn, hoặc lỗi dày
+    var ger = words ? v.gramErrors / words * 100 : 0;
+    if (v.types.length === 0 && cw >= 15) cap('grammar', P1 ? 6 : 5.5, 'chỉ có câu đơn, chưa có cấu trúc phức nào dùng đúng');
     if (ger > 10) cap('grammar', 5, 'lỗi ngữ pháp rất dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
-    else if (ger > 6) cap('grammar', 5.5, 'lỗi ngữ pháp dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
-    else if (ger > 3.5 || v.basicSystematic) cap('grammar', 6, v.basicSystematic ? 'lặp lại cùng một lỗi cơ bản' : 'lỗi ngữ pháp còn nhiều (' + v.gramErrors + ' lỗi)');
-    else if (ger > 2) cap('grammar', 7, 'band 8 cần phần lớn câu không lỗi');
-    // V17: BÀI QUÁ NGẮN (không tính er/um) -> giới hạn cả 3 tiêu chí: quá ít ngôn ngữ để chứng minh band cao
-    var cw = Math.max(0, words - (fillers || 0)), S1 = P1 ? [10, 18, 28] : part === 2 ? [40, 70, 100] : [15, 28, 40];
-    if (cw < S1[0]) { cap('fluency', 4, 'trả lời quá ngắn (' + cw + ' từ), chưa phát triển ý'); cap('lexical', 4, 'quá ít từ để thể hiện vốn từ (' + cw + ' từ)'); cap('grammar', 4, 'quá ít câu để thể hiện ngữ pháp (' + cw + ' từ)'); }
-    else if (cw < S1[1]) { cap('fluency', 4, 'trả lời rất ngắn (' + cw + ' từ), chưa có lý do / ví dụ'); cap('lexical', 4.5, 'bài ngắn, vốn từ thể hiện được rất ít (' + cw + ' từ)'); cap('grammar', 4.5, 'bài ngắn, chủ yếu 1 câu đơn (' + cw + ' từ)'); }
-    else if (cw < S1[2]) { cap('fluency', 5.5, 'trả lời còn ngắn (' + cw + ' từ), cần mở rộng thêm lý do / ví dụ'); cap('lexical', 6, 'bài ngắn nên vốn từ thể hiện được ít (' + cw + ' từ)'); cap('grammar', 6, 'bài ngắn nên ít cấu trúc (' + cw + ' từ)'); }
-    // TRÔI CHẢY: độ dài theo Part + từ nối + tốc độ
-    var L = P1 ? [12, 20, 30] : part === 2 ? [70, 110, 150] : [25, 40, 60];
-    if (words < L[0]) cap('fluency', 5, 'câu trả lời quá ngắn (' + words + ' từ)');
-    else if (words < L[1]) cap('fluency', 6, 'câu trả lời còn ngắn, chưa phát triển ý (' + words + ' từ)');
-    else if (words < L[2]) cap('fluency', 7, 'band 7.5+ cần nói dài và phát triển ý hơn (' + words + ' từ)');
-    if (!P1 && v.markers.length < 2) cap('fluency', 6.5, 'ít từ nối / discourse marker (band 7 cần dùng đa dạng)');
+    else if (ger > 7) cap('grammar', 5.5, 'lỗi ngữ pháp dày (' + v.gramErrors + ' lỗi / ' + words + ' từ)');
+    else if (ger > 4.5 || v.basicSystematic) cap('grammar', 6, v.basicSystematic ? 'lặp lại cùng một lỗi ngữ pháp cơ bản' : 'lỗi ngữ pháp còn nhiều (' + v.gramErrors + ' lỗi)');
+    else if (ger > 3) cap('grammar', 7, 'band 8 cần phần lớn câu không lỗi (' + v.gramErrors + ' lỗi)');
+    // BÀI CỤT: quá ít lời để có bằng chứng (Part 1 ngắn là bình thường — chỉ chặn trả lời 1 câu cụt)
+    var S = P1 ? [7, 12] : P2 ? [35, 60] : [12, 20];
+    if (cw < S[0]) { cap('fluency', 4.5, 'trả lời quá ngắn (' + cw + ' từ), chưa phát triển ý'); cap('lexical', 5, 'quá ít lời để thể hiện vốn từ (' + cw + ' từ)'); cap('grammar', 5, 'quá ít lời để thể hiện ngữ pháp (' + cw + ' từ)'); }
+    else if (cw < S[1]) { cap('fluency', 6, 'trả lời ngắn (' + cw + ' từ), nên thêm lý do / ví dụ'); }
+    // TRÔI CHẢY: ngập ngừng / nói chậm chỉ chặn khi rõ rệt (người bản xứ cũng có "um" và ngừng để nghĩ)
     var fr = words ? (fillers || 0) / words * 100 : 0;
-    if (fr > 16) cap('fluency', 5, 'ngập ngừng rất nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
-    else if (fr > 11) cap('fluency', 5.5, 'ngập ngừng nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
-    else if (fr > 8) cap('fluency', 6, 'còn ngập ngừng khá nhiều (' + fillers + ' lần "er/um")');
-    else if (fr > 5) cap('fluency', 7, 'band 7.5+ cần ít "er/um" hơn (' + fillers + ' lần)');   // V20: nới — band 7 vẫn cho phép ngập ngừng tự nhiên
-    if (wpm && wpm < 75) cap('fluency', 6, 'nói chậm (' + wpm + ' từ/phút)');
-    else if (wpm && wpm < 95) cap('fluency', 7, 'tốc độ nói còn chậm (' + wpm + ' từ/phút)');
+    if (fr > 18) cap('fluency', 5, 'ngập ngừng rất nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
+    else if (fr > 13) cap('fluency', 5.5, 'ngập ngừng nhiều (' + fillers + ' lần "er/um" trong ' + words + ' từ)');
+    else if (fr > 10) cap('fluency', 6.5, 'còn ngập ngừng khá nhiều (' + fillers + ' lần "er/um")');
+    if (wpm && wpm < 65) cap('fluency', 6, 'nói rất chậm (' + wpm + ' từ/phút)');
+    else if (wpm && wpm < 80) cap('fluency', 7, 'tốc độ nói còn chậm (' + wpm + ' từ/phút)');
     return { caps: caps, why: why };
   }
   var CK_BANDS = [4, 5, 6, 7, 8, 9];
@@ -5275,8 +5268,8 @@ Is it better to read a physical book or an e-book?"></textarea>
       'LEXICAL RESOURCE: 5 = enough words for familiar topics but mostly basic, limited flexibility, frequent word-choice problems; 6 = vocabulary wide enough to discuss at length and make meaning clear despite some inappropriacies, generally paraphrases successfully; 7 = uses less common and idiomatic vocabulary, some awareness of style and collocation, a few inappropriate choices; 8 = wide resource used readily and flexibly for precise meaning, less common and idiomatic items used skilfully with occasional inaccuracy; 9 = full flexibility and precision, idiomatic language natural and accurate. ' +
       'GRAMMATICAL RANGE & ACCURACY: 5 = basic forms fairly controlled, limited complex structures, which usually contain errors; 6 = a mix of simple and complex structures with limited flexibility, frequent errors in complex structures but rarely affecting comprehension; 7 = a range of complex structures with some flexibility, frequent error-free sentences, a few errors persist; 8 = a wide range used flexibly, the majority of sentences error-free, only occasional slips; 9 = full range used naturally and accurately. ' +
       'PRONUNCIATION: rule 7. ' +
-      'CALIBRATION: a short answer of simple, common words (good, nice, like, very, many, interesting) with no developed ideas is band 5-6 even if error-free; error-free simple English is band 6 evidence, NOT band 7. Band 7 needs a visible range of less common / precise vocabulary AND several kinds of complex grammar with good control. Band 8 needs that range used flexibly and precisely across a developed answer with very few errors. PART 1 IS SHORT BY DESIGN: 2-5 natural sentences (about 25-70 words) is a complete Part 1 answer, do not penalise it for not being as long as Part 2; a one-line Part 1 reply is a minimal answer. Assess each criterion independently; do not pull criteria towards an average. The application checks your "inventory" against the transcript and caps Lexical and Grammar when too few real items are found, and caps Fluency for very short answers, so list items honestly.',
-    'RULES. (1) Credit what the answer does show: one natural collocation or one correct complex structure is real evidence, but alone it never establishes band 7. Never reward sophistication for its own sake: rare words used unnaturally earn nothing, common words used precisely are fine. ' +
+      'CALIBRATION: judge QUALITY, never QUANTITY. There is NO rule in IELTS that a band needs a certain number of idioms, less common words or complex structures, and an answer is NEVER marked down for "too few idioms": idioms are optional, and natural collocations, phrasal verbs, precise word choice and natural spoken expressions ARE idiomatic language. A short answer of only simple, common words (good, nice, like, very, interesting) with no developed ideas is band 5-6 even if error-free. But natural, precise, flexible English that sounds like a proficient or native speaker (correct collocations, natural phrasing, ideas developed with reasons or examples, a range of structures used accurately) is band 7.5-9 even when every word is common and no idiom is used: an experienced English teacher or a native speaker answering naturally should normally land at 7.5-9, not 6-7. Do not demand sophistication: native-like ease and precision outrank rare words; forced or unnatural idioms count AGAINST the candidate. PART 1 IS SHORT BY DESIGN: 2-5 natural sentences (about 25-70 words) is a complete Part 1 answer and can reach band 8-9 if the language is natural and precise; do not penalise it for not being as long as Part 2. Assess each criterion independently; do not pull criteria towards an average. The application only uses your "inventory" as a sanity check against clearly basic answers (no word beyond the most common ones, only simple sentences, very dense errors); it never requires a number of items, so list what is really there.',
+    'RULES. (1) Credit what the answer does show, judged on naturalness, precision and control rather than how many "advanced" items it contains. Never reward sophistication for its own sake: rare words or idioms used unnaturally earn nothing, common words used precisely and naturally are high-band evidence. ' +
             '(2) WHAT WAS ACTUALLY SAID: judge grammar and vocabulary on the most likely spoken words. A finding with status "likely" gives the probable form (e.g. "many student"): assess that form and report the error as "likely". An "uncertain" finding, a low-confidence segment or anything that could be a recognition error must never count against the candidate or turn a box into "n"; if mentioned, mark the edit "uncertain". Ignore words flagged possible_hallucination. ' +
             '(3) SPEECH, NOT WRITING: every full stop, comma, question mark and capital letter was inserted by the recogniser. Never judge punctuation, capitalisation, sentence boundaries, run-ons, comma splices or fragments; never count "error-free sentences" by full stops. Contractions, ellipsis, incomplete but natural conversational sentences, starting with And/But, "the neighbours, they usually go...", tag-on phrases are normal speech, not errors. ' +
             '(4) FLUENCY: fillers, repetitions and false starts are Fluency evidence only, never Grammar or Lexical errors; repetition caused by hesitation is not limited vocabulary. Speed is not fluency; pauses between ideas or to plan content are fine; hesitation matters only when frequent, language-related (searching for words or grammar) or disruptive. The recogniser often removes fillers, so their absence proves nothing. Use fluency_measurements for any claim about pauses or speed, as support, never as an automatic band. ' +
